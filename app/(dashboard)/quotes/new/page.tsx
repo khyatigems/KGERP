@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { QuotationForm } from "@/components/quotes/quotation-form";
 
@@ -102,7 +103,12 @@ export default async function NewQuotationPage() {
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
-          <QuotationForm availableItems={availableItems} existingCustomers={existingCustomers} />
+          <Suspense fallback={null}>
+            <QuotationForm
+              availableItems={availableItems}
+              existingCustomers={existingCustomers}
+            />
+          </Suspense>
         </div>
       </div>
     </div>

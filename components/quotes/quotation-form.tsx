@@ -59,7 +59,7 @@ interface QuotationFormProps {
   existingCustomers?: ExistingCustomer[];
   initialData?: {
     id: string;
-    customerName: string;
+    customerName: string | null;
     customerMobile?: string | null;
     customerEmail?: string | null;
     customerCity?: string | null;

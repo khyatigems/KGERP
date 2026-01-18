@@ -47,7 +47,7 @@ export function ListingForm({ inventoryItems }: ListingFormProps) {
   const today = new Date().toISOString().split("T")[0];
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       inventoryId: "",
       platform: "WHATSAPP",

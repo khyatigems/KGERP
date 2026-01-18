@@ -32,19 +32,19 @@ export default async function EditPurchasePage({
   // Transform purchase items to match the expected interface
   const transformedPurchase = {
     ...purchase,
-    items: purchase.items.map(item => ({
+    items: purchase.items.map((item) => ({
       itemName: item.itemName,
       category: item.category || "Other",
       shape: item.shape || "",
       sizeValue: item.sizeValue || "",
       sizeUnit: item.sizeUnit || "",
-      beadSizeMm: item.beadSizeMm || undefined,
+      beadSizeMm: item.beadSizeMm ?? null,
       weightType: item.weightType || "cts",
       quantity: item.quantity,
       costPerUnit: item.costPerUnit,
       totalCost: item.totalCost,
       remarks: item.remarks || "",
-    }))
+    })),
   };
 
   const vendors = await prisma.vendor.findMany({

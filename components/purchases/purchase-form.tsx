@@ -429,7 +429,7 @@ export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
   };
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as any,
     values: defaultValues,
   });
 
