@@ -29,8 +29,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { createQuotation } from "@/app/(dashboard)/quotes/actions";
+import { createQuotation, updateQuotation } from "@/app/(dashboard)/quotes/actions";
 import { Inventory } from "@prisma/client";
+import { useSearchParams } from "next/navigation";
 
 const formSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
@@ -45,13 +46,26 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface QuotationFormProps {
-  availableItems: Inventory[];
+interface ExistingCustomer {
+  id: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  city?: string | null;
 }
 
-export function QuotationForm({ availableItems }: QuotationFormProps) {
+interface QuotationFormProps {
+  availableItems: Inventory[];
+  existingCustomers?: ExistingCustomer[];
+  initialData?: any;
+}
+
+export function QuotationForm({ availableItems, existingCustomers = [], initialData }: QuotationFormProps) {
   const [isPending, setIsPending] = useState(false);
   const [open, setOpen] = useState(false);
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const preSelectedInventoryId = searchParams.get("inventoryId");
 
   // Default expiry: 7 days from now
   const defaultExpiry = new Date();
@@ -61,12 +75,12 @@ export function QuotationForm({ availableItems }: QuotationFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      customerName: "",
-      customerMobile: "",
-      customerEmail: "",
-      customerCity: "",
-      expiryDate: defaultExpiryStr,
-      itemIds: [],
+      customerName: initialData?.customerName || "",
+      customerMobile: initialData?.customerMobile || "",
+      customerEmail: initialData?.customerEmail || "",
+      customerCity: initialData?.customerCity || "",
+      expiryDate: initialData?.expiryDate ? new Date(initialData.expiryDate).toISOString().split("T")[0] : defaultExpiryStr,
+      itemIds: initialData?.items ? initialData.items.map((i: any) => i.inventoryId) : (preSelectedInventoryId ? [preSelectedInventoryId] : []),
     },
   });
 
@@ -96,7 +110,11 @@ export function QuotationForm({ availableItems }: QuotationFormProps) {
     formData.append("itemIds", JSON.stringify(data.itemIds));
 
     try {
-        await createQuotation(null, formData);
+        if (initialData?.id) {
+            await updateQuotation(initialData.id, null, formData);
+        } else {
+            await createQuotation(null, formData);
+        }
     } catch (error) {
         console.error(error);
     } finally {
@@ -123,6 +141,63 @@ export function QuotationForm({ availableItems }: QuotationFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Customer Details</h3>
+            {existingCustomers.length > 0 && (
+              <FormItem>
+                <FormLabel>Existing Customer</FormLabel>
+                <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between"
+                    >
+                      {(() => {
+                        const name = form.getValues("customerName");
+                        const phone = form.getValues("customerMobile");
+                        if (!name) {
+                          return "Select existing customer";
+                        }
+                        const displayPhone = phone ? ` | ${phone}` : "";
+                        return `${name}${displayPhone}`;
+                      })()}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search customer..." />
+                      <CommandList>
+                        <CommandEmpty>No customer found.</CommandEmpty>
+                        <CommandGroup className="max-h-[300px] overflow-auto">
+                          {existingCustomers.map((customer) => (
+                            <CommandItem
+                              key={customer.id}
+                              value={`${customer.name} ${customer.phone || ""} ${customer.email || ""}`}
+                              onSelect={() => {
+                                form.setValue("customerName", customer.name);
+                                form.setValue("customerMobile", customer.phone || "");
+                                form.setValue("customerEmail", customer.email || "");
+                                form.setValue("customerCity", customer.city || "");
+                                setCustomerOpen(false);
+                              }}
+                            >
+                              <div className="flex flex-col">
+                                <span>{customer.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {customer.phone || ""}
+                                  {customer.phone && customer.email ? " · " : ""}
+                                  {customer.email || ""}
+                                </span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </FormItem>
+            )}
             <FormField
               control={form.control}
               name="customerName"

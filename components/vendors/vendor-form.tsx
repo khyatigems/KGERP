@@ -19,6 +19,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { createVendor, updateVendor } from "@/app/(dashboard)/vendors/actions";
 import { Vendor } from "@prisma/client";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 const formSchema = z.object({
   name: z.string().min(1, "Vendor name is required"),
   phone: z.string().optional(),
@@ -29,6 +37,7 @@ const formSchema = z.object({
   country: z.string().optional(),
   vendorType: z.string().optional(),
   notes: z.string().optional(),
+  status: z.enum(["PENDING", "APPROVED", "BLOCKED"]).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -52,6 +61,7 @@ export function VendorForm({ vendor }: VendorFormProps) {
       country: vendor?.country || "",
       vendorType: vendor?.vendorType || "General",
       notes: vendor?.notes || "",
+      status: (vendor?.status as "PENDING" | "APPROVED" | "BLOCKED") || "APPROVED",
     },
   });
 
@@ -136,6 +146,29 @@ export function VendorForm({ vendor }: VendorFormProps) {
                   <FormControl>
                     <Input placeholder="e.g. Wholesaler, Cutter" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="APPROVED">Approved</SelectItem>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="BLOCKED">Blocked</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

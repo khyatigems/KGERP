@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -22,18 +22,22 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { createInventory } from "@/app/(dashboard)/inventory/actions";
-import { useState } from "react";
+import { createInventory, updateInventory } from "@/app/(dashboard)/inventory/actions";
+import { useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
+import { Inventory, Media, CategoryCode, GemstoneCode, ColorCode } from "@prisma/client";
 
 const formSchema = z.object({
   itemName: z.string().min(1, "Item name is required"),
   internalName: z.string().optional(),
+  category: z.string().min(1, "Category is required"),
   gemType: z.string().min(1, "Gem type is required"),
+  color: z.string().min(1, "Color is required"),
   shape: z.string().min(1, "Shape is required"),
   dimensionsMm: z.string().optional(),
   weightValue: z.coerce.number().positive("Weight must be positive"),
   weightUnit: z.string().default("cts"),
+  weightRatti: z.coerce.number().optional(),
   treatment: z.string().optional(),
   certification: z.string().optional(),
   vendorId: z.string().min(1, "Vendor is required"),
@@ -44,42 +48,176 @@ const formSchema = z.object({
   flatSellingPrice: z.coerce.number().optional(),
   notes: z.string().optional(),
   stockLocation: z.string().optional(),
-  // media: z.string().url().optional().or(z.literal("")),
+  mediaUrl: z.string().url().optional().or(z.literal("")),
+  categoryCodeId: z.string().min(1, "Category code is required"),
+  gemstoneCodeId: z.string().min(1, "Gemstone code is required"),
+  colorCodeId: z.string().min(1, "Color code is required"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 interface InventoryFormProps {
   vendors: { id: string; name: string }[];
+  categories: CategoryCode[];
+  gemstones: GemstoneCode[];
+  colors: ColorCode[];
+  initialData?: Inventory & { media: Media[] };
 }
 
-export function InventoryForm({ vendors }: InventoryFormProps) {
+export function InventoryForm({ vendors, categories, gemstones, colors, initialData }: InventoryFormProps) {
   const [isPending, setIsPending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [skuPreview, setSkuPreview] = useState<string>("");
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
-      itemName: "",
-      internalName: "",
-      gemType: "",
-      shape: "",
-      dimensionsMm: "",
-      weightValue: 0,
-      weightUnit: "cts",
-      treatment: "None",
-      certification: "None",
-      vendorId: "",
-      pricingMode: "PER_CARAT",
-      purchaseRatePerCarat: 0,
-      sellingRatePerCarat: 0,
-      flatPurchaseCost: 0,
-      flatSellingPrice: 0,
-      notes: "",
-      stockLocation: "",
+      itemName: initialData?.itemName || "",
+      internalName: initialData?.internalName || "",
+      category: initialData?.category || categories[0]?.name || "",
+      gemType: initialData?.gemType || gemstones[0]?.name || "",
+      color: (initialData as any)?.color || colors[0]?.name || "",
+      shape: initialData?.shape || "",
+      shape: initialData?.shape || "",
+      dimensionsMm: initialData?.dimensionsMm || "",
+      weightValue: initialData?.weightValue || 0,
+      weightUnit: initialData?.weightUnit || "cts",
+      weightRatti: initialData?.weightRatti || 0,
+      treatment: initialData?.treatment || "None",
+      certification: initialData?.certification || "None",
+      vendorId: initialData?.vendorId || "",
+      pricingMode: (initialData?.pricingMode as "PER_CARAT" | "FLAT") || "PER_CARAT",
+      purchaseRatePerCarat: initialData?.purchaseRatePerCarat || 0,
+      sellingRatePerCarat: initialData?.sellingRatePerCarat || 0,
+      flatPurchaseCost: initialData?.flatPurchaseCost || 0,
+      flatSellingPrice: initialData?.flatSellingPrice || 0,
+      mediaUrl: initialData?.media?.[0]?.url || "",
+      notes: initialData?.notes || "",
+      stockLocation: initialData?.stockLocation || "",
+      categoryCodeId:
+        (initialData as any)?.categoryCodeId ||
+        (categories.find((c) => c.name === (initialData?.category || ""))?.id ??
+          categories[0]?.id ??
+          ""),
+      gemstoneCodeId:
+        (initialData as any)?.gemstoneCodeId ||
+        (gemstones.find((g) => g.name === (initialData?.gemType || ""))?.id ??
+          gemstones[0]?.id ??
+          ""),
+      colorCodeId:
+        (initialData as any)?.colorCodeId ||
+        (colors.find((c) => c.name === ((initialData as any)?.color || ""))?.id ??
+          colors[0]?.id ??
+          ""),
     },
   });
 
   const pricingMode = form.watch("pricingMode");
+  const weightValue = form.watch("weightValue");
+  const weightUnit = form.watch("weightUnit");
+  const categoryName = form.watch("category");
+  const gemName = form.watch("gemType");
+  const colorName = form.watch("color");
+
+  const selectedCategory = categories.find((c) => c.name === categoryName);
+  const selectedGemstone = gemstones.find((g) => g.name === gemName);
+  const selectedColor = colors.find((c) => c.name === colorName);
+
+  useEffect(() => {
+    const catCode = selectedCategory?.code || "CAT";
+    const gemCode = selectedGemstone?.code || "GEM";
+    const colCode = selectedColor?.code || "XX";
+    const wgt = Number(weightValue || 0).toFixed(2);
+    
+    setSkuPreview(`KG-${catCode}-${gemCode}-${colCode}-${wgt}-####`);
+  }, [selectedCategory, selectedGemstone, selectedColor, weightValue]);
+
+  if (
+    selectedCategory &&
+    form.getValues("categoryCodeId") !== selectedCategory.id
+  ) {
+    form.setValue("categoryCodeId", selectedCategory.id);
+  }
+  if (
+    selectedGemstone &&
+    form.getValues("gemstoneCodeId") !== selectedGemstone.id
+  ) {
+    form.setValue("gemstoneCodeId", selectedGemstone.id);
+  }
+  if (selectedColor && form.getValues("colorCodeId") !== selectedColor.id) {
+    form.setValue("colorCodeId", selectedColor.id);
+  }
+
+  // Auto-calculate Ratti
+  // 1 Carat = 1.09 Ratti
+  // 1 Gram = 5 Carats = 5.45 Ratti
+  const calculatedRatti = (() => {
+      const val = Number(weightValue) || 0;
+      if (weightUnit === "cts") {
+          return Number((val * 1.09).toFixed(2));
+      } else if (weightUnit === "gms") {
+          return Number((val * 5 * 1.09).toFixed(2));
+      }
+      return 0;
+  })();
+
+  // Sync calculated Ratti to form state for submission (though we'll recalc on server too)
+  if (form.getValues("weightRatti") !== calculatedRatti) {
+      form.setValue("weightRatti", calculatedRatti);
+  }
+
+  async function handleImageUpload(file: File) {
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      setUploadError("Image upload is not configured. Please set Cloudinary details.");
+      return;
+    }
+
+    setUploadError(null);
+    setIsUploading(true);
+
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      data.append("upload_preset", uploadPreset);
+
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: "POST",
+        body: data,
+      });
+
+      if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Cloudinary error:", errorData);
+      setUploadError(errorData.error?.message || "Failed to upload image. Please try again.");
+      return;
+    }
+
+      type CloudinaryUploadResult = {
+        secure_url?: string;
+      };
+
+      const result = (await response.json()) as CloudinaryUploadResult;
+
+      if (!result.secure_url) {
+        setUploadError("Upload succeeded but no URL returned.");
+        return;
+      }
+
+      form.setValue("mediaUrl", result.secure_url);
+    } catch {
+      setUploadError("Unexpected error during image upload.");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
 
   // We wrap the server action to handle client-side loading state if needed,
   // or just pass formData directly if we weren't doing extra client-side logic.
@@ -110,7 +248,11 @@ export function InventoryForm({ vendors }: InventoryFormProps) {
     // 2. If valid, submit FormData to server action.
     
     try {
-        await createInventory(null, formData);
+        if (initialData) {
+            await updateInventory(initialData.id, null, formData);
+        } else {
+            await createInventory(null, formData);
+        }
     } catch (error) {
         console.error(error);
     } finally {
@@ -126,6 +268,11 @@ export function InventoryForm({ vendors }: InventoryFormProps) {
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Basic Information</h3>
             
+            <div className="p-4 bg-muted/50 rounded-lg border border-dashed flex items-center justify-between">
+                <span className="text-sm font-medium text-muted-foreground">SKU Preview</span>
+                <span className="font-mono font-bold text-primary text-lg">{skuPreview}</span>
+            </div>
+
             <FormField
               control={form.control}
               name="itemName"
@@ -154,6 +301,33 @@ export function InventoryForm({ vendors }: InventoryFormProps) {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categories
+                        .filter((c) => c.active)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.name}>
+                            {c.name} ({c.code})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -167,18 +341,47 @@ export function InventoryForm({ vendors }: InventoryFormProps) {
                           <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Ruby">Ruby</SelectItem>
-                        <SelectItem value="Sapphire">Sapphire</SelectItem>
-                        <SelectItem value="Emerald">Emerald</SelectItem>
-                        <SelectItem value="Diamond">Diamond</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
+                    <SelectContent>
+                      {gemstones
+                        .filter((g) => g.active)
+                        .map((g) => (
+                          <SelectItem key={g.id} value={g.name}>
+                            {g.name} ({g.code})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+            <FormField
+              control={form.control}
+              name="color"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Color</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select color" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {colors
+                        .filter((c) => c.active)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.name}>
+                            {c.name} ({c.code})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
               <FormField
                 control={form.control}
@@ -209,7 +412,7 @@ export function InventoryForm({ vendors }: InventoryFormProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
                <FormField
                 control={form.control}
                 name="weightValue"
@@ -240,6 +443,19 @@ export function InventoryForm({ vendors }: InventoryFormProps) {
                         <SelectItem value="gms">Grams (gms)</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="weightRatti"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Weight (Ratti)</FormLabel>
+                    <FormControl>
+                      <Input {...field} readOnly className="bg-muted" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -399,7 +615,47 @@ export function InventoryForm({ vendors }: InventoryFormProps) {
               )}
             />
 
-             <FormField
+            <FormField
+              control={form.control}
+              name="mediaUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Image</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Input placeholder="https://example.com/image.jpg" {...field} />
+                    </FormControl>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          await handleImageUpload(file);
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? "Uploading..." : "Upload"}
+                    </Button>
+                  </div>
+                  {uploadError && (
+                    <p className="text-xs text-red-500">{uploadError}</p>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (
@@ -417,7 +673,7 @@ export function InventoryForm({ vendors }: InventoryFormProps) {
 
         <Button type="submit" disabled={isPending}>
           {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Create Inventory Item
+          {initialData ? "Update Inventory Item" : "Create Inventory Item"}
         </Button>
       </form>
     </Form>

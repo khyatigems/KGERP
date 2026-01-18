@@ -2,10 +2,11 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { generateQuotationToken } from "@/lib/tokens";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-logger";
+import { generateQuotationToken } from "@/lib/tokens";
 
 const quotationSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
@@ -18,33 +19,20 @@ const quotationSchema = z.object({
 
 export async function createQuotation(prevState: unknown, formData: FormData) {
   const session = await auth();
-  if (!session) {
-    return { message: "Unauthorized" };
-  }
+  if (!session) return { message: "Unauthorized" };
 
-  // Parse itemIds from JSON string if needed, or handle array from FormData
-  // FormData handling for arrays can be tricky.
-  // We'll assume the client sends 'itemIds' as a JSON string or we process getAll.
-  
   const raw = Object.fromEntries(formData.entries());
-  
-  // Handle itemIds separately if passed as JSON string
+
   let itemIds: string[] = [];
-  if (typeof raw.itemIds === 'string') {
-      try {
-          itemIds = JSON.parse(raw.itemIds);
-      } catch (e) {
-          // If not JSON, maybe it's just a single value? 
-          // But for multi-select, JSON string is safer in FormData.
-          itemIds = [raw.itemIds];
-      }
+  if (typeof raw.itemIds === "string") {
+    try {
+      itemIds = JSON.parse(raw.itemIds);
+    } catch (e) {
+      itemIds = [raw.itemIds];
+    }
   }
 
-  const payload = {
-      ...raw,
-      itemIds
-  };
-
+  const payload = { ...raw, itemIds };
   const parsed = quotationSchema.safeParse(payload);
 
   if (!parsed.success) {
@@ -53,69 +41,212 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
 
   const data = parsed.data;
 
-  // Fetch items to calculate totals and get details
   const items = await prisma.inventory.findMany({
-      where: {
-          id: { in: data.itemIds },
-          status: "IN_STOCK" // Only allow in-stock items
-      }
+    where: { id: { in: data.itemIds } },
   });
 
-  if (items.length !== data.itemIds.length) {
-      return { message: "Some items are no longer available" };
+  if (items.length === 0) {
+    return { message: "No inventory items found for quotation" };
   }
 
-  // Calculate Total
   let totalAmount = 0;
-  const quotationItems = items.map(item => {
-      let price = 0;
-      if (item.pricingMode === "PER_CARAT") {
-          price = (item.sellingRatePerCarat || 0) * item.weightValue;
-      } else {
-          price = item.flatSellingPrice || 0;
-      }
-      totalAmount += price;
-      
-      return {
-          inventoryId: item.id,
-          sku: item.sku,
-          itemName: item.itemName,
-          weight: `${item.weightValue} ${item.weightUnit}`,
-          quotedPrice: price
-      };
+  const quotationItemsData = items.map((item) => {
+    let price = 0;
+    if (item.pricingMode === "PER_CARAT") {
+      price = (item.sellingRatePerCarat || 0) * item.weightValue;
+    } else {
+      price = item.flatSellingPrice || 0;
+    }
+    totalAmount += price;
+
+    return {
+      inventoryId: item.id,
+      sku: item.sku,
+      itemName: item.itemName,
+      weight: `${item.weightValue} ${item.weightUnit}`,
+      quotedPrice: price,
+    };
   });
 
   try {
-      await prisma.$transaction(async (tx) => {
-          // Generate Quotation Number (Simple Auto-increment logic or Date-based)
-          // For simplicity, using Q-TIMESTAMP-RANDOM or just count
-          const count = await tx.quotation.count();
-          const quotationNumber = `Q-${new Date().getFullYear()}-${(count + 1).toString().padStart(4, '0')}`;
-          
-          const token = generateQuotationToken();
+    const quotation = await prisma.$transaction(async (tx) => {
+      const count = await tx.quotation.count();
+      const year = new Date().getFullYear();
+      const quotationNumber = `QTN-${year}-${(count + 1)
+        .toString()
+        .padStart(4, "0")}`;
+      const token = generateQuotationToken();
 
-          await tx.quotation.create({
-              data: {
-                  quotationNumber,
-                  customerName: data.customerName,
-                  customerMobile: data.customerMobile,
-                  customerEmail: data.customerEmail,
-                  customerCity: data.customerCity,
-                  expiryDate: data.expiryDate,
-                  totalAmount,
-                  token,
-                  status: "ACTIVE",
-                  items: {
-                      create: quotationItems
-                  }
-              }
-          });
+      return tx.quotation.create({
+        data: {
+          quotationNumber,
+          customerName: data.customerName,
+          customerMobile: data.customerMobile,
+          customerEmail: data.customerEmail || null,
+          customerCity: data.customerCity,
+          expiryDate: data.expiryDate,
+          totalAmount,
+          token,
+          items: {
+            createMany: {
+              data: quotationItemsData,
+            },
+          },
+        },
       });
+    });
+
+    await logActivity({
+      entityType: "Quotation",
+      entityId: quotation.id,
+      entityIdentifier: quotation.quotationNumber,
+      actionType: "CREATE",
+      source: "WEB",
+      userId: session.user?.id || "system",
+      userEmail: session.user?.email,
+      userName: session.user?.name,
+    });
+
+    revalidatePath("/quotes");
+    redirect(`/quotes/${quotation.id}`);
   } catch (e) {
-      console.error(e);
-      return { message: "Failed to create quotation" };
+    console.error(e);
+    return { message: "Failed to create quotation" };
+  }
+}
+
+export async function updateQuotation(
+  id: string,
+  prevState: unknown,
+  formData: FormData
+) {
+  const session = await auth();
+  if (!session) return { message: "Unauthorized" };
+
+  const raw = Object.fromEntries(formData.entries());
+
+  let itemIds: string[] = [];
+  if (typeof raw.itemIds === "string") {
+    try {
+      itemIds = JSON.parse(raw.itemIds);
+    } catch (e) {
+      itemIds = [raw.itemIds];
+    }
+  }
+
+  const payload = { ...raw, itemIds };
+  const parsed = quotationSchema.safeParse(payload);
+
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const data = parsed.data;
+
+  const quote = await prisma.quotation.findUnique({
+    where: { id },
+    include: { items: true },
+  });
+  if (!quote) return { message: "Quotation not found" };
+  if (quote.status !== "ACTIVE") {
+    return { message: "Only ACTIVE quotations can be edited" };
+  }
+
+  const items = await prisma.inventory.findMany({
+    where: { id: { in: data.itemIds } },
+  });
+
+  let totalAmount = 0;
+  const quotationItemsData = items.map((item) => {
+    let price = 0;
+    if (item.pricingMode === "PER_CARAT") {
+      price = (item.sellingRatePerCarat || 0) * item.weightValue;
+    } else {
+      price = item.flatSellingPrice || 0;
+    }
+    totalAmount += price;
+
+    return {
+      quotationId: id,
+      inventoryId: item.id,
+      sku: item.sku,
+      itemName: item.itemName,
+      weight: `${item.weightValue} ${item.weightUnit}`,
+      quotedPrice: price,
+    };
+  });
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.quotationItem.deleteMany({ where: { quotationId: id } });
+
+      await tx.quotation.update({
+        where: { id },
+        data: {
+          customerName: data.customerName,
+          customerMobile: data.customerMobile,
+          customerEmail: data.customerEmail,
+          customerCity: data.customerCity,
+          expiryDate: data.expiryDate,
+          totalAmount,
+          items: {
+            createMany: {
+              data: quotationItemsData.map(({ quotationId, ...rest }) => rest),
+            },
+          },
+        },
+      });
+    });
+
+    await logActivity({
+      entityType: "Quotation",
+      entityId: id,
+      entityIdentifier: quote.quotationNumber,
+      actionType: "EDIT",
+      source: "WEB",
+      userId: session.user?.id || "system",
+      userEmail: session.user?.email,
+      userName: session.user?.name,
+    });
+  } catch (e) {
+    console.error(e);
+    return { message: "Failed to update quotation" };
   }
 
   revalidatePath("/quotes");
-  redirect("/quotes");
+  revalidatePath(`/quotes/${id}`);
+  redirect(`/quotes/${id}`);
+}
+
+export async function cancelQuotation(id: string) {
+  const session = await auth();
+  if (!session) return { message: "Unauthorized" };
+
+  try {
+    const quote = await prisma.quotation.findUnique({ where: { id } });
+    if (!quote) return { message: "Quotation not found" };
+
+    await prisma.quotation.update({
+      where: { id },
+      data: { status: "CANCELLED" },
+    });
+
+    await logActivity({
+      entityType: "Quotation",
+      entityId: id,
+      entityIdentifier: quote.quotationNumber,
+      actionType: "STATUS_CHANGE",
+      fieldChanges: JSON.stringify({ from: quote.status, to: "CANCELLED" }),
+      source: "WEB",
+      userId: session.user?.id || "system",
+      userEmail: session.user?.email,
+      userName: session.user?.name,
+    });
+
+    revalidatePath("/quotes");
+    revalidatePath(`/quotes/${id}`);
+  } catch (e) {
+    console.error(e);
+    return { message: "Failed to cancel quotation" };
+  }
 }

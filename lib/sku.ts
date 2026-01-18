@@ -1,23 +1,34 @@
 import { Prisma } from "@prisma/client";
 
+export function formatCaratWeight(weightValue: number, weightUnit: string) {
+  let carat = weightValue;
+  if (weightUnit === "gms") {
+    carat = weightValue * 5;
+  }
+  return carat.toFixed(2);
+}
+
 export async function generateSku(
   tx: Prisma.TransactionClient,
   params: {
     categoryCode: string; // e.g. LG, BD, CV
-    gemType: string;
-    shape: string;
-    weight: number;
+    gemstoneCode: string; // e.g. RBY, SAP
+    colorCode?: string; // e.g. RED, BLU
+    weightValue: number;
+    weightUnit: string;
   }
 ) {
   // Normalize inputs
-  // Example: KG-LG-AMETHYST-OVAL-5.25-0007
+  // Example: KG-LG-RBY-RED-5.25-0007
   
   const cat = params.categoryCode.toUpperCase();
-  const gem = params.gemType.toUpperCase().replace(/[^A-Z0-9]/g, ""); // Remove spaces/special chars
-  const shp = params.shape.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const wgt = params.weight.toFixed(2);
+  const gem = params.gemstoneCode.toUpperCase().replace(/[^A-Z0-9]/g, ""); 
+  const col = params.colorCode ? params.colorCode.toUpperCase().replace(/[^A-Z0-9]/g, "") : "XX";
   
-  const prefix = `KG-${cat}-${gem}-${shp}-${wgt}`;
+  // Format weight: 5.25
+  const wgt = params.weightValue.toFixed(2);
+  
+  const prefix = `KG-${cat}-${gem}-${col}-${wgt}`;
   
   // Find last SKU starting with this prefix
   const lastItem = await tx.inventory.findFirst({

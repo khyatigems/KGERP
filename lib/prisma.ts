@@ -4,6 +4,13 @@ import { createClient } from '@libsql/client'
 
 const connectionString = process.env.DATABASE_URL
 
+if (!connectionString) {
+  console.error("Prisma: DATABASE_URL is not set");
+} else {
+  const safeLog = connectionString.split("?")[0]
+  console.log("Prisma: Using DATABASE_URL", safeLog);
+}
+
 const globalForPrisma = global as unknown as {
   prisma: PrismaClient | undefined
 }

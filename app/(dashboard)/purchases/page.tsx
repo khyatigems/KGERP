@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Eye, Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,12 +35,20 @@ export default async function PurchasesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Purchases</h1>
-        <Button asChild>
-          <Link href="/purchases/new">
-            <Plus className="mr-2 h-4 w-4" />
-            New Purchase
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/purchases/import">
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/purchases/new">
+              <Plus className="mr-2 h-4 w-4" />
+              New Purchase
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border">
@@ -53,12 +61,13 @@ export default async function PurchasesPage() {
               <TableHead>Items</TableHead>
               <TableHead>Total Cost</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {purchases.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No purchases found.
                 </TableCell>
               </TableRow>
@@ -74,6 +83,14 @@ export default async function PurchasesPage() {
                     <TableCell>{formatCurrency(totalCost)}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{purchase.paymentStatus || "PENDING"}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/purchases/${purchase.id}`}>
+                          <Eye className="mr-1 h-4 w-4" />
+                          View
+                        </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );

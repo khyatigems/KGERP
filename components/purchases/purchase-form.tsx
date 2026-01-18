@@ -1,9 +1,9 @@
 "use client";
 
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Control, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,12 +23,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { createPurchase } from "@/app/(dashboard)/purchases/actions";
+import { createPurchase, updatePurchase } from "@/app/(dashboard)/purchases/actions";
+
+// --- Constants ---
+
+const SHAPE_OPTIONS = [
+  "Oval", "Round", "Cushion", "Emerald", "Pear", "Marquise", "Heart", "Square", "Trillion", "Cabochon", "Freeform", "Rough", // Loose
+  "Ganesh", "Buddha", "Turtle", "Elephant", "Pyramid", "Tower / Pencil", "Shri Yantra", "Coin", // Carvings
+  "Special", "Mixed", "Assorted", // General
+  "Other"
+];
+
+const SIZE_UNITS = ["mm", "ct", "gram", "string", "piece", "mixed", "NA"];
+
+const BEAD_SIZES = ["4", "6", "8", "10", "12", "Mixed", "Other"];
+
+const CHIPS_TYPES = ["Small Chips", "Medium Chips", "Large Chips", "Mixed Chips"];
+
+// --- Schemas ---
 
 const purchaseItemSchema = z.object({
   itemName: z.string().min(1, "Item name required"),
-  category: z.string().optional(),
+  category: z.string().min(1, "Category is required"),
   shape: z.string().optional(),
+  sizeValue: z.string().optional(),
+  sizeUnit: z.string().optional(),
   beadSizeMm: z.coerce.number().optional(),
   weightType: z.string().default("cts"),
   quantity: z.coerce.number().positive("Qty must be positive"),
@@ -51,30 +70,344 @@ type FormValues = z.infer<typeof formSchema>;
 
 interface PurchaseFormProps {
   vendors: { id: string; name: string }[];
+  initialData?: any;
 }
 
-export function PurchaseForm({ vendors }: PurchaseFormProps) {
+// --- Components ---
+
+function PurchaseItemRow({ 
+    index, 
+    form, 
+    remove, 
+    isSingle 
+}: { 
+    index: number; 
+    form: UseFormReturn<FormValues>; 
+    remove: (index: number) => void; 
+    isSingle: boolean; 
+}) {
+    const category = useWatch({ control: form.control, name: `items.${index}.category` });
+    const shape = useWatch({ control: form.control, name: `items.${index}.shape` });
+
+    // Helper to determine if we should show the custom shape input
+    const isCustomShape = shape && !SHAPE_OPTIONS.includes(shape) && shape !== "Other";
+    const showShapeInput = shape === "Other" || isCustomShape;
+
+    // Handle Category Changes Logic
+    const handleCategoryChange = (val: string) => {
+        form.setValue(`items.${index}.category`, val);
+        
+        // Rule: If category = Mixed Lot, default shape = Mixed
+        if (val === "Mixed Lot") {
+            form.setValue(`items.${index}.shape`, "Mixed");
+        }
+    };
+
+    // Handle Bead Size Shortcut
+    const handleBeadSizeChange = (val: string) => {
+        if (val === "Other") return; // Do nothing, let user type
+        // Auto-fill Size Value and Unit
+        form.setValue(`items.${index}.sizeValue`, val);
+        form.setValue(`items.${index}.sizeUnit`, "mm");
+    };
+
+    // Handle Chips Type Shortcut
+    const handleChipsTypeChange = (val: string) => {
+        // Auto-fill Size Value and Unit
+        form.setValue(`items.${index}.sizeValue`, val); // e.g. "Small Chips" -> Size Value? Or just "Small"? User said "Chips Type" dropdown. 
+        // Example: Category "Chips", Size Value "Mixed", Unit "mixed".
+        // Let's set Size Value to the type (e.g. "Small Chips") and Unit to "mixed" or "NA"?
+        // Or strip "Chips"? "Small".
+        // Let's use the full value for clarity.
+        form.setValue(`items.${index}.sizeValue`, val);
+        form.setValue(`items.${index}.sizeUnit`, "mixed");
+    };
+
+    return (
+        <div className="p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-start bg-card border-b last:border-0">
+            {/* Row 1: Basic Info */}
+            <div className="md:col-span-3 space-y-2">
+                <FormField
+                    control={form.control}
+                    name={`items.${index}.itemName`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className={index !== 0 ? "sr-only md:not-sr-only" : ""}>Item Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Item Name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+
+            <div className="md:col-span-2 space-y-2">
+                <FormField
+                    control={form.control}
+                    name={`items.${index}.category`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className={index !== 0 ? "sr-only md:not-sr-only" : ""}>Category</FormLabel>
+                            <Select onValueChange={(val) => handleCategoryChange(val)} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Category" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="Loose Gemstone">Loose Gemstone</SelectItem>
+                                    <SelectItem value="Bracelet">Bracelet</SelectItem>
+                                    <SelectItem value="Ring">Ring</SelectItem>
+                                    <SelectItem value="Pendant">Pendant</SelectItem>
+                                    <SelectItem value="Figure / Idol">Figure / Idol</SelectItem>
+                                    <SelectItem value="Seven Chakra">Seven Chakra</SelectItem>
+                                    <SelectItem value="Chips">Chips</SelectItem>
+                                    <SelectItem value="Beads">Beads</SelectItem>
+                                    <SelectItem value="Mixed Lot">Mixed Lot</SelectItem>
+                                    <SelectItem value="Raw / Rough">Raw / Rough</SelectItem>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+
+            {/* Shape - Conditional */}
+            <div className="md:col-span-2 space-y-2">
+                <FormField
+                    control={form.control}
+                    name={`items.${index}.shape`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className={index !== 0 ? "sr-only md:not-sr-only" : ""}>Shape</FormLabel>
+                            <div className="space-y-2">
+                                <Select 
+                                    onValueChange={(val) => {
+                                        field.onChange(val);
+                                    }} 
+                                    value={SHAPE_OPTIONS.includes(field.value || "") ? field.value : (field.value ? "Other" : undefined)}
+                                >
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Shape" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {SHAPE_OPTIONS.map(opt => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {showShapeInput && (
+                                    <Input 
+                                        placeholder="Type shape..." 
+                                        value={field.value === "Other" ? "" : field.value} 
+                                        onChange={(e) => field.onChange(e.target.value)} 
+                                    />
+                                )}
+                            </div>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+
+            {/* Size / Dimension - Flexible */}
+            <div className="md:col-span-3 space-y-2">
+                 <FormLabel className={index !== 0 ? "sr-only md:not-sr-only" : ""}>Size / Dimension</FormLabel>
+                 <div className="flex space-x-2">
+                    <FormField
+                        control={form.control}
+                        name={`items.${index}.sizeValue`}
+                        render={({ field }) => (
+                            <FormItem className="flex-1">
+                                <FormControl>
+                                    <Input placeholder="Value (e.g. 8, 45x30)" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name={`items.${index}.sizeUnit`}
+                        render={({ field }) => (
+                            <FormItem className="w-24">
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Unit" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {SIZE_UNITS.map(u => (
+                                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </FormItem>
+                        )}
+                    />
+                 </div>
+                 
+                 {/* Shortcuts based on Category */}
+                 {(category === "Beads" || category === "Bracelet") && (
+                     <div className="mt-1">
+                        <Select onValueChange={handleBeadSizeChange}>
+                             <SelectTrigger className="h-7 text-xs">
+                                <SelectValue placeholder="Quick Bead Size..." />
+                             </SelectTrigger>
+                             <SelectContent>
+                                {BEAD_SIZES.map(s => (
+                                    <SelectItem key={s} value={s}>{s === "Other" || s === "Mixed" ? s : `${s}mm`}</SelectItem>
+                                ))}
+                             </SelectContent>
+                        </Select>
+                     </div>
+                 )}
+                 {category === "Chips" && (
+                     <div className="mt-1">
+                        <Select onValueChange={handleChipsTypeChange}>
+                             <SelectTrigger className="h-7 text-xs">
+                                <SelectValue placeholder="Quick Chips Type..." />
+                             </SelectTrigger>
+                             <SelectContent>
+                                {CHIPS_TYPES.map(t => (
+                                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                                ))}
+                             </SelectContent>
+                        </Select>
+                     </div>
+                 )}
+            </div>
+
+            {/* Qty, Cost, Total - Compact */}
+            <div className="md:col-span-2 grid grid-cols-2 gap-2">
+                 <FormField
+                    control={form.control}
+                    name={`items.${index}.quantity`}
+                    render={({ field }) => (
+                        <FormItem>
+                             <FormLabel className={index !== 0 ? "sr-only md:not-sr-only" : ""}>Qty</FormLabel>
+                            <FormControl>
+                                <Input
+                                    type="number"
+                                    placeholder="Qty"
+                                    {...field}
+                                    onChange={(e) => {
+                                        field.onChange(e.target.value);
+                                        const qty = Number(e.target.value) || 0;
+                                        const rate = Number(form.getValues(`items.${index}.costPerUnit`)) || 0;
+                                        form.setValue(`items.${index}.totalCost`, qty * rate);
+                                    }}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name={`items.${index}.costPerUnit`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className={index !== 0 ? "sr-only md:not-sr-only" : ""}>Rate</FormLabel>
+                            <FormControl>
+                                <Input
+                                    type="number"
+                                    placeholder="Rate"
+                                    {...field}
+                                    onChange={(e) => {
+                                        field.onChange(e.target.value);
+                                        const rate = Number(e.target.value) || 0;
+                                        const qty = Number(form.getValues(`items.${index}.quantity`)) || 0;
+                                        form.setValue(`items.${index}.totalCost`, qty * rate);
+                                    }}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+            </div>
+            
+            {/* Delete & Total Display */}
+            <div className="md:col-span-12 flex justify-between items-center pt-2 border-t mt-2">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <span>Total:</span>
+                    <FormField
+                        control={form.control}
+                        name={`items.${index}.totalCost`}
+                        render={({ field }) => (
+                            <span className="font-medium text-foreground">
+                                {Number(field.value).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                            </span>
+                        )}
+                    />
+                </div>
+                <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => remove(index)}
+                    disabled={isSingle}
+                    className="text-destructive hover:text-destructive/90"
+                >
+                    <Trash2 className="h-4 w-4 mr-2" /> Remove Item
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+// --- Main Export ---
+
+export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
   const [isPending, setIsPending] = useState(false);
 
+  const defaultValues: FormValues = initialData ? {
+    vendorId: initialData.vendorId,
+    purchaseDate: new Date(initialData.purchaseDate).toISOString().split("T")[0],
+    invoiceNo: initialData.invoiceNo || "",
+    paymentMode: initialData.paymentMode || "BANK_TRANSFER",
+    paymentStatus: initialData.paymentStatus || "PENDING",
+    remarks: initialData.remarks || "",
+    items: initialData.items.map((item: any) => ({
+      itemName: item.itemName,
+      category: item.category || "Other",
+      shape: item.shape || "",
+      sizeValue: item.sizeValue || "",
+      sizeUnit: item.sizeUnit || "",
+      beadSizeMm: item.beadSizeMm || undefined,
+      weightType: item.weightType || "cts",
+      quantity: item.quantity,
+      costPerUnit: item.costPerUnit,
+      totalCost: item.totalCost,
+      remarks: item.remarks || "",
+    })),
+  } : {
+    vendorId: "",
+    purchaseDate: new Date().toISOString().split("T")[0],
+    invoiceNo: "",
+    paymentMode: "BANK_TRANSFER",
+    paymentStatus: "PENDING",
+    remarks: "",
+    items: [
+        { 
+            itemName: "",
+            category: "",
+            quantity: 0, 
+            costPerUnit: 0, 
+            totalCost: 0, 
+            weightType: "cts" 
+        }
+    ],
+  };
+
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as any,
-    defaultValues: {
-      vendorId: "",
-      purchaseDate: new Date().toISOString().split("T")[0],
-      invoiceNo: "",
-      paymentMode: "BANK_TRANSFER",
-      paymentStatus: "PENDING",
-      remarks: "",
-      items: [
-          { 
-              itemName: "", 
-              quantity: 0, 
-              costPerUnit: 0, 
-              totalCost: 0, 
-              weightType: "cts" 
-          }
-      ],
-    },
+    resolver: zodResolver(formSchema),
+    defaultValues,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -82,9 +415,6 @@ export function PurchaseForm({ vendors }: PurchaseFormProps) {
     name: "items",
   });
 
-  // Watch items to auto-calc total cost per row if needed?
-  // For simplicity, let user input or basic calc could be added.
-  
   async function onSubmit(data: FormValues) {
     setIsPending(true);
     const formData = new FormData();
@@ -98,7 +428,17 @@ export function PurchaseForm({ vendors }: PurchaseFormProps) {
     formData.append("items", JSON.stringify(data.items));
 
     try {
-        await createPurchase(null, formData);
+        let result;
+        if (initialData) {
+            result = await updatePurchase(initialData.id, null, formData);
+        } else {
+            result = await createPurchase(null, formData);
+        }
+
+        if (result?.errors) {
+            // Handle server-side validation errors if needed
+            console.error(result.errors);
+        }
     } catch (error) {
         console.error(error);
     } finally {
@@ -111,7 +451,7 @@ export function PurchaseForm({ vendors }: PurchaseFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Purchase Details</h3>
+            <h3 className="text-lg font-medium">{initialData ? "Edit Purchase" : "Purchase Details"}</h3>
             
             <FormField
               control={form.control}
@@ -239,7 +579,8 @@ export function PurchaseForm({ vendors }: PurchaseFormProps) {
                     variant="outline" 
                     size="sm"
                     onClick={() => append({ 
-                        itemName: "", 
+                        itemName: "",
+                        category: "",
                         quantity: 0, 
                         costPerUnit: 0, 
                         totalCost: 0, 
@@ -251,73 +592,15 @@ export function PurchaseForm({ vendors }: PurchaseFormProps) {
                 </Button>
             </div>
             
-            <div className="border rounded-md divide-y">
+            <div className="border rounded-md">
                 {fields.map((field, index) => (
-                    <div key={field.id} className="p-4 grid grid-cols-1 md:grid-cols-6 gap-4 items-end bg-card">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.itemName`}
-                          render={({ field }) => (
-                            <FormItem className="md:col-span-2">
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Item Name</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Item Name" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.quantity`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Qty</FormLabel>
-                              <FormControl>
-                                <Input type="number" placeholder="Qty" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.costPerUnit`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Cost/Unit</FormLabel>
-                              <FormControl>
-                                <Input type="number" placeholder="Rate" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormField
-                          control={form.control}
-                          name={`items.${index}.totalCost`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className={index !== 0 ? "sr-only" : ""}>Total</FormLabel>
-                              <FormControl>
-                                <Input type="number" placeholder="Total" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <div className="flex justify-end pb-1">
-                            <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => remove(index)}
-                                disabled={fields.length === 1}
-                            >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                        </div>
-                    </div>
+                    <PurchaseItemRow 
+                        key={field.id} 
+                        index={index} 
+                        form={form} 
+                        remove={remove} 
+                        isSingle={fields.length === 1}
+                    />
                 ))}
             </div>
             {form.formState.errors.items && (
@@ -325,10 +608,12 @@ export function PurchaseForm({ vendors }: PurchaseFormProps) {
             )}
         </div>
 
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Record Purchase
-        </Button>
+        <div className="flex justify-end gap-4">
+            <Button type="submit" disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {initialData ? "Update Purchase" : "Create Purchase"}
+            </Button>
+        </div>
       </form>
     </Form>
   );

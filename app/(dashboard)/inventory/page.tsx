@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { InventorySearch } from "@/components/inventory/inventory-search";
+import { InventoryActions } from "@/components/inventory/inventory-actions";
 
 export const metadata: Metadata = {
   title: "Inventory | Khyati Gems",
 };
 
-export default async function InventoryPage() {
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ query?: string; status?: string }>;
+}) {
+  const { query, status } = await searchParams;
+
+  const where: any = {};
+
+  if (query) {
+    where.OR = [
+      { sku: { contains: query } },
+      { itemName: { contains: query } },
+    ];
+  }
+
+  if (status && status !== "ALL") {
+    where.status = status;
+  }
+
   const inventory = await prisma.inventory.findMany({
+    where,
     orderBy: {
       createdAt: "desc",
     },
@@ -36,6 +58,7 @@ export default async function InventoryPage() {
     itemName: item.itemName,
     gemType: item.gemType,
     weight: `${item.weightValue} ${item.weightUnit}`,
+    ratti: item.weightRatti || 0,
     price: formatCurrency(item.pricingMode === "PER_CARAT"
        ? (item.sellingRatePerCarat || 0) * item.weightValue
        : item.flatSellingPrice || 0),
@@ -48,6 +71,7 @@ export default async function InventoryPage() {
     { header: "Name", key: "itemName" },
     { header: "Type", key: "gemType" },
     { header: "Weight", key: "weight" },
+    { header: "Ratti", key: "ratti" },
     { header: "Price", key: "price" },
     { header: "Status", key: "status" },
     { header: "Date", key: "date" }
@@ -64,6 +88,12 @@ export default async function InventoryPage() {
                 columns={columns} 
                 title="Inventory Report" 
             />
+            <Button variant="outline" asChild>
+                <Link href="/inventory/import">
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import
+                </Link>
+            </Button>
             <Button asChild>
               <Link href="/inventory/new">
                 <Plus className="mr-2 h-4 w-4" />
@@ -73,14 +103,20 @@ export default async function InventoryPage() {
         </div>
       </div>
 
+      <div className="bg-card p-4 rounded-md border">
+        <InventorySearch />
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Image</TableHead>
               <TableHead>SKU</TableHead>
               <TableHead>Item Name</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Weight</TableHead>
+              <TableHead>Ratti</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Date Added</TableHead>
@@ -90,7 +126,7 @@ export default async function InventoryPage() {
           <TableBody>
             {inventory.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={10} className="h-24 text-center">
                   No inventory items found.
                 </TableCell>
               </TableRow>
@@ -103,6 +139,19 @@ export default async function InventoryPage() {
 
                 return (
                   <TableRow key={item.id}>
+                    <TableCell>
+                      {item.media[0]?.url ? (
+                        <img
+                          src={item.media[0].url}
+                          alt={item.itemName}
+                          className="h-12 w-12 rounded object-cover border"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded border flex items-center justify-center text-[10px] text-muted-foreground bg-muted">
+                          No image
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">{item.sku}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
@@ -117,6 +166,9 @@ export default async function InventoryPage() {
                     <TableCell>{item.gemType}</TableCell>
                     <TableCell>
                       {item.weightValue} {item.weightUnit}
+                    </TableCell>
+                    <TableCell>
+                        {item.weightRatti ? item.weightRatti.toFixed(2) : "-"}
                     </TableCell>
                     <TableCell>{formatCurrency(price)}</TableCell>
                     <TableCell>
@@ -134,9 +186,7 @@ export default async function InventoryPage() {
                     </TableCell>
                     <TableCell>{formatDate(item.createdAt)}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/inventory/${item.id}/edit`}>Edit</Link>
-                      </Button>
+                      <InventoryActions item={item} />
                     </TableCell>
                   </TableRow>
                 );

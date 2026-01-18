@@ -58,6 +58,7 @@ const formSchema = z.object({
   shippingMethod: z.string().optional(),
   trackingId: z.string().optional(),
   remarks: z.string().optional(),
+  autoDelistListings: z.boolean().default(true),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -91,11 +92,13 @@ export function SaleForm({ inventoryItems }: SaleFormProps) {
       shippingMethod: "COURIER",
       trackingId: "",
       remarks: "",
+      autoDelistListings: true,
     },
   });
 
   // Effect to set price if inventory is selected
   const selectedInventoryId = form.watch("inventoryId");
+  const autoDelist = form.watch("autoDelistListings");
   
   useEffect(() => {
     if (selectedInventoryId) {
@@ -115,6 +118,33 @@ export function SaleForm({ inventoryItems }: SaleFormProps) {
         }
     }
   }, [selectedInventoryId, inventoryItems, form]);
+
+  const [activeListings, setActiveListings] = useState<
+    { id: string; platform: string; listingUrl: string | null }[]
+  >([]);
+
+  useEffect(() => {
+    async function fetchListings() {
+      if (!selectedInventoryId) {
+        setActiveListings([]);
+        return;
+      }
+      try {
+        const res = await fetch(
+          `/api/inventory/${selectedInventoryId}/listings`
+        );
+        if (!res.ok) {
+          setActiveListings([]);
+          return;
+        }
+        const data = await res.json();
+        setActiveListings(data.activeListings || []);
+      } catch {
+        setActiveListings([]);
+      }
+    }
+    fetchListings();
+  }, [selectedInventoryId]);
 
   async function onSubmit(data: FormValues) {
     setIsPending(true);
@@ -282,6 +312,52 @@ export function SaleForm({ inventoryItems }: SaleFormProps) {
                   )}
                 />
             </div>
+
+            {activeListings.length > 0 && (
+              <div className="border rounded-md p-3 bg-yellow-50 text-sm space-y-2">
+                <div className="font-semibold">
+                  This item is currently listed on other platforms:
+                </div>
+                <ul className="list-disc list-inside">
+                  {activeListings.map((listing) => (
+                    <li key={listing.id}>
+                      {listing.platform}
+                      {listing.listingUrl ? (
+                        <>
+                          {" "}
+                          -{" "}
+                          <a
+                            href={listing.listingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline"
+                          >
+                            View listing
+                          </a>
+                        </>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={autoDelist}
+                    onChange={(e) =>
+                      form.setValue(
+                        "autoDelistListings",
+                        e.target.checked,
+                        { shouldDirty: true }
+                      )
+                    }
+                  />
+                  <span>
+                    After recording this sale, mark all these listings as
+                    DELISTED
+                  </span>
+                </div>
+              </div>
+            )}
             
              <div className="grid grid-cols-2 gap-4">
                 <FormField

@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowLeft, ExternalLink, ShoppingCart } from "lucide-react";
+import { QuotationActions } from "@/components/quotes/quotation-actions";
 
 export const metadata: Metadata = {
   title: "Quote Details | Khyati Gems",
@@ -75,6 +76,7 @@ export default async function QuoteDetailPage({
         >
           {quote.status}
         </Badge>
+        <QuotationActions id={quote.id} status={quote.status} items={quote.items} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

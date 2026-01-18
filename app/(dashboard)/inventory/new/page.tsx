@@ -7,18 +7,23 @@ export const metadata: Metadata = {
 };
 
 export default async function NewInventoryPage() {
-  const vendors = await prisma.vendor.findMany({
-    where: {
-      status: "APPROVED",
-    },
-    orderBy: {
-      name: "asc",
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-  });
+  const [vendors, categories, gemstones, colors] = await Promise.all([
+    prisma.vendor.findMany({
+      where: {
+        status: "APPROVED",
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+    prisma.categoryCode.findMany({ orderBy: { name: "asc" } }),
+    prisma.gemstoneCode.findMany({ orderBy: { name: "asc" } }),
+    prisma.colorCode.findMany({ orderBy: { name: "asc" } }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -27,7 +32,7 @@ export default async function NewInventoryPage() {
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
-          <InventoryForm vendors={vendors} />
+          <InventoryForm vendors={vendors} categories={categories} gemstones={gemstones} colors={colors} />
         </div>
       </div>
     </div>

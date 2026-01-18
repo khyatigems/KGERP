@@ -3,6 +3,14 @@ import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildInvoiceWhatsappLink } from "@/lib/whatsapp";
 import { Share2 } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function PublicInvoicePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

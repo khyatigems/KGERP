@@ -62,8 +62,10 @@ model PurchaseItem {
   id          String  @id @default(uuid())
   purchaseId  String
   itemName    String
-  category    String?
+  category    String  // Loose Gemstone | Bracelet | Ring | Pendant | Figure / Idol | Seven Chakra | Chips | Beads | Other
   shape       String?
+  sizeValue   String?
+  sizeUnit    String?
   beadSizeMm  Float?
   weightType  String
   quantity    Float
@@ -81,13 +83,18 @@ model PurchaseItem {
 model Inventory {
   id                     String   @id @default(uuid())
   sku                    String   @unique
+  categoryCodeId         String?
+  gemstoneCodeId         String?
+  colorCodeId            String?
   itemName               String
   internalName           String?
+  category               String   // Loose Gemstone | Bracelet | Ring | Pendant | Figure / Idol | Seven Chakra | Chips | Beads | Other
   gemType                String
   shape                  String?
   dimensionsMm           String?
   weightValue            Float
   weightUnit             String
+  weightRatti            Float?   // Auto-calculated: 1 Carat = 1.09 Ratti
   treatment              String?
   certification           String?
 
@@ -110,6 +117,10 @@ model Inventory {
 
   sale                   Sale?
   media                  Media[]
+  listings               Listing[]
+  categoryCode           CategoryCode? @relation(fields: [categoryCodeId], references: [id])
+  gemstoneCode           GemstoneCode? @relation(fields: [gemstoneCodeId], references: [id])
+  colorCode              ColorCode? @relation(fields: [colorCodeId], references: [id])
   
   // Relations for index (no FK)
   
@@ -130,6 +141,26 @@ model Media {
   inventory   Inventory @relation(fields: [inventoryId], references: [id])
 
   @@index([inventoryId])
+}
+
+//// LISTINGS (PLATFORM TRACKING ONLY)
+
+model Listing {
+  id          String   @id @default(uuid())
+  inventoryId String
+  platform    String   // EBAY | ETSY | WHATSAPP | WEBSITE | AMAZON | OTHERS
+  listingUrl  String?
+  listingRef  String?
+  listedPrice Float
+  listedDate  DateTime @default(now())
+  status      String   @default("LISTED") // LISTED | SOLD | DELISTED
+  createdAt   DateTime @default(now())
+  
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+
+  @@index([inventoryId])
+  @@index([platform])
+  @@index([status])
 }
 
 //// SALES
@@ -214,6 +245,44 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+//// CODE MASTERS
+
+model CategoryCode {
+  id        String     @id @default(uuid())
+  name      String
+  code      String     @unique
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  inventory Inventory[]
+
+  @@index([active])
+}
+
+model GemstoneCode {
+  id        String     @id @default(uuid())
+  name      String
+  code      String     @unique
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  inventory Inventory[]
+
+  @@index([active])
+}
+
+model ColorCode {
+  id        String     @id @default(uuid())
+  name      String
+  code      String     @unique
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  inventory Inventory[]
+
+  @@index([active])
+}
+
 // INVOICE
 model Invoice {
   id            String   @id @default(uuid())
@@ -225,4 +294,24 @@ model Invoice {
   
   // Relations
   sale Sale @relation(fields: [saleId], references: [id])
+}
+
+//// ACTIVITY LOGS
+
+model ActivityLog {
+  id              String   @id @default(uuid())
+  entityType      String   // Inventory, Purchase, Sale, Quotation, Invoice, Vendor, Listing, User
+  entityId        String
+  entityIdentifier String // SKU, Quotation No, Vendor Name, etc.
+  actionType      String   // CREATE, EDIT, DELETE, STATUS_CHANGE
+  fieldChanges    String?  // JSON string storing field changes
+  timestamp       DateTime @default(now())
+  userId          String
+  userName        String?
+  userEmail       String?
+  source          String   // WEB, SYSTEM, CRON, CSV_IMPORT
+
+  @@index([entityType, entityId])
+  @@index([timestamp])
+  @@index([userId])
 }

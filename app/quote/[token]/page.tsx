@@ -3,6 +3,14 @@ import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildUpiUri } from "@/lib/upi";
 import QRCode from "qrcode";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function PublicQuotationPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

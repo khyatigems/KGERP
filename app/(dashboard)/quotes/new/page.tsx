@@ -16,6 +16,85 @@ export default async function NewQuotationPage() {
     },
   });
 
+  const salesCustomers = await prisma.sale.findMany({
+    select: {
+      customerName: true,
+      customerPhone: true,
+      customerEmail: true,
+      customerCity: true,
+      createdAt: true,
+    },
+    where: {
+      customerName: {
+        not: null,
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 50,
+  });
+
+  const quotedCustomers = await prisma.quotation.findMany({
+    select: {
+      customerName: true,
+      customerMobile: true,
+      customerEmail: true,
+      customerCity: true,
+      createdAt: true,
+    },
+    where: {
+      customerName: {
+        not: null,
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 50,
+  });
+
+  const customerMap = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      phone?: string | null;
+      email?: string | null;
+      city?: string | null;
+    }
+  >();
+
+  salesCustomers.forEach((c, index) => {
+    if (!c.customerName) return;
+    const key = `${c.customerName.trim()}|${(c.customerPhone || "").trim()}|${(c.customerEmail || "").trim()}`;
+    if (!customerMap.has(key)) {
+      customerMap.set(key, {
+        id: `sale-${index}-${key}`,
+        name: c.customerName,
+        phone: c.customerPhone,
+        email: c.customerEmail,
+        city: c.customerCity,
+      });
+    }
+  });
+
+  quotedCustomers.forEach((c, index) => {
+    if (!c.customerName) return;
+    const key = `${c.customerName.trim()}|${(c.customerMobile || "").trim()}|${(c.customerEmail || "").trim()}`;
+    if (!customerMap.has(key)) {
+      customerMap.set(key, {
+        id: `quote-${index}-${key}`,
+        name: c.customerName,
+        phone: c.customerMobile,
+        email: c.customerEmail,
+        city: c.customerCity,
+      });
+    }
+  });
+
+  const existingCustomers = Array.from(customerMap.values());
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -23,7 +102,7 @@ export default async function NewQuotationPage() {
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
-          <QuotationForm availableItems={availableItems} />
+          <QuotationForm availableItems={availableItems} existingCustomers={existingCustomers} />
         </div>
       </div>
     </div>

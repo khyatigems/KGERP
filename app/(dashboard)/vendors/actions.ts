@@ -16,6 +16,7 @@ const vendorSchema = z.object({
   country: z.string().optional(),
   vendorType: z.string().optional(),
   notes: z.string().optional(),
+  status: z.enum(["PENDING", "APPROVED", "BLOCKED"]).optional(),
 });
 
 export async function createVendor(prevState: unknown, formData: FormData) {
@@ -45,7 +46,7 @@ export async function createVendor(prevState: unknown, formData: FormData) {
         country: data.country,
         vendorType: data.vendorType,
         notes: data.notes,
-        status: "APPROVED", // Auto-approve for now
+        status: data.status || "APPROVED", // Default to APPROVED if not specified
       },
     });
   } catch (e) {
@@ -86,6 +87,7 @@ export async function updateVendor(id: string, prevState: unknown, formData: For
         country: data.country,
         vendorType: data.vendorType,
         notes: data.notes,
+        status: data.status,
       },
     });
   } catch (e) {

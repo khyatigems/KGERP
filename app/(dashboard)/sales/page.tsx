@@ -14,12 +14,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { SalesActions } from "@/components/sales/sales-actions";
+import { auth } from "@/lib/auth";
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
 export const metadata: Metadata = {
   title: "Sales History | Khyati Gems",
 };
 
 export default async function SalesPage() {
+  const session = await auth();
+  const canDelete = session ? hasPermission(session.user?.role || "STAFF", PERMISSIONS.SALES_DELETE) : false;
+
   const sales = await prisma.sale.findMany({
     orderBy: {
       saleDate: "desc",
@@ -86,7 +92,7 @@ export default async function SalesPage() {
               <TableHead>Net Amount</TableHead>
               <TableHead>Profit</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Invoice</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -130,14 +136,11 @@ export default async function SalesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {sale.invoice?.token && (
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/invoice/${sale.invoice.token}`} target="_blank">
-                          <ExternalLink className="mr-2 h-4 w-4" />
-                          View
-                        </Link>
-                      </Button>
-                    )}
+                    <SalesActions 
+                        saleId={sale.id} 
+                        invoiceToken={sale.invoice?.token} 
+                        canDelete={canDelete} 
+                    />
                   </TableCell>
                 </TableRow>
               ))

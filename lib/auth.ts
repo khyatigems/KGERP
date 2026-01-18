@@ -1,7 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
-import { prisma } from "./prisma";
 import { getPermissionsForRole } from "./permissions";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -13,15 +12,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-        
+        if (!credentials?.email || !credentials?.password) {
+          console.log("Auth: Missing credentials");
+          return null;
+        }
+
+        const email = String(credentials.email).trim().toLowerCase();
+        const password = String(credentials.password);
+
+        console.log("Auth: Login attempt for", email);
+
+        // Lazy-load Prisma so Edge Runtime (middleware) does not instantiate PrismaClient
+        const { prisma } = await import("./prisma");
+
         const user = await prisma.user.findUnique({
-          where: { email: String(credentials.email) },
+          where: { email },
         });
 
-        if (!user) return null;
+        if (!user) {
+          console.log("Auth: No user found for email", email);
+          return null;
+        }
 
-        const valid = await compare(String(credentials.password), user.password);
+        const valid = await compare(password, user.password);
+        console.log("Auth: Password valid?", valid);
         if (!valid) return null;
 
         return {
