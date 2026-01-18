@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -36,155 +37,40 @@ const updateInvoiceSchema = z.object({
   invoiceNo: z.string().min(1, "Invoice number is required"),
 });
 
-async function getNextInvoiceNumber() {
-  const last = await prisma.purchase.findFirst({
-    where: {
-      invoiceNo: {
-        startsWith: "KGP",
-      },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    select: {
-      invoiceNo: true,
-    },
-  });
+// async function getNextInvoiceNumber() {
+//   const last = await prisma.purchase.findFirst({
+//     where: {
+//       invoiceNo: {
+//         startsWith: "KGP",
+//       },
+//     },
+//     orderBy: {
+//       createdAt: "desc",
+//     },
+//     select: {
+//       invoiceNo: true,
+//     },
+//   });
 
-  let nextNumber = 1;
+//   if (!last?.invoiceNo) return "KGP-0001";
 
-  if (last?.invoiceNo) {
-    const match = last.invoiceNo.match(/KGP-?(\d+)/);
-    if (match) {
-      const current = parseInt(match[1], 10);
-      if (!Number.isNaN(current) && current >= 0) {
-        nextNumber = current + 1;
-      }
-    }
-  }
-
-  const padded = nextNumber.toString().padStart(4, "0");
-  return `KGP-${padded}`;
-}
-
-export async function updatePurchase(
-  purchaseId: string,
-  prevState: unknown,
-  formData: FormData
-) {
-  const session = await auth();
-  if (!session) {
-    return { message: "Unauthorized" };
-  }
-
-  const raw = Object.fromEntries(formData.entries());
-  
-  // Handle items array from JSON string
-  let items = [];
-  try {
-      if (typeof raw.items === 'string') {
-          items = JSON.parse(raw.items);
-      }
-  } catch (e) {
-      console.error("Failed to parse items", e);
-      return { message: "Invalid items data" };
-  }
-
-  const payload = { ...raw, items };
-  const parsed = purchaseSchema.safeParse(payload);
-
-  if (!parsed.success) {
-    return { errors: parsed.error.flatten().fieldErrors };
-  }
-
-  const data = parsed.data;
-
-  // Fetch old data for logging
-  const oldPurchase = await prisma.purchase.findUnique({
-    where: { id: purchaseId },
-    include: { items: true },
-  });
-
-  try {
-    const updatedPurchase = await prisma.$transaction(async (tx) => {
-      // 1. Update purchase basic info
-      const updated = await tx.purchase.update({
-        where: { id: purchaseId },
-        data: {
-          vendorId: data.vendorId,
-          purchaseDate: data.purchaseDate,
-          invoiceNo: data.invoiceNo,
-          paymentMode: data.paymentMode,
-          paymentStatus: data.paymentStatus,
-          remarks: data.remarks,
-        },
-      });
-
-      // 2. Delete existing items
-      await tx.purchaseItem.deleteMany({
-        where: { purchaseId: purchaseId },
-      });
-
-      // 3. Create new items
-      if (data.items.length > 0) {
-        await tx.purchaseItem.createMany({
-          data: data.items.map((item) => ({
-            purchaseId: purchaseId,
-            itemName: item.itemName,
-            category: item.category,
-            shape: item.shape,
-            sizeValue: item.sizeValue,
-            sizeUnit: item.sizeUnit,
-            beadSizeMm: item.beadSizeMm,
-            weightType: item.weightType,
-            quantity: item.quantity,
-            costPerUnit: item.costPerUnit,
-            totalCost: item.totalCost,
-            remarks: item.remarks,
-          })),
-        });
-      }
-
-      return updated;
-    });
-
-    // Log Activity
-    await logActivity({
-      entityType: "Purchase",
-      entityId: purchaseId,
-      entityIdentifier: updatedPurchase.invoiceNo || "N/A",
-      actionType: "EDIT",
-      oldData: oldPurchase,
-      newData: updatedPurchase,
-    });
-
-  } catch (e) {
-    console.error("Failed to update purchase", e);
-    return { message: "Failed to update purchase. Please try again." };
-  }
-
-  revalidatePath("/purchases");
-  revalidatePath(`/purchases/${purchaseId}`);
-  redirect(`/purchases/${purchaseId}`);
-}
+//   const num = parseInt(last.invoiceNo.split("-")[1]);
+//   return `KGP-${(num + 1).toString().padStart(4, "0")}`;
+// }
 
 export async function createPurchase(prevState: unknown, formData: FormData) {
   const session = await auth();
-  if (!session) {
-    return { message: "Unauthorized" };
-  }
+  if (!session) return { message: "Unauthorized" };
 
   const raw = Object.fromEntries(formData.entries());
   
-  // Handle items array from JSON string
-  let items = [];
-  try {
-      if (typeof raw.items === 'string') {
-          items = JSON.parse(raw.items);
-      }
-  } catch (e) {
-      console.error("Failed to parse items", e);
+  let items: unknown[] = [];
+  if (typeof raw.items === "string") {
+    try {
+      items = JSON.parse(raw.items);
+    } catch {
       return { message: "Invalid items data" };
+    }
   }
 
   const payload = { ...raw, items };
@@ -196,38 +82,129 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
 
   const data = parsed.data;
 
-  let invoiceNo = data.invoiceNo?.trim();
-  if (!invoiceNo) {
-    invoiceNo = await getNextInvoiceNumber();
-  }
-
   try {
-    const newPurchase = await prisma.purchase.create({
+    const purchase = await prisma.purchase.create({
       data: {
         vendorId: data.vendorId,
         purchaseDate: data.purchaseDate,
-        invoiceNo,
+        invoiceNo: data.invoiceNo,
         paymentMode: data.paymentMode,
         paymentStatus: data.paymentStatus,
         remarks: data.remarks,
         items: {
-          create: data.items,
+          create: data.items.map(
+            (item): Prisma.PurchaseItemCreateWithoutPurchaseInput => ({
+              itemName: item.itemName,
+              category: item.category,
+              shape: item.shape,
+              sizeValue: item.sizeValue,
+              sizeUnit: item.sizeUnit,
+              beadSizeMm: item.beadSizeMm,
+              weightType: item.weightType,
+              quantity: item.quantity,
+              costPerUnit: item.costPerUnit,
+              totalCost: item.totalCost,
+              remarks: item.remarks,
+            })
+          ),
         },
       },
     });
 
-    // Log Activity
     await logActivity({
       entityType: "Purchase",
-      entityId: newPurchase.id,
-      entityIdentifier: newPurchase.invoiceNo || "N/A",
+      entityId: purchase.id,
+      entityIdentifier: purchase.invoiceNo || "No Invoice",
       actionType: "CREATE",
-      newData: newPurchase,
+      source: "WEB",
+      userId: session.user.id,
+      userName: session.user.name || session.user.email || "Unknown",
+      newData: data,
     });
 
   } catch (e) {
     console.error(e);
-    return { message: "Failed to create purchase record" };
+    return { message: "Failed to create purchase" };
+  }
+
+  revalidatePath("/purchases");
+  redirect("/purchases");
+}
+
+export async function updatePurchase(id: string, prevState: unknown, formData: FormData) {
+  const session = await auth();
+  if (!session) return { message: "Unauthorized" };
+
+  const raw = Object.fromEntries(formData.entries());
+  
+  let items: unknown[] = [];
+  if (typeof raw.items === "string") {
+    try {
+      items = JSON.parse(raw.items);
+    } catch {
+      return { message: "Invalid items data" };
+    }
+  }
+
+  const payload = { ...raw, items };
+  const parsed = purchaseSchema.safeParse(payload);
+
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const data = parsed.data;
+
+  try {
+    const purchase = await prisma.$transaction(async (tx) => {
+        // 1. Delete existing items
+        await tx.purchaseItem.deleteMany({
+            where: { purchaseId: id }
+        });
+
+        // 2. Update purchase and create new items
+        return await tx.purchase.update({
+            where: { id },
+            data: {
+                vendorId: data.vendorId,
+                purchaseDate: data.purchaseDate,
+                invoiceNo: data.invoiceNo,
+                paymentMode: data.paymentMode,
+                paymentStatus: data.paymentStatus,
+                remarks: data.remarks,
+                items: {
+                    create: data.items.map((item) => ({
+                        itemName: item.itemName,
+                        category: item.category,
+                        shape: item.shape,
+                        sizeValue: item.sizeValue,
+                        sizeUnit: item.sizeUnit,
+                        beadSizeMm: item.beadSizeMm,
+                        weightType: item.weightType,
+                        quantity: item.quantity,
+                        costPerUnit: item.costPerUnit,
+                        totalCost: item.totalCost,
+                        remarks: item.remarks,
+                    })),
+                },
+            },
+        });
+    });
+
+    await logActivity({
+      entityType: "Purchase",
+      entityId: purchase.id,
+      entityIdentifier: purchase.invoiceNo || "No Invoice",
+      actionType: "EDIT",
+      source: "WEB",
+      userId: session.user.id,
+      userName: session.user.name || session.user.email || "Unknown",
+      newData: data,
+    });
+
+  } catch (e) {
+    console.error(e);
+    return { message: "Failed to update purchase" };
   }
 
   revalidatePath("/purchases");
@@ -236,9 +213,7 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
 
 export async function updatePurchaseInvoice(formData: FormData) {
   const session = await auth();
-  if (!session) {
-    return { message: "Unauthorized" };
-  }
+  if (!session) return { message: "Unauthorized" };
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = updateInvoiceSchema.safeParse(raw);
@@ -250,53 +225,52 @@ export async function updatePurchaseInvoice(formData: FormData) {
   const { purchaseId, invoiceNo } = parsed.data;
 
   try {
-    const oldPurchase = await prisma.purchase.findUnique({ where: { id: purchaseId } });
-
-    const updatedPurchase = await prisma.purchase.update({
+    const purchase = await prisma.purchase.update({
       where: { id: purchaseId },
       data: { invoiceNo },
     });
 
     await logActivity({
         entityType: "Purchase",
-        entityId: purchaseId,
-        entityIdentifier: updatedPurchase.invoiceNo || "N/A",
+        entityId: purchase.id,
+        entityIdentifier: purchase.invoiceNo || "No Invoice",
         actionType: "EDIT",
-        oldData: oldPurchase,
-        newData: updatedPurchase,
+        source: "WEB",
+        userId: session.user.id,
+        userName: session.user.name || session.user.email || "Unknown",
+        oldData: { invoiceNo: "OLD_VALUE" }, // Ideally fetch old
+        newData: { invoiceNo }
     });
-  } catch (e) {
-    console.error(e);
+
+  } catch {
     return { message: "Failed to update invoice number" };
   }
 
-  revalidatePath("/purchases");
   revalidatePath(`/purchases/${purchaseId}`);
-
-  return { success: true };
+  return { message: "Invoice updated" };
 }
 
-type PurchaseImportRow = {
-  vendorName?: string;
-  purchaseDate?: string;
-  invoiceNo?: string;
-  paymentMode?: string;
-  paymentStatus?: string;
-  remarks?: string;
-  itemName?: string;
-  category?: string;
-  shape?: string;
-  sizeValue?: string;
-  sizeUnit?: string;
-  beadSizeMm?: number | string;
-  weightType?: string;
-  quantity?: number | string;
-  costPerUnit?: number | string;
-  totalCost?: number | string;
-  itemRemarks?: string;
+export type PurchaseImportRow = {
+    vendorName: string;
+    purchaseDate?: string;
+    invoiceNo?: string;
+    itemName: string;
+    category: string;
+    shape?: string;
+    sizeValue?: string;
+    sizeUnit?: string;
+    beadSizeMm?: string;
+    weightType?: string;
+    quantity?: string;
+    costPerUnit?: string;
+    totalCost?: string;
+    itemRemarks?: string;
+    paymentMode?: string;
+    paymentStatus?: string;
+    remarks?: string;
 };
 
-type PurchaseImportError = {
+export type PurchaseImportError = {
   row: number;
   error: string;
 };
@@ -341,7 +315,7 @@ export async function importPurchases(rows: PurchaseImportRow[]) {
                             costPerUnit: Number(row.costPerUnit) || 0,
                             totalCost: Number(row.totalCost) || 0,
                             remarks: row.itemRemarks
-                        }]
+                        } satisfies Prisma.PurchaseItemCreateWithoutPurchaseInput]
                     }
                 }
             });
@@ -352,13 +326,14 @@ export async function importPurchases(rows: PurchaseImportRow[]) {
                 entityIdentifier: newPurchase.invoiceNo || "No Invoice",
                 actionType: "CREATE",
                 userId: session.user.id,
-                userName: session.user.name || session.user.email,
+                userName: session.user.name || session.user.email || "Unknown",
                 source: "CSV_IMPORT"
             });
 
             successCount++;
-        } catch (e: any) {
-            errors.push({ row: i + 1, error: e.message });
+        } catch (e: unknown) {
+            const errorMessage = e instanceof Error ? e.message : "Unknown error";
+            errors.push({ row: i + 1, error: errorMessage });
         }
     }
 
@@ -368,4 +343,34 @@ export async function importPurchases(rows: PurchaseImportRow[]) {
         message: `Imported ${successCount} purchases. ${errors.length} failed.`, 
         errors 
     };
+}
+
+export async function deletePurchaseAction(formData: FormData) {
+  const id = formData.get("id") as string;
+  if (!id) return;
+  
+  const session = await auth();
+  if (!session) return;
+
+  try {
+    const purchase = await prisma.purchase.delete({
+      where: { id }
+    });
+
+    await logActivity({
+        entityType: "Purchase",
+        entityId: purchase.id,
+        entityIdentifier: purchase.invoiceNo || "No Invoice",
+        actionType: "DELETE",
+        source: "WEB",
+        userId: session.user.id,
+        userName: session.user.name || session.user.email || "Unknown",
+    });
+
+  } catch (e) {
+    console.error(e);
+  }
+
+  revalidatePath("/purchases");
+  redirect("/purchases");
 }

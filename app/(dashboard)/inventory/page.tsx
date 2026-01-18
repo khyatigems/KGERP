@@ -16,6 +16,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { InventorySearch } from "@/components/inventory/inventory-search";
 import { InventoryActions } from "@/components/inventory/inventory-actions";
+import type { Inventory } from "@prisma/client";
+
+type InventoryWithExtras = Inventory & {
+  weightRatti?: number | null;
+};
 
 export const metadata: Metadata = {
   title: "Inventory | Khyati Gems",
@@ -28,7 +33,7 @@ export default async function InventoryPage({
 }) {
   const { query, status } = await searchParams;
 
-  const where: any = {};
+  const where: Record<string, unknown> = {};
 
   if (query) {
     where.OR = [
@@ -53,18 +58,23 @@ export default async function InventoryPage({
     },
   });
 
-  const exportData = inventory.map(item => ({
+  const exportData = inventory.map((item) => {
+    const typedItem = item as InventoryWithExtras;
+    return {
     sku: item.sku,
     itemName: item.itemName,
     gemType: item.gemType,
     weight: `${item.weightValue} ${item.weightUnit}`,
-    ratti: item.weightRatti || 0,
-    price: formatCurrency(item.pricingMode === "PER_CARAT"
-       ? (item.sellingRatePerCarat || 0) * item.weightValue
-       : item.flatSellingPrice || 0),
-    status: item.status,
-    date: formatDate(item.createdAt)
-  }));
+      ratti: typedItem.weightRatti || 0,
+      price: formatCurrency(
+        item.pricingMode === "PER_CARAT"
+          ? (item.sellingRatePerCarat || 0) * item.weightValue
+          : item.flatSellingPrice || 0
+      ),
+      status: item.status,
+      date: formatDate(item.createdAt),
+    };
+  });
 
   const columns = [
     { header: "SKU", key: "sku" },
@@ -132,6 +142,7 @@ export default async function InventoryPage({
               </TableRow>
             ) : (
               inventory.map((item) => {
+                const typedItem = item as InventoryWithExtras;
                 const price =
                   item.pricingMode === "PER_CARAT"
                     ? (item.sellingRatePerCarat || 0) * item.weightValue
@@ -168,7 +179,7 @@ export default async function InventoryPage({
                       {item.weightValue} {item.weightUnit}
                     </TableCell>
                     <TableCell>
-                        {item.weightRatti ? item.weightRatti.toFixed(2) : "-"}
+                      {typedItem.weightRatti ? typedItem.weightRatti.toFixed(2) : "-"}
                     </TableCell>
                     <TableCell>{formatCurrency(price)}</TableCell>
                     <TableCell>

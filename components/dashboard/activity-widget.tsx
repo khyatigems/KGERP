@@ -7,22 +7,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export async function ActivityWidget() {
   let recentLogs: { id: string; entityType: string; actionType: string; entityIdentifier: string; userName: string | null; timestamp: Date }[] = [];
+  let loggingDisabled = false;
 
   try {
     // Safety check for Prisma model
-    if (!prisma.activityLog) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!(prisma as any).activityLog) {
       console.warn("ActivityLog model not found in Prisma client");
-      return <Card className="col-span-3"><CardHeader><CardTitle>Activity Log</CardTitle></CardHeader><CardContent>Activity logging is disabled.</CardContent></Card>;
+      loggingDisabled = true;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recentLogs = await (prisma as any).activityLog.findMany({
+        take: 10,
+        orderBy: { timestamp: "desc" },
+      });
     }
-
-    recentLogs = await prisma.activityLog.findMany({
-      take: 10,
-      orderBy: { timestamp: "desc" },
-    });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to fetch activity logs:", error);
     // Return empty state on error (e.g., table missing)
     recentLogs = [];
+  }
+
+  if (loggingDisabled) {
+    return (
+      <Card className="col-span-1 md:col-span-2 lg:col-span-1 h-full">
+        <CardHeader>
+          <CardTitle>Activity Log</CardTitle>
+        </CardHeader>
+        <CardContent>Activity logging is disabled.</CardContent>
+      </Card>
+    );
   }
 
   return (

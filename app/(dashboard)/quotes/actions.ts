@@ -27,7 +27,7 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
   if (typeof raw.itemIds === "string") {
     try {
       itemIds = JSON.parse(raw.itemIds);
-    } catch (e) {
+    } catch {
       itemIds = [raw.itemIds];
     }
   }
@@ -103,8 +103,7 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
       actionType: "CREATE",
       source: "WEB",
       userId: session.user?.id || "system",
-      userEmail: session.user?.email,
-      userName: session.user?.name,
+      userName: session.user?.name || "Unknown",
     });
 
     revalidatePath("/quotes");
@@ -129,7 +128,7 @@ export async function updateQuotation(
   if (typeof raw.itemIds === "string") {
     try {
       itemIds = JSON.parse(raw.itemIds);
-    } catch (e) {
+    } catch {
       itemIds = [raw.itemIds];
     }
   }
@@ -167,7 +166,6 @@ export async function updateQuotation(
     totalAmount += price;
 
     return {
-      quotationId: id,
       inventoryId: item.id,
       sku: item.sku,
       itemName: item.itemName,
@@ -191,7 +189,7 @@ export async function updateQuotation(
           totalAmount,
           items: {
             createMany: {
-              data: quotationItemsData.map(({ quotationId, ...rest }) => rest),
+              data: quotationItemsData,
             },
           },
         },
@@ -205,8 +203,7 @@ export async function updateQuotation(
       actionType: "EDIT",
       source: "WEB",
       userId: session.user?.id || "system",
-      userEmail: session.user?.email,
-      userName: session.user?.name,
+      userName: session.user?.name || "Unknown",
     });
   } catch (e) {
     console.error(e);
@@ -236,11 +233,9 @@ export async function cancelQuotation(id: string) {
       entityId: id,
       entityIdentifier: quote.quotationNumber,
       actionType: "STATUS_CHANGE",
-      fieldChanges: JSON.stringify({ from: quote.status, to: "CANCELLED" }),
       source: "WEB",
       userId: session.user?.id || "system",
-      userEmail: session.user?.email,
-      userName: session.user?.name,
+      userName: session.user?.name || "Unknown",
     });
 
     revalidatePath("/quotes");

@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -23,9 +23,25 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { createInventory, updateInventory } from "@/app/(dashboard)/inventory/actions";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { Inventory, Media, CategoryCode, GemstoneCode, ColorCode } from "@prisma/client";
+import type { Inventory, Media } from "@prisma/client";
+
+type CodeRow = {
+  id: string;
+  name: string;
+  code: string;
+  active: boolean;
+};
+
+type InventoryWithExtras = Inventory & {
+  category?: string | null;
+  weightRatti?: number | null;
+  color?: string | null;
+  categoryCodeId?: string | null;
+  gemstoneCodeId?: string | null;
+  colorCodeId?: string | null;
+};
 
 const formSchema = z.object({
   itemName: z.string().min(1, "Item name is required"),
@@ -58,10 +74,10 @@ type FormValues = z.infer<typeof formSchema>;
 
 interface InventoryFormProps {
   vendors: { id: string; name: string }[];
-  categories: CategoryCode[];
-  gemstones: GemstoneCode[];
-  colors: ColorCode[];
-  initialData?: Inventory & { media: Media[] };
+  categories: CodeRow[];
+  gemstones: CodeRow[];
+  colors: CodeRow[];
+  initialData?: InventoryWithExtras & { media: Media[] };
 }
 
 export function InventoryForm({ vendors, categories, gemstones, colors, initialData }: InventoryFormProps) {
@@ -78,8 +94,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, initialD
       internalName: initialData?.internalName || "",
       category: initialData?.category || categories[0]?.name || "",
       gemType: initialData?.gemType || gemstones[0]?.name || "",
-      color: (initialData as any)?.color || colors[0]?.name || "",
-      shape: initialData?.shape || "",
+      color: initialData?.color || colors[0]?.name || "",
       shape: initialData?.shape || "",
       dimensionsMm: initialData?.dimensionsMm || "",
       weightValue: initialData?.weightValue || 0,
@@ -97,18 +112,18 @@ export function InventoryForm({ vendors, categories, gemstones, colors, initialD
       notes: initialData?.notes || "",
       stockLocation: initialData?.stockLocation || "",
       categoryCodeId:
-        (initialData as any)?.categoryCodeId ||
+        initialData?.categoryCodeId ||
         (categories.find((c) => c.name === (initialData?.category || ""))?.id ??
           categories[0]?.id ??
           ""),
       gemstoneCodeId:
-        (initialData as any)?.gemstoneCodeId ||
+        initialData?.gemstoneCodeId ||
         (gemstones.find((g) => g.name === (initialData?.gemType || ""))?.id ??
           gemstones[0]?.id ??
           ""),
       colorCodeId:
-        (initialData as any)?.colorCodeId ||
-        (colors.find((c) => c.name === ((initialData as any)?.color || ""))?.id ??
+        initialData?.colorCodeId ||
+        (colors.find((c) => c.name === (initialData?.color || ""))?.id ??
           colors[0]?.id ??
           ""),
     },
@@ -134,22 +149,6 @@ export function InventoryForm({ vendors, categories, gemstones, colors, initialD
     setSkuPreview(`KG-${catCode}-${gemCode}-${colCode}-${wgt}-####`);
   }, [selectedCategory, selectedGemstone, selectedColor, weightValue]);
 
-  if (
-    selectedCategory &&
-    form.getValues("categoryCodeId") !== selectedCategory.id
-  ) {
-    form.setValue("categoryCodeId", selectedCategory.id);
-  }
-  if (
-    selectedGemstone &&
-    form.getValues("gemstoneCodeId") !== selectedGemstone.id
-  ) {
-    form.setValue("gemstoneCodeId", selectedGemstone.id);
-  }
-  if (selectedColor && form.getValues("colorCodeId") !== selectedColor.id) {
-    form.setValue("colorCodeId", selectedColor.id);
-  }
-
   // Auto-calculate Ratti
   // 1 Carat = 1.09 Ratti
   // 1 Gram = 5 Carats = 5.45 Ratti
@@ -163,10 +162,26 @@ export function InventoryForm({ vendors, categories, gemstones, colors, initialD
       return 0;
   })();
 
-  // Sync calculated Ratti to form state for submission (though we'll recalc on server too)
-  if (form.getValues("weightRatti") !== calculatedRatti) {
+  useEffect(() => {
+    if (
+      selectedCategory &&
+      form.getValues("categoryCodeId") !== selectedCategory.id
+    ) {
+      form.setValue("categoryCodeId", selectedCategory.id);
+    }
+    if (
+      selectedGemstone &&
+      form.getValues("gemstoneCodeId") !== selectedGemstone.id
+    ) {
+      form.setValue("gemstoneCodeId", selectedGemstone.id);
+    }
+    if (selectedColor && form.getValues("colorCodeId") !== selectedColor.id) {
+      form.setValue("colorCodeId", selectedColor.id);
+    }
+    if (form.getValues("weightRatti") !== calculatedRatti) {
       form.setValue("weightRatti", calculatedRatti);
-  }
+    }
+  }, [selectedCategory, selectedGemstone, selectedColor, calculatedRatti, form]);
 
   async function handleImageUpload(file: File) {
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
@@ -314,13 +329,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, initialD
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {categories
-                        .filter((c) => c.active)
-                        .map((c) => (
-                          <SelectItem key={c.id} value={c.name}>
-                            {c.name} ({c.code})
-                          </SelectItem>
-                        ))}
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.name}>
+                          {c.name} ({c.code})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -342,13 +355,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, initialD
                         </SelectTrigger>
                       </FormControl>
                     <SelectContent>
-                      {gemstones
-                        .filter((g) => g.active)
-                        .map((g) => (
-                          <SelectItem key={g.id} value={g.name}>
-                            {g.name} ({g.code})
-                          </SelectItem>
-                        ))}
+                      {gemstones.map((g) => (
+                        <SelectItem key={g.id} value={g.name}>
+                          {g.name} ({g.code})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                     </Select>
                     <FormMessage />
@@ -369,13 +380,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, initialD
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {colors
-                        .filter((c) => c.active)
-                        .map((c) => (
-                          <SelectItem key={c.id} value={c.name}>
-                            {c.name} ({c.code})
-                          </SelectItem>
-                        ))}
+                      {colors.map((c) => (
+                        <SelectItem key={c.id} value={c.name}>
+                          {c.name} ({c.code})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

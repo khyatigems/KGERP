@@ -29,6 +29,24 @@ export default async function EditPurchasePage({
     notFound();
   }
 
+  // Transform purchase items to match the expected interface
+  const transformedPurchase = {
+    ...purchase,
+    items: purchase.items.map(item => ({
+      itemName: item.itemName,
+      category: item.category || "Other",
+      shape: item.shape || "",
+      sizeValue: item.sizeValue || "",
+      sizeUnit: item.sizeUnit || "",
+      beadSizeMm: item.beadSizeMm || undefined,
+      weightType: item.weightType || "cts",
+      quantity: item.quantity,
+      costPerUnit: item.costPerUnit,
+      totalCost: item.totalCost,
+      remarks: item.remarks || "",
+    }))
+  };
+
   const vendors = await prisma.vendor.findMany({
     where: {
       status: "APPROVED",
@@ -49,7 +67,7 @@ export default async function EditPurchasePage({
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
-          <PurchaseForm vendors={vendors} initialData={purchase} />
+          <PurchaseForm vendors={vendors} initialData={transformedPurchase} />
         </div>
       </div>
     </div>

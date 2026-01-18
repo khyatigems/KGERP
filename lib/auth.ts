@@ -59,7 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && token.sub) {
         session.user.id = token.sub;
         session.user.role = token.role as string;
-        session.user.permissions = token.permissions as any;
+        session.user.permissions = token.permissions as unknown as ReturnType<typeof getPermissionsForRole>;
       }
       return session;
     },

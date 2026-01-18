@@ -1,9 +1,6 @@
 import { Metadata } from "next";
-import Link from "next/link";
-import { ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
 import {
   Table,

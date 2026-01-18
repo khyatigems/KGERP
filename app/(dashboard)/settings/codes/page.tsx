@@ -2,7 +2,15 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SettingsCodesView } from "@/components/settings/settings-codes-view";
-import type { CategoryCode, GemstoneCode, ColorCode } from "@prisma/client";
+
+type CodeRow = {
+  id: string;
+  name: string;
+  code: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export default async function SettingsCodesPage() {
   const session = await auth();
@@ -20,25 +28,30 @@ export default async function SettingsCodesPage() {
 
   const existingTables = new Set(tableRows.map((row) => row.name));
 
-  const hasAllTables =
-    existingTables.has("CategoryCode") &&
-    existingTables.has("GemstoneCode") &&
-    existingTables.has("ColorCode");
+  const hasCategoryTable = existingTables.has("CategoryCode");
+  const hasGemstoneTable = existingTables.has("GemstoneCode");
+  const hasColorTable = existingTables.has("ColorCode");
 
-  let categories: CategoryCode[] = [];
-  let gemstones: GemstoneCode[] = [];
-  let colors: ColorCode[] = [];
+  let categories: CodeRow[] = [];
+  let gemstones: CodeRow[] = [];
+  let colors: CodeRow[] = [];
 
-  if (hasAllTables) {
-    const result = await Promise.all([
-      prisma.$queryRaw<CategoryCode[]>`SELECT * FROM CategoryCode ORDER BY name ASC`,
-      prisma.$queryRaw<GemstoneCode[]>`SELECT * FROM GemstoneCode ORDER BY name ASC`,
-      prisma.$queryRaw<ColorCode[]>`SELECT * FROM ColorCode ORDER BY name ASC`,
-    ]);
+  if (hasCategoryTable) {
+    const rows =
+      await prisma.$queryRaw<CodeRow[]>`SELECT * FROM CategoryCode ORDER BY name ASC`;
+    categories = rows ?? [];
+  }
 
-    categories = result[0] ?? [];
-    gemstones = result[1] ?? [];
-    colors = result[2] ?? [];
+  if (hasGemstoneTable) {
+    const rows =
+      await prisma.$queryRaw<CodeRow[]>`SELECT * FROM GemstoneCode ORDER BY name ASC`;
+    gemstones = rows ?? [];
+  }
+
+  if (hasColorTable) {
+    const rows =
+      await prisma.$queryRaw<CodeRow[]>`SELECT * FROM ColorCode ORDER BY name ASC`;
+    colors = rows ?? [];
   }
 
   return (

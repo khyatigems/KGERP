@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 const envPath = path.resolve(process.cwd(), ".env.local");
-let envVars: Record<string, string> = {};
+const envVars: Record<string, string> = {};
 
 if (fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, "utf-8");
@@ -38,15 +38,15 @@ async function main() {
   try {
     await client.execute("ALTER TABLE PurchaseItem ADD COLUMN sizeValue TEXT");
     console.log("Added sizeValue");
-  } catch (e: any) {
-    console.log("sizeValue might already exist:", e.message);
+  } catch (e) {
+    console.log("sizeValue might already exist:", e instanceof Error ? e.message : String(e));
   }
 
   try {
     await client.execute("ALTER TABLE PurchaseItem ADD COLUMN sizeUnit TEXT");
     console.log("Added sizeUnit");
-  } catch (e: any) {
-    console.log("sizeUnit might already exist:", e.message);
+  } catch (e) {
+    console.log("sizeUnit might already exist:", e instanceof Error ? e.message : String(e));
   }
 }
 

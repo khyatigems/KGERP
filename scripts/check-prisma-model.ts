@@ -6,19 +6,19 @@ async function main() {
   // keys might not show everything if they are lazy loaded getters, but usually they show up or we can check property access
   
   // Check if activityLog is accessible
-  // @ts-ignore
-  const activityLogModel = prisma.activityLog;
+  const activityLogModel = (prisma as typeof prisma & { activityLog?: unknown }).activityLog;
   
   if (activityLogModel) {
       console.log("✅ prisma.activityLog is defined.");
       try {
-          // @ts-ignore
-          const count = await prisma.activityLog.count();
+          const activityClient = (prisma as typeof prisma & {
+            activityLog: { count: () => Promise<number>; findMany: (args: { take: number }) => Promise<unknown[]> };
+          }).activityLog;
+          const count = await activityClient.count();
           console.log(`✅ Table exists and is accessible. Total logs: ${count}`);
           
           if (count > 0) {
-              // @ts-ignore
-              const logs = await prisma.activityLog.findMany({ take: 2 });
+              const logs = await activityClient.findMany({ take: 2 });
               console.log("Sample logs:", logs);
           }
       } catch (e) {

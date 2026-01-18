@@ -7,7 +7,7 @@ async function main() {
   
   try {
       await logActivity({
-          entityType: "System",
+          entityType: "User",
           entityId: "test-id-123",
           entityIdentifier: "Test Check",
           actionType: "STATUS_CHANGE",
@@ -21,8 +21,7 @@ async function main() {
       console.log("✅ Test log created successfully.");
       
       // Verify it exists
-      // @ts-ignore
-      const count = await prisma.activityLog.count();
+      const count = await (prisma as typeof prisma & { activityLog: { count: () => Promise<number> } }).activityLog.count();
       console.log(`Current log count: ${count}`);
       
   } catch (error) {

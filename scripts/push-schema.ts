@@ -5,7 +5,7 @@ import { execSync } from "child_process";
 
 // Simple env parser
 const envPath = path.resolve(process.cwd(), ".env.local");
-let envVars: Record<string, string> = {};
+const envVars: Record<string, string> = {};
 
 if (fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, "utf-8");
@@ -65,8 +65,9 @@ async function main() {
         try {
           await client.execute(statement);
           console.log("Executed statement.");
-        } catch (innerE: any) {
-             if (innerE.message && (innerE.message.includes("already exists") || innerE.message.includes("SQLITE_ERROR"))) {
+        } catch (innerE) {
+             const errorMessage = innerE instanceof Error ? innerE.message : String(innerE);
+             if (errorMessage.includes("already exists") || errorMessage.includes("SQLITE_ERROR")) {
                  console.log(`Skipping (likely exists): ${statement.substring(0, 30)}...`);
              } else {
                  console.error("Error executing statement:", innerE);

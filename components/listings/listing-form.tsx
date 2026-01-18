@@ -205,4 +205,3 @@ export function ListingForm({ inventoryItems }: ListingFormProps) {
     </Form>
   );
 }
-

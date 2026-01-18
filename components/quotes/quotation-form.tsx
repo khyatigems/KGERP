@@ -57,7 +57,15 @@ interface ExistingCustomer {
 interface QuotationFormProps {
   availableItems: Inventory[];
   existingCustomers?: ExistingCustomer[];
-  initialData?: any;
+  initialData?: {
+    id: string;
+    customerName: string;
+    customerMobile?: string | null;
+    customerEmail?: string | null;
+    customerCity?: string | null;
+    expiryDate: string | Date;
+    items?: { inventoryId: string }[];
+  };
 }
 
 export function QuotationForm({ availableItems, existingCustomers = [], initialData }: QuotationFormProps) {
@@ -79,8 +87,14 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
       customerMobile: initialData?.customerMobile || "",
       customerEmail: initialData?.customerEmail || "",
       customerCity: initialData?.customerCity || "",
-      expiryDate: initialData?.expiryDate ? new Date(initialData.expiryDate).toISOString().split("T")[0] : defaultExpiryStr,
-      itemIds: initialData?.items ? initialData.items.map((i: any) => i.inventoryId) : (preSelectedInventoryId ? [preSelectedInventoryId] : []),
+      expiryDate: initialData?.expiryDate
+        ? new Date(initialData.expiryDate).toISOString().split("T")[0]
+        : defaultExpiryStr,
+      itemIds: initialData?.items
+        ? initialData.items.map((i) => i.inventoryId)
+        : preSelectedInventoryId
+        ? [preSelectedInventoryId]
+        : [],
     },
   });
 

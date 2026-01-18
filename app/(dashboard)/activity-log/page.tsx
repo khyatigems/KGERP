@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { prisma, type ActivityLog } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { 
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -26,26 +26,35 @@ export default async function ActivityLogPage({
     // Filters
     const entityType = typeof params.entityType === 'string' ? params.entityType : undefined;
     const actionType = typeof params.actionType === 'string' ? params.actionType : undefined;
-    const userId = typeof params.userId === 'string' ? params.userId : undefined;
+    // const userId = typeof params.userId === 'string' ? params.userId : undefined;
 
-    const where: any = {};
+    const where: { entityType?: string; actionType?: string; userId?: string } = {};
     if (entityType && entityType !== "ALL") where.entityType = entityType;
     if (actionType && actionType !== "ALL") where.actionType = actionType;
     // userId filtering would need a dropdown of users, skipping for now or simple input
     
     // Safety check for undefined prisma.activityLog
-    let logs: any[] = [];
+    let logs: ActivityLog[] = [];
     let totalCount = 0;
     
     try {
-        if (prisma.activityLog) {
-            logs = await prisma.activityLog.findMany({
+        const activityClient = (prisma as typeof prisma & {
+            activityLog?: {
+                findMany: (args: { where: { entityType?: string; actionType?: string }; orderBy: { timestamp: string }; take: number; skip: number }) => Promise<ActivityLog[]>;
+                count?: (args: { where: { entityType?: string; actionType?: string } }) => Promise<number>;
+            };
+        }).activityLog;
+        
+        if (activityClient) {
+            logs = await activityClient.findMany({
                 where,
                 orderBy: { timestamp: "desc" },
                 take: limit,
                 skip,
             });
-            totalCount = await prisma.activityLog.count({ where });
+            if (activityClient.count) {
+                totalCount = await activityClient.count({ where });
+            }
         } else {
             console.warn("Prisma activityLog model is not accessible.");
         }

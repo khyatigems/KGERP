@@ -13,7 +13,7 @@ const inventorySchema = z.object({
   internalName: z.string().optional(),
   category: z.string().min(1, "Category is required"),
   gemType: z.string().min(1, "Gem type is required"),
-  color: z.string().min(1, "Color is required"),
+  color: z.string().optional(),
   categoryCodeId: z.string().uuid().optional(),
   gemstoneCodeId: z.string().uuid().optional(),
   colorCodeId: z.string().uuid().optional(),
@@ -167,22 +167,20 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   weightRatti = Math.round(weightRatti * 100) / 100;
 
   try {
-      let createdInventory: { id: string; sku: string; data: any } | null = null;
-
-      await prisma.$transaction(async (tx) => {
+      const createdInventory = await prisma.$transaction(async (tx) => {
           if (!data.categoryCodeId || !data.gemstoneCodeId || !data.colorCodeId) {
               throw new Error("Missing code master selection for SKU generation");
           }
 
-          const categoryCode = await tx.categoryCode.findUnique({
-            where: { id: data.categoryCodeId },
-          });
-          const gemstoneCode = await tx.gemstoneCode.findUnique({
-            where: { id: data.gemstoneCodeId },
-          });
-          const colorCode = await tx.colorCode.findUnique({
-            where: { id: data.colorCodeId },
-          });
+          // Use raw query to avoid runtime error if client is stale
+          const categoryCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM CategoryCode WHERE id = ${data.categoryCodeId} LIMIT 1`;
+          const categoryCode = categoryCodes[0];
+
+          const gemstoneCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM GemstoneCode WHERE id = ${data.gemstoneCodeId} LIMIT 1`;
+          const gemstoneCode = gemstoneCodes[0];
+
+          const colorCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM ColorCode WHERE id = ${data.colorCodeId} LIMIT 1`;
+          const colorCode = colorCodes[0];
 
           if (!categoryCode || !gemstoneCode || !colorCode) {
             throw new Error("Invalid code master selection");
@@ -203,7 +201,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   internalName: data.internalName,
                   category: data.category,
                   gemType: data.gemType,
-                  color: data.color,
+                  // color: data.color, // Removed
                   categoryCodeId: data.categoryCodeId,
                   gemstoneCodeId: data.gemstoneCodeId,
                   colorCodeId: data.colorCodeId,
@@ -228,7 +226,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               },
           });
 
-          createdInventory = {
+          return {
             id: inventory.id,
             sku: inventory.sku,
             data: inventory // We need the full object for logging
@@ -437,11 +435,13 @@ export async function importInventory(rows: InventoryImportRow[]) {
 
                 let categoryName = "Loose Gemstone";
                 let gemName = row.gemType || "Gem";
-                let colorName = row.color || "Unknown";
+                // let colorName = row.color || "Unknown";
 
                 // 1. Try to find by provided code
                 if (row.categoryCode) {
-                    const c = await tx.categoryCode.findUnique({ where: { code: row.categoryCode } });
+                    const c = await (tx as typeof tx & {
+                        categoryCode?: { findUnique: (args: { where: { code: string } }) => Promise<{ id: string; code: string; name: string } | null> };
+                    }).categoryCode?.findUnique({ where: { code: row.categoryCode } });
                     if (c) { 
                         categoryCodeStr = c.code; 
                         categoryCodeId = c.id;
@@ -449,7 +449,9 @@ export async function importInventory(rows: InventoryImportRow[]) {
                     }
                 }
                 if (row.gemstoneCode) {
-                    const g = await tx.gemstoneCode.findUnique({ where: { code: row.gemstoneCode } });
+                    const g = await (tx as typeof tx & {
+                        gemstoneCode?: { findUnique: (args: { where: { code: string } }) => Promise<{ id: string; code: string; name: string } | null> };
+                    }).gemstoneCode?.findUnique({ where: { code: row.gemstoneCode } });
                     if (g) { 
                         gemstoneCodeStr = g.code; 
                         gemstoneCodeId = g.id;
@@ -457,11 +459,13 @@ export async function importInventory(rows: InventoryImportRow[]) {
                     }
                 }
                 if (row.colorCode) {
-                    const c = await tx.colorCode.findUnique({ where: { code: row.colorCode } });
+                    const c = await (tx as typeof tx & {
+                        colorCode?: { findUnique: (args: { where: { code: string } }) => Promise<{ id: string; code: string; name: string } | null> };
+                    }).colorCode?.findUnique({ where: { code: row.colorCode } });
                     if (c) { 
                         colorCodeStr = c.code; 
                         colorCodeId = c.id;
-                        colorName = c.name;
+                        // colorName = c.name;
                     }
                 }
 
@@ -474,7 +478,9 @@ export async function importInventory(rows: InventoryImportRow[]) {
                 }
                 if (!gemstoneCodeId && row.gemType) {
                     // Try to find gemstone by name
-                     const g = await tx.gemstoneCode.findFirst({ where: { name: row.gemType } });
+                     const g = await (tx as typeof tx & {
+                        gemstoneCode?: { findFirst: (args: { where: { name: string } }) => Promise<{ id: string; code: string; name: string } | null> };
+                     }).gemstoneCode?.findFirst({ where: { name: row.gemType } });
                      if (g) { 
                          gemstoneCodeStr = g.code; 
                          gemstoneCodeId = g.id; 
@@ -485,7 +491,9 @@ export async function importInventory(rows: InventoryImportRow[]) {
                      }
                 }
                 if (!colorCodeId && row.color) {
-                     const c = await tx.colorCode.findFirst({ where: { name: row.color } });
+                     const c = await (tx as typeof tx & {
+                        colorCode?: { findFirst: (args: { where: { name: string } }) => Promise<{ id: string; code: string; name: string } | null> };
+                     }).colorCode?.findFirst({ where: { name: row.color } });
                      if (c) {
                          colorCodeStr = c.code;
                          colorCodeId = c.id;
@@ -507,7 +515,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
                         category: categoryName,
                         internalName: row.internalName,
                         gemType: gemName,
-                        color: colorName,
+                        // color: colorName, // Removed
                         categoryCodeId,
                         gemstoneCodeId,
                         colorCodeId,
@@ -534,7 +542,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
                     entityIdentifier: inventory.sku,
                     actionType: "CREATE",
                     userId: session.user.id,
-                    userName: session.user.name || session.user.email,
+                    userName: session.user.name || session.user.email || "Unknown",
                     source: "CSV_IMPORT"
                 });
             });

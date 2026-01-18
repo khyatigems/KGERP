@@ -36,7 +36,7 @@ export function LoginForm() {
         router.push("/");
         router.refresh();
       }
-    } catch (err) {
+    } catch (_err) {
       setError("An error occurred");
       setLoading(false);
     }

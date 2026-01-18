@@ -24,7 +24,7 @@ export async function updateSettings(formData: FormData) {
     return { message: "Unauthorized" };
   }
 
-  const rawData: Record<string, any> = {};
+  const rawData: Record<string, FormDataEntryValue> = {};
   for (const [key, value] of formData.entries()) {
     rawData[key] = value;
   }
@@ -42,7 +42,7 @@ export async function updateSettings(formData: FormData) {
             create: { key, value: String(value || "") }
         });
     }
-  } catch (e) {
+  } catch {
     return { message: "Failed to update settings" };
   }
 

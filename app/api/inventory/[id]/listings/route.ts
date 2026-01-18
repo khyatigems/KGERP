@@ -21,7 +21,7 @@ export async function GET(
     });
 
     return NextResponse.json({ activeListings: listings });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Failed to fetch listings", error);
     return NextResponse.json(
       { activeListings: [] },

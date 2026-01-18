@@ -4,27 +4,52 @@ import { Activity, Pencil } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import type { Inventory } from "@prisma/client";
 
-export default async function InventoryDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
-    const item = await prisma.inventory.findUnique({ where: { id } });
+type InventoryWithExtras = Inventory & {
+  category?: string | null;
+  weightRatti?: number | null;
+};
+
+type ActivityLogEntry = {
+  id: string;
+  actionType: string;
+  userName: string | null;
+  source: string | null;
+  timestamp: Date;
+  fieldChanges: string | null;
+};
+
+export default async function InventoryDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const rawItem = await prisma.inventory.findUnique({ where: { id } });
+  const item = rawItem as InventoryWithExtras | null;
+
+  if (!item) return <div className="p-6">Inventory Item not found</div>;
+
+  let logs: ActivityLogEntry[] = [];
+  try {
+    const activityClient = (prisma as typeof prisma & {
+      activityLog?: {
+        findMany: (args: { where: { entityType: string; entityId: string }; orderBy: { timestamp: string } }) => Promise<ActivityLogEntry[]>;
+      };
+    }).activityLog;
     
-    if (!item) return <div className="p-6">Inventory Item not found</div>;
-
-    // Safety check for activityLog access
-    let logs: any[] = [];
-    try {
-        if (prisma.activityLog) {
-            logs = await prisma.activityLog.findMany({
-                where: { entityType: "Inventory", entityId: id },
-                orderBy: { timestamp: "desc" }
-            });
-        }
-    } catch (error) {
-        console.error("Failed to fetch activity logs for inventory:", error);
+    if (activityClient) {
+      logs = await activityClient.findMany({
+        where: { entityType: "Inventory", entityId: id },
+        orderBy: { timestamp: "desc" },
+      });
     }
-    
-    const lastEdit = logs.find(l => l.actionType === 'EDIT');
+  } catch (error) {
+    console.error("Failed to fetch activity logs for inventory:", error);
+  }
+
+  const lastEdit = logs.find((l) => l.actionType === "EDIT");
 
     return (
         <div className="space-y-6">
@@ -67,7 +92,9 @@ export default async function InventoryDetailPage({ params }: { params: Promise<
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Weight:</span> 
-                            <span className="font-medium">{item.weightValue} {item.weightUnit} ({item.weightRatti} Ratti)</span>
+                            <span className="font-medium">
+                              {item.weightValue} {item.weightUnit} ({item.weightRatti} Ratti)
+                            </span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Dimensions:</span> 
@@ -113,7 +140,7 @@ export default async function InventoryDetailPage({ params }: { params: Promise<
                     ) : (
                         logs.map((log) => (
                             <div key={log.id} className="flex gap-3">
-                                <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
+                                <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${
                                     log.actionType === 'CREATE' ? 'bg-green-500' :
                                     log.actionType === 'EDIT' ? 'bg-blue-500' :
                                     log.actionType === 'DELETE' ? 'bg-red-500' : 'bg-gray-500'

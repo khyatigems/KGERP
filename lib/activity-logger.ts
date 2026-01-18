@@ -2,21 +2,30 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
 export type ActionType = "CREATE" | "EDIT" | "DELETE" | "STATUS_CHANGE";
-export type EntityType = "Inventory" | "Purchase" | "Sale" | "Quotation" | "Invoice" | "Vendor" | "Listing" | "User";
+export type EntityType =
+  | "Inventory"
+  | "Purchase"
+  | "Sale"
+  | "Quotation"
+  | "Invoice"
+  | "Vendor"
+  | "Listing"
+  | "User"
+  | "Code";
 
-interface LogActivityParams {
+interface LogActivityParams<T = Record<string, unknown>> {
   entityType: EntityType;
   entityId: string;
   entityIdentifier: string;
   actionType: ActionType;
-  oldData?: any;
-  newData?: any;
+  oldData?: T;
+  newData?: T;
   userId?: string; // Optional override, otherwise uses session
   userName?: string; // Optional override
   source?: "WEB" | "SYSTEM" | "CRON" | "CSV_IMPORT";
 }
 
-export async function logActivity({
+export async function logActivity<T = Record<string, unknown>>({
   entityType,
   entityId,
   entityIdentifier,
@@ -26,7 +35,7 @@ export async function logActivity({
   userId,
   userName,
   source = "WEB",
-}: LogActivityParams) {
+}: LogActivityParams<T>) {
   try {
     let finalUserId = userId;
     let finalUserName = userName;
@@ -37,7 +46,7 @@ export async function logActivity({
       const session = await auth();
       if (session?.user) {
         finalUserId = session.user.id;
-        finalUserName = session.user.name || session.user.email;
+        finalUserName = session.user.name || session.user.email || "Unknown";
         finalUserEmail = session.user.email || "";
       }
     }
@@ -57,14 +66,18 @@ export async function logActivity({
     // Calculate field changes if it's an EDIT
     let fieldChanges = null;
     if (actionType === "EDIT" && oldData && newData) {
-      const changes: Record<string, { old: any; new: any }> = {};
+      const changes: Record<string, { old: unknown; new: unknown }> = {};
       
       // Get all keys from both objects
-      const allKeys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
+      // We cast to Record<string, unknown> to access keys safely if T is not specific enough
+      const oldObj = oldData as Record<string, unknown>;
+      const newObj = newData as Record<string, unknown>;
+
+      const allKeys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
       
       allKeys.forEach(key => {
-        const oldVal = oldData[key];
-        const newVal = newData[key];
+        const oldVal = oldObj[key];
+        const newVal = newObj[key];
         
         // Skip metadata fields
         if (key === 'updatedAt' || key === 'createdAt' || key === 'createdBy') return;

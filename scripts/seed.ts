@@ -4,7 +4,7 @@ import * as path from "path";
 
 const envPathLocal = path.resolve(process.cwd(), ".env.local");
 const envPathDefault = path.resolve(process.cwd(), ".env");
-let envVars: Record<string, string> = {};
+const envVars: Record<string, string> = {};
 
 for (const p of [envPathDefault, envPathLocal]) {
   if (fs.existsSync(p)) {

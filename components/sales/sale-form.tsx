@@ -76,7 +76,7 @@ export function SaleForm({ inventoryItems }: SaleFormProps) {
   const quoteId = searchParams.get("quoteId");
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema),
     defaultValues: {
       inventoryId: preSelectedInventoryId || "",
       platform: "WHATSAPP",

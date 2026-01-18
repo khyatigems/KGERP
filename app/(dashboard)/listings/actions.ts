@@ -6,6 +6,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
+type PrismaWithListing = typeof prisma & {
+  listing: {
+    create: (args: { data: unknown }) => Promise<unknown>;
+    update: (args: { where: unknown; data: unknown }) => Promise<unknown>;
+  };
+};
+
 const listingSchema = z.object({
   inventoryId: z.string().uuid("Invalid inventory item"),
   platform: z.string().min(1, "Platform is required"),
@@ -30,8 +37,10 @@ export async function createListing(prevState: unknown, formData: FormData) {
 
   const data = parsed.data;
 
+  const prismaWithListing = prisma as PrismaWithListing;
+
   try {
-    await prisma.listing.create({
+    await prismaWithListing.listing.create({
       data: {
         inventoryId: data.inventoryId,
         platform: data.platform,
@@ -60,8 +69,10 @@ export async function updateListingStatus(
     return { message: "Unauthorized" };
   }
 
+  const prismaWithListing = prisma as PrismaWithListing;
+
   try {
-    await prisma.listing.update({
+    await prismaWithListing.listing.update({
       where: { id },
       data: { status },
     });
@@ -72,4 +83,3 @@ export async function updateListingStatus(
 
   revalidatePath("/listings");
 }
-

@@ -14,12 +14,12 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
 function useDebouncedCallback(callback: (value: string) => void, delay: number) {
-  const timeoutRef = useRef<number | undefined>();
+  const timeoutRef = useRef<number | null>(null);
 
   const debounced = useCallback(
     (value: string) => {
-      if (timeoutRef.current !== undefined) {
-        clearTimeout(timeoutRef.current);
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
       }
       timeoutRef.current = window.setTimeout(() => {
         callback(value);
@@ -30,8 +30,8 @@ function useDebouncedCallback(callback: (value: string) => void, delay: number) 
 
   useEffect(() => {
     return () => {
-      if (timeoutRef.current !== undefined) {
-        clearTimeout(timeoutRef.current);
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
       }
     };
   }, []);

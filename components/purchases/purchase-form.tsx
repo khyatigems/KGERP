@@ -1,9 +1,9 @@
 "use client";
 
-import { useForm, useFieldArray, useWatch, Control, UseFormReturn } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,7 +70,28 @@ type FormValues = z.infer<typeof formSchema>;
 
 interface PurchaseFormProps {
   vendors: { id: string; name: string }[];
-  initialData?: any;
+  initialData?: {
+    id: string;
+    vendorId: string;
+    purchaseDate: string | Date;
+    invoiceNo?: string | null;
+    paymentMode?: string | null;
+    paymentStatus?: string | null;
+    remarks?: string | null;
+    items: {
+      itemName: string;
+      category: string | null;
+      shape: string | null;
+      sizeValue: string | null;
+      sizeUnit: string | null;
+      beadSizeMm: number | null;
+      weightType: string | null;
+      quantity: number;
+      costPerUnit: number;
+      totalCost: number;
+      remarks: string | null;
+    }[];
+  };
 }
 
 // --- Components ---
@@ -366,27 +387,29 @@ function PurchaseItemRow({
 export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
   const [isPending, setIsPending] = useState(false);
 
-  const defaultValues: FormValues = initialData ? {
-    vendorId: initialData.vendorId,
-    purchaseDate: new Date(initialData.purchaseDate).toISOString().split("T")[0],
-    invoiceNo: initialData.invoiceNo || "",
-    paymentMode: initialData.paymentMode || "BANK_TRANSFER",
-    paymentStatus: initialData.paymentStatus || "PENDING",
-    remarks: initialData.remarks || "",
-    items: initialData.items.map((item: any) => ({
-      itemName: item.itemName,
-      category: item.category || "Other",
-      shape: item.shape || "",
-      sizeValue: item.sizeValue || "",
-      sizeUnit: item.sizeUnit || "",
-      beadSizeMm: item.beadSizeMm || undefined,
-      weightType: item.weightType || "cts",
-      quantity: item.quantity,
-      costPerUnit: item.costPerUnit,
-      totalCost: item.totalCost,
-      remarks: item.remarks || "",
-    })),
-  } : {
+  const defaultValues: FormValues = initialData
+    ? {
+        vendorId: initialData.vendorId,
+        purchaseDate: new Date(initialData.purchaseDate).toISOString().split("T")[0],
+        invoiceNo: initialData.invoiceNo || "",
+        paymentMode: initialData.paymentMode || "BANK_TRANSFER",
+        paymentStatus: initialData.paymentStatus || "PENDING",
+        remarks: initialData.remarks || "",
+        items: initialData.items.map((item) => ({
+          itemName: item.itemName,
+          category: item.category || "Other",
+          shape: item.shape || "",
+          sizeValue: item.sizeValue || "",
+          sizeUnit: item.sizeUnit || "",
+          beadSizeMm: item.beadSizeMm ?? undefined,
+          weightType: item.weightType || "cts",
+          quantity: item.quantity,
+          costPerUnit: item.costPerUnit,
+          totalCost: item.totalCost,
+          remarks: item.remarks || "",
+        })),
+      }
+    : {
     vendorId: "",
     purchaseDate: new Date().toISOString().split("T")[0],
     invoiceNo: "",
@@ -407,7 +430,7 @@ export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues,
+    values: defaultValues,
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -507,7 +530,7 @@ export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
                 />
             </div>
             
-             <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="paymentMode"

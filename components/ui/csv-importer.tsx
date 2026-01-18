@@ -8,15 +8,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 
-interface CsvImporterProps {
-  onImport: (data: any[]) => Promise<{ success: boolean; message: string; errors?: any[] }>;
+interface ImportResult {
+  success: boolean;
+  message: string;
+  errors?: unknown[];
+}
+
+interface CsvImporterProps<TRow = Record<string, unknown>> {
+  onImport: (data: TRow[]) => Promise<ImportResult>;
   templateHeaders: string[];
 }
 
-export function CsvImporter({ onImport, templateHeaders }: CsvImporterProps) {
-  const [data, setData] = useState<any[]>([]);
+export function CsvImporter<TParsedRow = Record<string, unknown>>({
+  onImport,
+  templateHeaders,
+}: CsvImporterProps<TParsedRow>) {
+  const [data, setData] = useState<TParsedRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string; errors?: any[] } | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -28,8 +37,8 @@ export function CsvImporter({ onImport, templateHeaders }: CsvImporterProps) {
       const wb = XLSX.read(bstr, { type: "binary" });
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
-      const jsonData = XLSX.utils.sheet_to_json(ws);
-      setData(jsonData);
+      const jsonData = XLSX.utils.sheet_to_json<TParsedRow>(ws);
+      setData(jsonData as TParsedRow[]);
       setResult(null);
     };
     reader.readAsBinaryString(file);
@@ -43,10 +52,11 @@ export function CsvImporter({ onImport, templateHeaders }: CsvImporterProps) {
       if (res.success) {
         setData([]);
       }
-    } catch (e) {
+    } catch {
       setResult({ success: false, message: "Import failed unexpectedly." });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -86,9 +96,9 @@ export function CsvImporter({ onImport, templateHeaders }: CsvImporterProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.slice(0, 10).map((row, i) => (
+                    {data.slice(0, 10).map((row, i) => (
                   <TableRow key={i}>
-                    {Object.values(row).map((val: any, j) => (
+                    {Object.values(row as Record<string, unknown>).map((val, j) => (
                       <TableCell key={j}>{String(val)}</TableCell>
                     ))}
                   </TableRow>

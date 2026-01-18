@@ -50,7 +50,7 @@ export function VendorForm({ vendor }: VendorFormProps) {
   const [isPending, setIsPending] = useState(false);
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema),
     defaultValues: {
       name: vendor?.name || "",
       phone: vendor?.phone || "",

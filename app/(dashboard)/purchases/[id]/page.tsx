@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { updatePurchaseInvoice } from "../actions";
+import { updatePurchaseInvoice, deletePurchaseAction } from "../actions";
 
 type PurchasePageProps = {
   params: Promise<{
@@ -71,9 +71,14 @@ export default async function PurchaseDetailPage({
   }[] = [];
 
   try {
-    // Only fetch if prisma.activityLog is available
-    if (prisma.activityLog) {
-        logs = await prisma.activityLog.findMany({
+    const activityClient = (prisma as typeof prisma & {
+      activityLog?: {
+        findMany: (args: { where: { entityType: string; entityId: string }; orderBy: { timestamp: string } }) => Promise<typeof logs>;
+      };
+    }).activityLog;
+    
+    if (activityClient) {
+        logs = await activityClient.findMany({
             where: {
                 entityType: "Purchase",
                 entityId: purchaseId
@@ -88,9 +93,14 @@ export default async function PurchaseDetailPage({
   }
 
   const totalCost = purchase.items.reduce(
-    (sum, item) => sum + item.totalCost,
+    (sum: number, item) => sum + item.totalCost,
     0
   );
+
+  async function updateInvoiceAction(formData: FormData) {
+    "use server";
+    await updatePurchaseInvoice(formData);
+  }
 
   return (
     <div className="space-y-6">
@@ -111,6 +121,16 @@ export default async function PurchaseDetailPage({
               Edit
             </Link>
           </Button>
+          <form>
+            <input type="hidden" name="id" value={purchase.id} />
+            <Button 
+              variant="destructive" 
+              size="sm"
+              formAction={deletePurchaseAction}
+            >
+              Delete
+            </Button>
+          </form>
           <Button variant="outline" asChild>
             <Link href="/purchases">Back to Purchases</Link>
           </Button>
@@ -154,7 +174,7 @@ export default async function PurchaseDetailPage({
         <h2 className="mb-4 text-lg font-semibold">
           Invoice Number
         </h2>
-        <form action={updatePurchaseInvoice} className="flex flex-wrap items-end gap-4">
+        <form action={updateInvoiceAction} className="flex flex-wrap items-end gap-4">
           <input
             type="hidden"
             name="purchaseId"
@@ -241,7 +261,7 @@ export default async function PurchaseDetailPage({
             ) : (
                 logs.map((log) => (
                     <div key={log.id} className="flex gap-3">
-                        <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${
+                        <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${
                             log.actionType === 'CREATE' ? 'bg-green-500' :
                             log.actionType === 'EDIT' ? 'bg-blue-500' :
                             log.actionType === 'DELETE' ? 'bg-red-500' : 'bg-gray-500'

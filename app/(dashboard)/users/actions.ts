@@ -44,8 +44,8 @@ export async function createUser(formData: FormData) {
         role: result.data.role,
       },
     });
-  } catch (e: any) {
-    if (e.code === 'P2002') {
+  } catch (e) {
+    if (e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2002") {
         return { message: "Email already exists" };
     }
     return { message: "Failed to create user" };
@@ -70,7 +70,7 @@ export async function deleteUser(id: string) {
         await prisma.user.delete({ where: { id } });
         revalidatePath("/users");
         return { message: "User deleted" };
-    } catch (e) {
+    } catch {
         return { message: "Failed to delete user" };
     }
 }

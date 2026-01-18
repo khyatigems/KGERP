@@ -17,7 +17,7 @@ interface ColumnConfig {
 
 interface ExportButtonProps {
   filename: string;
-  data: Record<string, any>[];
+  data: Record<string, unknown>[];
   columns: ColumnConfig[]; // Used for both PDF headers and data mapping
   title?: string; // PDF Title
 }

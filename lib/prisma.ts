@@ -18,23 +18,24 @@ const globalForPrisma = global as unknown as {
 // Determine if we are using LibSQL (Turso)
 const isLibsql = connectionString?.startsWith('libsql:')
 
-// Configure adapter if LibSQL
+// Configure adapter only when using LibSQL (Turso)
 const adapter = isLibsql
   ? new PrismaLibSQL(
       createClient({
         url: connectionString!,
-        // authToken is usually embedded in the URL for Turso if copied from dashboard,
-        // but can be passed explicitly if in a separate env var. 
-        // Our .env has ?authToken=... so it's handled by url.
       })
     )
-  : null
+  : undefined
 
-export const prisma =
+const prismaBase =
   globalForPrisma.prisma ??
   new PrismaClient({
     adapter,
     log: ['error'],
   })
 
+export const prisma = prismaBase
+
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+export type { ActivityLog } from '@prisma/client'
