@@ -1,0 +1,228 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider     = "sqlite"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+// Enums removed for SQLite compatibility. 
+// Validated via application logic (Zod).
+
+//// USER & AUTH
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   // ADMIN | STAFF
+  createdAt DateTime @default(now())
+}
+
+//// VENDORS
+
+model Vendor {
+  id        String       @id @default(uuid())
+  name      String       @unique
+  phone     String?
+  email     String?
+  address   String?
+  city      String?
+  state     String?
+  country   String?
+  vendorType String?
+  status    String       @default("PENDING") // PENDING | APPROVED | BLOCKED
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  purchases Purchase[]
+}
+
+//// PURCHASES (RECORD ONLY)
+
+model Purchase {
+  id            String   @id @default(uuid())
+  vendorId      String
+  purchaseDate  DateTime
+  invoiceNo     String?
+  paymentMode   String?
+  paymentStatus String?
+  remarks       String?
+  createdAt     DateTime @default(now())
+
+  vendor        Vendor   @relation(fields: [vendorId], references: [id])
+  items         PurchaseItem[]
+}
+
+model PurchaseItem {
+  id          String  @id @default(uuid())
+  purchaseId  String
+  itemName    String
+  category    String?
+  shape       String?
+  beadSizeMm  Float?
+  weightType  String
+  quantity    Float
+  costPerUnit Float
+  totalCost   Float
+  remarks     String?
+  
+  purchase    Purchase @relation(fields: [purchaseId], references: [id])
+  
+  @@index([purchaseId])
+}
+
+//// INVENTORY (CORE)
+
+model Inventory {
+  id                     String   @id @default(uuid())
+  sku                    String   @unique
+  itemName               String
+  internalName           String?
+  gemType                String
+  shape                  String?
+  dimensionsMm           String?
+  weightValue            Float
+  weightUnit             String
+  treatment              String?
+  certification           String?
+
+  pricingMode            String // PER_CARAT | FLAT
+
+  purchaseRatePerCarat   Float?
+  sellingRatePerCarat    Float?
+  flatPurchaseCost       Float?
+  flatSellingPrice       Float?
+
+  profit                 Float
+
+  vendorId               String
+  status                 String @default("IN_STOCK") // IN_STOCK | RESERVED | SOLD
+  stockLocation          String?
+  notes                  String?
+
+  createdBy              String
+  createdAt              DateTime @default(now())
+
+  sale                   Sale?
+  media                  Media[]
+  
+  // Relations for index (no FK)
+  
+  @@index([vendorId])
+  @@index([status])
+  @@index([sku])
+}
+
+//// MEDIA
+
+model Media {
+  id          String   @id @default(uuid())
+  inventoryId String
+  type        String   // IMAGE | VIDEO
+  url         String
+  createdAt   DateTime @default(now())
+  
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+
+  @@index([inventoryId])
+}
+
+//// SALES
+
+model Sale {
+  id             String   @id @default(uuid())
+  inventoryId    String   @unique
+  platform       String   // EBAY | ETSY | WHATSAPP | WEBSITE | AMAZON | OTHERS
+  saleDate       DateTime
+  orderId        String?
+  customerName   String?
+  customerPhone  String?
+  customerEmail  String?
+  customerCity   String?
+  sellingPrice   Float
+  discount       Float?
+  netAmount      Float
+  profit         Float
+  paymentMode    String?
+  paymentStatus  String?
+  shippingMethod String?
+  trackingId     String?
+  gstApplicable  Boolean @default(false)
+  gstAmount      Float?
+  remarks        String?
+  createdAt      DateTime @default(now())
+
+  inventory      Inventory @relation(fields: [inventoryId], references: [id])
+  invoice        Invoice?
+}
+
+//// QUOTATIONS (MULTI-ITEM)
+
+model Quotation {
+  id              String          @id @default(uuid())
+  quotationNumber String          @unique
+  customerName    String?
+  customerMobile  String?
+  customerEmail   String?
+  customerCity    String?
+  expiryDate      DateTime
+  status          String          @default("ACTIVE") // ACTIVE | EXPIRED | DISABLED | CONVERTED
+  totalAmount     Float
+  token           String          @unique
+  createdAt       DateTime        @default(now())
+
+  items           QuotationItem[]
+}
+
+model QuotationItem {
+  id           String   @id @default(uuid())
+  quotationId  String
+  inventoryId  String
+  sku          String
+  itemName     String
+  weight       String
+  quotedPrice  Float
+  
+  quotation    Quotation @relation(fields: [quotationId], references: [id])
+  
+  @@index([quotationId])
+  @@index([inventoryId])
+}
+
+//// PUBLIC LINK EVENTS (ANALYTICS)
+
+model PublicLinkEvent {
+  id        String   @id @default(uuid())
+  type      String   // VIEWED | SHARED | REMINDER_SENT | CONVERTED
+  refId     String   // quotationId or invoiceId
+  createdAt DateTime @default(now())
+  
+  @@index([refId])
+}
+
+//// SETTINGS (COMPANY / PAYMENTS)
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// INVOICE
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique
+  saleId        String   @unique
+  token         String   @unique
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  
+  // Relations
+  sale Sale @relation(fields: [saleId], references: [id])
+}
