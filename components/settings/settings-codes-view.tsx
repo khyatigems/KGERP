@@ -35,8 +35,9 @@ import {
   updateCode,
   importCodes,
   checkCodeDuplicate,
+  type CsvRow,
 } from "@/app/(dashboard)/settings/codes/actions";
-import { Download, Plus, Upload, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
+import { Download, Plus, Upload, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 
 type CodeRow = {
@@ -393,7 +394,7 @@ function ExportCodesButton({ group, data }: { group: CodeGroup; data: CodeRow[] 
 function ImportCodesDialog({ group }: { group: CodeGroup }) {
   const [open, setOpen] = useState(false);
 
-  const handleImport = async (data: any[]) => {
+  const handleImport = async (data: CsvRow[]) => {
     const res = await importCodes(group, data);
     if (res.success) {
         return {

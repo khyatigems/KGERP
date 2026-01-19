@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, type SubmitHandler, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
@@ -47,7 +47,7 @@ export function ListingForm({ inventoryItems }: ListingFormProps) {
   const today = new Date().toISOString().split("T")[0];
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
       inventoryId: "",
       platform: "WHATSAPP",
@@ -58,7 +58,7 @@ export function ListingForm({ inventoryItems }: ListingFormProps) {
     },
   });
 
-  async function onSubmit(data: FormValues) {
+  const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setIsPending(true);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {

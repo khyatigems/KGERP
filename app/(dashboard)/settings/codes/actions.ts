@@ -22,12 +22,6 @@ const updateCodeSchema = z.object({
 
 type CodeGroup = "categories" | "gemstones" | "colors";
 
-function getModel(group: CodeGroup) {
-  if (group === "categories") return prisma.categoryCode;
-  if (group === "gemstones") return prisma.gemstoneCode;
-  return prisma.colorCode;
-}
-
 export async function createCode(group: CodeGroup, formData: FormData) {
   const session = await auth();
   if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
@@ -44,24 +38,39 @@ export async function createCode(group: CodeGroup, formData: FormData) {
   }
 
   const { name, code, status } = parsed.data;
-  const db = getModel(group);
 
-  // @ts-ignore - dynamic model access
-  const existing = await db.findUnique({ where: { code } });
+  let existing;
+  if (group === "categories") {
+    existing = await prisma.categoryCode.findUnique({ where: { code } });
+  } else if (group === "gemstones") {
+    existing = await prisma.gemstoneCode.findUnique({ where: { code } });
+  } else {
+    existing = await prisma.colorCode.findUnique({ where: { code } });
+  }
   if (existing) {
     return { error: "CODE_ALREADY_EXISTS", message: "This code already exists in the system. Duplicate codes are not allowed." };
   }
 
   try {
-    // @ts-ignore
-    const created = await db.create({
-      data: { name, code, status },
-    });
+    let created;
+    if (group === "categories") {
+      created = await prisma.categoryCode.create({
+        data: { name, code, status },
+      });
+    } else if (group === "gemstones") {
+      created = await prisma.gemstoneCode.create({
+        data: { name, code, status },
+      });
+    } else {
+      created = await prisma.colorCode.create({
+        data: { name, code, status },
+      });
+    }
 
     await logActivity({
       entityType: "Code",
       entityId: created.id,
-      entityIdentifier: `${group} ${code}`,
+      entityIdentifier: `${group} ${created.code}`,
       actionType: "CREATE",
       newData: created,
       source: "WEB",
@@ -93,18 +102,35 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
   }
 
   const { id, name, status } = parsed.data;
-  const db = getModel(group);
 
-  // @ts-ignore
-  const existing = await db.findUnique({ where: { id } });
+  let existing;
+  if (group === "categories") {
+    existing = await prisma.categoryCode.findUnique({ where: { id } });
+  } else if (group === "gemstones") {
+    existing = await prisma.gemstoneCode.findUnique({ where: { id } });
+  } else {
+    existing = await prisma.colorCode.findUnique({ where: { id } });
+  }
   if (!existing) return { error: "Code not found" };
 
   try {
-    // @ts-ignore
-    const updated = await db.update({
-      where: { id },
-      data: { name, status }, // Code is immutable, not included
-    });
+    let updated;
+    if (group === "categories") {
+      updated = await prisma.categoryCode.update({
+        where: { id },
+        data: { name, status }, // Code is immutable, not included
+      });
+    } else if (group === "gemstones") {
+      updated = await prisma.gemstoneCode.update({
+        where: { id },
+        data: { name, status }, // Code is immutable, not included
+      });
+    } else {
+      updated = await prisma.colorCode.update({
+        where: { id },
+        data: { name, status }, // Code is immutable, not included
+      });
+    }
 
     await logActivity({
       entityType: "Code",
@@ -133,17 +159,24 @@ const csvRowSchema = z.object({
   status: z.enum(["ACTIVE", "INACTIVE"]),
 });
 
-export async function importCodes(group: CodeGroup, rows: any[]) {
+export type CsvRow = z.infer<typeof csvRowSchema>;
+
+type ImportError = {
+  rowNumber: number;
+  code: string;
+  reason: string;
+};
+
+export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
   const session = await auth();
   if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
 
-  const db = getModel(group);
   const results = {
     totalRows: rows.length,
     importedCount: 0,
     skippedDuplicatesCount: 0,
     invalidCount: 0,
-    errors: [] as any[],
+    errors: [] as ImportError[],
   };
 
   for (let i = 0; i < rows.length; i++) {
@@ -162,9 +195,15 @@ export async function importCodes(group: CodeGroup, rows: any[]) {
 
     const { name, code, status } = parsed.data;
 
-    // Check duplicate
-    // @ts-ignore
-    const existing = await db.findUnique({ where: { code } });
+    let existing;
+    if (group === "categories") {
+      existing = await prisma.categoryCode.findUnique({ where: { code } });
+    } else if (group === "gemstones") {
+      existing = await prisma.gemstoneCode.findUnique({ where: { code } });
+    } else {
+      existing = await prisma.colorCode.findUnique({ where: { code } });
+    }
+
     if (existing) {
       results.skippedDuplicatesCount++;
       // Optional: log or track skipped
@@ -172,12 +211,21 @@ export async function importCodes(group: CodeGroup, rows: any[]) {
     }
 
     try {
-      // @ts-ignore
-      await db.create({
-        data: { name, code, status },
-      });
+      if (group === "categories") {
+        await prisma.categoryCode.create({
+          data: { name, code, status },
+        });
+      } else if (group === "gemstones") {
+        await prisma.gemstoneCode.create({
+          data: { name, code, status },
+        });
+      } else {
+        await prisma.colorCode.create({
+          data: { name, code, status },
+        });
+      }
       results.importedCount++;
-    } catch (error) {
+    } catch {
       results.invalidCount++;
       results.errors.push({
         rowNumber: i + 1,
@@ -205,8 +253,18 @@ export async function importCodes(group: CodeGroup, rows: any[]) {
 }
 
 export async function checkCodeDuplicate(group: CodeGroup, code: string) {
-    const db = getModel(group);
-    // @ts-ignore
-    const existing = await db.findUnique({ where: { code: code.toUpperCase() } });
+  const normalized = code.toUpperCase();
+
+  if (group === "categories") {
+    const existing = await prisma.categoryCode.findUnique({ where: { code: normalized } });
     return !!existing;
+  }
+
+  if (group === "gemstones") {
+    const existing = await prisma.gemstoneCode.findUnique({ where: { code: normalized } });
+    return !!existing;
+  }
+
+  const existing = await prisma.colorCode.findUnique({ where: { code: normalized } });
+  return !!existing;
 }

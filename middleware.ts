@@ -10,7 +10,7 @@ export default auth((req) => {
     pathname.startsWith("/quote") ||
     pathname.startsWith("/invoice") ||
     pathname.startsWith("/api/auth") ||
-    pathname === "/"; // Wait, root is Dashboard? "Admin app: /" in prompt. So / is protected.
+  pathname === "/"; // Wait, root is Dashboard? "Admin app: /" in prompt. So / is protected.
 
   // "Admin app: /" implies root is the app.
   // Public pages: /quote, /invoice.

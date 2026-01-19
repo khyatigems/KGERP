@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,7 +34,7 @@ export function InventoryQrDialog({ itemId, itemName, sku }: { itemId: string, i
           <DialogTitle>Inventory QR Code</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col items-center justify-center p-4">
-          {qrUrl && <img src={qrUrl} alt="QR Code" className="w-48 h-48" />}
+          {qrUrl && <Image src={qrUrl} alt="QR Code" width={192} height={192} className="w-48 h-48" />}
           <p className="mt-4 font-bold">{sku}</p>
           <p className="text-sm text-gray-500">{itemName}</p>
           <Button className="mt-4" onClick={() => window.print()}>

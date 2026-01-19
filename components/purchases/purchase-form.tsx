@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, useFieldArray, useWatch, UseFormReturn } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, UseFormReturn, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
@@ -429,7 +429,7 @@ export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
   };
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema) as Resolver<FormValues>,
     values: defaultValues,
   });
 

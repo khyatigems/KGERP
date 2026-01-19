@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -149,12 +150,14 @@ export default async function InventoryPage({
                     : item.flatSellingPrice || 0;
 
                 return (
-                  <TableRow key={item.id}>
+                    <TableRow key={item.id}>
                     <TableCell>
                       {item.media[0]?.url ? (
-                        <img
+                        <Image
                           src={item.media[0].url}
                           alt={item.itemName}
+                          width={48}
+                          height={48}
                           className="h-12 w-12 rounded object-cover border"
                         />
                       ) : (

@@ -1,8 +1,8 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/prisma";
 import fs from "fs";
 import path from "path";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 async function main() {
   const sqlPath = path.join(process.cwd(), "prisma", "seed-codes.sql");

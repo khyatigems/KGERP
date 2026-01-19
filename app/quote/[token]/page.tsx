@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildUpiUri } from "@/lib/upi";
 import QRCode from "qrcode";
@@ -123,7 +124,7 @@ export default async function PublicQuotationPage({ params }: { params: Promise<
                     {qrDataUrl ? (
                         <>
                             <div className="bg-white p-4 inline-block rounded shadow-sm">
-                                <img src={qrDataUrl} alt="UPI QR Code" className="w-48 h-48" />
+                                <Image src={qrDataUrl} alt="UPI QR Code" width={192} height={192} className="w-48 h-48" />
                             </div>
                             <p className="text-xs text-gray-500 mt-2">Scan with any UPI app (GPay, PhonePe, Paytm)</p>
                             <p className="text-sm mt-2 font-mono">{config.upi_vpa}</p>
