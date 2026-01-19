@@ -2,6 +2,8 @@ import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { InventoryForm } from "@/components/inventory/inventory-form";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Add Inventory | Khyati Gems",
 };

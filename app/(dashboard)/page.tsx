@@ -1,6 +1,8 @@
 import { DashboardView } from "@/components/dashboard/dashboard-view";
 import { ActivityWidget } from "@/components/dashboard/activity-widget";
 
+export const dynamic = "force-dynamic";
+
 export default function DashboardPage() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
