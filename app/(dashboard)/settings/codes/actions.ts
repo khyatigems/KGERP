@@ -6,176 +6,207 @@ import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity-logger";
 import { z } from "zod";
 
-const codeSchema = z.object({
-  name: z.string().min(1),
-  code: z.string().min(1),
-  active: z.boolean(),
+const codePattern = /^[A-Z0-9]{1,6}$/;
+
+const createCodeSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  code: z.string().trim().toUpperCase().regex(codePattern, "Code must be uppercase, alphanumeric, and up to 6 characters long"),
+  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
 });
 
-type IncomingItem = {
-  id?: string;
-  name: string;
-  code: string;
-  active: string;
-};
+const updateCodeSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1, "Name is required"),
+  status: z.enum(["ACTIVE", "INACTIVE"]),
+});
 
-async function upsertMany(
-  group: "categories" | "gemstones" | "colors",
-  items: IncomingItem[]
-) {
-  const db = prisma;
+type CodeGroup = "categories" | "gemstones" | "colors";
 
-  for (const item of items) {
-    const active = item.active === "true";
-    const parsed = codeSchema.safeParse({
-      name: item.name,
-      code: item.code,
-      active,
+function getModel(group: CodeGroup) {
+  if (group === "categories") return prisma.categoryCode;
+  if (group === "gemstones") return prisma.gemstoneCode;
+  return prisma.colorCode;
+}
+
+export async function createCode(group: CodeGroup, formData: FormData) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
+
+  const rawData = {
+    name: formData.get("name"),
+    code: formData.get("code"),
+    status: formData.get("status") || "ACTIVE",
+  };
+
+  const parsed = createCodeSchema.safeParse(rawData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const { name, code, status } = parsed.data;
+  const db = getModel(group);
+
+  // @ts-ignore - dynamic model access
+  const existing = await db.findUnique({ where: { code } });
+  if (existing) {
+    return { error: "CODE_ALREADY_EXISTS", message: "This code already exists in the system. Duplicate codes are not allowed." };
+  }
+
+  try {
+    // @ts-ignore
+    const created = await db.create({
+      data: { name, code, status },
     });
-    if (!parsed.success) {
-      continue;
-    }
-    if (group === "categories") {
-      if (item.id) {
-        const existing = await db.categoryCode.findUnique({
-          where: { id: item.id },
-        });
-        const updated = await db.categoryCode.update({
-          where: { id: item.id },
-          data: { name: item.name, code: item.code, active },
-        });
-        if (existing) {
-          await logActivity({
-            entityType: "Code",
-            entityId: updated.id,
-            entityIdentifier: `Category ${updated.code}`,
-            actionType: "EDIT",
-            oldData: existing,
-            newData: updated,
-          });
-        }
-      } else {
-        const created = await db.categoryCode.create({
-          data: { name: item.name, code: item.code, active },
-        });
-        await logActivity({
-          entityType: "Code",
-          entityId: created.id,
-          entityIdentifier: `Category ${created.code}`,
-          actionType: "CREATE",
-          newData: created,
-        });
-      }
-    } else if (group === "gemstones") {
-      if (item.id) {
-        const existing = await db.gemstoneCode.findUnique({
-          where: { id: item.id },
-        });
-        const updated = await db.gemstoneCode.update({
-          where: { id: item.id },
-          data: { name: item.name, code: item.code, active },
-        });
-        if (existing) {
-          await logActivity({
-            entityType: "Code",
-            entityId: updated.id,
-            entityIdentifier: `Gemstone ${updated.code}`,
-            actionType: "EDIT",
-            oldData: existing,
-            newData: updated,
-          });
-        }
-      } else {
-        const created = await db.gemstoneCode.create({
-          data: { name: item.name, code: item.code, active },
-        });
-        await logActivity({
-          entityType: "Code",
-          entityId: created.id,
-          entityIdentifier: `Gemstone ${created.code}`,
-          actionType: "CREATE",
-          newData: created,
-        });
-      }
-    } else if (group === "colors") {
-      if (item.id) {
-        const existing = await db.colorCode.findUnique({
-          where: { id: item.id },
-        });
-        const updated = await db.colorCode.update({
-          where: { id: item.id },
-          data: { name: item.name, code: item.code, active },
-        });
-        if (existing) {
-          await logActivity({
-            entityType: "Code",
-            entityId: updated.id,
-            entityIdentifier: `Color ${updated.code}`,
-            actionType: "EDIT",
-            oldData: existing,
-            newData: updated,
-          });
-        }
-      } else {
-        const created = await db.colorCode.create({
-          data: { name: item.name, code: item.code, active },
-        });
-        await logActivity({
-          entityType: "Code",
-          entityId: created.id,
-          entityIdentifier: `Color ${created.code}`,
-          actionType: "CREATE",
-          newData: created,
-        });
-      }
-    }
+
+    await logActivity({
+      entityType: "Code",
+      entityId: created.id,
+      entityIdentifier: `${group} ${code}`,
+      actionType: "CREATE",
+      newData: created,
+      source: "WEB",
+      userId: session.user.id,
+      userName: session.user.name || undefined,
+    });
+
+    revalidatePath("/settings/codes");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { error: "Failed to create code" };
   }
 }
 
-export async function updateCodes(formData: FormData) {
+export async function updateCode(group: CodeGroup, formData: FormData) {
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
-    return { message: "Unauthorized" };
+  if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
+
+  const rawData = {
+    id: formData.get("id"),
+    name: formData.get("name"),
+    status: formData.get("status"),
+  };
+
+  const parsed = updateCodeSchema.safeParse(rawData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
   }
 
-  const group = formData.get("group");
-  if (group !== "categories" && group !== "gemstones" && group !== "colors") {
-    return { message: "Invalid group" };
+  const { id, name, status } = parsed.data;
+  const db = getModel(group);
+
+  // @ts-ignore
+  const existing = await db.findUnique({ where: { id } });
+  if (!existing) return { error: "Code not found" };
+
+  try {
+    // @ts-ignore
+    const updated = await db.update({
+      where: { id },
+      data: { name, status }, // Code is immutable, not included
+    });
+
+    await logActivity({
+      entityType: "Code",
+      entityId: updated.id,
+      entityIdentifier: `${group} ${existing.code}`,
+      actionType: "EDIT",
+      oldData: existing,
+      newData: updated,
+      source: "WEB",
+      userId: session.user.id,
+      userName: session.user.name || undefined,
+    });
+
+    revalidatePath("/settings/codes");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { error: "Failed to update code" };
   }
+}
 
-  const entries: Record<string, IncomingItem> = {};
+// CSV Import Logic
+const csvRowSchema = z.object({
+  name: z.string().trim().min(1),
+  code: z.string().trim().toUpperCase().regex(codePattern),
+  status: z.enum(["ACTIVE", "INACTIVE"]),
+});
 
-  formData.forEach((value, key) => {
-    if (!key.startsWith(group)) return;
-    const match = key.match(/\[(\d+)\]\[(.+)\]$/);
-    if (!match) return;
-    const index = match[1];
-    const field = match[2] as keyof IncomingItem;
+export async function importCodes(group: CodeGroup, rows: any[]) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
 
-    if (!entries[index]) {
-      entries[index] = {
-        id: undefined,
-        name: "",
-        code: "",
-        active: "true",
-      };
+  const db = getModel(group);
+  const results = {
+    totalRows: rows.length,
+    importedCount: 0,
+    skippedDuplicatesCount: 0,
+    invalidCount: 0,
+    errors: [] as any[],
+  };
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const parsed = csvRowSchema.safeParse(row);
+
+    if (!parsed.success) {
+      results.invalidCount++;
+      results.errors.push({
+        rowNumber: i + 1,
+        code: row.code || "UNKNOWN",
+        reason: "Invalid format: " + parsed.error.issues.map(e => e.message).join(", "),
+      });
+      continue;
     }
 
-    const current = entries[index];
-    const updated: IncomingItem = {
-      ...current,
-      [field]: String(value),
-    } as IncomingItem;
+    const { name, code, status } = parsed.data;
 
-    entries[index] = updated;
-  });
+    // Check duplicate
+    // @ts-ignore
+    const existing = await db.findUnique({ where: { code } });
+    if (existing) {
+      results.skippedDuplicatesCount++;
+      // Optional: log or track skipped
+      continue;
+    }
 
-  const items = Object.values(entries).filter(
-    (item) => item.name.trim().length > 0 && item.code.trim().length > 0
-  );
+    try {
+      // @ts-ignore
+      await db.create({
+        data: { name, code, status },
+      });
+      results.importedCount++;
+    } catch (error) {
+      results.invalidCount++;
+      results.errors.push({
+        rowNumber: i + 1,
+        code,
+        reason: "Database error",
+      });
+    }
+  }
 
-  await upsertMany(group, items);
+  if (results.importedCount > 0) {
+    await logActivity({
+      entityType: "Code",
+      entityId: "batch-import",
+      entityIdentifier: `${group} CSV Import`,
+      actionType: "CREATE",
+      newData: { imported: results.importedCount, skipped: results.skippedDuplicatesCount },
+      source: "CSV_IMPORT",
+      userId: session.user.id,
+      userName: session.user.name || undefined,
+    });
+    revalidatePath("/settings/codes");
+  }
 
-  revalidatePath("/settings/codes");
-  return { message: "Codes updated" };
+  return { success: true, results };
+}
+
+export async function checkCodeDuplicate(group: CodeGroup, code: string) {
+    const db = getModel(group);
+    // @ts-ignore
+    const existing = await db.findUnique({ where: { code: code.toUpperCase() } });
+    return !!existing;
 }

@@ -31,7 +31,7 @@ type CodeRow = {
   id: string;
   name: string;
   code: string;
-  active: boolean;
+  status: string;
 };
 
 type InventoryWithExtras = Inventory & {

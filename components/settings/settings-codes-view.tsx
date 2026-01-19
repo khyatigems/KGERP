@@ -1,6 +1,5 @@
 "use client";
 
-import type React from "react";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +14,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -27,13 +27,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateCodes } from "@/app/(dashboard)/settings/codes/actions";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CsvImporter } from "@/components/ui/csv-importer";
+import {
+  createCode,
+  updateCode,
+  importCodes,
+  checkCodeDuplicate,
+} from "@/app/(dashboard)/settings/codes/actions";
+import { Download, Plus, Upload, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
+import * as XLSX from "xlsx";
 
 type CodeRow = {
   id: string;
   name: string;
   code: string;
-  active: boolean;
+  status: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -44,409 +54,382 @@ interface SettingsCodesViewProps {
   colors: CodeRow[];
 }
 
-type EditableCode = {
-  id?: string;
-  name: string;
-  code: string;
-  active: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
-};
-
 type CodeGroup = "categories" | "gemstones" | "colors";
-
-type StatusFilter = "all" | "active" | "inactive";
-
-type SortKey = "name" | "code" | "createdAt" | "updatedAt";
-
-type SortDirection = "asc" | "desc";
 
 export function SettingsCodesView({
   categories,
   gemstones,
   colors,
 }: SettingsCodesViewProps) {
-  const [isSaving, setIsSaving] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [sortKey, setSortKey] = useState<SortKey>("name");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [activeGroup, setActiveGroup] = useState<CodeGroup>("categories");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newCode, setNewCode] = useState("");
-  const [newActive, setNewActive] = useState(true);
+  const [activeTab, setActiveTab] = useState<CodeGroup>("categories");
 
-  async function handleSubmit(formData: FormData) {
-    setIsSaving(true);
-    try {
-      await updateCodes(formData);
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  function getGroupLabel(group: CodeGroup) {
-    if (group === "categories") return "Category";
-    if (group === "gemstones") return "Gemstone";
-    return "Color";
-  }
-
-  function filteredAndSorted(items: EditableCode[]) {
-    let result = items;
-    if (statusFilter === "active") {
-      result = result.filter((item) => item.active);
-    } else if (statusFilter === "inactive") {
-      result = result.filter((item) => !item.active);
-    }
-    result = [...result].sort((a, b) => {
-      let aVal: string | number = "";
-      let bVal: string | number = "";
-      if (sortKey === "name") {
-        aVal = a.name.toLowerCase();
-        bVal = b.name.toLowerCase();
-      } else if (sortKey === "code") {
-        aVal = a.code.toLowerCase();
-        bVal = b.code.toLowerCase();
-      } else if (sortKey === "createdAt") {
-        aVal = a.createdAt ? a.createdAt.getTime() : 0;
-        bVal = b.createdAt ? b.createdAt.getTime() : 0;
-      } else if (sortKey === "updatedAt") {
-        aVal = a.updatedAt ? a.updatedAt.getTime() : 0;
-        bVal = b.updatedAt ? b.updatedAt.getTime() : 0;
-      }
-      if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
-      return 0;
-    });
-    return result;
-  }
-
-  function handleStatusChange(
-    currentActive: boolean,
-    event: React.ChangeEvent<HTMLSelectElement>
-  ) {
-    const nextValue = event.target.value;
-    if (currentActive && nextValue === "false") {
-      const confirmed = window.confirm(
-        "Are you sure you want to deactivate this code? It will no longer be available for new inventory entries, but existing items will be unaffected."
-      );
-      if (!confirmed) {
-        event.target.value = "true";
-      }
-    }
-  }
-
-  function renderTable(group: CodeGroup, items: EditableCode[]) {
-    const namePrefix = group;
-    const rows = filteredAndSorted(items);
-
-    return (
-      <form
-        action={handleSubmit}
-        className="space-y-4"
-      >
-        <input type="hidden" name="group" value={namePrefix} />
-        <div className="rounded-md border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[140px]">Code ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Last Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((item, index) => (
-                <TableRow key={item.id || `${namePrefix}-row-${index}`}>
-                  <TableCell className="font-mono text-xs">
-                    {item.id || "New"}
-                    {item.id && !item.active && (
-                      <span className="ml-1 inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700">
-                        Inactive
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      name={`${namePrefix}[${index}][name]`}
-                      defaultValue={item.name}
-                    />
-                    {item.id && (
-                      <input
-                        type="hidden"
-                        name={`${namePrefix}[${index}][id]`}
-                        value={item.id}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      name={`${namePrefix}[${index}][code]`}
-                      defaultValue={item.code}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <select
-                      name={`${namePrefix}[${index}][active]`}
-                      defaultValue={item.active ? "true" : "false"}
-                      className="border rounded px-2 py-1 text-sm"
-                      onChange={(event) =>
-                        handleStatusChange(item.active, event)
-                      }
-                    >
-                      <option value="true">Active</option>
-                      <option value="false">Inactive</option>
-                    </select>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {item.createdAt
-                      ? item.createdAt.toLocaleDateString()
-                      : "-"}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {item.updatedAt
-                      ? item.updatedAt.toLocaleDateString()
-                      : "-"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+  return (
+    <Tabs
+      defaultValue="categories"
+      value={activeTab}
+      onValueChange={(v) => setActiveTab(v as CodeGroup)}
+      className="space-y-4"
+    >
+      <div className="flex justify-between items-center">
+        <TabsList>
+          <TabsTrigger value="categories">Category Codes</TabsTrigger>
+          <TabsTrigger value="gemstones">Gemstone Codes</TabsTrigger>
+          <TabsTrigger value="colors">Color Codes</TabsTrigger>
+        </TabsList>
+        <div className="flex gap-2">
+          <ImportCodesDialog group={activeTab} />
+          <ExportCodesButton
+            group={activeTab}
+            data={
+              activeTab === "categories"
+                ? categories
+                : activeTab === "gemstones"
+                ? gemstones
+                : colors
+            }
+          />
+          <AddCodeDialog group={activeTab} />
         </div>
-        <Button type="submit" disabled={isSaving || isPending}>
-          {isSaving || isPending ? "Saving..." : "Save Changes"}
-        </Button>
-      </form>
+      </div>
+
+      <TabsContent value="categories">
+        <CodeTable group="categories" data={categories} />
+      </TabsContent>
+      <TabsContent value="gemstones">
+        <CodeTable group="gemstones" data={gemstones} />
+      </TabsContent>
+      <TabsContent value="colors">
+        <CodeTable group="colors" data={colors} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function CodeTable({ group, data }: { group: CodeGroup; data: CodeRow[] }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Code</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead>Updated</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                No codes found. Add one to get started.
+              </TableCell>
+            </TableRow>
+          ) : (
+            data.map((row) => (
+              <CodeRowItem
+                key={row.id}
+                row={row}
+                group={group}
+                isEditing={editingId === row.id}
+                onEdit={() => setEditingId(row.id)}
+                onCancel={() => setEditingId(null)}
+                onSave={() => setEditingId(null)}
+              />
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function CodeRowItem({
+  row,
+  group,
+  isEditing,
+  onEdit,
+  onCancel,
+  onSave,
+}: {
+  row: CodeRow;
+  group: CodeGroup;
+  isEditing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  const [name, setName] = useState(row.name);
+  const [status, setStatus] = useState(row.status);
+  const [isPending, startTransition] = useTransition();
+
+  const handleSave = () => {
+    if (!name.trim()) return;
+    const formData = new FormData();
+    formData.append("id", row.id);
+    formData.append("name", name);
+    formData.append("status", status);
+
+    startTransition(async () => {
+      const res = await updateCode(group, formData);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        onSave();
+      }
+    });
+  };
+
+  if (isEditing) {
+    return (
+      <TableRow>
+        <TableCell>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="h-8"
+          />
+        </TableCell>
+        <TableCell>
+          <span className="font-mono text-sm text-muted-foreground cursor-not-allowed" title="Code cannot be edited">
+            {row.code}
+          </span>
+        </TableCell>
+        <TableCell>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="h-8 w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+              <SelectItem value="INACTIVE">INACTIVE</SelectItem>
+            </SelectContent>
+          </Select>
+        </TableCell>
+        <TableCell className="text-muted-foreground text-xs">
+            {new Date(row.createdAt).toLocaleDateString()}
+        </TableCell>
+        <TableCell className="text-muted-foreground text-xs">
+            {new Date(row.updatedAt).toLocaleDateString()}
+        </TableCell>
+        <TableCell className="text-right space-x-2">
+          <Button size="sm" variant="ghost" onClick={onCancel} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={isPending}>
+            {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+          </Button>
+        </TableCell>
+      </TableRow>
     );
   }
 
-  const categoryItems: EditableCode[] = [
-    ...categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      code: c.code,
-      active: c.active,
-      createdAt: c.createdAt,
-      updatedAt: c.updatedAt,
-    })),
-  ];
+  return (
+    <TableRow>
+      <TableCell className="font-medium">{row.name}</TableCell>
+      <TableCell className="font-mono">{row.code}</TableCell>
+      <TableCell>
+        <Badge variant={row.status === "ACTIVE" ? "default" : "secondary"}>
+          {row.status}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-muted-foreground text-xs">
+        {new Date(row.createdAt).toLocaleDateString()}
+      </TableCell>
+      <TableCell className="text-muted-foreground text-xs">
+        {new Date(row.updatedAt).toLocaleDateString()}
+      </TableCell>
+      <TableCell className="text-right">
+        <Button size="sm" variant="ghost" onClick={onEdit}>
+          Edit
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
 
-  const gemstoneItems: EditableCode[] = [
-    ...gemstones.map((g) => ({
-      id: g.id,
-      name: g.name,
-      code: g.code,
-      active: g.active,
-      createdAt: g.createdAt,
-      updatedAt: g.updatedAt,
-    })),
-  ];
+function AddCodeDialog({ group }: { group: CodeGroup }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState("ACTIVE");
+  const [isPending, startTransition] = useTransition();
+  const [duplicateError, setDuplicateError] = useState(false);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
-  const colorItems: EditableCode[] = [
-    ...colors.map((c) => ({
-      id: c.id,
-      name: c.name,
-      code: c.code,
-      active: c.active,
-      createdAt: c.createdAt,
-      updatedAt: c.updatedAt,
-    })),
-  ];
+  const handleCodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+    setCode(val);
+    setDuplicateError(false);
 
-  function currentItems() {
-    if (activeGroup === "categories") return categoryItems;
-    if (activeGroup === "gemstones") return gemstoneItems;
-    return colorItems;
-  }
+    if (val.length > 0) {
+      setCheckingDuplicate(true);
+      const isDup = await checkCodeDuplicate(group, val);
+      setDuplicateError(isDup);
+      setCheckingDuplicate(false);
+    }
+  };
 
-  function handleCreateCode() {
-    const group = activeGroup;
-    const fd = new FormData();
-    fd.set("group", group);
-    fd.set(`${group}[0][name]`, newName);
-    fd.set(`${group}[0][code]`, newCode);
-    fd.set(`${group}[0][active]`, newActive ? "true" : "false");
-    setIsSaving(true);
+  const handleCreate = () => {
+    if (!name || !code || duplicateError) return;
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("code", code);
+    formData.append("status", status);
+
     startTransition(async () => {
-      try {
-        await updateCodes(fd);
-        setDialogOpen(false);
-        setNewName("");
-        setNewCode("");
-        setNewActive(true);
-      } finally {
-        setIsSaving(false);
+      const res = await createCode(group, formData);
+      if (res.error) {
+        if (res.error === "CODE_ALREADY_EXISTS") {
+            setDuplicateError(true);
+        } else {
+            alert(res.error);
+        }
+      } else {
+        setOpen(false);
+        setName("");
+        setCode("");
+        setStatus("ACTIVE");
       }
     });
-  }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-md border bg-background p-1">
-            <button
-              type="button"
-              onClick={() => setActiveGroup("categories")}
-              className={`px-3 py-1 text-xs font-medium rounded-sm ${
-                activeGroup === "categories"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Categories
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveGroup("gemstones")}
-              className={`px-3 py-1 text-xs font-medium rounded-sm ${
-                activeGroup === "gemstones"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Gemstones
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveGroup("colors")}
-              className={`px-3 py-1 text-xs font-medium rounded-sm ${
-                activeGroup === "colors"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Colors
-            </button>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" /> Add New Code
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add New {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : "Color"} Code</DialogTitle>
+          <DialogDescription>
+            Create a new master code. Codes are immutable once created.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Name</label>
+            <Input
+              placeholder="e.g. Sapphire"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
-          <Select
-            value={statusFilter}
-            onValueChange={(value) =>
-              setStatusFilter(value as StatusFilter)
-            }
-          >
-            <SelectTrigger className="h-8 w-[150px] text-xs">
-              <SelectValue placeholder="Status filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active only</SelectItem>
-              <SelectItem value="inactive">Inactive only</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={sortKey}
-            onValueChange={(value) => setSortKey(value as SortKey)}
-          >
-            <SelectTrigger className="h-8 w-[160px] text-xs">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Sort by Name</SelectItem>
-              <SelectItem value="code">Sort by Code</SelectItem>
-              <SelectItem value="createdAt">Sort by Created</SelectItem>
-              <SelectItem value="updatedAt">Sort by Updated</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={sortDirection}
-            onValueChange={(value) =>
-              setSortDirection(value as SortDirection)
-            }
-          >
-            <SelectTrigger className="h-8 w-[120px] text-xs">
-              <SelectValue placeholder="Direction" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="asc">Ascending</SelectItem>
-              <SelectItem value="desc">Descending</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              Add New {getGroupLabel(activeGroup)} Code
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                Add New {getGroupLabel(activeGroup)} Code
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Code</label>
+            <div className="relative">
                 <Input
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Display name"
+                placeholder="e.g. SAP"
+                value={code}
+                onChange={handleCodeChange}
+                className={duplicateError ? "border-red-500 pr-10" : "pr-10"}
                 />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Code</label>
-                <Input
-                  value={newCode}
-                  onChange={(e) => setNewCode(e.target.value)}
-                  placeholder="Short code (e.g. LG, AM, BLU)"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
-                <Select
-                  value={newActive ? "active" : "inactive"}
-                  onValueChange={(value) =>
-                    setNewActive(value === "active")
-                  }
-                >
-                  <SelectTrigger className="h-8 w-[160px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                {checkingDuplicate && (
+                    <div className="absolute right-3 top-2.5">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                )}
             </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  !newName.trim() ||
-                  !newCode.trim() ||
-                  isSaving ||
-                  isPending
-                }
-                onClick={handleCreateCode}
-              >
-                {isSaving || isPending ? "Saving..." : "Create Code"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">
-          {getGroupLabel(activeGroup)} Codes
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Manage master codes used to generate SKUs and standardise data.
-        </p>
-        {renderTable(activeGroup, currentItems())}
-      </section>
-    </div>
+            {duplicateError && (
+              <p className="text-xs text-red-500 font-medium">
+                This code already exists in the system. Duplicate codes are not allowed.
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Uppercase, alphanumeric, max 6 chars.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status</label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+                <SelectItem value="INACTIVE">INACTIVE</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={!name || !code || duplicateError || isPending || checkingDuplicate}>
+            {isPending ? "Creating..." : "Create Code"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ExportCodesButton({ group, data }: { group: CodeGroup; data: CodeRow[] }) {
+  const handleExport = () => {
+    const csvData = data.map(row => ({
+      name: row.name,
+      code: row.code,
+      status: row.status
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(csvData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Codes");
+    XLSX.writeFile(wb, `${group}_codes_export.csv`);
+  };
+
+  return (
+    <Button variant="outline" onClick={handleExport}>
+      <Download className="mr-2 h-4 w-4" /> Export CSV
+    </Button>
+  );
+}
+
+function ImportCodesDialog({ group }: { group: CodeGroup }) {
+  const [open, setOpen] = useState(false);
+
+  const handleImport = async (data: any[]) => {
+    const res = await importCodes(group, data);
+    if (res.success) {
+        return {
+            success: true,
+            message: `Import Successful. Imported: ${res.results.importedCount}, Skipped: ${res.results.skippedDuplicatesCount}, Invalid: ${res.results.invalidCount}`,
+            errors: res.results.errors
+        };
+    } else {
+        return {
+            success: false,
+            message: "Import failed",
+            errors: []
+        };
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Upload className="mr-2 h-4 w-4" /> Import CSV
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : "Color"} Codes</DialogTitle>
+          <DialogDescription>
+            Upload a CSV file with headers: <code>name,code,status</code>.
+            Duplicates will be skipped.
+          </DialogDescription>
+        </DialogHeader>
+        <CsvImporter
+          templateHeaders={["name", "code", "status"]}
+          onImport={handleImport}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }

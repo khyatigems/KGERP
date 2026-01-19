@@ -7,8 +7,6 @@ export const metadata: Metadata = {
 };
 
 export default async function NewInventoryPage() {
-  type MasterCode = { id: string; name: string; code: string; active: boolean };
-
   const [vendors, categories, gemstones, colors] = await Promise.all([
     prisma.vendor.findMany({
       where: {
@@ -22,9 +20,18 @@ export default async function NewInventoryPage() {
         name: true,
       },
     }),
-    prisma.$queryRaw<MasterCode[]>`SELECT * FROM CategoryCode ORDER BY name ASC`,
-    prisma.$queryRaw<MasterCode[]>`SELECT * FROM GemstoneCode ORDER BY name ASC`,
-    prisma.$queryRaw<MasterCode[]>`SELECT * FROM ColorCode ORDER BY name ASC`,
+    prisma.categoryCode.findMany({ 
+        where: { status: "ACTIVE" },
+        orderBy: { name: "asc" } 
+    }),
+    prisma.gemstoneCode.findMany({ 
+        where: { status: "ACTIVE" },
+        orderBy: { name: "asc" } 
+    }),
+    prisma.colorCode.findMany({ 
+        where: { status: "ACTIVE" },
+        orderBy: { name: "asc" } 
+    }),
   ]);
 
   return (

@@ -25,7 +25,7 @@ const adapter = isLibsql
         url: connectionString!,
       })
     )
-  : undefined
+  : null
 
 const prismaBase =
   globalForPrisma.prisma ??

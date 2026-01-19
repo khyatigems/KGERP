@@ -97,8 +97,8 @@ async function main() {
   for (const c of categoryCodes) {
     await prisma.categoryCode.upsert({
       where: { code: c.code },
-      update: { name: c.name, active: true },
-      create: { code: c.code, name: c.name, active: true },
+      update: { name: c.name, status: "ACTIVE" },
+      create: { code: c.code, name: c.name, status: "ACTIVE" },
     });
   }
 
@@ -121,8 +121,8 @@ async function main() {
   for (const g of gemstoneCodes) {
     await prisma.gemstoneCode.upsert({
       where: { code: g.code },
-      update: { name: g.name, active: true },
-      create: { code: g.code, name: g.name, active: true },
+      update: { name: g.name, status: "ACTIVE" },
+      create: { code: g.code, name: g.name, status: "ACTIVE" },
     });
   }
 
@@ -144,8 +144,8 @@ async function main() {
   for (const c of colorCodes) {
     await prisma.colorCode.upsert({
       where: { code: c.code },
-      update: { name: c.name, active: true },
-      create: { code: c.code, name: c.name, active: true },
+      update: { name: c.name, status: "ACTIVE" },
+      create: { code: c.code, name: c.name, status: "ACTIVE" },
     });
   }
 

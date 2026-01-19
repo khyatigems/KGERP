@@ -251,36 +251,36 @@ model CategoryCode {
   id        String     @id @default(uuid())
   name      String
   code      String     @unique
-  active    Boolean    @default(true)
+  status    String     @default("ACTIVE") // ACTIVE | INACTIVE
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   inventory Inventory[]
 
-  @@index([active])
+  @@index([status])
 }
 
 model GemstoneCode {
   id        String     @id @default(uuid())
   name      String
   code      String     @unique
-  active    Boolean    @default(true)
+  status    String     @default("ACTIVE") // ACTIVE | INACTIVE
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   inventory Inventory[]
 
-  @@index([active])
+  @@index([status])
 }
 
 model ColorCode {
   id        String     @id @default(uuid())
   name      String
   code      String     @unique
-  active    Boolean    @default(true)
+  status    String     @default("ACTIVE") // ACTIVE | INACTIVE
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   inventory Inventory[]
 
-  @@index([active])
+  @@index([status])
 }
 
 // INVOICE
