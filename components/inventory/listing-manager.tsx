@@ -159,7 +159,7 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <FormLabel>Platform</FormLabel>
-                                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <Select onValueChange={field.onChange} defaultValue={field.value as string}>
                                                             <FormControl>
                                                                 <SelectTrigger><SelectValue placeholder="Select Platform" /></SelectTrigger>
                                                             </FormControl>
@@ -183,7 +183,7 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
                                                     <FormItem>
                                                         <FormLabel>Listed Price</FormLabel>
                                                         <FormControl>
-                                                            <Input type="number" {...field} />
+                                                            <Input type="number" {...field} value={field.value as number} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
