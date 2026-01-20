@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -71,7 +71,7 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
   const [rollbackTarget, setRollbackTarget] = useState<VersionHistoryItem | null>(null);
 
   const form = useForm<ConfigFormValues>({
-    resolver: zodResolver(configSchema),
+    resolver: zodResolver(configSchema) as Resolver<ConfigFormValues>,
     defaultValues: {
       brandTitle: initialSettings.brandTitle,
       subtitle: initialSettings.subtitle,
