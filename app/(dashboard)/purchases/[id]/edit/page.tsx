@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PurchaseForm } from "@/components/purchases/purchase-form";
 
 export const metadata: Metadata = {
-  title: "Edit Purchase | Khyati Gems",
+  title: "Edit Purchase | KhyatiGems™",
 };
 
 type EditPurchasePageProps = {

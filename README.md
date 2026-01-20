@@ -1,4 +1,4 @@
-# Khyati Gems ERP – Developer Onboarding
+# KhyatiGems™ ERP – Developer Onboarding
 
 ## 1️⃣ Prerequisites
 

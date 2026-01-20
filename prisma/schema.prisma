@@ -24,6 +24,53 @@ model User {
 
   labelCartItems LabelCartItem[]
   labelPrintJobs LabelPrintJob[]
+  createdLandingPageVersions LandingPageVersion[]
+}
+
+//// LANDING PAGE SETTINGS (VERSIONED)
+
+model LandingPageSettings {
+  id                 String   @id @default(uuid())
+  brandTitle         String   @default("KhyatiGems™ ERP")
+  subtitle           String   @default("Internal Operations & Management Platform")
+  accessNotice       String   @default("Authorized internal access only")
+  slideshowEnabled   Boolean  @default(true)
+  highlightsEnabled  Boolean  @default(true)
+  whatsNewEnabled    Boolean  @default(false)
+  highlights         String   @default("[]") // JSON string array
+  whatsNewText       String?
+  whatsNewUpdatedAt  DateTime?
+  activeVersion      Int      @default(1)
+  updatedByUserId    String
+  updatedAt          DateTime @updatedAt
+
+  slides             LandingPageSlide[]
+}
+
+model LandingPageSlide {
+  id          String  @id @default(uuid())
+  settingsId  String
+  title       String
+  description String
+  displayOrder Int
+  isActive    Boolean @default(true)
+  
+  settings    LandingPageSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@index([settingsId])
+}
+
+model LandingPageVersion {
+  id               String   @id @default(uuid())
+  versionNumber    Int
+  snapshot         String   // Full JSON snapshot of settings + slides
+  createdByUserId  String
+  createdAt        DateTime @default(now())
+  isRollback       Boolean  @default(false)
+
+  createdBy        User     @relation(fields: [createdByUserId], references: [id])
+  
+  @@index([createdByUserId])
 }
 
 //// VENDORS
@@ -212,16 +259,30 @@ model Listing {
   listingUrl  String?
   listingRef  String?
   listedPrice Float
+  currency    String   @default("INR") // INR | USD
   listedDate  DateTime @default(now())
   status      String   @default("LISTED") // LISTED | SOLD | DELISTED
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  priceHistory ListingPriceHistory[]
 
   @@index([inventoryId])
   @@index([platform])
   @@index([status])
+}
+
+model ListingPriceHistory {
+  id          String   @id @default(uuid())
+  listingId   String
+  price       Float
+  changedBy   String   // UserId or Name
+  changedAt   DateTime @default(now())
+  
+  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  @@index([listingId])
 }
 
 

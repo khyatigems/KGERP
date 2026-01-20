@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { QuotesCardList } from "@/components/quotes/quotes-card-list";
 
 export const metadata: Metadata = {
-  title: "Quotations | Khyati Gems",
+  title: "Quotations | KhyatiGems™",
 };
 
 export default async function QuotationsPage() {
@@ -33,8 +33,7 @@ export default async function QuotationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Quotations</h1>
+      <div className="flex items-center justify-end">
         <Button asChild>
           <Link href="/quotes/new">
             <Plus className="mr-2 h-4 w-4" />

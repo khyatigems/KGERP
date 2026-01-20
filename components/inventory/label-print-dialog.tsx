@@ -8,12 +8,26 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Printer, Loader2 } from "lucide-react";
-import { generateLabelPDF, LabelConfig, DEFAULT_TAG_CONFIG, DEFAULT_A4_CONFIG, LabelItem } from "@/lib/label-generator";
+import { generateLabelPDF, LabelConfig, DEFAULT_TAG_CONFIG, DEFAULT_A4_CONFIG, LabelItem, DEFAULT_FIELDS } from "@/lib/label-generator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { createLabelJob } from "@/app/(dashboard)/labels/actions";
 import { encodePrice } from "@/lib/price-encoder";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+const AVAILABLE_FIELDS_UI = [
+    { id: "itemName", label: "Item Name" },
+    { id: "sku", label: "SKU" },
+    { id: "qrCode", label: "QR Code" },
+    { id: "gemType", label: "Gem Type" },
+    { id: "color", label: "Color" },
+    { id: "shape", label: "Shape" },
+    { id: "dimensions", label: "Dimensions" },
+    { id: "weight", label: "Weight" },
+    { id: "stockLocation", label: "Stock Location" },
+    { id: "price", label: "Price" },
+    { id: "companyName", label: "Company Footer" }
+];
 
 interface LabelPrintDialogProps {
     item?: LabelItem;
@@ -53,8 +67,28 @@ export function LabelPrintDialog({ item, items, trigger }: LabelPrintDialogProps
     const targets = items && items.length > 0 ? items : (item ? [item] : []);
 
     const handleFormatChange = (format: "TAG" | "A4") => {
-        if (format === "TAG") setConfig({ ...DEFAULT_TAG_CONFIG, showPrice: config.showPrice });
-        else setConfig({ ...DEFAULT_A4_CONFIG, showPrice: config.showPrice });
+        const defaults = format === "TAG" ? DEFAULT_TAG_CONFIG : DEFAULT_A4_CONFIG;
+        setConfig({ 
+            ...defaults, 
+            showPrice: config.showPrice,
+            selectedFields: config.selectedFields || DEFAULT_FIELDS // Preserve selection or use default
+        });
+    };
+
+    const handleToggleField = (fieldId: string) => {
+        const current = config.selectedFields || DEFAULT_FIELDS;
+        const updated = current.includes(fieldId)
+            ? current.filter(f => f !== fieldId)
+            : [...current, fieldId];
+        setConfig({ ...config, selectedFields: updated });
+    };
+
+    const handleSelectAll = (select: boolean) => {
+        if (select) {
+            setConfig({ ...config, selectedFields: AVAILABLE_FIELDS_UI.map(f => f.id) });
+        } else {
+            setConfig({ ...config, selectedFields: [] });
+        }
     };
 
     const handlePrint = async () => {
@@ -85,6 +119,9 @@ export function LabelPrintDialog({ item, items, trigger }: LabelPrintDialogProps
                 weightValue: i.weightValue,
                 weightUnit: i.weightUnit,
                 weightRatti: i.weightRatti,
+                shape: i.shape,
+                dimensions: i.dimensions,
+                stockLocation: i.stockLocation,
                 sellingPrice: i.sellingPrice,
                 pricingMode: i.pricingMode,
                 sellingRatePerCarat: i.sellingRatePerCarat,
@@ -108,6 +145,9 @@ export function LabelPrintDialog({ item, items, trigger }: LabelPrintDialogProps
 
     // Calculate preview price
     const getPreviewPrice = (target: LabelItem) => {
+        const fields = config.selectedFields || DEFAULT_FIELDS;
+        if (!fields.includes("price")) return null;
+
         let price = 0;
         if (pricingMode === "PER_CARAT") {
             price = target.sellingRatePerCarat || 0;
@@ -117,13 +157,12 @@ export function LabelPrintDialog({ item, items, trigger }: LabelPrintDialogProps
         
         if (config.showEncodedPrice) {
             const encoded = encodePrice(price);
-            return `Rs. ${encoded.priceWithChecksum}`;
-        } else if (config.showPrice) {
+            return `R ${encoded.priceWithChecksum}`;
+        } else {
             return pricingMode === "PER_CARAT" 
-                ? `Rs. ${price.toLocaleString()}/ct`
-                : `Rs. ${price.toLocaleString()}`;
+                ? `R ${price.toLocaleString()}/ct`
+                : `R ${price.toLocaleString()}`;
         }
-        return null;
     };
     
     const previewPriceText = targets[0] ? getPreviewPrice(targets[0]) : "";
@@ -167,23 +206,40 @@ export function LabelPrintDialog({ item, items, trigger }: LabelPrintDialogProps
                                 </div>
                             </div>
                             
-                            <div className="flex flex-wrap gap-4 p-4 border rounded bg-muted/10">
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox 
-                                        id="show-price" 
-                                        checked={config.showPrice} 
-                                        onCheckedChange={(c) => setConfig({ ...config, showPrice: !!c })} 
-                                    />
-                                    <Label htmlFor="show-price">Include Price</Label>
+                            <div className="space-y-3 border rounded p-4 bg-muted/10">
+                                <div className="flex items-center justify-between">
+                                    <Label className="font-semibold">Label Content</Label>
+                                    <div className="flex gap-2 text-xs">
+                                        <button onClick={() => handleSelectAll(true)} className="text-primary hover:underline">Select All</button>
+                                        <span className="text-muted-foreground">|</span>
+                                        <button onClick={() => handleSelectAll(false)} className="text-primary hover:underline">Deselect All</button>
+                                    </div>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                    <Checkbox 
-                                        id="show-encoded" 
-                                        checked={config.showEncodedPrice} 
-                                        onCheckedChange={(c) => setConfig({ ...config, showEncodedPrice: !!c })} 
-                                    />
-                                    <Label htmlFor="show-encoded">Append Checksum</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {AVAILABLE_FIELDS_UI.map(field => (
+                                         <div key={field.id} className="flex items-center space-x-2">
+                                             <Checkbox 
+                                                 id={`field-${field.id}`}
+                                                 checked={(config.selectedFields || DEFAULT_FIELDS).includes(field.id)}
+                                                 onCheckedChange={() => handleToggleField(field.id)}
+                                             />
+                                             <Label htmlFor={`field-${field.id}`} className="cursor-pointer">{field.label}</Label>
+                                         </div>
+                                    ))}
                                 </div>
+                                
+                                {(config.selectedFields || DEFAULT_FIELDS).includes('price') && (
+                                    <div className="pt-2 mt-2 border-t">
+                                         <div className="flex items-center space-x-2">
+                                            <Checkbox 
+                                                id="show-encoded" 
+                                                checked={config.showEncodedPrice} 
+                                                onCheckedChange={(c) => setConfig({ ...config, showEncodedPrice: !!c })} 
+                                            />
+                                            <Label htmlFor="show-encoded" className="text-sm text-muted-foreground cursor-pointer">Append Checksum (Secret Price)</Label>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             
                             <div className="space-y-2">
@@ -211,34 +267,71 @@ export function LabelPrintDialog({ item, items, trigger }: LabelPrintDialogProps
                                         transformOrigin: "center"
                                     }}
                                 >
-                                    {/* Simplified CSS Preview matching PDF Logic */}
+                                    {/* Dynamic CSS Preview matching PDF Logic */}
                                     {targets[0] && (
-                                        <div className="h-full flex flex-col relative text-black">
-                                            <div className="absolute top-0 right-0 bg-gray-100 flex items-center justify-center text-[6px]" 
-                                                style={{ width: `${config.qrSize}mm`, height: `${config.qrSize}mm` }}>QR</div>
+                                        <div className="h-full flex flex-col relative text-black leading-tight">
+                                            {(config.selectedFields || DEFAULT_FIELDS).includes("qrCode") && (
+                                                <div className="absolute top-0 right-0 bg-gray-100 flex items-center justify-center text-[6px]" 
+                                                    style={{ width: `${config.qrSize}mm`, height: `${config.qrSize}mm` }}>QR</div>
+                                            )}
                                             
-                                            <div className="font-bold leading-tight pr-8" style={{ fontSize: `${config.fontSize + 2}pt` }}>
-                                                {targets[0].itemName}
-                                            </div>
-                                            <div className="font-mono mt-1" style={{ fontSize: `${config.fontSize}pt` }}>
-                                                {targets[0].sku}
-                                            </div>
-                                            
-                                            <div className="mt-2 leading-tight" style={{ fontSize: `${config.fontSize - 1}pt` }}>
-                                                <div>{targets[0].gemType} • {targets[0].color}</div>
-                                                <div className="mt-0.5">
-                                                    {targets[0].weightValue} {targets[0].weightUnit}
-                                                    {targets[0].weightRatti ? ` (${targets[0].weightRatti.toFixed(2)} R)` : ''}
-                                                </div>
-                                                {previewPriceText && (
-                                                    <div className="font-bold mt-1">{previewPriceText}</div>
+                                            <div className="flex-1">
+                                                {(config.selectedFields || DEFAULT_FIELDS).includes("itemName") && (
+                                                    <div className="font-bold pr-8 mb-0.5 whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: `${config.fontSize + 2}pt` }}>
+                                                        {targets[0].itemName}
+                                                    </div>
                                                 )}
+
+                                                {(config.selectedFields || DEFAULT_FIELDS).includes("sku") && (
+                                                    <div className="font-mono mb-1" style={{ fontSize: `${config.fontSize}pt` }}>
+                                                        {targets[0].sku}
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="space-y-0.5" style={{ fontSize: `${config.fontSize - 1}pt` }}>
+                                                    {((config.selectedFields || DEFAULT_FIELDS).includes("gemType") || (config.selectedFields || DEFAULT_FIELDS).includes("color")) && (
+                                                        <div>
+                                                            {[
+                                                                (config.selectedFields || DEFAULT_FIELDS).includes("gemType") ? targets[0].gemType : null,
+                                                                (config.selectedFields || DEFAULT_FIELDS).includes("color") ? targets[0].color : null
+                                                            ].filter(Boolean).join(" • ")}
+                                                        </div>
+                                                    )}
+
+                                                    {((config.selectedFields || DEFAULT_FIELDS).includes("shape") || (config.selectedFields || DEFAULT_FIELDS).includes("dimensions")) && (
+                                                        <div>
+                                                            {[
+                                                                (config.selectedFields || DEFAULT_FIELDS).includes("shape") ? targets[0].shape : null,
+                                                                (config.selectedFields || DEFAULT_FIELDS).includes("dimensions") ? targets[0].dimensions : null
+                                                            ].filter(Boolean).join(" • ")}
+                                                        </div>
+                                                    )}
+
+                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("weight") && (
+                                                        <div>
+                                                            {targets[0].weightValue} {targets[0].weightUnit}
+                                                            {targets[0].weightRatti ? ` (${targets[0].weightRatti.toFixed(2)} R)` : ''}
+                                                        </div>
+                                                    )}
+
+                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("stockLocation") && targets[0].stockLocation && (
+                                                        <div className="font-mono text-xs">
+                                                            Loc: {targets[0].stockLocation}
+                                                        </div>
+                                                    )}
+
+                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("price") && previewPriceText && (
+                                                        <div className="font-bold mt-0.5">{previewPriceText.replace("Rs.", "R")}</div>
+                                                    )}
+                                                </div>
                                             </div>
                                             
-                                            <div className="absolute bottom-0 w-full text-center text-gray-500" 
-                                                style={{ fontSize: `${config.fontSize - 3}pt` }}>
-                                                KHYATI GEMS
-                                            </div>
+                                            {(config.selectedFields || DEFAULT_FIELDS).includes("companyName") && (
+                                                <div className="absolute bottom-0 w-full text-center text-gray-400" 
+                                                    style={{ fontSize: `4pt` }}>
+                                                    KhyatiGems™
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

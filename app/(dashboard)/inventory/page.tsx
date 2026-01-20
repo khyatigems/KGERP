@@ -25,8 +25,10 @@ type InventoryWithExtras = Inventory & {
 };
 
 export const metadata: Metadata = {
-  title: "Inventory | Khyati Gems",
+  title: "Inventory | KhyatiGems™",
 };
+
+import { removeDuplicates } from "@/lib/dedup";
 
 export default async function InventoryPage({
   searchParams,
@@ -79,7 +81,7 @@ export default async function InventoryPage({
       }
   }
 
-  const [inventory, categories, gemstones, colors, vendors, collections, rashis] = await Promise.all([
+  const [rawInventory, categories, gemstones, colors, vendors, collections, rashis] = await Promise.all([
     prisma.inventory.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -101,6 +103,9 @@ export default async function InventoryPage({
     prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
     prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
   ]);
+
+  // Deduplicate inventory items by ID to ensure data integrity
+  const inventory = removeDuplicates(rawInventory, 'id');
 
   const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
 
@@ -156,8 +161,7 @@ export default async function InventoryPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
             <ExportButton 
                 filename="inventory_report" 

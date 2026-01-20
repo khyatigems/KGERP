@@ -176,6 +176,9 @@ export async function createLabelJob(data: {
                 weightValue: item.weightValue,
                 weightUnit: item.weightUnit,
                 weightRatti: item.weightRatti,
+                shape: item.shape,
+                dimensions: item.dimensionsMm,
+                stockLocation: item.stockLocation,
                 pricingMode: data.pricingMode,
                 sellingRatePerCarat: item.sellingRatePerCarat
             };
@@ -264,6 +267,9 @@ export async function getJobReprintItems(jobId: string) {
                 weightValue: invItem.weightValue || 0,
                 weightUnit: invItem.weightUnit || "",
                 weightRatti: invItem.weightRatti,
+                shape: invItem.shape,
+                dimensions: invItem.dimensionsMm,
+                stockLocation: invItem.stockLocation,
                 // FORCE USE OF STORED PRICE DATA
                 sellingPrice: jobItem.sellingPrice,
                 priceWithChecksum: jobItem.priceWithChecksum,

@@ -140,7 +140,7 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
                     </div>
                     
                     <div className="text-center text-xs text-muted-foreground pt-2">
-                        Verified Authentic • Khyati Gems
+                        Verified Authentic • KhyatiGems™
                     </div>
                 </CardContent>
             </Card>

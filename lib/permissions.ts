@@ -7,6 +7,7 @@ export const PERMISSIONS = {
   SALES_DELETE: "sales.delete",
   VENDOR_APPROVE: "vendor.approve",
   REPORTS_VIEW: "reports.view",
+  MANAGE_LANDING_PAGE: "settings.landing_page",
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];

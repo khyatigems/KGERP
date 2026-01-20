@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { PurchaseForm } from "@/components/purchases/purchase-form";
 
 export const metadata: Metadata = {
-  title: "New Purchase | Khyati Gems",
+  title: "New Purchase | KhyatiGems™",
 };
 
 export default async function NewPurchasePage() {

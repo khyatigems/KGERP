@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Trash2, ExternalLink, Globe } from "lucide-react";
+import { Loader2, Trash2, ExternalLink, Globe, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils";
 import {
     Dialog,
     DialogContent,
@@ -30,7 +31,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { addListing, updateListing, deleteListing, getListings } from "@/app/(dashboard)/inventory/listing-actions";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { addListing, updateListing, deleteListing, getListings, getListingHistory } from "@/app/(dashboard)/inventory/listing-actions";
 
 const formSchema = z.object({
     platform: z.string().min(1, "Platform is required"),
@@ -56,6 +58,59 @@ interface ListingManagerProps {
     trigger?: React.ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+}
+
+interface PriceHistoryItem {
+    price: number;
+    changedAt: Date | string;
+    changedBy?: string;
+}
+
+function ListingPriceHistory({ listingId }: { listingId: string }) {
+    const [history, setHistory] = useState<PriceHistoryItem[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [open, setOpen] = useState(false);
+
+    const handleOpenChange = (isOpen: boolean) => {
+        setOpen(isOpen);
+        if (isOpen) {
+            setLoading(true);
+            getListingHistory(listingId).then(res => {
+                if (res.success) setHistory(res.history);
+                setLoading(false);
+            });
+        }
+    };
+
+    return (
+        <Popover open={open} onOpenChange={handleOpenChange}>
+            <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" title="View Price History">
+                    <History className="h-3 w-3 text-muted-foreground" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3">
+                <h4 className="font-medium text-sm mb-2 border-b pb-1">Price History</h4>
+                {loading ? (
+                    <div className="flex justify-center p-2"><Loader2 className="h-4 w-4 animate-spin" /></div>
+                ) : history.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No history recorded.</p>
+                ) : (
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {history.map((h, i) => (
+                            <div key={i} className="text-xs flex justify-between items-center border-b last:border-0 pb-1 last:pb-0">
+                                <span className="font-medium">{formatCurrency(h.price)}</span>
+                                <div className="text-right">
+                                    <div className="text-muted-foreground">{new Date(h.changedAt).toLocaleDateString()}</div>
+                                    <div className="text-[10px] text-muted-foreground/70">{new Date(h.changedAt).toLocaleTimeString()}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </PopoverContent>
+        </Popover>
+    );
 }
 
 export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }: ListingManagerProps) {
@@ -98,7 +153,7 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true);
-        const res = await addListing({ ...values, inventoryId });
+        const res = await addListing({ ...values, inventoryId, currency: "INR" });
         setIsSubmitting(false);
 
         if (res.success) {
@@ -248,8 +303,9 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
                                                         </a>
                                                     )}
                                                 </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {listing.listedPrice} | Ref: {listing.listingRef || "-"}
+                                                <div className="text-xs text-muted-foreground flex items-center">
+                                                    {formatCurrency(listing.listedPrice)} | Ref: {listing.listingRef || "-"}
+                                                    <ListingPriceHistory listingId={listing.id} />
                                                 </div>
                                             </div>
                                         </div>

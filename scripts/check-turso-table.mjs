@@ -15,11 +15,11 @@ async function main() {
     const prisma = new PrismaClient({ adapter });
 
     try {
-        const count = await prisma.labelCartItem.count();
-        console.log("✅ [Turso] LabelCartItem exists. Count:", count);
+        const count = await prisma.landingPageSettings.count();
+        console.log("✅ [Turso] LandingPageSettings exists. Count:", count);
     } catch (e) {
         if (e.message.includes('no such table')) {
-            console.error("❌ [Turso] Table LabelCartItem NOT found.");
+            console.error("❌ [Turso] Table LandingPageSettings NOT found.");
             console.log("Run 'npx prisma db push' to create it.");
         } else {
             console.error("❌ [Turso] Error:", e.message);

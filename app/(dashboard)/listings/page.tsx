@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ListingsView } from "@/components/listings/listings-view";
 
 export const metadata: Metadata = {
-  title: "Listings Management | Khyati Gems",
+  title: "Listings Management | KhyatiGems™",
 };
 
 export default async function ListingsPage() {
@@ -36,9 +36,6 @@ export default async function ListingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Listings Management</h1>
-      </div>
       <ListingsView listings={listings} inventory={inventory} />
     </div>
   );

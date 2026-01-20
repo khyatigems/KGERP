@@ -71,7 +71,7 @@ export default async function PublicQuotationPage({ params }: { params: Promise<
             {/* Header */}
             <div className="bg-slate-900 text-white p-6 flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold">Khyati Gems</h1>
+                    <h1 className="text-2xl font-bold">KhyatiGems™</h1>
                     <p className="text-sm opacity-80">Official Quotation</p>
                 </div>
                 <div className="text-right">

@@ -64,7 +64,7 @@ async function main() {
     { key: "company_phone", value: "+919915270295" },
     { key: "company_email", value: "support@khyatigems.com" },
     { key: "upi_vpa", value: "9915270295@okbizaxis" },
-    { key: "upi_payee_name", value: "Khyati Gems" },
+    { key: "upi_payee_name", value: "KhyatiGems™" },
     { key: "bank_name", value: "RBL Bank" },
     { key: "bank_account", value: "409002043174" },
     { key: "bank_ifsc", value: "RATN0000145" },

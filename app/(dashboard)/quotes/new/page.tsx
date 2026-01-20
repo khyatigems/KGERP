@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { QuotationForm } from "@/components/quotes/quotation-form";
 
 export const metadata: Metadata = {
-  title: "New Quotation | Khyati Gems",
+  title: "New Quotation | KhyatiGems™",
 };
 
 export default async function NewQuotationPage() {

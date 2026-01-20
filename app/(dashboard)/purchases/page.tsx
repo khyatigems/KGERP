@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
-  title: "Purchases | Khyati Gems",
+  title: "Purchases | KhyatiGems™",
 };
 
 export default async function PurchasesPage() {
@@ -33,8 +33,7 @@ export default async function PurchasesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Purchases</h1>
+      <div className="flex items-center justify-end">
         <div className="flex gap-2">
           <Button variant="outline" asChild>
             <Link href="/purchases/import">

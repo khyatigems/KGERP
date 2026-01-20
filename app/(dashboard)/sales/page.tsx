@@ -17,7 +17,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
 export const metadata: Metadata = {
-  title: "Sales History | Khyati Gems",
+  title: "Sales History | KhyatiGems™",
 };
 
 export default async function SalesPage() {
@@ -68,8 +68,7 @@ export default async function SalesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Sales History</h1>
+      <div className="flex items-center justify-end">
         <ExportButton 
             filename="sales_report" 
             data={exportData} 

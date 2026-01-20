@@ -4,7 +4,7 @@ import { QuotationForm } from "@/components/quotes/quotation-form";
 import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Edit Quotation | Khyati Gems",
+  title: "Edit Quotation | KhyatiGems™",
 };
 
 export default async function EditQuotationPage({ params }: { params: Promise<{ id: string }> }) {

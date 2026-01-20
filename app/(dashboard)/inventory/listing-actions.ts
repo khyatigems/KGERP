@@ -12,7 +12,8 @@ const listingSchema = z.object({
   listingUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
   listingRef: z.string().optional(),
   listedPrice: z.coerce.number().positive("Price must be positive"),
-  status: z.string().default("ACTIVE"),
+  currency: z.string().default("INR"),
+  status: z.string().default("LISTED"),
 });
 
 export async function addListing(data: z.infer<typeof listingSchema>) {
@@ -37,7 +38,14 @@ export async function addListing(data: z.infer<typeof listingSchema>) {
         listingUrl: data.listingUrl || null,
         listingRef: data.listingRef,
         listedPrice: data.listedPrice,
+        currency: data.currency,
         status: data.status,
+        priceHistory: {
+          create: {
+            price: data.listedPrice,
+            changedBy: session.user?.id || session.user?.email || "Unknown",
+          }
+        }
       },
     });
 
@@ -51,10 +59,14 @@ export async function addListing(data: z.infer<typeof listingSchema>) {
 
     revalidatePath("/inventory");
     revalidatePath(`/inventory/${data.inventoryId}`);
+    revalidatePath("/listings");
     return { success: true, listing };
   } catch (error) {
-    console.error(error);
-    return { success: false, message: "Failed to create listing" };
+    console.error("addListing error:", error);
+    return { 
+        success: false, 
+        message: `Failed to create listing: ${error instanceof Error ? error.message : String(error)}` 
+    };
   }
 }
 
@@ -70,15 +82,29 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
 
         if (!existing) return { success: false, message: "Listing not found" };
 
-        const updated = await prisma.listing.update({
-            where: { id },
-            data: {
-                platform: data.platform,
-                listingUrl: data.listingUrl || null,
-                listingRef: data.listingRef,
-                listedPrice: data.listedPrice,
-                status: data.status,
+        const updated = await prisma.$transaction(async (tx) => {
+            const result = await tx.listing.update({
+                where: { id },
+                data: {
+                    platform: data.platform,
+                    listingUrl: data.listingUrl || null,
+                    listingRef: data.listingRef,
+                    listedPrice: data.listedPrice,
+                    currency: data.currency,
+                    status: data.status,
+                }
+            });
+
+            if (data.listedPrice !== undefined && data.listedPrice !== existing.listedPrice) {
+                await tx.listingPriceHistory.create({
+                    data: {
+                        listingId: id,
+                        price: data.listedPrice,
+                        changedBy: session.user?.id || session.user?.email || "Unknown",
+                    }
+                });
             }
+            return result;
         });
 
         await logActivity({
@@ -92,10 +118,24 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
 
         revalidatePath("/inventory");
         revalidatePath(`/inventory/${existing.inventoryId}`);
+        revalidatePath("/listings");
         return { success: true, listing: updated };
     } catch (error) {
         console.error(error);
         return { success: false, message: "Failed to update listing" };
+    }
+}
+
+export async function getListingHistory(listingId: string) {
+    try {
+        const history = await prisma.listingPriceHistory.findMany({
+            where: { listingId },
+            orderBy: { changedAt: "desc" }
+        });
+        return { success: true, history };
+    } catch (error) {
+        console.error(error);
+        return { success: false, history: [] };
     }
 }
 
@@ -123,10 +163,83 @@ export async function deleteListing(id: string) {
 
         revalidatePath("/inventory");
         revalidatePath(`/inventory/${existing.inventoryId}`);
+        revalidatePath("/listings");
         return { success: true };
     } catch (error) {
         console.error(error);
         return { success: false, message: "Failed to delete listing" };
+    }
+}
+
+export async function updateListingsStatus(ids: string[], status: string) {
+    const session = await auth();
+    if (!session) return { success: false, message: "Unauthorized" };
+
+    try {
+        const listings = await prisma.listing.findMany({
+            where: { id: { in: ids } },
+            include: { inventory: { select: { sku: true } } }
+        });
+
+        await prisma.listing.updateMany({
+            where: { id: { in: ids } },
+            data: { status }
+        });
+
+        // Log activities
+        for (const listing of listings) {
+            await logActivity({
+                entityType: "Listing",
+                entityId: listing.id,
+                entityIdentifier: `${listing.platform} - ${listing.inventory.sku}`,
+                actionType: "EDIT",
+                oldData: { status: listing.status },
+                newData: { status },
+            });
+        }
+
+        revalidatePath("/inventory");
+        revalidatePath("/listings");
+        return { success: true };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Failed to update listings status" };
+    }
+}
+
+export async function deleteListings(ids: string[]) {
+    const session = await auth();
+    if (!session) return { success: false, message: "Unauthorized" };
+
+    try {
+        const listings = await prisma.listing.findMany({
+            where: { id: { in: ids } },
+            include: { inventory: { select: { sku: true } } }
+        });
+
+        await prisma.listing.deleteMany({
+            where: { id: { in: ids } }
+        });
+
+        // Log activities for each deleted listing
+        for (const listing of listings) {
+            await logActivity({
+                entityType: "Listing",
+                entityId: listing.id,
+                entityIdentifier: `${listing.platform} - ${listing.inventory.sku}`,
+                actionType: "DELETE",
+                oldData: listing,
+            });
+        }
+
+        revalidatePath("/inventory");
+        revalidatePath("/listings");
+        // We can't easily revalidate every inventory item page, but the main inventory list is updated.
+        
+        return { success: true };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Failed to delete listings" };
     }
 }
 

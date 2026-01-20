@@ -5,7 +5,7 @@ import { InventoryForm } from "@/components/inventory/inventory-form";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Add Inventory | Khyati Gems",
+  title: "Add Inventory | KhyatiGems™",
 };
 
 export default async function NewInventoryPage() {

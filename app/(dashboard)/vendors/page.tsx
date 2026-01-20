@@ -15,7 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
-  title: "Vendors | Khyati Gems",
+  title: "Vendors | KhyatiGems™",
 };
 
 export default async function VendorsPage() {
@@ -27,8 +27,7 @@ export default async function VendorsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Vendors</h1>
+      <div className="flex items-center justify-end">
         <Button asChild>
           <Link href="/vendors/new">
             <Plus className="mr-2 h-4 w-4" />

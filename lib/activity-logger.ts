@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-export type ActionType = "CREATE" | "EDIT" | "DELETE" | "STATUS_CHANGE";
+export type ActionType = "CREATE" | "EDIT" | "DELETE" | "STATUS_CHANGE" | "ROLLBACK";
 export type EntityType =
   | "Inventory"
   | "Purchase"
@@ -11,7 +11,8 @@ export type EntityType =
   | "Vendor"
   | "Listing"
   | "User"
-  | "Code";
+  | "Code"
+  | "LandingPage";
 
 interface LogActivityParams<T = Record<string, unknown>> {
   entityType: EntityType;

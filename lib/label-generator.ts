@@ -10,6 +10,9 @@ export interface LabelItem {
     weightValue: number;
     weightUnit: string;
     weightRatti?: number | null;
+    shape?: string | null;
+    dimensions?: string | null;
+    stockLocation?: string | null;
     sellingPrice: number;
     pricingMode?: string; // PER_CARAT | FLAT
     sellingRatePerCarat?: number | null;
@@ -30,7 +33,22 @@ export interface LabelConfig {
     showEncodedPrice: boolean; // New toggle
     qrSize: number;
     fontSize: number;
+    selectedFields: string[];
 }
+
+export const DEFAULT_FIELDS = [
+    "itemName",
+    "sku",
+    "qrCode",
+    "gemType",
+    "color",
+    "shape",
+    "dimensions",
+    "weight",
+    "stockLocation",
+    "price",
+    "companyName"
+];
 
 export const DEFAULT_TAG_CONFIG: LabelConfig = {
     pageSize: "TAG",
@@ -40,12 +58,13 @@ export const DEFAULT_TAG_CONFIG: LabelConfig = {
     marginLeft: 0,
     horizontalGap: 0,
     verticalGap: 0,
-    labelWidth: 50,
-    labelHeight: 30,
+    labelWidth: 40,
+    labelHeight: 25,
     showPrice: false,
     showEncodedPrice: false,
-    qrSize: 12,
-    fontSize: 8
+    qrSize: 10,
+    fontSize: 7,
+    selectedFields: DEFAULT_FIELDS
 };
 
 export const DEFAULT_A4_CONFIG: LabelConfig = {
@@ -61,7 +80,8 @@ export const DEFAULT_A4_CONFIG: LabelConfig = {
     showPrice: false,
     showEncodedPrice: false,
     qrSize: 10,
-    fontSize: 7
+    fontSize: 7,
+    selectedFields: DEFAULT_FIELDS
 };
 
 export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) {
@@ -135,60 +155,118 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
 }
 
 function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: LabelConfig, qrDataUrl: string) {
-    const padding = 2; // Internal padding in mm
+    const padding = 1.5; // Tighter padding
     const contentX = x + padding;
     const contentY = y + padding;
-    // const contentWidth = config.labelWidth - (padding * 2);
+    
+    // Safety check for selectedFields
+    const fields = config.selectedFields || DEFAULT_FIELDS;
     
     doc.setTextColor(0);
-    doc.setFont("helvetica", "bold");
     
-    // Item Name (Truncate if too long)
-    doc.setFontSize(config.fontSize + 2);
-    const name = item.itemName.length > 20 ? item.itemName.substring(0, 18) + "..." : item.itemName;
-    doc.text(name, contentX, contentY + 3);
+    let currentY = contentY + 2.5; // Start Y position
+    const lineHeight = 2.8; // Compact line height
 
-    // SKU
-    doc.setFont("courier", "normal");
-    doc.setFontSize(config.fontSize);
-    doc.text(item.sku, contentX, contentY + 7);
-
-    // QR Code (Top Right)
-    if (qrDataUrl) {
+    // 1. QR Code (Top Right)
+    if (fields.includes("qrCode") && qrDataUrl) {
         doc.addImage(qrDataUrl, "PNG", x + config.labelWidth - config.qrSize - 1, y + 1, config.qrSize, config.qrSize);
     }
 
-    // Details
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(config.fontSize - 1);
-    let currentY = contentY + 12;
-    const lineHeight = 3.5;
-
-    doc.text(`${item.gemType} • ${item.color}`, contentX, currentY);
-    currentY += lineHeight;
-    
-    let weightText = `${item.weightValue} ${item.weightUnit}`;
-    if (item.weightRatti) weightText += ` (${item.weightRatti.toFixed(2)} Ratti)`;
-    doc.text(weightText, contentX, currentY);
-    currentY += lineHeight;
-
-    if (config.showEncodedPrice && item.priceWithChecksum) {
+    // 2. Item Name
+    if (fields.includes("itemName")) {
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(config.fontSize + 1);
-        doc.text(`Rs. ${item.priceWithChecksum}`, contentX, currentY);
-    } else if (config.showPrice) {
-        doc.setFont("helvetica", "bold");
-        let priceText = "";
-        if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
-             priceText = `Rs. ${item.sellingRatePerCarat.toLocaleString()}/ct`;
-        } else {
-             priceText = `Rs. ${item.sellingPrice.toLocaleString()}`;
-        }
-        doc.text(priceText, contentX, currentY);
+        doc.setFontSize(config.fontSize + 2);
+        // Truncate if QR is present to avoid overlap?
+        // Simple truncation for now
+        const name = item.itemName.length > 18 ? item.itemName.substring(0, 16) + "..." : item.itemName;
+        doc.text(name, contentX, currentY);
+        currentY += lineHeight + 0.2;
     }
 
-    // Footer Branding
-    doc.setFontSize(config.fontSize - 3);
-    doc.setTextColor(100);
-    doc.text("KHYATI GEMS", x + (config.labelWidth / 2), y + config.labelHeight - 1, { align: "center" });
+    // 3. SKU
+    if (fields.includes("sku")) {
+        doc.setFont("courier", "normal");
+        doc.setFontSize(config.fontSize);
+        doc.text(item.sku, contentX, currentY);
+        currentY += lineHeight + 0.5; // Extra gap before details
+    }
+
+    // 4. Details Section
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(config.fontSize - 1);
+
+    // Compact Details: Try to combine more info
+    const detailLines: string[] = [];
+
+    // Line 1: GemType & Color
+    if (fields.includes("gemType") || fields.includes("color")) {
+        const parts = [];
+        if (fields.includes("gemType")) parts.push(item.gemType);
+        if (fields.includes("color")) parts.push(item.color);
+        if (parts.length > 0) detailLines.push(parts.join(" • "));
+    }
+
+    // Line 2: Shape, Dim, Weight (Combined if possible)
+    const line2Parts = [];
+    if (fields.includes("shape") && item.shape) line2Parts.push(item.shape);
+    if (fields.includes("dimensions") && item.dimensions) line2Parts.push(item.dimensions);
+    
+    // Add Weight to this line if it fits? 
+    // Let's keep Weight separate or append if short.
+    // For now, let's just push Shape/Dim
+    if (line2Parts.length > 0) detailLines.push(line2Parts.join(" • "));
+
+    // Line 3: Weight (and Ratti)
+    if (fields.includes("weight")) {
+        let weightText = `${item.weightValue} ${item.weightUnit}`;
+        if (item.weightRatti) weightText += ` (${item.weightRatti.toFixed(2)} R)`;
+        
+        // If previous line was short, maybe append? 
+        // Complexity: we don't know width easily in raw jsPDF without measuring.
+        // Let's just add as new line for safety.
+        detailLines.push(weightText);
+    }
+
+    // Render detail lines
+    detailLines.forEach(line => {
+        doc.text(line, contentX, currentY);
+        currentY += lineHeight;
+    });
+
+    // Stock Location (Right aligned or new line?)
+    if (fields.includes("stockLocation") && item.stockLocation) {
+        doc.setFont("courier", "normal");
+        doc.setFontSize(config.fontSize - 1);
+        doc.text(`Loc: ${item.stockLocation}`, contentX, currentY);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(config.fontSize - 1);
+        currentY += lineHeight;
+    }
+
+    // Price
+    if (fields.includes("price")) {
+        if (config.showEncodedPrice && item.priceWithChecksum) {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(config.fontSize + 1);
+            doc.text(`R ${item.priceWithChecksum}`, contentX, currentY);
+        } else {
+            // Show normal price
+            doc.setFont("helvetica", "bold");
+            let priceText = "";
+            if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
+                 priceText = `R ${item.sellingRatePerCarat.toLocaleString()}/ct`;
+            } else {
+                 priceText = `R ${item.sellingPrice.toLocaleString()}`;
+            }
+            doc.text(priceText, contentX, currentY);
+        }
+    }
+
+    // Footer Branding (Smaller, Bottom Centered)
+    if (fields.includes("companyName")) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(4); // Very small
+        doc.setTextColor(150);
+        doc.text("KhyatiGems™", x + (config.labelWidth / 2), y + config.labelHeight - 1, { align: "center" });
+    }
 }

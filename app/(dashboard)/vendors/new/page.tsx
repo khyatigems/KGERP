@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { VendorForm } from "@/components/vendors/vendor-form";
 
 export const metadata: Metadata = {
-  title: "Add Vendor | Khyati Gems",
+  title: "Add Vendor | KhyatiGems™",
 };
 
 export default function NewVendorPage() {

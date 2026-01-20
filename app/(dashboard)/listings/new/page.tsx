@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ListingForm } from "@/components/listings/listing-form";
 
 export const metadata: Metadata = {
-  title: "New Listing | Khyati Gems",
+  title: "New Listing | KhyatiGems™",
 };
 
 export default async function NewListingPage() {

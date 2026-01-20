@@ -8,12 +8,12 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="grid min-h-screen w-full lg:grid-cols-[250px_1fr]">
-      <div className="hidden border-r bg-gray-100/40 lg:block dark:bg-gray-800/40">
+      <div className="hidden border-r lg:block bg-sidebar border-sidebar-border">
         <Sidebar />
       </div>
       <div className="flex flex-col">
         <Topbar />
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-gray-50/50">
+        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">
           {children}
         </main>
       </div>

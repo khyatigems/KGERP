@@ -66,7 +66,7 @@ export default async function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Analytics & Reports</h1>
+
 
       {/* Platform Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

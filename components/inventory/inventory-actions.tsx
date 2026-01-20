@@ -28,6 +28,9 @@ interface InventoryActionsProps {
     pricingMode?: string;
     sellingRatePerCarat?: number | null;
     flatSellingPrice?: number | null;
+    shape?: string | null;
+    dimensionsMm?: string | null;
+    stockLocation?: string | null;
   };
 }
 
@@ -90,6 +93,9 @@ export function InventoryActions({ item }: InventoryActionsProps) {
                     weightValue: item.weightValue || 0,
                     weightUnit: item.weightUnit || "",
                     weightRatti: item.weightRatti,
+                    shape: item.shape,
+                    dimensions: item.dimensionsMm,
+                    stockLocation: item.stockLocation,
                     sellingPrice: sellingPrice
                  }}
                  trigger={

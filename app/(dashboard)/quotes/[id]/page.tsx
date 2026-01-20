@@ -17,7 +17,7 @@ import { ArrowLeft, ExternalLink, ShoppingCart } from "lucide-react";
 import { QuotationActions } from "@/components/quotes/quotation-actions";
 
 export const metadata: Metadata = {
-  title: "Quote Details | Khyati Gems",
+  title: "Quote Details | KhyatiGems™",
 };
 
 export default async function QuoteDetailPage({

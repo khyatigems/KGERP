@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { SaleForm } from "@/components/sales/sale-form";
 
 export const metadata: Metadata = {
-  title: "New Sale | Khyati Gems",
+  title: "New Sale | KhyatiGems™",
 };
 
 export default async function NewSalePage() {

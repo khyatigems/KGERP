@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { VendorForm } from "@/components/vendors/vendor-form";
 
 export const metadata: Metadata = {
-  title: "Edit Vendor | Khyati Gems",
+  title: "Edit Vendor | KhyatiGems™",
 };
 
 export default async function EditVendorPage({

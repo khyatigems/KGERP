@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { InventoryForm } from "@/components/inventory/inventory-form";
 
 export const metadata: Metadata = {
-  title: "Edit Inventory | Khyati Gems",
+  title: "Edit Inventory | KhyatiGems™",
 };
 
 type EditInventoryPageProps = {

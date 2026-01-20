@@ -10,7 +10,7 @@ import Link from "next/link";
 import { Filter } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Activity Log | Khyati Gems",
+  title: "Activity Log | KhyatiGems™",
 };
 
 export default async function ActivityLogPage({
@@ -66,8 +66,7 @@ export default async function ActivityLogPage({
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold tracking-tight">Activity Log</h1>
+            <div className="flex items-center justify-end">
                 <div className="flex gap-2">
                     {/* Placeholder for more advanced filters */}
                     <Button variant="outline" size="sm">

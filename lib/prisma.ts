@@ -2,13 +2,17 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaLibSQL } from '@prisma/adapter-libsql'
 import { createClient } from '@libsql/client'
 
-const connectionString = process.env.DATABASE_URL || "file:C:/Users/akans/Documents/trae_projects/KhyatiGems%20v3/khyatigems-erp/dev.db"
+const connectionString = process.env.DATABASE_URL || "file:./dev.db"
 
 if (!connectionString) {
   console.error("Prisma: DATABASE_URL is not set");
 } else {
-  const safeLog = connectionString.split("?")[0]
-  console.log("Prisma: Using DATABASE_URL", safeLog);
+  // Log the connection string (masking auth tokens if present)
+  const logUrl = connectionString.includes("authToken") 
+    ? connectionString.split("?")[0] + "?authToken=***" 
+    : connectionString;
+  console.log("Prisma: Using connection string:", logUrl);
+
 }
 
 const globalForPrisma = global as unknown as {

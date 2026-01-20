@@ -12,7 +12,7 @@ export function buildQuotationWhatsappMessage(params: {
   return [
     "Namaste 🙏",
     "",
-    "Please find your quotation from Khyati Gems:",
+    "Please find your quotation from KhyatiGems™:",
     params.quotationUrl,
     "",
     `Quotation valid till ${params.expiryDate}`,
@@ -34,7 +34,7 @@ export function buildInvoiceWhatsappMessage(params: {
     return [
         "Namaste 🙏",
         "",
-        `Please find your invoice ${params.invoiceNumber} from Khyati Gems:`,
+        `Please find your invoice ${params.invoiceNumber} from KhyatiGems™:`,
         params.invoiceUrl,
         "",
         "Thank you for your business!"

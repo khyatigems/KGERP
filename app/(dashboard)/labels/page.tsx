@@ -6,7 +6,7 @@ import { LabelHistory } from "@/components/labels/label-history";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const metadata: Metadata = {
-  title: "Label Management | Khyati Gems",
+  title: "Label Management | KhyatiGems™",
 };
 
 export default async function LabelsPage() {
@@ -22,8 +22,7 @@ export default async function LabelsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Label Printing</h1>
+      <div className="flex items-center justify-end">
         <LabelCartSheet />
       </div>
       

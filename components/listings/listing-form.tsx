@@ -124,7 +124,7 @@ export function ListingForm({ inventoryItems }: ListingFormProps) {
                       <SelectItem value="EBAY">eBay</SelectItem>
                       <SelectItem value="ETSY">Etsy</SelectItem>
                       <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
-                      <SelectItem value="WEBSITE">KhyatiGems.com</SelectItem>
+                      <SelectItem value="WEBSITE">KhyatiGems™</SelectItem>
                       <SelectItem value="AMAZON">Amazon</SelectItem>
                       <SelectItem value="OTHERS">Others</SelectItem>
                     </SelectContent>
