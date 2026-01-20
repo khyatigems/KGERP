@@ -196,7 +196,7 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
                                                     <FormItem>
                                                         <FormLabel>URL</FormLabel>
                                                         <FormControl>
-                                                            <Input placeholder="https://..." {...field} />
+                                                            <Input placeholder="https://..." {...field} value={field.value as string} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
