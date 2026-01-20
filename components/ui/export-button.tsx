@@ -50,7 +50,7 @@ export function ExportButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="ml-auto">
+        <Button variant="outline" size="sm" className="ml-auto transition-all duration-200 hover:scale-105 active:scale-95">
           <Download className="mr-2 h-4 w-4" />
           Export
         </Button>

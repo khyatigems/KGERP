@@ -13,6 +13,9 @@ export default async function SettingsCodesPage() {
   const categories = await prisma.categoryCode.findMany({ orderBy: { name: "asc" } });
   const gemstones = await prisma.gemstoneCode.findMany({ orderBy: { name: "asc" } });
   const colors = await prisma.colorCode.findMany({ orderBy: { name: "asc" } });
+  const cuts = await prisma.cutCode.findMany({ orderBy: { name: "asc" } });
+  const collections = await prisma.collectionCode.findMany({ orderBy: { name: "asc" } });
+  const rashis = await prisma.rashiCode.findMany({ orderBy: { name: "asc" } });
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -21,6 +24,9 @@ export default async function SettingsCodesPage() {
         categories={categories}
         gemstones={gemstones}
         colors={colors}
+        cuts={cuts}
+        collections={collections}
+        rashis={rashis}
       />
     </div>
   );

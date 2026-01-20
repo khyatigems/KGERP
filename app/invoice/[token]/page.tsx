@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildInvoiceWhatsappLink } from "@/lib/whatsapp";
 import { Share2 } from "lucide-react";
+import { PrintButton } from "@/components/invoice/print-button";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -65,13 +66,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                     <Share2 className="w-4 h-4 mr-2" />
                     Share on WhatsApp
                 </a>
-                <button 
-                    onClick={() => window.print()} // This won't work in server component directly, need client wrapper or simple script.
-                    // Actually, simple onclick doesn't work in Server Component. 
-                    // I'll skip the print button or use a client component wrapper if needed.
-                    // For now, browser print is fine. User asked for WhatsApp.
-                >
-                </button>
+                <PrintButton />
             </div>
 
             {/* Header */}

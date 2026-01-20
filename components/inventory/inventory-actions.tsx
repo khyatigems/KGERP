@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MoreHorizontal, Pencil, Eye, DollarSign, FileText } from "lucide-react";
+import { MoreHorizontal, Pencil, Eye, DollarSign, FileText, Globe, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { InventoryQrDialog } from "./inventory-qr";
+import { ListingManager } from "./listing-manager";
+import { LabelPrintDialog } from "./label-print-dialog";
 
 interface InventoryActionsProps {
   item: {
@@ -18,17 +20,29 @@ interface InventoryActionsProps {
     itemName: string;
     sku: string;
     status: string;
+    gemType?: string;
+    colorCode?: { name: string } | null;
+    weightValue?: number;
+    weightUnit?: string;
+    weightRatti?: number | null;
+    pricingMode?: string;
+    sellingRatePerCarat?: number | null;
+    flatSellingPrice?: number | null;
   };
 }
 
 export function InventoryActions({ item }: InventoryActionsProps) {
+  const sellingPrice = item.pricingMode === "PER_CARAT"
+    ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
+    : item.flatSellingPrice || 0;
+
   return (
     <div className="flex items-center justify-end gap-1">
       <InventoryQrDialog itemId={item.id} itemName={item.itemName} sku={item.sku} />
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="transition-transform hover:scale-110">
             <MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
           </Button>
@@ -57,6 +71,33 @@ export function InventoryActions({ item }: InventoryActionsProps) {
                   <FileText className="mr-2 h-4 w-4" /> Create Quotation
                 </Link>
               </DropdownMenuItem>
+              <ListingManager 
+                  inventoryId={item.id} 
+                  sku={item.sku} 
+                  trigger={
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Globe className="mr-2 h-4 w-4" /> Manage Listings
+                    </DropdownMenuItem>
+                  } 
+              />
+              <LabelPrintDialog
+                 item={{
+                    id: item.id,
+                    sku: item.sku,
+                    itemName: item.itemName,
+                    gemType: item.gemType || "",
+                    color: item.colorCode?.name || "",
+                    weightValue: item.weightValue || 0,
+                    weightUnit: item.weightUnit || "",
+                    weightRatti: item.weightRatti,
+                    sellingPrice: sellingPrice
+                 }}
+                 trigger={
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Printer className="mr-2 h-4 w-4" /> Print Label
+                    </DropdownMenuItem>
+                 }
+              />
             </>
           )}
         </DropdownMenuContent>

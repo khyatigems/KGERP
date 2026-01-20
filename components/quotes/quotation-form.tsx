@@ -232,7 +232,7 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
                 <FormItem>
                   <FormLabel>Mobile Number</FormLabel>
                   <FormControl>
-                    <Input placeholder="+91 9876543210" {...field} />
+                    <Input placeholder="+91 9876543210" type="tel" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -393,10 +393,21 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
           </div>
         </div>
 
-        <Button type="submit" disabled={isPending || selectedItemIds.length === 0}>
-          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Generate Quotation
-        </Button>
+        {/* Desktop Submit Button */}
+        <div className="hidden md:block">
+            <Button type="submit" disabled={isPending || selectedItemIds.length === 0}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Generate Quotation
+            </Button>
+        </div>
+
+        {/* Mobile Sticky Action Bar */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-40">
+            <Button type="submit" className="w-full" size="lg" disabled={isPending || selectedItemIds.length === 0}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Generate Quotation
+            </Button>
+        </div>
       </form>
     </Form>
   );

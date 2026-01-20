@@ -19,16 +19,16 @@ export async function generateSku(
   }
 ) {
   // Normalize inputs
-  // Example: KG-LG-RBY-RED-5.25-0007
+  // Example: KGLGSAPRED5250007 (Weight 5.25)
   
-  const cat = params.categoryCode.toUpperCase();
+  const cat = params.categoryCode.toUpperCase().replace(/[^A-Z0-9]/g, "");
   const gem = params.gemstoneCode.toUpperCase().replace(/[^A-Z0-9]/g, ""); 
   const col = params.colorCode ? params.colorCode.toUpperCase().replace(/[^A-Z0-9]/g, "") : "XX";
   
-  // Format weight: 5.25
-  const wgt = params.weightValue.toFixed(2);
+  // Format weight: 5.25 -> 525, 0.50 -> 050, 0.00 -> 000
+  const wgtStr = params.weightValue.toFixed(2).replace('.', '');
   
-  const prefix = `KG-${cat}-${gem}-${col}-${wgt}`;
+  const prefix = `KG${cat}${gem}${col}${wgtStr}`;
   
   // Find last SKU starting with this prefix
   const lastItem = await tx.inventory.findFirst({
@@ -44,14 +44,19 @@ export async function generateSku(
 
   let seq = 1;
   if (lastItem) {
-    const parts = lastItem.sku.split('-');
-    const lastSeqStr = parts[parts.length - 1];
-    const lastSeq = parseInt(lastSeqStr, 10);
-    if (!isNaN(lastSeq)) {
-      seq = lastSeq + 1;
+    // KGLGSAPRED5250007
+    // The prefix length varies (due to weight).
+    // But we know the prefix we generated.
+    // The suffix is the last 4 chars?
+    // "KG + ... + SERIAL"
+    // We should extract the part after the prefix.
+    const suffix = lastItem.sku.slice(prefix.length);
+    // Ensure suffix is numeric
+    if (/^\d+$/.test(suffix)) {
+        seq = parseInt(suffix, 10) + 1;
     }
   }
 
   const seqStr = seq.toString().padStart(4, '0');
-  return `${prefix}-${seqStr}`;
+  return `${prefix}${seqStr}`;
 }

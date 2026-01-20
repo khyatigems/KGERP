@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { InventorySearch } from "@/components/inventory/inventory-search";
 import { InventoryActions } from "@/components/inventory/inventory-actions";
+import { InventoryCardList } from "@/components/inventory/inventory-card-list";
 import type { Inventory } from "@prisma/client";
 
 type InventoryWithExtras = Inventory & {
@@ -30,9 +31,19 @@ export const metadata: Metadata = {
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ query?: string; status?: string }>;
+  searchParams: Promise<{ 
+    query?: string; 
+    status?: string;
+    category?: string;
+    gemType?: string;
+    color?: string;
+    vendorId?: string;
+    collectionId?: string;
+    rashiId?: string;
+    weightRange?: string;
+  }>;
 }) {
-  const { query, status } = await searchParams;
+  const { query, status, category, gemType, color, vendorId, collectionId, rashiId, weightRange } = await searchParams;
 
   const where: Record<string, unknown> = {};
 
@@ -43,49 +54,104 @@ export default async function InventoryPage({
     ];
   }
 
-  if (status && status !== "ALL") {
-    where.status = status;
+  if (status && status !== "ALL") where.status = status;
+  if (category && category !== "ALL") where.category = category;
+  if (gemType && gemType !== "ALL") where.gemType = gemType;
+  
+  if (color && color !== "ALL") {
+      where.colorCode = { name: color };
   }
 
-  const inventory = await prisma.inventory.findMany({
-    where,
-    orderBy: {
-      createdAt: "desc",
-    },
-    include: {
-      media: {
-        take: 1,
+  if (vendorId && vendorId !== "ALL") where.vendorId = vendorId;
+  
+  if (collectionId && collectionId !== "ALL") where.collectionCodeId = collectionId;
+  
+  if (rashiId && rashiId !== "ALL") {
+      where.rashis = { some: { id: rashiId } };
+  }
+
+  if (weightRange && weightRange !== "ALL") {
+      const [min, max] = weightRange.split("-");
+      if (max === "plus") {
+          where.weightValue = { gte: parseFloat(min) };
+      } else {
+          where.weightValue = { gte: parseFloat(min), lte: parseFloat(max) };
+      }
+  }
+
+  const [inventory, categories, gemstones, colors, vendors, collections, rashis] = await Promise.all([
+    prisma.inventory.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        media: { take: 1 },
+        categoryCode: { select: { name: true, code: true } },
+        gemstoneCode: { select: { name: true, code: true } },
+        colorCode: { select: { name: true, code: true } },
+        cutCode: { select: { name: true, code: true } },
+        collectionCode: { select: { name: true } },
+        // Fixed relation name
+        rashis: { select: { name: true } },
       },
-    },
-  });
+    }),
+    prisma.categoryCode.findMany({ orderBy: { name: "asc" } }),
+    prisma.gemstoneCode.findMany({ orderBy: { name: "asc" } }),
+    prisma.colorCode.findMany({ orderBy: { name: "asc" } }),
+    prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
+    prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
+  ]);
+
+  const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
 
   const exportData = inventory.map((item) => {
     const typedItem = item as InventoryWithExtras;
     return {
-    sku: item.sku,
-    itemName: item.itemName,
-    gemType: item.gemType,
-    weight: `${item.weightValue} ${item.weightUnit}`,
+      sku: item.sku,
+      itemName: item.itemName,
+      category: item.category,
+      gemType: item.gemType,
+      color: item.colorCode?.name || "-",
+      weight: `${item.weightValue} ${item.weightUnit}`,
       ratti: typedItem.weightRatti || 0,
+      cut: item.cutCode?.name || "-",
+      shape: item.shape || "-",
+      dimensions: item.dimensionsMm || "-",
+      rashi: item.rashis?.map(r => r.name).join(", ") || "-",
+      collection: item.collectionCode?.name || "-",
+      sellingRate: item.sellingRatePerCarat || item.flatSellingPrice || 0,
+      certification: item.certification || "-",
+      treatment: item.treatment || "-",
+      braceletType: item.braceletType || "-",
+      beadSize: item.beadSizeMm ? `${item.beadSizeMm}mm` : "-",
+      standardSize: item.standardSize || "-",
+      beadCount: item.beadCount || "-",
+      innerCircumference: item.innerCircumferenceMm ? `${item.innerCircumferenceMm}mm` : "-",
       price: formatCurrency(
         item.pricingMode === "PER_CARAT"
           ? (item.sellingRatePerCarat || 0) * item.weightValue
           : item.flatSellingPrice || 0
       ),
       status: item.status,
+      vendor: vendorMap.get(item.vendorId) || "-",
       date: formatDate(item.createdAt),
     };
   });
 
   const columns = [
-    { header: "SKU", key: "sku" },
     { header: "Name", key: "itemName" },
-    { header: "Type", key: "gemType" },
+    { header: "Category", key: "category" },
+    { header: "Color", key: "color" },
     { header: "Weight", key: "weight" },
-    { header: "Ratti", key: "ratti" },
-    { header: "Price", key: "price" },
-    { header: "Status", key: "status" },
-    { header: "Date", key: "date" }
+    { header: "Cut", key: "cut" },
+    { header: "Shape", key: "shape" },
+    { header: "Dimensions", key: "dimensions" },
+    { header: "SKU", key: "sku" },
+    { header: "Rashi", key: "rashi" },
+    { header: "Collection", key: "collection" },
+    { header: "Selling Rate", key: "sellingRate" },
+    { header: "Certification", key: "certification" },
+    { header: "Treatment", key: "treatment" },
   ];
 
   return (
@@ -99,45 +165,58 @@ export default async function InventoryPage({
                 columns={columns} 
                 title="Inventory Report" 
             />
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild className="transition-all duration-200 hover:scale-105 active:scale-95">
                 <Link href="/inventory/import">
                     <Upload className="mr-2 h-4 w-4" />
                     Import
                 </Link>
             </Button>
-            <Button asChild>
-              <Link href="/inventory/new">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Item
-              </Link>
+            <Button asChild className="transition-all duration-200 hover:scale-105 active:scale-95">
+                <Link href="/inventory/new">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Item
+                </Link>
             </Button>
         </div>
       </div>
 
       <div className="bg-card p-4 rounded-md border">
-        <InventorySearch />
+        <InventorySearch 
+            vendors={vendors}
+            categories={categories}
+            gemstones={gemstones}
+            colors={colors}
+            collections={collections}
+            rashis={rashis}
+        />
       </div>
 
-      <div className="rounded-md border">
+      <InventoryCardList data={inventory} />
+
+      <div className="rounded-md border hidden md:block overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Image</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Item Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Weight</TableHead>
-              <TableHead>Ratti</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date Added</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-[60px]">Image</TableHead>
+              <TableHead className="w-[100px]">SKU</TableHead>
+              <TableHead className="min-w-[200px]">Item Name</TableHead>
+              <TableHead className="w-[100px]">Category</TableHead>
+              <TableHead className="w-[100px]">Type</TableHead>
+              <TableHead className="w-[80px]">Color</TableHead>
+              <TableHead className="w-[80px]">Cut</TableHead>
+              <TableHead className="w-[100px]">Weight</TableHead>
+              <TableHead className="w-[80px]">Ratti</TableHead>
+              <TableHead className="w-[100px]">Price</TableHead>
+              <TableHead className="w-[100px]">Status</TableHead>
+              <TableHead className="w-[100px]">Vendor</TableHead>
+              <TableHead className="w-[100px]">Date Added</TableHead>
+              <TableHead className="w-[60px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {inventory.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center">
+                <TableCell colSpan={14} className="h-24 text-center">
                   No inventory items found.
                 </TableCell>
               </TableRow>
@@ -158,18 +237,20 @@ export default async function InventoryPage({
                           alt={item.itemName}
                           width={48}
                           height={48}
-                          className="h-12 w-12 rounded object-cover border"
+                          className="h-12 w-12 rounded object-cover border shrink-0"
                         />
                       ) : (
-                        <div className="h-12 w-12 rounded border flex items-center justify-center text-[10px] text-muted-foreground bg-muted">
+                        <div className="h-12 w-12 rounded border flex items-center justify-center text-[10px] text-muted-foreground bg-muted shrink-0">
                           No image
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{item.sku}</TableCell>
+                    <TableCell className="font-medium font-mono text-xs">{item.sku}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span>{item.itemName}</span>
+                        <Link href={`/inventory/${item.id}`} className="hover:underline font-medium">
+                            {item.itemName}
+                        </Link>
                         {item.internalName && (
                           <span className="text-xs text-muted-foreground">
                             {item.internalName}
@@ -177,7 +258,23 @@ export default async function InventoryPage({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{item.gemType}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span>{item.gemType}</span>
+                        {(item.category === "Bracelets" || item.category === "Bracelet") && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {[
+                                typedItem.braceletType,
+                                typedItem.standardSize,
+                                typedItem.beadSizeMm ? `${typedItem.beadSizeMm}mm` : null
+                            ].filter(Boolean).join(" • ")}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{item.colorCode?.name || "-"}</TableCell>
+                    <TableCell>{item.cutCode?.name || "-"}</TableCell>
                     <TableCell>
                       {item.weightValue} {item.weightUnit}
                     </TableCell>
@@ -198,7 +295,8 @@ export default async function InventoryPage({
                         {item.status.replace("_", " ")}
                       </Badge>
                     </TableCell>
-                    <TableCell>{formatDate(item.createdAt)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{vendorMap.get(item.vendorId) || "-"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <InventoryActions item={item} />
                     </TableCell>

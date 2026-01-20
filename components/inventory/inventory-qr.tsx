@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { QrCode } from "lucide-react";
 
@@ -32,12 +33,15 @@ export function InventoryQrDialog({ itemId, itemName, sku }: { itemId: string, i
       <DialogContent className="sm:max-w-md text-center">
         <DialogHeader>
           <DialogTitle>Inventory QR Code</DialogTitle>
+          <DialogDescription className="sr-only">
+            Scan this QR code to view inventory item details
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center justify-center p-4">
           {qrUrl && <Image src={qrUrl} alt="QR Code" width={192} height={192} className="w-48 h-48" />}
           <p className="mt-4 font-bold">{sku}</p>
           <p className="text-sm text-gray-500">{itemName}</p>
-          <Button className="mt-4" onClick={() => window.print()}>
+          <Button className="mt-4 transition-transform hover:scale-105 active:scale-95" onClick={() => window.print()}>
             Print Label
           </Button>
         </div>

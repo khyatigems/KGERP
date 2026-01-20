@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewInventoryPage() {
-  const [vendors, categories, gemstones, colors] = await Promise.all([
+  const [vendors, categories, gemstones, colors, collections, rashis, cuts] = await Promise.all([
     prisma.vendor.findMany({
       where: {
         status: "APPROVED",
@@ -34,6 +34,18 @@ export default async function NewInventoryPage() {
         where: { status: "ACTIVE" },
         orderBy: { name: "asc" } 
     }),
+    prisma.collectionCode.findMany({ 
+        where: { status: "ACTIVE" },
+        orderBy: { name: "asc" } 
+    }),
+    prisma.rashiCode.findMany({ 
+        where: { status: "ACTIVE" },
+        orderBy: { name: "asc" } 
+    }),
+    prisma.cutCode.findMany({ 
+        where: { status: "ACTIVE" },
+        orderBy: { name: "asc" } 
+    }),
   ]);
 
   return (
@@ -48,6 +60,9 @@ export default async function NewInventoryPage() {
             categories={categories}
             gemstones={gemstones}
             colors={colors}
+            collections={collections}
+            rashis={rashis}
+            cuts={cuts}
           />
         </div>
       </div>

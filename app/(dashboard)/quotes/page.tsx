@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { QuotesCardList } from "@/components/quotes/quotes-card-list";
 
 export const metadata: Metadata = {
   title: "Quotations | Khyati Gems",
@@ -42,7 +43,11 @@ export default async function QuotationsPage() {
         </Button>
       </div>
 
-      <div className="rounded-md border">
+      <div className="md:hidden">
+        <QuotesCardList data={quotes} />
+      </div>
+
+      <div className="rounded-md border hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>

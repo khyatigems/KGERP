@@ -20,7 +20,7 @@ const updateCodeSchema = z.object({
   status: z.enum(["ACTIVE", "INACTIVE"]),
 });
 
-type CodeGroup = "categories" | "gemstones" | "colors";
+type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis";
 
 export async function createCode(group: CodeGroup, formData: FormData) {
   const session = await auth();
@@ -44,8 +44,14 @@ export async function createCode(group: CodeGroup, formData: FormData) {
     existing = await prisma.categoryCode.findUnique({ where: { code } });
   } else if (group === "gemstones") {
     existing = await prisma.gemstoneCode.findUnique({ where: { code } });
-  } else {
+  } else if (group === "colors") {
     existing = await prisma.colorCode.findUnique({ where: { code } });
+  } else if (group === "cuts") {
+    existing = await prisma.cutCode.findUnique({ where: { code } });
+  } else if (group === "collections") {
+    existing = await prisma.collectionCode.findUnique({ where: { code } });
+  } else {
+    existing = await prisma.rashiCode.findUnique({ where: { code } });
   }
   if (existing) {
     return { error: "CODE_ALREADY_EXISTS", message: "This code already exists in the system. Duplicate codes are not allowed." };
@@ -61,8 +67,20 @@ export async function createCode(group: CodeGroup, formData: FormData) {
       created = await prisma.gemstoneCode.create({
         data: { name, code, status },
       });
-    } else {
+    } else if (group === "colors") {
       created = await prisma.colorCode.create({
+        data: { name, code, status },
+      });
+    } else if (group === "cuts") {
+      created = await prisma.cutCode.create({
+        data: { name, code, status },
+      });
+    } else if (group === "collections") {
+      created = await prisma.collectionCode.create({
+        data: { name, code, status },
+      });
+    } else {
+      created = await prisma.rashiCode.create({
         data: { name, code, status },
       });
     }
@@ -108,8 +126,14 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     existing = await prisma.categoryCode.findUnique({ where: { id } });
   } else if (group === "gemstones") {
     existing = await prisma.gemstoneCode.findUnique({ where: { id } });
-  } else {
+  } else if (group === "colors") {
     existing = await prisma.colorCode.findUnique({ where: { id } });
+  } else if (group === "cuts") {
+    existing = await prisma.cutCode.findUnique({ where: { id } });
+  } else if (group === "collections") {
+    existing = await prisma.collectionCode.findUnique({ where: { id } });
+  } else {
+    existing = await prisma.rashiCode.findUnique({ where: { id } });
   }
   if (!existing) return { error: "Code not found" };
 
@@ -125,8 +149,23 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
         where: { id },
         data: { name, status }, // Code is immutable, not included
       });
-    } else {
+    } else if (group === "colors") {
       updated = await prisma.colorCode.update({
+        where: { id },
+        data: { name, status }, // Code is immutable, not included
+      });
+    } else if (group === "cuts") {
+      updated = await prisma.cutCode.update({
+        where: { id },
+        data: { name, status }, // Code is immutable, not included
+      });
+    } else if (group === "collections") {
+      updated = await prisma.collectionCode.update({
+        where: { id },
+        data: { name, status }, // Code is immutable, not included
+      });
+    } else {
+      updated = await prisma.rashiCode.update({
         where: { id },
         data: { name, status }, // Code is immutable, not included
       });
@@ -200,8 +239,14 @@ export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
       existing = await prisma.categoryCode.findUnique({ where: { code } });
     } else if (group === "gemstones") {
       existing = await prisma.gemstoneCode.findUnique({ where: { code } });
-    } else {
+    } else if (group === "colors") {
       existing = await prisma.colorCode.findUnique({ where: { code } });
+    } else if (group === "cuts") {
+      existing = await prisma.cutCode.findUnique({ where: { code } });
+    } else if (group === "collections") {
+      existing = await prisma.collectionCode.findUnique({ where: { code } });
+    } else {
+      existing = await prisma.rashiCode.findUnique({ where: { code } });
     }
 
     if (existing) {
@@ -219,8 +264,20 @@ export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
         await prisma.gemstoneCode.create({
           data: { name, code, status },
         });
-      } else {
+      } else if (group === "colors") {
         await prisma.colorCode.create({
+          data: { name, code, status },
+        });
+      } else if (group === "cuts") {
+        await prisma.cutCode.create({
+          data: { name, code, status },
+        });
+      } else if (group === "collections") {
+        await prisma.collectionCode.create({
+          data: { name, code, status },
+        });
+      } else {
+        await prisma.rashiCode.create({
           data: { name, code, status },
         });
       }
@@ -265,6 +322,21 @@ export async function checkCodeDuplicate(group: CodeGroup, code: string) {
     return !!existing;
   }
 
-  const existing = await prisma.colorCode.findUnique({ where: { code: normalized } });
+  if (group === "colors") {
+    const existing = await prisma.colorCode.findUnique({ where: { code: normalized } });
+    return !!existing;
+  }
+
+  if (group === "cuts") {
+    const existing = await prisma.cutCode.findUnique({ where: { code: normalized } });
+    return !!existing;
+  }
+
+  if (group === "collections") {
+    const existing = await prisma.collectionCode.findUnique({ where: { code: normalized } });
+    return !!existing;
+  }
+
+  const existing = await prisma.rashiCode.findUnique({ where: { code: normalized } });
   return !!existing;
 }

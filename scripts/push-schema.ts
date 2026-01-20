@@ -4,9 +4,11 @@ import * as path from "path";
 import { execSync } from "child_process";
 
 // Simple env parser
-const envPath = path.resolve(process.cwd(), ".env.local");
+const envPathLocal = path.resolve(process.cwd(), ".env.local");
+const envPath = path.resolve(process.cwd(), ".env");
 const envVars: Record<string, string> = {};
 
+// Load .env first
 if (fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, "utf-8");
   envContent.split("\n").forEach(line => {
@@ -19,15 +21,27 @@ if (fs.existsSync(envPath)) {
       envVars[match[1].trim()] = value;
     }
   });
-} else {
-    console.error(".env.local not found!");
-    process.exit(1);
+}
+
+// Override with .env.local
+if (fs.existsSync(envPathLocal)) {
+  const envContent = fs.readFileSync(envPathLocal, "utf-8");
+  envContent.split("\n").forEach(line => {
+    const match = line.match(/^([^=]+)=(.*)$/);
+    if (match) {
+      let value = match[2].trim();
+      if (value.startsWith('"') && value.endsWith('"')) {
+        value = value.slice(1, -1);
+      }
+      envVars[match[1].trim()] = value;
+    }
+  });
 }
 
 const url = envVars.DATABASE_URL;
 
 if (!url) {
-  console.error("DATABASE_URL not found in .env.local");
+  console.error("DATABASE_URL not found in .env or .env.local");
   process.exit(1);
 }
 

@@ -434,7 +434,7 @@ export function SaleForm({ inventoryItems }: SaleFormProps) {
                     <FormItem>
                       <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <Input placeholder="+91..." {...field} />
+                        <Input placeholder="+91..." type="tel" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -500,10 +500,21 @@ export function SaleForm({ inventoryItems }: SaleFormProps) {
           </div>
         </div>
 
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Process Sale & Generate Invoice
-        </Button>
+        {/* Desktop Submit Button */}
+        <div className="hidden md:block">
+            <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Process Sale & Generate Invoice
+            </Button>
+        </div>
+
+        {/* Mobile Sticky Action Bar */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-40">
+            <Button type="submit" className="w-full" size="lg" disabled={isPending}>
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Process Sale
+            </Button>
+        </div>
       </form>
     </Form>
   );

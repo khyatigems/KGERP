@@ -21,6 +21,9 @@ model User {
   password  String
   role      String   // ADMIN | STAFF
   createdAt DateTime @default(now())
+
+  labelCartItems LabelCartItem[]
+  labelPrintJobs LabelPrintJob[]
 }
 
 //// VENDORS
@@ -86,6 +89,8 @@ model Inventory {
   categoryCodeId         String?
   gemstoneCodeId         String?
   colorCodeId            String?
+  collectionCodeId       String?
+  cutCodeId              String?
   itemName               String
   internalName           String?
   category               String   // Loose Gemstone | Bracelet | Ring | Pendant | Figure / Idol | Seven Chakra | Chips | Beads | Other
@@ -112,16 +117,30 @@ model Inventory {
   stockLocation          String?
   notes                  String?
 
+  // Bracelet Attributes
+  braceletType           String?
+  beadSizeMm             Float?
+  beadCount              Int?
+  holeSizeMm             Float?
+  innerCircumferenceMm   Float?
+  standardSize           String?
+
   createdBy              String
   createdAt              DateTime @default(now())
 
   sale                   Sale?
   media                  Media[]
   listings               Listing[]
+  // activities             ActivityLog[] // Removed direct relation to use loose coupling
   categoryCode           CategoryCode? @relation(fields: [categoryCodeId], references: [id])
   gemstoneCode           GemstoneCode? @relation(fields: [gemstoneCodeId], references: [id])
   colorCode              ColorCode? @relation(fields: [colorCodeId], references: [id])
+  collectionCode         CollectionCode? @relation(fields: [collectionCodeId], references: [id])
+  cutCode                CutCode?        @relation(fields: [cutCodeId], references: [id])
+  rashis                 RashiCode[]
   
+  labelCartItems         LabelCartItem[]
+
   // Relations for index (no FK)
   
   @@index([vendorId])
@@ -129,7 +148,48 @@ model Inventory {
   @@index([sku])
 }
 
-//// MEDIA
+model LabelCartItem {
+  id          String   @id @default(uuid())
+  userId      String
+  inventoryId String
+  quantity    Int      @default(1)
+  addedAt     DateTime @default(now())
+
+  inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([inventoryId])
+}
+
+model LabelPrintJob {
+  id          String   @id @default(uuid())
+  userId      String
+  timestamp   DateTime @default(now())
+  printFormat String   // JSON string of config (pageSize, margins, etc.)
+  totalItems  Int
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       LabelPrintJobItem[]
+
+  @@index([userId])
+}
+
+model LabelPrintJobItem {
+  id                String   @id @default(uuid())
+  jobId             String
+  sku               String
+  sellingPrice      Float
+  priceWithChecksum String
+  checksumDigit     Int
+  checksumMethod    String   @default("MOD9")
+  encodingVersion   Int      @default(1)
+  
+  job               LabelPrintJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
 
 model Media {
   id          String   @id @default(uuid())
@@ -155,6 +215,7 @@ model Listing {
   listedDate  DateTime @default(now())
   status      String   @default("LISTED") // LISTED | SOLD | DELISTED
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   inventory   Inventory @relation(fields: [inventoryId], references: [id])
 
@@ -162,6 +223,7 @@ model Listing {
   @@index([platform])
   @@index([status])
 }
+
 
 //// SALES
 
@@ -272,6 +334,42 @@ model GemstoneCode {
 }
 
 model ColorCode {
+  id        String     @id @default(uuid())
+  name      String
+  code      String     @unique
+  status    String     @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  inventory Inventory[]
+
+  @@index([status])
+}
+
+model CollectionCode {
+  id        String     @id @default(uuid())
+  name      String
+  code      String     @unique
+  status    String     @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  inventory Inventory[]
+
+  @@index([status])
+}
+
+model CutCode {
+  id        String     @id @default(uuid())
+  name      String
+  code      String     @unique
+  status    String     @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  inventory Inventory[]
+
+  @@index([status])
+}
+
+model RashiCode {
   id        String     @id @default(uuid())
   name      String
   code      String     @unique

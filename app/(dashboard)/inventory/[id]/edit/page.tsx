@@ -16,10 +16,10 @@ type EditInventoryPageProps = {
 export default async function EditInventoryPage({ params }: EditInventoryPageProps) {
   const { id } = await params;
 
-  const [inventory, vendors, categories, gemstones, colors] = await Promise.all([
+  const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts] = await Promise.all([
     prisma.inventory.findUnique({
       where: { id },
-      include: { media: true },
+      include: { media: true, rashis: { select: { id: true } } },
     }),
     prisma.vendor.findMany({
       where: {
@@ -36,6 +36,9 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
     prisma.categoryCode.findMany({ orderBy: { name: "asc" } }),
     prisma.gemstoneCode.findMany({ orderBy: { name: "asc" } }),
     prisma.colorCode.findMany({ orderBy: { name: "asc" } }),
+    prisma.collectionCode.findMany({ orderBy: { name: "asc" } }),
+    prisma.rashiCode.findMany({ orderBy: { name: "asc" } }),
+    prisma.cutCode.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   if (!inventory) {
@@ -60,7 +63,16 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
-          <InventoryForm vendors={vendors} categories={categories} gemstones={gemstones} colors={colors} initialData={inventory} />
+          <InventoryForm 
+            vendors={vendors} 
+            categories={categories} 
+            gemstones={gemstones} 
+            colors={colors} 
+            collections={collections}
+            rashis={rashis}
+            cuts={cuts}
+            initialData={inventory} 
+          />
         </div>
       </div>
     </div>

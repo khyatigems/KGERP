@@ -7,19 +7,23 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
+import { addToCart } from "@/app/(dashboard)/labels/actions";
 
 const inventorySchema = z.object({
   itemName: z.string().min(1, "Item name is required"),
   internalName: z.string().optional(),
   category: z.string().min(1, "Category is required"),
-  gemType: z.string().min(1, "Gem type is required"),
+  gemType: z.string().optional(),
   color: z.string().optional(),
-  categoryCodeId: z.string().uuid().optional(),
-  gemstoneCodeId: z.string().uuid().optional(),
-  colorCodeId: z.string().uuid().optional(),
-  shape: z.string().min(1, "Shape is required"),
+  categoryCodeId: z.string().optional().transform(v => v === "" ? undefined : v),
+  gemstoneCodeId: z.string().optional().transform(v => v === "" ? undefined : v),
+  colorCodeId: z.string().optional().transform(v => v === "" ? undefined : v),
+  cutCodeId: z.string().optional().transform(v => v === "" ? undefined : v),
+  collectionCodeId: z.string().optional().transform(v => v === "" ? undefined : v),
+  rashiCodeIds: z.string().optional().transform(val => val ? val.split(',').filter(Boolean) : []),
+  shape: z.string().optional(),
   dimensionsMm: z.string().optional(),
-  weightValue: z.coerce.number().positive("Weight must be positive"),
+  weightValue: z.coerce.number().min(0, "Weight must be non-negative"),
   weightUnit: z.string(),
   treatment: z.string().optional(),
   certification: z.string().optional(),
@@ -32,6 +36,15 @@ const inventorySchema = z.object({
   stockLocation: z.string().optional(),
   notes: z.string().optional(),
   mediaUrl: z.string().url().optional().or(z.literal("")),
+  mediaUrls: z.array(z.string()).optional(),
+  
+  // Bracelet Attributes
+  braceletType: z.string().optional(),
+  beadSizeMm: z.coerce.number().optional(),
+  beadCount: z.coerce.number().optional(),
+  holeSizeMm: z.coerce.number().optional(),
+  innerCircumferenceMm: z.coerce.number().optional(),
+  standardSize: z.string().optional(),
 });
 
 type InventoryImportRow = {
@@ -133,9 +146,15 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   }
 
   const raw = Object.fromEntries(formData.entries());
-  const parsed = inventorySchema.safeParse(raw);
+  const mediaUrls = formData.getAll('mediaUrls').map(String).filter(Boolean);
+  
+  const parsed = inventorySchema.safeParse({
+      ...raw,
+      mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
+  });
 
   if (!parsed.success) {
+    console.error("Inventory Validation Error:", parsed.error.flatten().fieldErrors);
     return { errors: parsed.error.flatten().fieldErrors };
   }
 
@@ -168,28 +187,29 @@ export async function createInventory(prevState: unknown, formData: FormData) {
 
   try {
       const createdInventory = await prisma.$transaction(async (tx) => {
-          if (!data.categoryCodeId || !data.gemstoneCodeId || !data.colorCodeId) {
-              throw new Error("Missing code master selection for SKU generation");
+          let categoryCodeStr = "XX";
+          let gemstoneCodeStr = "XX";
+          let colorCodeStr = "XX";
+
+          if (data.categoryCodeId) {
+              const categoryCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM CategoryCode WHERE id = ${data.categoryCodeId} LIMIT 1`;
+              if (categoryCodes[0]) categoryCodeStr = categoryCodes[0].code;
           }
 
-          // Use raw query to avoid runtime error if client is stale
-          const categoryCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM CategoryCode WHERE id = ${data.categoryCodeId} LIMIT 1`;
-          const categoryCode = categoryCodes[0];
+          if (data.gemstoneCodeId) {
+              const gemstoneCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM GemstoneCode WHERE id = ${data.gemstoneCodeId} LIMIT 1`;
+              if (gemstoneCodes[0]) gemstoneCodeStr = gemstoneCodes[0].code;
+          }
 
-          const gemstoneCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM GemstoneCode WHERE id = ${data.gemstoneCodeId} LIMIT 1`;
-          const gemstoneCode = gemstoneCodes[0];
-
-          const colorCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM ColorCode WHERE id = ${data.colorCodeId} LIMIT 1`;
-          const colorCode = colorCodes[0];
-
-          if (!categoryCode || !gemstoneCode || !colorCode) {
-            throw new Error("Invalid code master selection");
+          if (data.colorCodeId) {
+              const colorCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM ColorCode WHERE id = ${data.colorCodeId} LIMIT 1`;
+              if (colorCodes[0]) colorCodeStr = colorCodes[0].code;
           }
 
           const sku = await generateSku(tx, {
-              categoryCode: categoryCode.code,
-              gemstoneCode: gemstoneCode.code,
-              colorCode: colorCode.code,
+              categoryCode: categoryCodeStr,
+              gemstoneCode: gemstoneCodeStr,
+              colorCode: colorCodeStr,
               weightValue: data.weightValue,
               weightUnit: data.weightUnit,
           });
@@ -200,11 +220,16 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   itemName: data.itemName,
                   internalName: data.internalName,
                   category: data.category,
-                  gemType: data.gemType,
+                  gemType: data.gemType || "Mixed",
                   // color: data.color, // Removed
-                  categoryCodeId: data.categoryCodeId,
-                  gemstoneCodeId: data.gemstoneCodeId,
-                  colorCodeId: data.colorCodeId,
+                  categoryCode: data.categoryCodeId ? { connect: { id: data.categoryCodeId } } : undefined,
+                  gemstoneCode: data.gemstoneCodeId ? { connect: { id: data.gemstoneCodeId } } : undefined,
+                  colorCode: data.colorCodeId ? { connect: { id: data.colorCodeId } } : undefined,
+                  cutCode: data.cutCodeId ? { connect: { id: data.cutCodeId } } : undefined,
+                  collectionCode: data.collectionCodeId ? { connect: { id: data.collectionCodeId } } : undefined,
+                  rashis: {
+                      connect: data.rashiCodeIds?.map(id => ({ id })) || []
+                  },
                   shape: data.shape,
                   dimensionsMm: data.dimensionsMm,
                   weightValue: data.weightValue,
@@ -222,6 +247,15 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   status: "IN_STOCK",
                   stockLocation: data.stockLocation,
                   notes: data.notes,
+                  
+                  // Bracelet Fields
+                  braceletType: data.braceletType,
+                  beadSizeMm: data.beadSizeMm,
+                  beadCount: data.beadCount,
+                  holeSizeMm: data.holeSizeMm,
+                  innerCircumferenceMm: data.innerCircumferenceMm,
+                  standardSize: data.standardSize,
+
                   createdBy: session?.user?.email || "system",
               },
           });
@@ -243,7 +277,35 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               newData: createdInventory.data,
           });
 
-          if (data.mediaUrl && data.mediaUrl !== "") {
+          // Add to Label Cart
+          await addToCart(createdInventory.id);
+
+          if (data.mediaUrls && data.mediaUrls.length > 0) {
+            for (let i = 0; i < data.mediaUrls.length; i++) {
+                const url = data.mediaUrls[i];
+                // Determine file type based on extension or metadata?
+                // For now assume IMAGE unless mp4/mov
+                const isVideo = url.match(/\.(mp4|mov|webm)$/i);
+                const type = isVideo ? "VIDEO" : "IMAGE";
+                
+                // Only rename images on Cloudinary? Or videos too?
+                // renameCloudinaryImageToSku handles logic based on public_id.
+                // Suffix for multiple files
+                const suffix = data.mediaUrls.length > 1 ? `_${i + 1}` : "";
+                const finalUrl = await renameCloudinaryImageToSku(
+                  url,
+                  createdInventory.sku + suffix
+                );
+    
+                await prisma.media.create({
+                  data: {
+                    inventoryId: createdInventory.id,
+                    type,
+                    url: finalUrl,
+                  },
+                });
+            }
+          } else if (data.mediaUrl && data.mediaUrl !== "") {
             const finalUrl = await renameCloudinaryImageToSku(
               data.mediaUrl,
               createdInventory.sku
@@ -287,7 +349,12 @@ export async function updateInventory(
   if (current.status === "SOLD") return { message: "Cannot edit sold inventory" };
 
   const raw = Object.fromEntries(formData.entries());
-  const parsed = inventorySchema.safeParse(raw);
+  const mediaUrls = formData.getAll('mediaUrls').map(String).filter(Boolean);
+
+  const parsed = inventorySchema.safeParse({
+      ...raw,
+      mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
+  });
 
   if (!parsed.success) {
     return { errors: parsed.error.flatten().fieldErrors };
@@ -327,6 +394,12 @@ export async function updateInventory(
         internalName: data.internalName,
         category: data.category,
         gemType: data.gemType,
+        categoryCode: data.categoryCodeId ? { connect: { id: data.categoryCodeId } } : { disconnect: true },
+        gemstoneCode: data.gemstoneCodeId ? { connect: { id: data.gemstoneCodeId } } : { disconnect: true },
+        colorCode: data.colorCodeId ? { connect: { id: data.colorCodeId } } : { disconnect: true },
+        cutCode: data.cutCodeId ? { connect: { id: data.cutCodeId } } : { disconnect: true },
+        collectionCode: data.collectionCodeId ? { connect: { id: data.collectionCodeId } } : { disconnect: true },
+        rashis: { set: data.rashiCodeIds?.map(id => ({ id })) || [] },
         shape: data.shape,
         dimensionsMm: data.dimensionsMm,
         weightValue: data.weightValue,
@@ -343,6 +416,14 @@ export async function updateInventory(
         profit,
         stockLocation: data.stockLocation,
         notes: data.notes,
+
+        // Bracelet Fields
+        braceletType: data.braceletType,
+        beadSizeMm: data.beadSizeMm,
+        beadCount: data.beadCount,
+        holeSizeMm: data.holeSizeMm,
+        innerCircumferenceMm: data.innerCircumferenceMm,
+        standardSize: data.standardSize,
       },
     });
 
@@ -355,7 +436,49 @@ export async function updateInventory(
         newData: updatedInventory,
     });
 
-    if (data.mediaUrl && data.mediaUrl !== "") {
+    if (data.mediaUrls) {
+        // Get existing media
+        const existingMedia = await prisma.media.findMany({
+            where: { inventoryId: id }
+        });
+        
+        const existingUrls = new Set(existingMedia.map(m => m.url));
+        const newUrls = new Set(data.mediaUrls);
+        
+        // Delete removed media
+        const toDelete = existingMedia.filter(m => !newUrls.has(m.url));
+        if (toDelete.length > 0) {
+            await prisma.media.deleteMany({
+                where: { id: { in: toDelete.map(m => m.id) } }
+            });
+        }
+        
+        // Add new media
+        const toAdd = data.mediaUrls.filter(url => !existingUrls.has(url));
+        
+        if (toAdd.length > 0) {
+            const inv = await prisma.inventory.findUnique({ where: { id }, select: { sku: true } });
+            if (inv) {
+                 for (let i = 0; i < toAdd.length; i++) {
+                     const url = toAdd[i];
+                     const isVideo = url.match(/\.(mp4|mov|webm)$/i);
+                     const type = isVideo ? "VIDEO" : "IMAGE";
+                     
+                     // Use timestamp suffix for updates to avoid collision
+                     const suffix = `_${Date.now()}_${i}`;
+                     const finalUrl = await renameCloudinaryImageToSku(url, inv.sku + suffix);
+                     
+                     await prisma.media.create({
+                        data: {
+                            inventoryId: id,
+                            type,
+                            url: finalUrl
+                        }
+                     });
+                 }
+            }
+        }
+    } else if (data.mediaUrl && data.mediaUrl !== "") {
         const existingMedia = await prisma.media.findFirst({
             where: { inventoryId: id, url: data.mediaUrl }
         });

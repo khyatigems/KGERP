@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { SalesActions } from "@/components/sales/sales-actions";
+import { SalesCardList } from "@/components/sales/sales-card-list";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
@@ -77,7 +78,11 @@ export default async function SalesPage() {
         />
       </div>
 
-      <div className="rounded-md border">
+      <div className="md:hidden">
+         <SalesCardList data={sales} canDelete={canDelete} />
+      </div>
+
+      <div className="rounded-md border hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
