@@ -124,7 +124,7 @@ export async function saveLandingPageSettings(data: {
         entityType: "LandingPage",
         entityId: currentSettings.id,
         entityIdentifier: "Settings",
-        actionType: "UPDATE",
+        actionType: "EDIT",
         userId: session.user.id,
         userName: session.user.name,
         // userEmail: session.user.email, // Not in the interface, check if needed or inferred
