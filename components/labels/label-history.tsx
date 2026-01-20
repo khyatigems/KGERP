@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 
 interface LabelJobWithRelations extends LabelPrintJob {
-  user: User | null;
+  user: Pick<User, "name" | "email"> | null;
   items: LabelPrintJobItem[];
 }
 
