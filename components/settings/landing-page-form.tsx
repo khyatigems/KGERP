@@ -248,7 +248,7 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
             <CardContent className="space-y-4">
                 <div className="flex items-center space-x-2">
                     <Switch 
-                        checked={form.watch("highlightsEnabled")} 
+                        checked={highlightsEnabled} 
                         onCheckedChange={(checked) => form.setValue("highlightsEnabled", checked)} 
                     />
                     <Label>Enable Highlights</Label>

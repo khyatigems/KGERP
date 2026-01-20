@@ -118,7 +118,7 @@ export async function saveLandingPageSettings(data: {
         }
       });
       
-      // 5. Audit Log
+      // Audit Log
       // Note: We cannot pass tx to logActivity as it uses the global prisma client.
       // This means logging is outside the transaction, which is acceptable for non-critical logs.
       await logActivity({
@@ -175,8 +175,9 @@ export async function rollbackVersion(versionId: string) {
 
         const snapshot = JSON.parse(version.snapshot);
         // Snapshot is the LandingPageSettings object with slides
-        const settings = snapshot as any; 
-        const slides = (settings.slides || []) as any[];
+        type SettingsWithSlides = LandingPageSettings & { slides: LandingPageSlide[] };
+        const settings = snapshot as SettingsWithSlides; 
+        const slides = (settings.slides || []) as LandingPageSlide[];
 
         const currentSettings = await getOrCreateSettings();
         const newVersionNumber = currentSettings.activeVersion + 1;
@@ -230,14 +231,13 @@ export async function rollbackVersion(versionId: string) {
             });
 
             // Audit Log
-            await logActivity(tx, {
+            await logActivity({
                 entityType: "LandingPage",
                 entityId: currentSettings.id,
                 entityIdentifier: "Settings",
                 actionType: "ROLLBACK",
                 userId: session.user.id,
-                userName: session.user.name,
-                userEmail: session.user.email,
+                userName: session.user.name ?? undefined,
                 source: "WEB",
                 fieldChanges: JSON.stringify({ restoredVersion: version.versionNumber, newVersion: newVersionNumber })
             });
