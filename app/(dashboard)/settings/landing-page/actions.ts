@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity-logger";
+import { LandingPageSettings, LandingPageSlide } from "@prisma/client";
 
 // Helper to ensure singleton settings exist
 async function getOrCreateSettings() {
@@ -126,7 +127,7 @@ export async function saveLandingPageSettings(data: {
         entityIdentifier: "Settings",
         actionType: "EDIT",
         userId: session.user.id,
-        userName: session.user.name,
+        userName: session.user.name ?? undefined,
         // userEmail: session.user.email, // Not in the interface, check if needed or inferred
         source: "WEB",
         // fieldChanges: JSON.stringify({ version: newVersionNumber }) // handled by oldData/newData if passed, or we skip

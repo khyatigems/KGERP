@@ -21,6 +21,7 @@ interface LogActivityParams<T = Record<string, unknown>> {
   actionType: ActionType;
   oldData?: T;
   newData?: T;
+  fieldChanges?: string; // Allow explicit override
   userId?: string; // Optional override, otherwise uses session
   userName?: string; // Optional override
   source?: "WEB" | "SYSTEM" | "CRON" | "CSV_IMPORT";
@@ -33,6 +34,7 @@ export async function logActivity<T = Record<string, unknown>>({
   actionType,
   oldData,
   newData,
+  fieldChanges: explicitFieldChanges,
   userId,
   userName,
   source = "WEB",
@@ -65,8 +67,8 @@ export async function logActivity<T = Record<string, unknown>>({
     }
 
     // Calculate field changes if it's an EDIT
-    let fieldChanges = null;
-    if (actionType === "EDIT" && oldData && newData) {
+    let fieldChanges = explicitFieldChanges || null;
+    if (!fieldChanges && actionType === "EDIT" && oldData && newData) {
       const changes: Record<string, { old: unknown; new: unknown }> = {};
       
       // Get all keys from both objects
