@@ -12,6 +12,14 @@ import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+export const dynamic = "force-dynamic";
+
+type InvoicePageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 

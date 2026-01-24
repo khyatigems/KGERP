@@ -10,6 +10,8 @@ import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import type { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   robots: {
     index: false,

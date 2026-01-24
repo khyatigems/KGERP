@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { Eye } from "lucide-react";
 import type { Invoice, Sale, Quotation } from "@prisma/client-custom-v2";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Invoices | KhyatiGems™",
 };
