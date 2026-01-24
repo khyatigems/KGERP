@@ -20,7 +20,7 @@ type InvoicePageProps = {
   }>;
 };
 
-export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const { id } = await params;
 
   const invoice = await prisma.invoice.findUnique({
