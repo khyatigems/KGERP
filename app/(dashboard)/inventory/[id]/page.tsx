@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { MobileInventoryActions } from "@/components/inventory/mobile-inventory-actions";
 import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
-import type { Inventory } from "@prisma/client";
+import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
 
 type InventoryWithExtras = Inventory & {
   category?: string | null;
@@ -19,10 +19,15 @@ type InventoryWithExtras = Inventory & {
 type ActivityLogEntry = {
   id: string;
   actionType: string;
+  userId: string | null;
   userName: string | null;
-  source: string | null;
-  timestamp: Date;
+  entityType: string;
+  entityId: string | null;
+  entityIdentifier: string | null;
+  details: string | null;
   fieldChanges: string | null;
+  createdAt: Date;
+  source: string | null;
 };
 
 export default async function InventoryDetailPage({
@@ -32,7 +37,7 @@ export default async function InventoryDetailPage({
 }) {
   const { id } = await params;
   const rawItem = await prisma.inventory.findUnique({ where: { id } });
-  const item = rawItem as InventoryWithExtras & { vendor?: { id: string; name: string } | null; media: { url: string; type: string }[] } | null;
+  const item = rawItem as InventoryWithExtras & { vendor?: { id: string; name: string } | null; media: InventoryMedia[] } | null;
 
   if (!item) return <div className="p-6">Inventory Item not found</div>;
 
@@ -60,18 +65,10 @@ export default async function InventoryDetailPage({
 
   let logs: ActivityLogEntry[] = [];
   try {
-    const activityClient = (prisma as typeof prisma & {
-      activityLog?: {
-        findMany: (args: { where: { entityType: string; entityId: string }; orderBy: { timestamp: string } }) => Promise<ActivityLogEntry[]>;
-      };
-    }).activityLog;
-    
-    if (activityClient) {
-      logs = await activityClient.findMany({
+      logs = await prisma.activityLog.findMany({
         where: { entityType: "Inventory", entityId: id },
-        orderBy: { timestamp: "desc" },
-      });
-    }
+        orderBy: { createdAt: "desc" },
+      }) as unknown as ActivityLogEntry[];
   } catch (error) {
     console.error("Failed to fetch activity logs for inventory:", error);
   }
@@ -79,12 +76,13 @@ export default async function InventoryDetailPage({
   const lastEdit = logs.find((l) => l.actionType === "EDIT");
   
   // Calculate financials
+  const weightVal = detailedItem.weightValue ?? 0;
   const purchaseCost = detailedItem.pricingMode === "PER_CARAT" 
-      ? (detailedItem.purchaseRatePerCarat || 0) * detailedItem.weightValue 
+      ? (detailedItem.purchaseRatePerCarat || 0) * weightVal 
       : (detailedItem.flatPurchaseCost || 0);
       
   const sellingPrice = detailedItem.pricingMode === "PER_CARAT"
-      ? (detailedItem.sellingRatePerCarat || 0) * detailedItem.weightValue
+      ? (detailedItem.sellingRatePerCarat || 0) * weightVal
       : (detailedItem.flatSellingPrice || 0);
 
   const profit = sellingPrice - purchaseCost;
@@ -97,9 +95,9 @@ export default async function InventoryDetailPage({
                     <div className="flex flex-col gap-1 mt-1">
                         <p className="text-sm text-muted-foreground font-mono">{detailedItem.sku} · {detailedItem.category}</p>
                         <div className="flex gap-4 text-xs text-muted-foreground">
-                            <span>Created {formatDistanceToNow(detailedItem.createdAt, { addSuffix: true })} by {detailedItem.createdBy}</span>
+                            <span>Created {formatDistanceToNow(detailedItem.createdAt, { addSuffix: true })}</span>
                              {lastEdit && (
-                                <span>Last edited {formatDistanceToNow(lastEdit.timestamp, { addSuffix: true })} by {lastEdit.userName}</span>
+                                <span>Last edited {formatDistanceToNow(lastEdit.createdAt, { addSuffix: true })} by {lastEdit.userName || lastEdit.userId || "System"}</span>
                             )}
                         </div>
                     </div>
@@ -121,11 +119,11 @@ export default async function InventoryDetailPage({
                 <h2 className="text-lg font-semibold mb-4">Media Gallery</h2>
                 {detailedItem.media.length > 0 ? (
                     <div className="flex gap-4 overflow-x-auto pb-2">
-                        {detailedItem.media.map((m, i) => (
+                        {detailedItem.media.map((m: InventoryMedia, i: number) => (
                              <div key={m.id} className="relative h-48 w-48 shrink-0 rounded-lg border overflow-hidden">
-                                 {m.type === 'IMAGE' ? (
+                                 {m.type === 'image' || m.type === 'IMAGE' ? (
                                      <Image 
-                                        src={m.url} 
+                                        src={m.mediaUrl} 
                                         alt={`Media ${i+1}`} 
                                         fill 
                                         className="object-cover"
@@ -174,7 +172,7 @@ export default async function InventoryDetailPage({
                             <span className="text-muted-foreground">Rashi:</span> 
                             <span className="font-medium">
                                 {detailedItem.rashis && detailedItem.rashis.length > 0
-                                    ? detailedItem.rashis.map(r => r.name).join(", ")
+                                    ? detailedItem.rashis.map((r: { name: string }) => r.name).join(", ")
                                     : "-"}
                             </span>
                         </div>
@@ -335,11 +333,11 @@ export default async function InventoryDetailPage({
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-sm font-medium">
-                                        {log.userName} <span className="font-normal text-muted-foreground">{log.actionType.toLowerCase()}d this item</span>
+                                        {log.userName || log.userId || "System"} <span className="font-normal text-muted-foreground">{log.actionType.toLowerCase()}d this item</span>
                                         {log.source !== 'WEB' && <Badge variant="outline" className="ml-2 text-[10px] h-5">{log.source}</Badge>}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                        {log.timestamp.toLocaleString()} ({formatDistanceToNow(log.timestamp, { addSuffix: true })})
+                                        {log.createdAt.toLocaleString()} ({formatDistanceToNow(log.createdAt, { addSuffix: true })})
                                     </p>
                                     {log.fieldChanges && (
                                         <div className="text-xs bg-muted/50 p-2 rounded mt-2 font-mono border">

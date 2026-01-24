@@ -175,12 +175,44 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
     // 2. Item Name
     if (fields.includes("itemName")) {
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(config.fontSize + 2);
-        // Truncate if QR is present to avoid overlap?
-        // Simple truncation for now
-        const name = item.itemName.length > 18 ? item.itemName.substring(0, 16) + "..." : item.itemName;
-        doc.text(name, contentX, currentY);
-        currentY += lineHeight + 0.2;
+        
+        // Calculate available width
+        // QR Code is at right side with size + margin
+        let availableWidth = config.labelWidth - (padding * 2);
+        if (fields.includes("qrCode") && qrDataUrl) {
+            availableWidth -= (config.qrSize + 1);
+        }
+
+        // Auto-fit logic for single line
+        const maxFontSize = config.fontSize + 2;
+        const minFontSize = 4; // Minimum readable size
+        let currentFontSize = maxFontSize;
+        doc.setFontSize(currentFontSize);
+        
+        let textWidth = doc.getTextWidth(item.itemName);
+        
+        // Loop to reduce font size until it fits
+        while (textWidth > availableWidth && currentFontSize > minFontSize) {
+            currentFontSize -= 0.5;
+            doc.setFontSize(currentFontSize);
+            textWidth = doc.getTextWidth(item.itemName);
+        }
+        
+        // If still doesn't fit after reaching minFontSize, truncate
+        let textToPrint = item.itemName;
+        if (textWidth > availableWidth) {
+             while (doc.getTextWidth(textToPrint + "...") > availableWidth && textToPrint.length > 0) {
+                 textToPrint = textToPrint.slice(0, -1);
+             }
+             textToPrint += "...";
+        }
+
+        // Print single line
+        doc.text(textToPrint, contentX, currentY);
+        
+        // Adjust Y based on actual font size used
+        const textHeight = currentFontSize * 0.3527; 
+        currentY += (textHeight * 1.2) + 0.5;
     }
 
     // 3. SKU

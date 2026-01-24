@@ -1,0 +1,168 @@
+/* 
+  QUOTATION CSS — LOGO & MEDIA (ERP + PDF SAFE)
+  Use this as-is. No framework dependency.
+*/
+
+/* 1️⃣ QUOTATION HEADER — LOGO LAYOUT */
+.quotation-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 16px 20px; 
+  background: #0f172a; /* dark blue */ 
+  color: #ffffff; 
+  border-radius: 8px 8px 0 0; 
+} 
+
+.quotation-brand { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+} 
+
+.quotation-logo { 
+  max-height: 48px; 
+  max-width: 140px; 
+  object-fit: contain; 
+} 
+
+.company-text h1 { 
+  font-size: 16px; 
+  font-weight: 600; 
+  margin: 0; 
+} 
+
+.company-text span { 
+  font-size: 12px; 
+  opacity: 0.85; 
+} 
+
+.quotation-meta { 
+  text-align: right; 
+} 
+
+.quote-number { 
+  font-size: 14px; 
+  font-weight: 600; 
+} 
+
+.quote-validity { 
+  font-size: 12px; 
+  opacity: 0.85; 
+} 
+
+/* 2️⃣ PRODUCT MEDIA — QUOTATION ITEM IMAGE */
+.item-media { 
+  width: 80px; 
+  padding: 6px; 
+} 
+
+.item-image { 
+  width: 68px; 
+  height: 68px; 
+  object-fit: cover; 
+  border-radius: 6px; 
+  border: 1px solid #e5e7eb; 
+  background: #f9fafb; 
+} 
+
+/* 3️⃣ ITEM ROW LAYOUT (CLEAN & READABLE) */
+.quotation-table { 
+  width: 100%; 
+  border-collapse: collapse; 
+} 
+
+.quotation-table th { 
+  text-align: left; 
+  font-size: 13px; 
+  font-weight: 600; 
+  color: #374151; 
+  border-bottom: 1px solid #e5e7eb; 
+  padding: 10px 8px; 
+} 
+
+.quotation-table td { 
+  padding: 12px 8px; 
+  vertical-align: middle; 
+  border-bottom: 1px solid #f1f5f9; 
+  font-size: 13px; 
+  color: #111827; 
+} 
+
+/* 4️⃣ PRODUCT NAME & SKU TEXT */
+.item-details { 
+  display: flex; 
+  flex-direction: column; 
+} 
+
+.item-name { 
+  font-weight: 500; 
+  margin-bottom: 2px; 
+} 
+
+.item-sku { 
+  font-size: 11px; 
+  color: #6b7280; 
+} 
+
+/* 5️⃣ RESPONSIVE (MOBILE ERP VIEW) */
+@media (max-width: 768px) { 
+  .quotation-header { 
+    flex-direction: column; 
+    align-items: flex-start; 
+    gap: 10px; 
+  } 
+
+  .quotation-meta { 
+    text-align: left; 
+  } 
+
+  .quotation-table { 
+    display: block; 
+  } 
+
+  .quotation-table thead { 
+    display: none; 
+  } 
+
+  .quotation-table tr { 
+    display: block; 
+    margin-bottom: 12px; 
+    border: 1px solid #e5e7eb; 
+    border-radius: 8px; 
+    padding: 10px; 
+  } 
+
+  .quotation-table td { 
+    display: flex; 
+    justify-content: space-between; 
+    padding: 6px 0; 
+    border: none; 
+  } 
+
+  .item-media { 
+    width: auto; 
+  } 
+} 
+
+/* 6️⃣ FOOTER (ERP + PDF SAME STYLE) */
+.quotation-footer { 
+  margin-top: 24px; 
+  padding-top: 12px; 
+  border-top: 1px solid #e5e7eb; 
+  font-size: 11px; 
+  color: #6b7280; 
+  text-align: center; 
+  line-height: 1.6; 
+} 
+
+/* 7️⃣ PLACEHOLDER IMAGE (IMPORTANT) */
+.item-image.placeholder { 
+  background: repeating-linear-gradient( 
+    45deg, 
+    #f3f4f6, 
+    #f3f4f6 10px, 
+    #e5e7eb 10px, 
+    #e5e7eb 20px 
+  ); 
+}

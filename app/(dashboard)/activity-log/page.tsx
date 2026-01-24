@@ -26,38 +26,23 @@ export default async function ActivityLogPage({
     // Filters
     const entityType = typeof params.entityType === 'string' ? params.entityType : undefined;
     const actionType = typeof params.actionType === 'string' ? params.actionType : undefined;
-    // const userId = typeof params.userId === 'string' ? params.userId : undefined;
-
+    
     const where: { entityType?: string; actionType?: string; userId?: string } = {};
     if (entityType && entityType !== "ALL") where.entityType = entityType;
     if (actionType && actionType !== "ALL") where.actionType = actionType;
-    // userId filtering would need a dropdown of users, skipping for now or simple input
     
-    // Safety check for undefined prisma.activityLog
+    // Fetch logs
     let logs: ActivityLog[] = [];
     let totalCount = 0;
     
     try {
-        const activityClient = (prisma as typeof prisma & {
-            activityLog?: {
-                findMany: (args: { where: { entityType?: string; actionType?: string }; orderBy: { timestamp: string }; take: number; skip: number }) => Promise<ActivityLog[]>;
-                count?: (args: { where: { entityType?: string; actionType?: string } }) => Promise<number>;
-            };
-        }).activityLog;
-        
-        if (activityClient) {
-            logs = await activityClient.findMany({
-                where,
-                orderBy: { timestamp: "desc" },
-                take: limit,
-                skip,
-            });
-            if (activityClient.count) {
-                totalCount = await activityClient.count({ where });
-            }
-        } else {
-            console.warn("Prisma activityLog model is not accessible.");
-        }
+        logs = await prisma.activityLog.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            take: limit,
+            skip,
+        });
+        totalCount = await prisma.activityLog.count({ where });
     } catch (error) {
         console.error("Failed to fetch activity logs:", error);
     }
@@ -96,7 +81,7 @@ export default async function ActivityLogPage({
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            logs.map((log) => (
+                            logs.map((log: any) => (
                                 <TableRow key={log.id}>
                                     <TableCell>
                                         <Badge variant={
@@ -109,22 +94,21 @@ export default async function ActivityLogPage({
                                     </TableCell>
                                     <TableCell>{log.entityType}</TableCell>
                                     <TableCell className="font-medium">
-                                        {/* Make clickable based on entity type? */}
-                                        {log.entityIdentifier}
+                                        {log.entityIdentifier || log.entityId || "Unknown"}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-medium">{log.userName}</span>
+                                            <span className="text-sm font-medium">{log.userName || log.userId || "System"}</span>
                                             <span className="text-xs text-muted-foreground">{log.source}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span className="text-sm">
-                                                {formatDistanceToNow(log.timestamp, { addSuffix: true })}
+                                                {formatDistanceToNow(log.createdAt, { addSuffix: true })}
                                             </span>
                                             <span className="text-xs text-muted-foreground">
-                                                {log.timestamp.toLocaleString()}
+                                                {log.createdAt.toLocaleString()}
                                             </span>
                                         </div>
                                     </TableCell>

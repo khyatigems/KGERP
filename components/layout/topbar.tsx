@@ -5,9 +5,19 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { signOut } from "next-auth/react";
-import { LogOut, Menu, ChevronRight, Home } from "lucide-react";
+import { LogOut, Menu, ChevronRight, Home, User } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/layout/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useGlobalLoader } from "@/components/global-loader-provider";
 
 const routeTitles: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -23,9 +33,20 @@ const routeTitles: Record<string, string> = {
   "/settings": "System Settings",
 };
 
-export function Topbar() {
+interface TopbarProps {
+  user?: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    role?: string;
+    lastLogin?: Date | string | null;
+  };
+}
+
+export function Topbar({ user }: TopbarProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { showLoader } = useGlobalLoader();
 
   const getBreadcrumbs = () => {
     const paths = pathname.split('/').filter(Boolean);
@@ -71,7 +92,7 @@ export function Topbar() {
         {/* Breadcrumbs */}
         {breadcrumbs.length > 0 && (
           <nav className="hidden md:flex items-center text-xs text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">
+            <Link href="/" className="hover:text-foreground transition-colors" onClick={() => { if (pathname !== "/") showLoader(); }}>
               <Home className="h-3 w-3" />
             </Link>
             {breadcrumbs.map((crumb) => (
@@ -80,7 +101,7 @@ export function Topbar() {
                 {crumb.isLast ? (
                   <span className="font-medium text-foreground">{crumb.label}</span>
                 ) : (
-                  <Link href={crumb.href} className="hover:text-foreground transition-colors">
+                  <Link href={crumb.href} className="hover:text-foreground transition-colors" onClick={() => showLoader()}>
                     {crumb.label}
                   </Link>
                 )}
@@ -92,10 +113,52 @@ export function Topbar() {
 
       <div className="flex items-center gap-2">
          <span className="font-semibold text-lg md:hidden">KhyatiGems™</span>
-        <Button variant="ghost" size="icon" onClick={() => signOut()} className="text-muted-foreground hover:text-foreground">
-          <LogOut className="h-4 w-4" />
-          <span className="sr-only">Logout</span>
-        </Button>
+         
+         <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                {user?.image && (user.image.includes('<svg') || user.image.trim().startsWith('<svg')) ? (
+                  <div 
+                    className="w-8 h-8 rounded-full overflow-hidden shrink-0"
+                    dangerouslySetInnerHTML={{ __html: user.image }}
+                  />
+                ) : (
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.image || ""} alt={user?.name || ""} />
+                    <AvatarFallback>{user?.name ? user.name.charAt(0).toUpperCase() : <User className="h-4 w-4" />}</AvatarFallback>
+                  </Avatar>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user?.name}</p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="flex flex-col items-start cursor-default">
+                 <span className="text-xs font-medium">Role</span>
+                 <span className="text-xs text-muted-foreground">{user?.role}</span>
+              </DropdownMenuItem>
+              {user?.lastLogin && (
+                <DropdownMenuItem className="flex flex-col items-start cursor-default">
+                  <span className="text-xs font-medium">Last Login</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(user.lastLogin).toLocaleString()}
+                  </span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => signOut()}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
       </div>
     </header>
   );

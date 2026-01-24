@@ -11,7 +11,7 @@ export async function GET(
     const listings = await prisma.listing.findMany({
       where: {
         inventoryId: id,
-        status: "LISTED",
+        status: { in: ["LISTED", "ACTIVE"] },
       },
       select: {
         id: true,

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity-logger";
+import { PERMISSIONS } from "@/lib/permissions";
+import { checkPermission } from "@/lib/permission-guard";
 import { z } from "zod";
 
 const codePattern = /^[A-Z0-9]{1,6}$/;
@@ -22,9 +24,14 @@ const updateCodeSchema = z.object({
 
 type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis";
 
+// ... (imports)
+
 export async function createCode(group: CodeGroup, formData: FormData) {
+  const perm = await checkPermission(PERMISSIONS.SETTINGS_MANAGE);
+  if (!perm.success) return { error: perm.message };
+
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
+  if (!session?.user) return { error: "Unauthorized" };
 
   const rawData = {
     name: formData.get("name"),

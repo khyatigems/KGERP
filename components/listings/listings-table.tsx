@@ -15,6 +15,7 @@ import { Download, Loader2, RefreshCw } from "lucide-react";
 import { deleteListings, updateListingsStatus } from "@/app/(dashboard)/inventory/listing-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useGlobalLoader } from "@/components/global-loader-provider";
 
 interface ListingsTableProps {
   data: (Listing & { inventory: { sku: string; itemName: string } })[];
@@ -22,6 +23,7 @@ interface ListingsTableProps {
 
 export function ListingsTable({ data }: ListingsTableProps) {
   const router = useRouter();
+  const { showLoader, hideLoader } = useGlobalLoader();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [platformFilter, setPlatformFilter] = useState("ALL");
@@ -120,8 +122,12 @@ export function ListingsTable({ data }: ListingsTableProps) {
 
   const handleRefresh = () => {
     setIsRefreshing(true);
+    showLoader();
     router.refresh();
-    setTimeout(() => setIsRefreshing(false), 1000);
+    setTimeout(() => {
+      setIsRefreshing(false);
+      hideLoader();
+    }, 1000);
   };
 
   const handleExport = () => {

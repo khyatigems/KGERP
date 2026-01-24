@@ -9,10 +9,10 @@ import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { LabelItem } from "@/lib/label-generator";
 import { toast } from "sonner";
 
-export function LabelCartSheet() {
+export function LabelCartSheet({ initialItems = [] }: { initialItems?: any[] }) {
     const [open, setOpen] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [items, setItems] = useState<any[]>([]);
+    const [items, setItems] = useState<any[]>(initialItems);
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
 
@@ -20,14 +20,24 @@ export function LabelCartSheet() {
         // Suppress warning about setting state in effect
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setMounted(true);
+        // Load cart on mount to ensure badge count is correct
+        void loadCart();
     }, []);
 
+    // Update items if initialItems changes (e.g. from parent refresh)
+    useEffect(() => {
+        if (initialItems.length > 0) {
+            setItems(initialItems);
+        }
+    }, [initialItems]);
+
     const loadCart = useCallback(async () => {
-        setLoading(true);
+        // Only show loading if we don't have items or if open
+        if (open) setLoading(true);
         const data = await getCart();
         setItems(data);
-        setLoading(false);
-    }, []);
+        if (open) setLoading(false);
+    }, [open]);
 
     useEffect(() => {
         if (open) {
@@ -122,6 +132,12 @@ export function LabelCartSheet() {
                         </Button>
                         <LabelPrintDialog 
                             items={labelItems}
+                            onPrintComplete={() => {
+                                // Reload cart after print (items should be removed by server)
+                                loadCart();
+                                setOpen(false); // Close sheet optionally
+                                toast.success("Labels generated and cart updated");
+                            }}
                             trigger={
                                 <Button className="flex-1" disabled={items.length === 0}>
                                     <Printer className="mr-2 h-4 w-4" />

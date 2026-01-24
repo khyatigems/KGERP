@@ -43,7 +43,7 @@ async function main() {
       email: "admin@khyatigems.com",
       name: "Super Admin",
       password,
-      role: "ADMIN"
+      role: "SUPER_ADMIN"
     }
   });
   

@@ -3,9 +3,13 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SettingsCodesView } from "@/components/settings/settings-codes-view";
 
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+
 export default async function SettingsCodesPage() {
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  const role = session?.user?.role || "VIEWER";
+  
+  if (!hasPermission(role, PERMISSIONS.SETTINGS_MANAGE)) {
     redirect("/");
   }
 

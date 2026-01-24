@@ -14,12 +14,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PREDEFINED_AVATARS } from "@/lib/avatars";
+import { cn } from "@/lib/utils";
 
 export default function NewUserPage() {
   const [error, setError] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState(PREDEFINED_AVATARS[0]);
   const router = useRouter();
 
   async function clientAction(formData: FormData) {
+    formData.set("avatar", selectedAvatar);
     const res = await createUser(formData);
     if (res?.message) {
       setError(res.message);
@@ -34,6 +38,29 @@ export default function NewUserPage() {
         </CardHeader>
         <CardContent>
           <form action={clientAction} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Avatar</Label>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-4 p-4 border rounded-lg bg-slate-50 dark:bg-slate-900">
+                {PREDEFINED_AVATARS.map((svg, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => setSelectedAvatar(svg)}
+                    className={cn(
+                      "relative rounded-full overflow-hidden transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+                      selectedAvatar === svg ? "ring-2 ring-primary ring-offset-2 scale-110" : "opacity-70 hover:opacity-100"
+                    )}
+                  >
+                    <div 
+                        className="w-12 h-12"
+                        dangerouslySetInnerHTML={{ __html: svg }} 
+                    />
+                  </button>
+                ))}
+              </div>
+              <input type="hidden" name="avatar" value={selectedAvatar} />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" required />
@@ -51,13 +78,16 @@ export default function NewUserPage() {
 
             <div className="space-y-2">
               <Label htmlFor="role">Role</Label>
-              <Select name="role" defaultValue="STAFF">
+              <Select name="role" defaultValue="VIEWER">
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="STAFF">Staff</SelectItem>
+                  <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                   <SelectItem value="ADMIN">Admin</SelectItem>
+                  <SelectItem value="SALES">Sales</SelectItem>
+                  <SelectItem value="ACCOUNTS">Accounts</SelectItem>
+                  <SelectItem value="VIEWER">Viewer</SelectItem>
                 </SelectContent>
               </Select>
             </div>

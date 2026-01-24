@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ListingsTable } from "./listings-table";
 import { CreateListingsTable } from "./create-listings-table";
 import { ListingTemplates } from "./listing-templates";
-import { Inventory, Listing } from "@prisma/client";
+import { Inventory, Listing } from "@prisma/client-custom-v2";
 
 interface ListingsViewProps {
   listings: (Listing & { inventory: { sku: string; itemName: string } })[];

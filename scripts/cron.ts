@@ -38,10 +38,10 @@ async function handleQuotationExpiryAndReminders() {
 
   for (const q of toRemind) {
     // Check if already reminded in the last 24 hours
-    const reminderSent = await prisma.publicLinkEvent.findFirst({
+    const reminderSent = await prisma.activityLog.findFirst({
         where: {
-            refId: q.id,
-            type: "REMINDER_SENT",
+            entityId: q.id,
+            actionType: "REMINDER_SENT",
             createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } 
         }
     });
@@ -49,7 +49,7 @@ async function handleQuotationExpiryAndReminders() {
     if (reminderSent) continue;
 
     const quotationUrl = `${process.env.APP_BASE_URL}/quote/${q.token}`;
-    const expiryDateStr = q.expiryDate.toISOString().slice(0, 10);
+    const expiryDateStr = q.expiryDate ? q.expiryDate.toISOString().slice(0, 10) : "";
 
     const waLink = buildQuotationWhatsappLink({
       quotationUrl,
@@ -60,10 +60,13 @@ async function handleQuotationExpiryAndReminders() {
     console.log(`[LINK] ${waLink}`);
 
     // Record event
-    await prisma.publicLinkEvent.create({
+    await prisma.activityLog.create({
       data: {
-        type: "REMINDER_SENT",
-        refId: q.id,
+        entityType: "Quotation",
+        entityId: q.id,
+        actionType: "REMINDER_SENT",
+        source: "SYSTEM_CRON",
+        details: `Reminder for ${q.quotationNumber}`
       },
     });
   }

@@ -16,11 +16,25 @@ import { SalesCardList } from "@/components/sales/sales-card-list";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
+import { checkPermission } from "@/lib/permission-guard";
+
 export const metadata: Metadata = {
   title: "Sales History | KhyatiGems™",
 };
 
 export default async function SalesPage() {
+  const perm = await checkPermission(PERMISSIONS.SALES_VIEW);
+  if (!perm.success) {
+    return (
+      <div className="p-6">
+        <div className="bg-destructive/15 text-destructive border-destructive/20 border px-4 py-3 rounded-md relative">
+          <strong className="font-bold">Access Denied!</strong>
+          <span className="block sm:inline"> {perm.message}</span>
+        </div>
+      </div>
+    );
+  }
+
   const session = await auth();
   const canDelete = session ? hasPermission(session.user?.role || "STAFF", PERMISSIONS.SALES_DELETE) : false;
 
@@ -41,17 +55,23 @@ export default async function SalesPage() {
           token: true,
         },
       },
+      legacyInvoice: {
+        select: {
+          invoiceNumber: true,
+          token: true,
+        },
+      },
     },
   });
 
   const exportData = sales.map(sale => ({
     date: formatDate(sale.saleDate),
-    invoice: sale.invoice?.invoiceNumber || "-",
+    invoice: sale.invoice?.invoiceNumber || sale.legacyInvoice?.invoiceNumber || "-",
     customer: sale.customerName || "Walk-in",
     item: `${sale.inventory.sku} - ${sale.inventory.itemName}`,
     platform: sale.platform,
     amount: formatCurrency(sale.netAmount),
-    profit: formatCurrency(sale.profit),
+    profit: formatCurrency(sale.profit || 0),
     status: sale.paymentStatus || "PENDING"
   }));
 
@@ -108,7 +128,7 @@ export default async function SalesPage() {
                 <TableRow key={sale.id}>
                   <TableCell>{formatDate(sale.saleDate)}</TableCell>
                   <TableCell className="font-medium">
-                    {sale.invoice?.invoiceNumber || "-"}
+                    {sale.invoice?.invoiceNumber || sale.legacyInvoice?.invoiceNumber || "-"}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
@@ -129,7 +149,7 @@ export default async function SalesPage() {
                   <TableCell>{sale.platform}</TableCell>
                   <TableCell>{formatCurrency(sale.netAmount)}</TableCell>
                   <TableCell className="text-green-600">
-                    {formatCurrency(sale.profit)}
+                    {formatCurrency(sale.profit || 0)}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">
@@ -139,7 +159,7 @@ export default async function SalesPage() {
                   <TableCell className="text-right">
                     <SalesActions 
                         saleId={sale.id} 
-                        invoiceToken={sale.invoice?.token} 
+                        invoiceToken={sale.invoice?.token || sale.legacyInvoice?.token} 
                         canDelete={canDelete} 
                     />
                   </TableCell>

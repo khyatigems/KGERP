@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { checkPermission } from "@/lib/permission-guard";
+import { PERMISSIONS } from "@/lib/permissions";
 
 type PrismaWithListing = typeof prisma & {
   listing: {
@@ -23,6 +25,9 @@ const listingSchema = z.object({
 });
 
 export async function createListing(prevState: unknown, formData: FormData) {
+  const perm = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
+  if (!perm.success) return { message: perm.message };
+
   const session = await auth();
   if (!session) {
     return { message: "Unauthorized" };
@@ -64,6 +69,9 @@ export async function updateListingStatus(
   id: string,
   status: "LISTED" | "SOLD" | "DELISTED"
 ) {
+  const perm = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
+  if (!perm.success) return { message: perm.message };
+
   const session = await auth();
   if (!session) {
     return { message: "Unauthorized" };

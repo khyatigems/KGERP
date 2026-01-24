@@ -5,112 +5,138 @@ export const revalidate = 60; // 60s cache
 
 export async function GET() {
   try {
-    const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    // Last 6 months range
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(today.getMonth() - 5);
-    sixMonthsAgo.setDate(1);
+    // Determine Database Connection Source (Keep existing logic)
+    let dbConnection = 'Local SQLite';
+    try {
+        const sourceSetting = await prisma.setting.findUnique({
+            where: { key: 'DATABASE_SOURCE' },
+            select: { value: true }
+        });
 
+        if (sourceSetting?.value === 'TURSO_CLOUD_DB') {
+            dbConnection = 'Turso Cloud';
+        } else if (process.env.DATABASE_URL?.startsWith('libsql') || process.env.DATABASE_URL?.startsWith('https')) {
+            dbConnection = 'Turso Cloud';
+        }
+    } catch (e) {
+        console.warn("Failed to determine DB source:", e);
+    }
+
+    // 1. KPI Counts
     const [
-      activeQuotations,
-      salesThisMonthAgg,
-      recentSales,
-      salesTrendRaw
+        totalInventory,
+        activeListingsRaw,
+        activeQuotations,
+        invoicesGenerated,
+        labelCartCount,
+        lastLabelCartItem,
+        recentSales
     ] = await Promise.all([
-      prisma.quotation.count({ where: { status: "ACTIVE" } }),
-      prisma.sale.aggregate({
-          _sum: { netAmount: true },
-          where: {
-              saleDate: {
-                  gte: startOfMonth
-              }
-          }
-      }),
-      prisma.sale.findMany({
-          take: 5,
-          orderBy: { saleDate: "desc" },
-          include: { inventory: { select: { itemName: true } } }
-      }),
-      prisma.sale.groupBy({
-          by: ['saleDate'],
-          _sum: {
-              netAmount: true
-          },
-          where: {
-              saleDate: {
-                  gte: sixMonthsAgo
-              }
-          },
-          orderBy: {
-              saleDate: 'asc'
-          }
-      })
+        prisma.inventory.count({ where: { status: "IN_STOCK" } }),
+        prisma.listing.groupBy({
+            by: ['platform'],
+            where: { status: { in: ["LISTED", "ACTIVE"] } },
+            _count: { id: true }
+        }),
+        prisma.quotation.count({ 
+            where: { 
+                status: { in: ["SENT", "PENDING_APPROVAL", "APPROVED", "ACCEPTED", "ACTIVE"] } 
+            } 
+        }),
+        prisma.invoice.count(),
+        prisma.labelCartItem.count(),
+        prisma.labelCartItem.findFirst({
+            orderBy: { addedAt: 'desc' },
+            include: { inventory: { select: { sku: true, itemName: true } } }
+        }),
+        prisma.sale.findMany({
+            take: 5,
+            orderBy: { saleDate: 'desc' },
+            select: {
+                id: true,
+                customerName: true,
+                netAmount: true,
+                saleDate: true,
+                paymentStatus: true
+            }
+        })
     ]);
 
-    // Aggregate daily sales into monthly for the chart
-    const monthlySalesMap = new Map<string, number>();
-    salesTrendRaw.forEach(item => {
-        const date = new Date(item.saleDate);
-        const key = date.toLocaleString('default', { month: 'short', year: '2-digit' });
-        const current = monthlySalesMap.get(key) || 0;
-        monthlySalesMap.set(key, current + (item._sum.netAmount || 0));
-    });
+    // Process Listings Breakdown
+    const platformMapping: Record<string, string> = {
+        'WEBSITE': 'Website',
+        'AMAZON': 'Amazon',
+        'EBAY': 'eBay',
+        'ETSY': 'Etsy',
+        'WHATSAPP': 'WhatsApp'
+    };
 
-    // Fill in missing months? Or just return what we have. 
-    // For simplicity, just return array.
-    const salesTrend = Array.from(monthlySalesMap.entries()).map(([name, total]) => ({
-        name,
-        total
-    }));
+    const activeListings = activeListingsRaw.reduce((acc: Record<string, number>, curr: { platform: string; _count: { id: number } }) => {
+        // Normalize platform key
+        const key = platformMapping[curr.platform.toUpperCase()] || curr.platform;
+        acc[key] = (acc[key] || 0) + curr._count.id;
+        acc.total = (acc.total || 0) + curr._count.id;
+        return acc;
+    }, { total: 0 } as Record<string, number>);
 
-    // Calculate Inventory Value
-    const allInventory = await prisma.inventory.findMany({
-        where: { status: "IN_STOCK" },
-        select: {
-            pricingMode: true,
-            weightValue: true,
-            purchaseRatePerCarat: true,
-            sellingRatePerCarat: true,
-            flatPurchaseCost: true,
-            flatSellingPrice: true,
+    // Pending Payments (Complex calculation: Sales not PAID)
+    // We assume an invoice is "Pending" if linked sales are not PAID.
+    // Optimization: Count sales with paymentStatus != 'PAID'
+    const pendingPaymentsCount = await prisma.sale.count({
+        where: {
+            paymentStatus: { not: "PAID" }
         }
     });
 
-    let totalCost = 0;
-    let totalSelling = 0;
-    let totalProfitPotential = 0;
-
-    for (const item of allInventory) {
-        let cost = 0;
-        let selling = 0;
-        
-        if (item.pricingMode === "PER_CARAT") {
-            cost = (item.weightValue || 0) * (item.purchaseRatePerCarat || 0);
-            selling = (item.weightValue || 0) * (item.sellingRatePerCarat || 0);
-        } else {
-            cost = (item.flatPurchaseCost || 0);
-            selling = (item.flatSellingPrice || 0);
-        }
-        
-        totalCost += cost;
-        totalSelling += selling;
-    }
-    
-    totalProfitPotential = totalSelling - totalCost;
+    // 2. Trends (Placeholder for now, requires KpiSnapshot data)
+    // In a real implementation with KpiSnapshot, we would fetch:
+    // const yesterday = await prisma.kpiSnapshot.findUnique({ where: { date: yesterdayDate } });
+    // const lastWeek = ...
+    // And calculate % diff.
+    // For now, we return 0 trend.
+    const trends = {
+        inventory: 0,
+        listings: 0,
+        quotations: 0,
+        invoices: 0,
+        pendingPayments: 0,
+        labels: 0
+    };
 
     return NextResponse.json({
-      inventoryValueCost: totalCost,
-      inventoryValueSelling: totalSelling,
-      totalProfitPotential,
-      activeQuotations,
-      salesThisMonth: salesThisMonthAgg._sum.netAmount || 0,
-      salesTrend,
-      recentSales
+        kpis: {
+            inventory: {
+                total: totalInventory,
+                trend: trends.inventory
+            },
+            listings: {
+                ...activeListings,
+                trend: trends.listings
+            },
+            quotations: {
+                total: activeQuotations,
+                trend: trends.quotations
+            },
+            invoices: {
+                total: invoicesGenerated,
+                trend: trends.invoices
+            },
+            pendingPayments: {
+                count: pendingPaymentsCount,
+                trend: trends.pendingPayments
+            },
+            printLabels: {
+                count: labelCartCount,
+                trend: trends.labels,
+                lastItem: lastLabelCartItem ? `${lastLabelCartItem.inventory.sku} - ${lastLabelCartItem.inventory.itemName}` : null
+            }
+        },
+        recentSales,
+        dbConnection
     });
+
   } catch (error) {
-    console.error("Dashboard API Error:", error);
-    return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 });
+    console.error("Dashboard error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

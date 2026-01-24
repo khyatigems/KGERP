@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { checkPermission } from "@/lib/permission-guard";
+import { PERMISSIONS } from "@/lib/permissions";
 
 const vendorSchema = z.object({
   name: z.string().min(1, "Vendor name is required"),
@@ -20,6 +22,9 @@ const vendorSchema = z.object({
 });
 
 export async function createVendor(prevState: unknown, formData: FormData) {
+  const perm = await checkPermission(PERMISSIONS.VENDOR_MANAGE);
+  if (!perm.success) return { message: perm.message };
+
   const session = await auth();
   if (!session) {
     return { message: "Unauthorized" };
@@ -60,6 +65,9 @@ export async function createVendor(prevState: unknown, formData: FormData) {
 }
 
 export async function updateVendor(id: string, prevState: unknown, formData: FormData) {
+  const perm = await checkPermission(PERMISSIONS.VENDOR_MANAGE);
+  if (!perm.success) return { message: perm.message };
+
   const session = await auth();
   if (!session) {
     return { message: "Unauthorized" };

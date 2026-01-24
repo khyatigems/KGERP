@@ -8,14 +8,14 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 interface FileUploadProps {
-  onUploadComplete: (results: { url: string; driveId?: string }[]) => void;
+  onUploadComplete: (results: { url: string | null; name: string }[]) => void;
   defaultFiles?: string[];
   sku?: string;
   category?: string;
 }
 
 export function FileUpload({ onUploadComplete, defaultFiles = [], sku, category }: FileUploadProps) {
-  const [uploadedFiles, setUploadedFiles] = useState<{ url: string; name: string; driveId?: string; driveError?: string }[]>(
+  const [uploadedFiles, setUploadedFiles] = useState<{ url: string | null; name: string; error?: string }[]>(
     defaultFiles.map(url => ({ url, name: url.split('/').pop() || 'Image' }))
   );
   const [isUploading, setIsUploading] = useState(false);
@@ -34,6 +34,7 @@ export function FileUpload({ onUploadComplete, defaultFiles = [], sku, category 
     if (sku) {
       formData.append('sku', sku);
     }
+    // Category is no longer needed for folder structure but kept for API compatibility if needed
     if (category) {
       formData.append('category', category);
     }
@@ -49,11 +50,10 @@ export function FileUpload({ onUploadComplete, defaultFiles = [], sku, category 
       }
 
       const data = await response.json();
-      const newFiles = data.results.map((res: { cloudinaryUrl: string; fileName: string; driveFileId?: string; driveError?: string }) => ({
+      const newFiles = data.results.map((res: { cloudinaryUrl: string | null; fileName: string; error?: string }) => ({
         url: res.cloudinaryUrl,
         name: res.fileName,
-        driveId: res.driveFileId,
-        driveError: res.driveError
+        error: res.error
       }));
 
       const updatedFiles = [...uploadedFiles, ...newFiles];
@@ -107,7 +107,7 @@ export function FileUpload({ onUploadComplete, defaultFiles = [], sku, category 
 
       {isUploading && (
         <div className="text-sm text-center text-muted-foreground animate-pulse">
-          Uploading files to Cloudinary & Drive...
+          Uploading files to Cloudinary...
         </div>
       )}
 
@@ -123,55 +123,45 @@ export function FileUpload({ onUploadComplete, defaultFiles = [], sku, category 
           {uploadedFiles.map((file, index) => (
             <div key={index} className="relative group border rounded-md p-2">
               <div className="aspect-square relative mb-2 overflow-hidden rounded-md bg-muted">
-                {file.url.match(/\.(mp4|mov)$/i) ? (
+                {file.url && file.url.match(/\.(mp4|mov)$/i) ? (
                   <div className="flex items-center justify-center h-full">
                     <FileIcon className="h-8 w-8 text-muted-foreground" />
                   </div>
-                ) : (
+                ) : file.url ? (
                   <Image
                     src={file.url}
                     alt={file.name}
                     fill
                     className="object-cover"
                   />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full bg-muted/50 p-2 text-center">
+                    <AlertCircle className="h-8 w-8 text-red-500 mb-1" />
+                    <span className="text-[10px] text-red-500 leading-tight">Upload Failed</span>
+                  </div>
                 )}
               </div>
               <div className="text-xs truncate px-1">
                 {file.name}
               </div>
               <div className="flex items-center gap-1 mt-1 px-1">
-                 {file.driveId ? (
-                    <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
+                 {file.url ? (
+                   <>
+                     <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
+                     <span className="text-[10px] font-medium text-green-600">
+                       Uploaded
+                     </span>
+                   </>
                  ) : (
-                    <AlertCircle className="h-3 w-3 text-red-500 shrink-0" />
+                   <>
+                     <AlertCircle className="h-3 w-3 text-red-500 shrink-0" />
+                     <span className="text-[10px] font-medium text-red-600 truncate" title={file.error || "Upload Failed"}>
+                       {file.error || "Failed"}
+                     </span>
+                   </>
                  )}
-                 <span className={cn(
-                    "text-[10px] font-medium",
-                    file.driveId ? "text-green-600" : "text-red-600"
-                 )}>
-                   {file.driveId ? "Synced" : (file.driveError ? "Drive Error" : "Cloudinary Only")}
-                 </span>
               </div>
-              {file.driveError && (
-                  <div 
-                    className="px-1 text-[9px] text-red-500 break-all leading-tight mt-0.5 max-h-[40px] overflow-y-auto scrollbar-none" 
-                    title={file.driveError}
-                  >
-                      {file.driveError.includes("Enable it by visiting") ? (
-                          <a 
-                            href={file.driveError.match(/https:\/\/[^\s]+/)?.[0]} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="underline hover:text-red-700 block"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                             API Disabled (Click to Enable)
-                          </a>
-                      ) : (
-                          file.driveError
-                      )}
-                  </div>
-              )}
+              
               <Button
                 type="button"
                 variant="destructive"

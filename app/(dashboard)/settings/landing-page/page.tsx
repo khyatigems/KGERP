@@ -12,7 +12,7 @@ export default async function LandingPageSettingsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   
-  if (!hasPermission(session.user.role, PERMISSIONS.MANAGE_LANDING_PAGE)) {
+  if (!hasPermission(session.user.role, PERMISSIONS.LANDING_PAGE_MANAGE)) {
     redirect("/dashboard");
   }
 

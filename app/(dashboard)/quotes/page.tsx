@@ -4,6 +4,7 @@ import { Plus, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { LoadingLink } from "@/components/ui/loading-link";
 import {
   Table,
   TableBody,
@@ -14,12 +15,18 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { QuotesCardList } from "@/components/quotes/quotes-card-list";
+import { auth } from "@/lib/auth";
+import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 
 export const metadata: Metadata = {
   title: "Quotations | KhyatiGems™",
 };
 
 export default async function QuotationsPage() {
+  const session = await auth();
+  const userRole = session?.user?.role || "VIEWER";
+  const canCreate = hasPermission(userRole, PERMISSIONS.QUOTATION_CREATE);
+
   const quotes = await prisma.quotation.findMany({
     orderBy: {
       createdAt: "desc",
@@ -34,12 +41,14 @@ export default async function QuotationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
-        <Button asChild>
-          <Link href="/quotes/new">
-            <Plus className="mr-2 h-4 w-4" />
-            New Quote
-          </Link>
-        </Button>
+        {canCreate && (
+          <Button asChild>
+            <LoadingLink href="/quotes/new">
+              <Plus className="mr-2 h-4 w-4" />
+              New Quote
+            </LoadingLink>
+          </Button>
+        )}
       </div>
 
       <div className="md:hidden">
@@ -87,20 +96,25 @@ export default async function QuotationsPage() {
                   <TableCell>
                     <Badge
                       variant={
-                        quote.status === "ACTIVE"
-                          ? "default"
-                          : quote.status === "CONVERTED"
-                          ? "secondary"
-                          : "outline"
+                        ["SENT", "APPROVED", "ACCEPTED", "ACTIVE", "CONVERTED"].includes(quote.status) ? "default" :
+                        ["EXPIRED", "CANCELLED"].includes(quote.status) ? "destructive" :
+                        "secondary"
+                      }
+                      className={
+                        quote.status === "PENDING_APPROVAL" ? "bg-amber-500 hover:bg-amber-600 text-white" :
+                        quote.status === "APPROVED" ? "bg-green-600 hover:bg-green-700" :
+                        quote.status === "ACCEPTED" ? "bg-teal-600 hover:bg-teal-700" :
+                        quote.status === "CONVERTED" ? "bg-indigo-600 hover:bg-indigo-700" :
+                        undefined
                       }
                     >
-                      {quote.status}
+                      {quote.status === "CONVERTED" ? "INVOICED" : quote.status.replace(/_/g, " ")}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatDate(quote.expiryDate)}</TableCell>
+                  <TableCell>{quote.expiryDate ? formatDate(quote.expiryDate) : "-"}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/quote/${quote.token}`} target="_blank">
+                      <Link href={`/quotes/${quote.id}`}>
                         <ExternalLink className="mr-2 h-4 w-4" />
                         View
                       </Link>

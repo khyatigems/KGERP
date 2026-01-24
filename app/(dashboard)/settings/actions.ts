@@ -18,11 +18,12 @@ const settingsSchema = z.object({
   quotation_prefix: z.string().default("KGQ"),
 });
 
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkPermission } from "@/lib/permission-guard";
+
 export async function updateSettings(formData: FormData) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
-    return { message: "Unauthorized" };
-  }
+  const perm = await checkPermission(PERMISSIONS.SETTINGS_MANAGE);
+  if (!perm.success) return { message: perm.message };
 
   const rawData: Record<string, FormDataEntryValue> = {};
   for (const [key, value] of formData.entries()) {

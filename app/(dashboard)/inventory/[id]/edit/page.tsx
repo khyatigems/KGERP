@@ -19,7 +19,15 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
   const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts] = await Promise.all([
     prisma.inventory.findUnique({
       where: { id },
-      include: { media: true, rashis: { select: { id: true } } },
+      include: { 
+        media: true, 
+        rashis: { select: { id: true } },
+        categoryCode: true,
+        gemstoneCode: true,
+        colorCode: true,
+        cutCode: true,
+        collectionCode: true
+      },
     }),
     prisma.vendor.findMany({
       where: {

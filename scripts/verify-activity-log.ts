@@ -20,7 +20,7 @@ async function verifyActivityLog() {
         
         const logs = await activityClient.findMany({
             take: 1,
-            orderBy: { timestamp: 'desc' }
+            orderBy: { createdAt: 'desc' }
         });
         
         if (logs.length > 0) {

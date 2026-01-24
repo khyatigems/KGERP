@@ -8,7 +8,7 @@ import { Printer, RefreshCw, CheckCircle, XCircle, Info } from "lucide-react";
 import { format } from "date-fns";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { validatePrice } from "@/lib/price-encoder";
-import { LabelPrintJob, LabelPrintJobItem, User } from "@prisma/client";
+import { LabelPrintJob, LabelPrintJobItem, User } from "@prisma/client-custom-v2";
 import { LabelItem } from "@/lib/label-generator";
 import {
   Dialog,
@@ -23,19 +23,21 @@ interface LabelJobWithRelations extends LabelPrintJob {
   items: LabelPrintJobItem[];
 }
 
-export function LabelHistory() {
-    const [jobs, setJobs] = useState<LabelJobWithRelations[]>([]);
-    const [loading, setLoading] = useState(true);
+export function LabelHistory({ initialJobs = [] }: { initialJobs?: LabelJobWithRelations[] }) {
+    const [jobs, setJobs] = useState<LabelJobWithRelations[]>(initialJobs);
+    const [loading, setLoading] = useState(false);
 
     const loadJobs = async () => {
+        setLoading(true);
         const data = await getLabelJobs();
         setJobs(data);
         setLoading(false);
     };
 
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        void loadJobs();
+        if (initialJobs.length === 0) {
+             void loadJobs();
+        }
     }, []);
 
     return (
@@ -64,14 +66,14 @@ export function LabelHistory() {
                             <TableRow><TableCell colSpan={6} className="text-center">No history found</TableCell></TableRow>
                         ) : (
                             jobs.map(job => {
-                                const formatConfig = JSON.parse(job.printFormat);
+                                const formatConfig = job.printFormat ? JSON.parse(job.printFormat) : { pageSize: "Unknown" };
                                 // Check validation of items
                                 const invalidItems = job.items.filter((i) => i.priceWithChecksum && !validatePrice(i.priceWithChecksum));
                                 const isValid = invalidItems.length === 0;
 
                                 return (
                                     <TableRow key={job.id}>
-                                        <TableCell>{format(new Date(job.timestamp), "PP p")}</TableCell>
+                                        <TableCell>{format(new Date(job.createdAt), "PP p")}</TableCell>
                                         <TableCell>{job.user?.name || "Unknown"}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
@@ -113,7 +115,7 @@ function JobDetailsDialog({ job }: { job: LabelJobWithRelations }) {
             </DialogTrigger>
             <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Job Details - {format(new Date(job.timestamp), "PP p")}</DialogTitle>
+                    <DialogTitle>Job Details - {format(new Date(job.createdAt), "PP p")}</DialogTitle>
                 </DialogHeader>
                 <Table>
                     <TableHeader>
@@ -127,7 +129,7 @@ function JobDetailsDialog({ job }: { job: LabelJobWithRelations }) {
                     </TableHeader>
                     <TableBody>
                         {job.items.map((item) => {
-                            const isValid = validatePrice(item.priceWithChecksum);
+                            const isValid = validatePrice(item.priceWithChecksum || "");
                             return (
                                 <TableRow key={item.id}>
                                     <TableCell>{item.sku}</TableCell>

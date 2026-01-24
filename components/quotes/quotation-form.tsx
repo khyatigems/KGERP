@@ -30,8 +30,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { createQuotation, updateQuotation } from "@/app/(dashboard)/quotes/actions";
-import { Inventory } from "@prisma/client";
+import { Inventory } from "@prisma/client-custom-v2";
 import { useSearchParams } from "next/navigation";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const formSchema = z.object({
   customerName: z.string().min(1, "Customer name is required"),
@@ -41,7 +49,10 @@ const formSchema = z.object({
   expiryDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date",
   }),
-  itemIds: z.array(z.string()).min(1, "Select at least one item"),
+  items: z.array(z.object({
+    inventoryId: z.string(),
+    price: z.number().min(0)
+  })).min(1, "Select at least one item"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -64,7 +75,7 @@ interface QuotationFormProps {
     customerEmail?: string | null;
     customerCity?: string | null;
     expiryDate: string | Date;
-    items?: { inventoryId: string }[];
+    items?: { inventoryId: string; quotedPrice?: number }[];
   };
 }
 
@@ -80,6 +91,16 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
   defaultExpiry.setDate(defaultExpiry.getDate() + 7);
   const defaultExpiryStr = defaultExpiry.toISOString().split("T")[0];
 
+  // Helper to get default price for an item
+  const getItemPrice = (inventoryId: string) => {
+    const item = availableItems.find(i => i.id === inventoryId);
+    if (!item) return 0;
+    if (item.pricingMode === "PER_CARAT") {
+      return (item.sellingRatePerCarat || 0) * (item.weightValue || 0);
+    }
+    return item.flatSellingPrice || 0;
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -90,29 +111,41 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
       expiryDate: initialData?.expiryDate
         ? new Date(initialData.expiryDate).toISOString().split("T")[0]
         : defaultExpiryStr,
-      itemIds: initialData?.items
-        ? initialData.items.map((i) => i.inventoryId)
+      items: initialData?.items
+        ? initialData.items.map((i) => ({ 
+            inventoryId: i.inventoryId, 
+            price: i.quotedPrice ?? getItemPrice(i.inventoryId) 
+          }))
         : preSelectedInventoryId
-        ? [preSelectedInventoryId]
+        ? [{ inventoryId: preSelectedInventoryId, price: getItemPrice(preSelectedInventoryId) }]
         : [],
     },
   });
 
-  const selectedItemIds = form.watch("itemIds");
+  const selectedItems = form.watch("items");
 
   const toggleItem = (itemId: string) => {
-    const current = form.getValues("itemIds");
-    if (current.includes(itemId)) {
+    const current = form.getValues("items");
+    const exists = current.find((i) => i.inventoryId === itemId);
+    
+    if (exists) {
       form.setValue(
-        "itemIds",
-        current.filter((id) => id !== itemId)
+        "items",
+        current.filter((i) => i.inventoryId !== itemId)
       );
     } else {
-      form.setValue("itemIds", [...current, itemId]);
+      form.setValue("items", [...current, { inventoryId: itemId, price: getItemPrice(itemId) }]);
     }
   };
 
-  async function onSubmit(data: FormValues) {
+  const updateItemPrice = (index: number, price: number) => {
+    const current = form.getValues("items");
+    const updated = [...current];
+    updated[index].price = price;
+    form.setValue("items", updated);
+  };
+
+  async function onSubmit(data: FormValues, status: "DRAFT" | "ACTIVE") {
     setIsPending(true);
     const formData = new FormData();
     formData.append("customerName", data.customerName);
@@ -120,8 +153,8 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
     if (data.customerEmail) formData.append("customerEmail", data.customerEmail);
     if (data.customerCity) formData.append("customerCity", data.customerCity);
     formData.append("expiryDate", data.expiryDate);
-    // Append itemIds as JSON string to handle array easily in server action
-    formData.append("itemIds", JSON.stringify(data.itemIds));
+    formData.append("items", JSON.stringify(data.items));
+    formData.append("status", status);
 
     try {
         if (initialData?.id) {
@@ -136,22 +169,11 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
     }
   }
 
-  // Calculate total of selected items
-  const selectedItems = availableItems.filter((item) =>
-    selectedItemIds.includes(item.id)
-  );
-  
-  const totalAmount = selectedItems.reduce((sum, item) => {
-    const price =
-      item.pricingMode === "PER_CARAT"
-        ? (item.sellingRatePerCarat || 0) * item.weightValue
-        : item.flatSellingPrice || 0;
-    return sum + price;
-  }, 0);
+  const totalAmount = selectedItems.reduce((sum, item) => sum + item.price, 0);
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Customer Details</h3>
@@ -284,10 +306,10 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
             
             <FormField
               control={form.control}
-              name="itemIds"
+              name="items"
               render={() => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Items</FormLabel>
+                  <FormLabel>Add Item</FormLabel>
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -296,12 +318,10 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
                           role="combobox"
                           className={cn(
                             "w-full justify-between",
-                            !selectedItemIds.length && "text-muted-foreground"
+                            !selectedItems.length && "text-muted-foreground"
                           )}
                         >
-                          {selectedItemIds.length > 0
-                            ? `${selectedItemIds.length} items selected`
-                            : "Select items"}
+                          Select items...
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </FormControl>
@@ -313,31 +333,27 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
                           <CommandEmpty>No item found.</CommandEmpty>
                           <CommandGroup className="max-h-[300px] overflow-auto">
                             {availableItems.map((item) => {
-                                const price = item.pricingMode === "PER_CARAT"
-                                    ? (item.sellingRatePerCarat || 0) * item.weightValue
-                                    : item.flatSellingPrice || 0;
-                                
+                                const isSelected = selectedItems.some(i => i.inventoryId === item.id);
                                 return (
                                   <CommandItem
                                     value={`${item.sku} ${item.itemName}`}
                                     key={item.id}
                                     onSelect={() => {
                                       toggleItem(item.id);
+                                      setOpen(false);
                                     }}
                                   >
                                     <Check
                                       className={cn(
                                         "mr-2 h-4 w-4",
-                                        selectedItemIds.includes(item.id)
+                                        isSelected
                                           ? "opacity-100"
                                           : "opacity-0"
                                       )}
                                     />
                                     <div className="flex flex-col">
-                                        <span>{item.sku} - {item.itemName}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {formatCurrency(price)} | {item.weightValue} {item.weightUnit}
-                                        </span>
+                                        <span>{item.itemName}</span>
+                                        <span className="text-xs text-muted-foreground">{item.sku}</span>
                                     </div>
                                   </CommandItem>
                                 );
@@ -352,60 +368,77 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
               )}
             />
 
-            <div className="rounded-md border p-4 space-y-4">
-                <div className="font-medium text-sm text-muted-foreground">Selected Items Summary</div>
-                {selectedItems.length === 0 ? (
-                    <div className="text-sm text-center py-4 text-muted-foreground">No items selected</div>
-                ) : (
-                    <div className="space-y-2">
-                        {selectedItems.map(item => {
-                            const price = item.pricingMode === "PER_CARAT"
-                                ? (item.sellingRatePerCarat || 0) * item.weightValue
-                                : item.flatSellingPrice || 0;
-                            return (
-                                <div key={item.id} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
-                                    <div className="flex flex-col">
-                                        <span className="font-medium">{item.sku}</span>
-                                        <span className="text-xs text-muted-foreground">{item.itemName}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span>{formatCurrency(price)}</span>
-                                        <Button 
-                                            size="icon" 
-                                            variant="ghost" 
-                                            className="h-6 w-6"
-                                            onClick={() => toggleItem(item.id)}
-                                            type="button" // Prevent submit
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            );
-                        })}
+            {selectedItems.length > 0 && (
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Item</TableHead>
+                                <TableHead className="w-[120px]">Price</TableHead>
+                                <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {selectedItems.map((selected, index) => {
+                                const item = availableItems.find(i => i.id === selected.inventoryId);
+                                if (!item) return null;
+                                return (
+                                    <TableRow key={selected.inventoryId}>
+                                        <TableCell>
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-sm">{item.itemName}</span>
+                                                <span className="text-xs text-muted-foreground">{item.sku}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input 
+                                                type="number" 
+                                                value={selected.price} 
+                                                onChange={(e) => updateItemPrice(index, parseFloat(e.target.value) || 0)}
+                                                className="h-8"
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => toggleItem(selected.inventoryId)}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                    <div className="p-4 bg-muted/50 flex justify-between items-center font-medium">
+                        <span>Total Amount</span>
+                        <span>{formatCurrency(totalAmount)}</span>
                     </div>
-                )}
-                <div className="flex justify-between items-center pt-2 border-t font-bold">
-                    <span>Total Amount</span>
-                    <span>{formatCurrency(totalAmount)}</span>
                 </div>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Desktop Submit Button */}
-        <div className="hidden md:block">
-            <Button type="submit" disabled={isPending || selectedItemIds.length === 0}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Generate Quotation
+        <div className="flex justify-end gap-4 pb-20 md:pb-0">
+            <Button 
+                type="button" 
+                variant="secondary" 
+                disabled={isPending}
+                onClick={form.handleSubmit((data) => onSubmit(data, "DRAFT"))}
+            >
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Save Draft
             </Button>
-        </div>
-
-        {/* Mobile Sticky Action Bar */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-background border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-40">
-            <Button type="submit" className="w-full" size="lg" disabled={isPending || selectedItemIds.length === 0}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Generate Quotation
+            <Button 
+                type="button" 
+                disabled={isPending}
+                onClick={form.handleSubmit((data) => onSubmit(data, "ACTIVE"))}
+            >
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Create & Send
             </Button>
         </div>
       </form>

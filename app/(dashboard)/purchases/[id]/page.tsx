@@ -93,7 +93,7 @@ export default async function PurchaseDetailPage({
   }
 
   const totalCost = purchase.items.reduce(
-    (sum: number, item) => sum + item.totalCost,
+    (sum: number, item) => sum + item.costPrice,
     0
   );
 
@@ -150,9 +150,9 @@ export default async function PurchaseDetailPage({
           <h2 className="text-sm font-medium text-muted-foreground">
             Payment
           </h2>
-          <p className="text-sm">
+          {/* <p className="text-sm">
             Mode: {purchase.paymentMode || "Not set"}
-          </p>
+          </p> */}
           <p className="text-sm">
             Status:{" "}
             <Badge variant="outline">
@@ -224,13 +224,13 @@ export default async function PurchaseDetailPage({
                   <TableCell>{item.category || "-"}</TableCell>
                   <TableCell>{item.shape || "-"}</TableCell>
                   <TableCell>
-                    {item.quantity} {item.weightType}
+                    {item.pieces} {item.weightUnit}
                   </TableCell>
                   <TableCell>
-                    {formatCurrency(item.costPerUnit)}
+                    {formatCurrency(item.purchaseRatePerCarat || item.flatPurchaseCost || 0)}
                   </TableCell>
                   <TableCell>
-                    {formatCurrency(item.totalCost)}
+                    {formatCurrency(item.costPrice)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -239,13 +239,13 @@ export default async function PurchaseDetailPage({
         </div>
       </div>
 
-      {purchase.remarks && purchase.remarks.trim().length > 0 && (
+      {purchase.notes && purchase.notes.trim().length > 0 && (
         <div className="rounded-xl border bg-card p-4 text-card-foreground shadow">
           <h2 className="mb-2 text-sm font-medium text-muted-foreground">
             Remarks
           </h2>
           <p className="text-sm whitespace-pre-line">
-            {purchase.remarks}
+            {purchase.notes}
           </p>
         </div>
       )}

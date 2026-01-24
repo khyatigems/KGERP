@@ -33,9 +33,10 @@ interface LabelPrintDialogProps {
     item?: LabelItem;
     items?: LabelItem[];
     trigger?: React.ReactNode;
+    onPrintComplete?: () => void;
 }
 
-export function LabelPrintDialog({ item, items, trigger }: LabelPrintDialogProps) {
+export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: LabelPrintDialogProps) {
     const [open, setOpen] = useState(false);
     
     // Initialize config from localStorage if available
@@ -134,6 +135,10 @@ export function LabelPrintDialog({ item, items, trigger }: LabelPrintDialogProps
             const win = window.open(pdfUrl, "_blank");
             if (!win) {
                 toast.error("Please allow popups to print labels");
+            }
+            
+            if (onPrintComplete) {
+                onPrintComplete();
             }
         } catch (error) {
             console.error("Print failed", error);
@@ -277,7 +282,16 @@ export function LabelPrintDialog({ item, items, trigger }: LabelPrintDialogProps
                                             
                                             <div className="flex-1">
                                                 {(config.selectedFields || DEFAULT_FIELDS).includes("itemName") && (
-                                                    <div className="font-bold pr-8 mb-0.5 whitespace-nowrap overflow-hidden text-ellipsis" style={{ fontSize: `${config.fontSize + 2}pt` }}>
+                                                    <div 
+                                                        className="font-bold mb-0.5 leading-none" 
+                                                        style={{ 
+                                                            fontSize: `${targets[0].itemName.length > 25 ? config.fontSize : config.fontSize + 2}pt`,
+                                                            paddingRight: (config.selectedFields || DEFAULT_FIELDS).includes("qrCode") ? `${config.qrSize + 2}mm` : '0',
+                                                            whiteSpace: 'nowrap',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis'
+                                                        }}
+                                                    >
                                                         {targets[0].itemName}
                                                     </div>
                                                 )}

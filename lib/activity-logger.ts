@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
-export type ActionType = "CREATE" | "EDIT" | "DELETE" | "STATUS_CHANGE" | "ROLLBACK";
+export type ActionType = "CREATE" | "EDIT" | "DELETE" | "STATUS_CHANGE" | "ROLLBACK" | "ACCESS_DENIED" | "LOGIN";
 export type EntityType =
   | "Inventory"
   | "Purchase"
@@ -12,7 +13,8 @@ export type EntityType =
   | "Listing"
   | "User"
   | "Code"
-  | "LandingPage";
+  | "LandingPage"
+  | "Security";
 
 interface LogActivityParams<T = Record<string, unknown>> {
   entityType: EntityType;
@@ -25,6 +27,8 @@ interface LogActivityParams<T = Record<string, unknown>> {
   userId?: string; // Optional override, otherwise uses session
   userName?: string; // Optional override
   source?: "WEB" | "SYSTEM" | "CRON" | "CSV_IMPORT";
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 export async function logActivity<T = Record<string, unknown>>({
@@ -38,11 +42,33 @@ export async function logActivity<T = Record<string, unknown>>({
   userId,
   userName,
   source = "WEB",
+  ipAddress,
+  userAgent,
 }: LogActivityParams<T>) {
   try {
     let finalUserId = userId;
     let finalUserName = userName;
     let finalUserEmail = "";
+    let finalIpAddress = ipAddress;
+    let finalUserAgent = userAgent;
+
+    // Try to get headers if IP/UA not provided
+    if (!finalIpAddress || !finalUserAgent) {
+        try {
+            const headersList = await headers();
+            if (!finalIpAddress) {
+                const forwardedFor = headersList.get("x-forwarded-for");
+                finalIpAddress = forwardedFor ? forwardedFor.split(",")[0] : "127.0.0.1";
+            }
+            if (!finalUserAgent) {
+                finalUserAgent = headersList.get("user-agent") || "Unknown";
+            }
+        } catch {
+            // Context might not have headers (e.g. CRON or background job)
+            if (!finalIpAddress) finalIpAddress = "127.0.0.1";
+            if (!finalUserAgent) finalUserAgent = "System/Background";
+        }
+    }
 
     // If no user provided and source is WEB, try to get from session
     if (!finalUserId && source === "WEB") {
@@ -118,6 +144,8 @@ export async function logActivity<T = Record<string, unknown>>({
         userId: finalUserId,
         userName: finalUserName,
         userEmail: finalUserEmail,
+        ipAddress: finalIpAddress,
+        userAgent: finalUserAgent,
         source,
       },
     });

@@ -32,9 +32,7 @@ export default async function QuoteDetailPage({
     include: {
       items: {
           include: {
-             // We need to check if the item is already sold to disable the button
-             // But QuotationItem doesn't link to Sale directly. Inventory does.
-             // Wait, QuotationItem has inventoryId.
+             inventory: true
           }
       }
     },
@@ -43,7 +41,10 @@ export default async function QuoteDetailPage({
   if (!quote) notFound();
 
   // Fetch current inventory status for items in the quote
-  const inventoryIds = quote.items.map(i => i.inventoryId);
+  const inventoryIds = quote.items
+    .map((i) => i.inventoryId)
+    .filter((id): id is string => id !== null);
+
   const inventoryItems = await prisma.inventory.findMany({
       where: { id: { in: inventoryIds } },
       select: { id: true, status: true, sku: true }
@@ -67,16 +68,25 @@ export default async function QuoteDetailPage({
         </h1>
         <Badge
           variant={
-            quote.status === "ACTIVE"
-              ? "default"
-              : quote.status === "CONVERTED"
-              ? "secondary"
-              : "outline"
+            ["SENT", "APPROVED", "ACCEPTED", "ACTIVE", "CONVERTED"].includes(quote.status) ? "default" :
+            ["EXPIRED", "CANCELLED"].includes(quote.status) ? "destructive" :
+            "secondary"
+          }
+          className={
+            quote.status === "PENDING_APPROVAL" ? "bg-amber-500 hover:bg-amber-600 text-white" :
+            quote.status === "APPROVED" ? "bg-green-600 hover:bg-green-700 text-white" :
+            quote.status === "ACCEPTED" ? "bg-teal-600 hover:bg-teal-700 text-white" :
+            quote.status === "CONVERTED" ? "bg-indigo-600 hover:bg-indigo-700 text-white" :
+            undefined
           }
         >
-          {quote.status}
+          {quote.status === "CONVERTED" ? "INVOICED" : quote.status.replace(/_/g, " ")}
         </Badge>
-        <QuotationActions id={quote.id} status={quote.status} items={quote.items} />
+        <QuotationActions 
+            id={quote.id} 
+            status={quote.status} 
+            items={quote.items.filter(i => i.inventoryId !== null) as { inventoryId: string }[]} 
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -111,7 +121,7 @@ export default async function QuoteDetailPage({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Expiry Date</span>
-              <span className="font-medium">{formatDate(quote.expiryDate)}</span>
+              <span className="font-medium">{quote.expiryDate ? formatDate(quote.expiryDate) : "-"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Amount</span>
@@ -146,15 +156,15 @@ export default async function QuoteDetailPage({
           </TableHeader>
           <TableBody>
             {quote.items.map((item) => {
-              const currentStatus = inventoryStatusMap[item.inventoryId] || "UNKNOWN";
+              const currentStatus = (item.inventoryId && inventoryStatusMap[item.inventoryId]) || "UNKNOWN";
               const isSold = currentStatus === "SOLD";
 
               return (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.sku}</TableCell>
-                  <TableCell>{item.itemName}</TableCell>
-                  <TableCell>{item.weight}</TableCell>
-                  <TableCell>{formatCurrency(item.quotedPrice)}</TableCell>
+                  <TableCell className="font-medium">{item.inventory.sku}</TableCell>
+                  <TableCell>{item.inventory.itemName}</TableCell>
+                  <TableCell>{item.inventory.weightValue} {item.inventory.weightUnit}</TableCell>
+                  <TableCell>{formatCurrency(item.quotedPrice || 0)}</TableCell>
                   <TableCell>
                       <Badge variant={isSold ? "secondary" : "default"}>
                           {currentStatus}

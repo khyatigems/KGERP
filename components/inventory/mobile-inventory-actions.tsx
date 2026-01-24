@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Pencil, DollarSign, FileText } from "lucide-react";
+import { Pencil, IndianRupee, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface MobileInventoryActionsProps {
@@ -28,7 +28,7 @@ export function MobileInventoryActions({ id, status }: MobileInventoryActionsPro
       </Button>
       <Button size="sm" className="flex-1 mx-1" asChild>
         <Link href={`/sales/new?inventoryId=${id}`}>
-          <DollarSign className="mr-2 h-4 w-4" /> Sold
+          <IndianRupee className="mr-2 h-4 w-4" /> Sold
         </Link>
       </Button>
     </div>

@@ -1,8 +1,18 @@
-import { PrismaClient } from '@prisma/client'
-import { PrismaLibSQL } from '@prisma/adapter-libsql'
-import { createClient } from '@libsql/client'
+import { PrismaClient } from "@prisma/client-custom-v2"
+import { PrismaLibSQL } from "@prisma/adapter-libsql"
+import { createClient } from "@libsql/client"
+import { config } from "dotenv"
+
+// Force reload env if it looks like local default or is missing, to fix stale env vars
+if (!process.env.DATABASE_URL || process.env.DATABASE_URL.startsWith('file:')) {
+  config({ path: '.env', override: true });
+}
 
 const connectionString = process.env.DATABASE_URL || "file:./dev.db"
+
+if (!process.env.DATABASE_URL) {
+  console.warn("⚠️  WARNING: DATABASE_URL is not set in environment. Falling back to local SQLite database.");
+}
 
 if (!connectionString) {
   console.error("Prisma: DATABASE_URL is not set");
@@ -56,4 +66,4 @@ export const prisma = prismaBase
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
-export type { ActivityLog } from '@prisma/client'
+export type { ActivityLog } from '@prisma/client-custom-v2'

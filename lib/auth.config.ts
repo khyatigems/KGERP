@@ -13,6 +13,7 @@ export const authConfig = {
       if (user) {
         token.role = user.role;
         token.permissions = getPermissionsForRole(user.role);
+        token.lastLogin = user.lastLogin;
       }
       return token;
     },
@@ -21,6 +22,7 @@ export const authConfig = {
         session.user.id = token.sub;
         session.user.role = token.role as string;
         session.user.permissions = token.permissions as unknown as ReturnType<typeof getPermissionsForRole>;
+        session.user.lastLogin = token.lastLogin as Date | null;
       }
       return session;
     },

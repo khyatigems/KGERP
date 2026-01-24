@@ -1,11 +1,11 @@
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { InventoryActions } from "./inventory-actions";
-import Image from "next/image";
-import type { Inventory, Media } from "@prisma/client";
+import { InventoryCardMedia } from "./inventory-card-media";
+import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
 
 interface InventoryItem extends Inventory {
-  media: Media[];
+  media: InventoryMedia[];
 }
 
 interface InventoryCardListProps {
@@ -17,26 +17,12 @@ export function InventoryCardList({ data }: InventoryCardListProps) {
     <div className="grid grid-cols-1 gap-4 md:hidden">
       {data.map((item) => {
          const price = item.pricingMode === "PER_CARAT"
-          ? (item.sellingRatePerCarat || 0) * item.weightValue
+          ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
           : item.flatSellingPrice || 0;
 
         return (
           <div key={item.id} className="flex items-start gap-4 rounded-lg border bg-card p-4 shadow-sm">
-            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
-              {item.media[0] ? (
-                <Image
-                  src={item.media[0].url}
-                  alt={item.itemName}
-                  fill
-                  sizes="80px"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center bg-gray-100 text-xs text-gray-500">
-                  No Image
-                </div>
-              )}
-            </div>
+            <InventoryCardMedia item={item} className="h-20 w-20 shrink-0" />
             <div className="flex flex-1 flex-col gap-1">
               <div className="flex items-start justify-between">
                 <div>

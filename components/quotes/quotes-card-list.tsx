@@ -12,7 +12,7 @@ interface QuoteItem {
   customerMobile: string | null;
   totalAmount: number;
   status: string;
-  expiryDate: Date;
+  expiryDate: Date | null;
   token: string;
   _count: { items: number };
 }
@@ -31,16 +31,21 @@ export function QuotesCardList({ data }: QuotesCardListProps) {
                 <p className="font-semibold">{quote.customerName}</p>
                 <p className="text-xs text-muted-foreground">{quote.quotationNumber}</p>
              </div>
-             <Badge
+                <Badge
                 variant={
-                quote.status === "ACTIVE"
-                    ? "default"
-                    : quote.status === "CONVERTED"
-                    ? "secondary"
-                    : "outline"
+                    ["SENT", "APPROVED", "ACCEPTED", "ACTIVE", "CONVERTED"].includes(quote.status) ? "default" :
+                    ["EXPIRED", "CANCELLED"].includes(quote.status) ? "destructive" :
+                    "secondary"
+                }
+                className={
+                    quote.status === "PENDING_APPROVAL" ? "bg-amber-500 hover:bg-amber-600 text-white" :
+                    quote.status === "APPROVED" ? "bg-green-600 hover:bg-green-700" :
+                    quote.status === "ACCEPTED" ? "bg-teal-600 hover:bg-teal-700" :
+                    quote.status === "CONVERTED" ? "bg-indigo-600 hover:bg-indigo-700" :
+                    undefined
                 }
             >
-                {quote.status}
+                {quote.status === "CONVERTED" ? "INVOICED" : quote.status.replace(/_/g, " ")}
             </Badge>
            </div>
 
@@ -51,7 +56,7 @@ export function QuotesCardList({ data }: QuotesCardListProps) {
              </div>
              <div>
                 <span className="text-muted-foreground text-xs block">Expiry</span>
-                <span>{formatDate(quote.expiryDate)}</span>
+                <span>{quote.expiryDate ? formatDate(quote.expiryDate) : "-"}</span>
              </div>
              <div>
                 <span className="text-muted-foreground text-xs block">Items</span>
@@ -65,7 +70,7 @@ export function QuotesCardList({ data }: QuotesCardListProps) {
 
            <div className="pt-2">
               <Button variant="outline" size="sm" className="w-full" asChild>
-                <Link href={`/quote/${quote.token}`} target="_blank">
+                <Link href={`/quotes/${quote.id}`}>
                     <ExternalLink className="mr-2 h-4 w-4" /> View Quote
                 </Link>
               </Button>

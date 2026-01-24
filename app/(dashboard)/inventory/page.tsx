@@ -1,11 +1,11 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
+import { LoadingLink } from "@/components/ui/loading-link";
 import {
   Table,
   TableBody,
@@ -18,7 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { InventorySearch } from "@/components/inventory/inventory-search";
 import { InventoryActions } from "@/components/inventory/inventory-actions";
 import { InventoryCardList } from "@/components/inventory/inventory-card-list";
-import type { Inventory } from "@prisma/client";
+import { InventoryCardMedia } from "@/components/inventory/inventory-card-media";
+import type { Inventory } from "@prisma/client-custom-v2";
 
 type InventoryWithExtras = Inventory & {
   weightRatti?: number | null;
@@ -29,6 +30,9 @@ export const metadata: Metadata = {
 };
 
 import { removeDuplicates } from "@/lib/dedup";
+
+import { auth } from "@/lib/auth";
+import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 
 export default async function InventoryPage({
   searchParams,
@@ -45,6 +49,10 @@ export default async function InventoryPage({
     weightRange?: string;
   }>;
 }) {
+  const session = await auth();
+  const userRole = session?.user?.role || "VIEWER";
+  const canCreate = hasPermission(userRole, PERMISSIONS.INVENTORY_CREATE);
+
   const { query, status, category, gemType, color, vendorId, collectionId, rashiId, weightRange } = await searchParams;
 
   const where: Record<string, unknown> = {};
@@ -86,7 +94,13 @@ export default async function InventoryPage({
       where,
       orderBy: { createdAt: "desc" },
       include: {
-        media: { take: 1 },
+        media: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { createdAt: 'asc' }
+          ],
+          take: 1
+        },
         categoryCode: { select: { name: true, code: true } },
         gemstoneCode: { select: { name: true, code: true } },
         colorCode: { select: { name: true, code: true } },
@@ -107,7 +121,7 @@ export default async function InventoryPage({
   // Deduplicate inventory items by ID to ensure data integrity
   const inventory = removeDuplicates(rawInventory, 'id');
 
-  const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
+  const vendorMap = new Map<string, string>(vendors.map(v => [v.id, v.name]));
 
   const exportData = inventory.map((item) => {
     const typedItem = item as InventoryWithExtras;
@@ -134,11 +148,11 @@ export default async function InventoryPage({
       innerCircumference: item.innerCircumferenceMm ? `${item.innerCircumferenceMm}mm` : "-",
       price: formatCurrency(
         item.pricingMode === "PER_CARAT"
-          ? (item.sellingRatePerCarat || 0) * item.weightValue
+          ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
           : item.flatSellingPrice || 0
       ),
       status: item.status,
-      vendor: vendorMap.get(item.vendorId) || "-",
+      vendor: (item.vendorId && vendorMap.get(item.vendorId)) || "-",
       date: formatDate(item.createdAt),
     };
   });
@@ -169,18 +183,22 @@ export default async function InventoryPage({
                 columns={columns} 
                 title="Inventory Report" 
             />
-            <Button variant="outline" asChild className="transition-all duration-200 hover:scale-105 active:scale-95">
-                <Link href="/inventory/import">
-                    <Upload className="mr-2 h-4 w-4" />
-                    Import
-                </Link>
-            </Button>
-            <Button asChild className="transition-all duration-200 hover:scale-105 active:scale-95">
-                <Link href="/inventory/new">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Item
-                </Link>
-            </Button>
+            {canCreate && (
+              <>
+                <Button variant="outline" asChild className="transition-all duration-200 hover:scale-105 active:scale-95">
+                    <LoadingLink href="/inventory/import">
+                        <Upload className="mr-2 h-4 w-4" />
+                        Import
+                    </LoadingLink>
+                </Button>
+                <Button asChild className="transition-all duration-200 hover:scale-105 active:scale-95">
+                    <LoadingLink href="/inventory/new">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Item
+                    </LoadingLink>
+                </Button>
+              </>
+            )}
         </div>
       </div>
 
@@ -226,28 +244,15 @@ export default async function InventoryPage({
               </TableRow>
             ) : (
               inventory.map((item) => {
-                const typedItem = item as InventoryWithExtras;
                 const price =
                   item.pricingMode === "PER_CARAT"
-                    ? (item.sellingRatePerCarat || 0) * item.weightValue
+                    ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
                     : item.flatSellingPrice || 0;
-
+                
                 return (
                     <TableRow key={item.id}>
                     <TableCell>
-                      {item.media[0]?.url ? (
-                        <Image
-                          src={item.media[0].url}
-                          alt={item.itemName}
-                          width={48}
-                          height={48}
-                          className="h-12 w-12 rounded object-cover border shrink-0"
-                        />
-                      ) : (
-                        <div className="h-12 w-12 rounded border flex items-center justify-center text-[10px] text-muted-foreground bg-muted shrink-0">
-                          No image
-                        </div>
-                      )}
+                      <InventoryCardMedia item={item} className="h-12 w-12" />
                     </TableCell>
                     <TableCell className="font-medium font-mono text-xs">{item.sku}</TableCell>
                     <TableCell>
@@ -269,9 +274,9 @@ export default async function InventoryPage({
                         {(item.category === "Bracelets" || item.category === "Bracelet") && (
                           <span className="text-[10px] text-muted-foreground">
                             {[
-                                typedItem.braceletType,
-                                typedItem.standardSize,
-                                typedItem.beadSizeMm ? `${typedItem.beadSizeMm}mm` : null
+                                item.braceletType,
+                                item.standardSize,
+                                item.beadSizeMm ? `${item.beadSizeMm}mm` : null
                             ].filter(Boolean).join(" • ")}
                           </span>
                         )}
@@ -283,7 +288,7 @@ export default async function InventoryPage({
                       {item.weightValue} {item.weightUnit}
                     </TableCell>
                     <TableCell>
-                      {typedItem.weightRatti ? typedItem.weightRatti.toFixed(2) : "-"}
+                      {item.weightRatti ? item.weightRatti.toFixed(2) : "-"}
                     </TableCell>
                     <TableCell>{formatCurrency(price)}</TableCell>
                     <TableCell>
@@ -299,7 +304,7 @@ export default async function InventoryPage({
                         {item.status.replace("_", " ")}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{vendorMap.get(item.vendorId) || "-"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{(item.vendorId && vendorMap.get(item.vendorId)) || "-"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <InventoryActions item={item} />

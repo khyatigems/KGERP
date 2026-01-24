@@ -1,0 +1,147 @@
+/* app/quotation.css */
+
+/* General Quotation Styles - PDF Safe */
+.quotation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem;
+  border-bottom: 2px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+.quotation-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.quotation-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
+.company-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.company-text h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.company-text span {
+  font-size: 0.875rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.quotation-meta {
+  text-align: right;
+}
+
+.quote-number {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+.quote-validity {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-top: 0.25rem;
+}
+
+/* Table Styles */
+.quotation-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.quotation-table th {
+  text-align: left;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.quotation-table td {
+  padding: 1rem 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.quotation-table tfoot td {
+  border-top: 2px solid #e2e8f0;
+  border-bottom: none;
+}
+
+/* Item Media & Details */
+.item-media {
+  width: 80px;
+}
+
+.item-image {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  display: block;
+}
+
+.item-image.placeholder {
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.item-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.item-sku {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Print Specifics */
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .quotation-header {
+    padding: 1rem 0;
+  }
+
+  .quotation-table tr {
+    page-break-inside: avoid;
+  }
+  
+  .item-image {
+    border: 1px solid #ccc; /* Ensure borders show in print */
+  }
+}

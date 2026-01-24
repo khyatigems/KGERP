@@ -26,8 +26,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/inventory/file-upload";
 import { createInventory, updateInventory } from "@/app/(dashboard)/inventory/actions";
 import { useState, useEffect } from "react";
-import { Loader2, ChevronDown, ChevronUp, AlertCircle, CheckCircle2 } from "lucide-react";
-import type { Inventory, Media } from "@prisma/client";
+import { Loader2, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
+import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
 
 type CodeRow = {
   id: string;
@@ -51,6 +51,13 @@ type InventoryWithExtras = Inventory & {
   holeSizeMm?: number | null;
   innerCircumferenceMm?: number | null;
   standardSize?: string | null;
+  
+  // Relations for fallback
+  categoryCode?: { name: string } | null;
+  gemstoneCode?: { name: string } | null;
+  colorCode?: { name: string } | null;
+  cutCode?: { name: string } | null;
+  collectionCode?: { name: string } | null;
 };
 
 const formSchema = z.object({
@@ -66,6 +73,7 @@ const formSchema = z.object({
   weightRatti: z.coerce.number().optional(),
   treatment: z.string().optional(),
   certification: z.string().optional(),
+  transparency: z.string().optional(),
   vendorId: z.string().min(1, "Vendor is required"),
   pricingMode: z.enum(["PER_CARAT", "FLAT"]),
   purchaseRatePerCarat: z.coerce.number().optional(),
@@ -108,6 +116,49 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+function generateAiDescription(values: FormValues) {
+  const {
+    itemName,
+    weightValue,
+    weightUnit,
+    gemType,
+    color,
+    shape,
+    transparency,
+    treatment,
+    certification,
+    dimensionsMm,
+  } = values;
+
+  const weightStr = `${weightValue} ${weightUnit === "cts" ? "Carats" : weightUnit}`;
+  const title = `${itemName} – ${weightStr} 💎`;
+  
+  return `
+${title}
+
+Description:
+This exquisite ${gemType || itemName} weighs an impressive ${weightValue} carats and showcases a deep, rich ${color || "hue"} with excellent brilliance. Expertly cut to enhance light performance, this gemstone reflects timeless elegance and enduring value.
+
+${gemType || "This gemstone"} has long been associated with wisdom, prosperity, and royalty. Its bold presence and superior clarity make it an ideal choice for bespoke high-end jewelry or as a serious addition to a gemstone investment portfolio.
+
+${certification ? `Independently lab certified (${certification}), this gemstone guarantees authenticity and quality—ensuring complete peace of mind for discerning buyers.` : "Guaranteed for authenticity and quality—ensuring complete peace of mind for discerning buyers."}
+
+Key Specifications:
+
+Gem Type: ${gemType || "Natural Gemstone"}
+Shape: ${shape || "As per selection"}
+Weight: ${weightStr}
+Dimensions: ${dimensionsMm || "As per entered value"}
+Color: ${color || "As per selection"}
+Transparency: ${transparency || "As per selection"}
+Treatment: ${treatment || "As per entered value"}
+Certification: ${certification || "As per entered value"}
+
+Closing Note:
+A statement gemstone with undeniable presence—this ${weightStr} ${gemType || itemName} is crafted for collectors, investors, and luxury jewelry connoisseurs who value authenticity and impact. Exclusively offered by Khyati Precious Gems Private Limited.
+`.trim();
+}
+
 interface InventoryFormProps {
   vendors: { id: string; name: string }[];
   categories: CodeRow[];
@@ -116,7 +167,7 @@ interface InventoryFormProps {
   collections: CodeRow[];
   rashis: CodeRow[];
   cuts: CodeRow[];
-  initialData?: InventoryWithExtras & { media: Media[]; rashiCodes?: { id: string }[] };
+  initialData?: InventoryWithExtras & { media: InventoryMedia[]; rashiCodes?: { id: string }[] };
 }
 
 export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, initialData }: InventoryFormProps) {
@@ -130,9 +181,9 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     defaultValues: {
       itemName: initialData?.itemName || "",
       internalName: initialData?.internalName || "",
-      category: initialData?.category || categories[0]?.name || "",
-      gemType: initialData?.gemType || gemstones[0]?.name || "",
-      color: initialData?.color || colors[0]?.name || "",
+      category: initialData?.category || initialData?.categoryCode?.name || categories[0]?.name || "",
+      gemType: initialData?.gemType || initialData?.gemstoneCode?.name || "",
+      color: initialData?.color || initialData?.colorCode?.name || "",
       shape: initialData?.shape || "",
       dimensionsMm: initialData?.dimensionsMm || "",
       weightValue: initialData?.weightValue || 0,
@@ -140,18 +191,19 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       weightRatti: initialData?.weightRatti || 0,
       treatment: initialData?.treatment || "None",
       certification: initialData?.certification || "None",
+      transparency: initialData?.transparency || "",
       vendorId: initialData?.vendorId || "",
       pricingMode: (initialData?.pricingMode as "PER_CARAT" | "FLAT") || "PER_CARAT",
       purchaseRatePerCarat: initialData?.purchaseRatePerCarat || 0,
       sellingRatePerCarat: initialData?.sellingRatePerCarat || 0,
       flatPurchaseCost: initialData?.flatPurchaseCost || 0,
       flatSellingPrice: initialData?.flatSellingPrice || 0,
-      mediaUrl: initialData?.media?.[0]?.url || "",
-      mediaUrls: initialData?.media?.map(m => m.url) || [],
+      mediaUrl: initialData?.media?.[0]?.mediaUrl || "",
+      mediaUrls: initialData?.media?.map((m: InventoryMedia) => m.mediaUrl) || [],
       notes: initialData?.notes || "",
       stockLocation: initialData?.stockLocation || "",
       collectionCodeId: initialData?.collectionCodeId || "",
-      rashiCodeIds: initialData?.rashiCodes?.map(r => r.id) || [],
+      rashiCodeIds: initialData?.rashiCodes?.map((r: { id: string }) => r.id) || [],
       braceletType: initialData?.braceletType || "",
       beadSizeMm: initialData?.beadSizeMm || 0,
       beadCount: initialData?.beadCount || 0,
@@ -166,12 +218,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       gemstoneCodeId:
         initialData?.gemstoneCodeId ||
         (gemstones.find((g) => g.name === (initialData?.gemType || ""))?.id ??
-          gemstones[0]?.id ??
           ""),
       colorCodeId:
         initialData?.colorCodeId ||
         (colors.find((c) => c.name === (initialData?.color || ""))?.id ??
-          colors[0]?.id ??
           ""),
       cutCodeId: initialData?.cutCodeId || "",
     },
@@ -236,6 +286,9 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     setSubmitResult(null);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
+      // Skip mediaUrls as it's handled explicitly below to avoid double-entry (comma-separated string + individual entries)
+      if (key === 'mediaUrls') return;
+      
       if (value !== undefined && value !== null) {
         formData.append(key, value.toString());
       }
@@ -323,7 +376,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Type</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value || "Elastic"}>
+                                    <Select onValueChange={field.onChange} value={field.value || "Elastic"}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Select Type" /></SelectTrigger></FormControl>
                                         <SelectContent>
                                             <SelectItem value="Elastic">Elastic</SelectItem>
@@ -342,7 +395,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Standard Size</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value || "M"}>
+                                    <Select onValueChange={field.onChange} value={field.value || "M"}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Select Size" /></SelectTrigger></FormControl>
                                         <SelectContent>
                                             <SelectItem value="XS">XS</SelectItem>
@@ -466,7 +519,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select Category" />
@@ -492,7 +545,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Gem Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select type" />
@@ -517,7 +570,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Color</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select color" />
@@ -542,7 +595,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Shape</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select shape" />
@@ -570,7 +623,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cut</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select cut" />
@@ -582,6 +635,31 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                             {c.name} ({c.code})
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="transparency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Transparency</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transparency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Transparent">Transparent</SelectItem>
+                        <SelectItem value="Translucent">Translucent</SelectItem>
+                        <SelectItem value="Opaque">Opaque</SelectItem>
+                        <SelectItem value="Semi-Transparent">Semi-Transparent</SelectItem>
+                        <SelectItem value="Semi-Translucent">Semi-Translucent</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -623,7 +701,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Collection</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select collection" />
@@ -711,7 +789,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Unit</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Unit" />
@@ -820,7 +898,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Adjustable?</FormLabel>
-                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                                         <SelectContent>
                                             <SelectItem value="Yes">Yes</SelectItem>
@@ -844,7 +922,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Loop / Bail Included?</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="Yes">Yes</SelectItem>
@@ -1081,7 +1159,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                   <FormControl>
                     <FileUpload
                       onUploadComplete={(results) => {
-                         const urls = results.map(r => r.url);
+                         const urls = results.map(r => r.url).filter(Boolean) as string[];
                          field.onChange(urls);
                          // Also update single mediaUrl for fallback/legacy if needed
                          if (urls.length > 0) {
@@ -1103,9 +1181,25 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Notes</FormLabel>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                      onClick={() => {
+                        const values = form.getValues();
+                        const desc = generateAiDescription(values);
+                        form.setValue("notes", desc, { shouldDirty: true });
+                      }}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Generate AI Description
+                    </Button>
+                  </div>
                   <FormControl>
-                    <Textarea placeholder="Any additional details..." {...field} />
+                    <Textarea className="min-h-[300px] font-mono text-sm" placeholder="Any additional details..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

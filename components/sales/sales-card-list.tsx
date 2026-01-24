@@ -11,7 +11,7 @@ interface SaleItem {
   inventory: { sku: string; itemName: string };
   platform: string;
   netAmount: number;
-  profit: number;
+  profit: number | null;
   paymentStatus: string | null;
 }
 

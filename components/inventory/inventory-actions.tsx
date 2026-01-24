@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MoreHorizontal, Pencil, Eye, DollarSign, FileText, Globe, Printer } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, IndianRupee, FileText, Globe, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,10 +20,10 @@ interface InventoryActionsProps {
     itemName: string;
     sku: string;
     status: string;
-    gemType?: string;
+    gemType?: string | null;
     colorCode?: { name: string } | null;
-    weightValue?: number;
-    weightUnit?: string;
+    weightValue?: number | null;
+    weightUnit?: string | null;
     weightRatti?: number | null;
     pricingMode?: string;
     sellingRatePerCarat?: number | null;
@@ -66,7 +66,7 @@ export function InventoryActions({ item }: InventoryActionsProps) {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/sales/new?inventoryId=${item.id}`}>
-                  <DollarSign className="mr-2 h-4 w-4" /> Mark as Sold
+                  <IndianRupee className="mr-2 h-4 w-4" /> Mark as Sold
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>

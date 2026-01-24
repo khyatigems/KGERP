@@ -1,28 +1,83 @@
 export const PERMISSIONS = {
+  // Inventory
+  INVENTORY_VIEW: "inventory.view",
   INVENTORY_CREATE: "inventory.create",
+  INVENTORY_EDIT: "inventory.edit",
+  INVENTORY_DELETE: "inventory.delete",
   INVENTORY_VIEW_COST: "inventory.view_cost",
-  INVENTORY_MARK_SOLD: "inventory.mark_sold",
+  
+  // Quotations
+  QUOTATION_VIEW: "quotation.view",
   QUOTATION_CREATE: "quotation.create",
-  QUOTATION_DISABLE: "quotation.disable",
+  QUOTATION_EDIT: "quotation.edit",
+  QUOTATION_APPROVE: "quotation.approve",
+  
+  // Sales & Invoices
+  SALES_VIEW: "sales.view",
+  SALES_CREATE: "sales.create",
   SALES_DELETE: "sales.delete",
-  VENDOR_APPROVE: "vendor.approve",
-  REPORTS_VIEW: "reports.view",
-  MANAGE_LANDING_PAGE: "settings.landing_page",
+  INVOICE_CREATE: "invoice.create",
+  INVOICE_DELETE: "invoice.delete", // Super Admin only
+  
+  // Vendors
+  VENDOR_VIEW: "vendor.view",
+  VENDOR_MANAGE: "vendor.manage",
+  
+  // Reports
+  REPORTS_VIEW: "reports.view", // General access (Labels, Ops)
+  REPORTS_FINANCIAL: "reports.financial", // Profit, Margin, Sales Value
+  REPORTS_VENDOR: "reports.vendor", // Vendor analytics
+  
+  // Settings & Users
+  SETTINGS_MANAGE: "settings.manage",
+  USERS_MANAGE: "users.manage",
+  LANDING_PAGE_MANAGE: "settings.landing_page",
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 
-const ROLE_PERMISSIONS: Record<string, Permission[]> = {
-  ADMIN: Object.values(PERMISSIONS),
-  STAFF: [
+export type Role = "SUPER_ADMIN" | "ADMIN" | "SALES" | "ACCOUNTS" | "VIEWER";
+
+export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+  SUPER_ADMIN: Object.values(PERMISSIONS),
+  
+  ADMIN: Object.values(PERMISSIONS).filter(p => p !== PERMISSIONS.INVOICE_DELETE),
+  
+  SALES: [
+    PERMISSIONS.INVENTORY_VIEW,
     PERMISSIONS.INVENTORY_CREATE,
+    PERMISSIONS.INVENTORY_EDIT,
+    PERMISSIONS.QUOTATION_VIEW,
     PERMISSIONS.QUOTATION_CREATE,
-    // Staff restrictions can be adjusted here
+    PERMISSIONS.QUOTATION_EDIT,
+    PERMISSIONS.SALES_VIEW,
+    PERMISSIONS.SALES_CREATE,
+    PERMISSIONS.INVOICE_CREATE,
+    PERMISSIONS.VENDOR_VIEW,
+    PERMISSIONS.REPORTS_VIEW, // Can view basic reports like Labels
+  ],
+  
+  ACCOUNTS: [
+    PERMISSIONS.INVENTORY_VIEW,
+    PERMISSIONS.INVENTORY_VIEW_COST,
+    PERMISSIONS.QUOTATION_VIEW,
+    PERMISSIONS.SALES_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+    PERMISSIONS.VENDOR_VIEW,
+    // Accounts should probably see financials, but prompt said "Staff ❌". 
+    // I'll leave them out for now to strictly follow "Staff" vs "Admin". 
+    // If ACCOUNTS counts as Admin-lite, I might add it later.
+  ],
+  
+  VIEWER: [
+    PERMISSIONS.INVENTORY_VIEW,
+    PERMISSIONS.QUOTATION_VIEW,
   ],
 };
 
 export function getPermissionsForRole(role: string): Permission[] {
-  return ROLE_PERMISSIONS[role] || [];
+  // Default to empty if role doesn't exist or is invalid
+  return ROLE_PERMISSIONS[role as Role] || [];
 }
 
 export function hasPermission(role: string, permission: Permission): boolean {

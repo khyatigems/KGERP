@@ -9,21 +9,27 @@ export const metadata: Metadata = {
   title: "Label Management | KhyatiGems™",
 };
 
+import { getCart, getLabelJobs } from "./actions";
+
 export default async function LabelsPage() {
-  const inventory = await prisma.inventory.findMany({
-    where: {
-      status: "IN_STOCK",
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-        colorCode: { select: { name: true } }
-    }
-  });
+  const [inventory, cartItems, labelJobs] = await Promise.all([
+    prisma.inventory.findMany({
+      where: {
+        status: "IN_STOCK",
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+          colorCode: { select: { name: true } }
+      }
+    }),
+    getCart(),
+    getLabelJobs()
+  ]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
-        <LabelCartSheet />
+        <LabelCartSheet initialItems={cartItems} />
       </div>
       
       <Tabs defaultValue="manage" className="w-full">
@@ -37,7 +43,7 @@ export default async function LabelsPage() {
         </TabsContent>
         
         <TabsContent value="history" className="mt-4">
-            <LabelHistory />
+            <LabelHistory initialJobs={labelJobs} />
         </TabsContent>
       </Tabs>
     </div>

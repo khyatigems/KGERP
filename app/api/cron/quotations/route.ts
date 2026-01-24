@@ -23,10 +23,10 @@ export async function GET() {
     const processed: string[] = [];
 
     for (const quote of candidates) {
-      const alreadySent = await prisma.publicLinkEvent.findFirst({
+      const alreadySent = await prisma.activityLog.findFirst({
         where: {
-          refId: quote.id,
-          type: "REMINDER_SENT",
+          entityId: quote.id,
+          actionType: "REMINDER_SENT",
         },
       });
 
@@ -34,10 +34,12 @@ export async function GET() {
         continue;
       }
 
-      await prisma.publicLinkEvent.create({
+      await prisma.activityLog.create({
         data: {
-          refId: quote.id,
-          type: "REMINDER_SENT",
+          entityType: "Quotation",
+          entityId: quote.id,
+          actionType: "REMINDER_SENT",
+          source: "SYSTEM_CRON"
         },
       });
 

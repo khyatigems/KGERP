@@ -1,5 +1,5 @@
 import { DashboardView } from "@/components/dashboard/dashboard-view";
-import { ActivityWidget } from "@/components/dashboard/activity-widget";
+import { ActivityFeed } from "@/components/dashboard/activity-feed";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export default function DashboardPage() {
             <DashboardView />
         </div>
         <div className="md:col-span-2">
-            <ActivityWidget />
+            <ActivityFeed />
         </div>
     </div>
   );

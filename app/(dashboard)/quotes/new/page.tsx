@@ -2,12 +2,26 @@ import { Metadata } from "next";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { QuotationForm } from "@/components/quotes/quotation-form";
+import { checkPermission } from "@/lib/permission-guard";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export const metadata: Metadata = {
   title: "New Quotation | KhyatiGems™",
 };
 
 export default async function NewQuotationPage() {
+  const perm = await checkPermission(PERMISSIONS.QUOTATION_CREATE);
+  if (!perm.success) {
+    return (
+      <div className="p-6">
+        <div className="bg-destructive/15 text-destructive border-destructive/20 border px-4 py-3 rounded-md relative">
+          <strong className="font-bold">Access Denied!</strong>
+          <span className="block sm:inline"> {perm.message}</span>
+        </div>
+      </div>
+    );
+  }
+
   const availableItems = await prisma.inventory.findMany({
     where: {
       status: "IN_STOCK",
@@ -23,7 +37,7 @@ export default async function NewQuotationPage() {
       customerPhone: true,
       customerEmail: true,
       customerCity: true,
-      createdAt: true,
+      saleDate: true,
     },
     where: {
       customerName: {
@@ -31,7 +45,7 @@ export default async function NewQuotationPage() {
       },
     },
     orderBy: {
-      createdAt: "desc",
+      saleDate: "desc",
     },
     take: 50,
   });
@@ -44,11 +58,7 @@ export default async function NewQuotationPage() {
       customerCity: true,
       createdAt: true,
     },
-    where: {
-      customerName: {
-        not: null,
-      },
-    },
+    where: {},
     orderBy: {
       createdAt: "desc",
     },

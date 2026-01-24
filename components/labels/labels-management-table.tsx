@@ -27,7 +27,7 @@ import { addManyToCart } from "@/app/(dashboard)/labels/actions";
 import { LabelItem } from "@/lib/label-generator";
 import { toast } from "sonner";
 import { Search, ShoppingCart } from "lucide-react";
-import { Inventory } from "@prisma/client";
+import { Inventory } from "@prisma/client-custom-v2";
 
 interface InventoryWithRelations extends Inventory {
   colorCode?: { name: string } | null;

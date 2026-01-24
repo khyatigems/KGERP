@@ -1,72 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadToCloudinary } from '@/lib/cloudinary';
-import { uploadToGoogleDrive, findOrCreateFolder } from '@/lib/google-drive';
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const files = formData.getAll('file') as File[];
-    const sku = formData.get('sku') as string || 'temp'; // Optional SKU for folder/naming
-    const category = formData.get('category') as string;
-
+    const sku = formData.get('sku') as string || 'temp'; // Optional SKU for naming
+    
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'No files provided' }, { status: 400 });
     }
 
     const results = [];
 
-    // Determine target folder based on Category
-    // The requirement is: [Root Upload Directory]/[Category Name]/[Image Files]
-    // So we prefer Category folder over SKU folder.
-    
-    let folderId: string | undefined | null = undefined;
-    
-    if (category) {
-         folderId = await findOrCreateFolder(category);
-    } else {
-         // Fallback if no category provided
-         folderId = await findOrCreateFolder('_Uncategorized_Uploads');
-    }
-
     for (const file of files) {
       const buffer = Buffer.from(await file.arrayBuffer());
       
-      // Upload to Cloudinary
-      const cloudinaryUrl = await uploadToCloudinary(buffer, file.name);
+      let cloudinaryUrl = null;
+      let errorMsg = null;
 
-      // Upload to Google Drive
-      // Note: We upload asynchronously to speed up response? 
-      // Or await to ensure sync? User wants "sync status", so await is safer.
-      let driveFileId = null;
-      let driveErrorMsg = null;
       try {
-        const driveFileName = sku !== 'temp' ? `${sku}_${file.name}` : file.name;
-        // Pass the determined folderId (if any)
-        const driveFile = await uploadToGoogleDrive(buffer, driveFileName, file.type, folderId || undefined);
-        if (driveFile && driveFile.id) {
-            driveFileId = driveFile.id;
-        } else {
-            driveErrorMsg = "Upload returned no ID (check credentials)";
-        }
-      } catch (driveError: unknown) {
-        console.error(`Google Drive upload failed for ${file.name}:`, driveError);
+        // Sanitize SKU to remove spaces and special chars
+        const sanitizedSku = sku !== 'temp' ? sku.replace(/[^a-zA-Z0-9.-]/g, '_') : '';
         
-        const error = driveError as { message?: string };
-        // Detailed error message for user
-        if (error.message && error.message.includes("quota")) {
-             driveErrorMsg = "Quota exceeded. For Service Accounts, you MUST use a Shared Drive (Team Drive) or share a folder from a paid Workspace account.";
-        } else if (error.message && error.message.includes("supportsAllDrives")) {
-             driveErrorMsg = "Shared Drive support missing. (Fixed in backend, please retry).";
-        } else {
-             driveErrorMsg = (driveError as Error).message || "Unknown Drive error";
-        }
+        // Sanitize filename to remove spaces and special chars
+        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        
+        // Construct unique filename: SKU_Timestamp_Filename
+        // Ensure total length doesn't exceed Cloudinary limit (255 chars)
+        // Timestamp is ~13 chars. Reserve some space.
+        const timestamp = Date.now();
+        const prefix = sanitizedSku ? `${sanitizedSku}_${timestamp}_` : `${timestamp}_`;
+        
+        // Truncate filename if needed to fit within limit (leaving room for folder 'inventory/')
+        // 'inventory/' is 10 chars. Limit safe margin to ~200 chars for the name.
+        const maxNameLength = 200 - prefix.length;
+        const truncatedFileName = sanitizedFileName.length > maxNameLength 
+          ? sanitizedFileName.substring(0, maxNameLength) + (sanitizedFileName.includes('.') ? sanitizedFileName.substring(sanitizedFileName.lastIndexOf('.')) : '')
+          : sanitizedFileName;
+
+        const uniqueFileName = `${prefix}${truncatedFileName}`;
+        
+        console.log(`Starting upload for ${uniqueFileName}, size: ${file.size} bytes`);
+        
+        cloudinaryUrl = await uploadToCloudinary(buffer, uniqueFileName);
+        console.log(`Upload successful: ${cloudinaryUrl}`);
+      } catch (error: any) {
+        console.error(`Cloudinary upload failed for ${file.name}:`, error);
+        // Extract detailed error message from Cloudinary error object if available
+        errorMsg = error.message || error.error?.message || JSON.stringify(error) || "Upload failed";
       }
 
       results.push({
         fileName: file.name,
-        cloudinaryUrl,
-        driveFileId,
-        driveError: driveErrorMsg
+        cloudinaryUrl: cloudinaryUrl,
+        error: errorMsg
       });
     }
 

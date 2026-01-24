@@ -4,6 +4,7 @@ import { Plus, Pencil } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { LoadingLink } from "@/components/ui/loading-link";
 import {
   Table,
   TableBody,
@@ -13,12 +14,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { auth } from "@/lib/auth";
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Vendors | KhyatiGems™",
 };
 
 export default async function VendorsPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  if (!hasPermission(session.user.role, PERMISSIONS.VENDOR_VIEW)) {
+     redirect("/");
+  }
+
   const vendors = await prisma.vendor.findMany({
     orderBy: {
       createdAt: "desc",
@@ -29,10 +40,10 @@ export default async function VendorsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-end">
         <Button asChild>
-          <Link href="/vendors/new">
+          <LoadingLink href="/vendors/new">
             <Plus className="mr-2 h-4 w-4" />
             Add Vendor
-          </Link>
+          </LoadingLink>
         </Button>
       </div>
 

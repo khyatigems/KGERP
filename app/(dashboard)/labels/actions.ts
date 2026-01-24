@@ -5,8 +5,13 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { encodePrice } from "@/lib/price-encoder";
 import { LabelConfig } from "@/lib/label-generator";
+import { checkPermission } from "@/lib/permission-guard";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export async function addToCart(inventoryId: string): Promise<{ success: boolean; message?: string }> {
+    const perm = await checkPermission(PERMISSIONS.INVENTORY_VIEW);
+    if (!perm.success) return { success: false, message: perm.message };
+
     const session = await auth();
     if (!session?.user?.id) return { success: false, message: "Unauthorized" };
 
@@ -25,8 +30,7 @@ export async function addToCart(inventoryId: string): Promise<{ success: boolean
         await prisma.labelCartItem.create({
             data: {
                 userId: session.user.id,
-                inventoryId: inventoryId,
-                quantity: 1
+                inventoryId: inventoryId
             }
         });
         
@@ -39,6 +43,9 @@ export async function addToCart(inventoryId: string): Promise<{ success: boolean
 }
 
 export async function addManyToCart(inventoryIds: string[]): Promise<{ success: boolean; message?: string; count?: number }> {
+    const perm = await checkPermission(PERMISSIONS.INVENTORY_VIEW);
+    if (!perm.success) return { success: false, message: perm.message };
+
     const session = await auth();
     console.log("[addManyToCart] Session:", session ? { user: session.user } : "null");
     
@@ -64,8 +71,7 @@ export async function addManyToCart(inventoryIds: string[]): Promise<{ success: 
             await prisma.labelCartItem.createMany({
                 data: toAdd.map(id => ({
                     userId: session.user.id!,
-                    inventoryId: id,
-                    quantity: 1
+                    inventoryId: id
                 }))
             });
         }
@@ -144,6 +150,12 @@ export async function createLabelJob(data: {
     if (!session?.user?.id) return { success: false, items: [] };
 
     try {
+        // Verify user exists to prevent orphan records
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (!userExists) {
+            return { success: false, items: [], message: "Session invalid: User not found. Please logout and login again." };
+        }
+
         // 1. Fetch Items
         const items = await prisma.inventory.findMany({
             where: { id: { in: data.inventoryIds } },
@@ -203,6 +215,14 @@ export async function createLabelJob(data: {
             }
         });
 
+        // 4. Remove items from Cart (if they exist there)
+        await prisma.labelCartItem.deleteMany({
+            where: {
+                userId: session.user.id,
+                inventoryId: { in: data.inventoryIds }
+            }
+        });
+
         revalidatePath("/labels");
         return { success: true, jobId: job.id, items: jobItemsData };
     } catch (e: unknown) {
@@ -217,8 +237,12 @@ export async function getLabelJobs() {
     if (!session?.user?.id) return [];
 
     try {
+        // Verify user exists
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (!userExists) return [];
+
         const jobs = await prisma.labelPrintJob.findMany({
-            orderBy: { timestamp: 'desc' },
+            orderBy: { createdAt: 'desc' },
             include: {
                 user: {
                     select: { name: true, email: true }
@@ -228,8 +252,50 @@ export async function getLabelJobs() {
             take: 50
         });
         return jobs;
-    } catch (e) {
-        console.error(e);
+    } catch (e: any) {
+        // Self-healing for orphan records (where User was deleted but Job remains)
+        if (e.message?.includes("Field user is required") || e.message?.includes("Inconsistent query result")) {
+            console.warn("Detected orphan LabelPrintJobs. Initiating cleanup...");
+            try {
+                // 1. Get all jobs (raw, no relations)
+                const allJobs = await prisma.labelPrintJob.findMany({
+                    select: { id: true, userId: true }
+                });
+                
+                // 2. Get all valid users
+                const allUsers = await prisma.user.findMany({
+                    select: { id: true }
+                });
+                const validUserIds = new Set(allUsers.map(u => u.id));
+
+                // 3. Find orphans
+                const orphanJobIds = allJobs
+                    .filter(job => !validUserIds.has(job.userId))
+                    .map(job => job.id);
+
+                if (orphanJobIds.length > 0) {
+                    console.log(`Deleting ${orphanJobIds.length} orphan jobs...`);
+                    await prisma.labelPrintJob.deleteMany({
+                        where: { id: { in: orphanJobIds } }
+                    });
+                    
+                    // 4. Retry fetch
+                    return await prisma.labelPrintJob.findMany({
+                        orderBy: { createdAt: 'desc' },
+                        include: {
+                            user: {
+                                select: { name: true, email: true }
+                            },
+                            items: true 
+                        },
+                        take: 50
+                    });
+                }
+            } catch (cleanupError) {
+                console.error("Failed to cleanup orphan jobs:", cleanupError);
+            }
+        }
+        console.error("getLabelJobs Error:", e);
         return [];
     }
 }

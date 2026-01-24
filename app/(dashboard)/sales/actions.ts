@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkPermission } from "@/lib/permission-guard";
+import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import { randomBytes } from "crypto";
 
 const saleSchema = z.object({
@@ -24,6 +25,7 @@ const saleSchema = z.object({
   shippingMethod: z.string().optional(),
   trackingId: z.string().optional(),
   remarks: z.string().optional(),
+  quotationId: z.string().optional(),
 });
 
 function generateInvoiceToken() {
@@ -31,14 +33,12 @@ function generateInvoiceToken() {
 }
 
 export async function createSale(prevState: unknown, formData: FormData) {
+  const perm = await checkPermission(PERMISSIONS.SALES_CREATE);
+  if (!perm.success) return { message: perm.message };
+
   const session = await auth();
   if (!session) {
     return { message: "Unauthorized" };
-  }
-
-  // Permission check? Assuming INVENTORY_MARK_SOLD implies creating sales
-  if (!hasPermission(session.user.role || "STAFF", PERMISSIONS.INVENTORY_MARK_SOLD)) {
-      return { message: "Insufficient permissions to sell items" };
   }
 
   const rawData = Object.fromEntries(formData.entries());
@@ -83,15 +83,16 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   customerPhone: data.customerPhone,
                   customerEmail: data.customerEmail,
                   customerCity: data.customerCity,
-                  sellingPrice: data.sellingPrice,
-                  discount: data.discount,
+                  salePrice: data.sellingPrice,
+                  discountAmount: data.discount || 0,
                   netAmount: netAmount,
                   profit: profit,
-                  paymentMode: data.paymentMode,
-                  paymentStatus: data.paymentStatus,
-                  shippingMethod: data.shippingMethod,
-                  trackingId: data.trackingId,
-                  remarks: data.remarks,
+                  // paymentMode: data.paymentMode,
+                  paymentMethod: data.paymentMode, 
+                  paymentStatus: data.paymentStatus || "PENDING",
+                  // shippingMethod: data.shippingMethod, // Not in schema
+                  // trackingId: data.trackingId, // Not in schema
+                  notes: data.remarks,
               }
           });
 
@@ -108,13 +109,87 @@ export async function createSale(prevState: unknown, formData: FormData) {
           const invoiceNumber = `INV-${year}-${(count + 1).toString().padStart(4, '0')}`;
           const token = generateInvoiceToken();
 
-          await tx.invoice.create({
+          const newInvoice = await tx.invoice.create({
               data: {
                   invoiceNumber,
-                  saleId: sale.id,
                   token,
-                  isActive: true
+                  isActive: true,
+                  subtotal: netAmount,
+                  taxTotal: 0, 
+                  discountTotal: data.discount || 0,
+                  totalAmount: netAmount
               }
+          });
+
+          // 4. Update Quotation Status if linked and handle other quotations with same item
+          if (data.quotationId) {
+              // 4a. Update the accepted quotation
+              await tx.quotation.update({
+                  where: { id: data.quotationId },
+                  data: { status: "CONVERTED" }
+              });
+
+              // 4b. Find other ACTIVE/SENT/PENDING quotations containing this item
+              // We need to find QuotationItems with this inventoryId, 
+              // then check their parent Quotation status.
+              // Note: Prisma doesn't support deep filtering in updateMany easily, 
+              // so we fetch relevant quotation IDs first.
+              
+              const otherQuotationItems = await tx.quotationItem.findMany({
+                  where: {
+                      inventoryId: data.inventoryId,
+                      quotationId: { not: data.quotationId }, // Exclude the one we just accepted
+                      quotation: {
+                          status: { in: ["DRAFT", "SENT", "PENDING_APPROVAL", "ACTIVE"] }
+                      }
+                  },
+                  select: { quotationId: true }
+              });
+
+              if (otherQuotationItems.length > 0) {
+                  const quotationIdsToExpire = [...new Set(otherQuotationItems.map(i => i.quotationId))];
+                  
+                  // Expire them
+                  await tx.quotation.updateMany({
+                      where: {
+                          id: { in: quotationIdsToExpire }
+                      },
+                      data: {
+                          status: "EXPIRED"
+                      }
+                  });
+              }
+          } else {
+              // Even if not directly linked to a quotation ID (e.g. manual sale),
+              // we should still expire any active quotations that included this item.
+              const quotationItemsWithItem = await tx.quotationItem.findMany({
+                  where: {
+                      inventoryId: data.inventoryId,
+                      quotation: {
+                          status: { in: ["DRAFT", "SENT", "PENDING_APPROVAL", "ACTIVE"] }
+                      }
+                  },
+                  select: { quotationId: true }
+              });
+
+              if (quotationItemsWithItem.length > 0) {
+                  const quotationIdsToExpire = [...new Set(quotationItemsWithItem.map(i => i.quotationId))];
+                  
+                  await tx.quotation.updateMany({
+                      where: {
+                          id: { in: quotationIdsToExpire }
+                      },
+                      data: {
+                          status: "EXPIRED"
+                      }
+                  });
+              }
+          }
+
+          // 5. Update Sale with Invoice ID (New Relation)
+          await tx.sale.update({
+              where: { id: sale.id },
+              data: { invoiceId: newInvoice.id }
           });
       });
 
@@ -167,9 +242,18 @@ export async function deleteSale(id: string) {
               where: { id }
           });
 
-          await tx.invoice.deleteMany({
-              where: { saleId: id }
-          });
+          // Delete related invoice?
+          // Sale has invoiceId, Invoice has sales (relation "NewInvoice")
+          // If this was the only sale on that invoice, maybe delete invoice?
+          // For now, let's skip deleting invoice automatically unless we implement strict rules.
+          // Or if we know the invoiceId:
+          if (sale.invoiceId) {
+             // Optional: check if other sales use this invoice
+             const otherSales = await tx.sale.count({ where: { invoiceId: sale.invoiceId, id: { not: id } }});
+             if (otherSales === 0) {
+                 await tx.invoice.delete({ where: { id: sale.invoiceId } });
+             }
+          }
       });
 
       await logActivity({

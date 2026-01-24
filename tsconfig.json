@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@prisma/client-custom": ["./node_modules/@prisma/client-custom"],
+      "@prisma/client-custom-v2": ["./node_modules/@prisma/client-custom-v2"]
     }
   },
   "include": [

@@ -4,6 +4,7 @@ import { Eye, Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { LoadingLink } from "@/components/ui/loading-link";
 import {
   Table,
   TableBody,
@@ -13,12 +14,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { auth } from "@/lib/auth";
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Purchases | KhyatiGems™",
 };
 
 export default async function PurchasesPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  // Purchases reveal cost, so restrict to those who can view cost
+  if (!hasPermission(session.user.role, PERMISSIONS.INVENTORY_VIEW_COST)) {
+     redirect("/");
+  }
+
   const purchases = await prisma.purchase.findMany({
     orderBy: {
       purchaseDate: "desc",
@@ -36,16 +48,16 @@ export default async function PurchasesPage() {
       <div className="flex items-center justify-end">
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link href="/purchases/import">
+            <LoadingLink href="/purchases/import">
               <Upload className="mr-2 h-4 w-4" />
               Import
-            </Link>
+            </LoadingLink>
           </Button>
           <Button asChild>
-            <Link href="/purchases/new">
+            <LoadingLink href="/purchases/new">
               <Plus className="mr-2 h-4 w-4" />
               New Purchase
-            </Link>
+            </LoadingLink>
           </Button>
         </div>
       </div>
@@ -72,7 +84,7 @@ export default async function PurchasesPage() {
               </TableRow>
             ) : (
               purchases.map((purchase) => {
-                const totalCost = purchase.items.reduce((sum, item) => sum + item.totalCost, 0);
+                const totalCost = purchase.items.reduce((sum, item) => sum + item.costPrice, 0);
                 return (
                   <TableRow key={purchase.id}>
                     <TableCell>{formatDate(purchase.purchaseDate)}</TableCell>
@@ -85,10 +97,10 @@ export default async function PurchasesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant="outline" asChild>
-                        <Link href={`/purchases/${purchase.id}`}>
+                        <LoadingLink href={`/purchases/${purchase.id}`}>
                           <Eye className="mr-1 h-4 w-4" />
                           View
-                        </Link>
+                        </LoadingLink>
                       </Button>
                     </TableCell>
                   </TableRow>

@@ -18,8 +18,8 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
   });
 
   if (!quotation) notFound();
-  if (quotation.status !== "ACTIVE") {
-      return <div className="p-6 text-red-500">Only ACTIVE quotations can be edited.</div>;
+  if (quotation.status !== "DRAFT") {
+      return <div className="p-6 text-red-500">Only DRAFT quotations can be edited.</div>;
   }
 
   const availableItems = await prisma.inventory.findMany({
@@ -31,6 +31,17 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
     },
   });
 
+  const initialData = {
+      ...quotation,
+      expiryDate: quotation.expiryDate || new Date(),
+      items: quotation.items
+          .filter(item => item.inventoryId !== null)
+          .map(item => ({
+              inventoryId: item.inventoryId as string,
+              quotedPrice: item.quotedPrice || 0
+          }))
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -38,7 +49,7 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
-          <QuotationForm availableItems={availableItems} initialData={quotation} />
+          <QuotationForm availableItems={availableItems} initialData={initialData} />
         </div>
       </div>
     </div>

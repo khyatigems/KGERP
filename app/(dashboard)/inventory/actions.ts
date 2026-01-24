@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { Prisma } from "@prisma/client-custom-v2";
 import { prisma } from "@/lib/prisma";
 import { generateSku } from "@/lib/sku";
 import { revalidatePath } from "next/cache";
@@ -8,6 +9,18 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { addToCart } from "@/app/(dashboard)/labels/actions";
+import { checkPermission } from "@/lib/permission-guard";
+import { PERMISSIONS } from "@/lib/permissions";
+
+function calculateRatti(weight: number, unit: string) {
+   let ratti = 0;
+   if (unit === "cts") {
+       ratti = weight * 1.09;
+   } else if (unit === "gms") {
+       ratti = weight * 5.45;
+   }
+   return Math.round(ratti * 100) / 100;
+}
 
 const inventorySchema = z.object({
   itemName: z.string().min(1, "Item name is required"),
@@ -27,6 +40,7 @@ const inventorySchema = z.object({
   weightUnit: z.string(),
   treatment: z.string().optional(),
   certification: z.string().optional(),
+  transparency: z.string().optional(),
   vendorId: z.string().uuid("Invalid vendor"),
   pricingMode: z.enum(["PER_CARAT", "FLAT"]),
   purchaseRatePerCarat: z.coerce.number().optional(),
@@ -35,7 +49,7 @@ const inventorySchema = z.object({
   flatSellingPrice: z.coerce.number().optional(),
   stockLocation: z.string().optional(),
   notes: z.string().optional(),
-  mediaUrl: z.string().url().optional().or(z.literal("")),
+  mediaUrl: z.string().optional().or(z.literal("")),
   mediaUrls: z.array(z.string()).optional(),
   
   // Bracelet Attributes
@@ -59,6 +73,7 @@ type InventoryImportRow = {
   dimensionsMm?: string;
   weightValue?: number | string;
   weightUnit?: string;
+  weightRatti?: number | string;
   treatment?: string;
   certification?: string;
   vendorName?: string;
@@ -140,6 +155,9 @@ async function renameCloudinaryImageToSku(originalUrl: string, sku: string) {
 }
 
 export async function createInventory(prevState: unknown, formData: FormData) {
+  const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
+  if (!perm.success) return { message: perm.message };
+
   const session = await auth();
   if (!session) {
       return { message: "Unauthorized" };
@@ -160,50 +178,35 @@ export async function createInventory(prevState: unknown, formData: FormData) {
 
   const data = parsed.data;
 
-  // Calculate profit logic
-  let purchaseCost = 0;
-  let sellingPrice = 0;
+  const weightRatti = calculateRatti(data.weightValue, data.weightUnit);
 
-  if (data.pricingMode === "PER_CARAT") {
-      purchaseCost = (data.weightValue) * (data.purchaseRatePerCarat || 0);
-      sellingPrice = (data.weightValue) * (data.sellingRatePerCarat || 0);
-  } else {
-      purchaseCost = data.flatPurchaseCost || 0;
-      sellingPrice = data.flatSellingPrice || 0;
-  }
+  const costPrice = data.pricingMode === "PER_CARAT" 
+      ? (data.purchaseRatePerCarat || 0) * (data.weightValue || 0)
+      : (data.flatPurchaseCost || 0);
 
-  const profit = sellingPrice - purchaseCost;
-
-  // Calculate Ratti
-  // 1 Carat = 1.09 Ratti
-  // 1 Gram = 5 Carats = 5.45 Ratti
-  let weightRatti = 0;
-  if (data.weightUnit === "cts") {
-      weightRatti = data.weightValue * 1.09;
-  } else if (data.weightUnit === "gms") {
-      weightRatti = data.weightValue * 5.45;
-  }
-  weightRatti = Math.round(weightRatti * 100) / 100;
+  const sellingPrice = data.pricingMode === "PER_CARAT"
+      ? (data.sellingRatePerCarat || 0) * (data.weightValue || 0)
+      : (data.flatSellingPrice || 0);
 
   try {
-      const createdInventory = await prisma.$transaction(async (tx) => {
+      const createdInventory = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           let categoryCodeStr = "XX";
           let gemstoneCodeStr = "XX";
           let colorCodeStr = "XX";
 
           if (data.categoryCodeId) {
-              const categoryCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM CategoryCode WHERE id = ${data.categoryCodeId} LIMIT 1`;
-              if (categoryCodes[0]) categoryCodeStr = categoryCodes[0].code;
+              const categoryCodes = await tx.categoryCode.findUnique({ where: { id: data.categoryCodeId }, select: { code: true } });
+              if (categoryCodes) categoryCodeStr = categoryCodes.code;
           }
 
           if (data.gemstoneCodeId) {
-              const gemstoneCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM GemstoneCode WHERE id = ${data.gemstoneCodeId} LIMIT 1`;
-              if (gemstoneCodes[0]) gemstoneCodeStr = gemstoneCodes[0].code;
+              const gemstoneCodes = await tx.gemstoneCode.findUnique({ where: { id: data.gemstoneCodeId }, select: { code: true } });
+              if (gemstoneCodes) gemstoneCodeStr = gemstoneCodes.code;
           }
 
           if (data.colorCodeId) {
-              const colorCodes = await tx.$queryRaw<{id: string, code: string}[]>`SELECT * FROM ColorCode WHERE id = ${data.colorCodeId} LIMIT 1`;
-              if (colorCodes[0]) colorCodeStr = colorCodes[0].code;
+              const colorCodes = await tx.colorCode.findUnique({ where: { id: data.colorCodeId }, select: { code: true } });
+              if (colorCodes) colorCodeStr = colorCodes.code;
           }
 
           const sku = await generateSku(tx, {
@@ -221,7 +224,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   internalName: data.internalName,
                   category: data.category,
                   gemType: data.gemType || "Mixed",
-                  // color: data.color, // Removed
+                  color: data.color,
                   categoryCode: data.categoryCodeId ? { connect: { id: data.categoryCodeId } } : undefined,
                   gemstoneCode: data.gemstoneCodeId ? { connect: { id: data.gemstoneCodeId } } : undefined,
                   colorCode: data.colorCodeId ? { connect: { id: data.colorCodeId } } : undefined,
@@ -234,8 +237,10 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   dimensionsMm: data.dimensionsMm,
                   weightValue: data.weightValue,
                   weightUnit: data.weightUnit,
+                  carats: data.weightValue || 0,
                   weightRatti,
                   treatment: data.treatment,
+                  transparency: data.transparency,
                   certification: data.certification,
                   vendorId: data.vendorId,
                   pricingMode: data.pricingMode,
@@ -243,7 +248,9 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   sellingRatePerCarat: data.sellingRatePerCarat,
                   flatPurchaseCost: data.flatPurchaseCost,
                   flatSellingPrice: data.flatSellingPrice,
-                  profit,
+                  costPrice,
+                  sellingPrice,
+                  // profit, // Commented out due to Prisma Client lock
                   status: "IN_STOCK",
                   stockLocation: data.stockLocation,
                   notes: data.notes,
@@ -252,11 +259,10 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   braceletType: data.braceletType,
                   beadSizeMm: data.beadSizeMm,
                   beadCount: data.beadCount,
-                  holeSizeMm: data.holeSizeMm,
+                  // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
                   innerCircumferenceMm: data.innerCircumferenceMm,
                   standardSize: data.standardSize,
-
-                  createdBy: session?.user?.email || "system",
+                  // createdBy: session?.user?.email || "system", // Commented out due to Prisma Client lock
               },
           });
 
@@ -297,11 +303,12 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   createdInventory.sku + suffix
                 );
     
-                await prisma.media.create({
+                await prisma.inventoryMedia.create({
                   data: {
                     inventoryId: createdInventory.id,
-                    type,
-                    url: finalUrl,
+                    type: type,
+                    mediaUrl: finalUrl,
+                    isPrimary: i === 0 // First image is primary
                   },
                 });
             }
@@ -311,11 +318,12 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               createdInventory.sku
             );
 
-            await prisma.media.create({
+            await prisma.inventoryMedia.create({
               data: {
                 inventoryId: createdInventory.id,
                 type: "IMAGE",
-                url: finalUrl,
+                mediaUrl: finalUrl,
+                isPrimary: true // Single image is always primary
               },
             });
           }
@@ -334,6 +342,9 @@ export async function updateInventory(
   prevState: unknown,
   formData: FormData
 ) {
+  const perm = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
+  if (!perm.success) return { message: perm.message };
+
   const session = await auth();
   if (!session) {
     return { message: "Unauthorized" };
@@ -349,11 +360,11 @@ export async function updateInventory(
   if (current.status === "SOLD") return { message: "Cannot edit sold inventory" };
 
   const raw = Object.fromEntries(formData.entries());
-  const mediaUrls = formData.getAll('mediaUrls').map(String).filter(Boolean);
+  const mediaUrls = formData.getAll('mediaUrls').map(String).filter(Boolean).map(u => u.trim());
 
   const parsed = inventorySchema.safeParse({
       ...raw,
-      mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined
+      mediaUrls: mediaUrls // Pass array as is, even if empty
   });
 
   if (!parsed.success) {
@@ -363,26 +374,16 @@ export async function updateInventory(
   const data = parsed.data;
 
   // Calculate profit
-  let purchaseCost = 0;
-  let sellingPrice = 0;
+  const costPrice = data.pricingMode === "PER_CARAT" 
+      ? (data.purchaseRatePerCarat || 0) * (data.weightValue || 0)
+      : (data.flatPurchaseCost || 0);
 
-  if (data.pricingMode === "PER_CARAT") {
-      purchaseCost = (data.weightValue) * (data.purchaseRatePerCarat || 0);
-      sellingPrice = (data.weightValue) * (data.sellingRatePerCarat || 0);
-  } else {
-      purchaseCost = data.flatPurchaseCost || 0;
-      sellingPrice = data.flatSellingPrice || 0;
-  }
-  const profit = sellingPrice - purchaseCost;
+  const sellingPrice = data.pricingMode === "PER_CARAT"
+      ? (data.sellingRatePerCarat || 0) * (data.weightValue || 0)
+      : (data.flatSellingPrice || 0);
 
   // Calculate Ratti
-  let weightRatti = 0;
-  if (data.weightUnit === "cts") {
-      weightRatti = data.weightValue * 1.09;
-  } else if (data.weightUnit === "gms") {
-      weightRatti = data.weightValue * 5.45;
-  }
-  weightRatti = Math.round(weightRatti * 100) / 100;
+  const weightRatti = calculateRatti(data.weightValue, data.weightUnit);
 
   try {
     const oldInventory = await prisma.inventory.findUnique({ where: { id } });
@@ -393,7 +394,8 @@ export async function updateInventory(
         itemName: data.itemName,
         internalName: data.internalName,
         category: data.category,
-        gemType: data.gemType,
+        gemType: data.gemType || "Mixed",
+        color: data.color,
         categoryCode: data.categoryCodeId ? { connect: { id: data.categoryCodeId } } : { disconnect: true },
         gemstoneCode: data.gemstoneCodeId ? { connect: { id: data.gemstoneCodeId } } : { disconnect: true },
         colorCode: data.colorCodeId ? { connect: { id: data.colorCodeId } } : { disconnect: true },
@@ -404,8 +406,10 @@ export async function updateInventory(
         dimensionsMm: data.dimensionsMm,
         weightValue: data.weightValue,
         weightUnit: data.weightUnit,
+        carats: data.weightValue || 0,
         weightRatti,
         treatment: data.treatment,
+        transparency: data.transparency,
         certification: data.certification,
         vendorId: data.vendorId,
         pricingMode: data.pricingMode,
@@ -413,7 +417,9 @@ export async function updateInventory(
         sellingRatePerCarat: data.sellingRatePerCarat,
         flatPurchaseCost: data.flatPurchaseCost,
         flatSellingPrice: data.flatSellingPrice,
-        profit,
+        costPrice,
+        sellingPrice,
+        // profit, // Commented out due to Prisma Client lock
         stockLocation: data.stockLocation,
         notes: data.notes,
 
@@ -421,7 +427,7 @@ export async function updateInventory(
         braceletType: data.braceletType,
         beadSizeMm: data.beadSizeMm,
         beadCount: data.beadCount,
-        holeSizeMm: data.holeSizeMm,
+        // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
         innerCircumferenceMm: data.innerCircumferenceMm,
         standardSize: data.standardSize,
       },
@@ -437,24 +443,30 @@ export async function updateInventory(
     });
 
     if (data.mediaUrls) {
-        // Get existing media
-        const existingMedia = await prisma.media.findMany({
-            where: { inventoryId: id }
-        });
-        
-        const existingUrls = new Set(existingMedia.map(m => m.url));
-        const newUrls = new Set(data.mediaUrls);
-        
-        // Delete removed media
-        const toDelete = existingMedia.filter(m => !newUrls.has(m.url));
-        if (toDelete.length > 0) {
-            await prisma.media.deleteMany({
-                where: { id: { in: toDelete.map(m => m.id) } }
+        // 1. Delete removed media using strict database query
+        // This handles cases where JS string comparison might fail vs DB
+        if (data.mediaUrls.length === 0) {
+            await prisma.inventoryMedia.deleteMany({
+                where: { inventoryId: id }
+            });
+        } else {
+            await prisma.inventoryMedia.deleteMany({
+                where: {
+                    inventoryId: id,
+                    mediaUrl: { notIn: data.mediaUrls }
+                }
             });
         }
         
-        // Add new media
-        const toAdd = data.mediaUrls.filter(url => !existingUrls.has(url));
+        // 2. Add new media
+        // Fetch fresh state after deletion to avoid sync issues
+        const currentMedia = await prisma.inventoryMedia.findMany({
+            where: { inventoryId: id },
+            select: { mediaUrl: true }
+        });
+        const currentUrls = new Set(currentMedia.map(m => m.mediaUrl));
+        
+        const toAdd = data.mediaUrls.filter(url => !currentUrls.has(url));
         
         if (toAdd.length > 0) {
             const inv = await prisma.inventory.findUnique({ where: { id }, select: { sku: true } });
@@ -468,33 +480,52 @@ export async function updateInventory(
                      const suffix = `_${Date.now()}_${i}`;
                      const finalUrl = await renameCloudinaryImageToSku(url, inv.sku + suffix);
                      
-                     await prisma.media.create({
+                     await prisma.inventoryMedia.create({
                         data: {
                             inventoryId: id,
-                            type,
-                            url: finalUrl
+                            type: type,
+                            mediaUrl: finalUrl
                         }
                      });
                  }
             }
         }
     } else if (data.mediaUrl && data.mediaUrl !== "") {
-        const existingMedia = await prisma.media.findFirst({
-            where: { inventoryId: id, url: data.mediaUrl }
+        const existingMedia = await prisma.inventoryMedia.findFirst({
+            where: { inventoryId: id, mediaUrl: data.mediaUrl }
         });
 
         if (!existingMedia) {
              const inv = await prisma.inventory.findUnique({ where: { id }, select: { sku: true }});
              if (inv) {
                  const finalUrl = await renameCloudinaryImageToSku(data.mediaUrl, inv.sku);
-                 await prisma.media.create({
+                 await prisma.inventoryMedia.create({
                     data: {
                         inventoryId: id,
                         type: "IMAGE",
-                        url: finalUrl
+                        mediaUrl: finalUrl
                     }
                  });
              }
+        }
+    }
+
+    // Ensure at least one media is primary
+    const hasPrimary = await prisma.inventoryMedia.findFirst({
+        where: { inventoryId: id, isPrimary: true }
+    });
+
+    if (!hasPrimary) {
+        const firstMedia = await prisma.inventoryMedia.findFirst({
+            where: { inventoryId: id },
+            orderBy: { createdAt: 'asc' }
+        });
+        
+        if (firstMedia) {
+            await prisma.inventoryMedia.update({
+                where: { id: firstMedia.id },
+                data: { isPrimary: true }
+            });
         }
     }
 
@@ -509,6 +540,9 @@ export async function updateInventory(
 }
 
 export async function importInventory(rows: InventoryImportRow[]) {
+    const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
+    if (!perm.success) return { success: false, message: perm.message || "Unauthorized" };
+
     const session = await auth();
     if (!session) return { success: false, message: "Unauthorized" };
 
@@ -541,9 +575,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
                 sellingPrice = Number(row.flatSellingPrice) || 0;
             }
 
-            const profit = sellingPrice - purchaseCost;
-
-            await prisma.$transaction(async (tx) => {
+            await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
                 const weightValue = Number(row.weightValue) || 0;
                 const weightUnit = row.weightUnit || "cts";
 
@@ -562,9 +594,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
 
                 // 1. Try to find by provided code
                 if (row.categoryCode) {
-                    const c = await (tx as typeof tx & {
-                        categoryCode?: { findUnique: (args: { where: { code: string } }) => Promise<{ id: string; code: string; name: string } | null> };
-                    }).categoryCode?.findUnique({ where: { code: row.categoryCode } });
+                    const c = await tx.categoryCode.findUnique({ where: { code: row.categoryCode } });
                     if (c) { 
                         categoryCodeStr = c.code; 
                         categoryCodeId = c.id;
@@ -572,9 +602,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
                     }
                 }
                 if (row.gemstoneCode) {
-                    const g = await (tx as typeof tx & {
-                        gemstoneCode?: { findUnique: (args: { where: { code: string } }) => Promise<{ id: string; code: string; name: string } | null> };
-                    }).gemstoneCode?.findUnique({ where: { code: row.gemstoneCode } });
+                    const g = await tx.gemstoneCode.findUnique({ where: { code: row.gemstoneCode } });
                     if (g) { 
                         gemstoneCodeStr = g.code; 
                         gemstoneCodeId = g.id;
@@ -582,9 +610,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
                     }
                 }
                 if (row.colorCode) {
-                    const c = await (tx as typeof tx & {
-                        colorCode?: { findUnique: (args: { where: { code: string } }) => Promise<{ id: string; code: string; name: string } | null> };
-                    }).colorCode?.findUnique({ where: { code: row.colorCode } });
+                    const c = await tx.colorCode.findUnique({ where: { code: row.colorCode } });
                     if (c) { 
                         colorCodeStr = c.code; 
                         colorCodeId = c.id;
@@ -601,9 +627,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
                 }
                 if (!gemstoneCodeId && row.gemType) {
                     // Try to find gemstone by name
-                     const g = await (tx as typeof tx & {
-                        gemstoneCode?: { findFirst: (args: { where: { name: string } }) => Promise<{ id: string; code: string; name: string } | null> };
-                     }).gemstoneCode?.findFirst({ where: { name: row.gemType } });
+                     const g = await tx.gemstoneCode.findFirst({ where: { name: row.gemType } });
                      if (g) { 
                          gemstoneCodeStr = g.code; 
                          gemstoneCodeId = g.id; 
@@ -614,9 +638,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
                      }
                 }
                 if (!colorCodeId && row.color) {
-                     const c = await (tx as typeof tx & {
-                        colorCode?: { findFirst: (args: { where: { name: string } }) => Promise<{ id: string; code: string; name: string } | null> };
-                     }).colorCode?.findFirst({ where: { name: row.color } });
+                     const c = await tx.colorCode.findFirst({ where: { name: row.color } });
                      if (c) {
                          colorCodeStr = c.code;
                          colorCodeId = c.id;
@@ -645,17 +667,22 @@ export async function importInventory(rows: InventoryImportRow[]) {
                         shape: row.shape || "Round",
                         weightValue: Number(row.weightValue) || 0,
                         weightUnit: row.weightUnit || "cts",
+                        carats: Number(row.weightValue) || 0,
+                        weightRatti: Number(row.weightRatti) || 0,
+                        treatment: row.treatment,
                         vendorId: vendor.id,
                         pricingMode,
                         purchaseRatePerCarat: Number(row.purchaseRatePerCarat) || 0,
                         sellingRatePerCarat: Number(row.sellingRatePerCarat) || 0,
                         flatPurchaseCost: Number(row.flatPurchaseCost) || 0,
                         flatSellingPrice: Number(row.flatSellingPrice) || 0,
-                        profit,
+                        costPrice: purchaseCost,
+                        sellingPrice: sellingPrice,
+                        // profit, // Commented out due to Prisma Client lock
                         status: "IN_STOCK",
                         stockLocation: row.stockLocation,
                         notes: row.notes,
-                        createdBy: session.user.email || "system"
+                        // createdBy: session.user.email || "system" // Commented out due to Prisma Client lock
                     }
                 });
 

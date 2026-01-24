@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkPermission } from "@/lib/permission-guard";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity-logger";
 import { LandingPageSettings, LandingPageSlide } from "@prisma/client";
@@ -58,8 +59,11 @@ export async function saveLandingPageSettings(data: {
     isActive: boolean;
   }[];
 }) {
+  const perm = await checkPermission(PERMISSIONS.LANDING_PAGE_MANAGE);
+  if (!perm.success) return { success: false, message: perm.message };
+
   const session = await auth();
-  if (!session?.user || !hasPermission(session.user.role, PERMISSIONS.MANAGE_LANDING_PAGE)) {
+  if (!session?.user) {
     return { success: false, message: "Unauthorized" };
   }
 
@@ -150,7 +154,7 @@ export async function saveLandingPageSettings(data: {
 
 export async function getVersions() {
   const session = await auth();
-  if (!session?.user || !hasPermission(session.user.role, PERMISSIONS.MANAGE_LANDING_PAGE)) {
+  if (!session?.user || !hasPermission(session.user.role, PERMISSIONS.LANDING_PAGE_MANAGE)) {
     return [];
   }
   
@@ -162,7 +166,7 @@ export async function getVersions() {
 
 export async function rollbackVersion(versionId: string) {
     const session = await auth();
-    if (!session?.user || !hasPermission(session.user.role, PERMISSIONS.MANAGE_LANDING_PAGE)) {
+    if (!session?.user || !hasPermission(session.user.role, PERMISSIONS.LANDING_PAGE_MANAGE)) {
         return { success: false, message: "Unauthorized" };
     }
 

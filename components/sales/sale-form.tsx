@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { createSale } from "@/app/(dashboard)/sales/actions";
-import { Inventory } from "@prisma/client";
+import { Inventory } from "@prisma/client-custom-v2";
 import { useSearchParams } from "next/navigation";
 
 const formSchema = z.object({
@@ -63,13 +63,23 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface SaleFormProps {
-  inventoryItems: Inventory[];
+interface ExistingCustomer {
+  id: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  city?: string | null;
 }
 
-export function SaleForm({ inventoryItems }: SaleFormProps) {
+interface SaleFormProps {
+  inventoryItems: Inventory[];
+  existingCustomers?: ExistingCustomer[];
+}
+
+export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormProps) {
   const [isPending, setIsPending] = useState(false);
   const [open, setOpen] = useState(false);
+  const [customerOpen, setCustomerOpen] = useState(false);
   const searchParams = useSearchParams();
   
   const preSelectedInventoryId = searchParams.get("inventoryId");
@@ -106,7 +116,7 @@ export function SaleForm({ inventoryItems }: SaleFormProps) {
         if (item) {
             let price = 0;
             if (item.pricingMode === "PER_CARAT") {
-                price = (item.sellingRatePerCarat || 0) * item.weightValue;
+                price = (item.sellingRatePerCarat || 0) * (item.weightValue || 0);
             } else {
                 price = item.flatSellingPrice || 0;
             }
@@ -314,7 +324,7 @@ export function SaleForm({ inventoryItems }: SaleFormProps) {
             </div>
 
             {activeListings.length > 0 && (
-              <div className="border rounded-md p-3 bg-yellow-50 text-sm space-y-2">
+              <div className="border rounded-md p-3 bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-100 border-amber-200 dark:border-amber-800 text-sm space-y-2">
                 <div className="font-semibold">
                   This item is currently listed on other platforms:
                 </div>
@@ -413,6 +423,62 @@ export function SaleForm({ inventoryItems }: SaleFormProps) {
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Customer & Shipping</h3>
             
+              <FormItem>
+                <FormLabel>Existing Customer</FormLabel>
+                <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between"
+                    >
+                      {(() => {
+                        const name = form.getValues("customerName");
+                        const phone = form.getValues("customerPhone");
+                        if (!name) {
+                          return "Select existing customer";
+                        }
+                        const displayPhone = phone ? ` | ${phone}` : "";
+                        return `${name}${displayPhone}`;
+                      })()}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Search customer..." />
+                      <CommandList>
+                        <CommandEmpty>No customer found.</CommandEmpty>
+                        <CommandGroup className="max-h-[300px] overflow-auto">
+                          {existingCustomers.map((customer) => (
+                            <CommandItem
+                              key={customer.id}
+                              value={`${customer.name} ${customer.phone || ""} ${customer.email || ""}`}
+                              onSelect={() => {
+                                form.setValue("customerName", customer.name);
+                                form.setValue("customerPhone", customer.phone || "");
+                                form.setValue("customerEmail", customer.email || "");
+                                form.setValue("customerCity", customer.city || "");
+                                setCustomerOpen(false);
+                              }}
+                            >
+                              <div className="flex flex-col">
+                                <span>{customer.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {customer.phone || ""}
+                                  {customer.phone && customer.email ? " · " : ""}
+                                  {customer.email || ""}
+                                </span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </FormItem>
+
             <FormField
               control={form.control}
               name="customerName"

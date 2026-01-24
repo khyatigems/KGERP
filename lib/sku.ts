@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client-custom-v2";
 
 export function formatCaratWeight(weightValue: number, weightUnit: string) {
   let carat = weightValue;
