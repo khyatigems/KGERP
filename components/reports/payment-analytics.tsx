@@ -86,7 +86,7 @@ export function PaymentAnalytics({ data }: { data: PaymentData }) {
                   <XAxis dataKey="month" fontSize={12} />
                   <YAxis fontSize={12} tickFormatter={(value) => `₹${value/1000}k`} />
                   <Tooltip 
-                    formatter={(value: number) => formatCurrency(value)}
+                    formatter={(value: number | undefined) => formatCurrency(Number(value) || 0)}
                     labelStyle={{ color: 'black' }}
                   />
                   <Bar dataKey="amount" fill="#3b82f6" name="Received" radius={[4, 4, 0, 0]} />
@@ -118,7 +118,7 @@ export function PaymentAnalytics({ data }: { data: PaymentData }) {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                  <Tooltip formatter={(value: number | string | Array<number | string> | undefined) => formatCurrency(Number(value) || 0)} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
