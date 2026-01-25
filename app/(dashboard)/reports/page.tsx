@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Package, TrendingUp, Truck, PieChart, FileText, FileCheck, Printer, Lock } from "lucide-react";
+import { Package, TrendingUp, Truck, PieChart, FileText, FileCheck, Printer, Lock, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
