@@ -339,7 +339,8 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   }
 
   revalidatePath("/inventory");
-  redirect("/inventory");
+  // redirect("/inventory");
+  return { success: true, message: "Inventory created successfully" };
 }
 
 export async function updateInventory(

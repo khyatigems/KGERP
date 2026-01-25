@@ -312,7 +312,19 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
             result = await createInventory(null, formData);
         }
         
-        if (result && (result.message || result.errors)) {
+        if (result?.success) {
+             setSubmitResult({
+                 success: true,
+                 message: result.message || (initialData ? "Inventory updated successfully!" : "Inventory created successfully!")
+             });
+             if (!initialData) {
+                 form.reset();
+                 setSkuPreview("");
+             }
+             setTimeout(() => {
+                 router.push("/inventory");
+             }, 1000);
+        } else if (result && (result.message || result.errors)) {
              let errorMsg = result.message || "Validation failed.";
              if (result.errors) {
                 const errorEntries = Object.entries(result.errors);
@@ -328,20 +340,6 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
              if (result.errors) {
                  console.error("Form errors:", result.errors);
              }
-        } else {
-             setSubmitResult({
-                 success: true,
-                 message: initialData ? "Inventory updated successfully!" : "Inventory created successfully!"
-             });
-             // Optional: reset form if create
-             if (!initialData) {
-                 form.reset();
-                 setSkuPreview("");
-             }
-             // Redirect after short delay
-             setTimeout(() => {
-                 router.push("/inventory");
-             }, 1000);
         }
 
     } catch (error) {
