@@ -47,7 +47,7 @@ export async function GET() {
         prisma.invoice.count().catch(e => { console.error("KPI Fail: Invoices", e); return 0; }),
         prisma.labelCartItem.count().catch(e => { console.error("KPI Fail: LabelCart", e); return 0; }),
         prisma.labelCartItem.findFirst({
-            orderBy: { createdAt: 'desc' },
+            orderBy: { addedAt: 'desc' },
             include: { inventory: { select: { sku: true, itemName: true } } }
         }).catch(e => { console.error("KPI Fail: LastLabel", e); return null; }),
         prisma.sale.findMany({
