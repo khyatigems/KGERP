@@ -195,10 +195,6 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
       const monthlySpendMap = new Map<string, { spend: number; count: number }>();
       const vendorSpendMap = new Map<string, { spend: number; count: number }>();
       const activeVendorsSet = new Set<string>();
-
-      // Initialize last 6 months for chart consistency if needed, 
-      // but for filtered data, we might just show what's available or map to the date range.
-      // Let's just map available data for simplicity and accuracy of the filter.
       
       items.forEach((item: any) => {
          const monthKey = format(new Date(item.date), "MMM yyyy");
@@ -217,16 +213,8 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
          });
       });
 
-      // Sort months chronologically? 
-      // We need a way to sort. Simple string sort might fail for "Jan 2026" vs "Dec 2025".
-      // Let's rely on the input order if it's sorted, or sort by date parsing.
       const monthlySpend = Array.from(monthlySpendMap.entries())
         .map(([month, data]) => ({ month, ...data }))
-        // Sort by parsing month string is tricky without reference year if range is wide.
-        // Assuming typical usage, we can leave as is or basic sort.
-        // For better UX, we could just sort by the date key if we stored it.
-        // Let's keep it simple: Map insertion order usually follows iteration order.
-        // Since input items are sorted by date (desc/asc), we might need to reverse for chart.
         .reverse(); 
 
       return {
@@ -373,16 +361,25 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
                           <TableHead>SKU</TableHead>
                           <TableHead>Item Name</TableHead>
                           <TableHead>Category</TableHead>
+                          <TableHead>Shape</TableHead>
+                          <TableHead>Color</TableHead>
                           <TableHead>Weight</TableHead>
-                          <TableHead>Cost Price</TableHead>
+                          <TableHead>Purchase Rate</TableHead>
+                          <TableHead>Purchase Amount</TableHead>
+                          <TableHead>Selling Rate</TableHead>
+                          <TableHead>Selling Amount</TableHead>
+                          <TableHead>Status</TableHead>
                         </>
                       ) : (
                         <>
                           <TableHead>Date</TableHead>
                           <TableHead>Invoice No</TableHead>
-                          <TableHead>Item</TableHead>
-                          <TableHead>Weight</TableHead>
+                          <TableHead>Item Name</TableHead>
+                          <TableHead>Quantity/Weight</TableHead>
+                          <TableHead>Rate</TableHead>
+                          <TableHead>Pricing Mode</TableHead>
                           <TableHead>Total Amount</TableHead>
+                          <TableHead>Remarks</TableHead>
                         </>
                       )}
                       {selectedVendors.length > 1 && <TableHead>Vendor</TableHead>}
@@ -396,16 +393,25 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
                             <TableCell className="font-mono">{item.sku}</TableCell>
                             <TableCell>{item.itemName}</TableCell>
                             <TableCell>{item.category}</TableCell>
-                            <TableCell>{item.weightValue} {item.weightUnit}</TableCell>
-                            <TableCell>{formatCurrency(item.costPrice)}</TableCell>
+                            <TableCell>{item.shape || "-"}</TableCell>
+                            <TableCell>{item.color || "-"}</TableCell>
+                            <TableCell>{item.weightValue || 0} {item.weightUnit || ""}</TableCell>
+                            <TableCell>{formatCurrency(item.purchaseRatePerCarat || item.flatPurchaseCost || 0)}</TableCell>
+                            <TableCell>{formatCurrency(item.costPrice || 0)}</TableCell>
+                            <TableCell>{formatCurrency(item.sellingRatePerCarat || item.flatSellingPrice || 0)}</TableCell>
+                            <TableCell>{formatCurrency(item.sellingPrice || 0)}</TableCell>
+                            <TableCell><Badge variant="outline">{item.status}</Badge></TableCell>
                           </>
                         ) : (
                           <>
                             <TableCell>{format(new Date(item.date), "dd MMM yyyy")}</TableCell>
                             <TableCell>{item.invoiceNo}</TableCell>
                             <TableCell>{item.itemName}</TableCell>
-                            <TableCell>{item.weight}</TableCell>
+                            <TableCell>{item.weight || item.quantity || 0} {item.weightUnit || ""}</TableCell>
+                            <TableCell>{formatCurrency(item.purchasePrice || 0)}</TableCell>
+                            <TableCell>{item.pricingMode || "-"}</TableCell>
                             <TableCell>{formatCurrency(item.totalAmount)}</TableCell>
+                            <TableCell>{item.notes || "-"}</TableCell>
                           </>
                         )}
                         {selectedVendors.length > 1 && <TableCell>{item.vendorName}</TableCell>}

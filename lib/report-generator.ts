@@ -14,28 +14,33 @@ interface ReportSummary {
 interface InventoryReportItem {
   sku: string;
   itemName: string;
-  carats: number;
-  weightRatti?: string | null;
+  internalName?: string | null;
+  category: string;
+  collection?: string | null;
+  shape?: string | null;
   color?: string | null;
-  costPrice: number;
-  sellingPrice: number;
-  status: string;
-  location?: string | null;
-  dimensions?: string | null;
-  dimensionsMm?: string | null;
   vendorName?: string | null;
+  carats: number;
+  weightRatti?: number | null;
+  purchasePricingMode?: string | null;
+  purchaseRate?: number | null;
+  sellingRate?: number | null;
+  costPrice: number; // Total Purchase Amount
+  sellingPrice: number; // Total Selling Amount
+  status: string;
 }
 
 interface PurchaseReportItem {
   date: Date | string;
-  invoiceNo: string;
-  itemName: string;
-  weight: number;
-  shape?: string | null;
-  category: string;
-  purchasePrice: number;
-  totalAmount: number;
   vendorName?: string | null;
+  itemName: string;
+  invoiceNo?: string | null;
+  weight: number;
+  weightUnit?: string | null;
+  purchaseRate: number;
+  pricingMode?: string | null;
+  totalAmount: number;
+  notes?: string | null;
 }
 
 type ReportItem = InventoryReportItem | PurchaseReportItem;
@@ -53,7 +58,7 @@ interface ReportOptions {
 // --- Helper Functions ---
 
 const getReportTitle = (type: string) => {
-  return type === "inventory" ? "Vendor Inventory Level Report" : "Vendor Purchase Point Report";
+  return type === "inventory" ? "Vendor Inventory Report" : "Vendor Purchase Report";
 };
 
 const getDateRangeString = (range?: { from?: Date; to?: Date }) => {
@@ -66,7 +71,7 @@ const getDateRangeString = (range?: { from?: Date; to?: Date }) => {
 // --- PDF Generator ---
 
 export const generatePDF = (options: ReportOptions) => {
-  const doc = new jsPDF();
+  const doc = new jsPDF("l"); // Landscape for more columns
   const { reportType, vendorName, showVendorColumn, dateRange, items, summaryMetrics } = options;
   const title = getReportTitle(reportType);
   const dateStr = getDateRangeString(dateRange);
@@ -82,7 +87,7 @@ export const generatePDF = (options: ReportOptions) => {
   doc.text("Excellence in Gemstones", 14, 25);
 
   doc.setDrawColor(200, 200, 200);
-  doc.line(14, 30, 196, 30);
+  doc.line(14, 30, 280, 30); // Wider line for landscape
 
   // 2. Report Info
   doc.setFontSize(16);
@@ -98,7 +103,7 @@ export const generatePDF = (options: ReportOptions) => {
   // 3. Executive Summary (Box)
   const startY = 70;
   const boxHeight = 25;
-  const boxWidth = 182;
+  const boxWidth = 266; // Wider for landscape
   
   doc.setFillColor(245, 247, 250);
   doc.setDrawColor(220, 220, 220);
@@ -120,7 +125,7 @@ export const generatePDF = (options: ReportOptions) => {
     doc.text(String(metric.value), metricX, startY + 21);
     doc.setFont("helvetica", "normal");
     
-    metricX += 50;
+    metricX += 60; // More spacing
   });
 
   // 4. Data Table
@@ -128,16 +133,24 @@ export const generatePDF = (options: ReportOptions) => {
   let rows: (string | number)[][] = [];
 
   if (reportType === "inventory") {
-    columns = ["SKU", "Item Name", "Carats", "Ratti", "Color", "Cost", "Sell", "Status"];
+    columns = [
+      "SKU", "Item Name", "Category", "Shape", "Color", 
+      "Weight (Ct)", "Pur. Rate", "Sell Rate", 
+      "Total Pur.", "Total Sell", "Status"
+    ];
+    // Optional internal name if space permits or needed, but kept compact for PDF
     if (showVendorColumn) columns.unshift("Vendor");
 
     rows = (items as InventoryReportItem[]).map(item => {
       const row: (string | number)[] = [
         item.sku,
         item.itemName,
-        item.carats,
-        item.weightRatti || "-",
+        item.category,
+        item.shape || "-",
         item.color || "-",
+        item.carats.toFixed(2),
+        formatCurrency(item.purchaseRate || 0),
+        formatCurrency(item.sellingRate || 0),
         formatCurrency(item.costPrice),
         formatCurrency(item.sellingPrice),
         item.status
@@ -146,19 +159,23 @@ export const generatePDF = (options: ReportOptions) => {
       return row;
     });
   } else {
-    columns = ["Date", "Invoice #", "Item Name", "Weight", "Shape", "Category", "Cost", "Total"];
+    columns = [
+      "Date", "Bill No", "Item Name", "Weight", "Unit", 
+      "Rate", "Mode", "Total Amount", "Notes"
+    ];
     if (showVendorColumn) columns.unshift("Vendor");
 
     rows = (items as PurchaseReportItem[]).map(item => {
       const row: (string | number)[] = [
         format(new Date(item.date), "dd/MM/yyyy"),
-        item.invoiceNo,
+        item.invoiceNo || "-",
         item.itemName,
-        item.weight,
-        item.shape || "-",
-        item.category,
-        formatCurrency(item.purchasePrice),
-        formatCurrency(item.totalAmount)
+        item.weight.toFixed(2),
+        item.weightUnit || "-",
+        formatCurrency(item.purchaseRate),
+        item.pricingMode || "-",
+        formatCurrency(item.totalAmount),
+        item.notes || "-"
       ];
       if (showVendorColumn) row.unshift(item.vendorName || "-");
       return row;
@@ -171,21 +188,20 @@ export const generatePDF = (options: ReportOptions) => {
     body: rows,
     theme: 'grid',
     headStyles: {
-      fillColor: [41, 37, 36], // Dark gray/black
+      fillColor: [41, 37, 36],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
     },
     styles: {
       fontSize: 8,
-      cellPadding: 3,
+      cellPadding: 2,
     },
     alternateRowStyles: {
       fillColor: [250, 250, 250],
     },
     didDrawPage: (data) => {
-      // Footer
-      const pageCount = doc.getNumberOfPages(); // Use getNumberOfPages() instead of internal.pages.length - 1
-      const pageCurrent = data.pageNumber; // data.pageNumber is 1-based index
+      const pageCount = doc.getNumberOfPages();
+      const pageCurrent = data.pageNumber;
       
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
@@ -225,53 +241,63 @@ export const generateExcel = (options: ReportOptions) => {
   ];
 
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-  
-  // Basic Styling for Summary (Column Widths)
-  wsSummary['!cols'] = [{ wch: 20 }, { wch: 40 }];
-  
+  wsSummary['!cols'] = [{ wch: 25 }, { wch: 40 }];
   XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
 
   // --- Sheet 2: Detailed Data ---
   const dataRows: (string | number)[][] = [];
   
   if (reportType === "inventory") {
-    // Header Row
-    const headers = ["SKU", "Item Name", "Carats", "Ratti", "Color", "Cost Price", "Selling Price", "Status", "Location", "Dimensions"];
+    // Full Mandatory Columns
+    const headers = [
+      "SKU", "Item Name", "Internal Name", "Category", "Collection", 
+      "Shape", "Color", "Weight (Ct)", "Weight (Ratti)", 
+      "Pur. Mode", "Pur. Rate", "Sell Rate", 
+      "Total Purchase Amt", "Total Sell Amt", "Status"
+    ];
     if (showVendorColumn) headers.unshift("Vendor");
     dataRows.push(headers);
 
-    // Data Rows
     (items as InventoryReportItem[]).forEach(item => {
       const row: (string | number)[] = [
         item.sku,
         item.itemName,
+        item.internalName || "-",
+        item.category,
+        item.collection || "-",
+        item.shape || "-",
+        item.color || "-",
         item.carats,
         item.weightRatti || "-",
-        item.color || "-",
-        item.costPrice, // Keep as number for Excel math
+        item.purchasePricingMode || "-",
+        item.purchaseRate || 0,
+        item.sellingRate || 0,
+        item.costPrice,
         item.sellingPrice,
-        item.status,
-        item.location || "-",
-        item.dimensions || item.dimensionsMm || "-"
+        item.status
       ];
       if (showVendorColumn) row.unshift(item.vendorName || "-");
       dataRows.push(row);
     });
   } else {
-    const headers = ["Date", "Invoice #", "Item Name", "Weight", "Shape", "Category", "Cost Price", "Total Amount"];
+    const headers = [
+      "Date", "Invoice / Bill No", "Item Name", "Quantity / Weight", "Unit", 
+      "Purchase Rate", "Pricing Mode", "Total Purchase Amount", "Remarks / Notes"
+    ];
     if (showVendorColumn) headers.unshift("Vendor");
     dataRows.push(headers);
 
     (items as PurchaseReportItem[]).forEach(item => {
       const row: (string | number)[] = [
-        format(new Date(item.date), "yyyy-MM-dd"), // ISO format for Excel dates
-        item.invoiceNo,
+        format(new Date(item.date), "yyyy-MM-dd"),
+        item.invoiceNo || "-",
         item.itemName,
         item.weight,
-        item.shape || "-",
-        item.category,
-        item.purchasePrice,
-        item.totalAmount
+        item.weightUnit || "-",
+        item.purchaseRate,
+        item.pricingMode || "-",
+        item.totalAmount,
+        item.notes || "-"
       ];
       if (showVendorColumn) row.unshift(item.vendorName || "-");
       dataRows.push(row);
@@ -279,7 +305,6 @@ export const generateExcel = (options: ReportOptions) => {
   }
 
   const wsData = XLSX.utils.aoa_to_sheet(dataRows);
-  
   XLSX.utils.book_append_sheet(wb, wsData, "Detailed Data");
 
   // Save

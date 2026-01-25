@@ -32,15 +32,15 @@ export default async function ReportsHubPage() {
             allowed: true 
         },
         {
-            title: "Purchase Reports",
-            description: "Purchase orders, history, and vendor analytics",
+            title: "Vendor Purchase Report",
+            description: "Purchase history, vendor billing, and negotiations",
             icon: ShoppingBag,
             href: "/reports/vendor?type=purchase&vendorId=all",
             allowed: canViewVendor
         },
         {
-            title: "Vendor Reports",
-            description: "Inventory Levels, Purchase History & Analytics",
+            title: "Vendor Inventory Report",
+            description: "Vendor stock exposure, valuation, and aging",
             icon: Truck,
             href: "/reports/vendor?type=inventory&vendorId=all",
             allowed: canViewVendor

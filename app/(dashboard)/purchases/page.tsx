@@ -21,6 +21,25 @@ export const metadata: Metadata = {
   title: "Purchases | KhyatiGems™",
 };
 
+async function getPurchases() {
+  try {
+    return await prisma.purchase.findMany({
+      orderBy: {
+        purchaseDate: "desc",
+      },
+      include: {
+        purchaseItems: true,
+        vendor: {
+          select: { name: true }
+        }
+      },
+    });
+  } catch (error) {
+    console.error("Error loading purchases:", error);
+    throw error;
+  }
+}
+
 export default async function PurchasesPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -30,17 +49,25 @@ export default async function PurchasesPage() {
      redirect("/");
   }
 
-  const purchases = await prisma.purchase.findMany({
-    orderBy: {
-      purchaseDate: "desc",
-    },
-    include: {
-      purchaseItems: true,
-      vendor: {
-        select: { name: true }
-      }
-    },
-  });
+  let purchases;
+  let error;
+
+  try {
+    purchases = await getPurchases();
+  } catch (e) {
+    error = e;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center">
+        <h3 className="text-lg font-medium text-destructive">Failed to load purchases</h3>
+        <p className="text-sm text-muted-foreground mt-2">
+          {error instanceof Error ? error.message : "An unexpected error occurred"}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -75,7 +102,7 @@ export default async function PurchasesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {purchases.length === 0 ? (
+            {!purchases || purchases.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">
                   No purchases found.
@@ -83,14 +110,32 @@ export default async function PurchasesPage() {
               </TableRow>
             ) : (
               purchases.map((purchase) => {
-                const totalCost = purchase.totalAmount || purchase.purchaseItems.reduce((sum, item) => sum + item.totalCost, 0);
+                const totalCost = purchase.totalAmount || (purchase.purchaseItems || []).reduce((sum, item) => sum + (item.totalCost || 0), 0);
+                
+                // Safe formatting helpers
+                const displayDate = (() => {
+                  try {
+                    return purchase.purchaseDate ? formatDate(purchase.purchaseDate) : "-";
+                  } catch (e) {
+                    return "-";
+                  }
+                })();
+
+                const displayCost = (() => {
+                  try {
+                    return formatCurrency(totalCost || 0);
+                  } catch (e) {
+                    return "₹0.00";
+                  }
+                })();
+
                 return (
                   <TableRow key={purchase.id}>
-                    <TableCell>{formatDate(purchase.purchaseDate)}</TableCell>
+                    <TableCell>{displayDate}</TableCell>
                     <TableCell className="font-medium">{purchase.invoiceNo || "-"}</TableCell>
-                    <TableCell>{purchase.vendor?.name}</TableCell>
-                    <TableCell>{purchase.purchaseItems.length}</TableCell>
-                    <TableCell>{formatCurrency(totalCost)}</TableCell>
+                    <TableCell>{purchase.vendor?.name || "-"}</TableCell>
+                    <TableCell>{purchase.purchaseItems?.length || 0}</TableCell>
+                    <TableCell>{displayCost}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{purchase.paymentStatus || "PENDING"}</Badge>
                     </TableCell>

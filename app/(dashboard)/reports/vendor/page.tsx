@@ -178,6 +178,9 @@ export default async function VendorReportPage({
           ...(isAll ? {} : { vendorId: { in: vendorIds } }),
           status: { in: ["IN_STOCK", "MEMO"] }
         },
+        include: {
+            collectionCode: { select: { name: true } }
+        },
         orderBy: { createdAt: "desc" },
       });
 
@@ -185,7 +188,12 @@ export default async function VendorReportPage({
         vendorName: vendorLabel,
         items: items.map(i => ({
             ...i,
-            vendorName: i.vendorId ? vendorMap.get(i.vendorId) || "Unknown" : "-"
+            vendorName: i.vendorId ? vendorMap.get(i.vendorId) || "Unknown" : "-",
+            collection: i.collectionCode?.name || i.collectionCodeId || "-",
+            // Map mandatory fields for report generator
+            purchasePricingMode: i.pricingMode, // Assuming pricingMode covers purchase logic or default
+            purchaseRate: i.purchaseRatePerCarat || i.flatPurchaseCost || 0,
+            sellingRate: i.sellingRatePerCarat || i.flatSellingPrice || 0,
         })),
         summary: {
           totalItems: items.length,
@@ -218,10 +226,13 @@ export default async function VendorReportPage({
           vendorName: p.vendor?.name || "Unknown",
           itemName: i.itemName,
           weight: i.weightValue,
+          weightUnit: i.weightUnit,
           shape: i.shape,
           category: i.category,
-          purchasePrice: i.totalCost,
+          purchaseRate: i.unitCost, 
+          pricingMode: "N/A", // Not stored in PurchaseItem, placeholder
           totalAmount: i.totalCost,
+          notes: i.notes
         }))
       );
 
