@@ -88,6 +88,12 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
     } else {
         setSelectedVendors([]);
     }
+    
+    // Also sync report type if changed externally (e.g. via Link)
+    const typeParam = searchParams.get("type");
+    if (typeParam) {
+        setReportType(typeParam);
+    }
   }, [searchParams, vendors]);
 
   const toggleVendor = (vendorId: string) => {
@@ -104,6 +110,16 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
     } else {
         setSelectedVendors(vendors.map(v => v.id));
     }
+  };
+
+  const handleTabChange = (value: string) => {
+    setReportType(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("type", value);
+    // If vendors are selected but not applied, should we apply them?
+    // Let's assume the user wants to see the current report type for the APPLIED vendors.
+    // If they want to change vendors, they should use Apply Filters.
+    router.push(`/reports/vendor?${params.toString()}`);
   };
 
   // Update URL when filters change
@@ -171,6 +187,10 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
       setIsExporting(false);
     }
   };
+
+  // Condition to show report: reportData must exist.
+  // If no reportData (i.e. no vendorId in URL), show Overview.
+  const showReport = !!reportData;
 
   return (
     <div className="space-y-6">
@@ -244,16 +264,22 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
       </div>
 
       {/* Main Content */}
-      {selectedVendors.length === 0 ? (
+      {!showReport ? (
         <div className="space-y-6">
-           <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md">
-             Please select one or more vendors from the dropdown above to view detailed inventory and purchase reports.
-           </div>
+           {selectedVendors.length === 0 ? (
+                <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md">
+                    Please select one or more vendors from the dropdown above and click "Apply Filters" to view detailed inventory and purchase reports.
+                </div>
+           ) : (
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md">
+                    Click "Apply Filters" to view the report for {selectedVendors.length} selected vendors.
+                </div>
+           )}
            <VendorAnalytics data={overviewData} />
         </div>
       ) : (
         <div className="space-y-6">
-          <Tabs value={reportType} onValueChange={setReportType} className="w-full">
+          <Tabs value={reportType} onValueChange={handleTabChange} className="w-full">
             <div className="flex justify-between items-center mb-4">
               <TabsList>
                 <TabsTrigger value="inventory">Inventory Level</TabsTrigger>
@@ -287,11 +313,11 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
                     </Card>
                     <Card>
                       <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Carats</CardTitle></CardHeader>
-                      <CardContent><div className="text-2xl font-bold">{reportData.summary.totalCarats.toFixed(2)}</div></CardContent>
+                      <CardContent><div className="text-2xl font-bold">{reportData.summary.totalCarats?.toFixed(2) || "0.00"}</div></CardContent>
                     </Card>
                     <Card>
                       <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Stock Value</CardTitle></CardHeader>
-                      <CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(reportData.summary.totalValue)}</div></CardContent>
+                      <CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(reportData.summary.totalValue || 0)}</div></CardContent>
                     </Card>
                   </div>
 
@@ -343,43 +369,36 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
                     </Card>
                   </div>
 
-                  {/* Inventory Table */}
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Vendor</TableHead>
-                          <TableHead>SKU</TableHead>
-                          <TableHead>Item Name</TableHead>
-                          <TableHead>Weight (Ct)</TableHead>
-                          <TableHead>Weight (Ratti)</TableHead>
-                          <TableHead>Color</TableHead>
-                          <TableHead>Cost Price</TableHead>
-                          <TableHead>Selling Price</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {reportData.items.length === 0 ? (
-                          <TableRow><TableCell colSpan={9} className="text-center">No inventory items found.</TableCell></TableRow>
-                        ) : (
-                          reportData.items.map((item: any) => (
+                  {/* Detailed Table */}
+                  <Card>
+                    <CardHeader><CardTitle>Detailed Inventory</CardTitle></CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>SKU</TableHead>
+                            <TableHead>Item Name</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead>Weight</TableHead>
+                            <TableHead>Cost Price</TableHead>
+                            {selectedVendors.length > 1 && <TableHead>Vendor</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {reportData.items.map((item: any) => (
                             <TableRow key={item.id}>
-                              <TableCell>{item.vendorName}</TableCell>
-                              <TableCell className="font-medium">{item.sku}</TableCell>
+                              <TableCell className="font-mono">{item.sku}</TableCell>
                               <TableCell>{item.itemName}</TableCell>
-                              <TableCell>{item.carats}</TableCell>
-                              <TableCell>{item.weightRatti || "-"}</TableCell>
-                              <TableCell>{item.color || "-"}</TableCell>
+                              <TableCell>{item.category}</TableCell>
+                              <TableCell>{item.weightValue} {item.weightUnit}</TableCell>
                               <TableCell>{formatCurrency(item.costPrice)}</TableCell>
-                              <TableCell>{formatCurrency(item.sellingPrice)}</TableCell>
-                              <TableCell>{item.status}</TableCell>
+                              {selectedVendors.length > 1 && <TableCell>{item.vendorName}</TableCell>}
                             </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
                 </>
               )}
             </TabsContent>
@@ -387,71 +406,66 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
             <TabsContent value="purchase" className="space-y-4">
                {reportData && (
                 <>
-                   {/* Purchase Summary Cards */}
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Purchase Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card>
-                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Purchases</CardTitle></CardHeader>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Invoices</CardTitle></CardHeader>
                       <CardContent><div className="text-2xl font-bold">{reportData.summary.totalCount}</div></CardContent>
                     </Card>
                     <Card>
-                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Spent</CardTitle></CardHeader>
-                      <CardContent><div className="text-2xl font-bold text-red-600">{formatCurrency(reportData.summary.totalAmount)}</div></CardContent>
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Amount</CardTitle></CardHeader>
+                      <CardContent><div className="text-2xl font-bold text-blue-600">{formatCurrency(reportData.summary.totalAmount)}</div></CardContent>
                     </Card>
                   </div>
 
                   {/* Purchase Charts */}
-                  <Card>
-                      <CardHeader><CardTitle>Purchase Trend (Selected Period)</CardTitle></CardHeader>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <Card>
+                      <CardHeader><CardTitle>Purchase Trend</CardTitle></CardHeader>
                       <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={getPurchaseCharts(reportData.items)}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="name" />
-                            <YAxis tickFormatter={(v) => `₹${v/1000}k`} />
+                            <YAxis />
                             <Tooltip formatter={(value: any) => formatCurrency(value)} />
-                            <Bar dataKey="value" fill="#82ca9d" name="Purchase Amount" />
+                            <Bar dataKey="value" fill="#82ca9d" />
                           </BarChart>
                         </ResponsiveContainer>
                       </CardContent>
-                   </Card>
+                    </Card>
+                  </div>
 
-                  {/* Purchase Table */}
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Vendor</TableHead>
-                          <TableHead>Invoice #</TableHead>
-                          <TableHead>Item Name</TableHead>
-                          <TableHead>Weight</TableHead>
-                          <TableHead>Shape</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead>Total (Item)</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {reportData.items.length === 0 ? (
-                          <TableRow><TableCell colSpan={9} className="text-center">No purchase records found.</TableCell></TableRow>
-                        ) : (
-                          reportData.items.map((item: any, index: number) => (
-                            <TableRow key={index}>
+                  {/* Detailed Table */}
+                  <Card>
+                    <CardHeader><CardTitle>Purchase History</CardTitle></CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Invoice No</TableHead>
+                            <TableHead>Item</TableHead>
+                            <TableHead>Weight</TableHead>
+                            <TableHead>Total Amount</TableHead>
+                            {selectedVendors.length > 1 && <TableHead>Vendor</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {reportData.items.map((item: any, idx: number) => (
+                            <TableRow key={idx}>
                               <TableCell>{format(new Date(item.date), "dd MMM yyyy")}</TableCell>
-                              <TableCell>{item.vendorName}</TableCell>
                               <TableCell>{item.invoiceNo}</TableCell>
                               <TableCell>{item.itemName}</TableCell>
                               <TableCell>{item.weight}</TableCell>
-                              <TableCell>{item.shape || "-"}</TableCell>
-                              <TableCell>{item.category}</TableCell>
-                              <TableCell>{formatCurrency(item.purchasePrice)}</TableCell>
                               <TableCell>{formatCurrency(item.totalAmount)}</TableCell>
+                              {selectedVendors.length > 1 && <TableCell>{item.vendorName}</TableCell>}
                             </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
                 </>
                )}
             </TabsContent>

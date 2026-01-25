@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Package, TrendingUp, Truck, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ShoppingBag, ClipboardList } from "lucide-react";
+import { Package, TrendingUp, Truck, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
@@ -35,14 +35,14 @@ export default async function ReportsHubPage() {
             title: "Purchase Reports",
             description: "Purchase orders, history, and vendor analytics",
             icon: ShoppingBag,
-            href: "/reports/vendor?type=purchase",
+            href: "/reports/vendor?type=purchase&vendorId=all",
             allowed: canViewVendor
         },
         {
             title: "Vendor Reports",
             description: "Inventory Levels, Purchase History & Analytics",
             icon: Truck,
-            href: "/reports/vendor",
+            href: "/reports/vendor?type=inventory&vendorId=all",
             allowed: canViewVendor
         },
         {
