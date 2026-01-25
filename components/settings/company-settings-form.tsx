@@ -81,13 +81,15 @@ export function CompanySettingsForm({ initialData }: { initialData?: Partial<Com
               <FormControl>
                 <div className="space-y-4">
                   <FileUpload
-                    onUploadComplete={(files) => {
-                        if (files.length > 0) {
-                            field.onChange(files[0].url);
-                        }
-                    }}
-                    defaultFiles={field.value ? [field.value] : []}
-                  />
+                      onUploadComplete={(files) => {
+                          if (files.length > 0) {
+                              field.onChange(files[files.length - 1].url);
+                          } else {
+                              field.onChange("");
+                          }
+                      }}
+                      defaultFiles={field.value ? [field.value] : []}
+                    />
                   <Input type="hidden" {...field} />
                 </div>
               </FormControl>
@@ -111,7 +113,11 @@ export function CompanySettingsForm({ initialData }: { initialData?: Partial<Com
                     <FileUpload
                       onUploadComplete={(files) => {
                           if (files.length > 0) {
-                              field.onChange(files[0].url);
+                              // Use the last uploaded file
+                              field.onChange(files[files.length - 1].url);
+                          } else {
+                              // Handle removal
+                              field.onChange("");
                           }
                       }}
                       defaultFiles={field.value ? [field.value] : []}
@@ -136,7 +142,9 @@ export function CompanySettingsForm({ initialData }: { initialData?: Partial<Com
                     <FileUpload
                       onUploadComplete={(files) => {
                           if (files.length > 0) {
-                              field.onChange(files[0].url);
+                              field.onChange(files[files.length - 1].url);
+                          } else {
+                              field.onChange("");
                           }
                       }}
                       defaultFiles={field.value ? [field.value] : []}
@@ -161,7 +169,9 @@ export function CompanySettingsForm({ initialData }: { initialData?: Partial<Com
                     <FileUpload
                       onUploadComplete={(files) => {
                           if (files.length > 0) {
-                              field.onChange(files[0].url);
+                              field.onChange(files[files.length - 1].url);
+                          } else {
+                              field.onChange("");
                           }
                       }}
                       defaultFiles={field.value ? [field.value] : []}
@@ -186,7 +196,9 @@ export function CompanySettingsForm({ initialData }: { initialData?: Partial<Com
                     <FileUpload
                       onUploadComplete={(files) => {
                           if (files.length > 0) {
-                              field.onChange(files[0].url);
+                              field.onChange(files[files.length - 1].url);
+                          } else {
+                              field.onChange("");
                           }
                       }}
                       defaultFiles={field.value ? [field.value] : []}

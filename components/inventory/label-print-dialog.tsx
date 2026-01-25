@@ -112,7 +112,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             // Map res.items to LabelItem interface
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const finalItems: LabelItem[] = res.items.map((i: any) => ({
-                id: i.id,
+                id: i.inventoryId || i.id, // Handle backend returning inventoryId
                 sku: i.sku,
                 itemName: i.itemName,
                 gemType: i.gemType,
@@ -140,9 +140,9 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             if (onPrintComplete) {
                 onPrintComplete();
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Print failed", error);
-            toast.error("Failed to generate labels");
+            toast.error(error.message || "Failed to generate labels");
         } finally {
             setIsPrinting(false);
         }

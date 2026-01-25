@@ -71,14 +71,6 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
     const inventoryItem = inventoryItems.find(i => i.id === itemInput.inventoryId);
     if (!inventoryItem) return null;
 
-    // Calculate ERP base price (system price)
-    let erpBasePrice = 0;
-    if (inventoryItem.pricingMode === "PER_CARAT") {
-      erpBasePrice = (inventoryItem.sellingRatePerCarat || 0) * (inventoryItem.weightValue || 0);
-    } else {
-      erpBasePrice = inventoryItem.flatSellingPrice || 0;
-    }
-
     // Use provided price (override) or fall back to ERP price if 0 (though 0 might be valid, usually we want system price default)
     // However, if the user explicitly set 0, it's 0.
     // In the form, we will initialize with ERP price.
@@ -88,10 +80,6 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
 
     return {
       inventoryId: inventoryItem.id,
-      sku: inventoryItem.sku,
-      itemName: inventoryItem.itemName,
-      weight: `${inventoryItem.weightValue} ${inventoryItem.weightUnit}`,
-      erpBasePrice,
       quotedPrice: finalPrice, // This is the price used for the quote
     };
   }).filter((i): i is NonNullable<typeof i> => i !== null);
@@ -122,10 +110,8 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
           items: {
             createMany: {
               data: quotationItemsData.map(item => ({
-                ...item,
-                finalUnitPrice: item.quotedPrice,
-                subtotal: item.quotedPrice,
-                quantity: 1,
+                inventoryId: item.inventoryId,
+                quotedPrice: item.quotedPrice
               })),
             },
           },
@@ -208,22 +194,11 @@ export async function updateQuotation(
     const inventoryItem = inventoryItems.find(i => i.id === itemInput.inventoryId);
     if (!inventoryItem) return null;
 
-    let erpBasePrice = 0;
-    if (inventoryItem.pricingMode === "PER_CARAT") {
-      erpBasePrice = (inventoryItem.sellingRatePerCarat || 0) * (inventoryItem.weightValue || 0);
-    } else {
-      erpBasePrice = inventoryItem.flatSellingPrice || 0;
-    }
-
     const finalPrice = itemInput.price;
     totalAmount += finalPrice;
 
     return {
       inventoryId: inventoryItem.id,
-      sku: inventoryItem.sku,
-      itemName: inventoryItem.itemName,
-      weight: `${inventoryItem.weightValue} ${inventoryItem.weightUnit}`,
-      erpBasePrice,
       quotedPrice: finalPrice,
     };
   }).filter((i): i is NonNullable<typeof i> => i !== null);
@@ -245,10 +220,8 @@ export async function updateQuotation(
           items: {
             createMany: {
               data: quotationItemsData.map(item => ({
-                ...item,
-                finalUnitPrice: item.quotedPrice,
-                subtotal: item.quotedPrice,
-                quantity: 1,
+                inventoryId: item.inventoryId,
+                quotedPrice: item.quotedPrice
               })),
             },
           },

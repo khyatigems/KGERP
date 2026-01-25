@@ -32,6 +32,7 @@ import {
 import { createQuotation, updateQuotation } from "@/app/(dashboard)/quotes/actions";
 import { Inventory } from "@prisma/client-custom-v2";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -157,13 +158,23 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
     formData.append("status", status);
 
     try {
+        let result;
         if (initialData?.id) {
-            await updateQuotation(initialData.id, null, formData);
+            result = await updateQuotation(initialData.id, null, formData);
         } else {
-            await createQuotation(null, formData);
+            result = await createQuotation(null, formData);
+        }
+
+        if (result && 'message' in result && result.message) {
+             toast.error(result.message);
+        } else if (result && 'errors' in result && result.errors) {
+             // Show first error
+             const firstError = Object.values(result.errors)[0];
+             toast.error(Array.isArray(firstError) ? firstError[0] : "Validation error");
         }
     } catch (error) {
         console.error(error);
+        toast.error("Something went wrong");
     } finally {
         setIsPending(false);
     }

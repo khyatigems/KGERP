@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, ExternalLink, History, FileClock } from "lucide-react";
+import { PaymentStatusSelect } from "@/components/invoices/payment-status-select";
 import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
 import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
@@ -177,11 +178,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
         <h1 className="text-3xl font-bold tracking-tight">
           Invoice {invoice.invoiceNumber}
         </h1>
-        <Badge
-            variant={paymentStatus === "PAID" ? "default" : paymentStatus === "PARTIAL" ? "secondary" : "destructive"}
-        >
-            {paymentStatus}
-        </Badge>
+        <PaymentStatusSelect invoiceId={invoice.id} currentStatus={paymentStatus} />
         
         <div className="ml-auto flex gap-2">
             <Button variant="outline" size="sm" asChild>
