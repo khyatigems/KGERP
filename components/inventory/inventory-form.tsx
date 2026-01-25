@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/inventory/file-upload";
 import { createInventory, updateInventory } from "@/app/(dashboard)/inventory/actions";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
 import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
 
