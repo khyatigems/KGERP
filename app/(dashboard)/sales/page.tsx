@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { PaymentStatusSelect } from "@/components/invoices/payment-status-select";
 import { SalesActions } from "@/components/sales/sales-actions";
 import { SalesCardList } from "@/components/sales/sales-card-list";
 import { auth } from "@/lib/auth";
@@ -51,6 +52,7 @@ export default async function SalesPage() {
       },
       invoice: {
         select: {
+          id: true,
           invoiceNumber: true,
           token: true,
         },
@@ -152,9 +154,16 @@ export default async function SalesPage() {
                     {formatCurrency(sale.profit || 0)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      {sale.paymentStatus || "PENDING"}
-                    </Badge>
+                    {sale.invoice?.id ? (
+                      <PaymentStatusSelect 
+                        invoiceId={sale.invoice.id} 
+                        currentStatus={sale.paymentStatus || "PENDING"} 
+                      />
+                    ) : (
+                      <Badge variant="outline">
+                        {sale.paymentStatus || "PENDING"}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <SalesActions 
