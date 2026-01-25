@@ -60,6 +60,13 @@ export default async function ReportsHubPage() {
             allowed: true
         },
         {
+            title: "Payment Reports",
+            description: "Payment trends, method distribution, recent transactions",
+            icon: CreditCard,
+            href: "/reports/payments",
+            allowed: true
+        },
+        {
             title: "Label & Ops",
             description: "Printing activity, user logs",
             icon: Printer,

@@ -50,8 +50,115 @@ interface PaymentData {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export function PaymentAnalytics({ data }: { data: PaymentData }) {
+  
+  const exportToExcel = () => {
+    // 1. Prepare Summary Data
+    const summaryData = [
+      ["Payment Summary Report"],
+      ["Generated on", format(new Date(), "dd MMM yyyy HH:mm")],
+      [],
+      ["Total Received", data.totalReceived],
+      ["Total Payments", data.totalPayments],
+      [],
+    ];
+
+    // 2. Prepare Detailed Data
+    const headers = ["Date", "Invoice #", "Customer", "Method", "Notes", "Amount"];
+    const rows = data.recentPayments.map(p => [
+      format(p.date, "dd MMM yyyy"),
+      p.invoiceNumber,
+      p.customerName,
+      p.method,
+      p.notes || "-",
+      p.amount
+    ]);
+
+    // 3. Create Workbook and Worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([...summaryData, headers, ...rows]);
+
+    // Format columns width
+    ws['!cols'] = [
+      { wch: 15 }, // Date
+      { wch: 15 }, // Invoice
+      { wch: 20 }, // Customer
+      { wch: 15 }, // Method
+      { wch: 30 }, // Notes
+      { wch: 15 }  // Amount
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Payments");
+    XLSX.writeFile(wb, `Payment_Report_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text("Payment Summary Report", 14, 20);
+    
+    // Meta info
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${format(new Date(), "dd MMM yyyy HH:mm")}`, 14, 30);
+
+    // Summary Cards
+    doc.setFontSize(12);
+    doc.text("Summary", 14, 40);
+    
+    autoTable(doc, {
+      startY: 45,
+      head: [['Metric', 'Value']],
+      body: [
+        ['Total Received', formatCurrency(data.totalReceived)],
+        ['Total Payments', data.totalPayments.toString()]
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185] },
+      margin: { left: 14, right: 14 }
+    });
+
+    // Detailed Table
+    const lastY = (doc as any).lastAutoTable.finalY || 50;
+    doc.text("Payment History", 14, lastY + 10);
+
+    const tableRows = data.recentPayments.map(p => [
+      format(p.date, "dd MMM yyyy"),
+      p.invoiceNumber,
+      p.customerName,
+      p.method.replace('_', ' '),
+      p.notes || "-",
+      formatCurrency(p.amount)
+    ]);
+
+    autoTable(doc, {
+      startY: lastY + 15,
+      head: [['Date', 'Invoice #', 'Customer', 'Method', 'Notes', 'Amount']],
+      body: tableRows,
+      theme: 'striped',
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { fontSize: 8 },
+      columnStyles: {
+        5: { halign: 'right' }
+      }
+    });
+
+    doc.save(`Payment_Report_${format(new Date(), "yyyy-MM-dd")}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={exportToExcel}>
+          <Download className="mr-2 h-4 w-4" />
+          Export Excel
+        </Button>
+        <Button variant="outline" size="sm" onClick={exportToPDF}>
+          <Download className="mr-2 h-4 w-4" />
+          Export PDF
+        </Button>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
