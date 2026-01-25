@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client-custom-v2";
 import { VendorReportClient } from "@/components/reports/vendor-report-client";
 import { startOfMonth, subMonths, format } from "date-fns";
+import { AnalyticsData } from "@/components/reports/vendor-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -19,79 +20,136 @@ export default async function VendorReportPage({
     orderBy: { name: "asc" },
   });
 
-  // 2. Fetch Overview Data (Global)
-  const today = new Date();
-  const sixMonthsAgo = startOfMonth(subMonths(today, 5));
+  // 2. Fetch Overview Data based on Type
+  let overviewData: AnalyticsData;
 
-  const activeVendorsCount = vendors.length;
-
-  const allPurchases = await prisma.purchase.findMany({
-    where: {
-      purchaseDate: {
-        gte: sixMonthsAgo,
+  if (type === "inventory") {
+    // Inventory Overview Logic
+    const allInventory = await prisma.inventory.findMany({
+      where: {
+        status: { in: ["IN_STOCK", "MEMO"] }
       },
-    },
-    include: {
-      vendor: {
-        select: { name: true },
+      select: {
+        id: true,
+        costPrice: true,
+        category: true,
+        vendorId: true,
+        vendor: { select: { name: true } }
+      }
+    });
+
+    const totalItems = allInventory.length;
+    const totalValue = allInventory.reduce((sum, item) => sum + (item.costPrice || 0), 0);
+    
+    // Category Distribution
+    const categoryMap = new Map<string, number>();
+    allInventory.forEach(item => {
+      const cat = item.category || "Uncategorized";
+      categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
+    });
+    const categoryDistribution = Array.from(categoryMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    // Top Vendors by Stock Value
+    const vendorValueMap = new Map<string, number>();
+    const activeVendorSet = new Set<string>();
+
+    allInventory.forEach(item => {
+      if (item.vendorId) {
+        activeVendorSet.add(item.vendorId);
+        const vName = item.vendor?.name || "Unknown";
+        vendorValueMap.set(vName, (vendorValueMap.get(vName) || 0) + (item.costPrice || 0));
+      }
+    });
+
+    const topVendorsByValue = Array.from(vendorValueMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+
+    overviewData = {
+      type: "inventory",
+      totalItems,
+      totalValue,
+      activeVendors: activeVendorSet.size,
+      categoryDistribution,
+      topVendorsByValue
+    };
+
+  } else {
+    // Purchase Overview Logic (Default)
+    const today = new Date();
+    const sixMonthsAgo = startOfMonth(subMonths(today, 5));
+
+    const allPurchases = await prisma.purchase.findMany({
+      where: {
+        purchaseDate: {
+          gte: sixMonthsAgo,
+        },
       },
-    },
-    orderBy: {
-      purchaseDate: "asc",
-    },
-  });
+      include: {
+        vendor: {
+          select: { name: true },
+        },
+      },
+      orderBy: {
+        purchaseDate: "asc",
+      },
+    });
 
-  // Aggregate Overview Data
-  let totalSpend = 0;
-  const totalPurchases = allPurchases.length;
-  
-  const monthlySpendMap = new Map<string, { spend: number; count: number }>();
-  const vendorSpendMap = new Map<string, { spend: number; count: number }>();
+    let totalSpend = 0;
+    const totalPurchases = allPurchases.length;
+    const monthlySpendMap = new Map<string, { spend: number; count: number }>();
+    const vendorSpendMap = new Map<string, { spend: number; count: number }>();
+    const activeVendorSet = new Set<string>();
 
-  for (let i = 0; i < 6; i++) {
-    const monthDate = subMonths(today, 5 - i);
-    const monthKey = format(monthDate, "MMM yyyy");
-    monthlySpendMap.set(monthKey, { spend: 0, count: 0 });
+    for (let i = 0; i < 6; i++) {
+      const monthDate = subMonths(today, 5 - i);
+      const monthKey = format(monthDate, "MMM yyyy");
+      monthlySpendMap.set(monthKey, { spend: 0, count: 0 });
+    }
+
+    allPurchases.forEach((purchase) => {
+      const purchaseTotal = purchase.totalAmount; 
+      totalSpend += purchaseTotal;
+
+      if (purchase.vendorId) activeVendorSet.add(purchase.vendorId);
+
+      const monthKey = format(purchase.purchaseDate, "MMM yyyy");
+      const currentMonth = monthlySpendMap.get(monthKey) || { spend: 0, count: 0 };
+      monthlySpendMap.set(monthKey, {
+        spend: currentMonth.spend + purchaseTotal,
+        count: currentMonth.count + 1,
+      });
+
+      const vendorName = purchase.vendor?.name || "Unknown Vendor";
+      const currentVendor = vendorSpendMap.get(vendorName) || { spend: 0, count: 0 };
+      vendorSpendMap.set(vendorName, {
+        spend: currentVendor.spend + purchaseTotal,
+        count: currentVendor.count + 1,
+      });
+    });
+
+    const monthlySpend = Array.from(monthlySpendMap.entries()).map(([month, data]) => ({
+      month,
+      ...data,
+    }));
+
+    const topVendors = Array.from(vendorSpendMap.entries())
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 10);
+
+    overviewData = {
+      type: "purchase",
+      totalSpend,
+      activeVendors: activeVendorSet.size, // Use actual active purchase vendors
+      totalPurchases,
+      monthlySpend,
+      topVendors,
+    };
   }
-
-  allPurchases.forEach((purchase) => {
-    // Calculate total from items to ensure accuracy or use purchase.totalAmount
-    // Using purchase.totalAmount as it's the invoice total
-    const purchaseTotal = purchase.totalAmount; 
-    totalSpend += purchaseTotal;
-
-    const monthKey = format(purchase.purchaseDate, "MMM yyyy");
-    const currentMonth = monthlySpendMap.get(monthKey) || { spend: 0, count: 0 };
-    monthlySpendMap.set(monthKey, {
-      spend: currentMonth.spend + purchaseTotal,
-      count: currentMonth.count + 1,
-    });
-
-    const vendorName = purchase.vendor?.name || "Unknown Vendor";
-    const currentVendor = vendorSpendMap.get(vendorName) || { spend: 0, count: 0 };
-    vendorSpendMap.set(vendorName, {
-      spend: currentVendor.spend + purchaseTotal,
-      count: currentVendor.count + 1,
-    });
-  });
-
-  const monthlySpend = Array.from(monthlySpendMap.entries()).map(([month, data]) => ({
-    month,
-    ...data,
-  }));
-
-  const topVendors = Array.from(vendorSpendMap.entries())
-    .map(([name, data]) => ({ name, ...data }))
-    .sort((a, b) => b.spend - a.spend)
-    .slice(0, 10);
-
-  const overviewData = {
-    totalSpend,
-    activeVendors: activeVendorsCount,
-    totalPurchases,
-    monthlySpend,
-    topVendors,
-  };
 
   // 3. Fetch Specific Report Data (if vendorId selected)
   let reportData = null;
@@ -99,7 +157,6 @@ export default async function VendorReportPage({
   if (vendorId) {
     const isAll = vendorId === "all";
     const vendorIds = isAll ? [] : vendorId.split(",");
-
     const vendorFilter = isAll ? {} : { id: { in: vendorIds } };
     
     // Fetch vendor names for the header
@@ -115,10 +172,7 @@ export default async function VendorReportPage({
             : `${selectedVendors.length} Vendors Selected`;
 
     if (type === "inventory") {
-      // Create vendor map for quick lookup
       const vendorMap = new Map(vendors.map(v => [v.id, v.name]));
-
-      // Report 1: Vendor Inventory Level
       const items = await prisma.inventory.findMany({
         where: { 
           ...(isAll ? {} : { vendorId: { in: vendorIds } }),
@@ -139,9 +193,8 @@ export default async function VendorReportPage({
           totalValue: items.reduce((sum, i) => sum + (i.costPrice || 0), 0),
         },
       };
-
     } else {
-      // Report 2: Vendor Purchase Point
+      // Purchase Report Data
       const dateFilter: Prisma.DateTimeFilter = {};
       if (from) dateFilter.gte = new Date(from);
       if (to) dateFilter.lte = new Date(to);
@@ -158,7 +211,6 @@ export default async function VendorReportPage({
         orderBy: { purchaseDate: "desc" },
       });
 
-      // Flatten items for the report
       const flatItems = purchases.flatMap((p) =>
         p.purchaseItems.map((i) => ({
           date: p.purchaseDate,
@@ -169,7 +221,7 @@ export default async function VendorReportPage({
           shape: i.shape,
           category: i.category,
           purchasePrice: i.totalCost,
-          totalAmount: i.totalCost, // Line item amount
+          totalAmount: i.totalCost,
         }))
       );
 

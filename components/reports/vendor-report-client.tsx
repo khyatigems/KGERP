@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { DateRange } from "react-day-picker";
@@ -16,47 +16,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { VendorAnalytics } from "./vendor-analytics";
+import { VendorAnalytics, AnalyticsData } from "./vendor-analytics";
 import { cn } from "@/lib/utils";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Bar,
-  ResponsiveContainer
-} from "recharts";
 
 interface VendorReportClientProps {
   vendors: { id: string; name: string }[];
-  overviewData: any; // Using the type from vendor-analytics
+  overviewData: AnalyticsData;
   reportData: any | null;
 }
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
-
-// Helper to aggregate data for charts
-const getInventoryCharts = (items: any[]) => {
-  const categoryMap = new Map<string, number>();
-  items.forEach(item => {
-    const key = item.category || 'Uncategorized';
-    categoryMap.set(key, (categoryMap.get(key) || 0) + 1);
-  });
-  return Array.from(categoryMap.entries()).map(([name, value]) => ({ name, value }));
-};
-
-const getPurchaseCharts = (items: any[]) => {
-  const dateMap = new Map<string, number>();
-  items.forEach(item => {
-    const key = format(new Date(item.date), "MMM yyyy");
-    dateMap.set(key, (dateMap.get(key) || 0) + item.totalAmount);
-  });
-  return Array.from(dateMap.entries()).map(([name, value]) => ({ name, value }));
-};
 
 export function VendorReportClient({ vendors, overviewData, reportData }: VendorReportClientProps) {
   const router = useRouter();
@@ -89,7 +56,7 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
         setSelectedVendors([]);
     }
     
-    // Also sync report type if changed externally (e.g. via Link)
+    // Also sync report type if changed externally
     const typeParam = searchParams.get("type");
     if (typeParam) {
         setReportType(typeParam);
@@ -116,13 +83,9 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
     setReportType(value);
     const params = new URLSearchParams(searchParams.toString());
     params.set("type", value);
-    // If vendors are selected but not applied, should we apply them?
-    // Let's assume the user wants to see the current report type for the APPLIED vendors.
-    // If they want to change vendors, they should use Apply Filters.
     router.push(`/reports/vendor?${params.toString()}`);
   };
 
-  // Update URL when filters change
   const applyFilters = () => {
     const params = new URLSearchParams();
     
@@ -145,7 +108,6 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
     if (!reportData) return;
     setIsExporting(true);
 
-    // Prepare Summary Metrics
     let summaryMetrics = [];
     if (reportType === 'inventory') {
       summaryMetrics = [
@@ -164,7 +126,6 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
       reportType: reportType as 'inventory' | 'purchase',
       vendorName: reportData.vendorName || "Multiple Vendors",
       showVendorColumn: selectedVendors.length > 1,
-      // Use searchParams to ensure date range matches the data displayed
       dateRange: {
         from: searchParams.get("from") ? new Date(searchParams.get("from")!) : undefined,
         to: searchParams.get("to") ? new Date(searchParams.get("to")!) : undefined,
@@ -182,20 +143,110 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
       }
     } catch (error) {
       console.error("Export failed:", error);
-      // Ideally show toast here
     } finally {
       setIsExporting(false);
     }
   };
 
-  // Condition to show report: reportData must exist.
-  // If no reportData (i.e. no vendorId in URL), show Overview.
   const showReport = !!reportData;
+  const isAllVendors = searchParams.get("vendorId") === "all";
+  const pageTitle = reportType === "inventory" ? "Vendor Inventory Reports" : "Vendor Purchase Reports";
+
+  // Derive Analytics Data for Filtered Reports (Client-Side)
+  const filteredAnalyticsData: AnalyticsData | null = useMemo(() => {
+    if (!reportData || !reportData.items) return null;
+
+    if (reportType === "inventory") {
+      const items = reportData.items;
+      const totalItems = items.length;
+      const totalValue = items.reduce((sum: number, i: any) => sum + (i.costPrice || 0), 0);
+      
+      const categoryMap = new Map<string, number>();
+      const vendorValueMap = new Map<string, number>();
+      const activeVendorsSet = new Set<string>();
+
+      items.forEach((item: any) => {
+         const cat = item.category || "Uncategorized";
+         categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
+         
+         const vName = item.vendorName || "Unknown";
+         activeVendorsSet.add(vName);
+         vendorValueMap.set(vName, (vendorValueMap.get(vName) || 0) + (item.costPrice || 0));
+      });
+
+      return {
+        type: "inventory",
+        totalItems,
+        totalValue,
+        activeVendors: activeVendorsSet.size,
+        categoryDistribution: Array.from(categoryMap.entries())
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value),
+        topVendorsByValue: Array.from(vendorValueMap.entries())
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 10)
+      };
+    } else {
+      // Purchase
+      const items = reportData.items;
+      const totalSpend = items.reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0);
+      
+      const monthlySpendMap = new Map<string, { spend: number; count: number }>();
+      const vendorSpendMap = new Map<string, { spend: number; count: number }>();
+      const activeVendorsSet = new Set<string>();
+
+      // Initialize last 6 months for chart consistency if needed, 
+      // but for filtered data, we might just show what's available or map to the date range.
+      // Let's just map available data for simplicity and accuracy of the filter.
+      
+      items.forEach((item: any) => {
+         const monthKey = format(new Date(item.date), "MMM yyyy");
+         const currentMonth = monthlySpendMap.get(monthKey) || { spend: 0, count: 0 };
+         monthlySpendMap.set(monthKey, {
+           spend: currentMonth.spend + (item.totalAmount || 0),
+           count: currentMonth.count + 1
+         });
+
+         const vName = item.vendorName || "Unknown";
+         activeVendorsSet.add(vName);
+         const currentVendor = vendorSpendMap.get(vName) || { spend: 0, count: 0 };
+         vendorSpendMap.set(vName, {
+           spend: currentVendor.spend + (item.totalAmount || 0),
+           count: currentVendor.count + 1
+         });
+      });
+
+      // Sort months chronologically? 
+      // We need a way to sort. Simple string sort might fail for "Jan 2026" vs "Dec 2025".
+      // Let's rely on the input order if it's sorted, or sort by date parsing.
+      const monthlySpend = Array.from(monthlySpendMap.entries())
+        .map(([month, data]) => ({ month, ...data }))
+        // Sort by parsing month string is tricky without reference year if range is wide.
+        // Assuming typical usage, we can leave as is or basic sort.
+        // For better UX, we could just sort by the date key if we stored it.
+        // Let's keep it simple: Map insertion order usually follows iteration order.
+        // Since input items are sorted by date (desc/asc), we might need to reverse for chart.
+        .reverse(); 
+
+      return {
+        type: "purchase",
+        totalSpend,
+        activeVendors: activeVendorsSet.size,
+        totalPurchases: items.length,
+        monthlySpend: monthlySpend,
+        topVendors: Array.from(vendorSpendMap.entries())
+          .map(([name, data]) => ({ name, ...data }))
+          .sort((a, b) => b.spend - a.spend)
+          .slice(0, 10)
+      };
+    }
+  }, [reportData, reportType]);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Vendor Reports</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{pageTitle}</h1>
         
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-2">
@@ -247,7 +298,7 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
                 </PopoverContent>
             </Popover>
 
-            {/* Date Picker with Presets - Always visible or conditional? User asked for Date Range Search functionality */}
+            {/* Date Picker - Only for Purchase Reports */}
             {reportType === "purchase" && (
               <DateRangePickerWithPresets 
                 date={date}
@@ -263,213 +314,107 @@ export function VendorReportClient({ vendors, overviewData, reportData }: Vendor
         </div>
       </div>
 
+      <Tabs value={reportType} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="inventory">Inventory Level</TabsTrigger>
+          <TabsTrigger value="purchase">Purchase History</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Main Content */}
       {!showReport ? (
         <div className="space-y-6">
            {selectedVendors.length === 0 ? (
                 <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md">
-                    Please select one or more vendors from the dropdown above and click "Apply Filters" to view detailed inventory and purchase reports.
+                    Please select one or more vendors from the dropdown above and click "Apply Filters".
                 </div>
            ) : (
                 <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md">
                     Click "Apply Filters" to view the report for {selectedVendors.length} selected vendors.
                 </div>
            )}
+           {/* Show Global Overview when no specific report is loaded */}
            <VendorAnalytics data={overviewData} />
         </div>
       ) : (
         <div className="space-y-6">
-          <Tabs value={reportType} onValueChange={handleTabChange} className="w-full">
-            <div className="flex justify-between items-center mb-4">
-              <TabsList>
-                <TabsTrigger value="inventory">Inventory Level</TabsTrigger>
-                <TabsTrigger value="purchase">Purchase History</TabsTrigger>
-              </TabsList>
-              
-              <div className="flex gap-2">
-                 <Button variant="outline" size="sm" onClick={() => handleExport('excel')} disabled={isExporting}>
-                   {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />} 
-                   Excel
-                 </Button>
-                 <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} disabled={isExporting}>
-                   {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                   PDF
-                 </Button>
-                 <Button variant="secondary" size="sm" onClick={() => handleExport('both')} disabled={isExporting}>
-                   {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                   Both
-                 </Button>
-              </div>
+            
+            {/* Show Analytics Dashboard for the current filtered data */}
+            {filteredAnalyticsData && (
+                <VendorAnalytics data={filteredAnalyticsData} />
+            )}
+
+            {/* Detailed Report Table */}
+            <div className="flex justify-between items-center mt-8">
+                <h2 className="text-xl font-semibold">Detailed List</h2>
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleExport('excel')} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />} 
+                    Excel
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    PDF
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => handleExport('both')} disabled={isExporting}>
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    Both
+                    </Button>
+                </div>
             </div>
 
-            <TabsContent value="inventory" className="space-y-4">
-              {reportData && (
-                <>
-                  {/* Inventory Summary Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card>
-                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Items</CardTitle></CardHeader>
-                      <CardContent><div className="text-2xl font-bold">{reportData.summary.totalItems}</div></CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Carats</CardTitle></CardHeader>
-                      <CardContent><div className="text-2xl font-bold">{reportData.summary.totalCarats?.toFixed(2) || "0.00"}</div></CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Stock Value</CardTitle></CardHeader>
-                      <CardContent><div className="text-2xl font-bold text-green-600">{formatCurrency(reportData.summary.totalValue || 0)}</div></CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Inventory Charts */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card>
-                      <CardHeader><CardTitle>Inventory by Category</CardTitle></CardHeader>
-                      <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={getInventoryCharts(reportData.items)}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                              outerRadius={80}
-                              fill="#8884d8"
-                              dataKey="value"
-                            >
-                              {getInventoryCharts(reportData.items).map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader><CardTitle>Value Distribution (Top 5 Items)</CardTitle></CardHeader>
-                      <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart
-                            data={reportData.items
-                              .sort((a: any, b: any) => b.costPrice - a.costPrice)
-                              .slice(0, 5)
-                              .map((i: any) => ({ name: i.itemName.substring(0, 15), value: i.costPrice }))}
-                            layout="vertical"
-                          >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis type="number" tickFormatter={(v) => `₹${v/1000}k`} />
-                            <YAxis dataKey="name" type="category" width={100} style={{ fontSize: '12px' }} />
-                            <Tooltip formatter={(value: any) => formatCurrency(value)} />
-                            <Bar dataKey="value" fill="#8884d8" radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Detailed Table */}
-                  <Card>
-                    <CardHeader><CardTitle>Detailed Inventory</CardTitle></CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>SKU</TableHead>
-                            <TableHead>Item Name</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Weight</TableHead>
-                            <TableHead>Cost Price</TableHead>
-                            {selectedVendors.length > 1 && <TableHead>Vendor</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {reportData.items.map((item: any) => (
-                            <TableRow key={item.id}>
-                              <TableCell className="font-mono">{item.sku}</TableCell>
-                              <TableCell>{item.itemName}</TableCell>
-                              <TableCell>{item.category}</TableCell>
-                              <TableCell>{item.weightValue} {item.weightUnit}</TableCell>
-                              <TableCell>{formatCurrency(item.costPrice)}</TableCell>
-                              {selectedVendors.length > 1 && <TableCell>{item.vendorName}</TableCell>}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </>
-              )}
-            </TabsContent>
-
-            <TabsContent value="purchase" className="space-y-4">
-               {reportData && (
-                <>
-                  {/* Purchase Summary Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card>
-                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Invoices</CardTitle></CardHeader>
-                      <CardContent><div className="text-2xl font-bold">{reportData.summary.totalCount}</div></CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Amount</CardTitle></CardHeader>
-                      <CardContent><div className="text-2xl font-bold text-blue-600">{formatCurrency(reportData.summary.totalAmount)}</div></CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Purchase Charts */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <Card>
-                      <CardHeader><CardTitle>Purchase Trend</CardTitle></CardHeader>
-                      <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={getPurchaseCharts(reportData.items)}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip formatter={(value: any) => formatCurrency(value)} />
-                            <Bar dataKey="value" fill="#82ca9d" />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Detailed Table */}
-                  <Card>
-                    <CardHeader><CardTitle>Purchase History</CardTitle></CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Invoice No</TableHead>
-                            <TableHead>Item</TableHead>
-                            <TableHead>Weight</TableHead>
-                            <TableHead>Total Amount</TableHead>
-                            {selectedVendors.length > 1 && <TableHead>Vendor</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {reportData.items.map((item: any, idx: number) => (
-                            <TableRow key={idx}>
-                              <TableCell>{format(new Date(item.date), "dd MMM yyyy")}</TableCell>
-                              <TableCell>{item.invoiceNo}</TableCell>
-                              <TableCell>{item.itemName}</TableCell>
-                              <TableCell>{item.weight}</TableCell>
-                              <TableCell>{formatCurrency(item.totalAmount)}</TableCell>
-                              {selectedVendors.length > 1 && <TableCell>{item.vendorName}</TableCell>}
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </>
-               )}
-            </TabsContent>
-          </Tabs>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {reportType === "inventory" ? (
+                        <>
+                          <TableHead>SKU</TableHead>
+                          <TableHead>Item Name</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Weight</TableHead>
+                          <TableHead>Cost Price</TableHead>
+                        </>
+                      ) : (
+                        <>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Invoice No</TableHead>
+                          <TableHead>Item</TableHead>
+                          <TableHead>Weight</TableHead>
+                          <TableHead>Total Amount</TableHead>
+                        </>
+                      )}
+                      {selectedVendors.length > 1 && <TableHead>Vendor</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reportData.items.map((item: any, idx: number) => (
+                      <TableRow key={item.id || idx}>
+                        {reportType === "inventory" ? (
+                          <>
+                            <TableCell className="font-mono">{item.sku}</TableCell>
+                            <TableCell>{item.itemName}</TableCell>
+                            <TableCell>{item.category}</TableCell>
+                            <TableCell>{item.weightValue} {item.weightUnit}</TableCell>
+                            <TableCell>{formatCurrency(item.costPrice)}</TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell>{format(new Date(item.date), "dd MMM yyyy")}</TableCell>
+                            <TableCell>{item.invoiceNo}</TableCell>
+                            <TableCell>{item.itemName}</TableCell>
+                            <TableCell>{item.weight}</TableCell>
+                            <TableCell>{formatCurrency(item.totalAmount)}</TableCell>
+                          </>
+                        )}
+                        {selectedVendors.length > 1 && <TableCell>{item.vendorName}</TableCell>}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
         </div>
       )}
     </div>
