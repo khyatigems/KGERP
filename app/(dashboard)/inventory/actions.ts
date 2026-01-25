@@ -188,8 +188,9 @@ export async function createInventory(prevState: unknown, formData: FormData) {
       ? (data.sellingRatePerCarat || 0) * (data.weightValue || 0)
       : (data.flatSellingPrice || 0);
 
+  let createdInventory;
   try {
-      const createdInventory = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      createdInventory = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           let categoryCodeStr = "XX";
           let gemstoneCodeStr = "XX";
           let colorCodeStr = "XX";
@@ -272,8 +273,13 @@ export async function createInventory(prevState: unknown, formData: FormData) {
             data: inventory // We need the full object for logging
           };
       });
+  } catch (e) {
+      console.error(e);
+      return { message: "Failed to create inventory" };
+  }
 
-      if (createdInventory) {
+  if (createdInventory) {
+      try {
           // Log Activity
           await logActivity({
               entityType: "Inventory",
@@ -327,10 +333,9 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               },
             });
           }
+      } catch (e) {
+          console.error("Post-creation error:", e);
       }
-  } catch (e) {
-      console.error(e);
-      return { message: "Failed to create inventory" };
   }
 
   revalidatePath("/inventory");
