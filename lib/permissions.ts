@@ -17,6 +17,7 @@ export const PERMISSIONS = {
   SALES_CREATE: "sales.create",
   SALES_DELETE: "sales.delete",
   INVOICE_CREATE: "invoice.create",
+  INVOICE_MANAGE: "invoice.manage", // Status updates, etc.
   INVOICE_DELETE: "invoice.delete", // Super Admin only
   
   // Vendors
@@ -53,6 +54,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.SALES_VIEW,
     PERMISSIONS.SALES_CREATE,
     PERMISSIONS.INVOICE_CREATE,
+    PERMISSIONS.INVOICE_MANAGE,
     PERMISSIONS.VENDOR_VIEW,
     PERMISSIONS.REPORTS_VIEW, // Can view basic reports like Labels
   ],
@@ -64,6 +66,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.SALES_VIEW,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.VENDOR_VIEW,
+    PERMISSIONS.INVOICE_MANAGE,
     // Accounts should probably see financials, but prompt said "Staff ❌". 
     // I'll leave them out for now to strictly follow "Staff" vs "Admin". 
     // If ACCOUNTS counts as Admin-lite, I might add it later.
