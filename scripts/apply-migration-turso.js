@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 const { createClient } = require("@libsql/client");
 const fs = require("fs");
 const path = require("path");
