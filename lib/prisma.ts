@@ -8,7 +8,14 @@ if (!process.env.DATABASE_URL || process.env.DATABASE_URL.startsWith('file:')) {
   config({ path: '.env', override: true });
 }
 
-const connectionString = process.env.DATABASE_URL || "file:./dev.db"
+const connectionStringRaw = process.env.DATABASE_URL || "file:./dev.db"
+// Fix for local SQLite path resolution: 
+// Prisma CLI resolves "file:./dev.db" relative to schema.prisma (in prisma/ folder).
+// Next.js resolves it relative to project root.
+// We map it to "./prisma/dev.db" for runtime if it matches the default.
+const connectionString = connectionStringRaw === "file:./dev.db" 
+  ? "file:./prisma/dev.db" 
+  : connectionStringRaw;
 
 if (!process.env.DATABASE_URL) {
   console.warn("⚠️  WARNING: DATABASE_URL is not set in environment. Falling back to local SQLite database.");
