@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 export const revalidate = 60; // 60s cache
 
 export async function GET() {
   try {
+    const session = await auth();
+    const userId = session?.user?.id;
+
     // Determine Database Connection Source (Keep existing logic)
     let dbConnection = 'Local SQLite';
     try {
@@ -45,8 +49,11 @@ export async function GET() {
             } 
         }).catch(e => { console.error("KPI Fail: Quotations", e); return 0; }),
         prisma.invoice.count().catch(e => { console.error("KPI Fail: Invoices", e); return 0; }),
-        prisma.labelCartItem.count().catch(e => { console.error("KPI Fail: LabelCart", e); return 0; }),
+        prisma.labelCartItem.count({
+            where: userId ? { userId } : undefined
+        }).catch(e => { console.error("KPI Fail: LabelCart", e); return 0; }),
         prisma.labelCartItem.findFirst({
+            where: userId ? { userId } : undefined,
             orderBy: { addedAt: 'desc' },
             include: { inventory: { select: { sku: true, itemName: true } } }
         }).catch(e => { console.error("KPI Fail: LastLabel", e); return null; }),

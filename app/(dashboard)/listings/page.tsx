@@ -9,6 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ListingsPage() {
+  let data = null;
+  let errorObj: Error | unknown = null;
+
   try {
     const [listings, inventory] = await Promise.all([
       prisma.listing.findMany({
@@ -36,18 +39,32 @@ export default async function ListingsPage() {
         orderBy: { createdAt: "desc" },
       }),
     ]);
-
-    return (
-      <div className="space-y-6">
-        <ListingsView listings={listings} inventory={inventory} />
-      </div>
-    );
+    data = { listings, inventory };
   } catch (error) {
     console.error("Listings Page Error:", error);
+    errorObj = error;
+  }
+
+  if (errorObj) {
+    const errorMessage = errorObj instanceof Error ? errorObj.message : String(errorObj);
     return (
       <div className="p-4 text-red-500">
-        Error loading listings. Please check server logs.
+        <h3 className="font-bold">Error loading listings</h3>
+        <pre className="mt-2 text-sm bg-gray-100 p-2 rounded overflow-auto">
+          {errorMessage || JSON.stringify(errorObj, null, 2)}
+        </pre>
+        <p className="mt-2 text-sm text-gray-600">Please check server logs for more details.</p>
       </div>
     );
   }
+
+  if (!data) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-6">
+      <ListingsView listings={data.listings} inventory={data.inventory} />
+    </div>
+  );
 }
