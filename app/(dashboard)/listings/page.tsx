@@ -12,8 +12,8 @@ export default async function ListingsPage() {
   let data = null;
   let errorObj: Error | unknown = null;
 
-  try {
-    const [listings, inventory] = await Promise.all([
+  const fetchData = async () => {
+    return Promise.all([
       prisma.listing.findMany({
         orderBy: { listedDate: "desc" },
         include: {
@@ -39,10 +39,55 @@ export default async function ListingsPage() {
         orderBy: { createdAt: "desc" },
       }),
     ]);
+  };
+
+  try {
+    const [listings, inventory] = await fetchData();
     data = { listings, inventory };
   } catch (error) {
     console.error("Listings Page Error:", error);
-    errorObj = error;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Self-healing: Check for orphan listings (Listing pointing to non-existent Inventory)
+    if (errorMessage.includes("Field inventory is required") || errorMessage.includes("Inconsistent query result")) {
+      console.warn("Orphan listings detected. Attempting cleanup...");
+      try {
+        const allListings = await prisma.listing.findMany({
+          select: { id: true, inventoryId: true }
+        });
+        
+        const inventoryIds = [...new Set(allListings.map(l => l.inventoryId))];
+        const existingInventory = await prisma.inventory.findMany({
+          where: { id: { in: inventoryIds } },
+          select: { id: true }
+        });
+        
+        const existingInventoryIds = new Set(existingInventory.map(i => i.id));
+        const orphanListingIds = allListings
+          .filter(l => !existingInventoryIds.has(l.inventoryId))
+          .map(l => l.id);
+          
+        if (orphanListingIds.length > 0) {
+          console.log(`Deleting ${orphanListingIds.length} orphan listings...`);
+          await prisma.listing.deleteMany({
+            where: { id: { in: orphanListingIds } }
+          });
+          console.log("Cleanup complete. Retrying fetch...");
+          
+          // Retry fetch
+          const [listings, inventory] = await fetchData();
+          data = { listings, inventory };
+        } else {
+            // If no orphans found but error persists, it might be something else.
+            errorObj = error;
+        }
+      } catch (cleanupError) {
+        console.error("Cleanup failed:", cleanupError);
+        errorObj = cleanupError; // Show cleanup error if that fails
+      }
+    } else {
+        errorObj = error;
+    }
   }
 
   if (errorObj) {

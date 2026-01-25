@@ -50,10 +50,10 @@ export async function GET() {
         }).catch(e => { console.error("KPI Fail: Quotations", e); return 0; }),
         prisma.invoice.count().catch(e => { console.error("KPI Fail: Invoices", e); return 0; }),
         prisma.labelCartItem.count({
-            where: userId ? { userId } : undefined
+            where: { userId: userId ?? "00000000-0000-0000-0000-000000000000" }
         }).catch(e => { console.error("KPI Fail: LabelCart", e); return 0; }),
         prisma.labelCartItem.findFirst({
-            where: userId ? { userId } : undefined,
+            where: { userId: userId ?? "00000000-0000-0000-0000-000000000000" },
             orderBy: { addedAt: 'desc' },
             include: { inventory: { select: { sku: true, itemName: true } } }
         }).catch(e => { console.error("KPI Fail: LastLabel", e); return null; }),
