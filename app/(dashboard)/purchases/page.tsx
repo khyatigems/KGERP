@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import Link from "next/link";
 import { Eye, Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -36,7 +35,7 @@ export default async function PurchasesPage() {
       purchaseDate: "desc",
     },
     include: {
-      items: true,
+      purchaseItems: true,
       vendor: {
         select: { name: true }
       }
@@ -84,13 +83,13 @@ export default async function PurchasesPage() {
               </TableRow>
             ) : (
               purchases.map((purchase) => {
-                const totalCost = purchase.items.reduce((sum, item) => sum + item.costPrice, 0);
+                const totalCost = purchase.totalAmount || purchase.purchaseItems.reduce((sum, item) => sum + item.totalCost, 0);
                 return (
                   <TableRow key={purchase.id}>
                     <TableCell>{formatDate(purchase.purchaseDate)}</TableCell>
                     <TableCell className="font-medium">{purchase.invoiceNo || "-"}</TableCell>
                     <TableCell>{purchase.vendor?.name}</TableCell>
-                    <TableCell>{purchase.items.length}</TableCell>
+                    <TableCell>{purchase.purchaseItems.length}</TableCell>
                     <TableCell>{formatCurrency(totalCost)}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{purchase.paymentStatus || "PENDING"}</Badge>

@@ -168,6 +168,7 @@ model Vendor {
   updatedAt  DateTime @updatedAt
 
   purchases Purchase[]
+  inventories Inventory[]
 }
 
 model Customer {
@@ -277,6 +278,7 @@ model Inventory {
 
   // Relations
   purchase       Purchase?       @relation(fields: [purchaseId], references: [id])
+  vendor         Vendor?         @relation(fields: [vendorId], references: [id])
   listings       Listing[]
   sales          Sale[]
   memoItems      MemoItem[]
@@ -321,7 +323,29 @@ model Purchase {
 
   vendor Vendor? @relation(fields: [vendorId], references: [id])
 
+  purchaseItems PurchaseItem[]
+
   @@index([vendorId])
+}
+
+model PurchaseItem {
+  id          String   @id @default(uuid())
+  purchaseId  String
+  itemName    String
+  category    String
+  shape       String?
+  dimensions  String?
+  beadSizeMm  Float?
+  weightValue Float
+  weightUnit  String
+  quantity    Float    @default(1)
+  unitCost    Float
+  totalCost   Float
+  notes       String?
+  
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  
+  @@index([purchaseId])
 }
 
 //// SALES & LISTINGS

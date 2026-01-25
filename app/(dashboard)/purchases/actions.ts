@@ -2,14 +2,12 @@
 
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client-custom-v2";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
-import { generateSku } from "@/lib/sku";
 
 const purchaseItemSchema = z.object({
   itemName: z.string().min(1, "Item name required"),
@@ -39,16 +37,6 @@ const updateInvoiceSchema = z.object({
   purchaseId: z.string().uuid("Invalid purchase"),
   invoiceNo: z.string().min(1, "Invoice number is required"),
 });
-
-function calculateRatti(weight: number, unit: string) {
-   let ratti = 0;
-   if (unit === "cts") {
-       ratti = weight * 1.09;
-   } else if (unit === "gms") {
-       ratti = weight * 5.45;
-   }
-   return Math.round(ratti * 100) / 100;
-}
 
 export async function createPurchase(prevState: unknown, formData: FormData) {
   const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
@@ -98,47 +86,20 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
              const weightValue = item.quantity;
              const weightUnit = item.weightType;
              
-             // Try to resolve codes for SKU generation
-             // Fallback to defaults if not found
-             let categoryCode = "XX";
-             const cat = await tx.categoryCode.findFirst({ where: { name: item.category } });
-             if (cat) categoryCode = cat.code;
-             
-             // Gemstone code? From itemName or category?
-             // Use "GEM" as default
-             const gemstoneCode = "GEM"; 
-             
-             const sku = await generateSku(tx, {
-                 categoryCode,
-                 gemstoneCode,
-                 colorCode: "XX",
-                 weightValue,
-                 weightUnit
-             });
-
-             const weightRatti = calculateRatti(weightValue, weightUnit);
-
-             await tx.inventory.create({
+             await tx.purchaseItem.create({
                  data: {
-                     sku,
+                     purchaseId: p.id,
                      itemName: item.itemName,
                      category: item.category,
-                     categoryCodeId: cat ? cat.id : undefined,
                      shape: item.shape,
-                     dimensionsMm: item.sizeValue ? `${item.sizeValue} ${item.sizeUnit || ''}`.trim() : undefined,
+                     dimensions: item.sizeValue ? `${item.sizeValue} ${item.sizeUnit || ''}`.trim() : undefined,
                      beadSizeMm: item.beadSizeMm,
                      weightValue,
                      weightUnit,
-                     weightRatti,
-                     carats: weightValue, // Assuming carats for simplicity or calculate
-                     pieces: 1, 
-                     costPrice: item.totalCost,
-                     sellingPrice: 0, // Needs to be set later
-                     purchaseRatePerCarat: item.costPerUnit,
-                     purchaseId: p.id,
-                     vendorId: data.vendorId,
+                     quantity: 1, // Default to 1 piece as per previous logic
+                     unitCost: item.costPerUnit,
+                     totalCost: item.totalCost,
                      notes: item.remarks,
-                     status: "IN_STOCK"
                  }
              });
         }
@@ -205,7 +166,13 @@ export async function updatePurchase(id: string, prevState: unknown, formData: F
             throw new Error("Cannot update purchase: Some items are sold or not in stock.");
         }
 
+        // Cleanup legacy inventory items (unsold)
         await tx.inventory.deleteMany({
+            where: { purchaseId: id }
+        });
+
+        // Cleanup existing purchase items
+        await tx.purchaseItem.deleteMany({
             where: { purchaseId: id }
         });
 
@@ -228,43 +195,20 @@ export async function updatePurchase(id: string, prevState: unknown, formData: F
              const weightValue = item.quantity;
              const weightUnit = item.weightType;
              
-             let categoryCode = "XX";
-             const cat = await tx.categoryCode.findFirst({ where: { name: item.category } });
-             if (cat) categoryCode = cat.code;
-             
-             const gemstoneCode = "GEM"; 
-             
-             const sku = await generateSku(tx, {
-                 categoryCode,
-                 gemstoneCode,
-                 colorCode: "XX",
-                 weightValue,
-                 weightUnit
-             });
-
-             const weightRatti = calculateRatti(weightValue, weightUnit);
-
-             await tx.inventory.create({
+             await tx.purchaseItem.create({
                  data: {
-                     sku,
+                     purchaseId: p.id,
                      itemName: item.itemName,
                      category: item.category,
-                     categoryCodeId: cat ? cat.id : undefined,
                      shape: item.shape,
-                     dimensionsMm: item.sizeValue ? `${item.sizeValue} ${item.sizeUnit || ''}`.trim() : undefined,
+                     dimensions: item.sizeValue ? `${item.sizeValue} ${item.sizeUnit || ''}`.trim() : undefined,
                      beadSizeMm: item.beadSizeMm,
                      weightValue,
                      weightUnit,
-                     weightRatti,
-                     carats: weightValue,
-                     pieces: 1, 
-                     costPrice: item.totalCost,
-                     sellingPrice: 0, 
-                     purchaseRatePerCarat: item.costPerUnit,
-                     purchaseId: p.id,
-                     vendorId: data.vendorId,
+                     quantity: 1,
+                     unitCost: item.costPerUnit,
+                     totalCost: item.totalCost,
                      notes: item.remarks,
-                     status: "IN_STOCK"
                  }
              });
         }
@@ -392,45 +336,24 @@ export async function importPurchases(rows: PurchaseImportRow[]) {
                     }
                 });
                 
-                // Create Inventory Item
+                // Create PurchaseItem
                 const weightValue = Number(row.quantity) || 1;
                 const weightUnit = row.weightType || "cts";
                 
-                let categoryCode = "XX";
-                const cat = await tx.categoryCode.findFirst({ where: { name: row.category } });
-                if (cat) categoryCode = cat.code;
-                
-                const sku = await generateSku(tx, {
-                     categoryCode,
-                     gemstoneCode: "GEM",
-                     colorCode: "XX",
-                     weightValue,
-                     weightUnit
-                });
-                
-                const weightRatti = calculateRatti(weightValue, weightUnit);
-
-                await tx.inventory.create({
+                await tx.purchaseItem.create({
                      data: {
-                         sku,
+                         purchaseId: p.id,
                          itemName: row.itemName || "Imported Item",
                          category: row.category || "Other",
-                         categoryCodeId: cat ? cat.id : undefined,
                          shape: row.shape,
-                         dimensionsMm: row.sizeValue ? `${row.sizeValue} ${row.sizeUnit || ''}`.trim() : undefined,
+                         dimensions: row.sizeValue ? `${row.sizeValue} ${row.sizeUnit || ''}`.trim() : undefined,
                          beadSizeMm: Number(row.beadSizeMm) || undefined,
                          weightValue,
                          weightUnit,
-                         weightRatti,
-                         carats: weightValue,
-                         pieces: 1, 
-                         costPrice: totalCost,
-                         sellingPrice: 0,
-                         purchaseRatePerCarat: Number(row.costPerUnit) || 0,
-                         purchaseId: p.id,
-                         vendorId: vendor.id,
+                         quantity: 1,
+                         unitCost: Number(row.costPerUnit) || 0,
+                         totalCost: totalCost,
                          notes: row.itemRemarks,
-                         status: "IN_STOCK"
                      }
                  });
 

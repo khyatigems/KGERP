@@ -148,7 +148,7 @@ async function main() {
       costPrice: 78000, // 5.2 * 15000
       sellingPrice: 130000, // 5.2 * 25000
       
-      vendorId: vendor1.id,
+      vendor: { connect: { id: vendor1.id } },
       status: 'IN_STOCK',
       
       treatment: 'Heated',
@@ -185,7 +185,7 @@ async function main() {
       costPrice: 45000,
       sellingPrice: 85000,
       
-      vendorId: vendor2.id,
+      vendor: { connect: { id: vendor2.id } },
       status: 'IN_STOCK',
       
       treatment: 'Minor Oil',
@@ -218,7 +218,7 @@ async function main() {
       costPrice: 105000,
       sellingPrice: 168000,
       
-      vendorId: vendor1.id,
+      vendor: { connect: { id: vendor1.id } },
       status: 'SOLD',
       
       treatment: 'Unheated',

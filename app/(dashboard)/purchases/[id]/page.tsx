@@ -42,7 +42,7 @@ export default async function PurchaseDetailPage({
       vendor: {
         select: { name: true },
       },
-      items: true,
+      purchaseItems: true,
     },
   });
 
@@ -92,8 +92,8 @@ export default async function PurchaseDetailPage({
     logs = [];
   }
 
-  const totalCost = purchase.items.reduce(
-    (sum: number, item) => sum + item.costPrice,
+  const totalCost = purchase.totalAmount || purchase.purchaseItems.reduce(
+    (sum: number, item) => sum + item.totalCost,
     0
   );
 
@@ -218,19 +218,19 @@ export default async function PurchaseDetailPage({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {purchase.items.map((item) => (
+              {purchase.purchaseItems.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.itemName}</TableCell>
                   <TableCell>{item.category || "-"}</TableCell>
                   <TableCell>{item.shape || "-"}</TableCell>
                   <TableCell>
-                    {item.pieces} {item.weightUnit}
+                    {item.weightValue} {item.weightUnit}
                   </TableCell>
                   <TableCell>
-                    {formatCurrency(item.purchaseRatePerCarat || item.flatPurchaseCost || 0)}
+                    {formatCurrency(item.unitCost)}
                   </TableCell>
                   <TableCell>
-                    {formatCurrency(item.costPrice)}
+                    {formatCurrency(item.totalCost)}
                   </TableCell>
                 </TableRow>
               ))}

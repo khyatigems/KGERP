@@ -21,7 +21,7 @@ export default async function EditPurchasePage({
   const purchase = await prisma.purchase.findUnique({
     where: { id },
     include: {
-      items: true,
+      purchaseItems: true,
     },
   });
 
@@ -33,19 +33,25 @@ export default async function EditPurchasePage({
   const transformedPurchase = {
     ...purchase,
     vendorId: purchase.vendorId || "",
-    items: purchase.items.map((item) => ({
-      itemName: item.itemName,
-      category: item.category || "Other",
-      shape: item.shape || "",
-      sizeValue: "", // Not in Inventory
-      sizeUnit: "", // Not in Inventory
-      beadSizeMm: item.beadSizeMm ?? null,
-      weightType: item.weightUnit || "cts",
-      quantity: item.pieces,
-      costPerUnit: item.purchaseRatePerCarat || item.flatPurchaseCost || 0,
-      totalCost: item.costPrice,
-      remarks: item.notes || "",
-    })),
+    items: purchase.purchaseItems.map((item) => {
+      const parts = (item.dimensions || "").split(" ");
+      const sizeUnit = parts.length > 1 ? parts.pop() || "" : "";
+      const sizeValue = parts.join(" ");
+
+      return {
+        itemName: item.itemName,
+        category: item.category || "Other",
+        shape: item.shape || "",
+        sizeValue: sizeValue || item.dimensions || "",
+        sizeUnit: sizeUnit,
+        beadSizeMm: item.beadSizeMm ?? null,
+        weightType: item.weightUnit || "cts",
+        quantity: item.weightValue,
+        costPerUnit: item.unitCost,
+        totalCost: item.totalCost,
+        remarks: item.notes || "",
+      };
+    }),
   };
 
   const vendors = await prisma.vendor.findMany({

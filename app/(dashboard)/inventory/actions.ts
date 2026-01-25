@@ -5,7 +5,6 @@ import { Prisma } from "@prisma/client-custom-v2";
 import { prisma } from "@/lib/prisma";
 import { generateSku } from "@/lib/sku";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { addToCart } from "@/app/(dashboard)/labels/actions";
@@ -243,7 +242,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   treatment: data.treatment,
                   transparency: data.transparency,
                   certification: data.certification,
-                  vendorId: data.vendorId,
+                  vendor: data.vendorId ? { connect: { id: data.vendorId } } : undefined,
                   pricingMode: data.pricingMode,
                   purchaseRatePerCarat: data.purchaseRatePerCarat,
                   sellingRatePerCarat: data.sellingRatePerCarat,
@@ -417,7 +416,7 @@ export async function updateInventory(
         treatment: data.treatment,
         transparency: data.transparency,
         certification: data.certification,
-        vendorId: data.vendorId,
+        vendor: data.vendorId ? { connect: { id: data.vendorId } } : { disconnect: true },
         pricingMode: data.pricingMode,
         purchaseRatePerCarat: data.purchaseRatePerCarat,
         sellingRatePerCarat: data.sellingRatePerCarat,
