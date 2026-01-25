@@ -11,6 +11,8 @@ import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
 
+export const dynamic = "force-dynamic";
+
 type InventoryWithExtras = Inventory & {
   category?: string | null;
   weightRatti?: number | null;

@@ -21,6 +21,8 @@ import { InventoryCardList } from "@/components/inventory/inventory-card-list";
 import { InventoryCardMedia } from "@/components/inventory/inventory-card-media";
 import type { Inventory } from "@prisma/client-custom-v2";
 
+export const dynamic = "force-dynamic";
+
 type InventoryWithExtras = Inventory & {
   weightRatti?: number | null;
 };

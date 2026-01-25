@@ -2,6 +2,8 @@ import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { ListingsView } from "@/components/listings/listings-view";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Listings Management | KhyatiGems™",
 };
