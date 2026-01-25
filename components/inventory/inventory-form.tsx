@@ -171,6 +171,7 @@ interface InventoryFormProps {
 }
 
 export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, initialData }: InventoryFormProps) {
+  const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string } | null>(null);
   const [skuPreview, setSkuPreview] = useState<string>("");

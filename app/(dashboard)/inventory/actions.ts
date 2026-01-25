@@ -541,7 +541,8 @@ export async function updateInventory(
 
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${id}`);
-  redirect("/inventory");
+  // redirect("/inventory"); // Removed to allow client-side handling
+  return { success: true, message: "Inventory updated successfully" };
 }
 
 export async function importInventory(rows: InventoryImportRow[]) {
