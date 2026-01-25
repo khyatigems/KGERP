@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, ExternalLink, History, FileClock } from "lucide-react";
 import { PaymentStatusSelect } from "@/components/invoices/payment-status-select";
+import { PaymentHistory } from "@/components/invoices/payment-history";
 import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
 import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
@@ -36,6 +37,9 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
       quotation: true,
       versions: {
         orderBy: { versionNumber: "desc" }
+      },
+      payments: {
+        orderBy: { date: "desc" }
       }
     },
   });
@@ -58,10 +62,25 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
 
   // Determine Payment Status
   const allPaid = salesItems.every(s => s.paymentStatus === "PAID");
-  const anyPaidOrPartial = salesItems.some(s => s.paymentStatus === "PAID" || s.paymentStatus === "PARTIAL");
-  let paymentStatus = "UNPAID";
-  if (allPaid) paymentStatus = "PAID";
-  else if (anyPaidOrPartial) paymentStatus = "PARTIAL";
+  // const anyPaidOrPartial = salesItems.some(s => s.paymentStatus === "PAID" || s.paymentStatus === "PARTIAL");
+  
+  let paymentStatus = invoice.paymentStatus;
+  // Fallback for legacy data: if invoice status is UNPAID (default) but all sales are PAID
+  if (paymentStatus === "UNPAID" && allPaid && salesItems.length > 0) {
+    paymentStatus = "PAID";
+  }
+
+  // Calculate Balance
+  // Use invoice.totalAmount if available, else calculated total
+  const finalTotalAmount = invoice.totalAmount > 0 ? invoice.totalAmount : total;
+  
+  let amountPaid = invoice.paidAmount || 0;
+  // Fallback: If status is PAID but amountPaid is 0, assume full payment (legacy)
+  if (paymentStatus === "PAID" && amountPaid === 0) {
+    amountPaid = finalTotalAmount;
+  }
+  
+  const balanceDue = Math.max(0, finalTotalAmount - amountPaid);
 
   // Fetch Settings for PDF
   const companySettings = await prisma.companySettings.findFirst();
@@ -111,7 +130,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const pdfTotal = processedItems.reduce((sum, item) => sum + item.finalTotal, 0);
 
   const isPaid = paymentStatus === "PAID";
-  const balanceDue = isPaid ? 0 : pdfTotal;
+  // const balanceDue = isPaid ? 0 : pdfTotal; // Already calculated above
 
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
@@ -143,8 +162,8 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     discount,
     tax: totalGst,
     total: pdfTotal,
-    amountPaid: 0, 
-    balanceDue: pdfTotal,
+    amountPaid: amountPaid, 
+    balanceDue: balanceDue,
     status: paymentStatus,
     paymentStatus,
     terms: invoiceSettings?.terms || undefined,
@@ -161,10 +180,6 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
       : undefined
   };
   
-  if (paymentStatus === "PAID") {
-      pdfData.amountPaid = pdfTotal;
-      pdfData.balanceDue = 0;
-  }
   // For PARTIAL/UNPAID, use calculated values (already set in object definition)
   
   return (
@@ -178,7 +193,12 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
         <h1 className="text-3xl font-bold tracking-tight">
           Invoice {invoice.invoiceNumber}
         </h1>
-        <PaymentStatusSelect invoiceId={invoice.id} currentStatus={paymentStatus} />
+        <PaymentStatusSelect 
+          invoiceId={invoice.id} 
+          currentStatus={paymentStatus} 
+          amountDue={balanceDue}
+          totalAmount={finalTotalAmount}
+        />
         
         <div className="ml-auto flex gap-2">
             <Button variant="outline" size="sm" asChild>
@@ -268,6 +288,8 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
               </Table>
           </CardContent>
       </Card>
+
+      <PaymentHistory payments={invoice.payments || []} />
 
       <Card>
         <CardHeader>

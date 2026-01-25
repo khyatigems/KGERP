@@ -486,8 +486,28 @@ model Invoice {
   sales         Sale[]     @relation("NewInvoice")
   legacySale    Sale?      @relation("LegacyInvoice")
   versions      InvoiceVersion[]
+  payments      Payment[]
+  paymentStatus String     @default("UNPAID") // UNPAID, PARTIAL, PAID
+  paidAmount    Float      @default(0)
 
   @@index([quotationId])
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  amount      Float
+  date        DateTime @default(now())
+  method      String   // CASH, UPI, BANK_TRANSFER, CHEQUE, OTHER
+  reference   String?  // Transaction ID
+  notes       String?
+  recordedBy  String?  // User ID or Name
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }
 
 model InvoiceVersion {

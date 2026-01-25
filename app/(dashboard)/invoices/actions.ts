@@ -5,43 +5,126 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
-export async function updateInvoicePaymentStatus(invoiceId: string, status: "PAID" | "UNPAID" | "PARTIAL") {
+interface PaymentDetails {
+  amount: number;
+  method: string;
+  date: string;
+  reference?: string;
+  notes?: string;
+}
+
+export async function updateInvoicePaymentStatus(
+  invoiceId: string, 
+  status: "PAID" | "UNPAID" | "PARTIAL",
+  paymentDetails?: PaymentDetails
+) {
   const perm = await checkPermission(PERMISSIONS.INVOICE_MANAGE);
   if (!perm.success) return { success: false, message: perm.message };
 
   try {
-    // 1. Update the Invoice status (optional, but good for consistency if the invoice model tracks it)
-    // Note: The Invoice model has a 'status' field (DRAFT, ISSUED, PAID, CANCELLED).
-    // If we set payment to PAID, we should probably update invoice status to PAID too if it was ISSUED.
-    
-    // 2. Update all linked Sale records
-    await prisma.sale.updateMany({
-      where: { invoiceId },
-      data: { paymentStatus: status }
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId }
     });
 
-    // 3. Update Invoice status if needed
-    if (status === "PAID") {
-        await prisma.invoice.update({
-            where: { id: invoiceId },
-            data: { status: "PAID" }
-        });
-    } else if (status === "UNPAID") {
-        // Revert to ISSUED if it was PAID? Or just keep as ISSUED.
-        // We'll check current status first.
-        const inv = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-        if (inv?.status === "PAID") {
-            await prisma.invoice.update({
-                where: { id: invoiceId },
-                data: { status: "ISSUED" }
-            });
-        }
+    if (!invoice) return { success: false, message: "Invoice not found" };
+
+    if (status === "UNPAID") {
+      // Reset logic
+      // CAUTION: This deletes payment history for this invoice.
+      await prisma.$transaction([
+        prisma.payment.deleteMany({ where: { invoiceId } }),
+        prisma.invoice.update({
+          where: { id: invoiceId },
+          data: { 
+            paymentStatus: "UNPAID",
+            paidAmount: 0,
+            status: "ISSUED" // Revert to ISSUED
+          }
+        }),
+        prisma.sale.updateMany({
+          where: { invoiceId },
+          data: { paymentStatus: "UNPAID" }
+        })
+      ]);
+
+      revalidatePath(`/invoices/${invoiceId}`);
+      revalidatePath("/invoices");
+      return { success: true, message: "Payment status reset to Unpaid" };
     }
+
+    if (!paymentDetails) {
+      return { success: false, message: "Payment details required" };
+    }
+
+    // Handle PAID and PARTIAL
+    const currentPaid = invoice.paidAmount || 0;
+    const total = invoice.totalAmount;
+    const remaining = total - currentPaid;
+    
+    let amountToRecord = paymentDetails.amount;
+    
+    // Validation
+    if (status === "PAID") {
+      // Ensure we record the full remaining amount
+      if (amountToRecord < remaining) {
+        // If user entered less but selected PAID, we could either error or force it.
+        // Requirement: "If 'Paid' is selected, the system must automatically record the full remaining amount."
+        // We'll trust the amount passed matches remaining (UI handles pre-fill), 
+        // OR we override it here to be safe.
+        amountToRecord = remaining;
+      }
+    }
+
+    if (amountToRecord <= 0) {
+      return { success: false, message: "Invalid payment amount" };
+    }
+
+    // Determine final status
+    let newPaidAmount = currentPaid + amountToRecord;
+    let finalStatus = status;
+    
+    // Auto-switch to PAID if full amount reached
+    if (newPaidAmount >= total - 0.01) { // Tolerance for float
+      finalStatus = "PAID";
+      newPaidAmount = total; // Cap at total to avoid overpayment issues
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Create Payment Record
+      await tx.payment.create({
+        data: {
+          invoiceId,
+          amount: amountToRecord,
+          method: paymentDetails.method,
+          date: new Date(paymentDetails.date),
+          reference: paymentDetails.reference,
+          notes: paymentDetails.notes
+        }
+      });
+
+      // 2. Update Invoice
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          paymentStatus: finalStatus,
+          paidAmount: newPaidAmount,
+          status: finalStatus === "PAID" ? "PAID" : "ISSUED" // Keep as ISSUED if Partial
+        }
+      });
+
+      // 3. Update Sales
+      // If Partial, sales are also marked Partial. If Paid, Paid.
+      await tx.sale.updateMany({
+        where: { invoiceId },
+        data: { paymentStatus: finalStatus }
+      });
+    });
 
     revalidatePath(`/invoices/${invoiceId}`);
     revalidatePath("/invoices");
     
-    return { success: true, message: "Payment status updated" };
+    return { success: true, message: `Payment recorded successfully (${finalStatus})` };
+
   } catch (error) {
     console.error("Failed to update payment status:", error);
     return { success: false, message: "Failed to update payment status" };

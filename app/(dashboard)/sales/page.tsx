@@ -55,6 +55,8 @@ export default async function SalesPage() {
           id: true,
           invoiceNumber: true,
           token: true,
+          totalAmount: true,
+          paidAmount: true,
         },
       },
       legacyInvoice: {
@@ -158,6 +160,8 @@ export default async function SalesPage() {
                       <PaymentStatusSelect 
                         invoiceId={sale.invoice.id} 
                         currentStatus={sale.paymentStatus || "PENDING"} 
+                        totalAmount={sale.invoice.totalAmount}
+                        amountDue={Math.max(0, sale.invoice.totalAmount - (sale.invoice.paidAmount || 0))}
                       />
                     ) : (
                       <Badge variant="outline">
