@@ -23,6 +23,7 @@ export async function GET() {
     }
 
     // 1. KPI Counts
+    console.log("Dashboard API: Starting KPI fetch...");
     const [
         totalInventory,
         activeListingsRaw,
@@ -32,23 +33,23 @@ export async function GET() {
         lastLabelCartItem,
         recentSales
     ] = await Promise.all([
-        prisma.inventory.count({ where: { status: "IN_STOCK" } }),
+        prisma.inventory.count({ where: { status: "IN_STOCK" } }).catch(e => { console.error("KPI Fail: Inventory", e); return 0; }),
         prisma.listing.groupBy({
             by: ['platform'],
             where: { status: { in: ["LISTED", "ACTIVE"] } },
             _count: { id: true }
-        }),
+        }).catch(e => { console.error("KPI Fail: Listings", e); return []; }),
         prisma.quotation.count({ 
             where: { 
                 status: { in: ["SENT", "PENDING_APPROVAL", "APPROVED", "ACCEPTED", "ACTIVE"] } 
             } 
-        }),
-        prisma.invoice.count(),
-        prisma.labelCartItem.count(),
+        }).catch(e => { console.error("KPI Fail: Quotations", e); return 0; }),
+        prisma.invoice.count().catch(e => { console.error("KPI Fail: Invoices", e); return 0; }),
+        prisma.labelCartItem.count().catch(e => { console.error("KPI Fail: LabelCart", e); return 0; }),
         prisma.labelCartItem.findFirst({
             orderBy: { addedAt: 'desc' },
             include: { inventory: { select: { sku: true, itemName: true } } }
-        }),
+        }).catch(e => { console.error("KPI Fail: LastLabel", e); return null; }),
         prisma.sale.findMany({
             take: 5,
             orderBy: { saleDate: 'desc' },
@@ -59,8 +60,9 @@ export async function GET() {
                 saleDate: true,
                 paymentStatus: true
             }
-        })
+        }).catch(e => { console.error("KPI Fail: Sales", e); return []; })
     ]);
+    console.log("Dashboard API: KPI fetch complete.");
 
     // Process Listings Breakdown
     const platformMapping: Record<string, string> = {
