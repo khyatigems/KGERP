@@ -35,13 +35,13 @@ export function PrintLabelWidget({ count, lastItem }: { count: number; lastItem:
 
                 <div className="grid grid-cols-2 gap-3 mt-6">
                     <Button asChild variant="outline" size="sm" className="w-full">
-                        <Link href="/label-cart">
+                        <Link href="/labels">
                             <ShoppingCart className="mr-2 h-3.5 w-3.5" />
                             View Cart
                         </Link>
                     </Button>
                     <Button asChild size="sm" className="w-full">
-                        <Link href="/label-cart">
+                        <Link href="/labels">
                             <Printer className="mr-2 h-3.5 w-3.5" />
                             Print Now
                         </Link>
