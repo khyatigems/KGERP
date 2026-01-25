@@ -337,6 +337,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                  form.reset();
                  setSkuPreview("");
              }
+             // Redirect after short delay
+             setTimeout(() => {
+                 router.push("/inventory");
+             }, 1000);
         }
 
     } catch (error) {
