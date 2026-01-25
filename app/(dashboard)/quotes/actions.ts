@@ -132,13 +132,11 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
     });
 
     revalidatePath("/quotes");
+    
+    return { success: true, quotationId: quotationId };
   } catch (e) {
     console.error(e);
     return { message: "Failed to create quotation" };
-  }
-
-  if (quotationId) {
-    redirect(`/quotes/${quotationId}`);
   }
 }
 
@@ -245,7 +243,8 @@ export async function updateQuotation(
 
   revalidatePath("/quotes");
   revalidatePath(`/quotes/${id}`);
-  redirect(`/quotes/${id}`);
+  
+  return { success: true, quotationId: id };
 }
 
 export async function cancelQuotation(id: string) {

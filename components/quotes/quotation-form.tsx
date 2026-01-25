@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/popover";
 import { createQuotation, updateQuotation } from "@/app/(dashboard)/quotes/actions";
 import { Inventory } from "@prisma/client-custom-v2";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Table,
@@ -81,6 +81,7 @@ interface QuotationFormProps {
 }
 
 export function QuotationForm({ availableItems, existingCustomers = [], initialData }: QuotationFormProps) {
+  const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [open, setOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
@@ -165,7 +166,10 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
             result = await createQuotation(null, formData);
         }
 
-        if (result && 'message' in result && result.message) {
+        if (result && 'success' in result && result.success && result.quotationId) {
+             toast.success("Quotation saved successfully");
+             router.push(`/quotes/${result.quotationId}`);
+        } else if (result && 'message' in result && result.message) {
              toast.error(result.message);
         } else if (result && 'errors' in result && result.errors) {
              // Show first error
