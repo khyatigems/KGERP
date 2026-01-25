@@ -52,11 +52,14 @@ export async function GET() {
         prisma.labelCartItem.count({
             where: { 
                 userId: userId ?? "00000000-0000-0000-0000-000000000000",
-                inventory: { isNot: null }
+                inventory: { id: { not: "" } }
             }
         }).catch(e => { console.error("KPI Fail: LabelCart", e); return 0; }),
         prisma.labelCartItem.findFirst({
-            where: { userId: userId ?? "00000000-0000-0000-0000-000000000000" },
+            where: { 
+                userId: userId ?? "00000000-0000-0000-0000-000000000000",
+                inventory: { id: { not: "" } }
+            },
             orderBy: { addedAt: 'desc' },
             include: { inventory: { select: { sku: true, itemName: true } } }
         }).catch(e => { console.error("KPI Fail: LastLabel", e); return null; }),
