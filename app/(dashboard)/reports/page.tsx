@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Package, TrendingUp, Truck, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ShoppingBag } from "lucide-react";
+import { Package, TrendingUp, PieChart, FileText, FileCheck, Printer, Lock, CreditCard } from "lucide-react";
 import Link from "next/link";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
@@ -14,7 +14,6 @@ export default async function ReportsHubPage() {
     }
 
     const canViewFinancials = hasPermission(session.user.role, PERMISSIONS.REPORTS_FINANCIAL);
-    const canViewVendor = hasPermission(session.user.role, PERMISSIONS.REPORTS_VENDOR);
 
     const reports = [
         {
@@ -30,20 +29,6 @@ export default async function ReportsHubPage() {
             icon: TrendingUp,
             href: "/reports/sales",
             allowed: true 
-        },
-        {
-            title: "Vendor Purchase Report",
-            description: "Purchase history, vendor billing, and negotiations",
-            icon: ShoppingBag,
-            href: "/reports/vendor?type=purchase&vendorId=all",
-            allowed: canViewVendor
-        },
-        {
-            title: "Vendor Inventory Report",
-            description: "Vendor stock exposure, valuation, and aging",
-            icon: Truck,
-            href: "/reports/vendor?type=inventory&vendorId=all",
-            allowed: canViewVendor
         },
         {
             title: "Profit & Margin",

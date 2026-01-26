@@ -8,6 +8,9 @@ import { QuickNotes } from "./quick-notes";
 import { AppLogoLoader } from "@/components/ui/app-logo-loader";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 
+import { AttentionWidget } from "./attention-widget";
+import { TodaysActionsWidget } from "./todays-actions-widget";
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function DashboardView() {
@@ -48,11 +51,23 @@ export function DashboardView() {
         </div>
       </div>
       
+      {/* 1. KPI Cards */}
       <KpiCards data={data} />
       
+      {/* 2. Attention Required */}
+      <div className="grid grid-cols-1">
+          <AttentionWidget data={data.kpis.attention} />
+      </div>
+
+      {/* 3. Widgets Row */}
       <div className="grid gap-6 md:grid-cols-2">
          <PrintLabelWidget count={data.kpis.printLabels.count} lastItem={data.kpis.printLabels.lastItem} />
          <QuickNotes />
+      </div>
+
+      {/* 4. Today's Actions */}
+      <div className="grid grid-cols-1">
+         <TodaysActionsWidget data={data.kpis.today} />
       </div>
     </div>
   );

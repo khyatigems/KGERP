@@ -40,6 +40,13 @@ model User {
   dashboardNotes     DashboardNote[]
 }
 
+model InventoryMetrics {
+  inventoryId   String   @id
+  daysInStock   Int
+  memoDays      Int?
+  lastUpdated   DateTime @updatedAt
+}
+
 //// LANDING PAGE SETTINGS (VERSIONED)
 
 model LandingPageSettings {

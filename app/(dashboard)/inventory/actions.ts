@@ -11,6 +11,44 @@ import { addToCart } from "@/app/(dashboard)/labels/actions";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 
+// --- Integrity Check Helpers ---
+
+async function isLossSaleAllowed(): Promise<boolean> {
+  const setting = await prisma.setting.findUnique({
+    where: { key: "ALLOW_LOSS_SALE" },
+  });
+  return setting?.value === "true";
+}
+
+async function checkDuplicateSku(
+  gemstoneCodeId: string | undefined,
+  weightValue: number,
+  excludeId?: string
+) {
+  if (!gemstoneCodeId || !weightValue) return [];
+
+  const tolerance = 0.05;
+  const minWeight = weightValue - tolerance;
+  const maxWeight = weightValue + tolerance;
+
+  const duplicates = await prisma.inventory.findMany({
+    where: {
+      gemstoneCodeId,
+      weightValue: {
+        gte: minWeight,
+        lte: maxWeight,
+      },
+      status: "IN_STOCK", // Only check active stock
+      id: excludeId ? { not: excludeId } : undefined,
+    },
+    select: { sku: true, weightValue: true },
+  });
+
+  return duplicates;
+}
+
+// --- End Helpers ---
+
 function calculateRatti(weight: number, unit: string) {
    let ratti = 0;
    if (unit === "cts") {
@@ -186,6 +224,31 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   const sellingPrice = data.pricingMode === "PER_CARAT"
       ? (data.sellingRatePerCarat || 0) * (data.weightValue || 0)
       : (data.flatSellingPrice || 0);
+
+  // --- Integrity Checks ---
+  // 1. Loss Sale Check
+  const allowLoss = await isLossSaleAllowed();
+  if (!allowLoss && sellingPrice < costPrice - 0.01) {
+      return { 
+          message: "Selling price cannot be less than cost price (Settings restricted).",
+          errors: {
+              sellingRatePerCarat: ["Resulting selling price is lower than cost"],
+              flatSellingPrice: ["Selling price is lower than cost"]
+          }
+      };
+  }
+
+  // 2. Duplicate SKU Check
+  const duplicates = await checkDuplicateSku(data.gemstoneCodeId, data.weightValue);
+  if (duplicates.length > 0) {
+      return {
+          message: `Potential duplicate SKU detected: ${duplicates[0].sku}`,
+          errors: {
+              weightValue: [`Similar item exists: ${duplicates[0].sku} (${duplicates[0].weightValue}ct)`]
+          }
+      };
+  }
+  // --- End Integrity Checks ---
 
   let createdInventory;
   try {
@@ -386,6 +449,34 @@ export async function updateInventory(
   const sellingPrice = data.pricingMode === "PER_CARAT"
       ? (data.sellingRatePerCarat || 0) * (data.weightValue || 0)
       : (data.flatSellingPrice || 0);
+
+  // --- Integrity Checks ---
+  // 1. Loss Sale Check
+  const allowLoss = await isLossSaleAllowed();
+  if (!allowLoss && sellingPrice < costPrice - 0.01) {
+      return { 
+          message: "Selling price cannot be less than cost price (Settings restricted).",
+          errors: {
+              sellingRatePerCarat: ["Resulting selling price is lower than cost"],
+              flatSellingPrice: ["Selling price is lower than cost"]
+          }
+      };
+  }
+
+  // 2. Duplicate SKU Check (Exclude current ID)
+  const duplicates = await checkDuplicateSku(data.gemstoneCodeId, data.weightValue, id);
+  if (duplicates.length > 0) {
+      // For updates, we might want to be more lenient or just warn?
+      // But prompt says "Detect duplicate-like SKUs".
+      // We'll block for now to ensure integrity.
+      return {
+          message: `Potential duplicate SKU detected: ${duplicates[0].sku}`,
+          errors: {
+              weightValue: [`Similar item exists: ${duplicates[0].sku} (${duplicates[0].weightValue}ct)`]
+          }
+      };
+  }
+  // --- End Integrity Checks ---
 
   // Calculate Ratti
   const weightRatti = calculateRatti(data.weightValue, data.weightUnit);

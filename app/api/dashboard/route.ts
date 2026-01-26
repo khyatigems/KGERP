@@ -28,6 +28,13 @@ export async function GET() {
 
     // 1. KPI Counts
     console.log("Dashboard API: Starting KPI fetch...");
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
     const [
         totalInventory,
         activeListingsRaw,
@@ -35,8 +42,20 @@ export async function GET() {
         invoicesGenerated,
         labelCartCount,
         lastLabelCartItem,
-        recentSales
+        recentSales,
+        // Attention Required
+        expiringQuotations,
+        overdueInvoices,
+        overdueMemoItems,
+        pendingVendors,
+        unsoldInventory,
+        // Today's Actions
+        todayInventory,
+        todayQuotations,
+        todayLabels,
+        todayInvoices
     ] = await Promise.all([
+        // Existing KPIs
         prisma.inventory.count({ where: { status: "IN_STOCK" } }).catch(e => { console.error("KPI Fail: Inventory", e); return 0; }),
         prisma.listing.groupBy({
             by: ['platform'],
@@ -73,7 +92,72 @@ export async function GET() {
                 saleDate: true,
                 paymentStatus: true
             }
-        }).catch(e => { console.error("KPI Fail: Sales", e); return []; })
+        }).catch(e => { console.error("KPI Fail: Sales", e); return []; }),
+
+        // Attention Required Queries
+        prisma.quotation.findMany({
+            where: {
+                status: { in: ["SENT", "PENDING_APPROVAL"] },
+                expiryDate: {
+                    lte: endOfTomorrow,
+                    gte: startOfDay
+                }
+            },
+            select: { id: true, quotationNumber: true, customerName: true, expiryDate: true },
+            take: 5
+        }).catch(e => { console.error("Attn Fail: Quotations", e); return []; }),
+
+        prisma.invoice.findMany({
+            where: {
+                paymentStatus: { not: "PAID" },
+                createdAt: { lte: thirtyDaysAgo },
+                status: { not: "CANCELLED" }
+            },
+            select: { id: true, invoiceNumber: true, totalAmount: true, createdAt: true },
+            take: 5
+        }).catch(e => { console.error("Attn Fail: Invoices", e); return []; }),
+
+        prisma.memoItem.findMany({
+            where: {
+                status: "WITH_CLIENT",
+                memo: {
+                    issueDate: { lte: thirtyDaysAgo }
+                }
+            },
+            select: { 
+                id: true, 
+                inventory: { select: { sku: true } },
+                memo: { select: { customerName: true, issueDate: true } }
+            },
+            take: 5
+        }).catch(e => { console.error("Attn Fail: Memo", e); return []; }),
+
+        prisma.vendor.count({
+            where: { status: "PENDING" }
+        }).catch(e => { console.error("Attn Fail: Vendors", e); return 0; }),
+
+        prisma.inventory.findMany({
+            where: { status: "IN_STOCK", createdAt: { lte: ninetyDaysAgo } },
+            select: { id: true, sku: true, createdAt: true },
+            take: 5
+        }).catch(e => { console.error("Attn Fail: Unsold", e); return []; }),
+
+        // Today's Actions Queries
+        prisma.inventory.count({
+            where: { createdAt: { gte: startOfDay } }
+        }).catch(e => { console.error("Today Fail: Inventory", e); return 0; }),
+
+        prisma.quotation.count({
+            where: { createdAt: { gte: startOfDay } }
+        }).catch(e => { console.error("Today Fail: Quotations", e); return 0; }),
+
+        prisma.labelPrintJob.count({
+            where: { createdAt: { gte: startOfDay } }
+        }).catch(e => { console.error("Today Fail: Labels", e); return 0; }),
+
+        prisma.invoice.count({
+            where: { createdAt: { gte: startOfDay } }
+        }).catch(e => { console.error("Today Fail: Invoices", e); return 0; })
     ]);
     console.log("Dashboard API: KPI fetch complete.");
 
@@ -144,6 +228,19 @@ export async function GET() {
                 count: labelCartCount,
                 trend: trends.labels,
                 lastItem: lastLabelCartItem ? `${lastLabelCartItem.inventory.sku} - ${lastLabelCartItem.inventory.itemName}` : null
+            },
+            attention: {
+                quotations: expiringQuotations,
+                invoices: overdueInvoices,
+                memo: overdueMemoItems,
+                vendors: pendingVendors,
+                unsold: unsoldInventory
+            },
+            today: {
+                inventory: todayInventory,
+                quotations: todayQuotations,
+                labels: todayLabels,
+                invoices: todayInvoices
             }
         },
         recentSales,

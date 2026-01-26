@@ -20,7 +20,8 @@ const MIGRATIONS = [
   "20260123091741_sync_schema_db",
   "20260124175916_fix_invoice_schema",
   "20260125092617_add_payment_tracking",
-  "20260125203036_add_purchase_item"
+  "20260125203036_add_purchase_item",
+  "20260126094135_add_inventory_metrics"
 ];
 
 async function applyMigration(migrationName) {
