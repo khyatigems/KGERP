@@ -30,6 +30,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CsvImporter } from "@/components/ui/csv-importer";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   createCode,
   updateCode,
@@ -43,8 +45,9 @@ import * as XLSX from "xlsx";
 type CodeRow = {
   id: string;
   name: string;
-  code: string;
+  code: string | null;
   status: string;
+  gstAllowed?: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -56,9 +59,10 @@ interface SettingsCodesViewProps {
   cuts: CodeRow[];
   collections: CodeRow[];
   rashis: CodeRow[];
+  expenseCategories: CodeRow[];
 }
 
-type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis";
+type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "expenseCategories";
 
 export function SettingsCodesView({
   categories,
@@ -67,6 +71,7 @@ export function SettingsCodesView({
   cuts,
   collections,
   rashis,
+  expenseCategories,
 }: SettingsCodesViewProps) {
   const [activeTab, setActiveTab] = useState<CodeGroup>("categories");
 
@@ -78,13 +83,14 @@ export function SettingsCodesView({
       className="space-y-4"
     >
       <div className="flex justify-between items-center">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="categories">Category Codes</TabsTrigger>
           <TabsTrigger value="gemstones">Gemstone Codes</TabsTrigger>
           <TabsTrigger value="colors">Color Codes</TabsTrigger>
           <TabsTrigger value="cuts">Cut Codes</TabsTrigger>
           <TabsTrigger value="collections">Collection Codes</TabsTrigger>
           <TabsTrigger value="rashis">Rashi Codes</TabsTrigger>
+          <TabsTrigger value="expenseCategories">Expense Categories</TabsTrigger>
         </TabsList>
         <div className="flex gap-2">
           <ImportCodesDialog group={activeTab} />
@@ -101,7 +107,9 @@ export function SettingsCodesView({
                 ? cuts
                 : activeTab === "collections"
                 ? collections
-                : rashis
+                : activeTab === "rashis"
+                ? rashis
+                : expenseCategories
             }
           />
           <AddCodeDialog group={activeTab} />
@@ -126,6 +134,9 @@ export function SettingsCodesView({
       <TabsContent value="rashis">
         <CodeTable group="rashis" data={rashis} />
       </TabsContent>
+      <TabsContent value="expenseCategories">
+        <CodeTable group="expenseCategories" data={expenseCategories} />
+      </TabsContent>
     </Tabs>
   );
 }
@@ -140,6 +151,7 @@ function CodeTable({ group, data }: { group: CodeGroup; data: CodeRow[] }) {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Code</TableHead>
+            {group === "expenseCategories" && <TableHead>GST Allowed</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Created</TableHead>
             <TableHead>Updated</TableHead>
@@ -149,7 +161,7 @@ function CodeTable({ group, data }: { group: CodeGroup; data: CodeRow[] }) {
         <TableBody>
           {data.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+              <TableCell colSpan={group === "expenseCategories" ? 7 : 6} className="text-center h-24 text-muted-foreground">
                 No codes found. Add one to get started.
               </TableCell>
             </TableRow>
@@ -189,6 +201,7 @@ function CodeRowItem({
 }) {
   const [name, setName] = useState(row.name);
   const [status, setStatus] = useState(row.status);
+  const [gstAllowed, setGstAllowed] = useState(row.gstAllowed || false);
   const [isPending, startTransition] = useTransition();
 
   const handleSave = () => {
@@ -197,6 +210,9 @@ function CodeRowItem({
     formData.append("id", row.id);
     formData.append("name", name);
     formData.append("status", status);
+    if (group === "expenseCategories") {
+      formData.append("gstAllowed", String(gstAllowed));
+    }
 
     startTransition(async () => {
       const res = await updateCode(group, formData);
@@ -220,9 +236,17 @@ function CodeRowItem({
         </TableCell>
         <TableCell>
           <span className="font-mono text-sm text-muted-foreground cursor-not-allowed" title="Code cannot be edited">
-            {row.code}
+            {row.code || "-"}
           </span>
         </TableCell>
+        {group === "expenseCategories" && (
+          <TableCell>
+            <Checkbox
+              checked={gstAllowed}
+              onCheckedChange={(c) => setGstAllowed(!!c)}
+            />
+          </TableCell>
+        )}
         <TableCell>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="h-8 w-[100px]">
@@ -255,7 +279,12 @@ function CodeRowItem({
   return (
     <TableRow>
       <TableCell className="font-medium">{row.name}</TableCell>
-      <TableCell className="font-mono">{row.code}</TableCell>
+      <TableCell className="font-mono">{row.code || "-"}</TableCell>
+      {group === "expenseCategories" && (
+        <TableCell>
+          {row.gstAllowed ? <Badge variant="outline">Yes</Badge> : <span className="text-muted-foreground text-sm">No</span>}
+        </TableCell>
+      )}
       <TableCell>
         <Badge variant={row.status === "ACTIVE" ? "default" : "secondary"}>
           {row.status}
@@ -281,6 +310,7 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [status, setStatus] = useState("ACTIVE");
+  const [gstAllowed, setGstAllowed] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [duplicateError, setDuplicateError] = useState(false);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
@@ -299,12 +329,15 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
   };
 
   const handleCreate = () => {
-    if (!name || !code || duplicateError) return;
+    if (!name || (group !== "expenseCategories" && !code) || duplicateError) return;
 
     const formData = new FormData();
     formData.append("name", name);
     formData.append("code", code);
     formData.append("status", status);
+    if (group === "expenseCategories") {
+      formData.append("gstAllowed", String(gstAllowed));
+    }
 
     startTransition(async () => {
       const res = await createCode(group, formData);
@@ -319,6 +352,7 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
         setName("");
         setCode("");
         setStatus("ACTIVE");
+        setGstAllowed(false);
       }
     });
   };
@@ -327,14 +361,14 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button>
-          <Plus className="mr-2 h-4 w-4" /> Add New Code
+          <Plus className="mr-2 h-4 w-4" /> Add New {group === "expenseCategories" ? "Category" : "Code"}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add New {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : group === "colors" ? "Color" : group === "cuts" ? "Cut" : group === "collections" ? "Collection" : "Rashi"} Code</DialogTitle>
+          <DialogTitle>Add New {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : group === "colors" ? "Color" : group === "cuts" ? "Cut" : group === "collections" ? "Collection" : group === "expenseCategories" ? "Expense Category" : "Rashi"} Code</DialogTitle>
           <DialogDescription>
-            Create a new master code. Codes are immutable once created.
+            Create a new master code. {group !== "expenseCategories" && "Codes are immutable once created."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -347,7 +381,7 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Code</label>
+            <label className="text-sm font-medium">Code {group === "expenseCategories" && "(Optional)"}</label>
             <div className="relative">
                 <Input
                 placeholder={group === "cuts" ? "e.g. RND" : "e.g. SAP"}
@@ -370,6 +404,12 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
               Uppercase, alphanumeric, max 6 chars.
             </p>
           </div>
+          {group === "expenseCategories" && (
+             <div className="flex items-center space-x-2">
+                <Checkbox id="gstAllowed" checked={gstAllowed} onCheckedChange={(c) => setGstAllowed(!!c)} />
+                <Label htmlFor="gstAllowed">GST Input Credit Allowed</Label>
+             </div>
+          )}
           <div className="space-y-2">
             <label className="text-sm font-medium">Status</label>
             <Select value={status} onValueChange={setStatus}>
@@ -385,7 +425,7 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={handleCreate} disabled={!name || !code || duplicateError || isPending || checkingDuplicate}>
+          <Button onClick={handleCreate} disabled={!name || (group !== "expenseCategories" && !code) || duplicateError || isPending || checkingDuplicate}>
             {isPending ? "Creating..." : "Create Code"}
           </Button>
         </DialogFooter>
@@ -398,8 +438,9 @@ function ExportCodesButton({ group, data }: { group: CodeGroup; data: CodeRow[] 
   const handleExport = () => {
     const csvData = data.map(row => ({
       name: row.name,
-      code: row.code,
-      status: row.status
+      code: row.code || "",
+      status: row.status,
+      ...(group === "expenseCategories" ? { gstAllowed: row.gstAllowed ? "Yes" : "No" } : {})
     }));
 
     const ws = XLSX.utils.json_to_sheet(csvData);
@@ -444,7 +485,7 @@ function ImportCodesDialog({ group }: { group: CodeGroup }) {
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Import {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : group === "colors" ? "Color" : group === "cuts" ? "Cut" : group === "collections" ? "Collection" : "Rashi"} Codes</DialogTitle>
+          <DialogTitle>Import {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : group === "colors" ? "Color" : group === "cuts" ? "Cut" : group === "collections" ? "Collection" : group === "expenseCategories" ? "Expense Category" : "Rashi"} Codes</DialogTitle>
           <DialogDescription>
             Upload a CSV file with headers: <code>name,code,status</code>.
             Duplicates will be skipped.

@@ -41,6 +41,19 @@ const adapter = isLibsql
     )
   : null
 
+// Check for stale client in development (missing new models like 'expense')
+if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
+  // Cast to any to avoid type errors if the type definition is ahead of the runtime object
+  const client = globalForPrisma.prisma as any;
+  // If the existing client doesn't have the 'expense' model, it's stale.
+  if (!client.expense) {
+    console.warn("Prisma: Detected stale client instance (missing 'expense'). Re-initializing...");
+    // Disconnect safely if possible
+    client.$disconnect?.().catch((e: any) => console.error("Error disconnecting stale client:", e));
+    globalForPrisma.prisma = undefined;
+  }
+}
+
 const prismaBase =
   globalForPrisma.prisma ??
   (() => {

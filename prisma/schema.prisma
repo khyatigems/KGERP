@@ -38,6 +38,9 @@ model User {
   priceOverrides     PriceOverrideAudit[]
 
   dashboardNotes     DashboardNote[]
+  
+  // Expense Relations
+  expenses           Expense[]
 }
 
 model InventoryMetrics {
@@ -730,4 +733,50 @@ model DashboardNote {
   createdBy User     @relation(fields: [createdById], references: [id])
 
   @@index([createdById])
+}
+
+//// EXPENSE MANAGEMENT
+
+model ExpenseCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String?  @unique
+  gstAllowed  Boolean  @default(false)
+  status      String   @default("ACTIVE") // ACTIVE | DISABLED
+  createdAt   DateTime @default(now())
+  
+  expenses    Expense[]
+}
+
+model Expense {
+  id              String   @id @default(uuid())
+  expenseDate     DateTime
+  categoryId      String
+  description     String
+  vendorName      String?
+  referenceNo     String?
+
+  baseAmount      Float
+  gstApplicable   Boolean  @default(false)
+  gstRate         Float?
+  gstAmount       Float?
+  totalAmount     Float
+
+  paymentMode     String   // CASH | UPI | BANK | CARD | WALLET
+  paymentStatus   String   @default("PAID") // PAID | PENDING | PARTIAL
+  paidAmount      Float    @default(0)
+  paymentDate     DateTime?
+  paymentRef      String?
+
+  attachmentUrl   String?
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category        ExpenseCategory @relation(fields: [categoryId], references: [id])
+  createdBy       User            @relation(fields: [createdById], references: [id])
+
+  @@index([categoryId])
+  @@index([createdById])
+  @@index([expenseDate])
 }

@@ -21,7 +21,8 @@ const MIGRATIONS = [
   "20260124175916_fix_invoice_schema",
   "20260125092617_add_payment_tracking",
   "20260125203036_add_purchase_item",
-  "20260126094135_add_inventory_metrics"
+  "20260126094135_add_inventory_metrics",
+  "20260126124448_add_expense_management"
 ];
 
 async function applyMigration(migrationName) {

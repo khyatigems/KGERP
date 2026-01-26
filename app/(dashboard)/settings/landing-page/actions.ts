@@ -63,8 +63,18 @@ export async function saveLandingPageSettings(data: {
   if (!perm.success) return { success: false, message: perm.message };
 
   const session = await auth();
-  if (!session?.user) {
-    return { success: false, message: "Unauthorized" };
+  if (!session?.user?.id) {
+    return { success: false, message: "Unauthorized: No user session" };
+  }
+
+  // Verify user exists in database to prevent Foreign Key errors
+  const userExists = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true }
+  });
+
+  if (!userExists) {
+    return { success: false, message: "User record not found. Please try logging out and back in." };
   }
 
   try {
@@ -170,6 +180,16 @@ export async function rollbackVersion(versionId: string) {
         return { success: false, message: "Unauthorized" };
     }
 
+    // Verify user exists to prevent FK errors
+    const userExists = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { id: true }
+    });
+
+    if (!userExists) {
+        return { success: false, message: "User record not found. Please re-login." };
+    }
+
     try {
         const version = await prisma.landingPageVersion.findUnique({
             where: { id: versionId }
@@ -253,6 +273,7 @@ export async function rollbackVersion(versionId: string) {
 
     } catch (error) {
         console.error("Rollback failed:", error);
-        return { success: false, message: "Rollback failed" };
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return { success: false, message: `Rollback failed: ${errorMessage}` };
     }
 }

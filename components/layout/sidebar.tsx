@@ -14,7 +14,8 @@ import {
   Settings,
   UserCog,
   Globe,
-  Printer
+  Printer,
+  Receipt
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
@@ -27,6 +28,7 @@ export const navItems = [
   { href: "/quotes", label: "Quotations", icon: FileText },
   { href: "/sales", label: "Sales", icon: ShoppingCart },
   { href: "/purchases", label: "Purchases", icon: ShoppingBag },
+  { href: "/expenses", label: "Expenses", icon: Receipt },
   { href: "/vendors", label: "Vendors", icon: Users },
   { href: "/reports", label: "Reports", icon: BarChart },
   { href: "/users", label: "Users", icon: UserCog },
@@ -52,7 +54,7 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
   return (
     <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border text-sidebar-foreground">
       <div className="flex h-14 items-center border-b border-sidebar-border px-6 lg:h-[60px] justify-between">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-primary-foreground" onClick={() => handleNavigation("/")}>
+        <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={() => handleNavigation("/")}>
           <span className="text-lg tracking-tight">KhyatiGems™ ERP</span>
         </Link>
         <ThemeToggle />

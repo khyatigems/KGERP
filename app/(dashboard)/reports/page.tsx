@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Package, TrendingUp, PieChart, FileText, FileCheck, Printer, Lock, CreditCard } from "lucide-react";
+import { Package, TrendingUp, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ReceiptIndianRupee } from "lucide-react";
 import Link from "next/link";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
@@ -14,6 +14,7 @@ export default async function ReportsHubPage() {
     }
 
     const canViewFinancials = hasPermission(session.user.role, PERMISSIONS.REPORTS_FINANCIAL);
+    const canViewExpenses = hasPermission(session.user.role, PERMISSIONS.EXPENSE_REPORT);
 
     const reports = [
         {
@@ -57,6 +58,13 @@ export default async function ReportsHubPage() {
             icon: CreditCard,
             href: "/reports/payments",
             allowed: true
+        },
+        {
+            title: "Expense Reports",
+            description: "Category-wise, Vendor-wise, GST breakdown",
+            icon: ReceiptIndianRupee,
+            href: "/reports/expenses",
+            allowed: canViewExpenses
         },
         {
             title: "Label & Ops",

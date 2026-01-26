@@ -14,7 +14,9 @@ export type EntityType =
   | "User"
   | "Code"
   | "LandingPage"
-  | "Security";
+  | "Security"
+  | "Expense"
+  | "ExpenseCategory";
 
 interface LogActivityParams<T = Record<string, unknown>> {
   entityType: EntityType;
@@ -29,6 +31,7 @@ interface LogActivityParams<T = Record<string, unknown>> {
   source?: "WEB" | "SYSTEM" | "CRON" | "CSV_IMPORT";
   ipAddress?: string;
   userAgent?: string;
+  details?: string;
 }
 
 export async function logActivity<T = Record<string, unknown>>({
@@ -44,6 +47,7 @@ export async function logActivity<T = Record<string, unknown>>({
   source = "WEB",
   ipAddress,
   userAgent,
+  details,
 }: LogActivityParams<T>) {
   try {
     let finalUserId = userId;
@@ -147,6 +151,7 @@ export async function logActivity<T = Record<string, unknown>>({
         ipAddress: finalIpAddress,
         userAgent: finalUserAgent,
         source,
+        details,
       },
     });
   } catch (error) {

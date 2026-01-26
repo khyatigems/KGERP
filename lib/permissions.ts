@@ -33,6 +33,13 @@ export const PERMISSIONS = {
   SETTINGS_MANAGE: "settings.manage",
   USERS_MANAGE: "users.manage",
   LANDING_PAGE_MANAGE: "settings.landing_page",
+  
+  // Expenses
+  EXPENSE_VIEW: "expense.view",
+  EXPENSE_CREATE: "expense.create",
+  EXPENSE_EDIT: "expense.edit",
+  EXPENSE_DELETE: "expense.delete", // SUPER_ADMIN only
+  EXPENSE_REPORT: "expense.report",
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -42,7 +49,7 @@ export type Role = "SUPER_ADMIN" | "ADMIN" | "SALES" | "ACCOUNTS" | "VIEWER";
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   SUPER_ADMIN: Object.values(PERMISSIONS),
   
-  ADMIN: Object.values(PERMISSIONS).filter(p => p !== PERMISSIONS.INVOICE_DELETE),
+  ADMIN: Object.values(PERMISSIONS).filter(p => p !== PERMISSIONS.INVOICE_DELETE && p !== PERMISSIONS.EXPENSE_DELETE),
   
   SALES: [
     PERMISSIONS.INVENTORY_VIEW,
@@ -57,6 +64,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.INVOICE_MANAGE,
     PERMISSIONS.VENDOR_VIEW,
     PERMISSIONS.REPORTS_VIEW, // Can view basic reports like Labels
+    PERMISSIONS.EXPENSE_VIEW,
   ],
   
   ACCOUNTS: [
@@ -67,9 +75,12 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.VENDOR_VIEW,
     PERMISSIONS.INVOICE_MANAGE,
-    // Accounts should probably see financials, but prompt said "Staff ❌". 
-    // I'll leave them out for now to strictly follow "Staff" vs "Admin". 
-    // If ACCOUNTS counts as Admin-lite, I might add it later.
+    
+    // Expense Access
+    PERMISSIONS.EXPENSE_VIEW,
+    PERMISSIONS.EXPENSE_CREATE,
+    PERMISSIONS.EXPENSE_EDIT,
+    PERMISSIONS.EXPENSE_REPORT,
   ],
   
   VIEWER: [
