@@ -9,12 +9,13 @@ interface AttentionData {
     invoices: Array<{ id: string; invoiceNumber: string; totalAmount: number; createdAt: string }>;
     memo: Array<{ id: string; inventory: { sku: string }; memo: { customerName: string; issueDate: string } }>;
     vendors: number;
+    unsold?: Array<{ id: string; sku: string; createdAt: string }>;
 }
 
 export function AttentionWidget({ data }: { data: AttentionData }) {
     if (!data) return null;
 
-    const hasItems = data.quotations.length > 0 || data.invoices.length > 0 || data.memo.length > 0 || data.vendors > 0;
+    const hasItems = data.quotations.length > 0 || data.invoices.length > 0 || data.memo.length > 0 || data.vendors > 0 || (data.unsold && data.unsold.length > 0);
 
     return (
         <Card className="h-full">
