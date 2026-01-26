@@ -1,6 +1,7 @@
 "use client";
  
 import { useForm, type Resolver } from "react-hook-form";
+import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -285,7 +286,6 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
 
   async function onSubmit(data: FormValues) {
     setIsPending(true);
-    setSubmitResult(null);
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       // Skip mediaUrls as it's handled explicitly below to avoid double-entry (comma-separated string + individual entries)
@@ -313,10 +313,9 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         }
         
         if (result?.success) {
-             setSubmitResult({
-                 success: true,
-                 message: result.message || (initialData ? "Inventory updated successfully!" : "Inventory created successfully!")
-             });
+             const msg = result.message || (initialData ? "Inventory updated successfully!" : "Inventory created & added to label cart!");
+             toast.success(msg);
+             
              if (!initialData) {
                  form.reset();
                  setSkuPreview("");
@@ -333,10 +332,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                     errorMsg += ` ${field}: ${messages}`;
                 }
              }
-             setSubmitResult({
-                 success: false,
-                 message: errorMsg
-             });
+             toast.error(errorMsg);
              if (result.errors) {
                  console.error("Form errors:", result.errors);
              }
@@ -344,10 +340,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
 
     } catch (error) {
         console.error(error);
-        setSubmitResult({
-            success: false,
-            message: "An unexpected error occurred."
-        });
+        toast.error("An unexpected error occurred.");
     } finally {
         setIsPending(false);
     }
@@ -356,12 +349,6 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {submitResult && (
-            <div className={`p-4 rounded-md flex items-center gap-2 ${submitResult.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                {submitResult.success ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-                <span>{submitResult.message}</span>
-            </div>
-        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Basic Info */}
           <div className="space-y-4">

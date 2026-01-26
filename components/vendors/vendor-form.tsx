@@ -3,6 +3,8 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,7 @@ interface VendorFormProps {
 
 export function VendorForm({ vendor }: VendorFormProps) {
   const [isPending, setIsPending] = useState(false);
+  const router = useRouter();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -75,13 +78,24 @@ export function VendorForm({ vendor }: VendorFormProps) {
     });
 
     try {
+        let result;
         if (vendor) {
-            await updateVendor(vendor.id, null, formData);
+            result = await updateVendor(vendor.id, null, formData);
         } else {
-            await createVendor(null, formData);
+            result = await createVendor(null, formData);
+        }
+
+        if (result && 'success' in result && result.success) {
+            toast.success(result.message || "Vendor saved successfully");
+            router.push("/vendors");
+        } else if (result && 'message' in result) {
+            toast.error(result.message);
+        } else if (result && 'errors' in result) {
+            toast.error("Validation error");
         }
     } catch (error) {
         console.error(error);
+        toast.error("Something went wrong");
     } finally {
         setIsPending(false);
     }

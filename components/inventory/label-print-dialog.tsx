@@ -135,6 +135,8 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             const win = window.open(pdfUrl, "_blank");
             if (!win) {
                 toast.error("Please allow popups to print labels");
+            } else {
+                toast.success("Labels generated successfully");
             }
             
             if (onPrintComplete) {

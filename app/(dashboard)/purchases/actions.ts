@@ -232,7 +232,8 @@ export async function updatePurchase(id: string, prevState: unknown, formData: F
   }
 
   revalidatePath("/purchases");
-  redirect("/purchases");
+  // redirect("/purchases");
+  return { success: true, message: "Purchase updated successfully" };
 }
 
 export async function updatePurchaseInvoice(formData: FormData) {

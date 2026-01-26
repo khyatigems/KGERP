@@ -211,7 +211,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
   revalidatePath("/sales");
   revalidatePath("/inventory");
-  redirect("/sales");
+  // redirect("/sales");
+  return { success: true, message: "Sale created successfully. Invoice Generated." };
 }
 
 export async function deleteSale(id: string) {

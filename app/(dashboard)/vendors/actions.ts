@@ -61,7 +61,8 @@ export async function createVendor(prevState: unknown, formData: FormData) {
   }
 
   revalidatePath("/vendors");
-  redirect("/vendors");
+  // redirect("/vendors");
+  return { success: true, message: "Vendor created successfully" };
 }
 
 export async function updateVendor(id: string, prevState: unknown, formData: FormData) {
@@ -104,5 +105,6 @@ export async function updateVendor(id: string, prevState: unknown, formData: For
   }
 
   revalidatePath("/vendors");
-  redirect("/vendors");
+  // redirect("/vendors");
+  return { success: true, message: "Vendor updated successfully" };
 }

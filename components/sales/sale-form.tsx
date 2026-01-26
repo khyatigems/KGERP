@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { createSale } from "@/app/(dashboard)/sales/actions";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { Inventory } from "@prisma/client-custom-v2";
 import { useSearchParams } from "next/navigation";
 
@@ -78,6 +80,7 @@ interface SaleFormProps {
 
 export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormProps) {
   const [isPending, setIsPending] = useState(false);
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
   const searchParams = useSearchParams();
@@ -170,9 +173,20 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     }
 
     try {
-        await createSale(null, formData);
+        const result = await createSale(null, formData);
+        
+        if (result && 'success' in result && result.success) {
+            toast.success(result.message || "Sale created & invoice generated successfully");
+            // Redirect to sales or invoices? Usually Sales list.
+            router.push("/sales");
+        } else if (result && 'message' in result) {
+            toast.error(result.message);
+        } else if (result && 'errors' in result) {
+            toast.error("Validation failed");
+        }
     } catch (error) {
         console.error(error);
+        toast.error("An unexpected error occurred");
     } finally {
         setIsPending(false);
     }

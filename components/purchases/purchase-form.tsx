@@ -3,6 +3,8 @@
 import { useForm, useFieldArray, useWatch, UseFormReturn, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -386,6 +388,7 @@ function PurchaseItemRow({
 
 export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
   const [isPending, setIsPending] = useState(false);
+  const router = useRouter();
 
   const defaultValues: FormValues = initialData
     ? {
@@ -458,12 +461,19 @@ export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
             result = await createPurchase(null, formData);
         }
 
-        if (result?.errors) {
+        if (result && 'success' in result && result.success) {
+            toast.success(result.message || "Purchase saved successfully");
+            router.push("/purchases");
+        } else if (result && 'message' in result) {
+            toast.error(result.message);
+        } else if (result && 'errors' in result) {
             // Handle server-side validation errors if needed
             console.error(result.errors);
+            toast.error("Validation failed");
         }
     } catch (error) {
         console.error(error);
+        toast.error("An unexpected error occurred");
     } finally {
         setIsPending(false);
     }
