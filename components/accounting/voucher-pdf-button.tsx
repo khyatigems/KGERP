@@ -16,8 +16,8 @@ interface VoucherData {
     category?: { name: string };
     vendorName?: string;
     paymentMode?: string;
-  };
-  createdBy?: { name: string };
+  } | null;
+  createdBy?: { name: string } | null;
 }
 
 export function VoucherPDFButton({ voucher }: { voucher: VoucherData }) {
