@@ -14,8 +14,8 @@ interface VoucherData {
   narration: string | null;
   expense?: {
     category?: { name: string };
-    vendorName?: string;
-    paymentMode?: string;
+    vendorName?: string | null;
+    paymentMode?: string | null;
   } | null;
   createdBy?: { name: string } | null;
 }

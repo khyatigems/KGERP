@@ -7,9 +7,9 @@ export interface VoucherPDFData {
   date: Date;
   type: string;
   amount: number;
-  narration: string;
+  narration: string | null;
   category: string;
-  vendorName?: string;
+  vendorName?: string | null;
   paymentMode: string;
   createdBy: string;
   companyName: string;
