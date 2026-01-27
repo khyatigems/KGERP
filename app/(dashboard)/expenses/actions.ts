@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
-import { expenseSchema, type ExpenseFormValues } from "./schema";
+import { expenseSchema, type ExpenseFormValues, type ExpenseImportRow } from "./schema";
 
 import { createVoucher } from "@/lib/voucher-service";
 
