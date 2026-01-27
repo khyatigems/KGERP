@@ -125,7 +125,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   const total = processedItems.reduce((sum, item) => sum + item.finalTotal, 0);
   
   // Balance Due Calculation
-  const amountPaidCalculated = salesItems.reduce((sum: number, item: any) => {
+  const amountPaidCalculated = salesItems.reduce((sum: number, item: Sale & { inventory: Inventory }) => {
     if (item.paymentStatus === "PAID") return sum + (item.netAmount || item.salePrice);
     if (item.paymentStatus === "PARTIAL") {
       // Partial payment amount not currently tracked in Sale model

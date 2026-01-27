@@ -6,11 +6,26 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { importExpensesFromCSV } from "@/app/(dashboard)/expenses/actions";
+import { importExpensesFromCSV, ExpenseImportRow } from "@/app/(dashboard)/expenses/actions";
 import { Loader2 } from "lucide-react";
 
 interface ExpenseActionsProps {
-    expenses: any[];
+    expenses: {
+        expenseDate: Date | string;
+        category: { name: string };
+        description: string;
+        vendorName?: string | null;
+        baseAmount?: number;
+        gstApplicable?: boolean;
+        gstRate?: number;
+        gstAmount?: number;
+        totalAmount: number;
+        paymentMode: string;
+        paymentStatus: string;
+        paidAmount: number;
+        referenceNo?: string | null;
+        createdBy?: { name: string | null } | null;
+    }[];
 }
 
 export function ExpenseActions({ expenses }: ExpenseActionsProps) {
