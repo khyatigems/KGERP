@@ -92,7 +92,7 @@ export function VoucherReport() {
           } else {
               toast.error("Failed to create receipt");
         }
-    } catch (_e) {
+    } catch {
         toast.error("Error creating receipt");
     }
 };

@@ -35,7 +35,7 @@ export default async function ExpensesPage() {
     // Top Category
     const categoryCounts: Record<string, number> = {};
     expenses.forEach(e => {
-        const catName = e.category.name;
+        const catName = e.category?.name || "Uncategorized";
         categoryCounts[catName] = (categoryCounts[catName] || 0) + 1;
     });
     

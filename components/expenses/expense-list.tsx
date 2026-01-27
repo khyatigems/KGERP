@@ -26,7 +26,7 @@ interface Expense {
     description: string;
     totalAmount: number;
     paymentStatus: string;
-    category: { name: string };
+    category: { name: string } | null;
     vendorName?: string | null;
     voucherId?: string | null;
 }
@@ -47,7 +47,7 @@ export function ExpenseList({ expenses, canEdit, canDelete }: ExpenseListProps) 
             await deleteExpense(deletingId);
             toast.success("Expense deleted");
             setDeletingId(null);
-        } catch (error) {
+        } catch {
             toast.error("Failed to delete expense");
         }
     };
@@ -59,7 +59,7 @@ export function ExpenseList({ expenses, canEdit, canDelete }: ExpenseListProps) 
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <div className="flex flex-col">
                             <CardTitle className="text-sm font-medium">
-                                {expense.category.name}
+                                {expense.category?.name || "Uncategorized"}
                             </CardTitle>
                             {/* Voucher Tag (Placeholder until we fetch actual number, or just show ID) */}
                             {expense.voucherId && (

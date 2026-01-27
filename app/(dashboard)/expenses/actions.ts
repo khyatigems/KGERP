@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { checkPermission } from "@/lib/permission-guard";
@@ -218,21 +219,42 @@ export async function getExpenses(filters?: {
         where.paymentStatus = filters.paymentStatus;
     }
 
-    return await prisma.expense.findMany({
-        where,
-        // Using include again because explicitly selecting 'voucherId' fails 
-        // until the server is restarted.
-        // We will accept that this might break momentarily until restart,
-        // but 'include' is generally safer if we just avoid selecting the deleted columns.
-        include: {
-            category: true,
-            // createdBy: { select: { name: true } } // COMMENTED OUT: Causing Inconsistent Query Result
-        },
-        orderBy: { expenseDate: "desc" }
-    });
+    try {
+        return await prisma.expense.findMany({
+            where,
+            // Using include again because explicitly selecting 'voucherId' fails 
+            // until the server is restarted.
+            // We will accept that this might break momentarily until restart,
+            // but 'include' is generally safer if we just avoid selecting the deleted columns.
+            include: {
+                category: true,
+                // createdBy: { select: { name: true } } // COMMENTED OUT: Causing Inconsistent Query Result
+            },
+            orderBy: { expenseDate: "desc" }
+        });
+    } catch (error) {
+        console.error("Failed to fetch expenses:", error);
+        throw error;
+    }
 }
 
-export async function importExpensesFromCSV(data: any[]) {
+interface ExpenseImportRow {
+    category?: string;
+    expenseDate?: string | Date;
+    description: string;
+    vendorName: string;
+    paymentMode: string;
+    paymentStatus?: string;
+    paidAmount?: string | number;
+    referenceNo?: string;
+    totalAmount?: string | number;
+    baseAmount?: string | number;
+    paymentDate?: string | Date;
+    paymentRef?: string;
+    attachmentUrl?: string;
+}
+
+export async function importExpensesFromCSV(data: ExpenseImportRow[]) {
     await checkPermission(PERMISSIONS.EXPENSE_CREATE);
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
@@ -241,7 +263,7 @@ export async function importExpensesFromCSV(data: any[]) {
     const categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
 
     let successCount = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     for (const [index, row] of data.entries()) {
         const rowNum = index + 1;
@@ -319,7 +341,7 @@ export async function importExpensesFromCSV(data: any[]) {
 
             successCount++;
 
-        } catch (e) {
+        } catch {
             errors.push(`Row ${rowNum}: Unexpected error`);
         }
     }

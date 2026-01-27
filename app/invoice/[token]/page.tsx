@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Sale, Inventory } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildInvoiceWhatsappLink } from "@/lib/whatsapp";
@@ -299,7 +300,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {processedItems.map((item: any) => (
+                        {processedItems.map((item) => (
                           <tr key={item.id}>
                             <td className="py-4">
                                 <p className="font-bold text-gray-900">{item.inventory.itemName}</p>

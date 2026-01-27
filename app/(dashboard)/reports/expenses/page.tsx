@@ -18,7 +18,7 @@ export default async function ExpenseReportsPage() {
     const categoryStats: Record<string, { count: number, amount: number }> = {};
     const vendorStats: Record<string, { count: number, amount: number }> = {};
     const paymentModeStats: Record<string, { count: number, amount: number }> = {};
-    let gstTotal = 0;
+    const gstTotal = 0;
 
     expenses.forEach(e => {
         // Category
