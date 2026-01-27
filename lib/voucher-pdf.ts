@@ -174,7 +174,7 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
   const particularsText = [
     `Account Category:  ${data.category}`,
     data.vendorName ? `Paid To:           ${data.vendorName}` : "",
-    `\nNarration:\n${data.narration}`
+    `\nNarration:\n${data.narration || "-"}`
   ].filter(Boolean).join("\n");
 
   autoTable(doc, {

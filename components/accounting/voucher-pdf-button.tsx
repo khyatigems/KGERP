@@ -11,7 +11,7 @@ interface VoucherData {
   voucherDate: Date;
   voucherType: string;
   amount: number;
-  narration: string;
+  narration: string | null;
   expense?: {
     category?: { name: string };
     vendorName?: string;
