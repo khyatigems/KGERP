@@ -205,7 +205,7 @@ export async function getExpenses(filters?: {
 }) {
     await checkPermission(PERMISSIONS.EXPENSE_VIEW);
     
-    const where: any = {};
+    const where: Prisma.ExpenseWhereInput = {};
     if (filters?.startDate && filters?.endDate) {
         where.expenseDate = {
             gte: filters.startDate,

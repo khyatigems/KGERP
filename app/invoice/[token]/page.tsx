@@ -80,7 +80,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   }
 
   // Process Items (GST Calculation)
-  const processedItems = salesItems.map((item: any) => {
+  const processedItems = salesItems.map((item: Sale & { inventory: Inventory }) => {
     // Determine GST Rate
     // Default to 3% if not found, as per common jewelry standard or user implication
     const category = item.inventory.category || "General";

@@ -36,7 +36,7 @@ export function ExpenseActions({ expenses }: ExpenseActionsProps) {
     const handleExport = (format: "xlsx" | "csv") => {
         const data = expenses.map(e => ({
             expenseDate: new Date(e.expenseDate).toLocaleDateString(),
-            category: e.category.name,
+            category: e.category?.name || "Uncategorized",
             description: e.description,
             vendorName: e.vendorName,
             baseAmount: e.baseAmount,

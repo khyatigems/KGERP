@@ -21,7 +21,13 @@ export default async function ExpensesPage() {
     const canEdit = hasPermission(role, PERMISSIONS.EXPENSE_EDIT);
     const canDelete = hasPermission(role, PERMISSIONS.EXPENSE_DELETE);
 
-    const expenses = await getExpenses();
+    let expenses = [];
+    try {
+        expenses = await getExpenses();
+    } catch (e) {
+        console.error("Failed to load expenses:", e);
+        return <div className="p-6 text-red-500">Failed to load expenses. Please try again later.</div>;
+    }
 
     // Calculate Stats
     const totalCount = expenses.length;
