@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Listing } from "@prisma/client";
+import { Listing } from "@prisma/client-custom-v2";
 import { Download, Loader2, RefreshCw } from "lucide-react";
 import { deleteListings, updateListingsStatus } from "@/app/(dashboard)/inventory/listing-actions";
 import { toast } from "sonner";

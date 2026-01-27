@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { Sale, Inventory } from "@prisma/client";
+import { Prisma } from "@prisma/client-custom-v2";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildInvoiceWhatsappLink } from "@/lib/whatsapp";
@@ -10,6 +10,8 @@ import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
 import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import type { Metadata } from "next";
+
+type SaleItem = Prisma.SaleGetPayload<{ include: { inventory: true } }>;
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +82,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   }
 
   // Process Items (GST Calculation)
-  const processedItems = salesItems.map((item: Sale & { inventory: Inventory }) => {
+  const processedItems = salesItems.map((item: SaleItem) => {
     // Determine GST Rate
     // Default to 3% if not found, as per common jewelry standard or user implication
     const category = item.inventory.category || "General";

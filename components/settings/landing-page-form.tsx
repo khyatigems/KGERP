@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, History, RotateCcw, Save } from "lucide-react";
 import { format } from "date-fns";
 import { saveLandingPageSettings, getVersions, rollbackVersion } from "@/app/(dashboard)/settings/landing-page/actions";
-import { LandingPageSettings, LandingPageSlide, LandingPageVersion } from "@prisma/client";
+import { LandingPageSettings, LandingPageSlide, LandingPageVersion } from "@prisma/client-custom-v2";
 
 export type ExtendedLandingPageSettings = Omit<LandingPageSettings, "highlights"> & {
   highlights: string[];

@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createVendor, updateVendor } from "@/app/(dashboard)/vendors/actions";
-import { Vendor } from "@prisma/client";
+import { Vendor } from "@prisma/client-custom-v2";
 
 import {
   Select,

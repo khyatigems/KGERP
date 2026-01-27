@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Inventory } from "@prisma/client";
+import { Inventory } from "@prisma/client-custom-v2";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { LabelItem } from "@/lib/label-generator";
 import { formatCurrency } from "@/lib/utils";
