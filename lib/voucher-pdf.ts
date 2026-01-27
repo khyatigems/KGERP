@@ -216,10 +216,10 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
         fontSize: 12
       }
     },
-    didDrawCell: (_data) => {
+    // didDrawCell: (_data) => {
       // Add vertical lines manually if needed, but 'grid' or 'plain' with lineWidth works.
       // We used 'plain' with manual lineWidth, so borders should appear.
-    }
+    // }
   });
 
   // @ts-expect-error - jspdf-autotable types
