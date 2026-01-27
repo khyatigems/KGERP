@@ -15,7 +15,8 @@ import {
   UserCog,
   Globe,
   Printer,
-  Receipt
+  Receipt,
+  BookOpen
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
@@ -29,6 +30,7 @@ export const navItems = [
   { href: "/sales", label: "Sales", icon: ShoppingCart },
   { href: "/purchases", label: "Purchases", icon: ShoppingBag },
   { href: "/expenses", label: "Expenses", icon: Receipt },
+  { href: "/accounting/reports", label: "Accounting", icon: BookOpen },
   { href: "/vendors", label: "Vendors", icon: Users },
   { href: "/reports", label: "Reports", icon: BarChart },
   { href: "/users", label: "Users", icon: UserCog },

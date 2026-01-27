@@ -28,6 +28,7 @@ interface Expense {
     paymentStatus: string;
     category: { name: string };
     vendorName?: string | null;
+    voucherId?: string | null;
 }
 
 interface ExpenseListProps {
@@ -56,9 +57,17 @@ export function ExpenseList({ expenses, canEdit, canDelete }: ExpenseListProps) 
             {expenses.map((expense) => (
                 <Card key={expense.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            {expense.category.name}
-                        </CardTitle>
+                        <div className="flex flex-col">
+                            <CardTitle className="text-sm font-medium">
+                                {expense.category.name}
+                            </CardTitle>
+                            {/* Voucher Tag (Placeholder until we fetch actual number, or just show ID) */}
+                            {expense.voucherId && (
+                                <span className="text-[10px] text-muted-foreground font-mono mt-1">
+                                    Voucher Linked
+                                </span>
+                            )}
+                        </div>
                         <Badge variant={expense.paymentStatus === "PAID" ? "default" : expense.paymentStatus === "PENDING" ? "destructive" : "secondary"}>
                             {expense.paymentStatus}
                         </Badge>
@@ -74,6 +83,13 @@ export function ExpenseList({ expenses, canEdit, canDelete }: ExpenseListProps) 
                         )}
                         
                         <div className="flex justify-end gap-2 mt-4">
+                            {/* New: View Voucher Button */}
+                            {expense.voucherId && (
+                                <Button variant="secondary" size="sm" onClick={() => router.push(`/accounting/reports?search=${encodeURIComponent(expense.description)}`)}>
+                                    View Voucher
+                                </Button>
+                            )}
+
                             {canEdit && (
                                 <Button variant="outline" size="sm" onClick={() => router.push(`/expenses/${expense.id}`)}>
                                     <Edit className="h-4 w-4 mr-1" /> Edit

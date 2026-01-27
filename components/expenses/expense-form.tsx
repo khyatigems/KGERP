@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { expenseSchema, type ExpenseFormValues } from "@/app/(dashboard)/expenses/schema";
 import { createExpense, updateExpense } from "@/app/(dashboard)/expenses/actions";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 interface ExpenseFormProps {
   categories: { id: string; name: string; gstAllowed: boolean }[];
-  initialData?: any; // Type strictly if possible
+  initialData?: ExpenseFormValues & { id: string };
 }
 
 export function ExpenseForm({ categories, initialData }: ExpenseFormProps) {
@@ -30,17 +30,17 @@ export function ExpenseForm({ categories, initialData }: ExpenseFormProps) {
   const [isPending, setIsPending] = useState(false);
 
   const form = useForm<ExpenseFormValues>({
-    resolver: zodResolver(expenseSchema) as any,
+    resolver: zodResolver(expenseSchema) as unknown as Resolver<ExpenseFormValues>,
     defaultValues: initialData ? {
         expenseDate: new Date(initialData.expenseDate),
         categoryId: initialData.categoryId,
         description: initialData.description,
         vendorName: initialData.vendorName ?? "",
         referenceNo: initialData.referenceNo ?? "",
-        baseAmount: initialData.baseAmount ?? 0,
-        gstApplicable: initialData.gstApplicable === true,
-        gstRate: initialData.gstRate ?? 0,
-        gstAmount: initialData.gstAmount ?? 0,
+        // baseAmount: initialData.baseAmount ?? 0,
+        // gstApplicable: initialData.gstApplicable === true,
+        // gstRate: initialData.gstRate ?? 0,
+        // gstAmount: initialData.gstAmount ?? 0,
         totalAmount: initialData.totalAmount ?? 0,
         paymentMode: initialData.paymentMode,
         paymentStatus: initialData.paymentStatus,
@@ -54,10 +54,10 @@ export function ExpenseForm({ categories, initialData }: ExpenseFormProps) {
         description: "",
         vendorName: "",
         referenceNo: "",
-        baseAmount: 0,
-        gstApplicable: false,
-        gstRate: 0,
-        gstAmount: 0,
+        // baseAmount: 0,
+        // gstApplicable: false,
+        // gstRate: 0,
+        // gstAmount: 0,
         totalAmount: 0,
         paymentMode: "CASH",
         paymentStatus: "PAID",
@@ -69,26 +69,17 @@ export function ExpenseForm({ categories, initialData }: ExpenseFormProps) {
   });
 
   const { watch, setValue } = form;
-  const baseAmount = watch("baseAmount");
-  const gstApplicable = watch("gstApplicable");
-  const gstRate = watch("gstRate");
+  // const baseAmount = watch("baseAmount");
+  // const gstApplicable = watch("gstApplicable");
+  // const gstRate = watch("gstRate");
   const paymentStatus = watch("paymentStatus");
-  const categoryId = watch("categoryId");
+  // const categoryId = watch("categoryId");
+  // const totalAmount = watch("totalAmount");
 
-  // Auto-calculate Total Amount
-  const calculateTotal = () => {
-    let total = Number(baseAmount) || 0;
-    let gst = 0;
-    if (gstApplicable && gstRate) {
-        gst = (total * gstRate) / 100;
-        total += gst;
-    }
-    setValue("gstAmount", gst);
-    setValue("totalAmount", total);
-    
-    // Auto-fill paid amount if PAID
+  // Auto-fill paid amount if PAID
+  const handleAmountChange = (val: number) => {
     if (paymentStatus === "PAID") {
-        setValue("paidAmount", total);
+        setValue("paidAmount", val);
     }
   };
 
@@ -116,7 +107,7 @@ export function ExpenseForm({ categories, initialData }: ExpenseFormProps) {
     }
   }
 
-  const selectedCategory = categories.find(c => c.id === categoryId);
+  // const selectedCategory = categories.find(c => c.id === categoryId);
 
   return (
     <Form {...form}>
@@ -221,26 +212,26 @@ export function ExpenseForm({ categories, initialData }: ExpenseFormProps) {
            </Card>
         </div>
 
-        {/* Step 2: Amount & Tax */}
+        {/* Step 2: Amount & Payment */}
         <div className={cn("space-y-4", step !== 2 && "hidden")}>
           <Card>
             <CardHeader>
-              <CardTitle>Amount & Tax</CardTitle>
+              <CardTitle>Amount & Payment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
                 control={form.control}
-                name="baseAmount"
+                name="totalAmount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amount (Excl. Tax)</FormLabel>
+                    <FormLabel>Total Amount</FormLabel>
                     <FormControl>
                       <Input 
                         type="number" 
                         {...field} 
                         onChange={(e) => {
                             field.onChange(e);
-                            setTimeout(calculateTotal, 0);
+                            handleAmountChange(Number(e.target.value));
                         }}
                       />
                     </FormControl>
@@ -249,67 +240,10 @@ export function ExpenseForm({ categories, initialData }: ExpenseFormProps) {
                 )}
               />
 
-              {selectedCategory?.gstAllowed && (
-                  <FormField
-                    control={form.control}
-                    name="gstApplicable"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={(checked) => {
-                                field.onChange(checked);
-                                setTimeout(calculateTotal, 0);
-                            }}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>
-                            GST Applicable
-                          </FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-              )}
-
-              {gstApplicable && (
-                  <FormField
-                    control={form.control}
-                    name="gstRate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>GST Rate (%)</FormLabel>
-                        <Select 
-                            onValueChange={(val) => {
-                                field.onChange(val);
-                                setTimeout(calculateTotal, 0);
-                            }} 
-                            value={String(field.value)}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Rate" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="5">5%</SelectItem>
-                            <SelectItem value="12">12%</SelectItem>
-                            <SelectItem value="18">18%</SelectItem>
-                            <SelectItem value="28">28%</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-              )}
-
               <div className="pt-4 border-t">
                   <div className="flex justify-between text-lg font-bold">
                       <span>Total Amount</span>
-                      <span>{form.watch("totalAmount").toFixed(2)}</span>
+                      <span>{Number(form.watch("totalAmount") || 0).toFixed(2)}</span>
                   </div>
               </div>
 
@@ -328,61 +262,73 @@ export function ExpenseForm({ categories, initialData }: ExpenseFormProps) {
                <CardTitle>Payment Details</CardTitle>
              </CardHeader>
              <CardContent className="space-y-4">
-               <FormField
-                 control={form.control}
-                 name="paymentStatus"
-                 render={({ field }) => (
-                   <FormItem>
-                     <FormLabel>Payment Status</FormLabel>
-                     <Select 
+              <FormField
+                control={form.control}
+                name="paymentStatus"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Transaction Type</FormLabel>
+                    <FormControl>
+                      <RadioGroup
                         onValueChange={(val) => {
                             field.onChange(val);
-                            if (val === "PAID") {
-                                setValue("paidAmount", form.watch("totalAmount"));
+                            if (val === "PENDING") {
+                                form.setValue("paymentMode", "CREDIT");
+                            } else {
+                                form.setValue("paymentMode", "CASH");
                             }
-                        }} 
+                        }}
                         defaultValue={field.value}
-                     >
-                       <FormControl>
-                         <SelectTrigger>
-                           <SelectValue placeholder="Status" />
-                         </SelectTrigger>
-                       </FormControl>
-                       <SelectContent>
-                         <SelectItem value="PAID">Paid</SelectItem>
-                         <SelectItem value="PENDING">Pending</SelectItem>
-                         <SelectItem value="PARTIAL">Partial</SelectItem>
-                       </SelectContent>
-                     </Select>
-                     <FormMessage />
-                   </FormItem>
-                 )}
-               />
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="PAID" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Paid (Cash / Bank)
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="PENDING" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Credit Purchase (Pay Later)
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-               <FormField
-                 control={form.control}
-                 name="paymentMode"
-                 render={({ field }) => (
-                   <FormItem>
-                     <FormLabel>Payment Mode</FormLabel>
-                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                       <FormControl>
-                         <SelectTrigger>
-                           <SelectValue placeholder="Mode" />
-                         </SelectTrigger>
-                       </FormControl>
-                       <SelectContent>
-                         <SelectItem value="CASH">Cash</SelectItem>
-                         <SelectItem value="UPI">UPI</SelectItem>
-                         <SelectItem value="BANK">Bank Transfer</SelectItem>
-                         <SelectItem value="CARD">Card</SelectItem>
-                         <SelectItem value="WALLET">Wallet</SelectItem>
-                       </SelectContent>
-                     </Select>
-                     <FormMessage />
-                   </FormItem>
-                 )}
-               />
+              {paymentStatus === "PAID" && (
+                  <FormField
+                    control={form.control}
+                    name="paymentMode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Mode</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Mode" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="CASH">Cash</SelectItem>
+                            <SelectItem value="UPI">UPI</SelectItem>
+                            <SelectItem value="BANK">Bank Transfer</SelectItem>
+                            <SelectItem value="CARD">Card</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              )}
 
                {paymentStatus !== "PENDING" && (
                    <FormField

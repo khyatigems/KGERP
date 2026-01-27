@@ -41,6 +41,7 @@ model User {
   
   // Expense Relations
   expenses           Expense[]
+  vouchers           Voucher[]
 }
 
 model InventoryMetrics {
@@ -748,6 +749,31 @@ model ExpenseCategory {
   expenses    Expense[]
 }
 
+model Voucher {
+  id            String   @id @default(uuid())
+  voucherNumber String   @unique // Format: EXP/2026/0001
+  voucherType   String   // EXPENSE | PAYMENT | REVERSAL
+  voucherDate   DateTime
+  
+  referenceId   String?  // ID of the related entity (Expense, etc.)
+  narration     String?
+  amount        Float
+  
+  isReversed    Boolean  @default(false)
+  reversalReason String?
+  
+  createdById   String
+  createdAt     DateTime @default(now())
+  
+  createdBy     User     @relation(fields: [createdById], references: [id])
+  expense       Expense?
+
+  @@index([createdById])
+  @@index([voucherNumber])
+  @@index([referenceId])
+  @@index([voucherDate])
+}
+
 model Expense {
   id              String   @id @default(uuid())
   expenseDate     DateTime
@@ -756,10 +782,7 @@ model Expense {
   vendorName      String?
   referenceNo     String?
 
-  baseAmount      Float
-  gstApplicable   Boolean  @default(false)
-  gstRate         Float?
-  gstAmount       Float?
+  // Simplified Amount (GST calculation moved to UI/Voucher logic if needed, or just total stored)
   totalAmount     Float
 
   paymentMode     String   // CASH | UPI | BANK | CARD | WALLET
@@ -769,6 +792,11 @@ model Expense {
   paymentRef      String?
 
   attachmentUrl   String?
+  
+  // Accounting Link
+  voucherId       String?   @unique
+  voucher         Voucher?  @relation(fields: [voucherId], references: [id])
+
   createdById     String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
