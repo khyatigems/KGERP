@@ -6,7 +6,8 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { importExpensesFromCSV, ExpenseImportRow } from "@/app/(dashboard)/expenses/actions";
+import { importExpensesFromCSV } from "@/app/(dashboard)/expenses/actions";
+import { type ExpenseImportRow } from "@/app/(dashboard)/expenses/schema";
 import { Loader2 } from "lucide-react";
 
 interface ExpenseActionsProps {

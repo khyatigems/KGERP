@@ -238,22 +238,6 @@ export async function getExpenses(filters?: {
     }
 }
 
-export interface ExpenseImportRow {
-    category?: string;
-    expenseDate?: string | Date;
-    description: string;
-    vendorName: string;
-    paymentMode: string;
-    paymentStatus?: string;
-    paidAmount?: string | number;
-    referenceNo?: string;
-    totalAmount?: string | number;
-    baseAmount?: string | number;
-    paymentDate?: string | Date;
-    paymentRef?: string;
-    attachmentUrl?: string;
-}
-
 export async function importExpensesFromCSV(data: ExpenseImportRow[]) {
     await checkPermission(PERMISSIONS.EXPENSE_CREATE);
     const session = await auth();

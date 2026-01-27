@@ -17,3 +17,19 @@ export const expenseSchema = z.object({
 });
 
 export type ExpenseFormValues = z.infer<typeof expenseSchema>;
+
+export interface ExpenseImportRow {
+    category?: string;
+    expenseDate?: string | Date;
+    description: string;
+    vendorName: string;
+    paymentMode: string;
+    paymentStatus?: string;
+    paidAmount?: string | number;
+    referenceNo?: string;
+    totalAmount?: string | number;
+    baseAmount?: string | number;
+    paymentDate?: string | Date;
+    paymentRef?: string;
+    attachmentUrl?: string;
+}
