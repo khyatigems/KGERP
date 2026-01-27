@@ -40,7 +40,7 @@ export default async function ExpenseReportsPage() {
         paymentModeStats[mode].amount += e.totalAmount;
 
         // GST
-        if (e.gstAmount) gstTotal += e.gstAmount;
+        // if (e.gstAmount) gstTotal += e.gstAmount;
     });
 
     return (

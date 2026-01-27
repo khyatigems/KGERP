@@ -12,7 +12,7 @@ type Expense = {
     expenseDate: Date;
     description: string;
     totalAmount: number;
-    gstAmount: number | null;
+    // gstAmount: number | null;
     paymentMode: string;
     vendorName: string | null;
     category: {
@@ -44,7 +44,7 @@ export function ExpensesReportView({
             Description: e.description,
             Vendor: e.vendorName || "-",
             "Payment Mode": e.paymentMode,
-            "GST Amount": e.gstAmount || 0,
+            // "GST Amount": e.gstAmount || 0,
             "Total Amount": e.totalAmount
         }));
 
