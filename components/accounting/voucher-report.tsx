@@ -36,11 +36,11 @@ interface Voucher {
   narration: string | null;
   isReversed: boolean;
   expense?: {
-      vendorName?: string;
+      vendorName?: string | null;
       category?: { name: string };
       paymentMode?: string;
-  };
-  createdBy?: { name: string };
+  } | null;
+  createdBy?: { name: string } | null;
 }
 
 interface VoucherReportData {

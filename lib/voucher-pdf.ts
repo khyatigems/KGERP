@@ -74,12 +74,12 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
   // --- 2. HEADER SECTION ---
   
   // Logo
-  let logoHeight = 0;
+  // let logoHeight = 0;
   if (data.logoUrl) {
     try {
       const logoData = await loadImage(data.logoUrl);
       doc.addImage(logoData, "PNG", margin + 5, y + 5, 25, 25);
-      logoHeight = 25;
+      // logoHeight = 25;
     } catch (e) {
       console.warn("Logo load failed", e);
     }
