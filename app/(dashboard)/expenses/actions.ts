@@ -272,6 +272,12 @@ export async function importExpensesFromCSV(data: ExpenseImportRow[]) {
             // expenseDate,category,description,vendorName,baseAmount,gstApplicable,gstRate,paymentMode,paymentStatus,paidAmount,referenceNo
             
             const catName = row.category?.trim().toLowerCase();
+            
+            if (!catName) {
+                 errors.push(`Row ${rowNum}: Category missing`);
+                 continue;
+            }
+
             const categoryId = categoryMap.get(catName);
             
             if (!categoryId) {
