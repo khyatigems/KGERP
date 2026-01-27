@@ -21,7 +21,21 @@ import { cn } from "@/lib/utils";
 
 interface ExpenseFormProps {
   categories: { id: string; name: string; gstAllowed: boolean }[];
-  initialData?: ExpenseFormValues & { id: string };
+  initialData?: {
+    id: string;
+    expenseDate: Date;
+    categoryId: string;
+    description: string;
+    totalAmount: number;
+    paymentMode: string;
+    paymentStatus: string;
+    paidAmount: number;
+    vendorName?: string | null;
+    referenceNo?: string | null;
+    paymentDate?: Date | null;
+    paymentRef?: string | null;
+    attachmentUrl?: string | null;
+  };
 }
 
 export function ExpenseForm({ categories, initialData }: ExpenseFormProps) {
