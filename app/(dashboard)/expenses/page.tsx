@@ -26,7 +26,13 @@ export default async function ExpensesPage() {
         expenses = await getExpenses();
     } catch (e) {
         console.error("Failed to load expenses:", e);
-        return <div className="p-6 text-red-500">Failed to load expenses. Please try again later.</div>;
+        return (
+            <div className="p-6 text-red-500">
+                <h3 className="font-bold">Failed to load expenses</h3>
+                <p className="text-sm mt-2">{e instanceof Error ? e.message : String(e)}</p>
+                <p className="text-xs mt-4 text-gray-500">Please contact support or try again later.</p>
+            </div>
+        );
     }
 
     // Calculate Stats
