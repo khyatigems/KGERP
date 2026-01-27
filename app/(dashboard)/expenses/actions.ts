@@ -238,7 +238,7 @@ export async function getExpenses(filters?: {
     }
 }
 
-interface ExpenseImportRow {
+export interface ExpenseImportRow {
     category?: string;
     expenseDate?: string | Date;
     description: string;

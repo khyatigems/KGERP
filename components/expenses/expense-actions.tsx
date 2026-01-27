@@ -66,7 +66,7 @@ export function ExpenseActions({ expenses }: ExpenseActionsProps) {
                 const wb = XLSX.read(bstr, { type: "binary" });
                 const wsname = wb.SheetNames[0];
                 const ws = wb.Sheets[wsname];
-                const data = XLSX.utils.sheet_to_json(ws);
+                const data = XLSX.utils.sheet_to_json<ExpenseImportRow>(ws);
 
                 // Process import
                 const result = await importExpensesFromCSV(data);
