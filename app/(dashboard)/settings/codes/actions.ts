@@ -131,7 +131,7 @@ export async function createCode(group: CodeGroup, formData: FormData) {
     });
 
     revalidatePath("/settings/codes");
-    return { success: true };
+    return { success: true, data: created };
   } catch (error) {
     console.error(error);
     return { error: "Failed to create code" };
@@ -245,19 +245,36 @@ export async function deleteCode(group: CodeGroup, id: string) {
             const expenseCount = existing._count.expenses;
 
             if (expenseCount > 0) {
-                // Soft delete: Set status to DISABLED (or INACTIVE to match UI)
-                // Assuming we use INACTIVE in UI, let's stick to it, but DB comment said DISABLED.
-                // We'll use "INACTIVE" since that's what we send in update.
                 await prisma.expenseCategory.update({
                     where: { id },
                     data: { status: "INACTIVE" }
                 });
                 return { success: true, message: "Category has associated expenses. It has been marked as INACTIVE instead of deleted." };
             } else {
-                // Hard delete
                 await prisma.expenseCategory.delete({ where: { id } });
                 return { success: true, message: "Category deleted successfully." };
             }
+        } else if (group === "colors") {
+             existing = await prisma.colorCode.findUnique({
+                 where: { id },
+                 include: { _count: { select: { inventories: true } } }
+             });
+
+             if (!existing) return { error: "Color code not found" };
+
+             // @ts-expect-error - dynamic type check
+             const inventoryCount = existing._count.inventories;
+
+             if (inventoryCount > 0) {
+                 await prisma.colorCode.update({
+                     where: { id },
+                     data: { status: "INACTIVE" }
+                 });
+                 return { success: true, message: "Color is used in inventory. It has been marked as INACTIVE." };
+             } else {
+                 await prisma.colorCode.delete({ where: { id } });
+                 return { success: true, message: "Color code deleted successfully." };
+             }
         }
         
         // For other codes, we can implement similar logic or keep it simple (not requested yet)

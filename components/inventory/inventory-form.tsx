@@ -28,7 +28,8 @@ import { FileUpload } from "@/components/inventory/file-upload";
 import { createInventory, updateInventory } from "@/app/(dashboard)/inventory/actions";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { createCode, checkCodeDuplicate } from "@/app/(dashboard)/settings/codes/actions";
+import { Loader2, ChevronDown, ChevronUp, Sparkles, Pipette, Plus, X, Check } from "lucide-react";
 import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
 
 type CodeRow = {
@@ -178,6 +179,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const [skuPreview, setSkuPreview] = useState<string>("");
   const [isSkuPreviewOpen, setIsSkuPreviewOpen] = useState(false);
 
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
@@ -228,6 +230,48 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       cutCodeId: initialData?.cutCodeId || "",
     },
   });
+
+  // Color Picker State
+  const [colorsList, setColorsList] = useState(colors);
+  const [isAddingColor, setIsAddingColor] = useState(false);
+  const [newColorName, setNewColorName] = useState("");
+  const [newColorCode, setNewColorCode] = useState("");
+  const [isCreatingColor, setIsCreatingColor] = useState(false);
+
+  const mediaUrls = form.watch("mediaUrls");
+  const mediaUrl = form.watch("mediaUrl");
+  const currentImage = (mediaUrls && mediaUrls.length > 0) ? mediaUrls[0] : (mediaUrl || "");
+
+  const handleCreateColor = async () => {
+      if (!newColorName || !newColorCode) return;
+
+      setIsCreatingColor(true);
+      const formData = new FormData();
+      formData.append("name", newColorName);
+      formData.append("code", newColorCode);
+      formData.append("status", "ACTIVE");
+
+      try {
+          const res = await createCode("colors", formData);
+          if (res.error) {
+              toast.error(res.error);
+          } else if (res.data) {
+              toast.success("Color added successfully");
+              // @ts-expect-error - Adding necessary fields
+              setColorsList(prev => [...prev, { ...res.data, status: "ACTIVE", createdAt: new Date(), updatedAt: new Date() }].sort((a, b) => a.name.localeCompare(b.name)));
+              form.setValue("color", res.data.name);
+              form.setValue("colorCodeId", res.data.id);
+              setIsAddingColor(false);
+              setNewColorName("");
+              setNewColorCode("");
+          }
+      } catch (error) {
+          console.error(error);
+          toast.error("Failed to create color");
+      } finally {
+          setIsCreatingColor(false);
+      }
+  };
 
   const pricingMode = form.watch("pricingMode");
   const weightValue = form.watch("weightValue");
@@ -559,7 +603,59 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               name="color"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Color</FormLabel>
+                  <FormLabel className="flex items-center justify-between">
+                    Color
+                    <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                        onClick={() => setIsAddingColor(!isAddingColor)}
+                    >
+                        {isAddingColor ? <X className="w-3 h-3 mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
+                        {isAddingColor ? "Cancel" : "Add Color"}
+                    </Button>
+                  </FormLabel>
+                  {isAddingColor && (
+                      <div className="mb-2 p-3 border rounded-md bg-muted/30 space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                  <label className="text-xs font-medium">Name</label>
+                                  <Input 
+                                      value={newColorName}
+                                      onChange={(e) => {
+                                          const val = e.target.value;
+                                          setNewColorName(val);
+                                          if (!newColorCode && val) {
+                                              setNewColorCode(val.slice(0, 4).toUpperCase());
+                                          }
+                                      }}
+                                      placeholder="e.g. Sky Blue"
+                                      className="h-8 text-xs"
+                                  />
+                              </div>
+                              <div className="space-y-1">
+                                  <label className="text-xs font-medium">Code</label>
+                                  <Input 
+                                      value={newColorCode}
+                                      onChange={(e) => setNewColorCode(e.target.value.toUpperCase().slice(0, 6))}
+                                      placeholder="e.g. SKY"
+                                      className="h-8 text-xs"
+                                  />
+                              </div>
+                          </div>
+                          <Button 
+                              type="button" 
+                              size="sm" 
+                              className="w-full h-7 text-xs"
+                              onClick={handleCreateColor}
+                              disabled={!newColorName || !newColorCode || isCreatingColor}
+                          >
+                              {isCreatingColor ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                              Save New Color
+                          </Button>
+                      </div>
+                  )}
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -567,7 +663,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {colors.map((c) => (
+                      {colorsList.map((c) => (
                         <SelectItem key={c.id} value={c.name}>
                           {c.name} ({c.code})
                         </SelectItem>
