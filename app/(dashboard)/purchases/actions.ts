@@ -123,7 +123,7 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
   }
 
   revalidatePath("/purchases");
-  redirect("/purchases");
+  return { success: true, message: "Purchase created successfully" };
 }
 
 export async function updatePurchase(id: string, prevState: unknown, formData: FormData) {

@@ -472,6 +472,9 @@ export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
             toast.error("Validation failed");
         }
     } catch (error) {
+        if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+            throw error;
+        }
         console.error(error);
         toast.error("An unexpected error occurred");
     } finally {
