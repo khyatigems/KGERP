@@ -262,7 +262,6 @@ export async function deleteCode(group: CodeGroup, id: string) {
 
              if (!existing) return { error: "Color code not found" };
 
-             // @ts-expect-error - dynamic type check
              const inventoryCount = existing._count.inventories;
 
              if (inventoryCount > 0) {

@@ -257,8 +257,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               toast.error(res.error);
           } else if (res.data) {
               toast.success("Color added successfully");
-              // @ts-expect-error - Adding necessary fields
-              setColorsList(prev => [...prev, { ...res.data, status: "ACTIVE", createdAt: new Date(), updatedAt: new Date() }].sort((a, b) => a.name.localeCompare(b.name)));
+              setColorsList(prev => [...prev, { ...res.data, code: res.data.code || "", status: "ACTIVE", createdAt: new Date(), updatedAt: new Date() }].sort((a, b) => a.name.localeCompare(b.name)));
               form.setValue("color", res.data.name);
               form.setValue("colorCodeId", res.data.id);
               setIsAddingColor(false);
