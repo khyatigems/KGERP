@@ -139,8 +139,11 @@ export async function createCode(group: CodeGroup, formData: FormData) {
 }
 
 export async function updateCode(group: CodeGroup, formData: FormData) {
+  const perm = await checkPermission(PERMISSIONS.SETTINGS_MANAGE);
+  if (!perm.success) return { error: perm.message };
+
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
+  if (!session?.user) return { error: "Unauthorized" };
 
   const rawData = {
     id: formData.get("id"),
@@ -223,8 +226,11 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
 }
 
 export async function deleteCode(group: CodeGroup, id: string) {
+    const perm = await checkPermission(PERMISSIONS.SETTINGS_MANAGE);
+    if (!perm.success) return { error: perm.message };
+
     const session = await auth();
-    if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
+    if (!session?.user) return { error: "Unauthorized" };
 
     try {
         let existing;
@@ -279,8 +285,11 @@ type ImportError = {
 };
 
 export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
+  const perm = await checkPermission(PERMISSIONS.SETTINGS_MANAGE);
+  if (!perm.success) return { error: perm.message };
+
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") return { error: "Unauthorized" };
+  if (!session?.user) return { error: "Unauthorized" };
 
   const results = {
     totalRows: rows.length,
