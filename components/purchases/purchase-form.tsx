@@ -42,6 +42,8 @@ const BEAD_SIZES = ["4", "6", "8", "10", "12", "Mixed", "Other"];
 
 const CHIPS_TYPES = ["Small Chips", "Medium Chips", "Large Chips", "Mixed Chips"];
 
+const WEIGHT_UNITS = ["cts", "grams", "pcs", "kgs", "ratti"];
+
 // --- Schemas ---
 
 const purchaseItemSchema = z.object({
@@ -239,7 +241,7 @@ function PurchaseItemRow({
             </div>
 
             {/* Size / Dimension - Flexible */}
-            <div className="md:col-span-3 space-y-2">
+            <div className="md:col-span-2 space-y-2">
                  <FormLabel className={index !== 0 ? "sr-only md:not-sr-only" : ""}>Size / Dimension</FormLabel>
                  <div className="flex space-x-2">
                     <FormField
@@ -307,8 +309,8 @@ function PurchaseItemRow({
                  )}
             </div>
 
-            {/* Qty, Cost, Total - Compact */}
-            <div className="md:col-span-2 grid grid-cols-2 gap-2">
+            {/* Qty, Unit, Cost - Compact */}
+            <div className="md:col-span-3 grid grid-cols-3 gap-2">
                  <FormField
                     control={form.control}
                     name={`items.${index}.quantity`}
@@ -331,6 +333,30 @@ function PurchaseItemRow({
                         </FormItem>
                     )}
                 />
+
+                <FormField
+                    control={form.control}
+                    name={`items.${index}.weightType`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className={index !== 0 ? "sr-only md:not-sr-only" : ""}>Unit</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Unit" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {WEIGHT_UNITS.map((u) => (
+                                        <SelectItem key={u} value={u}>{u}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
                  <FormField
                     control={form.control}
                     name={`items.${index}.costPerUnit`}

@@ -212,6 +212,7 @@ export default async function PurchaseDetailPage({
                 <TableHead>Item Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Shape</TableHead>
+                <TableHead>Size</TableHead>
                 <TableHead>Qty</TableHead>
                 <TableHead>Cost/Unit</TableHead>
                 <TableHead>Total</TableHead>
@@ -223,6 +224,9 @@ export default async function PurchaseDetailPage({
                   <TableCell>{item.itemName}</TableCell>
                   <TableCell>{item.category || "-"}</TableCell>
                   <TableCell>{item.shape || "-"}</TableCell>
+                  <TableCell>
+                    {item.dimensions || (item.beadSizeMm ? `${item.beadSizeMm} mm` : "-")}
+                  </TableCell>
                   <TableCell>
                     {item.weightValue} {item.weightUnit}
                   </TableCell>
