@@ -1,9 +1,15 @@
 import { Metadata } from "next";
-import { Eye, Plus, Upload, IndianRupee, Package, Clock } from "lucide-react";
+import { Eye, Plus, Upload, IndianRupee, Package, Clock, Download } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LoadingLink } from "@/components/ui/loading-link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -98,29 +104,30 @@ async function getPurchaseStats(search?: string) {
     };
 }
 
-export default async function PurchasesPage(props: { searchParams: Promise<{ q?: string }> }) {
-  const searchParams = await props.searchParams;
-  const search = searchParams?.q || "";
-
+export default async function PurchasesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ query?: string }>;
+}) {
   const session = await auth();
-  if (!session?.user) redirect("/login");
-
-  // Purchases reveal cost, so restrict to those who can view cost
-  if (!hasPermission(session.user.role, PERMISSIONS.INVENTORY_VIEW_COST)) {
-     redirect("/");
+  const userRole = session?.user?.role || "VIEWER";
+  
+  if (!hasPermission(userRole, PERMISSIONS.INVENTORY_VIEW)) {
+    redirect("/");
   }
 
+  const { query } = await searchParams;
+  const search = query || "";
+  
   let purchases: PurchaseWithDetails[] = [];
-  let stats;
-  let error;
+  let stats = null;
+  let error = null;
 
   try {
-    const [p, s] = await Promise.all([
-        getPurchases(search),
-        getPurchaseStats(search)
+    [purchases, stats] = await Promise.all([
+      getPurchases(search),
+      getPurchaseStats(search)
     ]);
-    purchases = p;
-    stats = s;
   } catch (e) {
     error = e;
   }
@@ -183,6 +190,27 @@ export default async function PurchasesPage(props: { searchParams: Promise<{ q?:
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <PurchaseSearch />
         <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem asChild>
+                <a href={`/api/purchases/export?type=summary&search=${search}`} download>
+                  Summary Report
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={`/api/purchases/export?type=detailed&search=${search}`} download>
+                  Detailed Report
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button variant="outline" asChild>
             <LoadingLink href="/purchases/import">
               <Upload className="mr-2 h-4 w-4" />
