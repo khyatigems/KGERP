@@ -2,6 +2,7 @@ import type { NextAuthConfig } from "next-auth";
 import { getPermissionsForRole } from "./permissions";
 
 export const authConfig = {
+  trustHost: true,
   pages: {
     signIn: "/login",
   },
