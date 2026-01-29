@@ -82,27 +82,32 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
             }
         });
 
-        for (const item of data.items) {
+        const itemsData = data.items.map(item => {
              const weightValue = item.quantity;
              const weightUnit = item.weightType;
              
-             await tx.purchaseItem.create({
-                 data: {
-                     purchaseId: p.id,
-                     itemName: item.itemName,
-                     category: item.category,
-                     shape: item.shape,
-                     dimensions: item.sizeValue ? `${item.sizeValue} ${item.sizeUnit || ''}`.trim() : undefined,
-                     beadSizeMm: item.beadSizeMm,
-                     weightValue,
-                     weightUnit,
-                     quantity: 1, // Default to 1 piece as per previous logic
-                     unitCost: item.costPerUnit,
-                     totalCost: item.totalCost,
-                     notes: item.remarks,
-                 }
-             });
+             return {
+                 purchaseId: p.id,
+                 itemName: item.itemName,
+                 category: item.category,
+                 shape: item.shape,
+                 dimensions: item.sizeValue ? `${item.sizeValue} ${item.sizeUnit || ''}`.trim() : undefined,
+                 beadSizeMm: item.beadSizeMm,
+                 weightValue,
+                 weightUnit,
+                 quantity: 1, // Default to 1 piece as per previous logic
+                 unitCost: item.costPerUnit,
+                 totalCost: item.totalCost,
+                 notes: item.remarks,
+             };
+        });
+
+        if (itemsData.length > 0) {
+            await tx.purchaseItem.createMany({
+                data: itemsData
+            });
         }
+        
         return p;
     });
 
@@ -191,27 +196,32 @@ export async function updatePurchase(id: string, prevState: unknown, formData: F
         });
 
         // 3. Recreate items
-        for (const item of data.items) {
+        const itemsData = data.items.map(item => {
              const weightValue = item.quantity;
              const weightUnit = item.weightType;
              
-             await tx.purchaseItem.create({
-                 data: {
-                     purchaseId: p.id,
-                     itemName: item.itemName,
-                     category: item.category,
-                     shape: item.shape,
-                     dimensions: item.sizeValue ? `${item.sizeValue} ${item.sizeUnit || ''}`.trim() : undefined,
-                     beadSizeMm: item.beadSizeMm,
-                     weightValue,
-                     weightUnit,
-                     quantity: 1,
-                     unitCost: item.costPerUnit,
-                     totalCost: item.totalCost,
-                     notes: item.remarks,
-                 }
-             });
+             return {
+                 purchaseId: p.id,
+                 itemName: item.itemName,
+                 category: item.category,
+                 shape: item.shape,
+                 dimensions: item.sizeValue ? `${item.sizeValue} ${item.sizeUnit || ''}`.trim() : undefined,
+                 beadSizeMm: item.beadSizeMm,
+                 weightValue,
+                 weightUnit,
+                 quantity: 1,
+                 unitCost: item.costPerUnit,
+                 totalCost: item.totalCost,
+                 notes: item.remarks,
+             };
+        });
+
+        if (itemsData.length > 0) {
+            await tx.purchaseItem.createMany({
+                data: itemsData
+            });
         }
+
         return p;
     });
 
