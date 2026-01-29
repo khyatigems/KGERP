@@ -2,7 +2,7 @@ import { CsvImporter } from "@/components/ui/csv-importer";
 import { importInventory } from "../actions";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -28,11 +28,19 @@ export default async function ImportInventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" asChild>
-            <Link href="/inventory"><ArrowLeft className="mr-2 h-4 w-4"/> Back</Link>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+            <Button variant="ghost" asChild>
+                <Link href="/inventory"><ArrowLeft className="mr-2 h-4 w-4"/> Back</Link>
+            </Button>
+            <h1 className="text-3xl font-bold tracking-tight">Import Inventory</h1>
+        </div>
+        <Button variant="outline" asChild>
+            <a href="/api/inventory/template" download>
+                <Download className="mr-2 h-4 w-4" />
+                Download Template
+            </a>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Import Inventory</h1>
       </div>
 
       <div className="prose dark:prose-invert">
