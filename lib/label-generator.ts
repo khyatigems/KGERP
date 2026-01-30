@@ -283,9 +283,11 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
         // Use server-provided checksum price (Total Price)
         let priceText = `R ${item.priceWithChecksum || item.sellingPrice}`;
 
-        // Append Per Carat Rate if applicable
+        // Append mode indicator
         if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
             priceText += ` (${item.sellingRatePerCarat.toLocaleString()}/ct)`;
+        } else if (item.pricingMode === "FLAT") {
+            priceText += ` (Flat)`;
         }
         
         doc.text(priceText, contentX, currentY);

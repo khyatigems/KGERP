@@ -166,6 +166,9 @@ export async function createLabelJob(data: {
             // ALWAYS Encode Total Price as per new requirement
             // "Show total price in the logic which we have design that additional chksum"
             const priceToEncode = item.flatSellingPrice || ((item.sellingRatePerCarat || 0) * (item.weightValue || 0));
+            const derivedPricingMode = (item.flatSellingPrice && item.flatSellingPrice > 0)
+                ? "FLAT"
+                : ((item.sellingRatePerCarat || 0) > 0 ? "PER_CARAT" : "FLAT");
 
             // Encode using MOD-9
             const encoded = encodePrice(priceToEncode);
@@ -186,7 +189,7 @@ export async function createLabelJob(data: {
                 shape: item.shape,
                 dimensions: item.dimensionsMm,
                 stockLocation: item.stockLocation,
-                pricingMode: item.pricingMode, // Use item's own pricing mode
+                pricingMode: derivedPricingMode,
                 sellingRatePerCarat: item.sellingRatePerCarat
             };
         });

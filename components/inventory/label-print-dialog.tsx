@@ -164,6 +164,8 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         // 3. Append Per Carat Rate if applicable (User request)
         if (target.pricingMode === "PER_CARAT" && target.sellingRatePerCarat) {
             display += ` (${target.sellingRatePerCarat.toLocaleString()}/ct)`;
+        } else if (target.pricingMode === "FLAT") {
+            display += ` (Flat)`;
         }
 
         return display;
