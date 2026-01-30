@@ -221,7 +221,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
 
         // 3. Append Per Carat Rate if applicable (User request)
         if (target.pricingMode === "PER_CARAT" && target.sellingRatePerCarat) {
-            display += ` (${target.sellingRatePerCarat.toLocaleString()}/ct)`;
+            display += ` (${Math.round(target.sellingRatePerCarat).toLocaleString()}/ct)`;
         } else if (target.pricingMode === "FLAT") {
             display += ` (Flat)`;
         }
@@ -451,7 +451,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                             <div className="space-y-2">
                                 <Label>Preset Name</Label>
                                 <Input value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="e.g., A4 6-per-row" />
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2">
                                     <Button variant="outline" onClick={savePreset}>Save Preset</Button>
                                     <Button variant="secondary" onClick={setEpsonL3250}>Epson L3250 Preset</Button>
                                 </div>
