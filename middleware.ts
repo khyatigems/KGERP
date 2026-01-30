@@ -1,12 +1,12 @@
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
-import { PERMISSIONS, hasPermission } from "@/lib/permissions";
+import { PERMISSIONS, hasPermission, Permission } from "@/lib/permissions";
 
 const { auth } = NextAuth(authConfig);
 
 // Map routes to required permissions
-const ROUTE_PERMISSIONS: Record<string, string> = {
+const ROUTE_PERMISSIONS: Record<string, Permission> = {
   "/reports": PERMISSIONS.REPORTS_VIEW,
   "/settings": PERMISSIONS.SETTINGS_MANAGE,
   "/users": PERMISSIONS.USERS_MANAGE,
@@ -26,6 +26,7 @@ export default auth((req) => {
     pathname.startsWith("/login") ||
     pathname.startsWith("/quote") ||
     pathname.startsWith("/invoice") ||
+    pathname.startsWith("/preview") ||
     pathname.startsWith("/api/auth"); // Removed root "/" from public, as it's dashboard
 
   // 1. Handle Public Routes
@@ -46,7 +47,7 @@ export default auth((req) => {
   // Check if current path starts with any protected route key
   for (const [route, permission] of Object.entries(ROUTE_PERMISSIONS)) {
     if (pathname.startsWith(route)) {
-      if (!hasPermission(userRole, permission as any)) {
+      if (!hasPermission(userRole, permission)) {
         // Log unauthorized access attempt (optional, could be done via separate service)
         console.warn(`Unauthorized access attempt: User ${req.auth?.user?.email} (${userRole}) tried to access ${pathname}`);
         return NextResponse.rewrite(new URL("/403", req.nextUrl)); // Rewrite to a 403 page or redirect
