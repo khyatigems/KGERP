@@ -28,9 +28,19 @@ import { FileUpload } from "@/components/inventory/file-upload";
 import { createInventory, updateInventory } from "@/app/(dashboard)/inventory/actions";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createCode, checkCodeDuplicate } from "@/app/(dashboard)/settings/codes/actions";
-import { Loader2, ChevronDown, ChevronUp, Sparkles, Pipette, Plus, X, Check } from "lucide-react";
+import { createCode } from "@/app/(dashboard)/settings/codes/actions";
+import { Loader2, ChevronDown, ChevronUp, Sparkles, Plus, X, Check } from "lucide-react";
 import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type CodeRow = {
   id: string;
@@ -178,6 +188,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const [isPending, setIsPending] = useState(false);
   const [skuPreview, setSkuPreview] = useState<string>("");
   const [isSkuPreviewOpen, setIsSkuPreviewOpen] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    message: string;
+    errors: Record<string, string[]>;
+  } | null>(null);
 
 
   const form = useForm<FormValues>({
@@ -237,10 +251,6 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const [newColorName, setNewColorName] = useState("");
   const [newColorCode, setNewColorCode] = useState("");
   const [isCreatingColor, setIsCreatingColor] = useState(false);
-
-  const mediaUrls = form.watch("mediaUrls");
-  const mediaUrl = form.watch("mediaUrl");
-  const currentImage = (mediaUrls && mediaUrls.length > 0) ? mediaUrls[0] : (mediaUrl || "");
 
   const handleCreateColor = async () => {
       if (!newColorName || !newColorCode) return;
@@ -326,8 +336,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     }
   }, [selectedCategory, selectedGemstone, selectedColor, calculatedRatti, form]);
 
-  async function onSubmit(data: FormValues) {
+  async function submitInventory(data: FormValues, ignoreDuplicates = false) {
     setIsPending(true);
+    setDuplicateWarning(null); // Clear previous warnings
+    
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       // Skip mediaUrls as it's handled explicitly below to avoid double-entry (comma-separated string + individual entries)
@@ -344,6 +356,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       mediaUrls.forEach(url => {
         formData.append("mediaUrls", url);
       });
+    }
+
+    if (ignoreDuplicates) {
+      formData.append("ignoreDuplicates", "true");
     }
 
     try {
@@ -366,6 +382,17 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                  router.push("/inventory");
              }, 1000);
         } else if (result && (result.message || result.errors)) {
+             // Check for duplicate warning
+             // eslint-disable-next-line @typescript-eslint/no-explicit-any
+             if ((result as any).isDuplicateWarning) {
+               setDuplicateWarning({
+                 message: result.message || "Potential duplicate detected",
+                 errors: result.errors || {}
+               });
+               setIsPending(false); // Stop loading to show dialog
+               return; 
+             }
+
              let errorMsg = result.message || "Validation failed.";
              if (result.errors) {
                 const errorEntries = Object.entries(result.errors);
@@ -384,9 +411,21 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         console.error(error);
         toast.error("An unexpected error occurred.");
     } finally {
+        // Only set pending false if we didn't trigger the warning dialog (which needs user interaction)
+        // But we actually do want to stop pending state so user can click buttons in dialog.
+        // Wait, if I set pending false, the main form buttons re-enable. That's fine.
         setIsPending(false);
     }
   }
+
+  async function onSubmit(data: FormValues) {
+    await submitInventory(data, false);
+  }
+
+  const handleSaveAnyway = async () => {
+    const data = form.getValues();
+    await submitInventory(data, true);
+  };
 
   return (
     <Form {...form}>
@@ -1298,6 +1337,36 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
           {initialData ? "Update Inventory Item" : "Create Inventory Item"}
         </Button>
       </form>
+
+      <AlertDialog open={!!duplicateWarning} onOpenChange={(open) => !open && setDuplicateWarning(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+               <span className="text-xl">⚠️</span> {duplicateWarning?.message}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2">
+              <p>The system detected a potential duplicate item:</p>
+              <div className="bg-red-50 p-3 rounded-md text-red-700 text-sm font-medium border border-red-200">
+                 {Object.values(duplicateWarning?.errors || {}).flat().map((e, i) => (
+                   <div key={i}>{e}</div>
+                 ))}
+              </div>
+              <p>How would you like to proceed?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDuplicateWarning(null)}>
+               Edit Details
+            </AlertDialogCancel>
+            <AlertDialogAction 
+               onClick={handleSaveAnyway}
+               className="bg-red-600 hover:bg-red-700 text-white"
+            >
+               Save Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Form>
   );
 }

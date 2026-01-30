@@ -96,6 +96,9 @@ const inventorySchema = z.object({
   holeSizeMm: z.coerce.number().optional(),
   innerCircumferenceMm: z.coerce.number().optional(),
   standardSize: z.string().optional(),
+  
+  // Logic Flags
+  ignoreDuplicates: z.coerce.boolean().optional(),
 });
 
 type InventoryImportRow = {
@@ -464,17 +467,20 @@ export async function updateInventory(
   }
 
   // 2. Duplicate SKU Check (Exclude current ID)
-  const duplicates = await checkDuplicateSku(data.gemstoneCodeId, data.weightValue, id);
-  if (duplicates.length > 0) {
-      // For updates, we might want to be more lenient or just warn?
-      // But prompt says "Detect duplicate-like SKUs".
-      // We'll block for now to ensure integrity.
-      return {
-          message: `Potential duplicate SKU detected: ${duplicates[0].sku}`,
-          errors: {
-              weightValue: [`Similar item exists: ${duplicates[0].sku} (${duplicates[0].weightValue}ct)`]
-          }
-      };
+  if (!data.ignoreDuplicates) {
+    const duplicates = await checkDuplicateSku(data.gemstoneCodeId, data.weightValue, id);
+    if (duplicates.length > 0) {
+        // For updates, we might want to be more lenient or just warn?
+        // But prompt says "Detect duplicate-like SKUs".
+        // We'll block for now to ensure integrity.
+        return {
+            message: `Potential duplicate SKU detected: ${duplicates[0].sku}`,
+            errors: {
+                weightValue: [`Similar item exists: ${duplicates[0].sku} (${duplicates[0].weightValue}ct)`]
+            },
+            isDuplicateWarning: true
+        };
+    }
   }
   // --- End Integrity Checks ---
 
