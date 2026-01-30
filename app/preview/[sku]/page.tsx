@@ -32,7 +32,8 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
             colorCode: true,
             gemstoneCode: true,
             cutCode: true,
-            media: true
+            media: true,
+            certificates: true
         }
     });
 
@@ -136,7 +137,7 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
                             </div>
                         </div>
 
-                        {(item.treatment || item.certification) && (
+                        {(item.treatment || (item.certificates && item.certificates.length > 0) || item.certification) && (
                             <div className="space-y-3 col-span-2 pt-2">
                                 <span className="text-stone-400 block text-[10px] uppercase tracking-widest font-semibold">Additional Info</span>
                                 <div className="flex flex-wrap gap-3">
@@ -145,11 +146,17 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
                                             Treatment: {item.treatment}
                                         </span>
                                     )}
-                                    {item.certification && (
+                                    {item.certificates && item.certificates.length > 0 ? (
+                                        item.certificates.map((cert) => (
+                                            <span key={cert.id} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#FFF9EB] text-[#947600] border border-[#F5E6C8]">
+                                                Cert: {cert.name}{cert.remarks ? ` (${cert.remarks})` : ''}
+                                            </span>
+                                        ))
+                                    ) : item.certification ? (
                                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-[#FFF9EB] text-[#947600] border border-[#F5E6C8]">
                                             Cert: {item.certification}
                                         </span>
-                                    )}
+                                    ) : null}
                                 </div>
                             </div>
                         )}

@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
 type InventoryWithExtras = Inventory & {
   category?: string | null;
   weightRatti?: number | null;
+  certificates?: { name: string; remarks?: string | null }[];
 };
 
 type ActivityLogEntry = {
@@ -55,7 +56,8 @@ export default async function InventoryDetailPage({
         collectionCode: true,
         cutCode: true,
         rashis: true,
-        media: true
+        media: true,
+        certificates: true
     }
   });
 
@@ -228,7 +230,11 @@ export default async function InventoryDetailPage({
                          </div>
                          <div className="flex justify-between">
                              <span className="text-muted-foreground">Certification:</span>
-                             <span className="font-medium">{detailedItem.certification || "None"}</span>
+                             <span className="font-medium">
+                                 {detailedItem.certificates && detailedItem.certificates.length > 0 
+                                     ? detailedItem.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") 
+                                     : (detailedItem.certification || "None")}
+                             </span>
                          </div>
                     </div>
                  </div>

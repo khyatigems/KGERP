@@ -813,20 +813,6 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
 
               <FormField
                 control={form.control}
-                name="certification"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Certification (Legacy)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. GIA" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="certificateCodeIds"
                 render={() => (
                   <FormItem>

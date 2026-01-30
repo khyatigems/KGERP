@@ -11,7 +11,7 @@ import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import type { Metadata } from "next";
 
-type SaleItem = Prisma.SaleGetPayload<{ include: { inventory: true } }>;
+type SaleItem = Prisma.SaleGetPayload<{ include: { inventory: { include: { certificates: true } } } }>;
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +29,10 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     where: { token },
     include: {
       sales: {
-        include: { inventory: true }
+        include: { inventory: { include: { certificates: true } } }
       },
       legacySale: {
-        include: { inventory: true }
+        include: { inventory: { include: { certificates: true } } }
       },
       quotation: {
         include: {
@@ -176,10 +176,14 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       const pricingDetails = item.inventory.pricingMode === "PER_CARAT" 
         ? `Rate: ${formatCurrency(item.inventory.sellingRatePerCarat || 0)}/ct` 
         : "Flat Price";
+      
+      const certString = item.inventory.certificates && item.inventory.certificates.length > 0 
+        ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") 
+        : item.inventory.certification;
         
       return {
         sku: item.inventory.sku,
-        description: `${item.inventory.itemName}\n${item.inventory.weightValue} ${item.inventory.weightUnit}${item.inventory.certification ? ` • Cert: ${item.inventory.certification}` : ''}\n${pricingDetails}`,
+        description: `${item.inventory.itemName}\n${item.inventory.weightValue} ${item.inventory.weightUnit}${certString ? ` • Cert: ${certString}` : ''}\n${pricingDetails}`,
         quantity: 1,
         unitPrice: item.basePrice, // Show Base Price in PDF column
         gstRate: item.gstRate,
@@ -308,7 +312,13 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                                 <p className="font-bold text-gray-900">{item.inventory.itemName}</p>
                                 <div className="text-xs text-gray-500 mt-1">
                                     SKU: <span className="font-mono">{item.inventory.sku}</span> • {item.inventory.weightValue} {item.inventory.weightUnit}
-                                    {item.inventory.certification && <span> • Cert: {item.inventory.certification}</span>}
+                                    {(item.inventory.certificates && item.inventory.certificates.length > 0) || item.inventory.certification ? (
+                                        <span> • Cert: {
+                                            item.inventory.certificates && item.inventory.certificates.length > 0
+                                                ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ")
+                                                : item.inventory.certification
+                                        }</span>
+                                    ) : null}
                                 </div>
                                 {/* Pricing Details */}
                                 <div className="text-xs text-gray-500 mt-0.5">
