@@ -60,7 +60,9 @@ export function LabelPrintingTable({ data }: LabelPrintingTableProps) {
         weightValue: item.weightValue || 0,
         weightUnit: item.weightUnit || "",
         weightRatti: item.weightRatti,
-        sellingPrice: getPrice(item)
+        sellingPrice: getPrice(item),
+        pricingMode: item.pricingMode || "FLAT",
+        sellingRatePerCarat: item.sellingRatePerCarat || 0
     }));
 
     return (

@@ -41,14 +41,24 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
     // Initialize config from localStorage if available
     const [config, setConfig] = useState<LabelConfig>(DEFAULT_TAG_CONFIG);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [presetName, setPresetName] = useState("");
+    const [presets, setPresets] = useState<{ name: string; config: LabelConfig }[]>([]);
 
     useEffect(() => {
         const saved = localStorage.getItem("label-print-config");
+        const savedPresets = localStorage.getItem("label-print-presets");
         if (saved) {
             try {
                 setConfig(JSON.parse(saved));
             } catch (e) {
                 console.error("Failed to parse saved config", e);
+            }
+        }
+        if (savedPresets) {
+            try {
+                setPresets(JSON.parse(savedPresets));
+            } catch (e) {
+                console.error("Failed to parse saved presets", e);
             }
         }
         setIsLoaded(true);
@@ -88,6 +98,44 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         } else {
             setConfig({ ...config, selectedFields: [] });
         }
+    };
+    
+    const savePreset = () => {
+        if (!presetName.trim()) return;
+        const updated = presets.filter(p => p.name !== presetName.trim());
+        updated.push({ name: presetName.trim(), config });
+        setPresets(updated);
+        localStorage.setItem("label-print-presets", JSON.stringify(updated));
+    };
+    
+    const loadPreset = (name: string) => {
+        const found = presets.find(p => p.name === name);
+        if (found) {
+            setConfig(found.config);
+        }
+    };
+    
+    const deletePreset = (name: string) => {
+        const updated = presets.filter(p => p.name !== name);
+        setPresets(updated);
+        localStorage.setItem("label-print-presets", JSON.stringify(updated));
+    };
+    
+    const setSixColumns = () => {
+        const base = DEFAULT_A4_CONFIG;
+        setConfig({ 
+            ...base, 
+            cols: 6, 
+            rows: base.rows, 
+            marginTop: base.marginTop, 
+            marginLeft: base.marginLeft,
+            horizontalGap: base.horizontalGap,
+            verticalGap: base.verticalGap,
+            labelWidth: base.labelWidth,
+            labelHeight: base.labelHeight,
+            showPrice: config.showPrice,
+            selectedFields: config.selectedFields || DEFAULT_FIELDS
+        });
     };
 
     const handlePrint = async () => {
@@ -381,6 +429,39 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                             <div className="space-y-2">
                                 <Label>Font Size (pt)</Label>
                                 <Input type="number" value={config.fontSize} onChange={(e) => setConfig({...config, fontSize: Number(e.target.value)})} />
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Preset Name</Label>
+                                <Input value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="e.g., A4 6-per-row" />
+                                <div className="flex gap-2">
+                                    <Button variant="outline" onClick={savePreset}>Save Preset</Button>
+                                    <Button variant="secondary" onClick={setSixColumns}>Set 6 per row</Button>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Saved Presets</Label>
+                                <Select onValueChange={(v) => loadPreset(v)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Choose preset" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {presets.map(p => (
+                                            <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <div className="flex gap-2">
+                                    <Button 
+                                        variant="destructive" 
+                                        disabled={!presetName} 
+                                        onClick={() => deletePreset(presetName)}
+                                    >
+                                        Delete Preset
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </TabsContent>
