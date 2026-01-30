@@ -163,13 +163,16 @@ export async function createLabelJob(data: {
 
         // 2. Prepare Job Items with Server-Side Checksum Generation
         const jobItemsData = items.map(item => {
-            // ALWAYS Encode Total Price as per new requirement
-            // "Show total price in the logic which we have design that additional chksum"
-            const priceToEncode = item.flatSellingPrice || ((item.sellingRatePerCarat || 0) * (item.weightValue || 0));
-            const derivedPricingMode = (item.flatSellingPrice && item.flatSellingPrice > 0)
-                ? "FLAT"
-                : ((item.sellingRatePerCarat || 0) > 0 ? "PER_CARAT" : "FLAT");
-
+            // Determine price based on Pricing Mode
+            let priceToEncode = 0;
+            
+            if (item.pricingMode === "PER_CARAT") {
+                // Trust Rate * Weight for PER_CARAT items
+                priceToEncode = (item.sellingRatePerCarat || 0) * (item.weightValue || 0);
+            } else {
+                // Default/Flat mode: Use Flat Price if available, otherwise fallback
+                priceToEncode = item.flatSellingPrice || ((item.sellingRatePerCarat || 0) * (item.weightValue || 0));
+            }
             // Encode using MOD-9
             const encoded = encodePrice(priceToEncode);
 
@@ -189,7 +192,7 @@ export async function createLabelJob(data: {
                 shape: item.shape,
                 dimensions: item.dimensionsMm,
                 stockLocation: item.stockLocation,
-                pricingMode: derivedPricingMode,
+                pricingMode: item.pricingMode === "PER_CARAT" ? "PER_CARAT" : "FLAT",
                 sellingRatePerCarat: item.sellingRatePerCarat
             };
         });
@@ -250,9 +253,10 @@ export async function getLabelJobs() {
             take: 50
         });
         return jobs;
-    } catch (e: any) {
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
         // Self-healing for orphan records (where User was deleted but Job remains)
-        if (e.message?.includes("Field user is required") || e.message?.includes("Inconsistent query result")) {
+        if (msg.includes("Field user is required") || msg.includes("Inconsistent query result")) {
             console.warn("Detected orphan LabelPrintJobs. Initiating cleanup...");
             try {
                 // 1. Get all jobs (raw, no relations)
@@ -293,7 +297,7 @@ export async function getLabelJobs() {
                 console.error("Failed to cleanup orphan jobs:", cleanupError);
             }
         }
-        console.error("getLabelJobs Error:", e);
+        console.error("getLabelJobs Error:", error);
         return [];
     }
 }

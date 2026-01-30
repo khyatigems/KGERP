@@ -96,7 +96,9 @@ export function InventoryActions({ item }: InventoryActionsProps) {
                     shape: item.shape,
                     dimensions: item.dimensionsMm,
                     stockLocation: item.stockLocation,
-                    sellingPrice: sellingPrice
+                    sellingPrice: sellingPrice,
+                    pricingMode: item.pricingMode,
+                    sellingRatePerCarat: item.sellingRatePerCarat
                  }}
                  trigger={
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>

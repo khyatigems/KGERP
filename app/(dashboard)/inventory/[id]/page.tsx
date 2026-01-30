@@ -367,7 +367,9 @@ export default async function InventoryDetailPage({
                             weightValue: detailedItem.weightValue || 0,
                             weightUnit: detailedItem.weightUnit || "",
                             weightRatti: detailedItem.weightRatti,
-                            sellingPrice: sellingPrice
+                            sellingPrice: sellingPrice,
+                            pricingMode: detailedItem.pricingMode,
+                            sellingRatePerCarat: detailedItem.sellingRatePerCarat
                         }}
                         trigger={<Button variant="outline" size="sm"><Pencil className="mr-2 h-4 w-4" /> Print Label</Button>}
                     />

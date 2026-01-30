@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { createLabelJob } from "@/app/(dashboard)/labels/actions";
 import { encodePrice } from "@/lib/price-encoder";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const AVAILABLE_FIELDS_UI = [
     { id: "itemName", label: "Item Name" },
@@ -140,9 +139,10 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             if (onPrintComplete) {
                 onPrintComplete();
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Print failed", error);
-            toast.error(error.message || "Failed to generate labels");
+            const msg = error instanceof Error ? error.message : "Failed to generate labels";
+            toast.error(msg);
         } finally {
             setIsPrinting(false);
         }
@@ -154,8 +154,12 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         if (!fields.includes("price")) return null;
 
         // 1. Calculate Total Price (Same as server)
-        const totalPrice = target.sellingPrice || 
-                          ((target.sellingRatePerCarat || 0) * (target.weightValue || 0));
+        let totalPrice = 0;
+        if (target.pricingMode === "PER_CARAT" && target.sellingRatePerCarat && target.weightValue) {
+            totalPrice = target.sellingRatePerCarat * target.weightValue;
+        } else {
+            totalPrice = target.sellingPrice || 0;
+        }
 
         // 2. Encode
         const encoded = encodePrice(totalPrice);
