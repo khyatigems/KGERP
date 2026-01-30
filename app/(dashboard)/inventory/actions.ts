@@ -242,14 +242,17 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   }
 
   // 2. Duplicate SKU Check
-  const duplicates = await checkDuplicateSku(data.gemstoneCodeId, data.weightValue);
-  if (duplicates.length > 0) {
+  if (!data.ignoreDuplicates) {
+    const duplicates = await checkDuplicateSku(data.gemstoneCodeId, data.weightValue);
+    if (duplicates.length > 0) {
       return {
           message: `Potential duplicate SKU detected: ${duplicates[0].sku}`,
           errors: {
               weightValue: [`Similar item exists: ${duplicates[0].sku} (${duplicates[0].weightValue}ct)`]
-          }
+          },
+          isDuplicateWarning: true
       };
+    }
   }
   // --- End Integrity Checks ---
 
