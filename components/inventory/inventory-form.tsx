@@ -387,7 +387,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
              if ((result as any).isDuplicateWarning) {
                setDuplicateWarning({
                  message: result.message || "Potential duplicate detected",
-                 errors: result.errors || {}
+                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 errors: (result.errors as any) || {}
                });
                setIsPending(false); // Stop loading to show dialog
                return; 
