@@ -71,6 +71,7 @@ const inventorySchema = z.object({
   cutCodeId: z.string().optional().transform(v => v === "" ? undefined : v),
   collectionCodeId: z.string().optional().transform(v => v === "" ? undefined : v),
   rashiCodeIds: z.string().optional().transform(val => val ? val.split(',').filter(Boolean) : []),
+  certificateCodeIds: z.string().optional().transform(val => val ? val.split(',').filter(Boolean) : []),
   shape: z.string().optional(),
   dimensionsMm: z.string().optional(),
   weightValue: z.coerce.number().min(0, "Weight must be non-negative"),
@@ -302,6 +303,9 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   rashis: {
                       connect: data.rashiCodeIds?.map(id => ({ id })) || []
                   },
+                  certificates: {
+                      connect: data.certificateCodeIds?.map(id => ({ id })) || []
+                  },
                   shape: data.shape,
                   dimensionsMm: data.dimensionsMm,
                   weightValue: data.weightValue,
@@ -507,6 +511,7 @@ export async function updateInventory(
         cutCode: data.cutCodeId ? { connect: { id: data.cutCodeId } } : { disconnect: true },
         collectionCode: data.collectionCodeId ? { connect: { id: data.collectionCodeId } } : { disconnect: true },
         rashis: { set: data.rashiCodeIds?.map(id => ({ id })) || [] },
+        certificates: { set: data.certificateCodeIds?.map(id => ({ id })) || [] },
         shape: data.shape,
         dimensionsMm: data.dimensionsMm,
         weightValue: data.weightValue,

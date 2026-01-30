@@ -37,6 +37,7 @@ export default async function SettingsCodesPage() {
         cuts={cuts}
         collections={collections}
         rashis={rashis}
+        certificates={certificates}
         expenseCategories={expenseCategories}
       />
     </div>

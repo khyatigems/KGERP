@@ -159,6 +159,17 @@ model RashiCode {
   inventories Inventory[]
 }
 
+model CertificateCode {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  remarks     String?
+  status      String      @default("ACTIVE")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  inventories Inventory[]
+}
+
 //// VENDORS
 
 model Vendor {
@@ -285,6 +296,7 @@ model Inventory {
   collectionCode   CollectionCode? @relation(fields: [collectionCodeId], references: [id])
   
   rashis           RashiCode[]
+  certificates     CertificateCode[]
   media            InventoryMedia[]
 
   // Relations

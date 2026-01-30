@@ -10,7 +10,7 @@ import { z } from "zod";
 
 const codePattern = /^[A-Z0-9]{1,6}$/;
 
-export type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "expenseCategories";
+export type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "expenseCategories" | "certificates";
 
 // Schema for other codes (CategoryCode, etc.)
 const createCodeSchema = z.object({
@@ -27,11 +27,19 @@ const createExpenseCategorySchema = z.object({
   gstAllowed: z.coerce.boolean().default(false),
 });
 
+// Schema specifically for Certificate Codes
+const createCertificateSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  remarks: z.string().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+});
+
 const updateCodeSchema = z.object({
   id: z.string().uuid(),
   name: z.string().trim().min(1, "Name is required"),
   status: z.enum(["ACTIVE", "INACTIVE"]),
   gstAllowed: z.coerce.boolean().optional(), // Only for expense categories
+  remarks: z.string().optional(), // Only for certificates
 });
 
 export async function createCode(group: CodeGroup, formData: FormData) {
@@ -46,11 +54,14 @@ export async function createCode(group: CodeGroup, formData: FormData) {
     code: formData.get("code"),
     status: formData.get("status") || "ACTIVE",
     gstAllowed: formData.get("gstAllowed") === "true",
+    remarks: formData.get("remarks"),
   };
 
   let parsed;
   if (group === "expenseCategories") {
     parsed = createExpenseCategorySchema.safeParse(rawData);
+  } else if (group === "certificates") {
+    parsed = createCertificateSchema.safeParse(rawData);
   } else {
     parsed = createCodeSchema.safeParse(rawData);
   }
@@ -60,7 +71,7 @@ export async function createCode(group: CodeGroup, formData: FormData) {
   }
 
   // @ts-expect-error - handling different shapes from union schema
-  const { name, code, status, gstAllowed } = parsed.data;
+  const { name, code, status, gstAllowed, remarks } = parsed.data;
 
   // Check existence
   let existing;
@@ -86,10 +97,13 @@ export async function createCode(group: CodeGroup, formData: FormData) {
           const nameExists = await prisma.expenseCategory.findUnique({ where: { name } });
           if (nameExists) return { error: "NAME_ALREADY_EXISTS", message: "Category name already exists." };
       }
+  } else if (group === "certificates") {
+      // For certificates, we check name uniqueness primarily
+      existing = await prisma.certificateCode.findUnique({ where: { name } });
   }
 
   if (existing) {
-    return { error: "CODE_ALREADY_EXISTS", message: "This code already exists in the system. Duplicate codes are not allowed." };
+    return { error: "CODE_ALREADY_EXISTS", message: "This code/name already exists in the system. Duplicate entries are not allowed." };
   }
 
   try {
@@ -114,6 +128,30 @@ export async function createCode(group: CodeGroup, formData: FormData) {
               status, 
               gstAllowed 
           } 
+      });
+    } else if (group === "certificates") {
+      // Generate a code from name since user said "no need to add code"
+      // Simple slug generation: uppercase, remove non-alphanumeric, take first 6 chars
+      // Ensure it's unique by appending random chars if needed? 
+      // For now, let's try simple generation. If collision, we might fail, but name is unique so collision is unlikely unless we truncate.
+      let generatedCode = name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+      if (generatedCode.length === 0) {
+        generatedCode = "CERT" + Math.floor(Math.random() * 100);
+      }
+      
+      // Check if generated code exists (edge case)
+      const codeExists = await prisma.certificateCode.findUnique({ where: { code: generatedCode } });
+      if (codeExists) {
+         generatedCode = generatedCode.slice(0, 3) + Math.floor(Math.random() * 1000);
+      }
+
+      created = await prisma.certificateCode.create({ 
+        data: { 
+          name, 
+          code: generatedCode, 
+          status,
+          remarks
+        } 
       });
     } else {
         throw new Error("Invalid group");
@@ -150,6 +188,7 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     name: formData.get("name"),
     status: formData.get("status"),
     gstAllowed: formData.get("gstAllowed"),
+    remarks: formData.get("remarks"),
   };
 
   const parsed = updateCodeSchema.safeParse(rawData);
@@ -157,7 +196,7 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const { id, name, status, gstAllowed } = parsed.data;
+  const { id, name, status, gstAllowed, remarks } = parsed.data;
 
   let existing;
   if (group === "categories") {
@@ -174,6 +213,8 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     existing = await prisma.rashiCode.findUnique({ where: { id } });
   } else if (group === "expenseCategories") {
     existing = await prisma.expenseCategory.findUnique({ where: { id } });
+  } else if (group === "certificates") {
+    existing = await prisma.certificateCode.findUnique({ where: { id } });
   }
 
   if (!existing) return { error: "Code not found" };
@@ -200,6 +241,15 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
               status,
               gstAllowed: gstAllowed // Update gstAllowed
           } 
+      });
+    } else if (group === "certificates") {
+      updated = await prisma.certificateCode.update({ 
+        where: { id }, 
+        data: { 
+          name, 
+          status,
+          remarks
+        } 
       });
     }
 

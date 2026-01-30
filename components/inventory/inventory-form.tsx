@@ -47,6 +47,7 @@ type CodeRow = {
   name: string;
   code: string;
   status: string;
+  remarks?: string | null;
 };
 
 type InventoryWithExtras = Inventory & {
@@ -71,6 +72,7 @@ type InventoryWithExtras = Inventory & {
   colorCode?: { name: string } | null;
   cutCode?: { name: string } | null;
   collectionCode?: { name: string } | null;
+  certificates?: { id: string }[];
 };
 
 const formSchema = z.object({
@@ -86,6 +88,7 @@ const formSchema = z.object({
   weightRatti: z.coerce.number().optional(),
   treatment: z.string().optional(),
   certification: z.string().optional(),
+  certificateCodeIds: z.array(z.string()).optional(),
   transparency: z.string().optional(),
   vendorId: z.string().min(1, "Vendor is required"),
   pricingMode: z.enum(["PER_CARAT", "FLAT"]),
@@ -180,10 +183,11 @@ interface InventoryFormProps {
   collections: CodeRow[];
   rashis: CodeRow[];
   cuts: CodeRow[];
+  certificates?: CodeRow[];
   initialData?: InventoryWithExtras & { media: InventoryMedia[]; rashiCodes?: { id: string }[] };
 }
 
-export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, initialData }: InventoryFormProps) {
+export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], initialData }: InventoryFormProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [skuPreview, setSkuPreview] = useState<string>("");
@@ -209,6 +213,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       weightRatti: initialData?.weightRatti || 0,
       treatment: initialData?.treatment || "None",
       certification: initialData?.certification || "None",
+      certificateCodeIds: initialData?.certificates?.map(c => c.id) || [],
       transparency: initialData?.transparency || "",
       vendorId: initialData?.vendorId || "",
       pricingMode: (initialData?.pricingMode as "PER_CARAT" | "FLAT") || "PER_CARAT",
@@ -811,10 +816,58 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 name="certification"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Certification</FormLabel>
+                    <FormLabel>Certification (Legacy)</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g. GIA" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="certificateCodeIds"
+                render={() => (
+                  <FormItem>
+                    <div className="mb-4">
+                      <FormLabel className="text-base">Certificates</FormLabel>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      {certificates.map((item) => (
+                        <FormField
+                          key={item.id}
+                          control={form.control}
+                          name="certificateCodeIds"
+                          render={({ field }) => {
+                            return (
+                              <FormItem
+                                key={item.id}
+                                className="flex flex-row items-start space-x-3 space-y-0"
+                              >
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value?.includes(item.id)}
+                                    onCheckedChange={(checked) => {
+                                      return checked
+                                        ? field.onChange([...(field.value || []), item.id])
+                                        : field.onChange(
+                                            field.value?.filter(
+                                              (value) => value !== item.id
+                                            )
+                                          )
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormLabel className="font-normal cursor-pointer">
+                                  {item.name} {item.remarks && <span className="text-muted-foreground text-xs">({item.remarks})</span>}
+                                </FormLabel>
+                              </FormItem>
+                            )
+                          }}
+                        />
+                      ))}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

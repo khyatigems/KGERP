@@ -110,6 +110,7 @@ export default async function InventoryPage({
         collectionCode: { select: { name: true } },
         // Fixed relation name
         rashis: { select: { name: true } },
+        certificates: { select: { name: true, remarks: true } },
       },
     }),
     prisma.categoryCode.findMany({ orderBy: { name: "asc" } }),
@@ -141,7 +142,7 @@ export default async function InventoryPage({
       rashi: item.rashis?.map(r => r.name).join(", ") || "-",
       collection: item.collectionCode?.name || "-",
       sellingRate: item.sellingRatePerCarat || item.flatSellingPrice || 0,
-      certification: item.certification || "-",
+      certification: item.certificates?.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification || "-",
       treatment: item.treatment || "-",
       braceletType: item.braceletType || "-",
       beadSize: item.beadSizeMm ? `${item.beadSizeMm}mm` : "-",
@@ -229,6 +230,7 @@ export default async function InventoryPage({
               <TableHead className="w-[80px]">Color</TableHead>
               <TableHead className="w-[80px]">Cut</TableHead>
               <TableHead className="w-[100px]">Weight</TableHead>
+              <TableHead className="w-[150px]">Certificates</TableHead>
               <TableHead className="w-[80px]">Ratti</TableHead>
               <TableHead className="w-[100px]">Price</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
@@ -288,6 +290,9 @@ export default async function InventoryPage({
                     <TableCell>{item.cutCode?.name || "-"}</TableCell>
                     <TableCell>
                       {item.weightValue} {item.weightUnit}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                        {item.certificates?.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification || "-"}
                     </TableCell>
                     <TableCell>
                       {item.weightRatti ? item.weightRatti.toFixed(2) : "-"}

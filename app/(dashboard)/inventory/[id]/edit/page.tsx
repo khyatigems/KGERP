@@ -16,12 +16,13 @@ type EditInventoryPageProps = {
 export default async function EditInventoryPage({ params }: EditInventoryPageProps) {
   const { id } = await params;
 
-  const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts] = await Promise.all([
+  const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts, certificates] = await Promise.all([
     prisma.inventory.findUnique({
       where: { id },
       include: { 
         media: true, 
         rashis: { select: { id: true } },
+        certificates: { select: { id: true } },
         categoryCode: true,
         gemstoneCode: true,
         colorCode: true,
@@ -47,6 +48,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
     prisma.collectionCode.findMany({ orderBy: { name: "asc" } }),
     prisma.rashiCode.findMany({ orderBy: { name: "asc" } }),
     prisma.cutCode.findMany({ orderBy: { name: "asc" } }),
+    prisma.certificateCode.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   if (!inventory) {
@@ -79,6 +81,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
             collections={collections}
             rashis={rashis}
             cuts={cuts}
+            certificates={certificates}
             initialData={inventory} 
           />
         </div>

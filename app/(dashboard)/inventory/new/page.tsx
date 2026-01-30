@@ -23,7 +23,7 @@ export default async function NewInventoryPage() {
     );
   }
 
-  const [vendors, categories, gemstones, colors, collections, rashis, cuts] = await Promise.all([
+  const [vendors, categories, gemstones, colors, collections, rashis, cuts, certificates] = await Promise.all([
     prisma.vendor.findMany({
       where: {
         status: "APPROVED",
@@ -60,6 +60,10 @@ export default async function NewInventoryPage() {
         where: { status: "ACTIVE" },
         orderBy: { name: "asc" } 
     }),
+    prisma.certificateCode.findMany({
+        where: { status: "ACTIVE" },
+        orderBy: { name: "asc" }
+    })
   ]);
 
   return (
@@ -77,6 +81,7 @@ export default async function NewInventoryPage() {
             collections={collections}
             rashis={rashis}
             cuts={cuts}
+            certificates={certificates}
           />
         </div>
       </div>

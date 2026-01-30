@@ -6,6 +6,7 @@ import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
 
 interface InventoryItem extends Inventory {
   media: InventoryMedia[];
+  certificates?: { name: string; remarks?: string | null }[];
 }
 
 interface InventoryCardListProps {
@@ -16,9 +17,11 @@ export function InventoryCardList({ data }: InventoryCardListProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:hidden">
       {data.map((item) => {
-         const price = item.pricingMode === "PER_CARAT"
+        const price = item.pricingMode === "PER_CARAT"
           ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
           : item.flatSellingPrice || 0;
+        
+        const certificateText = item.certificates?.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification;
 
         return (
           <div key={item.id} className="flex items-start gap-4 rounded-lg border bg-card p-4 shadow-sm">
@@ -35,6 +38,11 @@ export function InventoryCardList({ data }: InventoryCardListProps) {
                         {item.beadSizeMm && <span>Bead: {item.beadSizeMm}mm</span>}
                         {item.beadCount && <span>Count: {item.beadCount}</span>}
                     </div>
+                  )}
+                  {certificateText && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                        Cert: <span className="font-medium text-foreground">{certificateText}</span>
+                    </p>
                   )}
                 </div>
                 <InventoryActions item={item} />
