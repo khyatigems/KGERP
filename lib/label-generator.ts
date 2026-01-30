@@ -13,6 +13,7 @@ export interface LabelItem {
     shape?: string | null;
     dimensions?: string | null;
     internalName?: string;
+    stockLocation?: string | null;
     sellingPrice: number;
     pricingMode?: string; // PER_CARAT | FLAT
     sellingRatePerCarat?: number | null;

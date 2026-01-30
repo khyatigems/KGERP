@@ -192,6 +192,7 @@ export async function createLabelJob(data: {
                 shape: item.shape,
                 dimensions: item.dimensionsMm,
                 stockLocation: item.stockLocation,
+                internalName: item.internalName,
                 pricingMode: item.pricingMode === "PER_CARAT" ? "PER_CARAT" : "FLAT",
                 sellingRatePerCarat: item.sellingRatePerCarat
             };
