@@ -30,33 +30,43 @@ export async function generateSku(
   
   const prefix = `KG${cat}${gem}${col}${wgtStr}`;
   
-  // Find last SKU starting with this prefix
-  const lastItem = await tx.inventory.findFirst({
-    where: {
-      sku: {
-        startsWith: prefix
-      }
-    },
-    orderBy: {
-      sku: 'desc'
+  // GLOBAL SEQUENCE LOGIC
+  // Instead of finding the last SKU with the same prefix, we use a global counter stored in Settings.
+  // Key: "GLOBAL_SKU_SEQUENCE"
+  
+  // 1. Get or Initialize Global Sequence
+  let currentSeq = 0;
+  
+  const setting = await tx.setting.findUnique({
+    where: { key: "GLOBAL_SKU_SEQUENCE" }
+  });
+
+  if (setting) {
+    currentSeq = parseInt(setting.value, 10);
+  } else {
+    // If not exists, check DB for max SKU suffix? 
+    // Risky if format changed. Safer to start at 1 or seeded value.
+    // Or we can try to find the max existing SKU ending in digits?
+    // Let's default to 0 for fresh start or manual migration.
+    currentSeq = 0;
+  }
+
+  // 2. Increment Sequence
+  const nextSeq = currentSeq + 1;
+
+  // 3. Update Setting
+  await tx.setting.upsert({
+    where: { key: "GLOBAL_SKU_SEQUENCE" },
+    update: { value: nextSeq.toString() },
+    create: { 
+      key: "GLOBAL_SKU_SEQUENCE", 
+      value: nextSeq.toString(),
+      description: "Global running sequence number for SKU generation" 
     }
   });
 
-  let seq = 1;
-  if (lastItem) {
-    // KGLGSAPRED5250007
-    // The prefix length varies (due to weight).
-    // But we know the prefix we generated.
-    // The suffix is the last 4 chars?
-    // "KG + ... + SERIAL"
-    // We should extract the part after the prefix.
-    const suffix = lastItem.sku.slice(prefix.length);
-    // Ensure suffix is numeric
-    if (/^\d+$/.test(suffix)) {
-        seq = parseInt(suffix, 10) + 1;
-    }
-  }
-
-  const seqStr = seq.toString().padStart(4, '0');
+  // 4. Format Suffix (5 digits: 00001)
+  const seqStr = nextSeq.toString().padStart(5, '0');
+  
   return `${prefix}${seqStr}`;
 }
