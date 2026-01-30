@@ -41,7 +41,6 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
     
     // Initialize config from localStorage if available
     const [config, setConfig] = useState<LabelConfig>(DEFAULT_TAG_CONFIG);
-    const [pricingMode, setPricingMode] = useState<"FLAT" | "PER_CARAT">("FLAT");
     const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
@@ -99,7 +98,6 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             const inventoryIds = targets.map(t => t.id);
             const res = await createLabelJob({
                 inventoryIds,
-                pricingMode,
                 printFormat: config
             });
 
@@ -155,21 +153,20 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         const fields = config.selectedFields || DEFAULT_FIELDS;
         if (!fields.includes("price")) return null;
 
-        let price = 0;
-        if (pricingMode === "PER_CARAT") {
-            price = target.sellingRatePerCarat || 0;
-        } else {
-            price = target.sellingPrice || 0; // Assuming sellingPrice passed in is Flat or Total
+        // 1. Calculate Total Price (Same as server)
+        const totalPrice = target.sellingPrice || 
+                          ((target.sellingRatePerCarat || 0) * (target.weightValue || 0));
+
+        // 2. Encode
+        const encoded = encodePrice(totalPrice);
+        let display = `R ${encoded.priceWithChecksum}`; // Default: Show Checksum Price
+
+        // 3. Append Per Carat Rate if applicable (User request)
+        if (target.pricingMode === "PER_CARAT" && target.sellingRatePerCarat) {
+            display += ` (${target.sellingRatePerCarat.toLocaleString()}/ct)`;
         }
-        
-        if (config.showEncodedPrice) {
-            const encoded = encodePrice(price);
-            return `R ${encoded.priceWithChecksum}`;
-        } else {
-            return pricingMode === "PER_CARAT" 
-                ? `R ${price.toLocaleString()}/ct`
-                : `R ${price.toLocaleString()}`;
-        }
+
+        return display;
     };
     
     const previewPriceText = targets[0] ? getPreviewPrice(targets[0]) : "";
@@ -234,35 +231,8 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                          </div>
                                     ))}
                                 </div>
-                                
-                                {(config.selectedFields || DEFAULT_FIELDS).includes('price') && (
-                                    <div className="pt-2 mt-2 border-t">
-                                         <div className="flex items-center space-x-2">
-                                            <Checkbox 
-                                                id="show-encoded" 
-                                                checked={config.showEncodedPrice} 
-                                                onCheckedChange={(c) => setConfig({ ...config, showEncodedPrice: !!c })} 
-                                            />
-                                            <Label htmlFor="show-encoded" className="text-sm text-muted-foreground cursor-pointer">Append Checksum (Secret Price)</Label>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                             
-                            <div className="space-y-2">
-                                <Label>Pricing Mode</Label>
-                                <RadioGroup value={pricingMode} onValueChange={(v: "FLAT" | "PER_CARAT") => setPricingMode(v)} className="flex gap-4">
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="FLAT" id="mode-flat" />
-                                        <Label htmlFor="mode-flat">Flat Rate (Price/Piece)</Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <RadioGroupItem value="PER_CARAT" id="mode-carat" />
-                                        <Label htmlFor="mode-carat">Carat Mode (Price/Carat)</Label>
-                                    </div>
-                                </RadioGroup>
-                            </div>
-
                             <div className="border rounded-md p-8 bg-muted/20 flex justify-center items-center min-h-[200px]">
                                 <div 
                                     className="bg-white border border-gray-300 shadow-sm relative overflow-hidden"

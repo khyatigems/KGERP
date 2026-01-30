@@ -277,21 +277,18 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
 
     // Price
     if (fields.includes("price")) {
-        if (config.showEncodedPrice && item.priceWithChecksum) {
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(config.fontSize + 1);
-            doc.text(`R ${item.priceWithChecksum}`, contentX, currentY);
-        } else {
-            // Show normal price
-            doc.setFont("helvetica", "bold");
-            let priceText = "";
-            if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
-                 priceText = `R ${item.sellingRatePerCarat.toLocaleString()}/ct`;
-            } else {
-                 priceText = `R ${item.sellingPrice.toLocaleString()}`;
-            }
-            doc.text(priceText, contentX, currentY);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(config.fontSize + 1);
+        
+        // Use server-provided checksum price (Total Price)
+        let priceText = `R ${item.priceWithChecksum || item.sellingPrice}`;
+
+        // Append Per Carat Rate if applicable
+        if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
+            priceText += ` (${item.sellingRatePerCarat.toLocaleString()}/ct)`;
         }
+        
+        doc.text(priceText, contentX, currentY);
     }
 
     // Footer Branding (Smaller, Bottom Centered)

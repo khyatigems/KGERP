@@ -143,7 +143,6 @@ export async function clearCart() {
 
 export async function createLabelJob(data: {
     inventoryIds: string[], 
-    pricingMode: "PER_CARAT" | "FLAT",
     printFormat: LabelConfig
 }) {
     const session = await auth();
@@ -164,13 +163,9 @@ export async function createLabelJob(data: {
 
         // 2. Prepare Job Items with Server-Side Checksum Generation
         const jobItemsData = items.map(item => {
-            // Determine price based on mode
-            let priceToEncode = 0;
-            if (data.pricingMode === "PER_CARAT") {
-                priceToEncode = item.sellingRatePerCarat || 0;
-            } else {
-                priceToEncode = item.flatSellingPrice || (item.sellingRatePerCarat || 0) * (item.weightValue || 0);
-            }
+            // ALWAYS Encode Total Price as per new requirement
+            // "Show total price in the logic which we have design that additional chksum"
+            const priceToEncode = item.flatSellingPrice || ((item.sellingRatePerCarat || 0) * (item.weightValue || 0));
 
             // Encode using MOD-9
             const encoded = encodePrice(priceToEncode);
@@ -191,7 +186,7 @@ export async function createLabelJob(data: {
                 shape: item.shape,
                 dimensions: item.dimensionsMm,
                 stockLocation: item.stockLocation,
-                pricingMode: data.pricingMode,
+                pricingMode: item.pricingMode, // Use item's own pricing mode
                 sellingRatePerCarat: item.sellingRatePerCarat
             };
         });
