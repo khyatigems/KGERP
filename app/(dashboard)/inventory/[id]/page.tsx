@@ -362,6 +362,7 @@ export default async function InventoryDetailPage({
                             id: detailedItem.id,
                             sku: detailedItem.sku,
                             itemName: detailedItem.itemName,
+                            internalName: detailedItem.internalName,
                             gemType: detailedItem.gemType || "",
                             color: detailedItem.colorCode?.name || "",
                             weightValue: detailedItem.weightValue || 0,

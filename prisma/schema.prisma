@@ -671,6 +671,7 @@ model LabelPrintJobItem {
   checksumDigit     Int?
   checksumMethod    String?
   encodingVersion   Int?
+  internalName      String?
   
   job               LabelPrintJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
   

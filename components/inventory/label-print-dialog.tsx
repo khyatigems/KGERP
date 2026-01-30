@@ -16,6 +16,7 @@ import { encodePrice } from "@/lib/price-encoder";
 
 const AVAILABLE_FIELDS_UI = [
     { id: "itemName", label: "Item Name" },
+    { id: "internalName", label: "Internal Name" },
     { id: "sku", label: "SKU" },
     { id: "qrCode", label: "QR Code" },
     { id: "gemType", label: "Gem Type" },
@@ -121,18 +122,22 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         localStorage.setItem("label-print-presets", JSON.stringify(updated));
     };
     
-    const setSixColumns = () => {
-        const base = DEFAULT_A4_CONFIG;
+    const setEpsonL3250 = () => {
+        // Tuned for Epson L3250 (EcoTank) - A4
+        // A4 Width: 210mm. 
+        // 6 Cols: ~32mm width + gaps
         setConfig({ 
-            ...base, 
+            ...DEFAULT_A4_CONFIG, 
             cols: 6, 
-            rows: base.rows, 
-            marginTop: base.marginTop, 
-            marginLeft: base.marginLeft,
-            horizontalGap: base.horizontalGap,
-            verticalGap: base.verticalGap,
-            labelWidth: base.labelWidth,
-            labelHeight: base.labelHeight,
+            rows: 12, 
+            marginTop: 5, 
+            marginLeft: 4,
+            horizontalGap: 2,
+            verticalGap: 1,
+            labelWidth: 32,
+            labelHeight: 20,
+            fontSize: 7,
+            qrSize: 6,
             showPrice: config.showPrice,
             selectedFields: config.selectedFields || DEFAULT_FIELDS
         });
@@ -160,6 +165,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                 id: i.inventoryId || i.id, // Handle backend returning inventoryId
                 sku: i.sku,
                 itemName: i.itemName,
+                internalName: i.internalName,
                 gemType: i.gemType,
                 color: i.color,
                 weightValue: i.weightValue,
@@ -322,6 +328,15 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                                     </div>
                                                 )}
 
+                                                {(config.selectedFields || DEFAULT_FIELDS).includes("internalName") && targets[0].internalName && (
+                                                    <div 
+                                                        className="font-bold mb-0.5 leading-none text-gray-700"
+                                                        style={{ fontSize: `${config.fontSize - 1}pt` }}
+                                                    >
+                                                        {targets[0].internalName}
+                                                    </div>
+                                                )}
+
                                                 {(config.selectedFields || DEFAULT_FIELDS).includes("sku") && (
                                                     <div className="font-mono mb-1" style={{ fontSize: `${config.fontSize}pt` }}>
                                                         {targets[0].sku}
@@ -438,7 +453,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                 <Input value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="e.g., A4 6-per-row" />
                                 <div className="flex gap-2">
                                     <Button variant="outline" onClick={savePreset}>Save Preset</Button>
-                                    <Button variant="secondary" onClick={setSixColumns}>Set 6 per row</Button>
+                                    <Button variant="secondary" onClick={setEpsonL3250}>Epson L3250 Preset</Button>
                                 </div>
                             </div>
                             <div className="space-y-2">

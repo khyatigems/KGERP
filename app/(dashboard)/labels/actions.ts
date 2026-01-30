@@ -210,7 +210,8 @@ export async function createLabelJob(data: {
                         priceWithChecksum: item.priceWithChecksum,
                         checksumDigit: item.checksumDigit,
                         checksumMethod: "MOD9",
-                        encodingVersion: 1
+                        encodingVersion: 1,
+                        internalName: item.internalName
                     }))
                 }
             }

@@ -55,6 +55,7 @@ export function LabelPrintingTable({ data }: LabelPrintingTableProps) {
         id: item.id,
         sku: item.sku,
         itemName: item.itemName,
+        internalName: item.internalName || "",
         gemType: item.gemType || "",
         color: item.colorCode?.name || "",
         weightValue: item.weightValue || 0,

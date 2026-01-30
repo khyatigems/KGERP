@@ -12,7 +12,7 @@ export interface LabelItem {
     weightRatti?: number | null;
     shape?: string | null;
     dimensions?: string | null;
-    stockLocation?: string | null;
+    internalName?: string;
     sellingPrice: number;
     pricingMode?: string; // PER_CARAT | FLAT
     sellingRatePerCarat?: number | null;
@@ -38,6 +38,7 @@ export interface LabelConfig {
 
 export const DEFAULT_FIELDS = [
     "itemName",
+    "internalName",
     "sku",
     "qrCode",
     "gemType",
@@ -213,6 +214,14 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
         // Adjust Y based on actual font size used
         const textHeight = currentFontSize * 0.3527; 
         currentY += (textHeight * 1.2) + 0.5;
+    }
+
+    // 2.5 Internal Name (Below Item Name, Small, Bold)
+    if (fields.includes("internalName") && item.internalName) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(config.fontSize - 1); // Smaller than item name
+        doc.text(item.internalName, contentX, currentY);
+        currentY += lineHeight + 0.5;
     }
 
     // 3. SKU

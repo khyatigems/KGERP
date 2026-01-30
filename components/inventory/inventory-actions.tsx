@@ -18,6 +18,7 @@ interface InventoryActionsProps {
   item: {
     id: string;
     itemName: string;
+    internalName?: string | null;
     sku: string;
     status: string;
     gemType?: string | null;
@@ -88,6 +89,7 @@ export function InventoryActions({ item }: InventoryActionsProps) {
                     id: item.id,
                     sku: item.sku,
                     itemName: item.itemName,
+                    internalName: item.internalName || "",
                     gemType: item.gemType || "",
                     color: item.colorCode?.name || "",
                     weightValue: item.weightValue || 0,
