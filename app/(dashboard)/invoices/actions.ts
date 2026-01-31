@@ -4,6 +4,76 @@ import { prisma } from "@/lib/prisma";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
+import { generateInvoiceToken } from "@/lib/tokens";
+import { auth } from "@/lib/auth";
+
+export async function createOrUpdateInvoiceFromSale(
+  saleId: string,
+  displayOptions: Record<string, boolean>
+) {
+  const perm = await checkPermission(PERMISSIONS.INVOICE_MANAGE);
+  if (!perm.success) return { success: false, message: perm.message };
+
+  const session = await auth();
+  if (!session) return { success: false, message: "Unauthorized" };
+
+  try {
+    const sale = await prisma.sale.findUnique({
+      where: { id: saleId },
+      include: { invoice: true }
+    });
+
+    if (!sale) return { success: false, message: "Sale not found" };
+
+    const displayOptionsStr = JSON.stringify(displayOptions);
+
+    if (sale.invoice) {
+      // Update existing invoice
+      await prisma.invoice.update({
+        where: { id: sale.invoice.id },
+        data: {
+          displayOptions: displayOptionsStr
+        }
+      });
+      return { success: true, message: "Invoice updated successfully", invoiceId: sale.invoice.id, token: sale.invoice.token };
+    } else {
+      // Create new invoice
+      const invoiceId = await prisma.$transaction(async (tx) => {
+        const count = await tx.invoice.count();
+        const year = new Date().getFullYear();
+        const invoiceNumber = `INV-${year}-${(count + 1).toString().padStart(4, "0")}`;
+        const token = generateInvoiceToken();
+
+        const invoice = await tx.invoice.create({
+          data: {
+            invoiceNumber,
+            token,
+            isActive: true,
+            subtotal: sale.netAmount,
+            taxTotal: 0,
+            discountTotal: sale.discountAmount || 0,
+            totalAmount: sale.netAmount,
+            displayOptions: displayOptionsStr,
+            status: "ISSUED"
+          }
+        });
+
+        await tx.sale.update({
+          where: { id: saleId },
+          data: { invoiceId: invoice.id }
+        });
+
+        return invoice.id;
+      });
+
+      return { success: true, message: "Invoice created successfully", invoiceId, token: (await prisma.invoice.findUnique({where: {id: invoiceId}}))?.token };
+    }
+  } catch (error) {
+    console.error("Failed to create/update invoice:", error);
+    return { success: false, message: "Failed to create/update invoice" };
+  }
+}
+
 
 interface PaymentDetails {
   amount: number;

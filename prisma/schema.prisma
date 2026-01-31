@@ -522,6 +522,7 @@ model Invoice {
   isActive      Boolean  @default(true)
   dueDate       DateTime?
   notes         String?
+  displayOptions String? // JSON string for column visibility
   subtotal      Float
   taxTotal      Float
   discountTotal Float

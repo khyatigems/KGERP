@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2, MoreHorizontal, ExternalLink } from "lucide-react";
+import { Trash2, Loader2, MoreHorizontal, ExternalLink, FileText } from "lucide-react";
 import { deleteSale } from "@/app/(dashboard)/sales/actions";
 import Link from "next/link";
 import {
@@ -43,6 +43,11 @@ export function SalesActions({ saleId, invoiceToken, canDelete }: SalesActionsPr
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+            <Link href={`/sales/${saleId}/create-invoice`}>
+                <FileText className="mr-2 h-4 w-4" /> {invoiceToken ? "Configure Invoice" : "Create Invoice"}
+            </Link>
+        </DropdownMenuItem>
         {invoiceToken && (
             <DropdownMenuItem asChild>
                 <Link href={`/invoice/${invoiceToken}`} target="_blank">

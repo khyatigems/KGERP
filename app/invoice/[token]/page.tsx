@@ -11,7 +11,7 @@ import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import type { Metadata } from "next";
 
-type SaleItem = Prisma.SaleGetPayload<{ include: { inventory: { include: { certificates: true } } } }>;
+type SaleItem = Prisma.SaleGetPayload<{ include: { inventory: { include: { certificates: true, rashis: true } } } }>;
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +29,10 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     where: { token },
     include: {
       sales: {
-        include: { inventory: { include: { certificates: true } } }
+        include: { inventory: { include: { certificates: true, rashis: true } } }
       },
       legacySale: {
-        include: { inventory: { include: { certificates: true } } }
+        include: { inventory: { include: { certificates: true, rashis: true } } }
       },
       quotation: {
         include: {
@@ -43,6 +43,30 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   });
 
   if (!invoice) notFound();
+
+  // Parse Display Options
+  let displayOptions = {
+    showWeight: true,
+    showRatti: true,
+    showDimensions: true,
+    showGemType: true,
+    showCategory: true,
+    showColor: true,
+    showShape: true,
+    showRashi: true,
+    showCertificates: true,
+    showSku: true,
+    showPrice: true,
+  };
+
+  if (invoice.displayOptions) {
+    try {
+      const parsed = JSON.parse(invoice.displayOptions);
+      displayOptions = { ...displayOptions, ...parsed };
+    } catch (e) {
+      console.error("Failed to parse display options", e);
+    }
+  }
 
   // Normalize sales data
   const salesItems = invoice.sales && invoice.sales.length > 0 
@@ -180,12 +204,71 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
       const certString = item.inventory.certificates && item.inventory.certificates.length > 0 
         ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") 
         : item.inventory.certification;
-        
+
+      // Construct dynamic description based on displayOptions
+      const descriptionParts: string[] = [];
+      
+      // Item Name (Always shown or maybe toggleable? Assuming always shown for now as it's the main identifier)
+      descriptionParts.push(item.inventory.itemName);
+
+      const details: string[] = [];
+
+      if (displayOptions.showWeight) {
+        details.push(`${item.inventory.weightValue} ${item.inventory.weightUnit}`);
+      }
+
+      if (displayOptions.showRatti && item.inventory.weightRatti) {
+        details.push(`Ratti: ${item.inventory.weightRatti}`);
+      }
+
+      if (displayOptions.showDimensions && (item.inventory.dimensionsMm || item.inventory.measurements)) {
+         details.push(`Dim: ${item.inventory.dimensionsMm || item.inventory.measurements}`);
+      }
+
+      if (displayOptions.showGemType && item.inventory.gemType) {
+        details.push(`Type: ${item.inventory.gemType}`);
+      }
+      
+      if (displayOptions.showCategory && item.inventory.category) {
+        details.push(`Cat: ${item.inventory.category}`);
+      }
+
+      if (displayOptions.showColor && item.inventory.color) {
+        details.push(`Color: ${item.inventory.color}`);
+      }
+
+      if (displayOptions.showShape && item.inventory.shape) {
+        details.push(`Shape: ${item.inventory.shape}`);
+      }
+
+      if (displayOptions.showRashi && item.inventory.rashis && item.inventory.rashis.length > 0) {
+        details.push(`Rashi: ${item.inventory.rashis.map(r => r.name).join(", ")}`);
+      }
+
+      if (displayOptions.showCertificates && certString) {
+        details.push(`Cert: ${certString}`);
+      }
+
+      if (details.length > 0) {
+        descriptionParts.push(details.join(" • "));
+      }
+
+      if (displayOptions.showPrice) {
+        descriptionParts.push(pricingDetails);
+      }
+
       return {
-        sku: item.inventory.sku,
-        description: `${item.inventory.itemName}\n${item.inventory.weightValue} ${item.inventory.weightUnit}${certString ? ` • Cert: ${certString}` : ''}\n${pricingDetails}`,
+        sku: displayOptions.showSku ? item.inventory.sku : "",
+        description: descriptionParts.join("\n"),
         quantity: 1,
-        unitPrice: item.basePrice, // Show Base Price in PDF column
+        unitPrice: displayOptions.showPrice ? item.basePrice : 0, // Should we hide price value too? Usually invoice needs totals. User said "what information to b visible on the invoice". If they uncheck price, maybe they want a delivery challan style? But this is an invoice. Let's assume showPrice controls the *rate details* description mostly, but for columns, if showPrice is false, maybe we should hide the columns? But the PDF generator expects numbers.
+        // If showPrice is false, it's weird for an invoice. I will keep the totals but maybe hide the rate details in description as I did above.
+        // Actually, if showPrice is false, the user might want a "Delivery Challan" or "Memo" look. 
+        // For now, I will respect showPrice for the unit price and total columns in the UI. For PDF data, it's strictly typed.
+        // Let's assume showPrice controls the "Rate: .../ct" line and maybe the SKU visibility if requested.
+        // But wait, I added showPrice to options.
+        // If showPrice is false, I will pass 0 or empty string where possible, but PDF generator needs numbers for calculations.
+        // Let's stick to description modification for now. The invoice *must* have totals to be a valid invoice.
         gstRate: item.gstRate,
         gstAmount: item.calculatedGst,
         total: item.finalTotal // Show Final Total (Inclusive - Discount)
@@ -310,10 +393,48 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                           <tr key={item.id}>
                             <td className="py-4">
                                 <p className="font-bold text-gray-900">{item.inventory.itemName}</p>
-                                <div className="text-xs text-gray-500 mt-1">
-                                    SKU: <span className="font-mono">{item.inventory.sku}</span> • {item.inventory.weightValue} {item.inventory.weightUnit}
-                                    {(item.inventory.certificates && item.inventory.certificates.length > 0) || item.inventory.certification ? (
-                                        <span> • Cert: {
+                                <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-1">
+                                    {displayOptions.showSku && (
+                                        <span>SKU: <span className="font-mono">{item.inventory.sku}</span></span>
+                                    )}
+                                    
+                                    {displayOptions.showWeight && (
+                                        <>
+                                            {displayOptions.showSku && <span>•</span>}
+                                            <span>{item.inventory.weightValue} {item.inventory.weightUnit}</span>
+                                        </>
+                                    )}
+
+                                    {displayOptions.showRatti && item.inventory.weightRatti && (
+                                        <><span>•</span><span>Ratti: {item.inventory.weightRatti}</span></>
+                                    )}
+
+                                    {displayOptions.showDimensions && (item.inventory.dimensionsMm || item.inventory.measurements) && (
+                                        <><span>•</span><span>Dim: {item.inventory.dimensionsMm || item.inventory.measurements}</span></>
+                                    )}
+                                    
+                                    {displayOptions.showGemType && item.inventory.gemType && (
+                                        <><span>•</span><span>{item.inventory.gemType}</span></>
+                                    )}
+                                    
+                                    {displayOptions.showCategory && item.inventory.category && (
+                                        <><span>•</span><span>{item.inventory.category}</span></>
+                                    )}
+
+                                    {displayOptions.showColor && item.inventory.color && (
+                                        <><span>•</span><span>Color: {item.inventory.color}</span></>
+                                    )}
+
+                                    {displayOptions.showShape && item.inventory.shape && (
+                                        <><span>•</span><span>{item.inventory.shape}</span></>
+                                    )}
+
+                                    {displayOptions.showRashi && item.inventory.rashis && item.inventory.rashis.length > 0 && (
+                                        <><span>•</span><span>Rashi: {item.inventory.rashis.map(r => r.name).join(", ")}</span></>
+                                    )}
+
+                                    {displayOptions.showCertificates && ((item.inventory.certificates && item.inventory.certificates.length > 0) || item.inventory.certification) ? (
+                                        <span>• Cert: {
                                             item.inventory.certificates && item.inventory.certificates.length > 0
                                                 ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ")
                                                 : item.inventory.certification
@@ -321,6 +442,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                                     ) : null}
                                 </div>
                                 {/* Pricing Details */}
+                                {displayOptions.showPrice && (
                                 <div className="text-xs text-gray-500 mt-0.5">
                                     {item.inventory.pricingMode === "PER_CARAT" ? (
                                         <span>
@@ -330,6 +452,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                                         <span>Flat Price</span>
                                     )}
                                 </div>
+                                )}
                             </td>
                             <td className="py-4 text-right text-gray-600 align-top">
                                 {formatCurrency(item.basePrice)}
