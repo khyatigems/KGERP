@@ -28,6 +28,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-toast": "^1.2.15",
     "@tanstack/react-table": "^8.21.3",
+    "@vercel/analytics": "^1.6.1",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.9.0",
