@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
+import JsBarcode from "jsbarcode";
 
 export interface LabelItem {
     id: string;
@@ -21,7 +22,7 @@ export interface LabelItem {
 }
 
 export interface LabelConfig {
-    pageSize: "TAG" | "A4";
+    pageSize: "TAG" | "A4" | "THERMAL";
     rows: number;
     cols: number;
     marginTop: number;
@@ -35,6 +36,8 @@ export interface LabelConfig {
     qrSize: number;
     fontSize: number;
     selectedFields: string[];
+    companyLogo?: string; // Base64 Data URL
+    thermalLogoUrl?: string; // Generated Black Logo
 }
 
 export const DEFAULT_FIELDS = [
@@ -45,11 +48,10 @@ export const DEFAULT_FIELDS = [
     "gemType",
     "color",
     "shape",
-    "dimensions",
     "weight",
     "stockLocation",
     "price",
-    "companyName"
+    "companyLogo"
 ];
 
 export const DEFAULT_TAG_CONFIG: LabelConfig = {
@@ -86,19 +88,102 @@ export const DEFAULT_A4_CONFIG: LabelConfig = {
     selectedFields: DEFAULT_FIELDS
 };
 
+export const DEFAULT_THERMAL_CONFIG: LabelConfig = {
+    pageSize: "THERMAL",
+    rows: 1,
+    cols: 1,
+    marginTop: 0,
+    marginLeft: 0,
+    horizontalGap: 0,
+    verticalGap: 0,
+    labelWidth: 50,
+    labelHeight: 25,
+    showPrice: false,
+    showEncodedPrice: false,
+    qrSize: 10,
+    fontSize: 8, // Slightly larger font for 50mm width
+    selectedFields: DEFAULT_FIELDS
+};
+
+// Optimized Black SVG for Thermal Printing (Khyati Gems)
+const THERMAL_LOGO_SVG = `
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+    <g fill="#000000">
+        <polygon points="391.3,256.3 300.9,375.7 420.8,256.3"/>
+        <polygon points="465.1,256.3 374.7,375.7 494.6,256.3"/>
+        <polygon points="608.7,256.3 699.1,375.7 579.2,256.3"/>
+        <polygon points="534.9,256.3 625.3,375.7 505.4,256.3"/>
+        <polygon points="641.4,256.3 793.5,375.7 872,375.7 658.2,207.8 342.1,207.8 176.5,337.9 176.5,207.8 176,207.8 128,245.4 128,738.2 176.3,792.2 176.5,792.2 176.5,430.2 500.1,792.2 745.1,518.2 788.5,469.7 723.4,469.7 453.9,469.7 497.3,518.2 680.1,518.2 500.1,719.4 320.2,518.2 276.8,469.7 198.6,382.2 358.8,256.3"/>
+    </g>
+</svg>
+`;
+
+// Helper to convert SVG string to PNG Data URL
+function getThermalLogoDataUrl(): Promise<string> {
+    return new Promise((resolve) => {
+        try {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = 1000;
+                canvas.height = 1000;
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0);
+                    resolve(canvas.toDataURL("image/png"));
+                } else {
+                    resolve("");
+                }
+            };
+            img.onerror = () => resolve("");
+            img.src = "data:image/svg+xml;base64," + btoa(THERMAL_LOGO_SVG);
+        } catch (e) {
+            console.error("Logo Gen Error", e);
+            resolve("");
+        }
+    });
+}
+
+// Helper to generate Barcode Data URL
+function generateBarcodeDataUrl(text: string): string {
+    try {
+        const canvas = document.createElement("canvas");
+        JsBarcode(canvas, text, {
+            format: "CODE128",
+            width: 1.5, // Narrow width for compact printing
+            height: 30, // Will be scaled in PDF
+            displayValue: false, // We print SKU manually
+            margin: 0
+        });
+        return canvas.toDataURL("image/png");
+    } catch (e) {
+        console.error("Barcode Gen Error", e);
+        return "";
+    }
+}
+
 export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) {
     // 1. Create PDF
+    const isCustomSize = config.pageSize === "TAG" || config.pageSize === "THERMAL";
     const doc = new jsPDF({
-        orientation: config.pageSize === "TAG" ? "landscape" : "portrait",
+        orientation: isCustomSize ? "landscape" : "portrait",
         unit: "mm",
-        format: config.pageSize === "TAG" ? [config.labelHeight, config.labelWidth] : "a4"
+        format: isCustomSize ? [config.labelHeight, config.labelWidth] : "a4"
     });
 
-    // 2. Prepare QR Codes
+    // 2. Prepare QR Codes & Barcodes
     const qrCodes: Record<string, string> = {};
+    const barcodes: Record<string, string> = {};
     const baseUrl = window.location.origin + "/preview/"; // Use origin for link
     
+    // Pre-generate Black Logo for Thermal Labels
+    let thermalLogoUrl = "";
+    if (config.pageSize === "THERMAL" && (config.selectedFields?.includes("companyLogo") || config.selectedFields?.includes("companyName"))) {
+         thermalLogoUrl = await getThermalLogoDataUrl();
+    }
+
     for (const item of items) {
+        // QR Code
         if (!qrCodes[item.sku]) {
             try {
                 // Generate QR linking to preview page
@@ -110,18 +195,24 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
                 console.error("QR Gen Error", e);
             }
         }
+        
+        // Barcode (Use SKU or ID)
+        if (!barcodes[item.sku]) {
+            barcodes[item.sku] = generateBarcodeDataUrl(item.sku);
+        }
     }
 
     // 3. Render Labels
     let currentItemIndex = 0;
     
-    // For TAG mode, we create a new page for each item (except the first which is created by default)
-    // For A4 mode, we fill the grid
-    
-    if (config.pageSize === "TAG") {
+    // For TAG/THERMAL mode, we create a new page for each item
+    if (config.pageSize === "TAG" || config.pageSize === "THERMAL") {
+        // Inject the generated thermal logo into config for renderThermalLabel to use
+        const effectiveConfig = { ...config, thermalLogoUrl }; 
+
         items.forEach((item, index) => {
             if (index > 0) doc.addPage([config.labelHeight, config.labelWidth], "landscape");
-            renderLabel(doc, item, 0, 0, config, qrCodes[item.sku]);
+            renderLabel(doc, item, 0, 0, effectiveConfig, qrCodes[item.sku], barcodes[item.sku]);
         });
     } else {
         // A4 Grid
@@ -144,7 +235,7 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
                     doc.setLineWidth(0.1);
                     doc.rect(x, y, config.labelWidth, config.labelHeight);
 
-                    renderLabel(doc, item, x, y, config, qrCodes[item.sku]);
+                    renderLabel(doc, item, x, y, config, qrCodes[item.sku], barcodes[item.sku]);
                     
                     currentItemIndex++;
                 }
@@ -156,7 +247,13 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
     return doc.output("bloburl");
 }
 
-function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: LabelConfig, qrDataUrl: string) {
+function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: LabelConfig, qrDataUrl: string, barcodeDataUrl: string) {
+    // Branch for specialized THERMAL layout
+    if (config.pageSize === "THERMAL") {
+        renderThermalLabel(doc, item, x, y, config, qrDataUrl, barcodeDataUrl);
+        return;
+    }
+
     const padding = 1.5; // Tighter padding
     const contentX = x + padding;
     const contentY = y + padding;
@@ -248,20 +345,19 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
         if (parts.length > 0) detailLines.push(parts.join(" • "));
     }
 
-    // Line 2: Shape, Dim, Weight (Combined if possible)
+    // Line 2: Shape (Combined if possible)
     const line2Parts = [];
     if (fields.includes("shape") && item.shape) line2Parts.push(item.shape);
-    if (fields.includes("dimensions") && item.dimensions) line2Parts.push(item.dimensions);
     
     // Add Weight to this line if it fits? 
     // Let's keep Weight separate or append if short.
-    // For now, let's just push Shape/Dim
+    // For now, let's just push Shape
     if (line2Parts.length > 0) detailLines.push(line2Parts.join(" • "));
 
     // Line 3: Weight (and Ratti)
     if (fields.includes("weight")) {
         let weightText = `${item.weightValue} ${item.weightUnit}`;
-        if (item.weightRatti) weightText += ` (${item.weightRatti.toFixed(2)} R)`;
+        if (item.weightRatti) weightText += ` (${item.weightRatti.toFixed(2)} Ratti)`;
         
         // If previous line was short, maybe append? 
         // Complexity: we don't know width easily in raw jsPDF without measuring.
@@ -304,10 +400,123 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
     }
 
     // Footer Branding (Smaller, Bottom Centered)
-    if (fields.includes("companyName")) {
+    if (fields.includes("companyName") || fields.includes("companyLogo")) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(4); // Very small
-        doc.setTextColor(150);
+        doc.setTextColor(0); // Black
         doc.text("KhyatiGems™", x + (config.labelWidth / 2), y + config.labelHeight - 1, { align: "center" });
+    }
+}
+
+// Specialized renderer for 50x25mm Thermal Labels
+function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: LabelConfig, qrDataUrl: string, barcodeDataUrl: string) {
+    const padding = 1.5;
+    const contentX = x + padding;
+    const contentY = y + padding;
+    const width = config.labelWidth;
+    const height = config.labelHeight;
+    const qrSize = 12; // 12mm QR for thermal
+    const qrBottom = padding + qrSize; 
+    
+    doc.setTextColor(0);
+
+    // Helper to print text with auto-scaling to fit width
+    const printFitText = (text: string, y: number, maxFontSize: number, minFontSize: number, fontName: string, fontStyle: string) => {
+        // Determine available width based on Y position (overlap with QR?)
+        // Text is drawn at baseline 'y'. Approx height is 2-3mm.
+        // If (y - 2mm) < qrBottom, we are potentially next to QR.
+        const isNextToQR = (y - 3) < qrBottom;
+        
+        let maxWidth = width - (padding * 2);
+        if (isNextToQR && qrDataUrl) {
+            maxWidth = width - qrSize - (padding * 2) - 1; // 1mm gap
+        }
+
+        doc.setFont(fontName, fontStyle);
+        let fontSize = maxFontSize;
+        doc.setFontSize(fontSize);
+        
+        // Reduce font size until it fits
+        while (doc.getTextWidth(text) > maxWidth && fontSize > minFontSize) {
+            fontSize -= 0.2; // Fine-grained reduction
+            doc.setFontSize(fontSize);
+        }
+        
+        // If still doesn't fit, we might need to truncate (last resort)
+        // But with minFontSize=4 or 5, it usually fits. 
+        // If not, we truncate to prevent overlap.
+        let textToPrint = text;
+        if (doc.getTextWidth(text) > maxWidth) {
+             while (doc.getTextWidth(textToPrint + "...") > maxWidth && textToPrint.length > 0) {
+                 textToPrint = textToPrint.slice(0, -1);
+             }
+             textToPrint += "...";
+        }
+
+        doc.text(textToPrint, contentX, y);
+        return fontSize; // Return used font size if needed
+    };
+
+    // 1. QR Code (Top Right)
+    if (qrDataUrl) {
+        doc.addImage(qrDataUrl, "PNG", width - qrSize - padding, padding, qrSize, qrSize);
+    }
+
+    let currentY = contentY + 3; // Initial baseline
+    
+    // Line 1: Item Name (Bold)
+    printFitText(item.itemName, currentY, 9, 5, "helvetica", "bold");
+    currentY += 3.5;
+
+    // Line 2: SKU (Monospace)
+    // SKU is critical, try to keep it readable.
+    printFitText(item.sku, currentY, 8, 5, "courier", "bold");
+    currentY += 3;
+
+    // Line 3: GemType • Color (Regular)
+    const line3 = [item.gemType, item.color].filter(Boolean).join(" • ");
+    printFitText(line3, currentY, 8, 5, "helvetica", "normal");
+    currentY += 3;
+
+    // Line 4: Weight • Shape (Regular)
+    // This line was overlapping in user's image.
+    let weightText = `${item.weightValue} ${item.weightUnit}`;
+    if (item.weightRatti) weightText += ` (${item.weightRatti.toFixed(2)} Ratti)`;
+    const line4 = [weightText, item.shape].filter(Boolean).join(" • ");
+    printFitText(line4, currentY, 8, 5, "helvetica", "normal");
+    currentY += 3.5;
+
+    // Line 5: Price (Bold)
+    // This usually clears the QR code, so it gets full width if Y > qrBottom
+    let priceText = `R ${item.priceWithChecksum || item.sellingPrice}`;
+    if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
+        priceText += ` (${Math.round(item.sellingRatePerCarat).toLocaleString()}/ct)`;
+    }
+    printFitText(priceText, currentY, 9, 6, "helvetica", "bold");
+
+    // 3. Barcode (Bottom Spanning)
+    if (barcodeDataUrl) {
+        const barcodeHeight = 6;
+        const barcodeWidth = 35; // Max width
+        const barcodeX = (width - barcodeWidth) / 2;
+        const barcodeY = height - barcodeHeight - 1; // 1mm from bottom
+        
+        doc.addImage(barcodeDataUrl, "PNG", barcodeX, barcodeY, barcodeWidth, barcodeHeight);
+    }
+
+    // 4. Company Logo (Bottom Right Placeholder)
+    // Prioritize the optimized black thermal logo
+    const logoToUse = config.thermalLogoUrl || config.companyLogo;
+    
+    if ((config.selectedFields?.includes("companyLogo") || config.selectedFields?.includes("companyName")) && logoToUse) {
+        const logoSize = 5; // 5mm square
+        const logoX = width - logoSize - 1.5; // 1.5mm from right
+        const logoY = height - logoSize - 1.5; // 1.5mm from bottom
+        
+        try {
+            doc.addImage(logoToUse, "PNG", logoX, logoY, logoSize, logoSize, undefined, 'FAST');
+        } catch (e) {
+            console.error("Error adding logo to label", e);
+        }
     }
 }

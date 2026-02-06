@@ -145,10 +145,14 @@ export async function createLabelJob(data: {
     inventoryIds: string[], 
     printFormat: LabelConfig
 }) {
-    const session = await auth();
-    if (!session?.user?.id) return { success: false, items: [] };
-
+    console.log("[createLabelJob] Starting job creation for", data.inventoryIds.length, "items");
     try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            console.error("[createLabelJob] Unauthorized: No session");
+            return { success: false, items: [], message: "Unauthorized" };
+        }
+
         // Verify user exists to prevent orphan records
         const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
         if (!userExists) {
@@ -230,6 +234,9 @@ export async function createLabelJob(data: {
         return { success: true, jobId: job.id, items: jobItemsData };
     } catch (e: unknown) {
         console.error("createLabelJob Error:", e);
+        if (typeof e === 'object' && e !== null) {
+            console.error("Error details:", JSON.stringify(e, null, 2));
+        }
         const msg = e instanceof Error ? e.message : "Unknown server error";
         return { success: false, items: [], message: msg };
     }

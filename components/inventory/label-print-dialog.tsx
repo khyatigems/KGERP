@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,11 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Printer, Loader2 } from "lucide-react";
-import { generateLabelPDF, LabelConfig, DEFAULT_TAG_CONFIG, DEFAULT_A4_CONFIG, LabelItem, DEFAULT_FIELDS } from "@/lib/label-generator";
+import { generateLabelPDF, LabelConfig, DEFAULT_TAG_CONFIG, DEFAULT_A4_CONFIG, DEFAULT_THERMAL_CONFIG, LabelItem, DEFAULT_FIELDS } from "@/lib/label-generator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { createLabelJob } from "@/app/(dashboard)/labels/actions";
 import { encodePrice } from "@/lib/price-encoder";
+import { signOut } from "next-auth/react";
+import JsBarcode from "jsbarcode";
+import { getCompanySettings } from "@/app/(dashboard)/settings/company/actions";
 
 const AVAILABLE_FIELDS_UI = [
     { id: "itemName", label: "Item Name" },
@@ -22,11 +25,10 @@ const AVAILABLE_FIELDS_UI = [
     { id: "gemType", label: "Gem Type" },
     { id: "color", label: "Color" },
     { id: "shape", label: "Shape" },
-    { id: "dimensions", label: "Dimensions" },
     { id: "weight", label: "Weight" },
     { id: "stockLocation", label: "Stock Location" },
     { id: "price", label: "Price" },
-    { id: "companyName", label: "Company Footer" }
+    { id: "companyLogo", label: "Company Logo" }
 ];
 
 interface LabelPrintDialogProps {
@@ -44,6 +46,28 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
     const [isLoaded, setIsLoaded] = useState(false);
     const [presetName, setPresetName] = useState("");
     const [presets, setPresets] = useState<{ name: string; config: LabelConfig }[]>([]);
+    const [companyLogoData, setCompanyLogoData] = useState<string | undefined>(undefined);
+
+    useEffect(() => {
+        if (open) {
+            getCompanySettings().then(async (res) => {
+                if (res.success && res.data?.logoUrl) {
+                    // Fetch image and convert to Base64
+                    try {
+                        const response = await fetch(res.data.logoUrl);
+                        const blob = await response.blob();
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            setCompanyLogoData(reader.result as string);
+                        };
+                        reader.readAsDataURL(blob);
+                    } catch (e) {
+                        console.error("Failed to load company logo", e);
+                    }
+                }
+            });
+        }
+    }, [open]);
 
     useEffect(() => {
         const saved = localStorage.getItem("label-print-config");
@@ -74,10 +98,32 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
     const [isPrinting, setIsPrinting] = useState(false);
     const [activeTab, setActiveTab] = useState("preview");
 
-    const targets = items && items.length > 0 ? items : (item ? [item] : []);
+    const targets = useMemo(() => items && items.length > 0 ? items : (item ? [item] : []), [items, item]);
+    const barcodeRef = useRef<HTMLCanvasElement>(null);
 
-    const handleFormatChange = (format: "TAG" | "A4") => {
-        const defaults = format === "TAG" ? DEFAULT_TAG_CONFIG : DEFAULT_A4_CONFIG;
+    useEffect(() => {
+        if (config.pageSize === "THERMAL" && targets[0] && barcodeRef.current && open) {
+            try {
+                JsBarcode(barcodeRef.current, targets[0].sku, {
+                    format: "CODE128",
+                    width: 2,
+                    height: 30,
+                    displayValue: false,
+                    margin: 0,
+                    background: "transparent"
+                });
+            } catch (e) {
+                console.error("Barcode preview error", e);
+            }
+        }
+    }, [config.pageSize, targets, open, activeTab]);
+
+    const handleFormatChange = (format: "TAG" | "A4" | "THERMAL") => {
+        let defaults: LabelConfig;
+        if (format === "TAG") defaults = DEFAULT_TAG_CONFIG;
+        else if (format === "THERMAL") defaults = DEFAULT_THERMAL_CONFIG;
+        else defaults = DEFAULT_A4_CONFIG;
+        
         setConfig({ 
             ...defaults, 
             showPrice: config.showPrice,
@@ -153,9 +199,9 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                 printFormat: config
             });
 
-            if (!res.success || !res.items) {
+            if (!res || !res.success || !res.items) {
                 console.error("Print Job Creation Failed:", res);
-                throw new Error(res.message || "Failed to create print job");
+                throw new Error(res?.message || "Failed to create print job. Please check if you are logged in.");
             }
 
             // 2. Generate PDF with returned items (containing checksums)
@@ -180,7 +226,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                 priceWithChecksum: i.priceWithChecksum
             }));
 
-            const pdfUrl = await generateLabelPDF(finalItems, config);
+            const pdfUrl = await generateLabelPDF(finalItems, { ...config, companyLogo: companyLogoData });
             
             // Open PDF
             const win = window.open(pdfUrl, "_blank");
@@ -196,7 +242,15 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         } catch (error: unknown) {
             console.error("Print failed", error);
             const msg = error instanceof Error ? error.message : "Failed to generate labels";
-            toast.error(msg);
+            
+            if (msg.includes("Session invalid")) {
+                toast.error("Session expired. Redirecting to login...");
+                setTimeout(() => {
+                    signOut({ callbackUrl: "/login" });
+                }, 1500);
+            } else {
+                toast.error(msg);
+            }
         } finally {
             setIsPrinting(false);
         }
@@ -257,13 +311,14 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                     <Label>Label Format</Label>
                                     <Select 
                                         value={config.pageSize} 
-                                        onValueChange={(v: "TAG" | "A4") => handleFormatChange(v)}
+                                        onValueChange={(v: "TAG" | "A4" | "THERMAL") => handleFormatChange(v)}
                                     >
                                         <SelectTrigger className="w-[200px]">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="TAG">Single Tag (Thermal)</SelectItem>
+                                            <SelectItem value="TAG">Tag (40x25)</SelectItem>
+                                            <SelectItem value="THERMAL">Thermal (50x25)</SelectItem>
                                             <SelectItem value="A4">A4 Sheet (Grid)</SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -299,95 +354,148 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                     style={{ 
                                         width: `${config.labelWidth}mm`, 
                                         height: `${config.labelHeight}mm`,
-                                        padding: "2mm",
+                                        padding: config.pageSize === "THERMAL" ? "1.5mm" : "2mm",
                                         transform: "scale(1.5)", // Zoom for visibility
                                         transformOrigin: "center"
                                     }}
                                 >
-                                    {/* Dynamic CSS Preview matching PDF Logic */}
+                                    {/* Preview Content */}
                                     {targets[0] && (
-                                        <div className="h-full flex flex-col relative text-black leading-tight">
-                                            {(config.selectedFields || DEFAULT_FIELDS).includes("qrCode") && (
-                                                <div className="absolute top-0 right-0 bg-gray-100 flex items-center justify-center text-[6px]" 
-                                                    style={{ width: `${config.qrSize}mm`, height: `${config.qrSize}mm` }}>QR</div>
-                                            )}
-                                            
-                                            <div className="flex-1">
-                                                {(config.selectedFields || DEFAULT_FIELDS).includes("itemName") && (
-                                                    <div 
-                                                        className="font-bold mb-0.5 leading-none" 
-                                                        style={{ 
-                                                            fontSize: `${targets[0].itemName.length > 25 ? config.fontSize : config.fontSize + 2}pt`,
-                                                            paddingRight: (config.selectedFields || DEFAULT_FIELDS).includes("qrCode") ? `${config.qrSize + 2}mm` : '0',
-                                                            whiteSpace: 'nowrap',
-                                                            overflow: 'hidden',
-                                                            textOverflow: 'ellipsis'
-                                                        }}
-                                                    >
-                                                        {targets[0].itemName}
-                                                    </div>
-                                                )}
-
-                                                {(config.selectedFields || DEFAULT_FIELDS).includes("internalName") && targets[0].internalName && (
-                                                    <div 
-                                                        className="font-bold mb-0.5 leading-none text-gray-700"
-                                                        style={{ fontSize: `${config.fontSize - 1}pt` }}
-                                                    >
-                                                        {targets[0].internalName}
-                                                    </div>
-                                                )}
-
-                                                {(config.selectedFields || DEFAULT_FIELDS).includes("sku") && (
-                                                    <div className="font-mono mb-1" style={{ fontSize: `${config.fontSize}pt` }}>
-                                                        {targets[0].sku}
-                                                    </div>
+                                        config.pageSize === "THERMAL" ? (
+                                            /* Thermal Layout Preview */
+                                            <div className="h-full relative text-black leading-tight font-sans">
+                                                {/* QR Code (Top Right) */}
+                                                {(config.selectedFields || DEFAULT_FIELDS).includes("qrCode") && (
+                                                    <div className="absolute top-0 right-0 bg-gray-100 flex items-center justify-center text-[6px]" 
+                                                        style={{ width: `12mm`, height: `12mm` }}>QR</div>
                                                 )}
                                                 
-                                                <div className="space-y-0.5" style={{ fontSize: `${config.fontSize - 1}pt` }}>
-                                                    {((config.selectedFields || DEFAULT_FIELDS).includes("gemType") || (config.selectedFields || DEFAULT_FIELDS).includes("color")) && (
-                                                        <div>
-                                                            {[
-                                                                (config.selectedFields || DEFAULT_FIELDS).includes("gemType") ? targets[0].gemType : null,
-                                                                (config.selectedFields || DEFAULT_FIELDS).includes("color") ? targets[0].color : null
-                                                            ].filter(Boolean).join(" • ")}
+                                                {/* Content (Top Left) */}
+                                                <div className="flex flex-col gap-[2px]" style={{ width: 'calc(100% - 13mm)' }}>
+                                                    {/* Item Name */}
+                                                    <div className="font-bold text-[9px] truncate leading-none">
+                                                        {targets[0].itemName}
+                                                    </div>
+                                                    
+                                                    {/* SKU */}
+                                                    <div className="font-mono font-bold text-[7px] leading-none">
+                                                        {targets[0].sku}
+                                                    </div>
+
+                                                    {/* Gem & Color */}
+                                                    <div className="text-[7px] leading-none">
+                                                        {[targets[0].gemType, targets[0].color].filter(Boolean).join(" • ")}
+                                                    </div>
+
+                                                    {/* Weight & Shape */}
+                                                    <div className="text-[7px] leading-none">
+                                                        {`${targets[0].weightValue} ${targets[0].weightUnit}${targets[0].weightRatti ? ` (${targets[0].weightRatti.toFixed(2)} Ratti)` : ''} • ${targets[0].shape || ''}`}
+                                                    </div>
+
+                                                    {/* Price */}
+                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("price") && (
+                                                        <div className="font-bold text-[9px] leading-none">
+                                                            {(() => {
+                                                                let p = `R ${targets[0].priceWithChecksum || targets[0].sellingPrice}`;
+                                                                if (targets[0].pricingMode === "PER_CARAT" && targets[0].sellingRatePerCarat) {
+                                                                    p += ` (${Math.round(targets[0].sellingRatePerCarat).toLocaleString()}/ct)`;
+                                                                }
+                                                                return p;
+                                                            })()}
                                                         </div>
                                                     )}
+                                                </div>
 
-                                                    {((config.selectedFields || DEFAULT_FIELDS).includes("shape") || (config.selectedFields || DEFAULT_FIELDS).includes("dimensions")) && (
-                                                        <div>
-                                                            {[
-                                                                (config.selectedFields || DEFAULT_FIELDS).includes("shape") ? targets[0].shape : null,
-                                                                (config.selectedFields || DEFAULT_FIELDS).includes("dimensions") ? targets[0].dimensions : null
-                                                            ].filter(Boolean).join(" • ")}
-                                                        </div>
-                                                    )}
-
-                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("weight") && (
-                                                        <div>
-                                                            {targets[0].weightValue} {targets[0].weightUnit}
-                                                            {targets[0].weightRatti ? ` (${targets[0].weightRatti.toFixed(2)} R)` : ''}
-                                                        </div>
-                                                    )}
-
-                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("stockLocation") && targets[0].stockLocation && (
-                                                        <div className="font-mono text-xs">
-                                                            Loc: {targets[0].stockLocation}
-                                                        </div>
-                                                    )}
-
-                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("price") && previewPriceText && (
-                                                        <div className="font-bold mt-0.5">{previewPriceText.replace("Rs.", "R")}</div>
-                                                    )}
+                                                {/* Barcode (Bottom) */}
+                                                <div className="absolute bottom-0 left-0 w-full flex justify-center items-end" style={{ height: '6mm' }}>
+                                                    <canvas ref={barcodeRef} style={{ width: '35mm', height: '100%', maxWidth: '100%' }} />
                                                 </div>
                                             </div>
-                                            
-                                            {(config.selectedFields || DEFAULT_FIELDS).includes("companyName") && (
-                                                <div className="absolute bottom-0 w-full text-center text-gray-400" 
-                                                    style={{ fontSize: `4pt` }}>
-                                                    KhyatiGems™
+                                        ) : (
+                                            /* Standard Layout Preview */
+                                            <div className="h-full flex flex-col relative text-black leading-tight">
+                                                {(config.selectedFields || DEFAULT_FIELDS).includes("qrCode") && (
+                                                    <div className="absolute top-0 right-0 bg-gray-100 flex items-center justify-center text-[6px]" 
+                                                        style={{ width: `${config.qrSize}mm`, height: `${config.qrSize}mm` }}>QR</div>
+                                                )}
+                                                
+                                                <div className="flex-1">
+                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("itemName") && (
+                                                        <div 
+                                                            className="font-bold mb-0.5 leading-none" 
+                                                            style={{ 
+                                                                fontSize: `${targets[0].itemName.length > 25 ? config.fontSize : config.fontSize + 2}pt`,
+                                                                paddingRight: (config.selectedFields || DEFAULT_FIELDS).includes("qrCode") ? `${config.qrSize + 2}mm` : '0',
+                                                                whiteSpace: 'nowrap',
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis'
+                                                            }}
+                                                        >
+                                                            {targets[0].itemName}
+                                                        </div>
+                                                    )}
+
+                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("internalName") && targets[0].internalName && (
+                                                        <div 
+                                                            className="font-bold mb-0.5 leading-none text-gray-700"
+                                                            style={{ fontSize: `${config.fontSize - 1}pt` }}
+                                                        >
+                                                            {targets[0].internalName}
+                                                        </div>
+                                                    )}
+
+                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("sku") && (
+                                                        <div className="font-mono mb-1" style={{ fontSize: `${config.fontSize}pt` }}>
+                                                            {targets[0].sku}
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <div className="space-y-0.5" style={{ fontSize: `${config.fontSize - 1}pt` }}>
+                                                        {((config.selectedFields || DEFAULT_FIELDS).includes("gemType") || (config.selectedFields || DEFAULT_FIELDS).includes("color")) && (
+                                                            <div>
+                                                                {[
+                                                                    (config.selectedFields || DEFAULT_FIELDS).includes("gemType") ? targets[0].gemType : null,
+                                                                    (config.selectedFields || DEFAULT_FIELDS).includes("color") ? targets[0].color : null
+                                                                ].filter(Boolean).join(" • ")}
+                                                            </div>
+                                                        )}
+
+                                                        {((config.selectedFields || DEFAULT_FIELDS).includes("shape") || (config.selectedFields || DEFAULT_FIELDS).includes("dimensions")) && (
+                                                            <div>
+                                                                {[
+                                                                    (config.selectedFields || DEFAULT_FIELDS).includes("shape") ? targets[0].shape : null,
+                                                                    (config.selectedFields || DEFAULT_FIELDS).includes("dimensions") ? targets[0].dimensions : null
+                                                                ].filter(Boolean).join(" • ")}
+                                                            </div>
+                                                        )}
+
+                                                        {(config.selectedFields || DEFAULT_FIELDS).includes("weight") && (
+                                                            <div>
+                                                                {targets[0].weightValue} {targets[0].weightUnit}
+                                                                {targets[0].weightRatti ? ` (${targets[0].weightRatti.toFixed(2)} R)` : ''}
+                                                            </div>
+                                                        )}
+
+                                                        {(config.selectedFields || DEFAULT_FIELDS).includes("stockLocation") && targets[0].stockLocation && (
+                                                            <div className="font-mono text-xs">
+                                                                Loc: {targets[0].stockLocation}
+                                                            </div>
+                                                        )}
+
+                                                        {(config.selectedFields || DEFAULT_FIELDS).includes("price") && previewPriceText && (
+                                                            <div className="font-bold mt-0.5">{previewPriceText.replace("Rs.", "R")}</div>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
+                                                
+                                                {(config.selectedFields || DEFAULT_FIELDS).includes("companyName") && (
+                                                    <div className="absolute bottom-0 w-full text-center text-gray-400" 
+                                                        style={{ fontSize: `4pt` }}>
+                                                        KhyatiGems™
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
                                     )}
                                 </div>
                             </div>

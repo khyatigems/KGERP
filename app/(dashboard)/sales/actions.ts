@@ -42,6 +42,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
   }
 
   const rawData = Object.fromEntries(formData.entries());
+  const invoiceDisplayOptions = formData.get("invoiceDisplayOptions") as string | null;
 
   const parsed = saleSchema.safeParse(rawData);
   if (!parsed.success) {
@@ -117,7 +118,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   subtotal: netAmount,
                   taxTotal: 0, 
                   discountTotal: data.discount || 0,
-                  totalAmount: netAmount
+                  totalAmount: netAmount,
+                  displayOptions: invoiceDisplayOptions
               }
           });
 

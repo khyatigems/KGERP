@@ -37,6 +37,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { createSale } from "@/app/(dashboard)/sales/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -84,6 +86,34 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   const [open, setOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
   const searchParams = useSearchParams();
+
+  const [invoiceOptions, setInvoiceOptions] = useState({
+    showWeight: true,
+    showRatti: true,
+    showDimensions: true,
+    showGemType: true,
+    showCategory: true,
+    showColor: true,
+    showShape: true,
+    showRashi: true,
+    showCertificates: true,
+    showSku: true,
+    showPrice: true,
+  });
+
+  const fieldLabels: Record<string, string> = {
+    showWeight: "Weight",
+    showRatti: "Weight in Ratti",
+    showDimensions: "Dimensions",
+    showGemType: "Gem Type",
+    showCategory: "Category",
+    showColor: "Color",
+    showShape: "Shape",
+    showRashi: "Rashi",
+    showCertificates: "Certificates",
+    showSku: "SKU",
+    showPrice: "Price Breakdown"
+  };
   
   const preSelectedInventoryId = searchParams.get("inventoryId");
   const quoteId = searchParams.get("quoteId");
@@ -171,6 +201,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     if (quoteId) {
         formData.append("quotationId", quoteId);
     }
+
+    formData.append("invoiceDisplayOptions", JSON.stringify(invoiceOptions));
 
     try {
         const result = await createSale(null, formData);
@@ -577,6 +609,24 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                 </FormItem>
               )}
             />
+            
+            <div className="border rounded-md p-4 bg-muted/20 space-y-4">
+              <h3 className="font-medium">Invoice Display Options</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {Object.entries(invoiceOptions).map(([key, value]) => (
+                  <div key={key} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`inv-${key}`} 
+                      checked={value} 
+                      onCheckedChange={(c) => setInvoiceOptions(prev => ({ ...prev, [key]: !!c }))} 
+                    />
+                    <Label htmlFor={`inv-${key}`} className="cursor-pointer font-normal">
+                      {fieldLabels[key] || key}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

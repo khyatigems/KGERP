@@ -7,6 +7,7 @@ import { Share2 } from "lucide-react";
 import { PrintButton } from "@/components/invoice/print-button";
 import { RazorpayButton } from "@/components/invoice/razorpay-button";
 import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
+import { ThermalPrintButton } from "@/components/invoice/thermal-print-button";
 import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import type { Metadata } from "next";
@@ -295,6 +296,15 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
     } : undefined
   };
 
+  const labelData = {
+    invoiceNumber: invoice.invoiceNumber,
+    customerName: customerName,
+    date: invoice.createdAt,
+    totalAmount: total,
+    itemCount: processedItems.length,
+    invoiceUrl: invoiceUrl
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 print:py-0 print:px-0 print:bg-white">
         <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden print:shadow-none print:rounded-none relative print:w-full">
@@ -323,6 +333,7 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
                         <Share2 className="w-3.5 h-3.5 mr-1.5" />
                         WhatsApp
                     </a>
+                    <ThermalPrintButton data={labelData} />
                     <DownloadPdfButton data={pdfData} />
                     <PrintButton />
                 </div>

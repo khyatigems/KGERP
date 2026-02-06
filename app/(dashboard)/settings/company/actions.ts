@@ -66,3 +66,13 @@ export async function updateCompanySettings(data: z.infer<typeof companySettings
     };
   }
 }
+
+export async function getCompanySettings() {
+  try {
+    const settings = await prisma.companySettings.findFirst();
+    return { success: true, data: settings };
+  } catch (error) {
+    console.error("Failed to fetch company settings:", error);
+    return { success: false, message: "Failed to fetch settings" };
+  }
+}

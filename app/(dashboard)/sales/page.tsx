@@ -2,6 +2,9 @@ import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -92,13 +95,22 @@ export default async function SalesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end">
-        <ExportButton 
-            filename="sales_report" 
-            data={exportData} 
-            columns={columns} 
-            title="Sales Report" 
-        />
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Sales History</h1>
+        <div className="flex items-center gap-2">
+            <Link href="/sales/new">
+                <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Record New Sale
+                </Button>
+            </Link>
+            <ExportButton 
+                filename="sales_report" 
+                data={exportData} 
+                columns={columns} 
+                title="Sales Report" 
+            />
+        </div>
       </div>
 
       <div className="md:hidden">
