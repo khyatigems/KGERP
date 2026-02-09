@@ -30,7 +30,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { createQuotation, updateQuotation } from "@/app/(dashboard)/quotes/actions";
-import { Inventory } from "@prisma/client-custom-v2";
+import { Inventory } from "@prisma/client";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {

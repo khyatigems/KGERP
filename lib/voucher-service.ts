@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma, PrismaClient } from "@prisma/client-custom-v2";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 export type VoucherType = "EXPENSE" | "PAYMENT" | "REVERSAL" | "RECEIPT";
 

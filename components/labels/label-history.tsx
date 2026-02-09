@@ -8,7 +8,7 @@ import { Printer, RefreshCw, CheckCircle, XCircle, Info } from "lucide-react";
 import { format } from "date-fns";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { validatePrice } from "@/lib/price-encoder";
-import { LabelPrintJob, LabelPrintJobItem, User } from "@prisma/client-custom-v2";
+import { LabelPrintJob, LabelPrintJobItem, User } from "@prisma/client";
 import { LabelItem } from "@/lib/label-generator";
 import {
   Dialog,

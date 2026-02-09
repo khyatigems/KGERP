@@ -38,6 +38,7 @@
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
+    "imagekit": "^6.0.0",
     "jsbarcode": "^3.12.3",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",

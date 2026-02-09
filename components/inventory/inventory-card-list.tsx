@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { InventoryActions } from "./inventory-actions";
 import { InventoryCardMedia } from "./inventory-card-media";
-import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
+import type { Inventory, InventoryMedia } from "@prisma/client";
 
 interface InventoryItem extends Inventory {
   media: InventoryMedia[];

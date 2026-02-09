@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { MobileInventoryActions } from "@/components/inventory/mobile-inventory-actions";
 import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
-import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
+import type { Inventory, InventoryMedia } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 

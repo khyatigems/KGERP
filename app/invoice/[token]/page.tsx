@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client-custom-v2";
+import { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildInvoiceWhatsappLink } from "@/lib/whatsapp";

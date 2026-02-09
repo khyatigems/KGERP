@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client-custom-v2";
+import { Prisma } from "@prisma/client";
 import { PurchaseSearch } from "@/components/purchases/purchase-search";
 
 export const metadata: Metadata = {

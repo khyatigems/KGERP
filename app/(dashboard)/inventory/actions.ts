@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { Prisma } from "@prisma/client-custom-v2";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateSku } from "@/lib/sku";
 import { revalidatePath } from "next/cache";

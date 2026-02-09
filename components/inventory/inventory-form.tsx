@@ -30,7 +30,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createCode } from "@/app/(dashboard)/settings/codes/actions";
 import { Loader2, ChevronDown, ChevronUp, Sparkles, Plus, X, Check } from "lucide-react";
-import type { Inventory, InventoryMedia } from "@prisma/client-custom-v2";
+import type { Inventory, InventoryMedia } from "@prisma/client";
 import {
   AlertDialog,
   AlertDialogAction,

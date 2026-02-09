@@ -18,7 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateInvoiceSettings } from "./actions";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { InvoiceSettings, PaymentSettings } from "@prisma/client-custom-v2";
+import { InvoiceSettings, PaymentSettings } from "@prisma/client";
 
 import { SignatureUpload } from "@/components/invoice/signature-upload";
 

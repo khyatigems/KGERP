@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client-custom-v2"
+import { PrismaClient } from "@prisma/client"
 import { PrismaLibSQL } from "@prisma/adapter-libsql"
 import { createClient } from "@libsql/client"
 import { config } from "dotenv"
@@ -84,4 +84,4 @@ export const prisma = prismaBase
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
-export type { ActivityLog } from '@prisma/client-custom-v2'
+export type { ActivityLog } from '@prisma/client'

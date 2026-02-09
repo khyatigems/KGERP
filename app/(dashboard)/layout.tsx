@@ -18,7 +18,7 @@ export default async function DashboardLayout({
       select: {
         name: true,
         email: true,
-        avatar: true,
+        // avatar: true, // TODO: Uncomment after running 'npx prisma generate'
         role: true,
         lastLogin: true
       }
@@ -29,7 +29,7 @@ export default async function DashboardLayout({
         ...session.user,
         name: dbUser.name,
         email: dbUser.email,
-        image: dbUser.avatar, // Map avatar field to image
+        // image: dbUser.avatar, // Map avatar field to image
         role: dbUser.role,
         lastLogin: dbUser.lastLogin
       };

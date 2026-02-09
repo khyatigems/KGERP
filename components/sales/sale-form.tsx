@@ -42,7 +42,7 @@ import { Label } from "@/components/ui/label";
 import { createSale } from "@/app/(dashboard)/sales/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Inventory } from "@prisma/client-custom-v2";
+import { Inventory } from "@prisma/client";
 import { useSearchParams } from "next/navigation";
 
 const formSchema = z.object({

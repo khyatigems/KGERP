@@ -6,7 +6,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { checkPermission } from "@/lib/permission-guard";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity-logger";
-import { LandingPageSettings, LandingPageSlide } from "@prisma/client-custom-v2";
+import { LandingPageSettings, LandingPageSlide } from "@prisma/client";
 
 // Helper to ensure singleton settings exist
 async function getOrCreateSettings() {

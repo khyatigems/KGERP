@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { ActivityLog } from "@prisma/client-custom-v2";
+import type { ActivityLog } from "@prisma/client";
 
 export const revalidate = 60;
 

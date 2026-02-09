@@ -19,7 +19,7 @@ import { InventorySearch } from "@/components/inventory/inventory-search";
 import { InventoryActions } from "@/components/inventory/inventory-actions";
 import { InventoryCardList } from "@/components/inventory/inventory-card-list";
 import { InventoryCardMedia } from "@/components/inventory/inventory-card-media";
-import type { Inventory } from "@prisma/client-custom-v2";
+import type { Inventory } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 

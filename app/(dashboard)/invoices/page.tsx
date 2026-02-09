@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Eye } from "lucide-react";
-import type { Invoice, Sale, Quotation } from "@prisma/client-custom-v2";
+import type { Invoice, Sale, Quotation } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
