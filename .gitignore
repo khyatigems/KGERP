@@ -43,3 +43,7 @@ next-env.d.ts
 *.db-journal
 *.db
 *.bak
+
+# Local Storage
+KhyatiGems_Images/
+
