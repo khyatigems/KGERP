@@ -70,7 +70,8 @@ export async function createOrUpdateInvoiceFromSale(
     }
   } catch (error) {
     console.error("Failed to create/update invoice:", error);
-    return { success: false, message: "Failed to create/update invoice" };
+    const msg = error instanceof Error ? error.message : "Failed to create/update invoice";
+    return { success: false, message: msg };
   }
 }
 

@@ -256,6 +256,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const [newColorName, setNewColorName] = useState("");
   const [newColorCode, setNewColorCode] = useState("");
   const [isCreatingColor, setIsCreatingColor] = useState(false);
+  const [shouldRedirectAfterSave, setShouldRedirectAfterSave] = useState(true);
 
   const handleCreateColor = async () => {
       if (!newColorName || !newColorCode) return;
@@ -341,7 +342,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     }
   }, [selectedCategory, selectedGemstone, selectedColor, calculatedRatti, form]);
 
-  async function submitInventory(data: FormValues, ignoreDuplicates = false) {
+  async function submitInventory(data: FormValues, ignoreDuplicates = false, shouldRedirect = true) {
     setIsPending(true);
     setDuplicateWarning(null); // Clear previous warnings
     
@@ -382,10 +383,19 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
              if (!initialData) {
                  form.reset();
                  setSkuPreview("");
+                 
+                 // Reset default values that might be cleared by reset()
+                 form.setValue("weightUnit", "cts");
+                 form.setValue("pricingMode", "PER_CARAT");
              }
-             setTimeout(() => {
-                 router.push("/inventory");
-             }, 1000);
+             
+             if (shouldRedirect) {
+                 setTimeout(() => {
+                     router.push("/inventory");
+                 }, 1000);
+             } else {
+                 window.scrollTo({ top: 0, behavior: 'smooth' });
+             }
         } else if (result && (result.message || result.errors)) {
              // Check for duplicate warning
              // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -425,12 +435,18 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   }
 
   async function onSubmit(data: FormValues) {
-    await submitInventory(data, false);
-  }
+        setShouldRedirectAfterSave(true);
+        await submitInventory(data, false, true);
+    }
+
+    async function onSaveAndAddNew(data: FormValues) {
+        setShouldRedirectAfterSave(false);
+        await submitInventory(data, false, false);
+    }
 
   const handleSaveAnyway = async () => {
     const data = form.getValues();
-    await submitInventory(data, true);
+    await submitInventory(data, true, shouldRedirectAfterSave);
   };
 
   return (
@@ -1372,10 +1388,25 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
           </div>
         </div>
 
-        <Button type="submit" disabled={isPending} className="transition-all duration-200 hover:scale-105 active:scale-95">
-          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {initialData ? "Update Inventory Item" : "Create Inventory Item"}
-        </Button>
+        <div className="flex gap-4">
+            <Button type="submit" disabled={isPending} className="transition-all duration-200 hover:scale-105 active:scale-95 flex-1">
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {initialData ? "Update Inventory Item" : "Create Inventory Item"}
+            </Button>
+
+            {!initialData && (
+                <Button 
+                    type="button" 
+                    variant="secondary"
+                    disabled={isPending} 
+                    onClick={form.handleSubmit(onSaveAndAddNew)}
+                    className="transition-all duration-200 hover:scale-105 active:scale-95 flex-1"
+                >
+                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save & Add New
+                </Button>
+            )}
+        </div>
       </form>
 
       <AlertDialog open={!!duplicateWarning} onOpenChange={(open) => !open && setDuplicateWarning(null)}>

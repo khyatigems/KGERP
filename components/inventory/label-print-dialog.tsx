@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Printer, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { generateLabelPDF, LabelConfig, DEFAULT_TAG_CONFIG, DEFAULT_A4_CONFIG, DEFAULT_THERMAL_CONFIG, LabelItem, DEFAULT_FIELDS } from "@/lib/label-generator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -287,17 +287,15 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger || <Button variant="outline" size="sm"><Printer className="mr-2 h-4 w-4" /> Print Label</Button>}
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>Print Labels ({targets.length})</DialogTitle>
+                    <DialogTitle>Print Labels</DialogTitle>
                     <DialogDescription>
-                        Configure print settings and preview labels.
+                        Configure layout and content for printing labels.
                     </DialogDescription>
                 </DialogHeader>
-                
+
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="preview">Preview & Print</TabsTrigger>

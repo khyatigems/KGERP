@@ -3,12 +3,12 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import { randomBytes } from "crypto";
+import { InvoiceData } from "@/lib/invoice-generator";
 
 const saleSchema = z.object({
   inventoryId: z.string().uuid("Please select an item"),
@@ -276,4 +276,192 @@ export async function deleteSale(id: string) {
 
   revalidatePath("/sales");
   revalidatePath("/inventory");
+}
+
+export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceData | null> {
+    const session = await auth();
+    if (!session) return null;
+
+    // 1. Find Sale and its Invoice
+    const sale = await prisma.sale.findUnique({
+        where: { id: saleId },
+        include: {
+            invoice: {
+                include: {
+                    sales: {
+                        include: {
+                            inventory: {
+                                include: {
+                                    certificates: true,
+                                    rashis: true
+                                }
+                            }
+                        }
+                    },
+                    quotation: {
+                        include: {
+                            customer: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    if (!sale || !sale.invoice) return null;
+
+    const invoice = sale.invoice;
+    const companySettings = await prisma.companySettings.findFirst();
+    const invoiceSettings = await prisma.invoiceSettings.findFirst();
+    const paymentSettings = await prisma.paymentSettings.findFirst();
+
+    // Parse GST Rates
+    let gstRates: Record<string, string> = {};
+    try {
+        if (invoiceSettings?.categoryGstRates) {
+            gstRates = JSON.parse(invoiceSettings.categoryGstRates);
+        }
+    } catch (e) {
+        console.error("Failed to parse GST rates", e);
+    }
+
+    // Parse Display Options
+    let displayOptions = {
+        showWeight: true,
+        showRatti: true,
+        showDimensions: true,
+        showGemType: true,
+        showCategory: true,
+        showColor: true,
+        showShape: true,
+        showRashi: true,
+        showCertificates: true,
+        showSku: true,
+        showPrice: true,
+    };
+
+    if (invoice.displayOptions) {
+        try {
+            const parsed = JSON.parse(invoice.displayOptions);
+            displayOptions = { ...displayOptions, ...parsed };
+        } catch (e) {
+            console.error("Failed to parse display options", e);
+        }
+    }
+
+    // Process Items
+    const salesItems = invoice.sales;
+    const processedItems = salesItems.map((item) => {
+        const category = item.inventory.category || "General";
+        let rateStr = "3";
+        if (gstRates && typeof gstRates === 'object') {
+            rateStr = gstRates[category] || gstRates[item.inventory.itemName] || "3";
+        }
+        const gstRate = parseFloat(rateStr) || 3;
+
+        const inclusivePrice = item.salePrice || item.netAmount || 0;
+        const basePrice = inclusivePrice / (1 + (gstRate / 100));
+        const gstAmount = inclusivePrice - basePrice;
+
+        // Description Construction
+        const descriptionParts: string[] = [];
+        descriptionParts.push(item.inventory.itemName);
+
+        const details: string[] = [];
+        if (displayOptions.showWeight) details.push(`${item.inventory.weightValue} ${item.inventory.weightUnit}`);
+        if (displayOptions.showRatti && item.inventory.weightRatti) details.push(`Ratti: ${item.inventory.weightRatti}`);
+        if (displayOptions.showDimensions && (item.inventory.dimensionsMm || item.inventory.measurements)) details.push(`Dim: ${item.inventory.dimensionsMm || item.inventory.measurements}`);
+        if (displayOptions.showGemType && item.inventory.gemType) details.push(`Type: ${item.inventory.gemType}`);
+        if (displayOptions.showColor && item.inventory.color) details.push(`Color: ${item.inventory.color}`);
+        if (displayOptions.showShape && item.inventory.shape) details.push(`Shape: ${item.inventory.shape}`);
+        
+        if (details.length > 0) descriptionParts.push(details.join(" • "));
+
+        if (displayOptions.showPrice && item.inventory.pricingMode === "PER_CARAT") {
+            descriptionParts.push(`Rate: ${item.inventory.sellingRatePerCarat}/ct`);
+        }
+
+        return {
+            sku: displayOptions.showSku ? item.inventory.sku : "",
+            description: descriptionParts.join("\n"),
+            quantity: 1,
+            unitPrice: item.salePrice, // Note: using salePrice here but might need basePrice depending on calculation
+            basePrice: basePrice,
+            gstRate,
+            gstAmount,
+            total: item.netAmount || (inclusivePrice - (item.discountAmount || 0)) || 0,
+            discountAmount: item.discountAmount || 0
+        };
+    });
+
+    // Totals
+    const subtotalBase = processedItems.reduce((sum, item) => sum + item.basePrice, 0);
+    const totalGst = processedItems.reduce((sum, item) => sum + item.gstAmount, 0);
+    const discount = processedItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
+    const total = processedItems.reduce((sum, item) => sum + item.total, 0);
+
+    // Payment Status
+    const allPaid = salesItems.every((s) => s.paymentStatus === "PAID");
+    const anyPaidOrPartial = salesItems.some((s) => s.paymentStatus === "PAID" || s.paymentStatus === "PARTIAL");
+    let paymentStatus = "UNPAID";
+    if (allPaid) paymentStatus = "PAID";
+    else if (anyPaidOrPartial) paymentStatus = "PARTIAL";
+
+    const isPaid = paymentStatus === "PAID";
+    const amountReceived = salesItems.reduce((sum, item) => {
+        if (item.paymentStatus === "PAID") return sum + (item.netAmount || item.salePrice);
+        return sum;
+    }, 0);
+    const balanceDue = isPaid ? 0 : Math.max(0, total - amountReceived);
+
+    // Customer
+    // Prefer sale customer, then invoice/quotation customer
+    const customerName = sale.customerName || invoice.quotation?.customer?.name || "Walk-in Customer";
+    const customerAddress = sale.customerCity || invoice.quotation?.customer?.city || invoice.quotation?.customer?.address || "";
+    const customerPhone = sale.customerPhone || invoice.quotation?.customer?.phone || "";
+    const customerEmail = sale.customerEmail || invoice.quotation?.customer?.email || "";
+
+    return {
+        invoiceNumber: invoice.invoiceNumber,
+        date: invoice.createdAt,
+        company: {
+            name: companySettings?.companyName || "KhyatiGems",
+            address: companySettings?.address || "",
+            email: companySettings?.email || "",
+            phone: companySettings?.phone || "",
+            gstin: companySettings?.gstin || undefined,
+            logoUrl: companySettings?.invoiceLogoUrl || companySettings?.logoUrl || undefined,
+        },
+        customer: {
+            name: customerName,
+            address: customerAddress,
+            phone: customerPhone,
+            email: customerEmail,
+        },
+        items: processedItems.map(item => ({
+            sku: item.sku,
+            description: item.description,
+            quantity: 1,
+            unitPrice: item.basePrice,
+            gstRate: item.gstRate,
+            gstAmount: item.gstAmount,
+            total: item.total
+        })),
+        subtotal: subtotalBase,
+        discount,
+        tax: totalGst,
+        total,
+        amountPaid: amountReceived,
+        balanceDue,
+        status: isPaid ? "PAID" : "DUE",
+        paymentStatus,
+        terms: invoiceSettings?.terms || undefined,
+        notes: invoiceSettings?.footerNotes || undefined,
+        bankDetails: paymentSettings?.bankEnabled ? {
+            bankName: paymentSettings.bankName || "",
+            accountNumber: paymentSettings.accountNumber || "",
+            ifsc: paymentSettings.ifscCode || "",
+            holder: paymentSettings.accountHolder || "",
+        } : undefined
+    };
 }

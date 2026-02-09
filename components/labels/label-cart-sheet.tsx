@@ -98,12 +98,12 @@ export function LabelCartSheet({ initialItems = [] }: { initialItems?: any[] }) 
                     )}
                 </Button>
             </SheetTrigger>
-            <SheetContent className="w-[400px] sm:w-[540px]">
+            <SheetContent className="w-[400px] sm:w-[540px] flex flex-col">
                 <SheetHeader>
                     <SheetTitle>Label Cart ({items.length})</SheetTitle>
                 </SheetHeader>
                 
-                <div className="flex flex-col h-full pb-10">
+                <div className="flex flex-col flex-1 min-h-0 pb-2">
                     <div className="flex-1 my-4 pr-4 overflow-y-auto">
                         {loading ? (
                             <div className="text-center py-10">Loading...</div>
