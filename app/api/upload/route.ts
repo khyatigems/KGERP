@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadToCloudinary } from '@/lib/cloudinary';
-import fs from 'fs';
-import path from 'path';
-
-// Define the base directory for local uploads.
-// You can change this to an absolute path like 'D:/KhyatiGems_Images' or use an environment variable.
-const LOCAL_UPLOAD_BASE_DIR = process.env.LOCAL_UPLOAD_DIR || 'C:\\KhyatiGems_Images';
+import { uploadToImageKit } from '@/lib/imagekit';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,22 +13,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No files provided' }, { status: 400 });
     }
 
-    // Ensure the base directory exists
-    if (!fs.existsSync(LOCAL_UPLOAD_BASE_DIR)) {
-      try {
-        fs.mkdirSync(LOCAL_UPLOAD_BASE_DIR, { recursive: true });
-      } catch (err) {
-        console.error('Failed to create local base directory:', err);
-      }
-    }
-
     const results = [];
 
     for (const file of files) {
       const buffer = Buffer.from(await file.arrayBuffer());
       
       let cloudinaryUrl = null;
-      let localFilePath = null;
+      let imageKitUrl = null;
       let errorMsg = null;
 
       // Sanitize SKU and Filename
@@ -52,7 +38,7 @@ export async function POST(req: NextRequest) {
 
       const uniqueFileName = `${prefix}${truncatedFileName}`;
 
-      // 1. Upload to Cloudinary
+      // 1. Upload to Cloudinary (Primary)
       try {
         console.log(`Starting upload for ${uniqueFileName}, size: ${file.size} bytes`);
         cloudinaryUrl = await uploadToCloudinary(buffer, uniqueFileName);
@@ -62,30 +48,26 @@ export async function POST(req: NextRequest) {
         errorMsg = error.message || error.error?.message || JSON.stringify(error) || "Cloudinary Upload failed";
       }
 
-      // 2. Save to Local Storage (Hard Drive)
+      // 2. Backup to ImageKit (Secondary)
       try {
-        const categoryDir = path.join(LOCAL_UPLOAD_BASE_DIR, category);
+        // We use the category as the folder name in ImageKit
+        const folder = `/KhyatiGems_Backups/${category}`;
+        const imageKitResult = await uploadToImageKit(buffer, uniqueFileName, folder);
         
-        // Create category directory if it doesn't exist
-        if (!fs.existsSync(categoryDir)) {
-          fs.mkdirSync(categoryDir, { recursive: true });
+        if (imageKitResult && imageKitResult.url) {
+            imageKitUrl = imageKitResult.url;
+            console.log(`ImageKit backup successful: ${imageKitUrl}`);
         }
-
-        const fullLocalPath = path.join(categoryDir, uniqueFileName);
-        fs.writeFileSync(fullLocalPath, buffer);
-        localFilePath = fullLocalPath;
-        console.log(`Local save successful: ${localFilePath}`);
       } catch (error: any) {
-        console.error(`Local save failed for ${file.name}:`, error);
-        // We don't fail the whole request if local save fails, but we log it.
-        if (!errorMsg) errorMsg = "Local Save failed: " + error.message;
-        else errorMsg += " | Local Save failed: " + error.message;
+        console.error(`ImageKit backup failed for ${file.name}:`, error);
+        if (!errorMsg && !cloudinaryUrl) errorMsg = "Both uploads failed: " + error.message;
+        else if (errorMsg) errorMsg += " | ImageKit failed: " + error.message;
       }
 
       results.push({
         fileName: file.name,
         cloudinaryUrl: cloudinaryUrl,
-        localPath: localFilePath,
+        backupUrl: imageKitUrl, // Renamed from googleDriveUrl
         error: errorMsg
       });
     }

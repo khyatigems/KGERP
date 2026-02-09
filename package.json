@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@imagekit/next": "^2.1.4",
+    "@imagekit/nodejs": "^7.3.0",
     "@libsql/client": "0.8.1",
     "@prisma/adapter-libsql": "6.0.0",
     "@prisma/client": "6.0.0",
