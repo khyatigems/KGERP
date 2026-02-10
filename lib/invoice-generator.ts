@@ -41,6 +41,7 @@ export interface InvoiceData {
   notes?: string;
   signatureUrl?: string;
   publicUrl?: string;
+  token?: string;
   upiQrData?: string;
   bankDetails?: {
     bankName: string;

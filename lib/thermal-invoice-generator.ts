@@ -77,7 +77,7 @@ export async function generateThermalInvoicePDF(data: InvoiceData) {
     if (data.terms) estimatedHeight += getTxtHeight(data.terms, fontSize.tiny) + 5;
     if (data.notes) estimatedHeight += getTxtHeight(data.notes, fontSize.tiny) + 5;
     
-    if (data.publicUrl) estimatedHeight += 35; // QR Code space
+    if (data.publicUrl || data.token) estimatedHeight += 35; // QR Code space
 
     estimatedHeight += 10; // Bottom margin
 
@@ -258,10 +258,14 @@ export async function generateThermalInvoicePDF(data: InvoiceData) {
     drawCenterText("Thank you for your business!", fontSize.small, true);
     
     // 11. QR Code
-    if (data.publicUrl) {
+    const qrTargetUrl = (data.token && typeof window !== "undefined") 
+        ? `${window.location.origin}/invoice/${data.token}`
+        : data.publicUrl;
+
+    if (qrTargetUrl) {
         y += 2;
         try {
-            const qrDataUrl = await QRCode.toDataURL(data.publicUrl, { margin: 0 });
+            const qrDataUrl = await QRCode.toDataURL(qrTargetUrl, { margin: 0 });
             const qrSize = 25;
             const qrX = (PAPER_WIDTH - qrSize) / 2;
             doc.addImage(qrDataUrl, "PNG", qrX, y, qrSize, qrSize);

@@ -479,6 +479,7 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
         invoiceNumber: invoice.invoiceNumber,
         date: invoice.createdAt,
         publicUrl,
+        token: invoice.token,
         company: {
             name: companySettings?.companyName || "KhyatiGems",
             address: companySettings?.address || "",
