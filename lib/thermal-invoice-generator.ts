@@ -258,14 +258,18 @@ export async function generateThermalInvoicePDF(data: InvoiceData) {
     drawCenterText("Thank you for your business!", fontSize.small, true);
     
     // 11. QR Code
-    const qrTargetUrl = (data.token && typeof window !== "undefined") 
-        ? `${window.location.origin}/invoice/${data.token}`
-        : data.publicUrl;
+    // Use configured public URL if available (best for prod/consistent links)
+    // Fallback to window.location.origin (best for local dev if env not set)
+    const qrTargetUrl = data.publicUrl || 
+        (data.token && typeof window !== "undefined" ? `${window.location.origin}/invoice/${data.token}` : undefined);
 
     if (qrTargetUrl) {
         y += 2;
         try {
-            const qrDataUrl = await QRCode.toDataURL(qrTargetUrl, { margin: 0 });
+            const qrDataUrl = await QRCode.toDataURL(qrTargetUrl, { 
+                margin: 0,
+                errorCorrectionLevel: 'M' 
+            });
             const qrSize = 25;
             const qrX = (PAPER_WIDTH - qrSize) / 2;
             doc.addImage(qrDataUrl, "PNG", qrX, y, qrSize, qrSize);

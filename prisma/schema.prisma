@@ -41,6 +41,7 @@ model User {
   // Expense Relations
   expenses           Expense[]
   vouchers           Voucher[]
+  journalEntries     JournalEntry[]
 }
 
 model InventoryMetrics {
@@ -820,4 +821,58 @@ model Expense {
   @@index([categoryId])
   @@index([createdById])
   @@index([expenseDate])
+}
+
+//// ACCOUNTING MODULE
+
+// Chart of Accounts
+model Account {
+  id          String   @id @default(uuid())
+  code        String   @unique // e.g., "1001"
+  name        String   // e.g., "Cash on Hand"
+  type        String   // ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
+  subtype     String?  // CASH, BANK, AR, AP, DIRECT_EXPENSE, etc.
+  description String?
+  isActive    Boolean  @default(true)
+  
+  journalLines JournalLine[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Journal Entry (The header for a transaction)
+model JournalEntry {
+  id            String   @id @default(uuid())
+  date          DateTime
+  description   String
+  referenceType String?  // INVOICE, EXPENSE, PAYMENT, MANUAL
+  referenceId   String?  // ID of the source document
+  
+  lines         JournalLine[]
+  
+  createdById   String
+  createdBy     User     @relation(fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+  
+  @@index([date])
+  @@index([referenceId])
+}
+
+// Journal Line Items (Debits and Credits)
+model JournalLine {
+  id             String       @id @default(uuid())
+  journalEntryId String
+  accountId      String
+  
+  debit          Float        @default(0)
+  credit         Float        @default(0)
+  
+  description    String?      // Line-level narration
+  
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        Account      @relation(fields: [accountId], references: [id])
+  
+  @@index([journalEntryId])
+  @@index([accountId])
 }

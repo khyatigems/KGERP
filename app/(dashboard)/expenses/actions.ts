@@ -8,8 +8,8 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
 import { expenseSchema, type ExpenseFormValues, type ExpenseImportRow } from "./schema";
-
 import { createVoucher } from "@/lib/voucher-service";
+import { postJournalEntry, getAccountByCode, ACCOUNTS } from "@/lib/accounting";
 
 export async function createExpense(data: ExpenseFormValues) {
   await checkPermission(PERMISSIONS.EXPENSE_CREATE);
@@ -58,6 +58,49 @@ export async function createExpense(data: ExpenseFormValues) {
         where: { id: voucher.id },
         data: { referenceId: newExpense.id }
       });
+
+      // 4. Accounting Entry (Double Entry)
+      try {
+          // Debit: Expense Category
+          let debitAccountId = "";
+          // Try to match category code to account code
+          if (category.code) {
+              const acc = await tx.account.findUnique({ where: { code: category.code } });
+              if (acc) debitAccountId = acc.id;
+          }
+          // Fallback to Office Expenses
+          if (!debitAccountId) {
+              const defaultExp = await getAccountByCode(ACCOUNTS.EXPENSES.OFFICE, tx);
+              debitAccountId = defaultExp.id;
+          }
+
+          // Credit: Payment Mode
+          let creditAccountId = "";
+          const mode = rest.paymentMode?.toUpperCase() || "CASH";
+          if (mode === "CASH") {
+              const acc = await getAccountByCode(ACCOUNTS.ASSETS.CASH, tx);
+              creditAccountId = acc.id;
+          } else {
+              // Assume Bank for UPI/Card/Bank (Default to HDFC)
+              const acc = await getAccountByCode(ACCOUNTS.ASSETS.BANK_HDFC, tx);
+              creditAccountId = acc.id;
+          }
+
+          await postJournalEntry({
+              date: rest.expenseDate,
+              description: `Expense: ${rest.description} (${category.name})`,
+              referenceType: "EXPENSE",
+              referenceId: newExpense.id,
+              userId: session.user.id,
+              lines: [
+                  { accountId: debitAccountId, debit: rest.totalAmount },
+                  { accountId: creditAccountId, credit: rest.totalAmount }
+              ]
+          }, tx);
+      } catch (e) {
+          console.error("Accounting Error:", e);
+          // throw e; // Consider strictness level. For now, log but don't block if setup incomplete.
+      }
 
       return newExpense;
     });

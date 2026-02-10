@@ -130,19 +130,19 @@ export async function createCode(group: CodeGroup, formData: FormData) {
           } 
       });
     } else if (group === "certificates") {
-      // Generate a code from name since user said "no need to add code"
+      // Generate a code from name
       // Simple slug generation: uppercase, remove non-alphanumeric, take first 6 chars
-      // Ensure it's unique by appending random chars if needed? 
-      // For now, let's try simple generation. If collision, we might fail, but name is unique so collision is unlikely unless we truncate.
-      let generatedCode = name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-      if (generatedCode.length === 0) {
-        generatedCode = "CERT" + Math.floor(Math.random() * 100);
+      let baseCode = name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+      if (baseCode.length === 0) {
+        baseCode = "CERT";
       }
       
-      // Check if generated code exists (edge case)
-      const codeExists = await prisma.certificateCode.findUnique({ where: { code: generatedCode } });
-      if (codeExists) {
-         generatedCode = generatedCode.slice(0, 3) + Math.floor(Math.random() * 1000);
+      // Ensure uniqueness sequentially
+      let generatedCode = baseCode;
+      let counter = 1;
+      while (await prisma.certificateCode.findUnique({ where: { code: generatedCode } })) {
+         generatedCode = `${baseCode}${counter}`;
+         counter++;
       }
 
       created = await prisma.certificateCode.create({ 

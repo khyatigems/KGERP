@@ -9,6 +9,7 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import { randomBytes } from "crypto";
 import { InvoiceData } from "@/lib/invoice-generator";
+import { postJournalEntry, getAccountByCode, ACCOUNTS } from "@/lib/accounting";
 
 const saleSchema = z.object({
   inventoryId: z.string().uuid("Please select an item"),
@@ -243,6 +244,27 @@ export async function createSale(prevState: unknown, formData: FormData) {
               where: { id: sale.id },
               data: { invoiceId: newInvoice.id }
           });
+
+          // 6. Accounting Entry (Double Entry)
+          try {
+              const acAR = await getAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, tx);
+              const acSales = await getAccountByCode(ACCOUNTS.INCOME.SALES, tx);
+              
+              await postJournalEntry({
+                  date: new Date(),
+                  description: `Invoice #${invoiceNumber} - ${data.customerName || "Walk-in"}`,
+                  referenceType: "INVOICE",
+                  referenceId: newInvoice.id,
+                  userId: session.user.id,
+                  lines: [
+                      { accountId: acAR.id, debit: netAmount },
+                      { accountId: acSales.id, credit: netAmount }
+                  ]
+              }, tx);
+          } catch (accError) {
+              console.error("Accounting Entry Failed:", accError);
+              throw accError; // Ensure data consistency
+          }
       });
 
       await logActivity({
