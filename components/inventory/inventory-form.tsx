@@ -257,6 +257,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const [newColorCode, setNewColorCode] = useState("");
   const [isCreatingColor, setIsCreatingColor] = useState(false);
   const [shouldRedirectAfterSave, setShouldRedirectAfterSave] = useState(true);
+  const [fileUploadResetKey, setFileUploadResetKey] = useState(0);
 
   const handleCreateColor = async () => {
       if (!newColorName || !newColorCode) return;
@@ -1338,6 +1339,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                   <FormLabel>Images & Videos</FormLabel>
                   <FormControl>
                     <FileUpload
+                      key={fileUploadResetKey}
                       onUploadComplete={(results) => {
                          const urls = results.map(r => r.url).filter(Boolean) as string[];
                          field.onChange(urls);

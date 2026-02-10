@@ -50,16 +50,22 @@ export async function POST(req: NextRequest) {
 
       // 2. Backup to ImageKit (Secondary)
       try {
-        // We use the category as the folder name in ImageKit
-        const folder = `/KhyatiGems_Backups/${category}`;
+        // Sanitize category for folder name (remove special chars to avoid path issues)
+        const safeCategory = category.replace(/[^a-zA-Z0-9\s-_]/g, '').trim();
+        const folder = `/KhyatiGems_Backups/${safeCategory || 'Uncategorized'}`;
+        
         console.log(`Starting ImageKit upload for ${uniqueFileName} to folder ${folder}`);
+        
+        // Debug env vars (safe logging)
+        if (!process.env.IMAGEKIT_PRIVATE_KEY) console.error("IMAGEKIT_PRIVATE_KEY is missing in API route");
+        
         const imageKitResult = await uploadToImageKit(buffer, uniqueFileName, folder);
         
         if (imageKitResult && imageKitResult.url) {
             imageKitUrl = imageKitResult.url;
             console.log(`ImageKit backup successful: ${imageKitUrl}`);
         } else {
-            console.warn(`ImageKit upload returned no URL:`, imageKitResult);
+            console.warn(`ImageKit upload returned no URL:`, JSON.stringify(imageKitResult));
         }
       } catch (error: any) {
         console.error(`ImageKit backup failed for ${file.name}:`, error);
