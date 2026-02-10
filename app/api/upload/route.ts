@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
       // 2. Backup to ImageKit (Secondary)
       try {
         // Sanitize category for folder name (remove special chars to avoid path issues)
-        const safeCategory = category.replace(/[^a-zA-Z0-9\s-_]/g, '').trim();
+        // Replace spaces with underscores for ImageKit compatibility
+        const safeCategory = category.replace(/[^a-zA-Z0-9\s-_]/g, '').trim().replace(/\s+/g, '_');
         const folder = `/KhyatiGems_Backups/${safeCategory || 'Uncategorized'}`;
         
         console.log(`Starting ImageKit upload for ${uniqueFileName} to folder ${folder}`);

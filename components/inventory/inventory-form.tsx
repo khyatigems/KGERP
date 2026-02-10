@@ -384,6 +384,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
              if (!initialData) {
                  form.reset();
                  setSkuPreview("");
+                 setFileUploadResetKey(prev => prev + 1);
                  
                  // Reset default values that might be cleared by reset()
                  form.setValue("weightUnit", "cts");
