@@ -32,20 +32,20 @@ export function PurchaseSearch() {
   const handleSearch = useDebouncedCallback((term: string) => {
     const params = new URLSearchParams(searchParams);
     if (term) {
-      params.set("q", term);
+      params.set("query", term);
     } else {
-      params.delete("q");
+      params.delete("query");
     }
     replace(`${pathname}?${params.toString()}`);
   }, 300);
 
   const handleClear = () => {
     const params = new URLSearchParams(searchParams);
-    params.delete("q");
+    params.delete("query");
     replace(`${pathname}?${params.toString()}`);
   };
 
-  const query = searchParams.get("q")?.toString();
+  const query = searchParams.get("query")?.toString();
 
   return (
     <div className="flex items-center gap-2 flex-1 md:max-w-sm">
