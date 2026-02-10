@@ -821,10 +821,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
 
 export async function bulkUpdateInventory(
   ids: string[],
-  updates: {
-    field: string;
-    value: any;
-  }
+  updates: Record<string, any>
 ) {
   const session = await auth();
   if (!session?.user) {
@@ -832,60 +829,61 @@ export async function bulkUpdateInventory(
   }
 
   try {
-    const { field, value } = updates;
+    const simpleUpdates: Record<string, any> = {};
+    const relationUpdates: { 
+      rashis?: { set: { id: string }[] },
+      certificates?: { set: { id: string }[] } 
+    } = {};
+    
+    // Separate updates into simple and relational
+    Object.entries(updates).forEach(([key, value]) => {
+      if (key === "rashiIds") {
+        relationUpdates.rashis = { 
+          set: (value as string[]).map((id) => ({ id })) 
+        };
+      } else if (key === "certificateIds") {
+        relationUpdates.certificates = { 
+          set: (value as string[]).map((id) => ({ id })) 
+        };
+      } else {
+        // Validate allowed fields for security
+        const allowedFields = [
+          "stockLocation", "status", "categoryCodeId", 
+          "gemstoneCodeId", "colorCodeId", "cutCodeId", 
+          "collectionCodeId", "vendorId", "pricingMode"
+        ];
+        if (allowedFields.includes(key)) {
+          simpleUpdates[key] = value;
+        }
+      }
+    });
 
-    // Handle simple fields that can use updateMany
-    const simpleFields = [
-      "stockLocation",
-      "status",
-      "categoryCodeId",
-      "gemstoneCodeId",
-      "colorCodeId",
-      "cutCodeId",
-      "collectionCodeId",
-      "vendorId",
-      "pricingMode",
-    ];
+    // Strategy:
+    // 1. If we have relation updates, we MUST iterate through each item to update relations.
+    //    We can also include the simple updates in this transaction to ensure atomicity per item.
+    // 2. If we ONLY have simple updates, we can use updateMany for efficiency.
 
-    if (simpleFields.includes(field)) {
+    const hasRelationUpdates = Object.keys(relationUpdates).length > 0;
+
+    if (hasRelationUpdates) {
+      // Transactional update per item
+      await prisma.$transaction(
+        ids.map((id) =>
+          prisma.inventory.update({
+            where: { id },
+            data: {
+              ...simpleUpdates,
+              ...relationUpdates,
+            },
+          })
+        )
+      );
+    } else if (Object.keys(simpleUpdates).length > 0) {
+      // Batch update for simple fields only
       await prisma.inventory.updateMany({
         where: { id: { in: ids } },
-        data: { [field]: value },
+        data: simpleUpdates,
       });
-    } 
-    // Handle Many-to-Many Relations
-    else if (field === "rashiIds") {
-      // For relations, we need to iterate
-      // Assuming 'value' is array of IDs to SET (replace existing)
-      await prisma.$transaction(
-        ids.map((id) =>
-          prisma.inventory.update({
-            where: { id },
-            data: {
-              rashis: {
-                set: (value as string[]).map((id) => ({ id })),
-              },
-            },
-          })
-        )
-      );
-    } 
-    else if (field === "certificateIds") {
-      await prisma.$transaction(
-        ids.map((id) =>
-          prisma.inventory.update({
-            where: { id },
-            data: {
-              certificates: {
-                set: (value as string[]).map((id) => ({ id })),
-              },
-            },
-          })
-        )
-      );
-    }
-    else {
-      return { error: `Field ${field} is not supported for bulk update` };
     }
 
     // Log activity
@@ -894,8 +892,8 @@ export async function bulkUpdateInventory(
       entityType: "Inventory",
       entityId: "BULK",
       entityIdentifier: "BULK_UPDATE",
-      newData: { ids, field, value },
-      details: `Bulk update: ${ids.length} items. Field: ${field}`,
+      newData: { ids, updates },
+      details: `Bulk update: ${ids.length} items. Fields: ${Object.keys(updates).join(", ")}`,
       userId: session.user.id,
       userName: session.user.name || session.user.email || "Unknown",
     });
