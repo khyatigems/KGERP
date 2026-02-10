@@ -39,9 +39,32 @@ export async function createOrUpdateInvoiceFromSale(
     } else {
       // Create new invoice
       const invoiceId = await prisma.$transaction(async (tx) => {
-        const count = await tx.invoice.count();
         const year = new Date().getFullYear();
-        const invoiceNumber = `INV-${year}-${(count + 1).toString().padStart(4, "0")}`;
+        
+        // Find last invoice number for this year to ensure uniqueness
+        const lastInvoice = await tx.invoice.findFirst({
+            where: {
+                invoiceNumber: {
+                    startsWith: `INV-${year}-`
+                }
+            },
+            orderBy: {
+                invoiceNumber: 'desc'
+            }
+        });
+
+        let nextSequence = 1;
+        if (lastInvoice) {
+            const parts = lastInvoice.invoiceNumber.split('-');
+            if (parts.length === 3) {
+                const lastSeq = parseInt(parts[2]);
+                if (!isNaN(lastSeq)) {
+                    nextSequence = lastSeq + 1;
+                }
+            }
+        }
+
+        const invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, "0")}`;
         const token = generateInvoiceToken();
 
         const invoice = await tx.invoice.create({
