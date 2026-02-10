@@ -421,9 +421,13 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
     const customerPhone = sale.customerPhone || invoice.quotation?.customer?.phone || "";
     const customerEmail = sale.customerEmail || invoice.quotation?.customer?.email || "";
 
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://khyatigems.com";
+    const publicUrl = invoice.token ? `${baseUrl}/invoice/${invoice.token}` : undefined;
+
     return {
         invoiceNumber: invoice.invoiceNumber,
         date: invoice.createdAt,
+        publicUrl,
         company: {
             name: companySettings?.companyName || "KhyatiGems",
             address: companySettings?.address || "",

@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import QRCode from "qrcode";
 import { InvoiceData } from "./invoice-generator";
 import { formatDate } from "./utils";
 
@@ -76,6 +77,8 @@ export async function generateThermalInvoicePDF(data: InvoiceData) {
     if (data.terms) estimatedHeight += getTxtHeight(data.terms, fontSize.tiny) + 5;
     if (data.notes) estimatedHeight += getTxtHeight(data.notes, fontSize.tiny) + 5;
     
+    if (data.publicUrl) estimatedHeight += 35; // QR Code space
+
     estimatedHeight += 10; // Bottom margin
 
     // 2. Create Real Document
@@ -254,6 +257,21 @@ export async function generateThermalInvoicePDF(data: InvoiceData) {
     y += 3;
     drawCenterText("Thank you for your business!", fontSize.small, true);
     
+    // 11. QR Code
+    if (data.publicUrl) {
+        y += 2;
+        try {
+            const qrDataUrl = await QRCode.toDataURL(data.publicUrl, { margin: 0 });
+            const qrSize = 25;
+            const qrX = (PAPER_WIDTH - qrSize) / 2;
+            doc.addImage(qrDataUrl, "PNG", qrX, y, qrSize, qrSize);
+            y += qrSize + 2;
+            drawCenterText("Scan to Download Invoice", fontSize.tiny);
+        } catch (e) {
+            console.error("Failed to generate QR", e);
+        }
+    }
+
     // Save
     doc.save(`Invoice-${data.invoiceNumber}-Thermal.pdf`);
 }

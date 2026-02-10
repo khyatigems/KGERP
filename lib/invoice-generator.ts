@@ -40,6 +40,7 @@ export interface InvoiceData {
   terms?: string;
   notes?: string;
   signatureUrl?: string;
+  publicUrl?: string;
   upiQrData?: string;
   bankDetails?: {
     bankName: string;
