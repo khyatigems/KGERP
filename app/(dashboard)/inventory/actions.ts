@@ -821,7 +821,7 @@ export async function importInventory(rows: InventoryImportRow[]) {
 
 export async function bulkUpdateInventory(
   ids: string[],
-  updates: Record<string, any>
+  updates: Record<string, unknown>
 ) {
   const session = await auth();
   if (!session?.user) {
@@ -829,7 +829,7 @@ export async function bulkUpdateInventory(
   }
 
   try {
-    const simpleUpdates: Record<string, any> = {};
+    const simpleUpdates: Record<string, unknown> = {};
     const relationUpdates: { 
       rashis?: { set: { id: string }[] },
       certificates?: { set: { id: string }[] } 

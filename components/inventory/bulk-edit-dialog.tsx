@@ -17,13 +17,13 @@ interface BulkEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  categories: any[];
-  gemstones: any[];
-  colors: any[];
-  rashis: any[];
-  certificates: any[];
-  vendors: any[];
-  collections: any[];
+  categories: { id: string; name: string }[];
+  gemstones: { id: string; name: string }[];
+  colors: { id: string; name: string }[];
+  rashis: { id: string; name: string }[];
+  certificates: { id: string; name: string }[];
+  vendors: { id: string; name: string }[];
+  collections: { id: string; name: string }[];
 }
 
 export function BulkEditDialog({
@@ -39,7 +39,7 @@ export function BulkEditDialog({
   vendors,
   collections,
 }: BulkEditDialogProps) {
-  const [updates, setUpdates] = useState<Record<string, any>>({});
+  const [updates, setUpdates] = useState<Record<string, unknown>>({});
   const [enabledFields, setEnabledFields] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -54,7 +54,7 @@ export function BulkEditDialog({
     }
   };
 
-  const updateValue = (field: string, value: any) => {
+  const updateValue = (field: string, value: unknown) => {
     setUpdates({ ...updates, [field]: value });
   };
 
@@ -76,7 +76,7 @@ export function BulkEditDialog({
         setUpdates({});
         setEnabledFields([]);
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to update items");
     } finally {
       setIsLoading(false);

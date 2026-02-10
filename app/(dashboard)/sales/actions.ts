@@ -107,30 +107,57 @@ export async function createSale(prevState: unknown, formData: FormData) {
           // Invoice Number: INV-YYYY-SEQUENCE
           const year = new Date().getFullYear();
           
-          // Find last invoice number for this year to ensure uniqueness
-          const lastInvoice = await tx.invoice.findFirst({
+          // Fetch all invoice numbers for the current year to determine the next sequence accurately
+          const existingInvoices = await tx.invoice.findMany({
               where: {
                   invoiceNumber: {
                       startsWith: `INV-${year}-`
                   }
               },
-              orderBy: {
-                  invoiceNumber: 'desc'
+              select: {
+                  invoiceNumber: true
               }
           });
 
-          let nextSequence = 1;
-          if (lastInvoice) {
-              const parts = lastInvoice.invoiceNumber.split('-');
-              if (parts.length === 3) {
-                  const lastSeq = parseInt(parts[2]);
-                  if (!isNaN(lastSeq)) {
-                      nextSequence = lastSeq + 1;
+          let maxSequence = 0;
+          
+          for (const inv of existingInvoices) {
+              const parts = inv.invoiceNumber.split('-');
+              if (parts.length >= 3) {
+                  const seqPart = parts[2];
+                  // Extract numeric part even if there are suffixes
+                  const match = seqPart.match(/^(\d+)/);
+                  if (match) {
+                      const seq = parseInt(match[1]);
+                      if (!isNaN(seq) && seq > maxSequence) {
+                          maxSequence = seq;
+                      }
                   }
               }
           }
 
-          const invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, '0')}`;
+          let nextSequence = maxSequence + 1;
+          let invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, '0')}`;
+          
+          // Retry logic for collision handling (up to 5 times)
+          let retries = 0;
+          while (retries < 5) {
+              const collision = await tx.invoice.findUnique({
+                  where: { invoiceNumber }
+              });
+              
+              if (!collision) break;
+              
+              // If collision, increment and try again
+              nextSequence++;
+              invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, '0')}`;
+              retries++;
+          }
+          
+          if (retries >= 5) {
+             throw new Error(`Failed to generate unique invoice number after multiple attempts. Last tried: ${invoiceNumber}`);
+          }
+
           const token = generateInvoiceToken();
 
           const newInvoice = await tx.invoice.create({
@@ -230,8 +257,9 @@ export async function createSale(prevState: unknown, formData: FormData) {
       });
 
   } catch (e) {
-      console.error(e);
-      return { message: "Failed to create sale" };
+      console.error("Create Sale Error:", e);
+      const errorMessage = e instanceof Error ? e.message : "Failed to create sale";
+      return { message: errorMessage };
   }
 
   revalidatePath("/sales");
