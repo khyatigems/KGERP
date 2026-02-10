@@ -52,16 +52,20 @@ export async function POST(req: NextRequest) {
       try {
         // We use the category as the folder name in ImageKit
         const folder = `/KhyatiGems_Backups/${category}`;
+        console.log(`Starting ImageKit upload for ${uniqueFileName} to folder ${folder}`);
         const imageKitResult = await uploadToImageKit(buffer, uniqueFileName, folder);
         
         if (imageKitResult && imageKitResult.url) {
             imageKitUrl = imageKitResult.url;
             console.log(`ImageKit backup successful: ${imageKitUrl}`);
+        } else {
+            console.warn(`ImageKit upload returned no URL:`, imageKitResult);
         }
       } catch (error: any) {
         console.error(`ImageKit backup failed for ${file.name}:`, error);
+        // Do not fail the whole request if backup fails, but log it
         if (!errorMsg && !cloudinaryUrl) errorMsg = "Both uploads failed: " + error.message;
-        else if (errorMsg) errorMsg += " | ImageKit failed: " + error.message;
+        // else if (errorMsg) errorMsg += " | ImageKit failed: " + error.message; 
       }
 
       results.push({

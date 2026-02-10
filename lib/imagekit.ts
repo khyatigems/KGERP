@@ -6,6 +6,10 @@ const imagekit = new ImageKit({
   urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT || "",
 });
 
+if (!process.env.IMAGEKIT_PUBLIC_KEY) console.warn("Missing IMAGEKIT_PUBLIC_KEY");
+if (!process.env.IMAGEKIT_PRIVATE_KEY) console.warn("Missing IMAGEKIT_PRIVATE_KEY");
+if (!process.env.IMAGEKIT_URL_ENDPOINT) console.warn("Missing IMAGEKIT_URL_ENDPOINT");
+
 export async function uploadToImageKit(
   fileBuffer: Buffer,
   fileName: string,
