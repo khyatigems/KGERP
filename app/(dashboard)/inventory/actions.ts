@@ -818,3 +818,92 @@ export async function importInventory(rows: InventoryImportRow[]) {
         errors 
     };
 }
+
+export async function bulkUpdateInventory(
+  ids: string[],
+  updates: {
+    field: string;
+    value: any;
+  }
+) {
+  const session = await auth();
+  if (!session?.user) {
+    return { error: "Unauthorized" };
+  }
+
+  try {
+    const { field, value } = updates;
+
+    // Handle simple fields that can use updateMany
+    const simpleFields = [
+      "stockLocation",
+      "status",
+      "categoryCodeId",
+      "gemstoneCodeId",
+      "colorCodeId",
+      "cutCodeId",
+      "collectionCodeId",
+      "vendorId",
+      "pricingMode",
+    ];
+
+    if (simpleFields.includes(field)) {
+      await prisma.inventory.updateMany({
+        where: { id: { in: ids } },
+        data: { [field]: value },
+      });
+    } 
+    // Handle Many-to-Many Relations
+    else if (field === "rashiIds") {
+      // For relations, we need to iterate
+      // Assuming 'value' is array of IDs to SET (replace existing)
+      await prisma.$transaction(
+        ids.map((id) =>
+          prisma.inventory.update({
+            where: { id },
+            data: {
+              rashis: {
+                set: (value as string[]).map((id) => ({ id })),
+              },
+            },
+          })
+        )
+      );
+    } 
+    else if (field === "certificateIds") {
+      await prisma.$transaction(
+        ids.map((id) =>
+          prisma.inventory.update({
+            where: { id },
+            data: {
+              certificates: {
+                set: (value as string[]).map((id) => ({ id })),
+              },
+            },
+          })
+        )
+      );
+    }
+    else {
+      return { error: `Field ${field} is not supported for bulk update` };
+    }
+
+    // Log activity
+    await logActivity({
+      actionType: "EDIT",
+      entityType: "Inventory",
+      entityId: "BULK",
+      entityIdentifier: "BULK_UPDATE",
+      newData: { ids, field, value },
+      details: `Bulk update: ${ids.length} items. Field: ${field}`,
+      userId: session.user.id,
+      userName: session.user.name || session.user.email || "Unknown",
+    });
+
+    revalidatePath("/inventory");
+    return { success: true };
+  } catch (error) {
+    console.error("Bulk update error:", error);
+    return { error: "Failed to update items" };
+  }
+}

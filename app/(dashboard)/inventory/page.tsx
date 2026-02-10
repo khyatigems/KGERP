@@ -6,19 +6,9 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
 import { LoadingLink } from "@/components/ui/loading-link";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { InventoryTable } from "@/components/inventory/inventory-table";
 import { InventorySearch } from "@/components/inventory/inventory-search";
-import { InventoryActions } from "@/components/inventory/inventory-actions";
 import { InventoryCardList } from "@/components/inventory/inventory-card-list";
-import { InventoryCardMedia } from "@/components/inventory/inventory-card-media";
 import type { Inventory } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -91,7 +81,7 @@ export default async function InventoryPage({
       }
   }
 
-  const [rawInventory, categories, gemstones, colors, vendors, collections, rashis] = await Promise.all([
+  const [rawInventory, categories, gemstones, colors, vendors, collections, rashis, certificates] = await Promise.all([
     prisma.inventory.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -119,6 +109,7 @@ export default async function InventoryPage({
     prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
     prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
+    prisma.certificateCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
   ]);
 
   // Deduplicate inventory items by ID to ensure data integrity
@@ -218,111 +209,16 @@ export default async function InventoryPage({
 
       <InventoryCardList data={inventory} />
 
-      <div className="rounded-md border hidden md:block overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[60px]">Image</TableHead>
-              <TableHead className="w-[100px]">SKU</TableHead>
-              <TableHead className="min-w-[200px]">Item Name</TableHead>
-              <TableHead className="w-[100px]">Category</TableHead>
-              <TableHead className="w-[100px]">Type</TableHead>
-              <TableHead className="w-[80px]">Color</TableHead>
-              <TableHead className="w-[80px]">Cut</TableHead>
-              <TableHead className="w-[100px]">Weight</TableHead>
-              <TableHead className="w-[150px]">Certificates</TableHead>
-              <TableHead className="w-[80px]">Ratti</TableHead>
-              <TableHead className="w-[100px]">Price</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[100px]">Vendor</TableHead>
-              <TableHead className="w-[100px]">Date Added</TableHead>
-              <TableHead className="w-[60px] text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {inventory.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={14} className="h-24 text-center">
-                  No inventory items found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              inventory.map((item) => {
-                const price =
-                  item.pricingMode === "PER_CARAT"
-                    ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
-                    : item.flatSellingPrice || 0;
-                
-                return (
-                    <TableRow key={item.id}>
-                    <TableCell>
-                      <InventoryCardMedia item={item} className="h-12 w-12" />
-                    </TableCell>
-                    <TableCell className="font-medium font-mono text-xs">{item.sku}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <Link href={`/inventory/${item.id}`} className="hover:underline font-medium">
-                            {item.itemName}
-                        </Link>
-                        {item.internalName && (
-                          <span className="text-xs text-muted-foreground">
-                            {item.internalName}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{item.gemType}</span>
-                        {(item.category === "Bracelets" || item.category === "Bracelet") && (
-                          <span className="text-[10px] text-muted-foreground">
-                            {[
-                                item.braceletType,
-                                item.standardSize,
-                                item.beadSizeMm ? `${item.beadSizeMm}mm` : null
-                            ].filter(Boolean).join(" • ")}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{item.colorCode?.name || "-"}</TableCell>
-                    <TableCell>{item.cutCode?.name || "-"}</TableCell>
-                    <TableCell>
-                      {item.weightValue} {item.weightUnit}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                        {item.certificates?.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification || "-"}
-                    </TableCell>
-                    <TableCell>
-                      {item.weightRatti ? item.weightRatti.toFixed(2) : "-"}
-                    </TableCell>
-                    <TableCell>{formatCurrency(price)}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          item.status === "IN_STOCK"
-                            ? "default"
-                            : item.status === "SOLD"
-                            ? "secondary"
-                            : "outline"
-                        }
-                      >
-                        {item.status.replace("_", " ")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{(item.vendorId && vendorMap.get(item.vendorId)) || "-"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <InventoryActions item={item} />
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <InventoryTable 
+        data={inventory}
+        vendors={vendors}
+        categories={categories}
+        gemstones={gemstones}
+        colors={colors}
+        rashis={rashis}
+        certificates={certificates}
+        collections={collections}
+      />
     </div>
   );
 }
