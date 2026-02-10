@@ -102,7 +102,7 @@ export function BulkEditDialog({
       case "stockLocation":
         return (
           <Input 
-            value={value || ""} 
+            value={(value as string) || ""} 
             onChange={(e) => updateValue(fieldId, e.target.value)} 
             placeholder="Enter location" 
             className="h-9"
@@ -110,7 +110,7 @@ export function BulkEditDialog({
         );
       case "status":
         return (
-          <Select onValueChange={(v) => updateValue(fieldId, v)} value={value || ""}>
+          <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
             <SelectTrigger className="h-9"><SelectValue placeholder="Select status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="IN_STOCK">In Stock</SelectItem>
@@ -122,7 +122,7 @@ export function BulkEditDialog({
         );
       case "categoryCodeId":
         return (
-          <Select onValueChange={(v) => updateValue(fieldId, v)} value={value || ""}>
+          <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
             <SelectTrigger className="h-9"><SelectValue placeholder="Select Category" /></SelectTrigger>
             <SelectContent>
               {categories.map((c) => (
@@ -133,7 +133,7 @@ export function BulkEditDialog({
         );
       case "gemstoneCodeId":
         return (
-           <Select onValueChange={(v) => updateValue(fieldId, v)} value={value || ""}>
+           <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
             <SelectTrigger className="h-9"><SelectValue placeholder="Select Gemstone" /></SelectTrigger>
             <SelectContent>
               {gemstones.map((c) => (
@@ -144,7 +144,7 @@ export function BulkEditDialog({
         );
       case "colorCodeId":
         return (
-           <Select onValueChange={(v) => updateValue(fieldId, v)} value={value || ""}>
+           <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
             <SelectTrigger className="h-9"><SelectValue placeholder="Select Color" /></SelectTrigger>
             <SelectContent>
               {colors.map((c) => (
@@ -155,7 +155,7 @@ export function BulkEditDialog({
         );
       case "vendorId":
         return (
-           <Select onValueChange={(v) => updateValue(fieldId, v)} value={value || ""}>
+           <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
             <SelectTrigger className="h-9"><SelectValue placeholder="Select Vendor" /></SelectTrigger>
             <SelectContent>
               {vendors.map((c) => (
@@ -166,7 +166,7 @@ export function BulkEditDialog({
         );
       case "collectionCodeId":
         return (
-           <Select onValueChange={(v) => updateValue(fieldId, v)} value={value || ""}>
+           <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
             <SelectTrigger className="h-9"><SelectValue placeholder="Select Collection" /></SelectTrigger>
             <SelectContent>
               {collections.map((c) => (
