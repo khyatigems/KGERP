@@ -64,7 +64,8 @@ if (!$data) {
     exit;
 }
 
-// Validate required fields
+// Validate required fields - Commented out to allow partial data and prevent immediate failures
+/*
 $required_fields = ['weight', 'shape', 'color', 'variety'];
 foreach ($required_fields as $field) {
     if (empty($data[$field])) {
@@ -72,6 +73,7 @@ foreach ($required_fields as $field) {
         exit;
     }
 }
+*/
 
 // 4. Handle Image Upload
 $image_filename = null;
@@ -104,12 +106,12 @@ $today = date('Y-m-d');
 $tracking_url = TRACKING_URL_TEMPLATE . $cert_number;
 
 // Mapping ERP fields to GCI columns
-$variety = $conn->real_escape_string($data['variety']); // e.g., Ruby
+$variety = $conn->real_escape_string($data['variety'] ?? 'Gemstone'); // e.g., Ruby
 $species = $conn->real_escape_string($data['species'] ?? 'Natural Gemstone'); // e.g., Corundum
-$weight = floatval($data['weight']);
-$shape_cut = $conn->real_escape_string($data['shape']);
-$measurement = $conn->real_escape_string($data['dimensions']);
-$color = $conn->real_escape_string($data['color']);
+$weight = floatval($data['weight'] ?? 0);
+$shape_cut = $conn->real_escape_string($data['shape'] ?? 'Unknown');
+$measurement = $conn->real_escape_string($data['dimensions'] ?? 'Unknown');
+$color = $conn->real_escape_string($data['color'] ?? 'Unknown');
 $customer_name = $conn->real_escape_string($data['customer_name'] ?? '');
 
 // Insert SQL

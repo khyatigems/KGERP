@@ -57,37 +57,57 @@ export async function generateGciCertificate(inventoryId: string) {
     const gciUrl = process.env.GCI_API_URL;
     const gciKey = process.env.GCI_API_KEY;
 
+    console.log("GCI Action - URL:", gciUrl);
+    console.log("GCI Action - Payload keys:", Object.keys(payload));
+
     if (!gciUrl || !gciKey) {
       return { success: false, error: "GCI API configuration missing in ERP" };
     }
 
-    const response = await fetch(gciUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-KEY": gciKey
-      },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const response = await fetch(gciUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": gciKey
+        },
+        body: JSON.stringify(payload)
+      });
 
-    const result = await response.json();
+      console.log("GCI Action - Status:", response.status);
+      const responseText = await response.text();
+      console.log("GCI Action - Raw Response:", responseText);
 
-    if (!result.success) {
-      return { success: false, error: "GCI API Error: " + (result.error || "Unknown error") };
-    }
-
-    // 4. Update Inventory
-    await prisma.inventory.update({
-      where: { id: inventoryId },
-      data: {
-        certificateNo: result.certificate_number,
-        lab: "GCI",
-        certification: result.url // Storing the tracking URL
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        return { success: false, error: "Invalid JSON response from GCI API" };
       }
-    });
 
-    revalidatePath(`/inventory/${inventoryId}`);
-    return { success: true, certificateNumber: result.certificate_number };
+      if (!result.success) {
+        return { success: false, error: "GCI API Error: " + (result.error || "Unknown error") };
+      }
+
+      // 4. Update Inventory
+      await prisma.inventory.update({
+        where: { id: inventoryId },
+        data: {
+          certificateNo: result.certificate_number,
+          lab: "GCI",
+          certification: result.url // Storing the tracking URL
+        }
+      });
+
+      revalidatePath(`/inventory/${inventoryId}`);
+      return { success: true, certificateNumber: result.certificate_number };
+    } catch (fetchError) {
+      console.error("GCI Fetch Error:", fetchError);
+      return { 
+        success: false, 
+        error: "Failed to connect to GCI API: " + (fetchError instanceof Error ? fetchError.message : "Unknown error") 
+      };
+    }
 
   } catch (error) {
     console.error("Generate GCI Cert Error:", error);
