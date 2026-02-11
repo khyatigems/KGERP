@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { MobileInventoryActions } from "@/components/inventory/mobile-inventory-actions";
 import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
+import { GciCertButton } from "@/components/inventory/gci-cert-button";
 import type { Inventory, InventoryMedia } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -228,13 +229,21 @@ export default async function InventoryDetailPage({
                              <span className="text-muted-foreground">Treatment:</span>
                              <span className="font-medium">{detailedItem.treatment || "None"}</span>
                          </div>
-                         <div className="flex justify-between">
-                             <span className="text-muted-foreground">Certification:</span>
-                             <span className="font-medium">
-                                 {detailedItem.certificates && detailedItem.certificates.length > 0 
-                                     ? detailedItem.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") 
-                                     : (detailedItem.certification || "None")}
-                             </span>
+                         <div className="flex justify-between items-start">
+                             <span className="text-muted-foreground pt-1">Certification:</span>
+                             <div className="flex flex-col items-end w-1/2">
+                                 <span className="font-medium text-right">
+                                     {detailedItem.certificates && detailedItem.certificates.length > 0 
+                                         ? detailedItem.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") 
+                                         : (detailedItem.certification || "None")}
+                                 </span>
+                                 <GciCertButton 
+                                     inventoryId={detailedItem.id}
+                                     certificateNo={detailedItem.certificateNo}
+                                     lab={detailedItem.lab}
+                                     certificationUrl={detailedItem.certification}
+                                 />
+                             </div>
                          </div>
                     </div>
                  </div>

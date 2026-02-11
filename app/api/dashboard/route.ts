@@ -52,6 +52,7 @@ export async function GET() {
         pendingVendors,
         unsoldInventory,
         missingCertifications,
+        missingImages,
         pendingExpenses,
         highValueUnsold,
         // Today's Actions
@@ -157,9 +158,21 @@ export async function GET() {
                     { certificateNo: "" }
                 ]
             },
-            select: { id: true, sku: true, itemName: true },
+            select: { id: true, sku: true, itemName: true, lab: true },
             take: 5
         }).catch(e => { console.error("Attn Fail: MissingCert", e); return []; }),
+
+        prisma.inventory.findMany({
+            where: {
+                status: "IN_STOCK",
+                OR: [
+                    { imageUrl: null },
+                    { imageUrl: "" }
+                ]
+            },
+            select: { id: true, sku: true, itemName: true },
+            take: 5
+        }).catch(e => { console.error("Attn Fail: MissingImages", e); return []; }),
 
         prisma.expense.findMany({
             where: { paymentStatus: "PENDING" },
@@ -271,6 +284,7 @@ export async function GET() {
                 vendors: pendingVendors,
                 unsold: unsoldInventory,
                 missingCertifications,
+                missingImages,
                 pendingExpenses,
                 highValueUnsold
             },

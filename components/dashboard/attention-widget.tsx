@@ -10,7 +10,8 @@ interface AttentionData {
     memo: Array<{ id: string; inventory: { sku: string }; memo: { customerName: string; issueDate: string } }>;
     vendors: number;
     unsold?: Array<{ id: string; sku: string; createdAt: string }>;
-    missingCertifications?: Array<{ id: string; sku: string; itemName: string }>;
+    missingCertifications?: Array<{ id: string; sku: string; itemName: string; lab?: string | null }>;
+    missingImages?: Array<{ id: string; sku: string; itemName: string }>;
     pendingExpenses?: Array<{ id: string; description: string; totalAmount: number; expenseDate: string }>;
     highValueUnsold?: Array<{ id: string; sku: string; sellingPrice: number }>;
 }
@@ -25,6 +26,7 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
         data.vendors > 0 || 
         (data.unsold && data.unsold.length > 0) ||
         (data.missingCertifications && data.missingCertifications.length > 0) ||
+        (data.missingImages && data.missingImages.length > 0) ||
         (data.pendingExpenses && data.pendingExpenses.length > 0) ||
         (data.highValueUnsold && data.highValueUnsold.length > 0);
 
@@ -112,9 +114,33 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                                     <div className="flex items-center gap-2">
                                         <ShieldAlert className="h-3.5 w-3.5 text-blue-600" />
                                         <span className="font-medium text-blue-900 group-hover:underline">{item.sku}</span>
-                                        <span className="text-blue-700 truncate max-w-[150px]">- {item.itemName}</span>
+                                        <span className="text-blue-700 truncate max-w-[120px]">- {item.itemName}</span>
                                     </div>
-                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">MISSING CERT</span>
+                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">
+                                        {item.lab ? `${item.lab} MISSING` : "MISSING CERT"}
+                                    </span>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                )}
+
+                {/* Missing Images */}
+                {data.missingImages && data.missingImages.length > 0 && (
+                    <div className="space-y-2">
+                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                            <div className="w-1 h-1 rounded-full bg-rose-500" />
+                            Missing Item Images
+                        </h4>
+                        {data.missingImages.map(item => (
+                            <Link href={`/inventory/${item.id}`} key={item.id} className="block group">
+                                <div className="flex items-center justify-between text-sm p-2 rounded-md bg-rose-50/50 hover:bg-rose-50 border border-rose-100/50 transition-colors">
+                                    <div className="flex items-center gap-2">
+                                        <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
+                                        <span className="font-medium text-rose-900 group-hover:underline">{item.sku}</span>
+                                        <span className="text-rose-700 truncate max-w-[150px]">- {item.itemName}</span>
+                                    </div>
+                                    <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">NO IMAGE</span>
                                 </div>
                             </Link>
                         ))}
