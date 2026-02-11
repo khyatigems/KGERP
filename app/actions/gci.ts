@@ -115,8 +115,12 @@ export async function generateGciCertificate(inventoryId: string) {
       let result;
       try {
         result = JSON.parse(responseText);
-      } catch {
-        return { success: false, error: "Invalid JSON response from GCI API" };
+      } catch (parseError) {
+        console.error("GCI Action - JSON Parse Error:", parseError);
+        console.error("GCI Action - Raw Response Content:", responseText);
+        // Return the first 200 chars of the response to help debug
+        const preview = responseText.substring(0, 200).replace(/\n/g, ' ');
+        return { success: false, error: `Invalid JSON response from GCI API. Raw output: "${preview}..."` };
       }
 
       if (!result.success) {

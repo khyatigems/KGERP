@@ -19,6 +19,27 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ob_start(); // Buffer output to catch any accidental echos or warnings
 
+// Handle Fatal Errors cleanly
+register_shutdown_function(function() {
+    $error = error_get_last();
+    // Check for fatal errors (E_ERROR, E_PARSE, etc.)
+    if ($error && ($error['type'] === E_ERROR || $error['type'] === E_PARSE || $error['type'] === E_CORE_ERROR || $error['type'] === E_COMPILE_ERROR)) {
+        // If there's a fatal error, clear any HTML output that might have been generated
+        if (ob_get_length()) ob_clean();
+        
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'error' => 'Fatal PHP Error',
+            'details' => $error['message'],
+            'file' => basename($error['file']),
+            'line' => $error['line']
+        ]);
+        exit;
+    }
+});
+
 // ==========================================
 // CONFIGURATION SECTION - EDIT THIS
 // ==========================================
