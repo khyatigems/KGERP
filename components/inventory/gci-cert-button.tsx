@@ -1,11 +1,9 @@
 'use client';
 
-import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShieldCheck, ExternalLink } from "lucide-react";
-import { generateGciCertificate } from "@/app/actions/gci";
-import { toast } from "sonner";
+import { ShieldCheck, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { GciCertModal } from "./gci-cert-modal";
 
 interface GciCertButtonProps {
     inventoryId: string;
@@ -15,19 +13,6 @@ interface GciCertButtonProps {
 }
 
 export function GciCertButton({ inventoryId, certificateNo, lab, certificationUrl }: GciCertButtonProps) {
-    const [isPending, startTransition] = useTransition();
-
-    const handleGenerate = () => {
-        startTransition(async () => {
-            const result = await generateGciCertificate(inventoryId);
-            if (result.success) {
-                toast.success(`Certificate ${result.certificateNumber} generated successfully!`);
-            } else {
-                toast.error(result.error || "Failed to generate certificate");
-            }
-        });
-    };
-
     // If it's already a GCI certificate, show status
     if (lab === 'GCI' && certificateNo) {
         return (
@@ -59,24 +44,7 @@ export function GciCertButton({ inventoryId, certificateNo, lab, certificationUr
 
     return (
         <div className="mt-2">
-            <Button 
-                onClick={handleGenerate} 
-                disabled={isPending}
-                size="sm"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-            >
-                {isPending ? (
-                    <>
-                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                        Generating...
-                    </>
-                ) : (
-                    <>
-                        <ShieldCheck className="mr-2 h-3 w-3" />
-                        Generate GCI Cert
-                    </>
-                )}
-            </Button>
+            <GciCertModal inventoryId={inventoryId} />
         </div>
     );
 }

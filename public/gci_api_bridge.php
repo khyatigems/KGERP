@@ -193,6 +193,12 @@ $measurement = $conn->real_escape_string($data['dimensions'] ?? 'Unknown');
 $color = $conn->real_escape_string($data['color'] ?? 'Unknown');
 $customer_name = $conn->real_escape_string($data['customer_name'] ?? '');
 
+// New Fields (Gemological Data)
+$origin = $conn->real_escape_string($data['origin'] ?? 'Unknown');
+$treatment = $conn->real_escape_string($data['treatment'] ?? 'None');
+$fluorescence = $conn->real_escape_string($data['fluorescence'] ?? 'None');
+$comments = $conn->real_escape_string($data['comments'] ?? '');
+
 // Insert SQL
 $sql = "INSERT INTO gemstone_certificates (
     certificate_number, 
@@ -204,6 +210,10 @@ $sql = "INSERT INTO gemstone_certificates (
     variety, 
     group_species,
     customer_name,
+    origin,
+    treatment,
+    fluorescence,
+    comments,
     gemstone_image, 
     main_image,
     qr_code_data, 
@@ -221,6 +231,10 @@ $sql = "INSERT INTO gemstone_certificates (
     '$variety', 
     '$species',
     '$customer_name',
+    '$origin',
+    '$treatment',
+    '$fluorescence',
+    '$comments',
     '$image_filename', 
     '$image_filename',
     '$tracking_url', 

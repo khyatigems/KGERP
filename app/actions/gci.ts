@@ -3,7 +3,15 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function generateGciCertificate(inventoryId: string) {
+export async function generateGciCertificate(
+  inventoryId: string, 
+  additionalData?: {
+    origin?: string;
+    treatment?: string;
+    fluorescence?: string;
+    comments?: string;
+  }
+) {
   try {
     // 1. Fetch Inventory Data
     const inventory = await prisma.inventory.findUnique({
@@ -62,7 +70,12 @@ export async function generateGciCertificate(inventoryId: string) {
       dimensions: inventory.measurements || inventory.dimensionsMm || "Unknown",
       customer_name: "KhyatiGems Stock", // Default owner
       image_base64: imageBase64,
-      api_key: gciKey // Also pass in body as fallback
+      api_key: gciKey, // Also pass in body as fallback
+      // Additional Data (from modal or defaults)
+      origin: additionalData?.origin || inventory.origin || "Unknown",
+      treatment: additionalData?.treatment || inventory.treatment || "None",
+      fluorescence: additionalData?.fluorescence || inventory.fluorescence || "None",
+      comments: additionalData?.comments || inventory.notes || ""
     };
 
     // Force API key into URL as well to bypass Hostinger header stripping
