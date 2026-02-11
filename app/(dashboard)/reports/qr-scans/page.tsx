@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { QrCode, Link as LinkIcon, Eye, FileText, Package } from "lucide-react";
+import { QrCode, Link as LinkIcon, Eye, FileText, Package, User, Globe, Monitor } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
@@ -32,6 +32,31 @@ export default async function QrScansReportPage() {
     },
     orderBy: { createdAt: "desc" },
     take: 500
+  });
+
+  // Fetch entity names for better readability
+  const skuIds = logs.filter(l => l.entityType === "SKU_VIEW" && l.entityId).map(l => l.entityId as string);
+  const invoiceIds = logs.filter(l => l.entityType === "INVOICE_VIEW" && l.entityId).map(l => l.entityId as string);
+
+  const [items, invoices] = await Promise.all([
+    prisma.inventory.findMany({
+      where: { id: { in: skuIds } },
+      select: { id: true, itemName: true }
+    }),
+    prisma.invoice.findMany({
+      where: { id: { in: invoiceIds } },
+      select: { 
+        id: true, 
+        quotation: { select: { customer: { select: { name: true } } } } 
+      }
+    })
+  ]);
+
+  const entityNameMap = new Map<string, string>();
+  items.forEach(item => entityNameMap.set(item.id, item.itemName));
+  invoices.forEach(inv => {
+    const name = inv.quotation?.customer?.name || "Unknown Customer";
+    entityNameMap.set(inv.id, name);
   });
 
   // Calculate Stats
@@ -105,50 +130,82 @@ export default async function QrScansReportPage() {
               <TableRow>
                 <TableHead>Time</TableHead>
                 <TableHead>Source</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Identifier</TableHead>
+                <TableHead>Item / Customer</TableHead>
+                <TableHead>ID</TableHead>
+                <TableHead>User Type</TableHead>
                 <TableHead>IP Address</TableHead>
-                <TableHead className="text-right">Device</TableHead>
+                <TableHead className="text-right">Platform</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {logs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                     No activity recorded yet.
                   </TableCell>
                 </TableRow>
               ) : (
-                logs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="font-medium">
-                      {format(new Date(log.createdAt), "MMM d, yyyy h:mm a")}
-                    </TableCell>
-                    <TableCell>
-                      {log.actionType === "QR_SCAN" ? (
-                        <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">
-                          <QrCode className="w-3 h-3 mr-1" /> QR Scan
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          <LinkIcon className="w-3 h-3 mr-1" /> Direct Link
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {log.entityType === "SKU_VIEW" ? "Inventory Item" : "Invoice"}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {log.entityIdentifier || log.entityId}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {log.ipAddress || "Unknown"}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground text-xs max-w-[200px] truncate" title={log.userAgent || ""}>
-                      {parseUserAgent(log.userAgent || "")}
-                    </TableCell>
-                  </TableRow>
-                ))
+                logs.map((log) => {
+                  const details = log.details ? JSON.parse(log.details) : {};
+                  const entityName = log.entityId ? entityNameMap.get(log.entityId) : null;
+                  const isStaff = details.isStaff || !!log.userId;
+                  
+                  return (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-medium">
+                        {format(new Date(log.createdAt), "MMM d, h:mm a")}
+                      </TableCell>
+                      <TableCell>
+                        {log.actionType === "QR_SCAN" ? (
+                          <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">
+                            <QrCode className="w-3 h-3 mr-1" /> QR Scan
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            <LinkIcon className="w-3 h-3 mr-1" /> Direct
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{entityName || "Unknown"}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                            {log.entityType === "SKU_VIEW" ? "Inventory" : "Invoice"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-[10px]">
+                        {log.entityIdentifier}
+                      </TableCell>
+                      <TableCell>
+                        {isStaff ? (
+                          <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+                            <User className="w-3 h-3 mr-1" /> Staff
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-500">
+                            Public
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-[10px]">
+                        {log.ipAddress || "Unknown"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Monitor className="w-3 h-3 mr-1" />
+                            {details.os || parseOS(log.userAgent || "")}
+                          </div>
+                          <div className="flex items-center text-[10px] text-muted-foreground/70">
+                            <Globe className="w-2.5 h-2.5 mr-1" />
+                            {details.browser || parseBrowser(log.userAgent || "")}
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -158,12 +215,21 @@ export default async function QrScansReportPage() {
   );
 }
 
-function parseUserAgent(ua: string): string {
-  if (ua.includes("iPhone")) return "iPhone";
-  if (ua.includes("iPad")) return "iPad";
+function parseOS(ua: string): string {
+  if (ua.includes("iPhone") || ua.includes("iPad")) return "iOS";
   if (ua.includes("Android")) return "Android";
-  if (ua.includes("Windows")) return "Windows PC";
-  if (ua.includes("Macintosh")) return "Mac";
+  if (ua.includes("Windows")) return "Windows";
+  if (ua.includes("Macintosh")) return "macOS";
   if (ua.includes("Linux")) return "Linux";
-  return "Unknown Device";
+  return "Unknown OS";
+}
+
+function parseBrowser(ua: string): string {
+  if (ua.includes("Firefox")) return "Firefox";
+  if (ua.includes("SamsungBrowser")) return "Samsung";
+  if (ua.includes("Opera") || ua.includes("OPR")) return "Opera";
+  if (ua.includes("Edge")) return "Edge";
+  if (ua.includes("Chrome")) return "Chrome";
+  if (ua.includes("Safari")) return "Safari";
+  return "Unknown Browser";
 }
