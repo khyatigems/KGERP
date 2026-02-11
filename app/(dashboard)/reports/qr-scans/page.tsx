@@ -11,10 +11,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { QrCode, Link as LinkIcon, Eye, FileText, Package } from "lucide-react";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function QrScansReportPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
+  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) {
+    redirect("/");
+  }
+
   // Fetch logs (limit to last 500 for performance)
   const logs = await prisma.activityLog.findMany({
     where: {

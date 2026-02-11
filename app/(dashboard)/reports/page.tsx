@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Package, TrendingUp, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ReceiptIndianRupee } from "lucide-react";
+import { Package, TrendingUp, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ReceiptIndianRupee, QrCode } from "lucide-react";
 import Link from "next/link";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
@@ -71,6 +71,13 @@ export default async function ReportsHubPage() {
             description: "Printing activity, user logs",
             icon: Printer,
             href: "/reports/ops",
+            allowed: true
+        },
+        {
+            title: "QR Scans Report",
+            description: "Track QR code usage and scan activity",
+            icon: QrCode,
+            href: "/reports/qr-scans",
             allowed: true
         }
     ];
