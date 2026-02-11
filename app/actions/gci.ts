@@ -57,7 +57,10 @@ export async function generateGciCertificate(inventoryId: string) {
     const gciUrl = process.env.GCI_API_URL?.trim();
     const gciKey = process.env.GCI_API_KEY?.trim();
 
-    console.log("GCI Action - Target URL:", gciUrl);
+    // Add a timestamp to bypass any server-side caching of the 404 page
+    const finalUrl = gciUrl ? `${gciUrl}${gciUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : '';
+
+    console.log("GCI Action - Target URL:", finalUrl);
     console.log("GCI Action - Payload keys:", Object.keys(payload));
 
     if (!gciUrl || !gciKey) {
@@ -65,26 +68,27 @@ export async function generateGciCertificate(inventoryId: string) {
     }
 
     try {
-      const response = await fetch(gciUrl, {
+      const response = await fetch(finalUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json, text/plain, */*",
+          "Accept-Language": "en-US,en;q=0.9",
           "X-API-KEY": gciKey || "",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+          "Referer": "https://gemstonecertificationinstitute.com/",
         },
         body: JSON.stringify(payload),
         cache: 'no-store'
       });
 
-      console.log("GCI Action - Status:", response.status);
       const responseText = await response.text();
-      console.log("GCI Action - Raw Response:", responseText);
+      console.log("GCI Action - Raw Response Status:", response.status);
 
       if (!response.ok) {
         return { 
           success: false, 
-          error: `GCI Server Error (404): The ERP tried to hit ${gciUrl} but it was not found. Please check your GCI_API_URL in Vercel.` 
+          error: `GCI Server Error (${response.status}): The ERP tried to hit [${gciUrl}] but the server rejected it. If you haven't yet, please move the file out of the /api/ folder to the root.` 
         };
       }
 
