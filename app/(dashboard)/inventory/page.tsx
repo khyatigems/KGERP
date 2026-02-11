@@ -56,8 +56,25 @@ export default async function InventoryPage({
   }
 
   if (status && status !== "ALL") where.status = status;
-  if (category && category !== "ALL") where.category = category;
-  if (gemType && gemType !== "ALL") where.gemType = gemType;
+  if (category && category !== "ALL") {
+      where.OR = [
+          { category: category },
+          { categoryCode: { name: category } }
+      ];
+  }
+
+  if (gemType && gemType !== "ALL") {
+      if (where.OR) {
+          // If OR already exists (from query or category), we need to be careful.
+          // For simplicity, we'll just use the relation if it's from the dropdown.
+          where.gemstoneCode = { name: gemType };
+      } else {
+          where.OR = [
+              { gemType: gemType },
+              { gemstoneCode: { name: gemType } }
+          ];
+      }
+  }
   
   if (color && color !== "ALL") {
       where.colorCode = { name: color };

@@ -11,7 +11,12 @@ export async function generateGciCertificate(inventoryId: string) {
       include: {
         gemstoneCode: true,
         categoryCode: true,
-        colorCode: true
+        colorCode: true,
+        media: {
+          where: { type: 'IMAGE' },
+          orderBy: { isPrimary: 'desc' },
+          take: 1
+        }
       }
     });
 
@@ -29,9 +34,11 @@ export async function generateGciCertificate(inventoryId: string) {
     
     // Handle Image Conversion to Base64
     let imageBase64 = null;
-    if (inventory.imageUrl) {
+    const primaryImage = inventory.media?.[0]?.mediaUrl || inventory.imageUrl;
+    
+    if (primaryImage) {
       try {
-        const imageRes = await fetch(inventory.imageUrl);
+        const imageRes = await fetch(primaryImage);
         if (imageRes.ok) {
             const arrayBuffer = await imageRes.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
@@ -97,7 +104,7 @@ export async function generateGciCertificate(inventoryId: string) {
           const errorJson = JSON.parse(responseText);
           if (errorJson.error) errorMessage += errorJson.error;
           if (errorJson.hint) errorMessage += ` - ${errorJson.hint}`;
-        } catch (e) {
+        } catch {
           console.error("GCI Action - Failed to parse response as JSON. Raw response:", responseText);
           errorMessage += `The server returned an invalid response (not JSON). Raw response: ${responseText.substring(0, 100)}...`;
         }

@@ -15,84 +15,105 @@ header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type, X-API-KEY');
 
 // Suppress errors to ensure only JSON is returned
-error_reporting(0);
-ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ob_start(); // Buffer output to catch any accidental echos or warnings
 
 // ==========================================
 // CONFIGURATION SECTION - EDIT THIS
 // ==========================================
 
 // 1. Security Key (Must match the one in your ERP .env file)
-define('KHYATIGCI_SECRECT_2026_BY_AKAAISSAK', 'CHANGE_THIS_TO_A_SECURE_RANDOM_STRING');
+// IMPORTANT: Replace 'YOUR_SECURE_API_KEY' with the GCI_API_KEY from your Vercel environment variables.
+define('KHYATIGCI_SECRECT_2026_BY_AKAAISSAK', 'YOUR_SECURE_API_KEY');
 
 // 2. Database Credentials
 define('DB_HOST', 'localhost');
-define('DB_USER', 'u116837379_admin'); // REPLACE with your DB User
-define('DB_PASS', 'akansh@1609G'); // REPLACE with your DB Password
-define('DB_NAME', 'u116837379_GCI');   // REPLACE with your DB Name
+define('DB_USER', 'u116837379_admin'); 
+define('DB_PASS', 'akansh@1609G'); 
+define('DB_NAME', 'u116837379_GCI');   
 
 // 3. System Settings
-define('UPLOAD_DIR', 'files/public_html/public/storage/certificates/'); // Correct path for certificate images
-define('BASE_URL', 'https://gemstonecertificationinstitute.com/'); // Your website URL
-define('TRACKING_URL_TEMPLATE', BASE_URL . 'public/track-certificate?certificate_number=');
+// Check if the directory exists and is writable, if not, fallback to current dir
+$upload_path = 'storage/certificates/';
+if (!is_dir($upload_path) && !@mkdir($upload_path, 0755, true)) {
+    $upload_path = 'certificates/'; // Fallback
+    if (!is_dir($upload_path)) {
+        @mkdir($upload_path, 0755, true);
+    }
+}
+define('UPLOAD_DIR', $upload_path); 
+define('BASE_URL', 'https://gemstonecertificationinstitute.com/'); 
+define('TRACKING_URL_TEMPLATE', BASE_URL . 'track-certificate?certificate_number=');
 
 // ==========================================
 // END OF CONFIGURATION
 // ==========================================
 
 // 1. Verify API Key
-// Hostinger/Apache often strips custom headers like X-API-KEY.
-// We will check Headers, $_SERVER, $_GET, and the JSON body itself.
 $api_key = '';
-$headers = array_change_key_case(getallheaders(), CASE_UPPER);
 
-// Check Headers
+// Check Headers (Case-insensitive)
+$headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_UPPER) : [];
 if (isset($headers['X-API-KEY'])) {
     $api_key = $headers['X-API-KEY'];
 } 
-// Check Server variables
+// Check Server variables (Apache/Nginx standard)
 elseif (isset($_SERVER['HTTP_X_API_KEY'])) {
     $api_key = $_SERVER['HTTP_X_API_KEY'];
 }
-// Check GET parameter (URL)
+// Check REDIRECT_HTTP_X_API_KEY (sometimes happens with rewrites)
+elseif (isset($_SERVER['REDIRECT_HTTP_X_API_KEY'])) {
+    $api_key = $_SERVER['REDIRECT_HTTP_X_API_KEY'];
+}
+// Check GET parameter (URL fallback for Hostinger stripping)
 elseif (isset($_GET['api_key'])) {
     $api_key = $_GET['api_key'];
 }
 
 // 2. Connect to Database
-// Using @ to suppress connection errors, we handle them manually
 $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 if ($conn->connect_error) {
+    $error = $conn->connect_error;
+    ob_end_clean();
     http_response_code(500);
     echo json_encode([
         'success' => false, 
         'error' => 'Database connection failed',
-        'details' => $conn->connect_error,
-        'hint' => 'Please check DB_HOST, DB_USER, DB_PASS, and DB_NAME in your PHP file.'
+        'details' => $error,
+        'debug' => [
+            'host' => DB_HOST,
+            'user' => DB_USER,
+            'db' => DB_NAME
+        ]
     ]);
     exit;
 }
 
 // 3. Get POST Data
-$data = json_decode(file_get_contents('php://input'), true);
+$raw_input = file_get_contents('php://input');
+$data = json_decode($raw_input, true);
 
 // Check JSON body for API key if still not found
 if (!$api_key && isset($data['api_key'])) {
     $api_key = $data['api_key'];
 }
 
-if ($api_key !== KHYATIGCI_SECRECT_2026_BY_AKAAISSAK) {
+if (empty($api_key) || $api_key !== KHYATIGCI_SECRECT_2026_BY_AKAAISSAK) {
+    ob_end_clean();
     http_response_code(403);
     echo json_encode([
         'success' => false, 
         'error' => 'Invalid API Key',
-        'debug_received' => substr($api_key, 0, 3) . '...' // Show only start for safety
+        'received' => !empty($api_key) ? substr($api_key, 0, 3) . '...' : 'NONE',
+        'hint' => 'Ensure the key in this PHP file matches your ERP environment variable.'
     ]);
     exit;
 }
 
 if (!$data) {
+    ob_end_clean();
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Invalid JSON data']);
     exit;
@@ -112,20 +133,16 @@ foreach ($required_fields as $field) {
 // 4. Handle Image Upload
 $image_filename = null;
 if (!empty($data['image_base64'])) {
-    // Ensure upload dir exists
-    if (!file_exists(UPLOAD_DIR)) {
-        mkdir(UPLOAD_DIR, 0755, true);
-    }
-
     $image_data = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $data['image_base64']));
     $extension = 'jpg'; // Default or detect from mime
     $unique_name = 'GCI_' . time() . '_' . uniqid() . '.' . $extension;
     $file_path = UPLOAD_DIR . $unique_name;
 
-    if (file_put_contents($file_path, $image_data)) {
+    if (@file_put_contents($file_path, $image_data)) {
         $image_filename = $unique_name;
     } else {
-        error_log("Failed to save image to $file_path");
+        // Log to a local file instead of system error log which might be inaccessible
+        @file_put_contents('bridge_error.log', date('Y-m-d H:i:s') . " - Failed to save image to $file_path\n", FILE_APPEND);
     }
 }
 
@@ -186,6 +203,7 @@ $sql = "INSERT INTO gemstone_certificates (
 )";
 
 if ($conn->query($sql) === TRUE) {
+    ob_end_clean(); // Discard any warnings/errors buffered
     echo json_encode([
         'success' => true,
         'certificate_number' => $cert_number,
@@ -193,8 +211,10 @@ if ($conn->query($sql) === TRUE) {
         'image_saved' => $image_filename ? true : false
     ]);
 } else {
+    $error = $conn->error;
+    ob_end_clean(); // Discard any warnings/errors buffered
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Database insert failed: ' . $conn->error]);
+    echo json_encode(['success' => false, 'error' => 'Database insert failed: ' . $error]);
 }
 
 $conn->close();
