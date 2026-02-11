@@ -41,12 +41,14 @@ define('TRACKING_URL_TEMPLATE', BASE_URL . 'public/track-certificate?certificate
 // ==========================================
 
 // 1. Verify API Key
-$headers = getallheaders();
+$headers = array_change_key_case(getallheaders(), CASE_UPPER);
 $api_key = isset($headers['X-API-KEY']) ? $headers['X-API-KEY'] : '';
 
 if ($api_key !== KHYATIGCI_SECRECT_2026_BY_AKAAISSAK) {
+    // Log the received headers for debugging (only if enabled)
+    // error_log("API Key mismatch. Expected: " . KHYATIGCI_SECRECT_2026_BY_AKAAISSAK . " Got: " . $api_key);
     http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Invalid API Key']);
+    echo json_encode(['success' => false, 'error' => 'Invalid API Key', 'debug' => 'Mismatch']);
     exit;
 }
 

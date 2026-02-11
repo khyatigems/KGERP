@@ -68,15 +68,19 @@ export async function generateGciCertificate(inventoryId: string) {
     }
 
     try {
+      // Log URL for debugging
+      console.log("GCI Action - Hitting URL:", finalUrl);
+
       const response = await fetch(finalUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json, text/plain, */*",
-          "Accept-Language": "en-US,en;q=0.9",
+          "Accept": "application/json",
           "X-API-KEY": gciKey || "",
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
           "Referer": "https://gemstonecertificationinstitute.com/",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache"
         },
         body: JSON.stringify(payload),
         cache: 'no-store'
