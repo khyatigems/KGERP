@@ -46,7 +46,7 @@ register_shutdown_function(function() {
 
 // 1. Security Key (Must match the one in your ERP .env file)
 // IMPORTANT: Replace 'YOUR_SECURE_API_KEY' with the GCI_API_KEY from your Vercel environment variables.
-define('KHYATIGCI_SECRECT_2026_BY_AKAAISSAK', 'YOUR_SECURE_API_KEY');
+define('KHYATIGCI_SECRECT_2026_BY_AKAAISSAK', 'KHYATIGCI_SECRECT_2026_BY_AKAAISSAK');
 
 // 2. Database Credentials
 define('DB_HOST', 'localhost');
