@@ -60,11 +60,17 @@ elseif (isset($_GET['api_key'])) {
 }
 
 // 2. Connect to Database
-$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+// Using @ to suppress connection errors, we handle them manually
+$conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 if ($conn->connect_error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Database connection failed']);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Database connection failed',
+        'details' => $conn->connect_error,
+        'hint' => 'Please check DB_HOST, DB_USER, DB_PASS, and DB_NAME in your PHP file.'
+    ]);
     exit;
 }
 

@@ -98,7 +98,8 @@ export async function generateGciCertificate(inventoryId: string) {
           if (errorJson.error) errorMessage += errorJson.error;
           if (errorJson.hint) errorMessage += ` - ${errorJson.hint}`;
         } catch (e) {
-          errorMessage += "The server rejected the request. This often happens if the API Key in Vercel doesn't match the one in your PHP file.";
+          console.error("GCI Action - Failed to parse response as JSON. Raw response:", responseText);
+          errorMessage += `The server returned an invalid response (not JSON). Raw response: ${responseText.substring(0, 100)}...`;
         }
 
         return { success: false, error: errorMessage };
