@@ -80,7 +80,10 @@ export async function generateGciCertificate(inventoryId: string) {
       console.log("GCI Action - Raw Response:", responseText);
 
       if (!response.ok) {
-        return { success: false, error: `GCI Server returned ${response.status}: ${responseText.slice(0, 100)}` };
+        return { 
+          success: false, 
+          error: `GCI Server Error (404): The ERP tried to hit ${gciUrl} but it was not found. Please check your GCI_API_URL in Vercel.` 
+        };
       }
 
       let result;
