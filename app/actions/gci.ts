@@ -90,10 +90,17 @@ export async function generateGciCertificate(inventoryId: string) {
       console.log("GCI Action - Raw Response Status:", response.status);
 
       if (!response.ok) {
-        return { 
-          success: false, 
-          error: `GCI Server Error (${response.status}): The ERP tried to hit [${gciUrl}] but the server rejected it. If you haven't yet, please move the file out of the /api/ folder to the root.` 
-        };
+        let errorMessage = `GCI Server Error (${response.status}): `;
+        
+        try {
+          const errorJson = JSON.parse(responseText);
+          if (errorJson.error) errorMessage += errorJson.error;
+          if (errorJson.hint) errorMessage += ` - ${errorJson.hint}`;
+        } catch (e) {
+          errorMessage += "The server rejected the request. This often happens if the API Key in Vercel doesn't match the one in your PHP file.";
+        }
+
+        return { success: false, error: errorMessage };
       }
 
       let result;

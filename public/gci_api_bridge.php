@@ -41,14 +41,23 @@ define('TRACKING_URL_TEMPLATE', BASE_URL . 'public/track-certificate?certificate
 // ==========================================
 
 // 1. Verify API Key
+// Hostinger/Apache can be tricky with headers. Let's check both getallheaders and $_SERVER
+$api_key = '';
 $headers = array_change_key_case(getallheaders(), CASE_UPPER);
-$api_key = isset($headers['X-API-KEY']) ? $headers['X-API-KEY'] : '';
+
+if (isset($headers['X-API-KEY'])) {
+    $api_key = $headers['X-API-KEY'];
+} elseif (isset($_SERVER['HTTP_X_API_KEY'])) {
+    $api_key = $_SERVER['HTTP_X_API_KEY'];
+}
 
 if ($api_key !== KHYATIGCI_SECRECT_2026_BY_AKAAISSAK) {
-    // Log the received headers for debugging (only if enabled)
-    // error_log("API Key mismatch. Expected: " . KHYATIGCI_SECRECT_2026_BY_AKAAISSAK . " Got: " . $api_key);
     http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Invalid API Key', 'debug' => 'Mismatch']);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Invalid API Key', 
+        'hint' => 'Please ensure KHYATIGCI_SECRECT_2026_BY_AKAAISSAK in this PHP file matches GCI_API_KEY in Vercel.'
+    ]);
     exit;
 }
 
