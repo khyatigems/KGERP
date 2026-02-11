@@ -260,8 +260,12 @@ export async function generateThermalInvoicePDF(data: InvoiceData) {
     // 11. QR Code
     // Use configured public URL if available (best for prod/consistent links)
     // Fallback to window.location.origin (best for local dev if env not set)
-    const qrTargetUrl = data.publicUrl || 
+    let qrTargetUrl = data.publicUrl || 
         (data.token && typeof window !== "undefined" ? `${window.location.origin}/invoice/${data.token}` : undefined);
+
+    if (qrTargetUrl) {
+        qrTargetUrl += "?source=qr";
+    }
 
     if (qrTargetUrl) {
         y += 2;

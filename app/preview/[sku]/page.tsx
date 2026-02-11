@@ -8,12 +8,14 @@ import Link from "next/link";
 import { MediaGallery } from "@/components/preview/media-gallery";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { StatusBadge } from "@/components/preview/status-badge";
+import { trackPublicView } from "@/lib/analytics";
 
 interface PreviewPageProps {
     params: Promise<{ sku: string }>;
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export async function generateMetadata({ params }: PreviewPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ sku: string }> }): Promise<Metadata> {
     const { sku } = await params;
     const item = await prisma.inventory.findUnique({
         where: { sku },
@@ -25,8 +27,10 @@ export async function generateMetadata({ params }: PreviewPageProps): Promise<Me
     };
 }
 
-export default async function PreviewPage({ params }: PreviewPageProps) {
+export default async function PreviewPage({ params, searchParams }: PreviewPageProps) {
     const { sku } = await params;
+    const sp = await searchParams;
+
     const item = await prisma.inventory.findUnique({
         where: { sku },
         include: {
@@ -41,6 +45,9 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
     if (!item) {
         notFound();
     }
+
+    // Track View
+    await trackPublicView("SKU_VIEW", item.id, item.sku, sp);
 
     // Determine Pricing
     const isPerCarat = item.pricingMode === "PER_CARAT";

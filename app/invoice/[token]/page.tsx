@@ -10,6 +10,7 @@ import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
 import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import type { Metadata } from "next";
+import { trackPublicView } from "@/lib/analytics";
 
 type SaleItem = Prisma.SaleGetPayload<{ include: { inventory: { include: { certificates: true, rashis: true } } } }>;
 
@@ -22,8 +23,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function PublicInvoicePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function PublicInvoicePage({ params, searchParams }: { params: Promise<{ token: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const { token } = await params;
+  const sp = await searchParams;
 
   const invoice = await prisma.invoice.findUnique({
     where: { token },
@@ -43,6 +45,9 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   });
 
   if (!invoice) notFound();
+
+  // Track View
+  await trackPublicView("INVOICE_VIEW", invoice.id, invoice.invoiceNumber, sp);
 
   // Parse Display Options
   let displayOptions = {

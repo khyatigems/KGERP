@@ -25,7 +25,7 @@ export function InventoryQrDialog({ itemName, sku }: { itemName: string, sku: st
     // Points to the public preview page of the inventory item
     // This allows customers to scan the physical tag and see the item details
     if (typeof window !== "undefined") {
-        const url = `${window.location.origin}/preview/${sku}`;
+        const url = `${window.location.origin}/preview/${sku}?source=qr`;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setShareUrl(url);
         QRCode.toDataURL(url).then(setQrUrl);

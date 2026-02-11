@@ -187,7 +187,7 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
         if (!qrCodes[item.sku]) {
             try {
                 // Generate QR linking to preview page
-                qrCodes[item.sku] = await QRCode.toDataURL(baseUrl + item.sku, { 
+                qrCodes[item.sku] = await QRCode.toDataURL(baseUrl + item.sku + "?source=qr", { 
                     margin: 0,
                     errorCorrectionLevel: 'M'
                 });
