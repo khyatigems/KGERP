@@ -32,8 +32,9 @@ export async function GET() {
 
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const endOfNextWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+    const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
     const [
@@ -50,6 +51,9 @@ export async function GET() {
         overdueMemoItems,
         pendingVendors,
         unsoldInventory,
+        missingCertifications,
+        pendingExpenses,
+        highValueUnsold,
         // Today's Actions
         todayInventory,
         todayQuotations,
@@ -100,7 +104,7 @@ export async function GET() {
             where: {
                 status: { in: ["SENT", "PENDING_APPROVAL"] },
                 expiryDate: {
-                    lte: endOfTomorrow,
+                    lte: endOfNextWeek,
                     gte: startOfDay
                 }
             },
@@ -111,7 +115,7 @@ export async function GET() {
         prisma.invoice.findMany({
             where: {
                 paymentStatus: { not: "PAID" },
-                createdAt: { lte: thirtyDaysAgo },
+                createdAt: { lte: fifteenDaysAgo },
                 status: { not: "CANCELLED" }
             },
             select: { id: true, invoiceNumber: true, totalAmount: true, createdAt: true },
@@ -122,7 +126,7 @@ export async function GET() {
             where: {
                 status: "WITH_CLIENT",
                 memo: {
-                    issueDate: { lte: thirtyDaysAgo }
+                    issueDate: { lte: fifteenDaysAgo }
                 }
             },
             select: { 
@@ -142,6 +146,36 @@ export async function GET() {
             select: { id: true, sku: true, createdAt: true },
             take: 5
         }).catch(e => { console.error("Attn Fail: Unsold", e); return []; }),
+
+        prisma.inventory.findMany({
+            where: { 
+                status: "IN_STOCK", 
+                OR: [
+                    { certification: null },
+                    { certification: "" },
+                    { certificateNo: null },
+                    { certificateNo: "" }
+                ]
+            },
+            select: { id: true, sku: true, itemName: true },
+            take: 5
+        }).catch(e => { console.error("Attn Fail: MissingCert", e); return []; }),
+
+        prisma.expense.findMany({
+            where: { paymentStatus: "PENDING" },
+            select: { id: true, description: true, totalAmount: true, expenseDate: true },
+            take: 5
+        }).catch(e => { console.error("Attn Fail: Expenses", e); return []; }),
+
+        prisma.inventory.findMany({
+            where: { 
+                status: "IN_STOCK", 
+                createdAt: { lte: sixtyDaysAgo },
+                sellingPrice: { gte: 50000 }
+            },
+            select: { id: true, sku: true, sellingPrice: true },
+            take: 5
+        }).catch(e => { console.error("Attn Fail: HighValueUnsold", e); return []; }),
 
         // Today's Actions Queries
         prisma.inventory.count({
@@ -235,7 +269,10 @@ export async function GET() {
                 invoices: overdueInvoices,
                 memo: overdueMemoItems,
                 vendors: pendingVendors,
-                unsold: unsoldInventory
+                unsold: unsoldInventory,
+                missingCertifications,
+                pendingExpenses,
+                highValueUnsold
             },
             today: {
                 inventory: todayInventory,

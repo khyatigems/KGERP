@@ -62,7 +62,6 @@ export default async function QrScansReportPage() {
   // Calculate Stats
   const totalViews = logs.length;
   const qrScans = logs.filter(l => l.actionType === "QR_SCAN").length;
-  const directLinks = logs.filter(l => l.actionType === "PUBLIC_VIEW").length;
   const skuViews = logs.filter(l => l.entityType === "SKU_VIEW").length;
   const invoiceViews = logs.filter(l => l.entityType === "INVOICE_VIEW").length;
 
