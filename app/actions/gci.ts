@@ -69,7 +69,8 @@ export async function generateGciCertificate(inventoryId: string) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-API-KEY": gciKey
+          "X-API-KEY": gciKey,
+          "User-Agent": "KhyatiGems-ERP/1.0"
         },
         body: JSON.stringify(payload)
       });
@@ -77,6 +78,10 @@ export async function generateGciCertificate(inventoryId: string) {
       console.log("GCI Action - Status:", response.status);
       const responseText = await response.text();
       console.log("GCI Action - Raw Response:", responseText);
+
+      if (!response.ok) {
+        return { success: false, error: `GCI Server returned ${response.status}: ${responseText.slice(0, 100)}` };
+      }
 
       let result;
       try {

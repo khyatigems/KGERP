@@ -14,6 +14,10 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type, X-API-KEY');
 
+// Suppress errors to ensure only JSON is returned
+error_reporting(0);
+ini_set('display_errors', 0);
+
 // ==========================================
 // CONFIGURATION SECTION - EDIT THIS
 // ==========================================
