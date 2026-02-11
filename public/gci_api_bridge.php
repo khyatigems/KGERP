@@ -41,24 +41,22 @@ define('TRACKING_URL_TEMPLATE', BASE_URL . 'public/track-certificate?certificate
 // ==========================================
 
 // 1. Verify API Key
-// Hostinger/Apache can be tricky with headers. Let's check both getallheaders and $_SERVER
+// Hostinger/Apache often strips custom headers like X-API-KEY.
+// We will check Headers, $_SERVER, $_GET, and the JSON body itself.
 $api_key = '';
 $headers = array_change_key_case(getallheaders(), CASE_UPPER);
 
+// Check Headers
 if (isset($headers['X-API-KEY'])) {
     $api_key = $headers['X-API-KEY'];
-} elseif (isset($_SERVER['HTTP_X_API_KEY'])) {
+} 
+// Check Server variables
+elseif (isset($_SERVER['HTTP_X_API_KEY'])) {
     $api_key = $_SERVER['HTTP_X_API_KEY'];
 }
-
-if ($api_key !== KHYATIGCI_SECRECT_2026_BY_AKAAISSAK) {
-    http_response_code(403);
-    echo json_encode([
-        'success' => false, 
-        'error' => 'Invalid API Key', 
-        'hint' => 'Please ensure KHYATIGCI_SECRECT_2026_BY_AKAAISSAK in this PHP file matches GCI_API_KEY in Vercel.'
-    ]);
-    exit;
+// Check GET parameter (URL)
+elseif (isset($_GET['api_key'])) {
+    $api_key = $_GET['api_key'];
 }
 
 // 2. Connect to Database
@@ -66,12 +64,27 @@ $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 if ($conn->connect_error) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Database connection failed: ' . $conn->connect_error]);
+    echo json_encode(['success' => false, 'error' => 'Database connection failed']);
     exit;
 }
 
 // 3. Get POST Data
 $data = json_decode(file_get_contents('php://input'), true);
+
+// Check JSON body for API key if still not found
+if (!$api_key && isset($data['api_key'])) {
+    $api_key = $data['api_key'];
+}
+
+if ($api_key !== KHYATIGCI_SECRECT_2026_BY_AKAAISSAK) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Invalid API Key',
+        'debug_received' => substr($api_key, 0, 3) . '...' // Show only start for safety
+    ]);
+    exit;
+}
 
 if (!$data) {
     http_response_code(400);

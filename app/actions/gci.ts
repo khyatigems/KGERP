@@ -42,6 +42,10 @@ export async function generateGciCertificate(inventoryId: string) {
       }
     }
 
+    // 3. Send to GCI API
+    const gciUrl = process.env.GCI_API_URL?.trim();
+    const gciKey = process.env.GCI_API_KEY?.trim();
+
     const payload = {
       variety: variety,
       species: species,
@@ -50,17 +54,14 @@ export async function generateGciCertificate(inventoryId: string) {
       color: inventory.color || "Unknown",
       dimensions: inventory.measurements || inventory.dimensionsMm || "Unknown",
       customer_name: "KhyatiGems Stock", // Default owner
-      image_base64: imageBase64
+      image_base64: imageBase64,
+      api_key: gciKey // Also pass in body as fallback
     };
 
-    // 3. Send to GCI API
-    const gciUrl = process.env.GCI_API_URL?.trim();
-    const gciKey = process.env.GCI_API_KEY?.trim();
+    // Force API key into URL as well to bypass Hostinger header stripping
+    const finalUrl = gciUrl ? `${gciUrl}${gciUrl.includes('?') ? '&' : '?'}api_key=${encodeURIComponent(gciKey || '')}&t=${Date.now()}` : '';
 
-    // Add a timestamp to bypass any server-side caching of the 404 page
-    const finalUrl = gciUrl ? `${gciUrl}${gciUrl.includes('?') ? '&' : '?'}t=${Date.now()}` : '';
-
-    console.log("GCI Action - Target URL:", finalUrl);
+    console.log("GCI Action - Target URL (sanitized):", finalUrl.replace(gciKey || '', '***'));
     console.log("GCI Action - Payload keys:", Object.keys(payload));
 
     if (!gciUrl || !gciKey) {
@@ -68,8 +69,8 @@ export async function generateGciCertificate(inventoryId: string) {
     }
 
     try {
-      // Log URL for debugging
-      console.log("GCI Action - Hitting URL:", finalUrl);
+      // Log URL for debugging (sanitized)
+      console.log("GCI Action - Hitting URL:", finalUrl.replace(gciKey || '', '***'));
 
       const response = await fetch(finalUrl, {
         method: "POST",
