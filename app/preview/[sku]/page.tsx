@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { MediaGallery } from "@/components/preview/media-gallery";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
+import { StatusBadge } from "@/components/preview/status-badge";
 
 interface PreviewPageProps {
     params: Promise<{ sku: string }>;
@@ -77,6 +78,10 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
                         <p className="text-xs text-stone-500 font-medium tracking-[0.2em] uppercase">{item.sku}</p>
                         <div className="h-px w-8 bg-stone-300"></div>
                     </div>
+
+                    <div className="mt-6">
+                        <StatusBadge status={item.status} />
+                    </div>
                 </CardHeader>
                 
                 {/* Media Gallery */}
@@ -96,7 +101,7 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
                         </div>
                         <div className="space-y-2">
                             <span className="text-stone-400 block text-[10px] uppercase tracking-widest font-semibold">Transparency</span>
-                            {/* @ts-ignore */}
+                            {/* Transparency check */}
                             <span className="font-serif text-stone-800 text-lg">{item.transparency || "-"}</span>
                         </div>
                         <div className="space-y-2">

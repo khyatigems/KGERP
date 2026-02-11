@@ -120,7 +120,6 @@ export function PaymentStatusSelect({ invoiceId, currentStatus, amountDue, total
         onConfirm={handlePaymentConfirm}
         targetStatus={targetStatus}
         amountDue={amountDue}
-        totalAmount={totalAmount}
         isProcessing={isLoading}
       />
     </>

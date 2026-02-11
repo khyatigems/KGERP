@@ -9,7 +9,7 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import { randomBytes } from "crypto";
 import { InvoiceData } from "@/lib/invoice-generator";
-import { postJournalEntry, getAccountByCode, ACCOUNTS } from "@/lib/accounting";
+import { postJournalEntry, getAccountByCode, ACCOUNTS, PrismaTx } from "@/lib/accounting";
 
 const saleSchema = z.object({
   inventoryId: z.string().uuid("Please select an item"),
@@ -247,8 +247,9 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
           // 6. Accounting Entry (Double Entry)
           try {
-              const acAR = await getAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, tx);
-              const acSales = await getAccountByCode(ACCOUNTS.INCOME.SALES, tx);
+              const prismaTx = tx as PrismaTx;
+              const acAR = await getAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, prismaTx);
+              const acSales = await getAccountByCode(ACCOUNTS.INCOME.SALES, prismaTx);
               
               await postJournalEntry({
                   date: new Date(),
@@ -260,7 +261,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
                       { accountId: acAR.id, debit: netAmount },
                       { accountId: acSales.id, credit: netAmount }
                   ]
-              }, tx);
+              }, prismaTx);
           } catch (accError) {
               console.error("Accounting Entry Failed:", accError);
               throw accError; // Ensure data consistency

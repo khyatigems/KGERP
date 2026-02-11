@@ -1,4 +1,5 @@
 
+import type { PrismaClient } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -60,11 +61,16 @@ const defaultAccounts = [
 ];
 
 async function main() {
-  const { prisma } = await import("../lib/prisma");
+  const { PrismaClient: PrismaClientClass } = await import("@prisma/client");
+  const prisma = new PrismaClientClass() as unknown as InstanceType<typeof PrismaClientClass> & {
+    account: PrismaClient["account"];
+  };
+  
   console.log("Seeding Chart of Accounts...");
 
-  for (const acc of defaultAccounts) {
-    await prisma.account.upsert({
+  try {
+    for (const acc of defaultAccounts) {
+      await prisma.account.upsert({
       where: { code: acc.code },
       update: {
         name: acc.name,
@@ -79,11 +85,13 @@ async function main() {
         isActive: true,
       },
     });
-    console.log(`Synced account: ${acc.code} - ${acc.name}`);
-  }
+      console.log(`Synced account: ${acc.code} - ${acc.name}`);
+    }
 
-  console.log("Accounting seed completed.");
-  await prisma.$disconnect();
+    console.log("Accounting seed completed.");
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 main().catch((e) => {

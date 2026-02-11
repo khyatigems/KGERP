@@ -1,6 +1,11 @@
 
-import { prisma } from "../lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import { postJournalEntry, ACCOUNTS, getAccountByCode } from "../lib/accounting";
+
+const prisma = new PrismaClient() as unknown as PrismaClient & {
+  journalEntry: PrismaClient["journalEntry"];
+  account: PrismaClient["account"];
+};
 
 async function main() {
   console.log("Starting Accounting Backfill...");
@@ -56,7 +61,7 @@ async function main() {
     }
 
     await postJournalEntry({
-      date: sale.date || new Date(),
+      date: sale.saleDate || new Date(),
       description: `[Backfill] Invoice #${sale.invoice.invoiceNumber} - ${sale.customerName || "Walk-in"}`,
       referenceType: "INVOICE",
       referenceId: sale.invoice.id,
@@ -127,5 +132,8 @@ async function main() {
 }
 
 main()
-  .catch(e => console.error(e))
+  .catch(e => {
+    console.error(e);
+    process.exit(1);
+  })
   .finally(async () => await prisma.$disconnect());

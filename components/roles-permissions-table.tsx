@@ -11,8 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ROLE_PERMISSIONS, PERMISSIONS, Role } from "@/lib/permissions";
+import { ROLE_PERMISSIONS, Role } from "@/lib/permissions";
 import { Search, Shield, Info } from "lucide-react";
 
 export function RolesPermissionsTable() {

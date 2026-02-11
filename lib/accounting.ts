@@ -2,7 +2,13 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, PrismaClient } from "@prisma/client";
 
-type PrismaTx = Prisma.TransactionClient | PrismaClient;
+// Use a loose type for the transaction client to avoid strict type caching issues
+// This ensures compatibility with both the main client and transaction clients
+export type PrismaTx = (Prisma.TransactionClient | PrismaClient) & {
+  account: PrismaClient["account"];
+  journalEntry: PrismaClient["journalEntry"];
+  journalLine: PrismaClient["journalLine"];
+};
 
 export interface JournalLineInput {
   accountId: string; // ID of the account

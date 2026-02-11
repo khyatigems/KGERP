@@ -36,8 +36,10 @@ export function LabelHistory({ initialJobs = [] }: { initialJobs?: LabelJobWithR
 
     useEffect(() => {
         if (initialJobs.length === 0) {
+             // eslint-disable-next-line react-hooks/set-state-in-effect
              void loadJobs();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (

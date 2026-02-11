@@ -8,36 +8,43 @@ import { ShoppingCart, Trash2, Printer } from "lucide-react";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { LabelItem } from "@/lib/label-generator";
 import { toast } from "sonner";
+import { LabelCartItem, Inventory, ColorCode } from "@prisma/client";
 
-export function LabelCartSheet({ initialItems = [] }: { initialItems?: any[] }) {
+type CartItemWithInventory = LabelCartItem & {
+    inventory: Inventory & {
+        colorCode: ColorCode | null;
+    };
+};
+
+export function LabelCartSheet({ initialItems = [] }: { initialItems?: CartItemWithInventory[] }) {
     const [open, setOpen] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [items, setItems] = useState<any[]>(initialItems);
+    const [items, setItems] = useState<CartItemWithInventory[]>(initialItems);
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        // Suppress warning about setting state in effect
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setMounted(true);
-        // Load cart on mount to ensure badge count is correct
-        void loadCart();
-    }, []);
-
-    // Update items if initialItems changes (e.g. from parent refresh)
-    useEffect(() => {
-        if (initialItems.length > 0) {
-            setItems(initialItems);
-        }
-    }, [initialItems]);
 
     const loadCart = useCallback(async () => {
         // Only show loading if we don't have items or if open
         if (open) setLoading(true);
         const data = await getCart();
-        setItems(data);
+        // Cast the data to ensure it matches the expected type
+        setItems(data as unknown as CartItemWithInventory[]);
         if (open) setLoading(false);
     }, [open]);
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setMounted(true);
+        // Load cart on mount to ensure badge count is correct
+        void loadCart();
+    }, [loadCart]);
+
+    // Update items if initialItems changes (e.g. from parent refresh)
+    useEffect(() => {
+        if (initialItems.length > 0) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setItems(initialItems);
+        }
+    }, [initialItems]);
 
     useEffect(() => {
         if (open) {

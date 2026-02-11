@@ -9,7 +9,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
 import { expenseSchema, type ExpenseFormValues, type ExpenseImportRow } from "./schema";
 import { createVoucher } from "@/lib/voucher-service";
-import { postJournalEntry, getAccountByCode, ACCOUNTS } from "@/lib/accounting";
+import { postJournalEntry, getAccountByCode, ACCOUNTS, PrismaTx } from "@/lib/accounting";
 
 export async function createExpense(data: ExpenseFormValues) {
   await checkPermission(PERMISSIONS.EXPENSE_CREATE);
@@ -32,7 +32,8 @@ export async function createExpense(data: ExpenseFormValues) {
   }
 
   try {
-    const expense = await prisma.$transaction(async (tx) => {
+    const expense = await prisma.$transaction(async (txOrigin) => {
+      const tx = txOrigin as PrismaTx;
       // 1. Create Voucher
       const voucher = await createVoucher({
         type: "EXPENSE",
@@ -188,7 +189,7 @@ export async function updateExpense(id: string, data: Partial<ExpenseFormValues>
     revalidatePath("/expenses");
     return { success: true as const, expense };
   } catch (error) {
-    console.error("Update failed:", error);
+    console.error("Failed to update expense:", error);
     return { success: false as const, error: "Failed to update expense" };
   }
 }

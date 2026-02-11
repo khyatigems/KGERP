@@ -31,7 +31,7 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
          setShouldHide(true);
        }
     }
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, isLoading, minTimePassed]);
 
   // Handle minimum duration logic
   useEffect(() => {

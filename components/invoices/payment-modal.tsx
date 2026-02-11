@@ -16,7 +16,6 @@ interface PaymentModalProps {
   onConfirm: (data: PaymentDetails) => Promise<void>;
   targetStatus: "PAID" | "PARTIAL";
   amountDue: number;
-  totalAmount: number;
   isProcessing?: boolean;
 }
 
@@ -34,7 +33,6 @@ export function PaymentModal({
   onConfirm,
   targetStatus,
   amountDue,
-  totalAmount,
   isProcessing = false
 }: PaymentModalProps) {
   const [amount, setAmount] = useState<string>("");

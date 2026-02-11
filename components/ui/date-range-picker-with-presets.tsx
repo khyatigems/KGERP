@@ -33,10 +33,8 @@ export function DateRangePickerWithPresets({
   onDateChange,
   align = "start",
 }: DateRangePickerWithPresetsProps) {
-  const [selectedPreset, setSelectedPreset] = React.useState<string | undefined>()
 
   const handlePresetChange = (value: string) => {
-    setSelectedPreset(value)
     const today = new Date()
     
     switch (value) {

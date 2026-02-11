@@ -42,7 +42,7 @@ export function InventoryActions({ item }: InventoryActionsProps) {
 
   return (
     <div className="flex items-center justify-end gap-1">
-      <InventoryQrDialog itemId={item.id} itemName={item.itemName} sku={item.sku} />
+      <InventoryQrDialog itemName={item.itemName} sku={item.sku} />
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

@@ -52,7 +52,7 @@ export function TodaysActionsWidget({ data }: { data: TodaysActionsData }) {
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-primary" />
-                        Today's Actions
+                        Today&apos;s Actions
                     </CardTitle>
                 </div>
             </CardHeader>

@@ -2,7 +2,6 @@
 
 import Link, { LinkProps } from "next/link";
 import { useGlobalLoader } from "@/components/global-loader-provider";
-import { cn } from "@/lib/utils";
 import React from "react";
 
 interface LoadingLinkProps extends LinkProps {

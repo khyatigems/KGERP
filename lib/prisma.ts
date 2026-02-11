@@ -80,7 +80,11 @@ const prismaBase =
     console.log("Prisma Client Initialized. Available models:", models.join(", "));
   }
 
-export const prisma = prismaBase
+export const prisma = prismaBase as unknown as PrismaClient & {
+  account: PrismaClient["account"];
+  journalEntry: PrismaClient["journalEntry"];
+  journalLine: PrismaClient["journalLine"];
+}
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 

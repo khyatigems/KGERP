@@ -17,7 +17,7 @@ import { QrCode, Copy, Mail } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { toast } from "sonner";
 
-export function InventoryQrDialog({ itemId, itemName, sku }: { itemId: string, itemName: string, sku: string }) {
+export function InventoryQrDialog({ itemName, sku }: { itemName: string, sku: string }) {
   const [qrUrl, setQrUrl] = useState("");
   const [shareUrl, setShareUrl] = useState("");
 
@@ -26,6 +26,7 @@ export function InventoryQrDialog({ itemId, itemName, sku }: { itemId: string, i
     // This allows customers to scan the physical tag and see the item details
     if (typeof window !== "undefined") {
         const url = `${window.location.origin}/preview/${sku}`;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShareUrl(url);
         QRCode.toDataURL(url).then(setQrUrl);
     }

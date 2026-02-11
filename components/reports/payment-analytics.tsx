@@ -125,6 +125,7 @@ export function PaymentAnalytics({ data }: { data: PaymentData }) {
     });
 
     // Detailed Table
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastY = (doc as any).lastAutoTable.finalY || 50;
     doc.text("Payment History", 14, lastY + 10);
 

@@ -43,7 +43,7 @@ export default async function LoginPage() {
 
                     {settings.whatsNewEnabled && settings.whatsNewText && (
                         <div className="p-4 bg-white/40 rounded-lg border border-white/30 backdrop-blur-sm shadow-sm">
-                            <span className="block font-semibold mb-1 text-slate-900 text-xs uppercase tracking-wider">What's New</span>
+                            <span className="block font-semibold mb-1 text-slate-900 text-xs uppercase tracking-wider">What&apos;s New</span>
                             <p className="text-sm text-slate-800">{settings.whatsNewText}</p>
                         </div>
                     )}
