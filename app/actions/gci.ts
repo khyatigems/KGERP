@@ -103,6 +103,8 @@ export async function generateGciCertificate(inventoryId: string) {
         try {
           const errorJson = JSON.parse(responseText);
           if (errorJson.error) errorMessage += errorJson.error;
+          if (errorJson.details) errorMessage += ` - Details: ${errorJson.details}`;
+          if (errorJson.file) errorMessage += ` (File: ${errorJson.file}, Line: ${errorJson.line})`;
           if (errorJson.hint) errorMessage += ` - ${errorJson.hint}`;
         } catch {
           console.error("GCI Action - Failed to parse response as JSON. Raw response:", responseText);

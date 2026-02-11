@@ -75,7 +75,13 @@ define('TRACKING_URL_TEMPLATE', BASE_URL . 'track-certificate?certificate_number
 $api_key = '';
 
 // Check Headers (Case-insensitive)
-$headers = function_exists('getallheaders') ? array_change_key_case(getallheaders(), CASE_UPPER) : [];
+$headers = [];
+if (function_exists('getallheaders')) {
+    $temp_headers = getallheaders();
+    if (is_array($temp_headers)) {
+        $headers = array_change_key_case($temp_headers, CASE_UPPER);
+    }
+}
 if (isset($headers['X-API-KEY'])) {
     $api_key = $headers['X-API-KEY'];
 } 
@@ -93,6 +99,7 @@ elseif (isset($_GET['api_key'])) {
 }
 
 // 2. Connect to Database
+mysqli_report(MYSQLI_REPORT_OFF); // Disable auto-exceptions for cleaner handling
 $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 if ($conn->connect_error) {
