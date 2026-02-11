@@ -54,10 +54,10 @@ export async function generateGciCertificate(inventoryId: string) {
     };
 
     // 3. Send to GCI API
-    const gciUrl = process.env.GCI_API_URL;
-    const gciKey = process.env.GCI_API_KEY;
+    const gciUrl = process.env.GCI_API_URL?.trim();
+    const gciKey = process.env.GCI_API_KEY?.trim();
 
-    console.log("GCI Action - URL:", gciUrl);
+    console.log("GCI Action - Target URL:", gciUrl);
     console.log("GCI Action - Payload keys:", Object.keys(payload));
 
     if (!gciUrl || !gciKey) {
@@ -69,10 +69,12 @@ export async function generateGciCertificate(inventoryId: string) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-API-KEY": gciKey,
-          "User-Agent": "KhyatiGems-ERP/1.0"
+          "Accept": "application/json, text/plain, */*",
+          "X-API-KEY": gciKey || "",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        cache: 'no-store'
       });
 
       console.log("GCI Action - Status:", response.status);
