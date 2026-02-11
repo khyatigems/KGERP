@@ -50,7 +50,7 @@ define('KHYATIGCI_SECRECT_2026_BY_AKAAISSAK', 'YOUR_SECURE_API_KEY');
 
 // 2. Database Credentials
 define('DB_HOST', 'localhost');
-define('DB_USER', 'u116837379_admin'); 
+define('DB_USER', 'u116837379_GCI'); 
 define('DB_PASS', 'akansh@1609G'); 
 define('DB_NAME', 'u116837379_GCI');   
 
