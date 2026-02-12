@@ -200,49 +200,69 @@ $fluorescence = $conn->real_escape_string($data['fluorescence'] ?? 'None');
 $comments = $conn->real_escape_string($data['comments'] ?? '');
 
 // Insert SQL
-$sql = "INSERT INTO gemstone_certificates (
-    certificate_number, 
-    date_of_issue, 
-    weight, 
-    shape_cut, 
-    measurement, 
-    colour, 
-    variety, 
-    group_species,
-    customer_name,
-    origin,
-    treatment,
-    fluorescence,
-    comments,
-    gemstone_image, 
-    main_image,
-    qr_code_data, 
-    created_by, 
-    is_active,
-    certificate_type,
-    certificate_format
-) VALUES (
-    '$cert_number', 
-    '$today', 
-    $weight, 
-    '$shape_cut', 
-    '$measurement', 
-    '$color', 
-    '$variety', 
-    '$species',
-    '$customer_name',
-    '$origin',
-    '$treatment',
-    '$fluorescence',
-    '$comments',
-    '$image_filename', 
-    '$image_filename',
-    '$tracking_url', 
-    1, 
+// Build dynamic column list based on actual table schema
+function column_exists($conn, $table, $column) {
+    $res = $conn->query("SHOW COLUMNS FROM `$table` LIKE '$column'");
+    return $res && $res->num_rows > 0;
+}
+
+$columns = [
+    "certificate_number",
+    "date_of_issue",
+    "weight",
+    "shape_cut",
+    "measurement",
+    "colour",
+    "variety",
+    "group_species",
+    "customer_name",
+    "gemstone_image",
+    "main_image",
+    "qr_code_data",
+    "created_by",
+    "is_active",
+    "certificate_type",
+    "certificate_format"
+];
+
+$values = [
+    "'$cert_number'",
+    "'$today'",
+    $weight,
+    "'$shape_cut'",
+    "'$measurement'",
+    "'$color'",
+    "'$variety'",
+    "'$species'",
+    "'$customer_name'",
+    "'$image_filename'",
+    "'$image_filename'",
+    "'$tracking_url'",
     1,
-    'gemstone',
-    'pvc_card'
-)";
+    1,
+    "'gemstone'",
+    "'pvc_card'"
+];
+
+// Append gemological data only if columns exist
+if (column_exists($conn, "gemstone_certificates", "origin")) {
+    $columns[] = "origin";
+    $values[] = "'$origin'";
+}
+if (column_exists($conn, "gemstone_certificates", "treatment")) {
+    $columns[] = "treatment";
+    $values[] = "'$treatment'";
+}
+if (column_exists($conn, "gemstone_certificates", "fluorescence")) {
+    $columns[] = "fluorescence";
+    $values[] = "'$fluorescence'";
+}
+if (column_exists($conn, "gemstone_certificates", "comments")) {
+    $columns[] = "comments";
+    $values[] = "'$comments'";
+}
+
+$sql = "INSERT INTO gemstone_certificates (" . implode(", ", $columns) . ") VALUES (" . implode(", ", $values) . ")";
 
 if ($conn->query($sql) === TRUE) {
     ob_end_clean(); // Discard any warnings/errors buffered
