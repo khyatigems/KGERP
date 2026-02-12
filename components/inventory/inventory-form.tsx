@@ -87,6 +87,8 @@ const formSchema = z.object({
   weightUnit: z.string().default("cts"),
   weightRatti: z.coerce.number().optional(),
   treatment: z.string().optional(),
+  origin: z.string().optional(),
+  fluorescence: z.string().optional(),
   certification: z.string().optional(),
   certificateCodeIds: z.array(z.string()).optional(),
   transparency: z.string().optional(),
@@ -823,6 +825,34 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                     <FormLabel>Treatment</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g. Heat Treated" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="origin"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Origin</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Burma, Ceylon" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="fluorescence"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fluorescence</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. None, Faint" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
