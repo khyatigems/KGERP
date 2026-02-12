@@ -97,36 +97,65 @@ export default async function InventoryPage({
       }
   }
 
-  const [rawInventory, categories, gemstones, colors, vendors, collections, rashis, certificates] = await Promise.all([
-    prisma.inventory.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        media: {
-          orderBy: [
-            { isPrimary: 'desc' },
-            { createdAt: 'asc' }
-          ],
-          take: 1
+  let rawInventory: any[] = [];
+  let categories: any[] = [];
+  let gemstones: any[] = [];
+  let colors: any[] = [];
+  let vendors: { id: string; name: string }[] = [];
+  let collections: any[] = [];
+  let rashis: any[] = [];
+  let certificates: any[] = [];
+  
+  try {
+    const results = await Promise.all([
+      prisma.inventory.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          media: {
+            orderBy: [
+              { isPrimary: 'desc' },
+              { createdAt: 'asc' }
+            ],
+            take: 1
+          },
+          categoryCode: { select: { name: true, code: true } },
+          gemstoneCode: { select: { name: true, code: true } },
+          colorCode: { select: { name: true, code: true } },
+          cutCode: { select: { name: true, code: true } },
+          collectionCode: { select: { name: true } },
+          rashis: { select: { name: true } },
+          certificates: { select: { name: true, remarks: true } },
         },
-        categoryCode: { select: { name: true, code: true } },
-        gemstoneCode: { select: { name: true, code: true } },
-        colorCode: { select: { name: true, code: true } },
-        cutCode: { select: { name: true, code: true } },
-        collectionCode: { select: { name: true } },
-        // Fixed relation name
-        rashis: { select: { name: true } },
-        certificates: { select: { name: true, remarks: true } },
-      },
-    }),
-    prisma.categoryCode.findMany({ orderBy: { name: "asc" } }),
-    prisma.gemstoneCode.findMany({ orderBy: { name: "asc" } }),
-    prisma.colorCode.findMany({ orderBy: { name: "asc" } }),
-    prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
-    prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
-    prisma.certificateCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
-  ]);
+      }),
+      prisma.categoryCode.findMany({ orderBy: { name: "asc" } }),
+      prisma.gemstoneCode.findMany({ orderBy: { name: "asc" } }),
+      prisma.colorCode.findMany({ orderBy: { name: "asc" } }),
+      prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
+      prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
+      prisma.certificateCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
+    ]);
+    
+    rawInventory = results[0] as any[];
+    categories = results[1] as any[];
+    gemstones = results[2] as any[];
+    colors = results[3] as any[];
+    vendors = results[4] as { id: string; name: string }[];
+    collections = results[5] as any[];
+    rashis = results[6] as any[];
+    certificates = results[7] as any[];
+  } catch (e) {
+    console.error("Inventory page data fetch failed:", e);
+    rawInventory = [];
+    categories = [];
+    gemstones = [];
+    colors = [];
+    vendors = [];
+    collections = [];
+    rashis = [];
+    certificates = [];
+  }
 
   // Deduplicate inventory items by ID to ensure data integrity
   const inventory = removeDuplicates(rawInventory, 'id');
@@ -146,10 +175,10 @@ export default async function InventoryPage({
       cut: item.cutCode?.name || "-",
       shape: item.shape || "-",
       dimensions: item.dimensionsMm || "-",
-      rashi: item.rashis?.map(r => r.name).join(", ") || "-",
+      rashi: item.rashis?.map((r: { name: string }) => r.name).join(", ") || "-",
       collection: item.collectionCode?.name || "-",
       sellingRate: item.sellingRatePerCarat || item.flatSellingPrice || 0,
-      certification: item.certificates?.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification || "-",
+      certification: item.certificates?.map((c: { name: string; remarks?: string | null }) => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification || "-",
       treatment: item.treatment || "-",
       braceletType: item.braceletType || "-",
       beadSize: item.beadSizeMm ? `${item.beadSizeMm}mm` : "-",
