@@ -198,6 +198,7 @@ async function renameCloudinaryImageToSku(originalUrl: string, sku: string) {
 }
 
 export async function createInventory(prevState: unknown, formData: FormData) {
+  "use server";
   const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
   if (!perm.success) return { message: perm.message };
 
@@ -290,7 +291,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
           });
 
           const inventory = await tx.inventory.create({
-              data: ({
+              data: {
                   sku,
                   itemName: data.itemName,
                   internalName: data.internalName,
@@ -339,7 +340,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
                   innerCircumferenceMm: data.innerCircumferenceMm,
                   standardSize: data.standardSize,
-              } as any);
+              }});
 
           return {
             id: inventory.id,
@@ -422,6 +423,7 @@ export async function updateInventory(
   prevState: unknown,
   formData: FormData
 ) {
+  "use server";
   const perm = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
   if (!perm.success) return { message: perm.message };
 
@@ -544,7 +546,7 @@ export async function updateInventory(
         // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
         innerCircumferenceMm: data.innerCircumferenceMm,
         standardSize: data.standardSize,
-      } as any),
+      }),
     });
 
     await logActivity({
