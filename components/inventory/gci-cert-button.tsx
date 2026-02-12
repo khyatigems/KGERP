@@ -1,9 +1,11 @@
 'use client';
 
+import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, ExternalLink } from "lucide-react";
+import { Loader2, ShieldCheck, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { GciCertModal } from "./gci-cert-modal";
+import { generateGciCertificate } from "@/app/actions/gci";
+import { toast } from "sonner";
 
 interface GciCertButtonProps {
     inventoryId: string;
@@ -13,6 +15,8 @@ interface GciCertButtonProps {
 }
 
 export function GciCertButton({ inventoryId, certificateNo, lab, certificationUrl }: GciCertButtonProps) {
+    const [isPending, startTransition] = useTransition();
+    
     // If it's already a GCI certificate, show status
     if (lab === 'GCI' && certificateNo) {
         return (
@@ -44,7 +48,33 @@ export function GciCertButton({ inventoryId, certificateNo, lab, certificationUr
 
     return (
         <div className="mt-2">
-            <GciCertModal inventoryId={inventoryId} />
+            <Button 
+                onClick={() => {
+                    startTransition(async () => {
+                        const result = await generateGciCertificate(inventoryId);
+                        if (result.success) {
+                            toast.success(`Certificate ${result.certificateNumber} generated successfully!`);
+                        } else {
+                            toast.error(result.error || "Failed to generate certificate");
+                        }
+                    });
+                }} 
+                disabled={isPending}
+                size="sm"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+                {isPending ? (
+                    <>
+                        <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        Generating...
+                    </>
+                ) : (
+                    <>
+                        <ShieldCheck className="mr-2 h-3 w-3" />
+                        Generate GCI Cert
+                    </>
+                )}
+            </Button>
         </div>
     );
 }
