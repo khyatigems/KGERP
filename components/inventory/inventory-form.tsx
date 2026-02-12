@@ -99,6 +99,7 @@ const formSchema = z.object({
   flatPurchaseCost: z.coerce.number().optional(),
   flatSellingPrice: z.coerce.number().optional(),
   notes: z.string().optional(),
+  certificateComments: z.string().optional(),
   stockLocation: z.string().optional(),
   mediaUrl: z.string().url().optional().or(z.literal("")),
   mediaUrls: z.array(z.string()).optional(),
@@ -198,6 +199,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     message: string;
     errors: Record<string, string[]>;
   } | null>(null);
+
+  const [useCustomOrigin, setUseCustomOrigin] = useState(false);
+  const [useCustomTreatment, setUseCustomTreatment] = useState(false);
+  const [useCustomFluorescence, setUseCustomFluorescence] = useState(false);
 
 
   const form = useForm<FormValues>({
@@ -822,9 +827,43 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 name="treatment"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Treatment</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Treatment</FormLabel>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => setUseCustomTreatment((v) => !v)}
+                      >
+                        {useCustomTreatment ? "Use Preset" : "Custom"}
+                      </Button>
+                    </div>
                     <FormControl>
-                      <Input placeholder="e.g. Heat Treated" {...field} />
+                      {useCustomTreatment ? (
+                        <Input placeholder="e.g. Heat Treated" {...field} />
+                      ) : (
+                        <Select
+                          onValueChange={(val) => field.onChange(val)}
+                          value={field.value || ""}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select treatment" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="None">None</SelectItem>
+                            <SelectItem value="Untreated">Untreated</SelectItem>
+                            <SelectItem value="Heat">Heat</SelectItem>
+                            <SelectItem value="Oil">Oil</SelectItem>
+                            <SelectItem value="Resin">Resin</SelectItem>
+                            <SelectItem value="Irradiation">Irradiation</SelectItem>
+                            <SelectItem value="Diffusion">Diffusion</SelectItem>
+                            <SelectItem value="Glass-Filled">Glass-Filled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -836,9 +875,43 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 name="origin"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Origin</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Origin</FormLabel>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => setUseCustomOrigin((v) => !v)}
+                      >
+                        {useCustomOrigin ? "Use Preset" : "Custom"}
+                      </Button>
+                    </div>
                     <FormControl>
-                      <Input placeholder="e.g. Burma, Ceylon" {...field} />
+                      {useCustomOrigin ? (
+                        <Input placeholder="e.g. Burma, Ceylon" {...field} />
+                      ) : (
+                        <Select
+                          onValueChange={(val) => field.onChange(val)}
+                          value={field.value || ""}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select origin" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Burma (Myanmar)">Burma (Myanmar)</SelectItem>
+                            <SelectItem value="Sri Lanka (Ceylon)">Sri Lanka (Ceylon)</SelectItem>
+                            <SelectItem value="Kashmir">Kashmir</SelectItem>
+                            <SelectItem value="Madagascar">Madagascar</SelectItem>
+                            <SelectItem value="Mozambique">Mozambique</SelectItem>
+                            <SelectItem value="Thailand">Thailand</SelectItem>
+                            <SelectItem value="Colombia">Colombia</SelectItem>
+                            <SelectItem value="Zambia">Zambia</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -850,9 +923,40 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 name="fluorescence"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fluorescence</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Fluorescence</FormLabel>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => setUseCustomFluorescence((v) => !v)}
+                      >
+                        {useCustomFluorescence ? "Use Preset" : "Custom"}
+                      </Button>
+                    </div>
                     <FormControl>
-                      <Input placeholder="e.g. None, Faint" {...field} />
+                      {useCustomFluorescence ? (
+                        <Input placeholder="e.g. None, Faint" {...field} />
+                      ) : (
+                        <Select
+                          onValueChange={(val) => field.onChange(val)}
+                          value={field.value || ""}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select fluorescence" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="None">None</SelectItem>
+                            <SelectItem value="Faint">Faint</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="Strong">Strong</SelectItem>
+                            <SelectItem value="Very Strong">Very Strong</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1418,6 +1522,20 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 </FormItem>
               )}
             />
+              
+              <FormField
+                control={form.control}
+                name="certificateComments"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Certificate Comments</FormLabel>
+                    <FormControl>
+                      <Textarea className="min-h-[120px] font-mono text-sm" placeholder="Optional comments to show on the certificate" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
           </div>
         </div>
 

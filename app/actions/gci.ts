@@ -75,7 +75,7 @@ export async function generateGciCertificate(
       origin: additionalData?.origin || inventory.origin || "Unknown",
       treatment: additionalData?.treatment || inventory.treatment || "None",
       fluorescence: additionalData?.fluorescence || inventory.fluorescence || "None",
-      comments: additionalData?.comments || inventory.notes || ""
+      comments: additionalData?.comments || (inventory as unknown as { certificateComments?: string }).certificateComments || ""
     };
 
     // Force API key into URL as well to bypass Hostinger header stripping

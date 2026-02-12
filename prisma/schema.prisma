@@ -267,6 +267,7 @@ model Inventory {
   purchaseRatePerCarat Float?
   flatPurchaseCost    Float?
   notes               String?
+  certificateComments String?
   stockLocation       String?
   
   purchaseId      String?

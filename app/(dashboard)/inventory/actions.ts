@@ -88,6 +88,7 @@ const inventorySchema = z.object({
   flatSellingPrice: z.coerce.number().optional(),
   stockLocation: z.string().optional(),
   notes: z.string().optional(),
+  certificateComments: z.string().optional(),
   mediaUrl: z.string().optional().or(z.literal("")),
   mediaUrls: z.array(z.string()).optional(),
   
@@ -289,7 +290,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
           });
 
           const inventory = await tx.inventory.create({
-              data: {
+              data: ({
                   sku,
                   itemName: data.itemName,
                   internalName: data.internalName,
@@ -329,6 +330,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   status: "IN_STOCK",
                   stockLocation: data.stockLocation,
                   notes: data.notes,
+                  certificateComments: data.certificateComments,
                   
                   // Bracelet Fields
                   braceletType: data.braceletType,
@@ -337,9 +339,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                   // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
                   innerCircumferenceMm: data.innerCircumferenceMm,
                   standardSize: data.standardSize,
-                  // createdBy: session?.user?.email || "system", // Commented out due to Prisma Client lock
-              },
-          });
+              } as any);
 
           return {
             id: inventory.id,
@@ -501,7 +501,7 @@ export async function updateInventory(
 
     const updatedInventory = await prisma.inventory.update({
       where: { id },
-      data: {
+      data: ({
         itemName: data.itemName,
         internalName: data.internalName,
         category: data.category,
@@ -535,6 +535,7 @@ export async function updateInventory(
         // profit, // Commented out due to Prisma Client lock
         stockLocation: data.stockLocation,
         notes: data.notes,
+        certificateComments: data.certificateComments,
 
         // Bracelet Fields
         braceletType: data.braceletType,
@@ -543,7 +544,7 @@ export async function updateInventory(
         // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
         innerCircumferenceMm: data.innerCircumferenceMm,
         standardSize: data.standardSize,
-      },
+      } as any),
     });
 
     await logActivity({
