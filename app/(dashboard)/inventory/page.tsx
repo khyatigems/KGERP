@@ -8,13 +8,24 @@ import { LoadingLink } from "@/components/ui/loading-link";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { InventorySearch } from "@/components/inventory/inventory-search";
 import { InventoryCardList } from "@/components/inventory/inventory-card-list";
-import type { Inventory } from "@prisma/client";
+import type { Inventory, InventoryMedia } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 type InventoryWithExtras = Inventory & {
   weightRatti?: number | null;
 };
+
+type InventoryListItem = Inventory & {
+  media: InventoryMedia[];
+  certificates?: { name: string; remarks?: string | null }[];
+  categoryCode?: { name: string; code: string } | null;
+  gemstoneCode?: { name: string; code: string } | null;
+  colorCode?: { name: string; code: string } | null;
+  cutCode?: { name: string; code: string } | null;
+  collectionCode?: { name: string } | null;
+  rashis?: { name: string }[];
+}
 
 export const metadata: Metadata = {
   title: "Inventory | KhyatiGems™",
@@ -97,14 +108,14 @@ export default async function InventoryPage({
       }
   }
 
-  let rawInventory: any[] = [];
-  let categories: any[] = [];
-  let gemstones: any[] = [];
-  let colors: any[] = [];
+  let rawInventory: InventoryListItem[] = [];
+  let categories: { id: string; name: string }[] = [];
+  let gemstones: { id: string; name: string }[] = [];
+  let colors: { id: string; name: string }[] = [];
   let vendors: { id: string; name: string }[] = [];
-  let collections: any[] = [];
-  let rashis: any[] = [];
-  let certificates: any[] = [];
+  let collections: { id: string; name: string }[] = [];
+  let rashis: { id: string; name: string }[] = [];
+  let certificates: { id: string; name: string }[] = [];
   
   try {
     const results = await Promise.all([
@@ -128,23 +139,23 @@ export default async function InventoryPage({
           certificates: { select: { name: true, remarks: true } },
         },
       }),
-      prisma.categoryCode.findMany({ orderBy: { name: "asc" } }),
-      prisma.gemstoneCode.findMany({ orderBy: { name: "asc" } }),
-      prisma.colorCode.findMany({ orderBy: { name: "asc" } }),
+      prisma.categoryCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      prisma.gemstoneCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      prisma.colorCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
       prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
-      prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
-      prisma.certificateCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" } }),
+      prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      prisma.certificateCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     ]);
     
-    rawInventory = results[0] as any[];
-    categories = results[1] as any[];
-    gemstones = results[2] as any[];
-    colors = results[3] as any[];
+    rawInventory = results[0] as InventoryListItem[];
+    categories = results[1] as { id: string; name: string }[];
+    gemstones = results[2] as { id: string; name: string }[];
+    colors = results[3] as { id: string; name: string }[];
     vendors = results[4] as { id: string; name: string }[];
-    collections = results[5] as any[];
-    rashis = results[6] as any[];
-    certificates = results[7] as any[];
+    collections = results[5] as { id: string; name: string }[];
+    rashis = results[6] as { id: string; name: string }[];
+    certificates = results[7] as { id: string; name: string }[];
   } catch (e) {
     console.error("Inventory page data fetch failed:", e);
     rawInventory = [];
