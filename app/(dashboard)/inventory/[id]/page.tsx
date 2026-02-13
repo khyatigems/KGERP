@@ -190,9 +190,9 @@ export default async function InventoryDetailPage({
                     <div className="flex flex-col gap-1 mt-1">
                         <p className="text-sm text-muted-foreground font-mono">{detailedItem.sku} · {detailedItem.category}</p>
                         <div className="flex gap-4 text-xs text-muted-foreground">
-                            <span>Created {formatDistanceToNow(detailedItem.createdAt, { addSuffix: true })}</span>
+                            <span>Created {formatDistanceToNow(new Date(detailedItem.createdAt), { addSuffix: true })}</span>
                              {lastEdit && (
-                                <span>Last edited {formatDistanceToNow(lastEdit.createdAt, { addSuffix: true })} by {lastEdit.userName || lastEdit.userId || "System"}</span>
+                                <span>Last edited {formatDistanceToNow(new Date(lastEdit.createdAt), { addSuffix: true })} by {lastEdit.userName || lastEdit.userId || "System"}</span>
                             )}
                         </div>
                     </div>
