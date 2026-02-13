@@ -445,12 +445,19 @@ export default async function InventoryDetailPage({
                                         {log.source !== 'WEB' && <Badge variant="outline" className="ml-2 text-[10px] h-5">{log.source}</Badge>}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                        {log.createdAt.toLocaleString()} ({formatDistanceToNow(log.createdAt, { addSuffix: true })})
+                                        {new Date(log.createdAt).toLocaleString()} ({formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })})
                                     </p>
                                     {log.fieldChanges && (
                                         <div className="text-xs bg-muted/50 p-2 rounded mt-2 font-mono border">
                                             <span className="font-semibold text-muted-foreground">Changes: </span>
-                                            {Object.keys(JSON.parse(log.fieldChanges)).join(", ")}
+                                            {(() => {
+                                                try {
+                                                    const parsed = JSON.parse(log.fieldChanges);
+                                                    return Object.keys(parsed).join(", ");
+                                                } catch {
+                                                    return "Unparsable changes";
+                                                }
+                                            })()}
                                         </div>
                                     )}
                                 </div>
