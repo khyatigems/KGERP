@@ -106,11 +106,12 @@ export default async function InventoryDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const rawItem = await prisma.inventory.findUnique({ where: { id } });
-  const item = rawItem as InventoryWithExtras & { vendor?: { id: string; name: string } | null; media: InventoryMedia[] } | null;
+  try {
+    const { id } = await params;
+    const rawItem = await prisma.inventory.findUnique({ where: { id } });
+    const item = rawItem as InventoryWithExtras & { vendor?: { id: string; name: string } | null; media: InventoryMedia[] } | null;
 
-  if (!item) return <div className="p-6">Inventory Item not found</div>;
+    if (!item) return <div className="p-6">Inventory Item not found</div>;
 
   // We need to fetch related master codes names if they are not included.
   // Actually, we can just fetch them via Prisma include or separate queries.
@@ -385,9 +386,13 @@ export default async function InventoryDetailPage({
                     <div className="space-y-3 text-sm">
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Vendor:</span> 
-                            <Link href={`/vendors/${detailedItem.vendorId}`} className="font-medium text-blue-600 hover:underline">
-                                {vendor?.name || "Unknown Vendor"}
-                            </Link>
+                            {detailedItem.vendorId ? (
+                              <Link href={`/vendors/${detailedItem.vendorId}`} className="font-medium text-blue-600 hover:underline">
+                                  {vendor?.name || "Unknown Vendor"}
+                              </Link>
+                            ) : (
+                              <span className="font-medium">{vendor?.name || "Unknown Vendor"}</span>
+                            )}
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Stock Location:</span> 
@@ -496,4 +501,15 @@ export default async function InventoryDetailPage({
             <MobileInventoryActions id={id} status={detailedItem.status} />
         </div>
     );
+  } catch (error) {
+    console.error("Inventory detail render error:", error);
+    return (
+      <div className="p-6">
+        <div className="bg-destructive/15 text-destructive border-destructive/20 border px-4 py-3 rounded-md relative">
+          <strong className="font-bold">Unable to render Inventory Detail</strong>
+          <span className="block sm:inline"> Please try again. If the issue persists, the item’s data may be missing optional relations. We’ve logged the error.</span>
+        </div>
+      </div>
+    );
+  }
 }
