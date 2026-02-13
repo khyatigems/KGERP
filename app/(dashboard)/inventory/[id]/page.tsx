@@ -14,20 +14,14 @@ import type { Inventory, InventoryMedia } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-const safeDate = (date: any): Date | null => {
+const safeDate = (date: unknown): Date | null => {
   if (!date) return null;
   try {
-    const d = new Date(date);
+    const d = new Date(date as string | number | Date);
     return isNaN(d.getTime()) ? null : d;
   } catch {
     return null;
   }
-};
-
-type InventoryWithExtras = Inventory & {
-  category?: string | null;
-  weightRatti?: number | null;
-  certificates?: { name: string; remarks?: string | null }[];
 };
 
 type DetailedInventory = {
@@ -123,31 +117,33 @@ export default async function InventoryDetailPage({
 }) {
   try {
     const { id } = await params;
-    const rawItem = await prisma.inventory.findUnique({ where: { id } });
-    const item = rawItem as InventoryWithExtras & { vendor?: { id: string; name: string } | null; media: InventoryMedia[] } | null;
-
-    if (!item) return <div className="p-6">Inventory Item not found</div>;
-
-  // We need to fetch related master codes names if they are not included.
-  // Actually, we can just fetch them via Prisma include or separate queries.
-  // Let's re-fetch with include to be safe and clean.
-  let detailedItem: DetailedInventory | null;
-  
-  try {
-      detailedItem = await prisma.inventory.findUnique({
-        where: { id },
-        include: {
-            categoryCode: true,
-            gemstoneCode: true,
-            colorCode: true,
-            collectionCode: true,
-            cutCode: true,
-            rashis: true,
-            media: true,
-            certificates: true
+    
+    // Define detailedItem to hold the final result
+    let detailedItem: DetailedInventory | null = null;
+    
+    try {
+        // Try to fetch with all relations first
+        const result = await prisma.inventory.findUnique({
+          where: { id },
+          include: {
+              categoryCode: true,
+              gemstoneCode: true,
+              colorCode: true,
+              collectionCode: true,
+              cutCode: true,
+              rashis: true,
+              media: true,
+              certificates: true
+          }
+        });
+        
+        // We need to cast the result to DetailedInventory because the include types 
+        // might not perfectly match our manual type definition in strict mode,
+        // specifically regarding nullability of relations vs optional fields.
+        if (result) {
+            detailedItem = result as unknown as DetailedInventory;
         }
-      });
-  } catch (error) {
+    } catch (error) {
       console.error("Detailed inventory fetch failed (strict mode), falling back to safe mode:", error);
       // Fallback: Select only known safe columns + media
       detailedItem = await prisma.inventory.findUnique({
@@ -185,8 +181,8 @@ export default async function InventoryDetailPage({
         detailedItem.colorCode = col;
         detailedItem.collectionCode = coll;
         detailedItem.cutCode = cut;
-        detailedItem.rashis = rashis as any;
-        detailedItem.certificates = certs as any;
+        detailedItem.rashis = rashis as { name: string }[];
+        detailedItem.certificates = certs as { name: string; remarks?: string | null }[];
       }
   }
 
@@ -221,7 +217,6 @@ export default async function InventoryDetailPage({
   const profit = sellingPrice - purchaseCost;
   
   const created = safeDate(detailedItem.createdAt);
-  const updated = safeDate(detailedItem.updatedAt);
   const media = detailedItem.media || [];
   const rashis = detailedItem.rashis || [];
   const certificates = detailedItem.certificates || [];
