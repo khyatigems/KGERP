@@ -24,6 +24,7 @@ type DetailedInventory = {
   id: string;
   sku: string;
   itemName: string;
+  internalName?: string | null;
   category?: string | null;
   gemType?: string | null;
   description?: string | null;
