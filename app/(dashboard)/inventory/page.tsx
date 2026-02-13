@@ -8,7 +8,7 @@ import { LoadingLink } from "@/components/ui/loading-link";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { InventorySearch } from "@/components/inventory/inventory-search";
 import { InventoryCardList } from "@/components/inventory/inventory-card-list";
-import type { Inventory, InventoryMedia, Prisma } from "@prisma/client";
+import type { Inventory, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -17,16 +17,15 @@ type InventoryWithExtras = Inventory & {
 };
 
 type InventoryListItem = Inventory & {
-  media: InventoryMedia[];
-  certificates?: { name: string; remarks?: string | null }[];
+  media: { id: string; createdAt: Date; type: string; inventoryId: string; mediaUrl: string; isPrimary: boolean }[];
   categoryCode?: { name: string; code: string } | null;
   gemstoneCode?: { name: string; code: string } | null;
   colorCode?: { name: string; code: string } | null;
   cutCode?: { name: string; code: string } | null;
   collectionCode?: { name: string } | null;
   rashis?: { name: string }[];
-}
-
+  certificates?: { name: string; remarks?: string | null }[];
+};
 export const metadata: Metadata = {
   title: "Inventory | KhyatiGems™",
 };
@@ -57,59 +56,73 @@ export default async function InventoryPage({
 
   const { query, status, category, gemType, color, vendorId, collectionId, rashiId, weightRange } = await searchParams;
 
-  const where: Prisma.InventoryWhereInput = {};
+  const buildWhere = (strict: boolean): Prisma.InventoryWhereInput => {
+    const w: Prisma.InventoryWhereInput = {};
 
-  if (query) {
-    where.OR = [
-      { sku: { contains: query } },
-      { itemName: { contains: query } },
-    ];
-  }
-
-  if (status && status !== "ALL") where.status = status;
-  if (category && category !== "ALL") {
-      where.AND = [
-          { category: { equals: category } },
-          { categoryCode: { is: { name: { equals: category } } } }
+    if (query) {
+      w.OR = [
+        { sku: { contains: query } },
+        { itemName: { contains: query } },
       ];
-  }
+    }
 
-  if (gemType && gemType !== "ALL") {
-      const gemFilter: Prisma.InventoryWhereInput = {
-          OR: [
-              { gemType: { equals: gemType } },
-              { gemstoneCode: { is: { name: { equals: gemType } } } }
-          ]
-      };
-      where.AND = Array.isArray(where.AND) ? [...where.AND, gemFilter] : [gemFilter];
-  }
-  
-  if (color && color !== "ALL") {
-      const colorFilter: Prisma.InventoryWhereInput = {
-          OR: [
-              { color: { equals: color } },
-              { colorCode: { is: { name: { equals: color } } } }
-          ]
-      };
-      where.AND = Array.isArray(where.AND) ? [...where.AND, colorFilter] : [colorFilter];
-  }
+    if (status && status !== "ALL") w.status = status;
+    
+    if (category && category !== "ALL") {
+        if (strict) {
+            w.OR = [
+                { category: { equals: category } },
+                { categoryCode: { is: { name: { equals: category } } } }
+            ];
+        } else {
+            w.category = category;
+        }
+    }
 
-  if (vendorId && vendorId !== "ALL") where.vendorId = vendorId;
-  
-  if (collectionId && collectionId !== "ALL") where.collectionCodeId = collectionId;
-  
-  if (rashiId && rashiId !== "ALL") {
-      where.rashis = { some: { id: rashiId } };
-  }
+    if (gemType && gemType !== "ALL") {
+        if (strict) {
+            w.OR = [
+                { gemType: { equals: gemType } },
+                { gemstoneCode: { is: { name: { equals: gemType } } } }
+            ];
+        } else {
+            w.gemType = gemType;
+        }
+    }
+    
+    if (color && color !== "ALL") {
+        if (strict) {
+            w.OR = [
+                { color: { equals: color } },
+                { colorCode: { is: { name: { equals: color } } } }
+            ];
+        } else {
+            w.color = color;
+        }
+    }
 
-  if (weightRange && weightRange !== "ALL") {
-      const [min, max] = weightRange.split("-");
-      if (max === "plus") {
-          where.weightValue = { gte: parseFloat(min) };
-      } else {
-          where.weightValue = { gte: parseFloat(min), lte: parseFloat(max) };
-      }
-  }
+    if (vendorId && vendorId !== "ALL") w.vendorId = vendorId;
+    
+    // Only apply strict ID filters if we are in strict mode, as these columns/relations might be missing
+    if (strict) {
+        if (collectionId && collectionId !== "ALL") w.collectionCodeId = collectionId;
+        
+        if (rashiId && rashiId !== "ALL") {
+            w.rashis = { some: { id: rashiId } };
+        }
+    }
+
+    if (weightRange && weightRange !== "ALL") {
+        const [min, max] = weightRange.split("-");
+        if (max === "plus") {
+            w.weightValue = { gte: parseFloat(min) };
+        } else {
+            w.weightValue = { gte: parseFloat(min), lte: parseFloat(max) };
+        }
+    }
+    
+    return w;
+  };
 
   let rawInventory: InventoryListItem[] = [];
   let categories: { id: string; name: string }[] = [];
@@ -119,8 +132,9 @@ export default async function InventoryPage({
   let collections: { id: string; name: string }[] = [];
   let rashis: { id: string; name: string }[] = [];
   let certificates: { id: string; name: string }[] = [];
-  
+
   try {
+    const where = buildWhere(true);
     const results = await Promise.all([
       prisma.inventory.findMany({
         where,
@@ -150,7 +164,6 @@ export default async function InventoryPage({
       prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
       prisma.certificateCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     ]);
-    
     rawInventory = results[0] as InventoryListItem[];
     categories = results[1] as { id: string; name: string }[];
     gemstones = results[2] as { id: string; name: string }[];
@@ -159,55 +172,41 @@ export default async function InventoryPage({
     collections = results[5] as { id: string; name: string }[];
     rashis = results[6] as { id: string; name: string }[];
     certificates = results[7] as { id: string; name: string }[];
-  } catch (e) {
-    console.error("Inventory page data fetch failed:", e);
-    // Fallback: rerun with reduced includes (exclude relations likely missing in DB)
+  } catch (error) {
+    console.error("Inventory fetch failed (strict mode), falling back to safe mode:", error);
     try {
-      const results = await Promise.all([
-        prisma.inventory.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          include: {
-            media: {
-              orderBy: [
-                { isPrimary: 'desc' },
-                { createdAt: 'asc' }
-              ],
-              take: 1
+        const where = buildWhere(false);
+        const results = await Promise.all([
+          prisma.inventory.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            include: {
+              media: {
+                orderBy: [
+                  { isPrimary: 'desc' },
+                  { createdAt: 'asc' }
+                ],
+                take: 1
+              },
+              // Exclude all relation fields that might be missing
             },
-            categoryCode: { select: { name: true, code: true } },
-            gemstoneCode: { select: { name: true, code: true } },
-            colorCode: { select: { name: true, code: true } },
-            cutCode: { select: { name: true, code: true } },
-            collectionCode: { select: { name: true } },
-            // Exclude rashis and certificates in fallback
-          },
-        }),
-        prisma.categoryCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-        prisma.gemstoneCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-        prisma.colorCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-        prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-        prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      ]);
-      
-      rawInventory = results[0] as InventoryListItem[];
-      categories = results[1] as { id: string; name: string }[];
-      gemstones = results[2] as { id: string; name: string }[];
-      colors = results[3] as { id: string; name: string }[];
-      vendors = results[4] as { id: string; name: string }[];
-      collections = results[5] as { id: string; name: string }[];
-      rashis = [];
-      certificates = [];
-    } catch (err) {
-      console.error("Inventory fallback fetch failed:", err);
-      rawInventory = [];
-      categories = [];
-      gemstones = [];
-      colors = [];
-      vendors = [];
-      collections = [];
-      rashis = [];
-      certificates = [];
+          }),
+          // Try to fetch master data individually, if they fail, return empty
+          prisma.categoryCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
+          prisma.gemstoneCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
+          prisma.colorCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
+          prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
+        ]);
+        rawInventory = results[0] as InventoryListItem[];
+        categories = results[1] as { id: string; name: string }[];
+        gemstones = results[2] as { id: string; name: string }[];
+        colors = results[3] as { id: string; name: string }[];
+        vendors = results[4] as { id: string; name: string }[];
+        // Leave others empty
+    } catch (finalError) {
+        console.error("Critical: Inventory fetch failed even in safe mode:", finalError);
+        // Fallback to empty to prevent page crash
+        rawInventory = [];
     }
   }
 
@@ -229,10 +228,10 @@ export default async function InventoryPage({
       cut: item.cutCode?.name || "-",
       shape: item.shape || "-",
       dimensions: item.dimensionsMm || "-",
-      rashi: item.rashis?.map((r: { name: string }) => r.name).join(", ") || "-",
+      rashi: item.rashis?.map(r => r.name).join(", ") || "-",
       collection: item.collectionCode?.name || "-",
       sellingRate: item.sellingRatePerCarat || item.flatSellingPrice || 0,
-      certification: item.certificates?.map((c: { name: string; remarks?: string | null }) => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification || "-",
+      certification: item.certificates?.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification || "-",
       treatment: item.treatment || "-",
       braceletType: item.braceletType || "-",
       beadSize: item.beadSizeMm ? `${item.beadSizeMm}mm` : "-",

@@ -198,7 +198,6 @@ async function renameCloudinaryImageToSku(originalUrl: string, sku: string) {
 }
 
 export async function createInventory(prevState: unknown, formData: FormData) {
-  "use server";
   const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
   if (!perm.success) return { message: perm.message };
 
@@ -423,7 +422,6 @@ export async function updateInventory(
   prevState: unknown,
   formData: FormData
 ) {
-  "use server";
   const perm = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
   if (!perm.success) return { message: perm.message };
 
@@ -501,52 +499,50 @@ export async function updateInventory(
   try {
     const oldInventory = await prisma.inventory.findUnique({ where: { id } });
 
+    const updateData: Prisma.InventoryUpdateInput = {
+      itemName: data.itemName,
+      internalName: data.internalName,
+      category: data.category,
+      gemType: data.gemType || "Mixed",
+      color: data.color,
+      categoryCode: data.categoryCodeId ? { connect: { id: data.categoryCodeId } } : { disconnect: true },
+      gemstoneCode: data.gemstoneCodeId ? { connect: { id: data.gemstoneCodeId } } : { disconnect: true },
+      colorCode: data.colorCodeId ? { connect: { id: data.colorCodeId } } : { disconnect: true },
+      cutCode: data.cutCodeId ? { connect: { id: data.cutCodeId } } : { disconnect: true },
+      collectionCode: data.collectionCodeId ? { connect: { id: data.collectionCodeId } } : { disconnect: true },
+      rashis: { set: data.rashiCodeIds?.map(id => ({ id })) || [] },
+      certificates: { set: data.certificateCodeIds?.map(id => ({ id })) || [] },
+      shape: data.shape,
+      dimensionsMm: data.dimensionsMm,
+      weightValue: data.weightValue,
+      weightUnit: data.weightUnit,
+      carats: data.weightValue || 0,
+      weightRatti,
+      treatment: data.treatment,
+      origin: data.origin,
+      fluorescence: data.fluorescence,
+      transparency: data.transparency,
+      vendor: data.vendorId ? { connect: { id: data.vendorId } } : { disconnect: true },
+      pricingMode: data.pricingMode,
+      purchaseRatePerCarat: data.purchaseRatePerCarat,
+      sellingRatePerCarat: data.sellingRatePerCarat,
+      flatPurchaseCost: data.flatPurchaseCost,
+      flatSellingPrice: data.flatSellingPrice,
+      costPrice,
+      sellingPrice,
+      stockLocation: data.stockLocation,
+      notes: data.notes,
+      certificateComments: data.certificateComments,
+      braceletType: data.braceletType,
+      beadSizeMm: data.beadSizeMm,
+      beadCount: data.beadCount,
+      innerCircumferenceMm: data.innerCircumferenceMm,
+      standardSize: data.standardSize,
+    };
+
     const updatedInventory = await prisma.inventory.update({
       where: { id },
-      data: ({
-        itemName: data.itemName,
-        internalName: data.internalName,
-        category: data.category,
-        gemType: data.gemType || "Mixed",
-        color: data.color,
-        categoryCode: data.categoryCodeId ? { connect: { id: data.categoryCodeId } } : { disconnect: true },
-        gemstoneCode: data.gemstoneCodeId ? { connect: { id: data.gemstoneCodeId } } : { disconnect: true },
-        colorCode: data.colorCodeId ? { connect: { id: data.colorCodeId } } : { disconnect: true },
-        cutCode: data.cutCodeId ? { connect: { id: data.cutCodeId } } : { disconnect: true },
-        collectionCode: data.collectionCodeId ? { connect: { id: data.collectionCodeId } } : { disconnect: true },
-        rashis: { set: data.rashiCodeIds?.map(id => ({ id })) || [] },
-        certificates: { set: data.certificateCodeIds?.map(id => ({ id })) || [] },
-        shape: data.shape,
-        dimensionsMm: data.dimensionsMm,
-        weightValue: data.weightValue,
-        weightUnit: data.weightUnit,
-        carats: data.weightValue || 0,
-        weightRatti,
-        treatment: data.treatment,
-        origin: data.origin,
-        fluorescence: data.fluorescence,
-        transparency: data.transparency,
-        vendor: data.vendorId ? { connect: { id: data.vendorId } } : { disconnect: true },
-        pricingMode: data.pricingMode,
-        purchaseRatePerCarat: data.purchaseRatePerCarat,
-        sellingRatePerCarat: data.sellingRatePerCarat,
-        flatPurchaseCost: data.flatPurchaseCost,
-        flatSellingPrice: data.flatSellingPrice,
-        costPrice,
-        sellingPrice,
-        // profit, // Commented out due to Prisma Client lock
-        stockLocation: data.stockLocation,
-        notes: data.notes,
-        certificateComments: data.certificateComments,
-
-        // Bracelet Fields
-        braceletType: data.braceletType,
-        beadSizeMm: data.beadSizeMm,
-        beadCount: data.beadCount,
-        // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
-        innerCircumferenceMm: data.innerCircumferenceMm,
-        standardSize: data.standardSize,
-      }),
+      data: updateData,
     });
 
     await logActivity({

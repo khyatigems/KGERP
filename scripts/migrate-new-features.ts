@@ -49,7 +49,6 @@ async function main() {
   const sqlStatements = [
     // Add column to Inventory
     `ALTER TABLE "Inventory" ADD COLUMN "collectionCodeId" TEXT;`,
-    `ALTER TABLE "Inventory" ADD COLUMN "certificateComments" TEXT;`,
 
     // Create RashiCode table
     `CREATE TABLE IF NOT EXISTS "RashiCode" (
@@ -121,9 +120,6 @@ async function main() {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("duplicate column name")) {
         console.log("Column already exists, skipping.");
-      } else if (msg.includes("no such column") || msg.includes("no such table")) {
-        console.error("Schema mismatch detected:", msg);
-        console.error("If this is production (Turso), ensure all migrations are applied.");
       } else {
         console.error("Error executing SQL:", msg);
         // Continue? Yes, to ensure others are created.
