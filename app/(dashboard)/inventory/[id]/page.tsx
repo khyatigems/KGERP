@@ -10,7 +10,7 @@ import { MobileInventoryActions } from "@/components/inventory/mobile-inventory-
 import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { GciCertButton } from "@/components/inventory/gci-cert-button";
-import type { Inventory, InventoryMedia } from "@prisma/client";
+import type { InventoryMedia } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -160,7 +160,7 @@ export default async function InventoryDetailPage({
             media: true,
             categoryCodeId: true, gemstoneCodeId: true, colorCodeId: true, collectionCodeId: true, cutCodeId: true
           }
-      }) as any;
+      }) as unknown as DetailedInventory;
 
       if (detailedItem) {
         // Manually fetch missing relations to "fix" the data
