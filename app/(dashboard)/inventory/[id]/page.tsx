@@ -96,6 +96,11 @@ type DetailedInventory = {
   cutCode?: { name: string; code?: string } | null;
   rashis?: { name: string }[];
   certificates?: { name: string; remarks?: string | null }[];
+  categoryCodeId?: string | null;
+  gemstoneCodeId?: string | null;
+  colorCodeId?: string | null;
+  collectionCodeId?: string | null;
+  cutCodeId?: string | null;
 };
 type ActivityLogEntry = {
   id: string;
@@ -157,9 +162,32 @@ export default async function InventoryDetailPage({
             flatSellingPrice: true, purchaseRatePerCarat: true, flatPurchaseCost: true, notes: true, stockLocation: true, purchaseId: true,
             vendorId: true, batchId: true, imageUrl: true, videoUrl: true, rapPrice: true, discountPercent: true, createdAt: true, updatedAt: true,
             media: true,
-            // Exclude relations that might cause crash
+            categoryCodeId: true, gemstoneCodeId: true, colorCodeId: true, collectionCodeId: true, cutCodeId: true
           }
-      }) as DetailedInventory;
+      }) as any;
+
+      if (detailedItem) {
+        // Manually fetch missing relations to "fix" the data
+        const [cat, gem, col, coll, cut, rashis, certs] = await Promise.all([
+            detailedItem.categoryCodeId ? prisma.categoryCode.findUnique({ where: { id: detailedItem.categoryCodeId } }).catch(() => null) : null,
+            detailedItem.gemstoneCodeId ? prisma.gemstoneCode.findUnique({ where: { id: detailedItem.gemstoneCodeId } }).catch(() => null) : null,
+            detailedItem.colorCodeId ? prisma.colorCode.findUnique({ where: { id: detailedItem.colorCodeId } }).catch(() => null) : null,
+            detailedItem.collectionCodeId ? prisma.collectionCode.findUnique({ where: { id: detailedItem.collectionCodeId } }).catch(() => null) : null,
+            detailedItem.cutCodeId ? prisma.cutCode.findUnique({ where: { id: detailedItem.cutCodeId } }).catch(() => null) : null,
+            // Many-to-many relations are harder to fetch without include, but we can try if junction exists
+            // Or just leave them empty as they are not critical for "viewing" scalar details
+            Promise.resolve([]), 
+            Promise.resolve([])
+        ]);
+
+        detailedItem.categoryCode = cat;
+        detailedItem.gemstoneCode = gem;
+        detailedItem.colorCode = col;
+        detailedItem.collectionCode = coll;
+        detailedItem.cutCode = cut;
+        detailedItem.rashis = rashis as any;
+        detailedItem.certificates = certs as any;
+      }
   }
 
   if (!detailedItem) return <div className="p-6">Inventory Item not found</div>;
@@ -531,7 +559,16 @@ export default async function InventoryDetailPage({
       <div className="p-6">
         <div className="bg-destructive/15 text-destructive border-destructive/20 border px-4 py-3 rounded-md relative">
           <strong className="font-bold">Unable to render Inventory Detail</strong>
-          <span className="block sm:inline"> Please try again. If the issue persists, the item’s data may be missing optional relations. We’ve logged the error.</span>
+          <span className="block mt-1 mb-2">Please try again. If the issue persists, the item’s data may be missing optional relations. We’ve logged the error.</span>
+          <div className="text-xs font-mono bg-white/50 p-2 rounded overflow-auto max-h-32 whitespace-pre-wrap">
+            {error instanceof Error ? error.message : String(error)}
+            {error instanceof Error && error.stack && (
+                <details className="mt-1 cursor-pointer">
+                    <summary>Stack Trace</summary>
+                    <pre className="mt-1 text-[10px]">{error.stack}</pre>
+                </details>
+            )}
+          </div>
         </div>
       </div>
     );
