@@ -14,6 +14,16 @@ import type { Inventory, InventoryMedia } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
+const safeDate = (date: any): Date | null => {
+  if (!date) return null;
+  try {
+    const d = new Date(date);
+    return isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
+};
+
 type InventoryWithExtras = Inventory & {
   category?: string | null;
   weightRatti?: number | null;
@@ -181,6 +191,12 @@ export default async function InventoryDetailPage({
       : (detailedItem.flatSellingPrice || 0);
 
   const profit = sellingPrice - purchaseCost;
+  
+  const created = safeDate(detailedItem.createdAt);
+  const updated = safeDate(detailedItem.updatedAt);
+  const media = detailedItem.media || [];
+  const rashis = detailedItem.rashis || [];
+  const certificates = detailedItem.certificates || [];
 
     return (
         <div className="space-y-6 pb-20 md:pb-0">
@@ -190,10 +206,13 @@ export default async function InventoryDetailPage({
                     <div className="flex flex-col gap-1 mt-1">
                         <p className="text-sm text-muted-foreground font-mono">{detailedItem.sku} · {detailedItem.category}</p>
                         <div className="flex gap-4 text-xs text-muted-foreground">
-                            <span>Created {formatDistanceToNow(new Date(detailedItem.createdAt), { addSuffix: true })}</span>
-                             {lastEdit && (
-                                <span>Last edited {formatDistanceToNow(new Date(lastEdit.createdAt), { addSuffix: true })} by {lastEdit.userName || lastEdit.userId || "System"}</span>
-                            )}
+                            <span>Created {created ? formatDistanceToNow(created, { addSuffix: true }) : 'Unknown date'}</span>
+                             {(() => {
+                                const editDate = lastEdit ? safeDate(lastEdit.createdAt) : null;
+                                return editDate ? (
+                                <span>Last edited {formatDistanceToNow(editDate, { addSuffix: true })} by {lastEdit?.userName || lastEdit?.userId || "System"}</span>
+                                ) : null;
+                             })()}
                         </div>
                     </div>
                 </div>
@@ -212,9 +231,9 @@ export default async function InventoryDetailPage({
             {/* Section 1: Media Gallery */}
             <div className="rounded-xl border bg-card p-6 shadow">
                 <h2 className="text-lg font-semibold mb-4">Media Gallery</h2>
-                {detailedItem.media.length > 0 ? (
+                {media.length > 0 ? (
                     <div className="flex gap-4 overflow-x-auto pb-2">
-                        {detailedItem.media.map((m: InventoryMedia, i: number) => (
+                        {media.map((m: InventoryMedia, i: number) => (
                              <div key={m.id} className="relative h-48 w-48 shrink-0 rounded-lg border overflow-hidden">
                                  {m.type === 'image' || m.type === 'IMAGE' ? (
                                      <Image 
@@ -266,8 +285,8 @@ export default async function InventoryDetailPage({
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Rashi:</span> 
                             <span className="font-medium">
-                                {detailedItem.rashis && detailedItem.rashis.length > 0
-                                    ? detailedItem.rashis.map((r: { name: string }) => r.name).join(", ")
+                                {rashis.length > 0
+                                    ? rashis.map((r: { name: string }) => r.name).join(", ")
                                     : "-"}
                             </span>
                         </div>
@@ -323,8 +342,8 @@ export default async function InventoryDetailPage({
                              <span className="text-muted-foreground pt-1">Certification:</span>
                              <div className="flex flex-col items-end w-1/2">
                                  <span className="font-medium text-right">
-                                    {detailedItem.certificates && detailedItem.certificates.length > 0 
-                                        ? detailedItem.certificates
+                                    {certificates.length > 0 
+                                        ? certificates
                                             .map((c: { name: string; remarks?: string | null }) => c.remarks ? `${c.name} (${c.remarks})` : c.name)
                                             .join(", ") 
                                          : (detailedItem.certification || "None")}
@@ -450,7 +469,12 @@ export default async function InventoryDetailPage({
                                         {log.source !== 'WEB' && <Badge variant="outline" className="ml-2 text-[10px] h-5">{log.source}</Badge>}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                        {new Date(log.createdAt).toLocaleString()} ({formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })})
+                                        {(() => {
+                                            const logDate = safeDate(log.createdAt);
+                                            return logDate 
+                                                ? `${logDate.toLocaleString()} (${formatDistanceToNow(logDate, { addSuffix: true })})`
+                                                : "Unknown date";
+                                        })()}
                                     </p>
                                     {log.fieldChanges && (
                                         <div className="text-xs bg-muted/50 p-2 rounded mt-2 font-mono border">
