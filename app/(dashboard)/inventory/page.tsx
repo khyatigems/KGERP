@@ -180,16 +180,23 @@ export default async function InventoryPage({
           prisma.inventory.findMany({
             where,
             orderBy: { createdAt: "desc" },
-            include: {
-              media: {
-                orderBy: [
-                  { isPrimary: 'desc' },
-                  { createdAt: 'asc' }
-                ],
-                take: 1
-              },
-              // Exclude all relation fields that might be missing
-            },
+            select: {
+                id: true, sku: true, itemName: true, internalName: true, category: true, gemType: true, description: true, pieces: true,
+                weightValue: true, weightUnit: true, carats: true, weightRatti: true, costPrice: true, sellingPrice: true, profit: true,
+                status: true, location: true, certificateNo: true, certification: true, lab: true, shape: true, color: true, clarity: true,
+                cut: true, polish: true, symmetry: true, fluorescence: true, measurements: true, dimensionsMm: true, tablePercent: true,
+                depthPercent: true, ratio: true, origin: true, treatment: true, transparency: true, braceletType: true, standardSize: true,
+                beadSizeMm: true, beadCount: true, holeSizeMm: true, innerCircumferenceMm: true, pricingMode: true, sellingRatePerCarat: true,
+                flatSellingPrice: true, purchaseRatePerCarat: true, flatPurchaseCost: true, notes: true, stockLocation: true, purchaseId: true,
+                vendorId: true, batchId: true, imageUrl: true, videoUrl: true, rapPrice: true, discountPercent: true, createdAt: true, updatedAt: true,
+                media: {
+                    orderBy: [
+                        { isPrimary: 'desc' },
+                        { createdAt: 'asc' }
+                    ],
+                    take: 1
+                }
+            }
           }),
           // Try to fetch master data individually, if they fail, return empty
           prisma.categoryCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
@@ -197,7 +204,7 @@ export default async function InventoryPage({
           prisma.colorCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
           prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
         ]);
-        rawInventory = results[0] as InventoryListItem[];
+        rawInventory = results[0] as unknown as InventoryListItem[];
         categories = results[1] as { id: string; name: string }[];
         gemstones = results[2] as { id: string; name: string }[];
         colors = results[3] as { id: string; name: string }[];

@@ -20,6 +20,72 @@ type InventoryWithExtras = Inventory & {
   certificates?: { name: string; remarks?: string | null }[];
 };
 
+type DetailedInventory = {
+  id: string;
+  sku: string;
+  itemName: string;
+  category?: string | null;
+  gemType?: string | null;
+  description?: string | null;
+  pieces?: number | null;
+  weightValue?: number | null;
+  weightUnit?: string | null;
+  carats?: number | null;
+  weightRatti?: number | null;
+  costPrice?: number | null;
+  sellingPrice?: number | null;
+  profit?: number | null;
+  status: string;
+  location?: string | null;
+  certificateNo?: string | null;
+  certification?: string | null;
+  lab?: string | null;
+  shape?: string | null;
+  color?: string | null;
+  clarity?: string | null;
+  cut?: string | null;
+  polish?: string | null;
+  symmetry?: string | null;
+  fluorescence?: string | null;
+  measurements?: string | null;
+  dimensionsMm?: string | null;
+  tablePercent?: number | null;
+  depthPercent?: number | null;
+  ratio?: number | null;
+  origin?: string | null;
+  treatment?: string | null;
+  transparency?: string | null;
+  braceletType?: string | null;
+  standardSize?: string | null;
+  beadSizeMm?: number | null;
+  beadCount?: number | null;
+  holeSizeMm?: number | null;
+  innerCircumferenceMm?: number | null;
+  pricingMode: string;
+  sellingRatePerCarat?: number | null;
+  flatSellingPrice?: number | null;
+  purchaseRatePerCarat?: number | null;
+  flatPurchaseCost?: number | null;
+  notes?: string | null;
+  stockLocation?: string | null;
+  purchaseId?: string | null;
+  vendorId?: string | null;
+  batchId?: string | null;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  rapPrice?: number | null;
+  discountPercent?: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  media: InventoryMedia[];
+  categoryCode?: { name: string; code?: string } | null;
+  gemstoneCode?: { name: string; code?: string } | null;
+  colorCode?: { name: string; code?: string } | null;
+  collectionCode?: { name: string } | null;
+  cutCode?: { name: string; code?: string } | null;
+  rashis?: { name: string }[];
+  certificates?: { name: string; remarks?: string | null }[];
+};
 type ActivityLogEntry = {
   id: string;
   actionType: string;
@@ -48,19 +114,41 @@ export default async function InventoryDetailPage({
   // We need to fetch related master codes names if they are not included.
   // Actually, we can just fetch them via Prisma include or separate queries.
   // Let's re-fetch with include to be safe and clean.
-  const detailedItem = await prisma.inventory.findUnique({
-    where: { id },
-    include: {
-        categoryCode: true,
-        gemstoneCode: true,
-        colorCode: true,
-        collectionCode: true,
-        cutCode: true,
-        rashis: true,
-        media: true,
-        certificates: true
-    }
-  });
+  let detailedItem: DetailedInventory | null;
+  
+  try {
+      detailedItem = await prisma.inventory.findUnique({
+        where: { id },
+        include: {
+            categoryCode: true,
+            gemstoneCode: true,
+            colorCode: true,
+            collectionCode: true,
+            cutCode: true,
+            rashis: true,
+            media: true,
+            certificates: true
+        }
+      });
+  } catch (error) {
+      console.error("Detailed inventory fetch failed (strict mode), falling back to safe mode:", error);
+      // Fallback: Select only known safe columns + media
+      detailedItem = await prisma.inventory.findUnique({
+          where: { id },
+          select: {
+            id: true, sku: true, itemName: true, internalName: true, category: true, gemType: true, description: true, pieces: true,
+            weightValue: true, weightUnit: true, carats: true, weightRatti: true, costPrice: true, sellingPrice: true, profit: true,
+            status: true, location: true, certificateNo: true, certification: true, lab: true, shape: true, color: true, clarity: true,
+            cut: true, polish: true, symmetry: true, fluorescence: true, measurements: true, dimensionsMm: true, tablePercent: true,
+            depthPercent: true, ratio: true, origin: true, treatment: true, transparency: true, braceletType: true, standardSize: true,
+            beadSizeMm: true, beadCount: true, holeSizeMm: true, innerCircumferenceMm: true, pricingMode: true, sellingRatePerCarat: true,
+            flatSellingPrice: true, purchaseRatePerCarat: true, flatPurchaseCost: true, notes: true, stockLocation: true, purchaseId: true,
+            vendorId: true, batchId: true, imageUrl: true, videoUrl: true, rapPrice: true, discountPercent: true, createdAt: true, updatedAt: true,
+            media: true,
+            // Exclude relations that might cause crash
+          }
+      }) as DetailedInventory;
+  }
 
   if (!detailedItem) return <div className="p-6">Inventory Item not found</div>;
 
@@ -233,8 +321,10 @@ export default async function InventoryDetailPage({
                              <span className="text-muted-foreground pt-1">Certification:</span>
                              <div className="flex flex-col items-end w-1/2">
                                  <span className="font-medium text-right">
-                                     {detailedItem.certificates && detailedItem.certificates.length > 0 
-                                         ? detailedItem.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") 
+                                    {detailedItem.certificates && detailedItem.certificates.length > 0 
+                                        ? detailedItem.certificates
+                                            .map((c: { name: string; remarks?: string | null }) => c.remarks ? `${c.name} (${c.remarks})` : c.name)
+                                            .join(", ") 
                                          : (detailedItem.certification || "None")}
                                  </span>
                                  <GciCertButton 

@@ -27,10 +27,12 @@ function loadEnv(filePath: string) {
 loadEnv(envPath);
 loadEnv(envPathLocal); // Override with local if exists
 
-const url = envVars.DATABASE_URL;
+// Allow overriding via command line arg for production
+const url = process.argv[2] || envVars.DATABASE_URL;
 
 if (!url) {
-  console.error("DATABASE_URL not found in .env or .env.local");
+  console.error("DATABASE_URL not found in .env or .env.local and not provided as argument");
+  console.error("Usage: npx tsx scripts/migrate-new-features.ts [CONNECTION_STRING]");
   process.exit(1);
 }
 
@@ -44,13 +46,22 @@ const client = createClient({
 });
 
 async function main() {
-  console.log("Starting manual migration for new features...");
+  console.log(`Starting manual migration for new features on DB: ${clientUrl}...`);
 
   const sqlStatements = [
-    // Add column to Inventory
-    `ALTER TABLE "Inventory" ADD COLUMN "collectionCodeId" TEXT;`,
+    // 1. New Code Tables
+    `CREATE TABLE IF NOT EXISTS "CertificateCode" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "code" TEXT NOT NULL,
+        "remarks" TEXT,
+        "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL
+    );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "CertificateCode_name_key" ON "CertificateCode"("name");`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "CertificateCode_code_key" ON "CertificateCode"("code");`,
 
-    // Create RashiCode table
     `CREATE TABLE IF NOT EXISTS "RashiCode" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "name" TEXT NOT NULL,
@@ -59,10 +70,9 @@ async function main() {
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL
     );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "RashiCode_name_key" ON "RashiCode"("name");`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "RashiCode_code_key" ON "RashiCode"("code");`,
-    `CREATE INDEX IF NOT EXISTS "RashiCode_status_idx" ON "RashiCode"("status");`,
 
-    // Create CollectionCode table
     `CREATE TABLE IF NOT EXISTS "CollectionCode" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "name" TEXT NOT NULL,
@@ -71,63 +81,60 @@ async function main() {
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL
     );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "CollectionCode_name_key" ON "CollectionCode"("name");`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "CollectionCode_code_key" ON "CollectionCode"("code");`,
-    `CREATE INDEX IF NOT EXISTS "CollectionCode_status_idx" ON "CollectionCode"("status");`,
+
+    // 2. Add columns to Inventory (Safe additions)
+    `ALTER TABLE "Inventory" ADD COLUMN "categoryCodeId" TEXT;`,
+    `ALTER TABLE "Inventory" ADD COLUMN "gemstoneCodeId" TEXT;`,
+    `ALTER TABLE "Inventory" ADD COLUMN "colorCodeId" TEXT;`,
+    `ALTER TABLE "Inventory" ADD COLUMN "cutCodeId" TEXT;`,
+    `ALTER TABLE "Inventory" ADD COLUMN "collectionCodeId" TEXT;`,
+    `ALTER TABLE "Inventory" ADD COLUMN "certificateComments" TEXT;`,
     
-    // Add implicit relation table for Inventory <-> RashiCode (Wait, RashiCode[] in Inventory?)
-    // In schema.prisma:
-    // model Inventory { ... rashiCodes RashiCode[] }
-    // model RashiCode { ... inventory Inventory[] }
-    // This is a Many-to-Many relation.
-    // Prisma creates a join table like "_InventoryToRashiCode".
+    // 3. Junction Tables for M-N Relations (Prisma style, no foreign keys due to relationMode="prisma")
+    // Inventory <-> RashiCode
+    `CREATE TABLE IF NOT EXISTS "_InventoryToRashiCode" (
+        "A" TEXT NOT NULL,
+        "B" TEXT NOT NULL
+    );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "_InventoryToRashiCode_AB_unique" ON "_InventoryToRashiCode"("A", "B");`,
+    `CREATE INDEX IF NOT EXISTS "_InventoryToRashiCode_B_index" ON "_InventoryToRashiCode"("B");`,
+
+    // Inventory <-> CertificateCode
+    `CREATE TABLE IF NOT EXISTS "_CertificateCodeToInventory" (
+        "A" TEXT NOT NULL,
+        "B" TEXT NOT NULL
+    );`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "_CertificateCodeToInventory_AB_unique" ON "_CertificateCodeToInventory"("A", "B");`,
+    `CREATE INDEX IF NOT EXISTS "_CertificateCodeToInventory_B_index" ON "_CertificateCodeToInventory"("B");`,
+    
+    // 4. Indexing for new columns
+    `CREATE INDEX IF NOT EXISTS "Inventory_categoryCodeId_idx" ON "Inventory"("categoryCodeId");`,
+    `CREATE INDEX IF NOT EXISTS "Inventory_gemstoneCodeId_idx" ON "Inventory"("gemstoneCodeId");`,
+    `CREATE INDEX IF NOT EXISTS "Inventory_colorCodeId_idx" ON "Inventory"("colorCodeId");`,
+    `CREATE INDEX IF NOT EXISTS "Inventory_cutCodeId_idx" ON "Inventory"("cutCodeId");`,
+    `CREATE INDEX IF NOT EXISTS "Inventory_collectionCodeId_idx" ON "Inventory"("collectionCodeId");`
   ];
 
-  // Need to check the implicit m-n table name and structure Prisma expects.
-  // Standard naming: "_InventoryToRashiCode" (A: Inventory id, B: RashiCode id)
-  // Let's assume standard Prisma convention.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const manyToManySql = [
-      `CREATE TABLE IF NOT EXISTS "_InventoryToRashiCode" (
-          "A" TEXT NOT NULL,
-          "B" TEXT NOT NULL,
-          FOREIGN KEY ("A") REFERENCES "Inventory" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-          FOREIGN KEY ("B") REFERENCES "RashiCode" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-      );`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS "_InventoryToRashiCode_AB_unique" ON "_InventoryToRashiCode"("A", "B");`,
-      `CREATE INDEX IF NOT EXISTS "_InventoryToRashiCode_B_index" ON "_InventoryToRashiCode"("B");`
-  ];
-
-  // However, `relationMode = "prisma"` means NO FOREIGN KEYS in DB.
-  // So the join table should be:
-  const manyToManySqlNoFK = [
-      `CREATE TABLE IF NOT EXISTS "_InventoryToRashiCode" (
-          "A" TEXT NOT NULL,
-          "B" TEXT NOT NULL
-      );`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS "_InventoryToRashiCode_AB_unique" ON "_InventoryToRashiCode"("A", "B");`,
-      `CREATE INDEX IF NOT EXISTS "_InventoryToRashiCode_B_index" ON "_InventoryToRashiCode"("B");`
-  ];
-  
-  // Combine
-  const allStatements = [...sqlStatements, ...manyToManySqlNoFK];
-
-  for (const sql of allStatements) {
+  for (const sql of sqlStatements) {
     try {
-      console.log(`Executing: ${sql}`);
+      console.log(`Executing: ${sql.slice(0, 80)}...`);
       await client.execute(sql);
       console.log("Success.");
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("duplicate column name")) {
         console.log("Column already exists, skipping.");
+      } else if (msg.includes("already exists")) {
+        console.log("Table/Index already exists, skipping.");
       } else {
         console.error("Error executing SQL:", msg);
-        // Continue? Yes, to ensure others are created.
       }
     }
   }
 
-  console.log("Migration finished.");
+  console.log("Migration finished successfully.");
 }
 
 main();
