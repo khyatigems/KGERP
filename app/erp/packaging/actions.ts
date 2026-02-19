@@ -472,35 +472,36 @@ export async function validatePackagingEligibility(inventoryIds: string[]) {
 
 // ---- INVENTORY LIST FOR WIZARD ----
 export async function getPackagingInventory(params?: { search?: string; page?: number; limit?: number }) {
-  const session = await auth();
-  if (!session?.user) throw new Error("Unauthorized");
-  const page = params?.page ?? 1;
-  const limit = params?.limit ?? 20;
-  const skip = (page - 1) * limit;
-  const where = {
-    status: "IN_STOCK",
-    ...(params?.search
-      ? {
-          OR: [
-            { sku: { contains: params.search } },
-            { itemName: { contains: params.search } },
-          ],
-        }
-      : {}),
-  };
-  const [total, items, debugCount, debugAllCount] = await Promise.all([
-    prisma.inventory.count({ where }),
-    prisma.inventory.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: { colorCode: true },
-      skip,
-      take: limit,
-    }),
-    prisma.inventory.count({ where: { status: "IN_STOCK" } }),
+  try {
+    const session = await auth();
+    if (!session?.user) throw new Error("Unauthorized");
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const where = {
+      status: "IN_STOCK",
+      ...(params?.search
+        ? {
+            OR: [
+              { sku: { contains: params.search } },
+              { itemName: { contains: params.search } },
+            ],
+          }
+        : {}),
+    };
+    const [total, items, debugCount, debugAllCount] = await Promise.all([
+      prisma.inventory.count({ where }),
+      prisma.inventory.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: { colorCode: true },
+        skip,
+        take: limit,
+      }),
+      prisma.inventory.count({ where: { status: "IN_STOCK" } }),
       prisma.inventory.count(),
     ]);
-    
+      
     const dbUrl = process.env.DATABASE_URL ? (process.env.DATABASE_URL.includes("@") ? process.env.DATABASE_URL.split("@")[1] : "local/other") : "undefined";
 
     return { 
@@ -513,7 +514,20 @@ export async function getPackagingInventory(params?: { search?: string; page?: n
         dbUrl: dbUrl
       }
     };
+  } catch (error) {
+    console.error("Error in getPackagingInventory:", error);
+    return {
+      success: false,
+      data: [],
+      pagination: { total: 0, page: 1, limit: 20, pages: 0 },
+      debug: {
+        inStockCount: -1,
+        totalCount: -1,
+        dbUrl: "Error caught on server: " + (error instanceof Error ? error.message : String(error))
+      }
+    };
   }
+}
 
 // ---- SERIAL GENERATION ----
 
