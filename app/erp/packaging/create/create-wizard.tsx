@@ -404,12 +404,16 @@ export function CreatePackagingWizard() {
                     <TableCell colSpan={5} className="h-24 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <p>No items found</p>
-                        {debugInfo && (
-                          <p className="text-xs text-muted-foreground">
-                            DB: {debugInfo.dbUrl}<br/>
-                            Total: {debugInfo.totalCount} | In-Stock: {debugInfo.inStockCount}
-                          </p>
-                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {debugInfo ? (
+                            <>
+                              DB: {debugInfo.dbUrl}<br/>
+                              Total: {debugInfo.totalCount} | In-Stock: {debugInfo.inStockCount}
+                            </>
+                          ) : (
+                            "No debug info available"
+                          )}
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
