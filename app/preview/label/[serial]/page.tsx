@@ -80,7 +80,7 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
 
   // 3. Fetch Settings
   const settingsRes = await getPackagingSettings();
-  const s = settingsRes.data || {};
+  const s = (settingsRes.data || {}) as Record<string, any>;
 
   // 4. Prepare Label Data
   const showRegisteredAddress = (s.showRegisteredAddress as boolean | undefined) ?? true;
