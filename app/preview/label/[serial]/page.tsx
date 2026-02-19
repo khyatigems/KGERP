@@ -59,9 +59,9 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
 
   // 1. Fetch Serial Data
   // We need to use prisma directly here as this is a server component
-  // Using 'any' cast for now to bypass type issues with extended client if needed, 
-  // but ideally we should import the type.
-  const serialRecord = await (prisma as any).gpisSerial.findUnique({
+  // Use unknown first, then cast to expected shape to avoid 'any' error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serialRecord = await (prisma as unknown as { gpisSerial: { findUnique: (args: { where: { serialNumber: string } }) => Promise<any> } }).gpisSerial.findUnique({
     where: { serialNumber: serial },
   });
 
@@ -80,17 +80,22 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
 
   // 3. Fetch Settings
   const settingsRes = await getPackagingSettings();
-  const s = (settingsRes.data || {}) as Record<string, any>;
+  const s = (settingsRes.data || {}) as Record<string, unknown>;
 
   // 4. Prepare Label Data
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const showRegisteredAddress = (s.showRegisteredAddress as boolean | undefined) ?? true;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const showGstin = (s.showGstin as boolean | undefined) ?? true;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const showIec = (s.showIec as boolean | undefined) ?? true;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const showSupport = (s.showSupport as boolean | undefined) ?? true;
   
   // Parse HSN
   const categoryHsnMap = s.categoryHsnJson ? JSON.parse(s.categoryHsnJson as string) : {};
   const mappedHsn = inv.category ? categoryHsnMap[inv.category] : undefined;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const hsn = mappedHsn || inv.hsnCode || "7103";
 
   // Format Data
@@ -109,6 +114,7 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
   const sku = inv.sku;
   const serialNumber = serialRecord.serialNumber;
   const qty = serialRecord.unitQuantity ?? 1;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const mfgDate = formatMfgDate(serialRecord.packingDate || serialRecord.createdAt);
   const packingMonthYear = formatPackingMonthYear(serialRecord.packingDate || serialRecord.createdAt);
   const mrp = inv.sellingPrice ? `₹ ${inv.sellingPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : "-";

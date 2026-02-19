@@ -139,9 +139,10 @@ export function CreatePackagingWizard() {
     setLoadingInv(true);
     try {
       const res = await getPackagingInventory({ search: query, page: p ?? page, limit: 10 });
-      if (res.success) {
+      if (res.success && res.data) {
         setInvList(res.data as Inventory[]);
-        setPages(res.pagination.pages);
+        setPages(res.pagination?.pages || 1);
+        setDebugInfo(res.debug || null);
       }
     } finally {
       setLoadingInv(false);
