@@ -227,7 +227,7 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
                  <div className="whitespace-nowrap overflow-hidden text-ellipsis text-[7.5pt] leading-[1.2] mt-[6px]">
                    <strong>Mfd & Packed by:</strong> Khyati Precious Gems Pvt. Ltd.
                  </div>
-                 {s.registeredAddress && showRegisteredAddress && (
+                 {(s.registeredAddress as string) && showRegisteredAddress && (
                     <div className="whitespace-nowrap overflow-hidden text-ellipsis text-[7.5pt] leading-[1.2] mt-[6px]">
                        {String(s.registeredAddress)}
                     </div>

@@ -144,6 +144,9 @@ export function CreatePackagingWizard() {
         setPages(res.pagination?.pages || 1);
         setDebugInfo(res.debug || null);
       }
+    } catch (e) {
+      console.error("Failed to load inventory:", e);
+      setDebugInfo({ dbUrl: "Error: " + (e instanceof Error ? e.message : String(e)), totalCount: -1, inStockCount: -1 });
     } finally {
       setLoadingInv(false);
     }
