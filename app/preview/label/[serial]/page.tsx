@@ -83,13 +83,11 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
   const s = (settingsRes.data || {}) as Record<string, unknown>;
 
   // 4. Prepare Label Data
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const showRegisteredAddress = (s.showRegisteredAddress as boolean | undefined) ?? true;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const showGstin = (s.showGstin as boolean | undefined) ?? true;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const showIec = (s.showIec as boolean | undefined) ?? true;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const showSupport = (s.showSupport as boolean | undefined) ?? true;
   
   // Parse HSN
@@ -231,7 +229,7 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
                  </div>
                  {s.registeredAddress && showRegisteredAddress && (
                     <div className="whitespace-nowrap overflow-hidden text-ellipsis text-[7.5pt] leading-[1.2] mt-[6px]">
-                       {s.registeredAddress as string}
+                       {String(s.registeredAddress)}
                     </div>
                  )}
                   <div className="whitespace-nowrap overflow-hidden text-ellipsis text-[7.5pt] leading-[1.2] mt-[6px]">
@@ -269,7 +267,7 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
           {/* FOOTER STRIP */}
           <div className="absolute bottom-0 h-[18px] w-full bg-[#f2f2f2] flex items-center justify-center">
              <div className="text-[7px] text-[#777]">
-               {s.microBorderText || "KHYATI GEMS AUTHENTIC PRODUCT"}
+               {String(s.microBorderText || "KHYATI GEMS AUTHENTIC PRODUCT")}
              </div>
           </div>
         </div>
