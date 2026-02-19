@@ -939,7 +939,7 @@ function buildGpisLabelData(params: {
     serial: params.serial.serialNumber,
     sku: inv.sku,
     gemstoneName: inv.itemName,
-    stoneType: inv.gemType,
+    stoneType: inv.gemType || "",
     condition: "New",
     weightCarat: inv.weightValue ?? 0,
     weightRatti: inv.weightRatti ?? undefined,
@@ -947,7 +947,7 @@ function buildGpisLabelData(params: {
     color: inv.color ?? undefined,
     clarityGrade: undefined, // Inventory doesn't have clarity field yet? Check schema.
     cutGrade: undefined, // Inventory doesn't have cut field yet? Check schema.
-    treatment: inv.treatment || undefined,
+    treatment: inv.treatment || "",
     originCountry: inv.origin || undefined,
     cutPolishedIn: "India",
     certificateLab: undefined, // inv.certification is a string, not separated lab
