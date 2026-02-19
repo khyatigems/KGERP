@@ -399,8 +399,16 @@ export function CreatePackagingWizard() {
                   </TableRow>
                 ) : invList.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      No items found
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <p>No items found</p>
+                        {debugInfo && (
+                          <p className="text-xs text-muted-foreground">
+                            DB: {debugInfo.dbUrl}<br/>
+                            Total: {debugInfo.totalCount} | In-Stock: {debugInfo.inStockCount}
+                          </p>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (

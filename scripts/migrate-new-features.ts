@@ -28,7 +28,12 @@ loadEnv(envPath);
 loadEnv(envPathLocal); // Override with local if exists
 
 // Allow overriding via command line arg for production
-const url = process.argv[2] || envVars.DATABASE_URL;
+let url = process.argv[2] || envVars.DATABASE_URL;
+
+if (url && url.startsWith("libsql://libsql://")) {
+  url = url.replace("libsql://libsql://", "libsql://");
+  console.log("Corrected malformed URL (removed double protocol prefix).");
+}
 
 if (!url) {
   console.error("DATABASE_URL not found in .env or .env.local and not provided as argument");

@@ -488,7 +488,7 @@ export async function getPackagingInventory(params?: { search?: string; page?: n
         }
       : {}),
   };
-  const [total, items] = await Promise.all([
+  const [total, items, debugCount, debugAllCount] = await Promise.all([
     prisma.inventory.count({ where }),
     prisma.inventory.findMany({
       where,
@@ -497,8 +497,20 @@ export async function getPackagingInventory(params?: { search?: string; page?: n
       skip,
       take: limit,
     }),
+    prisma.inventory.count({ where: { status: "IN_STOCK" } }),
+    prisma.inventory.count(),
   ]);
-  return { success: true, data: items, pagination: { total, page, limit, pages: Math.ceil(total / limit) } };
+  
+  return { 
+    success: true, 
+    data: items, 
+    pagination: { total, page, limit, pages: Math.ceil(total / limit) },
+    debug: {
+      inStockCount: debugCount,
+      totalCount: debugAllCount,
+      dbUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.split("@")[1] || "hidden" : "undefined"
+    }
+  };
 }
 
 // ---- SERIAL GENERATION ----
