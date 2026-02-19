@@ -47,3 +47,5 @@ next-env.d.ts
 # Local Storage
 KhyatiGems_Images/
 
+# Ignore problematic file
+of the module*

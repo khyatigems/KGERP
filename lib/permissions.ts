@@ -40,6 +40,11 @@ export const PERMISSIONS = {
   EXPENSE_EDIT: "expense.edit",
   EXPENSE_DELETE: "expense.delete", // SUPER_ADMIN only
   EXPENSE_REPORT: "expense.report",
+
+  // Packaging (GPIS)
+  PACKAGING_MANAGE: "packaging.manage", // Create serials, settings
+  PACKAGING_VIEW: "packaging.view", // Ledger, logs
+  PACKAGING_PRINT: "packaging.print", // Generate/print labels
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -65,6 +70,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.VENDOR_VIEW,
     PERMISSIONS.REPORTS_VIEW, // Can view basic reports like Labels
     PERMISSIONS.EXPENSE_VIEW,
+    PERMISSIONS.PACKAGING_VIEW, // Can view logs
+    PERMISSIONS.PACKAGING_PRINT,
   ],
   
   ACCOUNTS: [
@@ -81,6 +88,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.EXPENSE_CREATE,
     PERMISSIONS.EXPENSE_EDIT,
     PERMISSIONS.EXPENSE_REPORT,
+    PERMISSIONS.PACKAGING_VIEW,
+    PERMISSIONS.PACKAGING_PRINT,
   ],
   
   VIEWER: [

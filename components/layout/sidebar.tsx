@@ -16,7 +16,8 @@ import {
   Globe,
   Printer,
   Receipt,
-  BookOpen
+  BookOpen,
+  ShieldCheck
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
@@ -26,6 +27,7 @@ export const navItems = [
   { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/listings", label: "Listings", icon: Globe },
   { href: "/labels", label: "Labels", icon: Printer },
+  { href: "/packaging", label: "Packaging Identity", icon: ShieldCheck },
   { href: "/quotes", label: "Quotations", icon: FileText },
   { href: "/sales", label: "Sales", icon: ShoppingCart },
   { href: "/purchases", label: "Purchases", icon: ShoppingBag },

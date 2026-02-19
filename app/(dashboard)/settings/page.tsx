@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "./settings-form";
-import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Database, Settings2, Search, FileText } from "lucide-react";
 import { removeDuplicates } from "@/lib/dedup";
@@ -77,6 +76,16 @@ export default async function SettingsPage() {
                   <FileText className="h-8 w-8 mb-2 text-primary" />
                   <CardTitle>Invoice Settings</CardTitle>
                   <CardDescription>Configure invoice prefixes, terms, and tax settings.</CardDescription>
+                </CardHeader>
+              </Card>
+            </LoadingLink>
+            
+            <LoadingLink href="/settings/packaging">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <FileText className="h-8 w-8 mb-2 text-primary" />
+                  <CardTitle>Packaging Settings</CardTitle>
+                  <CardDescription>Configure branding and label fields for packaging.</CardDescription>
                 </CardHeader>
               </Card>
             </LoadingLink>

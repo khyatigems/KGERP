@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     // --- APPROVAL LOGIC (Part 5) ---
     // const rules = await prisma.approvalRule.findMany({ where: { isActive: true } });
-    const rules: any[] = []; // ApprovalRule schema not added yet
+    const rules: Array<{ ruleType: "MARGIN" | "AMOUNT"; thresholdValue: number }> = []; // ApprovalRule schema not added yet
     let requiresApproval = false;
     let breachReason = "";
 

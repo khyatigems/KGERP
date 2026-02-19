@@ -5,6 +5,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { buildUpiUri } from "@/lib/upi";
 import QRCode from "qrcode";
 import type { Metadata } from "next";
+import type { Prisma } from "@prisma/client";
 import "../quotation.css"; // Import the CSS file
 
 export const metadata: Metadata = {
@@ -18,7 +19,13 @@ export default async function PublicQuotationPage({ params }: { params: Promise<
   const { token } = await params;
 
   // Fetch Quotation with nested media
-  const quotation = await prisma.quotation.findUnique({
+  type QuotationWithItems = Prisma.QuotationGetPayload<{
+    include: {
+      items: { include: { inventory: { include: { media: true } } } };
+    };
+  }>;
+
+  const quotation = (await prisma.quotation.findUnique({
     where: { token },
     include: {
       items: {
@@ -31,7 +38,7 @@ export default async function PublicQuotationPage({ params }: { params: Promise<
         }
       }
     }
-  });
+  })) as QuotationWithItems | null;
 
   if (!quotation) notFound();
 
@@ -167,9 +174,9 @@ export default async function PublicQuotationPage({ params }: { params: Promise<
                         </tr>
                     </thead>
                     <tbody>
-                        {quotation.items.map((item: any) => {
+                        {quotation.items.map((item) => {
                             // Find primary media
-                            const primaryMedia = item.inventory?.media?.find((m: any) => m.isPrimary) || item.inventory?.media?.[0];
+                            const primaryMedia = item.inventory?.media?.find((m) => m.isPrimary) || item.inventory?.media?.[0];
                             const mediaUrl = primaryMedia?.mediaUrl || item.inventory?.imageUrl;
 
                             return (

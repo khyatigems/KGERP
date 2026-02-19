@@ -24,32 +24,43 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // If we were loading, now we should try to hide
     if (isLoading) {
-       if (minTimePassed) {
-         setIsLoading(false);
-         setShouldHide(false);
-       } else {
-         setShouldHide(true);
-       }
+      const timer = setTimeout(() => {
+        if (minTimePassed) {
+          setIsLoading(false);
+          setShouldHide(false);
+        } else {
+          setShouldHide(true);
+        }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [pathname, searchParams, isLoading, minTimePassed]);
 
   // Handle minimum duration logic
   useEffect(() => {
     if (isLoading) {
-      setMinTimePassed(false);
-      setShouldHide(false);
+      const resetTimer = setTimeout(() => {
+        setMinTimePassed(false);
+        setShouldHide(false);
+      }, 0);
       const timer = setTimeout(() => {
         setMinTimePassed(true);
       }, 1500); // Minimum 1.5s display time
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(resetTimer);
+        clearTimeout(timer);
+      };
     }
   }, [isLoading]);
 
   // Effect to close loader once min time passes if we are ready to hide
   useEffect(() => {
     if (minTimePassed && shouldHide) {
-      setIsLoading(false);
-      setShouldHide(false);
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+        setShouldHide(false);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [minTimePassed, shouldHide]);
 

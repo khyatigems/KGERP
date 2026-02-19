@@ -3,7 +3,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 
 const settingsSchema = z.object({
   company_name: z.string().min(1),
@@ -18,7 +17,7 @@ const settingsSchema = z.object({
   quotation_prefix: z.string().default("KGQ"),
 });
 
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import { checkPermission } from "@/lib/permission-guard";
 
 export async function updateSettings(formData: FormData) {

@@ -36,9 +36,35 @@ export async function generateGciCertificate(
       return { success: false, error: "Item already has a GCI certificate" };
     }
 
+    const speciesField = inventory.gemstoneCode?.name || inventory.gemType || "";
+    const varietyField = inventory.gemType || inventory.categoryCode?.name || "";
+    const colorField = inventory.color || inventory.colorCode?.name || "";
+    const weightField = inventory.weightValue || inventory.carats || 0;
+    const shapeField = inventory.shape || inventory.cut || "";
+    const measurementsField = inventory.measurements || inventory.dimensionsMm || "";
+    const originField = additionalData?.origin || inventory.origin || "";
+    const treatmentField = additionalData?.treatment || inventory.treatment || "";
+    const fluorescenceField = additionalData?.fluorescence || inventory.fluorescence || "";
+    const hasImages = (inventory.media && inventory.media.length > 0) || !!inventory.imageUrl;
+
+    const missing: string[] = [];
+    if (!speciesField) missing.push("Species");
+    if (!varietyField) missing.push("Variety");
+    if (!colorField) missing.push("Color");
+    if (!weightField || weightField <= 0) missing.push("Weight");
+    if (!shapeField) missing.push("Shape");
+    if (!measurementsField) missing.push("Measurements");
+    if (!originField) missing.push("Origin");
+    if (!treatmentField) missing.push("Treatments");
+    if (!fluorescenceField) missing.push("Fluorescence");
+    if (!hasImages) missing.push("Images");
+    if (missing.length > 0) {
+      return { success: false, error: `Missing required certificate fields: ${missing.join(", ")}` };
+    }
+
     // 2. Prepare Data for GCI API
-    const variety = inventory.gemType || inventory.gemstoneCode?.name || "Gemstone";
-    const species = "Natural " + variety; // Simplified logic, can be refined
+    const variety = varietyField || "Gemstone";
+    const species = speciesField || "Natural Gemstone";
     
     // Handle Image Conversion to Base64
     let imageBase64 = null;

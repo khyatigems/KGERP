@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { format } from "date-fns";
+import type { Prisma } from "@prisma/client";
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -15,7 +16,7 @@ export async function GET(req: Request) {
   const search = searchParams.get("search");
 
   // Construct WHERE clause (same as in page.tsx)
-  const where: any = search ? {
+  const where: Prisma.PurchaseWhereInput = search ? {
     OR: [
       { invoiceNo: { contains: search } },
       { vendor: { name: { contains: search } } },

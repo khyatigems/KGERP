@@ -361,3 +361,19 @@ export async function getJobReprintItems(jobId: string) {
         return [];
     }
 }
+
+export async function updateLabelJobStatus(jobId: string, status: "PENDING" | "COMPLETED" | "FAILED") {
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, message: "Unauthorized" };
+    try {
+        await prisma.labelPrintJob.update({
+            where: { id: jobId },
+            data: { status }
+        });
+        revalidatePath("/labels");
+        return { success: true };
+    } catch (e) {
+        console.error("updateLabelJobStatus Error:", e);
+        return { success: false, message: "Failed to update job status" };
+    }
+}

@@ -16,8 +16,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PREDEFINED_AVATARS } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
+import type { User } from "@prisma/client";
 
-export default function EditUserForm({ user }: { user: any }) {
+type EditableUser = Pick<User, "id" | "name" | "email" | "role" | "avatar">;
+
+export default function EditUserForm({ user }: { user: EditableUser }) {
   const [error, setError] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(user.avatar || PREDEFINED_AVATARS[0]);
   const router = useRouter();

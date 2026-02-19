@@ -18,6 +18,7 @@ interface PaymentStatusSelectProps {
 }
 
 export function PaymentStatusSelect({ invoiceId, currentStatus, amountDue, totalAmount, disabled }: PaymentStatusSelectProps) {
+  void totalAmount;
   const [status, setStatus] = useState(currentStatus);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);

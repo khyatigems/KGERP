@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  serverExternalPackages: ["puppeteer", "puppeteer-core", "canvas"],
   reactCompiler: true,
   images: {
     remotePatterns: [

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
-import { Activity, Pencil } from "lucide-react";
+import { Activity, Pencil, CheckCircle, XCircle, Circle } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -220,6 +220,18 @@ export default async function InventoryDetailPage({
   const media = detailedItem.media || [];
   const rashis = detailedItem.rashis || [];
   const certificates = detailedItem.certificates || [];
+  const species = detailedItem.gemstoneCode?.name || detailedItem.gemType || "";
+  const variety = detailedItem.gemType || detailedItem.categoryCode?.name || "";
+  const colorVal = detailedItem.colorCode?.name || detailedItem.color || "";
+  const weightValDisplay = detailedItem.weightValue || detailedItem.carats || 0;
+  const shapeVal = detailedItem.shape || detailedItem.cut || "";
+  const measurementsVal = detailedItem.measurements || detailedItem.dimensionsMm || "";
+  const originVal = detailedItem.origin || "";
+  const treatmentVal = detailedItem.treatment || "";
+  const fluorescenceVal = detailedItem.fluorescence || "";
+  const certificateCommentsVal = (detailedItem as unknown as { certificateComments?: string }).certificateComments || "";
+  const imageCount = media.filter((m: InventoryMedia) => (m.type === "image" || m.type === "IMAGE")).length || (detailedItem.imageUrl ? 1 : 0);
+  const meta = { species, variety, color: colorVal, weight: weightValDisplay, shape: shapeVal, measurements: measurementsVal, origin: originVal, treatment: treatmentVal, fluorescence: fluorescenceVal, certificateComments: certificateCommentsVal, imageCount };
 
     return (
         <div className="space-y-6 pb-20 md:pb-0">
@@ -376,9 +388,93 @@ export default async function InventoryDetailPage({
                                      certificateNo={detailedItem.certificateNo}
                                      lab={detailedItem.lab}
                                      certificationUrl={detailedItem.certification}
+                                     meta={meta}
                                  />
                              </div>
                          </div>
+                    </div>
+                 </div>
+                 
+                 <div className="space-y-4 rounded-xl border bg-card p-6 text-card-foreground shadow">
+                    <h2 className="text-lg font-semibold border-b pb-2">Certificate Information Checklist</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {species ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Species</span>
+                            </div>
+                            <span className="font-medium">{species || "-"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {variety ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Variety</span>
+                            </div>
+                            <span className="font-medium">{variety || "-"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {colorVal ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Color</span>
+                            </div>
+                            <span className="font-medium">{colorVal || "-"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {weightValDisplay && weightValDisplay > 0 ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Weight</span>
+                            </div>
+                            <span className="font-medium">{weightValDisplay ? `${weightValDisplay} ${detailedItem.weightUnit || ""}` : "-"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {shapeVal ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Shape</span>
+                            </div>
+                            <span className="font-medium">{shapeVal || "-"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {measurementsVal ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Measurements</span>
+                            </div>
+                            <span className="font-medium">{measurementsVal || "-"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {originVal ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Origin</span>
+                            </div>
+                            <span className="font-medium">{originVal || "-"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {treatmentVal ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Treatments</span>
+                            </div>
+                            <span className="font-medium">{treatmentVal || "None"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {fluorescenceVal ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Fluorescence</span>
+                            </div>
+                            <span className="font-medium">{fluorescenceVal || "None"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {certificateCommentsVal ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Circle className="h-4 w-4 text-gray-400" />}
+                                <span>Certificate Comments (Optional)</span>
+                            </div>
+                            <span className="font-medium">{certificateCommentsVal || "-"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {imageCount > 0 ? <CheckCircle className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                <span>Images</span>
+                            </div>
+                            <span className="font-medium">{imageCount > 0 ? `${imageCount}` : "0"}</span>
+                        </div>
                     </div>
                  </div>
                  

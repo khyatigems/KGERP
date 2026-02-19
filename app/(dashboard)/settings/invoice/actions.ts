@@ -20,7 +20,7 @@ export async function getInvoiceSettings() {
       
       // If we found legacy settings, merge them
       if (Object.keys(config).length > 0) {
-          // @ts-ignore - Constructing a partial object that matches the shape for UI
+          // @ts-expect-error - Constructing a partial object that matches the shape for UI
           paymentSettings = {
               ...(paymentSettings || {}),
               upiEnabled: paymentSettings?.upiEnabled ?? !!config.upi_vpa,
@@ -48,7 +48,7 @@ export async function getInvoiceSettings() {
   };
 }
 
-export async function updateInvoiceSettings(prevState: any, formData: FormData) {
+export async function updateInvoiceSettings(prevState: unknown, formData: FormData) {
   try {
     const prefix = (formData.get("prefix") as string).trim();
     const terms = (formData.get("terms") as string).trim();
@@ -76,7 +76,7 @@ export async function updateInvoiceSettings(prevState: any, formData: FormData) 
     
     // File Uploads
     const signatureFile = formData.get("digitalSignature") as File;
-    let digitalSignatureUrl = formData.get("digitalSignatureUrl") as string | undefined;
+    let digitalSignatureUrl: string | null | undefined = (formData.get("digitalSignatureUrl") as string | null) ?? undefined;
     
     // If a new file is provided, upload it (this overrides the hidden input url if both are present, though UI should prevent that)
     if (signatureFile && signatureFile.size > 0) {
@@ -87,7 +87,7 @@ export async function updateInvoiceSettings(prevState: any, formData: FormData) 
         // However, if we want to keep existing, we rely on the form passing the existing URL back.
         // If the form passes an empty string, it means "remove signature".
         if (digitalSignatureUrl === "") {
-             digitalSignatureUrl = null as any; // Allow null to clear it
+             digitalSignatureUrl = null;
         } else {
              digitalSignatureUrl = undefined; // Do nothing (keep existing)
         }

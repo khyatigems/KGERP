@@ -38,7 +38,6 @@ export default async function InventoryReportsPage() {
 
     // 2. Aging Buckets
     let aging30 = 0;
-    let aging60 = 0;
     let aging90 = 0;
 
     const now = new Date();
@@ -59,7 +58,6 @@ export default async function InventoryReportsPage() {
         // Aging
         const daysOld = Math.floor((now.getTime() - item.createdAt.getTime()) / msPerDay);
         if (daysOld > 90) aging90++;
-        else if (daysOld > 60) aging60++;
         else if (daysOld > 30) aging30++;
     });
 

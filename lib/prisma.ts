@@ -75,16 +75,12 @@ const prismaBase =
   })();
 
 // Debug: Log available models on initialization
-  if (process.env.NODE_ENV !== 'production') {
-    const models = Object.keys(prismaBase).filter(key => !key.startsWith('_') && key[0] === key[0].toLowerCase());
-    console.log("Prisma Client Initialized. Available models:", models.join(", "));
-  }
-
-export const prisma = prismaBase as unknown as PrismaClient & {
-  account: PrismaClient["account"];
-  journalEntry: PrismaClient["journalEntry"];
-  journalLine: PrismaClient["journalLine"];
+if (process.env.NODE_ENV !== 'production') {
+  const models = Object.keys(prismaBase).filter(key => !key.startsWith('_') && key[0] === key[0].toLowerCase());
+  console.log("Prisma Client Initialized. Available models:", models.join(", "));
 }
+
+export const prisma = prismaBase;
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 

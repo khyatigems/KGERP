@@ -24,6 +24,7 @@ const routeTitles: Record<string, string> = {
   "/inventory": "Inventory Management",
   "/listings": "Listing Management",
   "/labels": "Label Printing System",
+  "/packaging": "Packaging Identity",
   "/quotes": "Quotation Management",
   "/sales": "Sales & Orders",
   "/purchases": "Purchase Orders",

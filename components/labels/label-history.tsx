@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getLabelJobs, getJobReprintItems } from "@/app/(dashboard)/labels/actions";
+import { useCallback, useState } from "react";
+import { getLabelJobs, getJobReprintItems, updateLabelJobStatus } from "@/app/(dashboard)/labels/actions";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Printer, RefreshCw, CheckCircle, XCircle, Info } from "lucide-react";
@@ -27,19 +27,11 @@ export function LabelHistory({ initialJobs = [] }: { initialJobs?: LabelJobWithR
     const [jobs, setJobs] = useState<LabelJobWithRelations[]>(initialJobs);
     const [loading, setLoading] = useState(false);
 
-    const loadJobs = async () => {
+    const loadJobs = useCallback(async () => {
         setLoading(true);
         const data = await getLabelJobs();
         setJobs(data);
         setLoading(false);
-    };
-
-    useEffect(() => {
-        if (initialJobs.length === 0) {
-             // eslint-disable-next-line react-hooks/set-state-in-effect
-             void loadJobs();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
@@ -57,6 +49,7 @@ export function LabelHistory({ initialJobs = [] }: { initialJobs?: LabelJobWithR
                             <TableHead>User</TableHead>
                             <TableHead>Items</TableHead>
                             <TableHead>Format</TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead>Validation</TableHead>
                             <TableHead>Action</TableHead>
                         </TableRow>
@@ -84,6 +77,7 @@ export function LabelHistory({ initialJobs = [] }: { initialJobs?: LabelJobWithR
                                             </div>
                                         </TableCell>
                                         <TableCell>{formatConfig.pageSize}</TableCell>
+                                        <TableCell>{job.status}</TableCell>
                                         <TableCell>
                                             {isValid ? (
                                                 <div className="flex items-center text-green-600">
@@ -110,6 +104,10 @@ export function LabelHistory({ initialJobs = [] }: { initialJobs?: LabelJobWithR
 }
 
 function JobDetailsDialog({ job }: { job: LabelJobWithRelations }) {
+    const [qcBarcode, setQcBarcode] = useState(false);
+    const [qcPrint, setQcPrint] = useState(false);
+    const [qcData, setQcData] = useState(false);
+    const [updating, setUpdating] = useState(false);
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -146,6 +144,33 @@ function JobDetailsDialog({ job }: { job: LabelJobWithRelations }) {
                         })}
                     </TableBody>
                 </Table>
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                    <div className="flex items-center gap-2">
+                        <input type="checkbox" checked={qcBarcode} onChange={(e) => setQcBarcode(e.target.checked)} />
+                        <span className="text-sm">Barcode verified</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <input type="checkbox" checked={qcPrint} onChange={(e) => setQcPrint(e.target.checked)} />
+                        <span className="text-sm">Print quality OK</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <input type="checkbox" checked={qcData} onChange={(e) => setQcData(e.target.checked)} />
+                        <span className="text-sm">Data matches SKU</span>
+                    </div>
+                </div>
+                <div className="flex justify-end mt-4">
+                    <Button 
+                        size="sm" 
+                        disabled={updating || !(qcBarcode && qcPrint && qcData)} 
+                        onClick={async () => {
+                            setUpdating(true);
+                            await updateLabelJobStatus(job.id, "COMPLETED");
+                            setUpdating(false);
+                        }}
+                    >
+                        Mark Completed
+                    </Button>
+                </div>
             </DialogContent>
         </Dialog>
     )

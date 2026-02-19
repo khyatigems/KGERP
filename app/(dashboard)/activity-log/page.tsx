@@ -81,7 +81,18 @@ export default async function ActivityLogPage({
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            logs.map((log: any) => (
+                            logs.map((log: {
+                                id: string;
+                                actionType: string;
+                                entityType: string;
+                                entityIdentifier: string | null;
+                                entityId: string | null;
+                                userName: string | null;
+                                userId: string | null;
+                                source: string | null;
+                                createdAt: Date;
+                                fieldChanges: string | null;
+                            }) => (
                                 <TableRow key={log.id}>
                                     <TableCell>
                                         <Badge variant={

@@ -12,7 +12,6 @@ import { generateLabelPDF, LabelConfig, DEFAULT_TAG_CONFIG, DEFAULT_A4_CONFIG, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { createLabelJob } from "@/app/(dashboard)/labels/actions";
-import { encodePrice } from "@/lib/price-encoder";
 import { signOut } from "next-auth/react";
 import JsBarcode from "jsbarcode";
 import { getCompanySettings } from "@/app/(dashboard)/settings/company/actions";
@@ -256,35 +255,6 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         }
     };
 
-    // Calculate preview price
-    const getPreviewPrice = (target: LabelItem) => {
-        const fields = config.selectedFields || DEFAULT_FIELDS;
-        if (!fields.includes("price")) return null;
-
-        // 1. Calculate Total Price (Same as server)
-        let totalPrice = 0;
-        if (target.pricingMode === "PER_CARAT" && target.sellingRatePerCarat && target.weightValue) {
-            totalPrice = target.sellingRatePerCarat * target.weightValue;
-        } else {
-            totalPrice = target.sellingPrice || 0;
-        }
-
-        // 2. Encode
-        const encoded = encodePrice(totalPrice);
-        let display = `R ${encoded.priceWithChecksum}`; // Default: Show Checksum Price
-
-        // 3. Append Per Carat Rate if applicable (User request)
-        if (target.pricingMode === "PER_CARAT" && target.sellingRatePerCarat) {
-            display += ` (${Math.round(target.sellingRatePerCarat).toLocaleString()}/ct)`;
-        } else if (target.pricingMode === "FLAT") {
-            display += ` (Flat)`;
-        }
-
-        return display;
-    };
-    
-    const previewPriceText = targets[0] ? getPreviewPrice(targets[0]) : "";
-
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
@@ -410,103 +380,37 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                                 </div>
                                             </div>
                                         ) : (
-                                            /* Standard Layout Preview */
-                                            <div className="h-full flex flex-col relative text-black leading-tight">
-                                                {(config.selectedFields || DEFAULT_FIELDS).includes("qrCode") && (
-                                                    <div className="absolute top-0 right-0 bg-gray-100 flex items-center justify-center text-[6px]" 
-                                                        style={{ width: `${config.qrSize}mm`, height: `${config.qrSize}mm` }}>QR</div>
-                                                )}
-                                                
-                                                <div className="flex-1">
-                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("itemName") && (
-                                                        <div 
-                                                            className="font-bold mb-0.5 leading-none" 
-                                                            style={{ 
-                                                                fontSize: `${targets[0].itemName.length > 25 ? config.fontSize : config.fontSize + 2}pt`,
-                                                                paddingRight: (config.selectedFields || DEFAULT_FIELDS).includes("qrCode") ? `${config.qrSize + 2}mm` : '0',
-                                                                whiteSpace: 'nowrap',
-                                                                overflow: 'hidden',
-                                                                textOverflow: 'ellipsis'
-                                                            }}
-                                                        >
-                                                            {targets[0].itemName}
-                                                        </div>
-                                                    )}
-
-                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("internalName") && targets[0].internalName && (
-                                                        <div 
-                                                            className="font-bold mb-0.5 leading-none text-gray-700"
-                                                            style={{ fontSize: `${config.fontSize - 1}pt` }}
-                                                        >
-                                                            {targets[0].internalName}
-                                                        </div>
-                                                    )}
-
-                                                    {(config.selectedFields || DEFAULT_FIELDS).includes("sku") && (
-                                                        <div className="font-mono mb-1" style={{ fontSize: `${config.fontSize}pt` }}>
-                                                            {targets[0].sku}
-                                                        </div>
-                                                    )}
-                                                    
-                                                    <div className="space-y-0.5" style={{ fontSize: `${config.fontSize - 1}pt` }}>
-                                                        {((config.selectedFields || DEFAULT_FIELDS).includes("gemType") || (config.selectedFields || DEFAULT_FIELDS).includes("color")) && (
-                                                            <div>
-                                                                {[
-                                                                    (config.selectedFields || DEFAULT_FIELDS).includes("gemType") ? targets[0].gemType : null,
-                                                                    (config.selectedFields || DEFAULT_FIELDS).includes("color") ? targets[0].color : null
-                                                                ].filter(Boolean).join(" • ")}
-                                                            </div>
-                                                        )}
-
-                                                        {((config.selectedFields || DEFAULT_FIELDS).includes("shape") || (config.selectedFields || DEFAULT_FIELDS).includes("dimensions")) && (
-                                                            <div>
-                                                                {[
-                                                                    (config.selectedFields || DEFAULT_FIELDS).includes("shape") ? targets[0].shape : null,
-                                                                    (config.selectedFields || DEFAULT_FIELDS).includes("dimensions") ? targets[0].dimensions : null
-                                                                ].filter(Boolean).join(" • ")}
-                                                            </div>
-                                                        )}
-
-                                                        {(config.selectedFields || DEFAULT_FIELDS).includes("weight") && (
-                                                            <div>
-                                                                {targets[0].weightValue} {targets[0].weightUnit}
-                                                                {targets[0].weightRatti ? ` (${targets[0].weightRatti.toFixed(2)} R)` : ''}
-                                                            </div>
-                                                        )}
-
-                                                        {(config.selectedFields || DEFAULT_FIELDS).includes("stockLocation") && targets[0].stockLocation && (
-                                                            <div className="font-mono text-xs">
-                                                                Loc: {targets[0].stockLocation}
-                                                            </div>
-                                                        )}
-
-                                                        {(config.selectedFields || DEFAULT_FIELDS).includes("price") && previewPriceText && (
-                                                            <div className="font-bold mt-0.5">{previewPriceText.replace("Rs.", "R")}</div>
-                                                        )}
+                                            /* Grid Layout Preview */
+                                            <div 
+                                                className="grid gap-2 p-4 bg-white shadow-sm overflow-auto max-h-[400px]"
+                                                style={{
+                                                    gridTemplateColumns: `repeat(${config.cols}, 1fr)`
+                                                }}
+                                            >
+                                                {Array.from({ length: config.rows * config.cols }).map((_, i) => (
+                                                    <div 
+                                                        key={i}
+                                                        className="border border-gray-200 flex items-center justify-center text-[10px] text-muted-foreground bg-gray-50"
+                                                        style={{
+                                                            width: `${config.labelWidth}mm`,
+                                                            height: `${config.labelHeight}mm`
+                                                        }}
+                                                    >
+                                                        {targets[i] ? targets[i].sku : "Label"}
                                                     </div>
-                                                </div>
-                                                
-                                                {(config.selectedFields || DEFAULT_FIELDS).includes("companyName") && (
-                                                    <div className="absolute bottom-0 w-full text-center text-gray-400" 
-                                                        style={{ fontSize: `4pt` }}>
-                                                        KhyatiGems™
-                                                    </div>
-                                                )}
+                                                ))}
                                             </div>
-                                        )
-                                    )}
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                            <p className="text-xs text-muted-foreground text-center">
-                                Preview is approximate. Actual print depends on printer settings.
-                            </p>
-                        </div>
-                        <div className="flex justify-end pt-4">
-                            <Button onClick={handlePrint} disabled={isPrinting}>
-                                {isPrinting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {isPrinting ? "Generating..." : "Print Labels"}
-                            </Button>
-                        </div>
+
+                            <div className="flex justify-end gap-2 pt-4">
+                                <Button onClick={handlePrint} disabled={isPrinting}>
+                                    {isPrinting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    {isPrinting ? "Generating..." : "Print Labels"}
+                                </Button>
+                            </div>
                     </TabsContent>
 
                     <TabsContent value="settings" className="space-y-4 py-4">

@@ -21,3 +21,21 @@ export function formatDate(date: Date | string) {
     year: "numeric",
   });
 }
+
+export function computeWeightGrams(inv: { weightGrams?: number | null; weightUnit?: string | null; weightValue?: number | null }) {
+  if (inv.weightGrams !== null && inv.weightGrams !== undefined && inv.weightGrams > 0) return inv.weightGrams;
+  
+  const unit = (inv.weightUnit || "").trim().toLowerCase();
+  const value = inv.weightValue ?? 0;
+  
+  if (!value) return 0;
+  
+  // Explicit Grams
+  if (["grams", "gram", "g", "gms", "gm", "gr"].includes(unit)) {
+    return value;
+  }
+  
+  // Explicit Carats or Default (assume Carats if unknown/missing)
+  // 1 Carat = 0.2 Grams
+  return value * 0.2;
+}

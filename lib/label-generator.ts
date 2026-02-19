@@ -19,6 +19,8 @@ export interface LabelItem {
     pricingMode?: string; // PER_CARAT | FLAT
     sellingRatePerCarat?: number | null;
     priceWithChecksum?: string; // Pre-calculated encoded price
+    serialNumber?: string;
+    shortHash?: string;
 }
 
 export interface LabelConfig {
@@ -163,7 +165,6 @@ function generateBarcodeDataUrl(text: string): string {
 }
 
 export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) {
-    // 1. Create PDF
     const isCustomSize = config.pageSize === "TAG" || config.pageSize === "THERMAL";
     const doc = new jsPDF({
         orientation: isCustomSize ? "landscape" : "portrait",
@@ -171,23 +172,21 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
         format: isCustomSize ? [config.labelHeight, config.labelWidth] : "a4"
     });
 
-    // 2. Prepare QR Codes & Barcodes
     const qrCodes: Record<string, string> = {};
     const barcodes: Record<string, string> = {};
-    const baseUrl = window.location.origin + "/preview/"; // Use origin for link
     
-    // Pre-generate Black Logo for Thermal Labels
     let thermalLogoUrl = "";
-    if (config.pageSize === "THERMAL" && (config.selectedFields?.includes("companyLogo") || config.selectedFields?.includes("companyName"))) {
+    if (config.pageSize === "THERMAL" && (config.selectedFields?.includes("companyLogo"))) {
          thermalLogoUrl = await getThermalLogoDataUrl();
     }
 
     for (const item of items) {
-        // QR Code
-        if (!qrCodes[item.sku]) {
+        const key = item.sku;
+        if (!qrCodes[key]) {
             try {
-                // Generate QR linking to preview page
-                qrCodes[item.sku] = await QRCode.toDataURL(baseUrl + item.sku + "?source=qr", { 
+                const url = `${window.location.origin}/preview/${item.sku}?source=qr`;
+                
+                qrCodes[key] = await QRCode.toDataURL(url, { 
                     margin: 0,
                     errorCorrectionLevel: 'M'
                 });
@@ -195,27 +194,24 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
                 console.error("QR Gen Error", e);
             }
         }
-        
-        // Barcode (Use SKU or ID)
-        if (!barcodes[item.sku]) {
-            barcodes[item.sku] = generateBarcodeDataUrl(item.sku);
+        if (!barcodes[key]) {
+            barcodes[key] = generateBarcodeDataUrl(item.sku);
         }
     }
 
-    // 3. Render Labels
     let currentItemIndex = 0;
     
-    // For TAG/THERMAL mode, we create a new page for each item
     if (config.pageSize === "TAG" || config.pageSize === "THERMAL") {
-        // Inject the generated thermal logo into config for renderThermalLabel to use
         const effectiveConfig = { ...config, thermalLogoUrl }; 
 
         items.forEach((item, index) => {
-            if (index > 0) doc.addPage([config.labelHeight, config.labelWidth], "landscape");
-            renderLabel(doc, item, 0, 0, effectiveConfig, qrCodes[item.sku], barcodes[item.sku]);
+            const key = item.serialNumber || item.sku;
+            if (index > 0) {
+                doc.addPage([config.labelHeight, config.labelWidth], "landscape");
+            }
+            renderLabel(doc, item, 0, 0, effectiveConfig, qrCodes[key], barcodes[key]);
         });
     } else {
-        // A4 Grid
         const itemsPerPage = config.rows * config.cols;
         const totalPages = Math.ceil(items.length / itemsPerPage);
 
@@ -227,15 +223,15 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
                     if (currentItemIndex >= items.length) break;
                     
                     const item = items[currentItemIndex];
+                    const key = item.serialNumber || item.sku;
                     const x = config.marginLeft + (col * (config.labelWidth + config.horizontalGap));
                     const y = config.marginTop + (row * (config.labelHeight + config.verticalGap));
                     
-                    // Draw border for debugging/cutting guide (optional, maybe make configurable)
                     doc.setDrawColor(200);
                     doc.setLineWidth(0.1);
                     doc.rect(x, y, config.labelWidth, config.labelHeight);
 
-                    renderLabel(doc, item, x, y, config, qrCodes[item.sku], barcodes[item.sku]);
+                    renderLabel(doc, item, x, y, config, qrCodes[key], barcodes[key]);
                     
                     currentItemIndex++;
                 }
@@ -243,7 +239,6 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
         }
     }
 
-    // 4. Return Blob URL
     return doc.output("bloburl");
 }
 
@@ -499,9 +494,11 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
         const barcodeHeight = 6;
         const barcodeWidth = 35; // Max width
         const barcodeX = (width - barcodeWidth) / 2;
-        const barcodeY = height - barcodeHeight - 1; // 1mm from bottom
+        // Move up slightly to make room for micro text
+        const barcodeY = height - barcodeHeight - 2; 
         
         doc.addImage(barcodeDataUrl, "PNG", barcodeX, barcodeY, barcodeWidth, barcodeHeight);
+
     }
 
     // 4. Company Logo (Bottom Right Placeholder)

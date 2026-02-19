@@ -43,16 +43,18 @@ export function PaymentModal({
 
   useEffect(() => {
     if (isOpen) {
-      // Pre-fill amount based on status
-      if (targetStatus === "PAID") {
-        setAmount(amountDue.toFixed(2));
-      } else {
-        setAmount(""); // Let user enter for partial
-      }
-      setMethod("CASH");
-      setDate(new Date().toISOString().split("T")[0]);
-      setReference("");
-      setNotes("");
+      const timer = setTimeout(() => {
+        if (targetStatus === "PAID") {
+          setAmount(amountDue.toFixed(2));
+        } else {
+          setAmount("");
+        }
+        setMethod("CASH");
+        setDate(new Date().toISOString().split("T")[0]);
+        setReference("");
+        setNotes("");
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, targetStatus, amountDue]);
 

@@ -27,11 +27,14 @@ model User {
   createdAt          DateTime  @default(now())
 
   labelCartItems             LabelCartItem[]
+  packagingCartItems         PackagingCartItem[]
   labelPrintJobs             LabelPrintJob[]
   createdLandingPageVersions LandingPageVersion[]
 
   // Quotation Relations
   createdQuotations  Quotation[]            @relation("CreatedQuotations")
+  createdSerials     SerializedUnit[]       @relation("CreatedSerials")
+  printedSerials     SerializedUnit[]       @relation("PrintedSerials")
   approvedQuotations Quotation[]            @relation("ApprovedQuotations")
   marginAnalytics    SalesMarginAnalytics[]
   priceOverrides     PriceOverrideAudit[]
@@ -222,24 +225,31 @@ model Inventory {
   internalName    String?
   category        String // Loose, Certified, Parcel
   gemType         String?
+  stoneType       String?  @map("stone_type")
   description     String?
   pieces          Int      @default(1)
   weightValue     Float?   @default(0)
   weightUnit      String?
   carats          Float   @default(0)
   weightRatti     Float?
+  weightGrams     Float?   @map("weight_grams")
   costPrice       Float
   sellingPrice    Float
   profit          Float?
+  condition       String   @default("New")
   status          String   @default("IN_STOCK") // IN_STOCK, SOLD, MEMO, PROCESSING
   location        String?
   certificateNo   String?
+  certificateNumber String? @map("certificate_number")
   certification   String?
   lab             String? // GIA, IGI, HRD
+  certificateLab  String?  @default("GCI") @map("certificate_lab")
   shape           String?
   color           String?
   clarity         String?
+  clarityGrade    String?  @map("clarity_grade")
   cut             String?
+  cutGrade        String?  @map("cut_grade")
   polish          String?
   symmetry        String?
   fluorescence    String?
@@ -249,7 +259,11 @@ model Inventory {
   depthPercent    Float?
   ratio           Float?
   origin          String?
+  originCountry   String?  @map("origin_country")
   treatment       String?
+  cutPolishedIn   String?  @default("India") @map("cut_polished_in")
+  qcCode          String?  @map("qc_code")
+  hsnCode         String?  @map("hsn_code")
   transparency    String?
   
   // Jewelry specific fields
@@ -308,6 +322,8 @@ model Inventory {
   memoItems      MemoItem[]
   quotationItems QuotationItem[]
   labelCartItems LabelCartItem[]
+  packagingCartItems PackagingCartItem[]
+  serializedUnits SerializedUnit[]
 
   @@index([purchaseId])
   @@index([status])
@@ -706,6 +722,22 @@ model LabelCartItem {
   @@index([inventoryId])
 }
 
+model PackagingCartItem {
+  id          String   @id @default(uuid())
+  userId      String
+  inventoryId String
+  quantity    Int      @default(1)
+  location    String?
+  addedAt     DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+  inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, inventoryId])
+  @@index([userId])
+  @@index([inventoryId])
+}
+
 model SalesMarginAnalytics {
   id        String   @id @default(uuid())
   userId    String?
@@ -876,4 +908,193 @@ model JournalLine {
   
   @@index([journalEntryId])
   @@index([accountId])
+}
+
+//// SERIALIZED PACKAGING & AUTHENTICATION
+
+model SerializedUnit {
+  id              String    @id @default(uuid())
+  inventoryId     String
+  sku             String
+  serialNumber    String    @unique
+  fullHash        String
+  shortHash       String
+  packagingStatus String    @default("GENERATED") // GENERATED, PRINTED, SOLD, RETURNED, VOID
+  printCount      Int       @default(0)
+  qrScanCount     Int       @default(0)
+  firstScanAt     DateTime?
+  lastScanAt      DateTime?
+  createdAt       DateTime  @default(now())
+  createdById     String
+  printedAt       DateTime?
+  printedById     String?
+  soldAt          DateTime?
+  returnedAt      DateTime?
+  voidReason      String?
+  isActive        Boolean   @default(true)
+
+  inventory       Inventory @relation(fields: [inventoryId], references: [id])
+  createdBy       User      @relation("CreatedSerials", fields: [createdById], references: [id])
+  printedBy       User?     @relation("PrintedSerials", fields: [printedById], references: [id])
+  logs            SerialActivityLog[]
+
+  @@index([inventoryId])
+  @@index([sku])
+  @@index([packagingStatus])
+  @@index([createdAt])
+}
+
+model SerialActivityLog {
+  id              String   @id @default(uuid())
+  serialId        String
+  actionType      String   // GENERATE, PRINT, REPRINT, VERIFY, SELL, RETURN, VOID
+  userId          String?
+  ipAddress       String?
+  userAgent       String?
+  timestamp       DateTime @default(now())
+  metadata        String?  // JSON string
+
+  serial          SerializedUnit @relation(fields: [serialId], references: [id])
+
+  @@index([serialId])
+  @@index([timestamp])
+}
+
+//// GPIS - PACKAGING IDENTITY MODULE (NEW)
+
+model GpisSettings {
+  id                 String   @id @default(uuid())
+  brandName          String?
+  tagline            String?
+  estYear            String?
+  registeredAddress  String?
+  gstin              String?
+  iec                String?
+  supportEmail       String?
+  supportPhone       String?
+  supportTimings     String?
+  website            String?
+  categoryHsnJson    String?  // JSON map: { [category]: hsn }
+  showRegisteredAddress Boolean @default(true)
+  showGstin          Boolean @default(true)
+  showIec            Boolean @default(true)
+  showSupport        Boolean @default(true)
+  showWatermark      Boolean @default(true)
+  watermarkText      String?
+  watermarkOpacity   Int      @default(6) // percent, recommended 3-10
+  watermarkRotation  Int      @default(-30)
+  watermarkFontSize  Int      @default(16)
+  watermarkFontFamily String? @default("helvetica")
+  labelFontFamily    String?  @default("helvetica")
+  microBorderText    String?  @default("KHYATI GEMS AUTHENTIC PRODUCT")
+
+  toleranceCarat     Float    @default(0.05)
+  toleranceGram      Float    @default(0.01)
+  labelVersion       String?
+  logoUrl            String?
+  careInstruction    String?
+  legalMetrologyLine String?
+  updatedAt          DateTime @updatedAt
+}
+
+model GpisLayoutPreset {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  unit         String   @default("MM") // MM | IN
+  pageWidthMm  Float    @default(210)
+  pageHeightMm Float    @default(297)
+  cols         Int      @default(2)
+  rows         Int      @default(5)
+  labelWidthMm Float    @default(100)
+  labelHeightMm Float   @default(50)
+  marginLeftMm Float    @default(5)
+  marginTopMm  Float    @default(23.5)
+  gapXmm       Float    @default(0)
+  gapYmm       Float    @default(0)
+  offsetXmm    Float    @default(0)
+  offsetYmm    Float    @default(0)
+  startPosition Int     @default(1)
+  selectedFieldsJson String? // JSON string array
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("gpis_layout_presets")
+}
+
+model GpisSerial {
+  id                String   @id @default(uuid())
+  sku               String
+  serialNumber      String   @unique
+  categoryCode      String
+  yearMonth         String?
+  runningNumber     Int?
+  hashFragment      String?
+  status            String   @default("ACTIVE") // ACTIVE, REPRINTED, CANCELLED
+  inventoryLocation String?
+  qcCode            String?
+  packedAt          DateTime @default(now())
+  packingDate       DateTime @default(now()) @map("packing_date")
+  reprintCount      Int      @default(0)
+  labelVersion      String?  @map("label_version")
+  unitQuantity      Int      @default(1) @map("unit_quantity")
+  madeIn            String   @default("India") @map("made_in")
+  declaredOriginal  Boolean  @default(true) @map("declared_original")
+  createdBy         String?
+  createdAt         DateTime @default(now())
+
+  printJobItems      GpisPrintJobItem[]
+
+  @@index([sku])
+  @@index([status])
+  @@index([serialNumber])
+}
+
+model GpisPrintJob {
+  id          String   @id @default(uuid())
+  printJobId  String   @unique
+  sku         String?
+  startSerial String?
+  endSerial   String?
+  totalLabels Int?
+  printerType String?  // A4
+  printedBy   String?
+  printedAt   DateTime @default(now())
+  status      String?  // COMPLETED, SUPERSEDED
+  supersededById String?
+  supersededAt DateTime?
+
+  items       GpisPrintJobItem[]
+
+  @@index([printJobId])
+  @@index([sku])
+}
+
+model GpisPrintJobItem {
+  id         String   @id @default(uuid())
+  printJobId String
+  serialId   String
+  serialNumber String
+  sku        String
+  createdAt  DateTime @default(now())
+
+  printJob   GpisPrintJob @relation(fields: [printJobId], references: [id], onDelete: Cascade)
+  serial     GpisSerial   @relation(fields: [serialId], references: [id], onDelete: Cascade)
+
+  @@index([serialNumber])
+  @@index([sku])
+  @@index([printJobId])
+  @@index([serialId])
+  @@map("gpis_print_job_items")
+}
+
+model GpisVerificationLog {
+  id           String   @id @default(uuid())
+  serialNumber String
+  scannedAt    DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  @@index([serialNumber])
+  @@index([scannedAt])
 }

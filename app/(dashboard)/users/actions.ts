@@ -6,8 +6,9 @@ import { hash } from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import { checkPermission } from "@/lib/permission-guard";
+import type { Prisma } from "@prisma/client";
 
 const userSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -29,9 +30,6 @@ export async function createUser(formData: FormData) {
   const perm = await checkPermission(PERMISSIONS.USERS_MANAGE);
   if (!perm.success) return { message: perm.message };
 
-  const session = await auth(); // Still need session for audit if we were logging create action, but here we just need perm check passed.
-  // Actually checkPermission already checked it.
-  
   const data = {
     name: formData.get("name"),
     email: formData.get("email"),
@@ -58,11 +56,12 @@ export async function createUser(formData: FormData) {
         avatar: result.data.avatar,
       },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("User creation error:", e);
-    
-    // Fallback: If avatar fails (likely due to schema mismatch during dev), try without avatar
-    if (e?.message?.includes("Unknown argument") && result.data.avatar) {
+    const message = e instanceof Error ? e.message : "";
+    const code = typeof e === "object" && e && "code" in e ? (e as { code?: unknown }).code : undefined;
+
+    if (message.includes("Unknown argument") && result.data.avatar) {
         try {
             const hashedPassword = await hash(result.data.password, 12);
             await prisma.user.create({
@@ -82,10 +81,10 @@ export async function createUser(formData: FormData) {
         }
     }
 
-    if (e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2002") {
+    if (code === "P2002") {
         return { message: "Email already exists" };
     }
-    return { message: `Failed to create user: ${e.message || "Unknown error"}` };
+    return { message: `Failed to create user: ${message || "Unknown error"}` };
   }
 
   revalidatePath("/users");
@@ -129,7 +128,7 @@ export async function updateUser(id: string, formData: FormData) {
     if (!result.success) return { message: "Invalid input data" };
 
     try {
-        const updateData: any = {
+        const updateData: Prisma.UserUpdateInput = {
             name: result.data.name,
             email: result.data.email,
             role: result.data.role,
@@ -144,9 +143,11 @@ export async function updateUser(id: string, formData: FormData) {
             where: { id },
             data: updateData,
         });
-    } catch (e: any) {
-         // Fallback: If avatar fails (likely due to schema mismatch during dev), try without avatar
-         if (e?.message?.includes("Unknown argument")) {
+    } catch (e: unknown) {
+         const message = e instanceof Error ? e.message : "";
+         const code = typeof e === "object" && e && "code" in e ? (e as { code?: unknown }).code : undefined;
+
+         if (message.includes("Unknown argument")) {
              try {
                  const baseData = {
                     name: result.data.name,
@@ -178,7 +179,7 @@ export async function updateUser(id: string, formData: FormData) {
              }
          }
 
-         if (e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2002") {
+         if (code === "P2002") {
             return { message: "Email already exists" };
         }
         return { message: "Failed to update user" };

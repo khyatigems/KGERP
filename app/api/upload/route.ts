@@ -43,9 +43,15 @@ export async function POST(req: NextRequest) {
         console.log(`Starting upload for ${uniqueFileName}, size: ${file.size} bytes`);
         cloudinaryUrl = await uploadToCloudinary(buffer, uniqueFileName);
         console.log(`Cloudinary upload successful: ${cloudinaryUrl}`);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`Cloudinary upload failed for ${file.name}:`, error);
-        errorMsg = error.message || error.error?.message || JSON.stringify(error) || "Cloudinary Upload failed";
+        const msg =
+          error instanceof Error
+            ? error.message
+            : typeof error === "object" && error && "error" in error
+              ? String((error as { error?: unknown }).error)
+              : "";
+        errorMsg = msg || "Cloudinary Upload failed";
       }
 
       // 2. Backup to ImageKit (Secondary)
@@ -68,10 +74,11 @@ export async function POST(req: NextRequest) {
         } else {
             console.warn(`ImageKit upload returned no URL:`, JSON.stringify(imageKitResult));
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`ImageKit backup failed for ${file.name}:`, error);
         // Do not fail the whole request if backup fails, but log it
-        if (!errorMsg && !cloudinaryUrl) errorMsg = "Both uploads failed: " + error.message;
+        const msg = error instanceof Error ? error.message : "ImageKit upload failed";
+        if (!errorMsg && !cloudinaryUrl) errorMsg = "Both uploads failed: " + msg;
         // else if (errorMsg) errorMsg += " | ImageKit failed: " + error.message; 
       }
 
