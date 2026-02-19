@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
 import { CreatePackagingWizard } from "./create/create-wizard";
 
+export const dynamic = "force-dynamic";
+
 type PrismaRecord = Record<string, unknown>;
 type GpisSettingsRow = {
   updatedAt?: Date | string | null;
