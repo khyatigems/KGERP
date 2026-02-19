@@ -50,6 +50,7 @@ export function CreatePackagingWizard() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [loadingInv, setLoadingInv] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{ inStockCount?: number, totalCount?: number, dbUrl?: string } | null>(null);
 
   // State: Cart / Batch
   const [cartItems, setCartItems] = useState<CartItem[]>([]);

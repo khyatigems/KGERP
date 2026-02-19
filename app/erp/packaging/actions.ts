@@ -498,20 +498,22 @@ export async function getPackagingInventory(params?: { search?: string; page?: n
       take: limit,
     }),
     prisma.inventory.count({ where: { status: "IN_STOCK" } }),
-    prisma.inventory.count(),
-  ]);
-  
-  return { 
-    success: true, 
-    data: items, 
-    pagination: { total, page, limit, pages: Math.ceil(total / limit) },
-    debug: {
-      inStockCount: debugCount,
-      totalCount: debugAllCount,
-      dbUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.split("@")[1] || "hidden" : "undefined"
-    }
-  };
-}
+      prisma.inventory.count(),
+    ]);
+    
+    const dbUrl = process.env.DATABASE_URL ? (process.env.DATABASE_URL.includes("@") ? process.env.DATABASE_URL.split("@")[1] : "local/other") : "undefined";
+
+    return { 
+      success: true, 
+      data: items, 
+      pagination: { total, page, limit, pages: Math.ceil(total / limit) },
+      debug: {
+        inStockCount: debugCount,
+        totalCount: debugAllCount,
+        dbUrl: dbUrl
+      }
+    };
+  }
 
 // ---- SERIAL GENERATION ----
 
