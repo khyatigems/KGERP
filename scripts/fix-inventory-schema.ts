@@ -28,22 +28,23 @@ loadEnv(envPathLocal);
 
 // 2. Initialize DB Client
 let url = process.argv[2] || envVars.DATABASE_URL;
-if (url && url.startsWith("libsql://libsql://")) {
-  url = url.replace("libsql://libsql://", "libsql://");
-}
 
 if (!url) {
   console.error("DATABASE_URL not found. Usage: npx tsx scripts/fix-inventory-schema.ts [CONNECTION_STRING]");
   process.exit(1);
 }
 
-// Extract auth token
-const clientUrl = url.split("?")[0];
-const authToken = new URLSearchParams(url.split("?")[1]).get("authToken") || undefined;
+// Clean up double protocol if present (common copy-paste error)
+if (url.startsWith("libsql://libsql://")) {
+  url = url.replace("libsql://libsql://", "libsql://");
+}
 
+console.log("Connecting to:", url.split("?")[0] + " (token hidden)");
+
+// Pass the full URL string directly to createClient
+// The library handles parsing the authToken from the query string if present
 const client = createClient({
-  url: clientUrl,
-  authToken: authToken,
+  url: url,
 });
 
 // 3. Define Expected Columns
@@ -130,7 +131,7 @@ const expectedColumns: Record<string, string> = {
 };
 
 async function main() {
-  console.log(`Checking schema for 'Inventory' table on ${clientUrl}...`);
+  console.log(`Checking schema for 'Inventory' table...`);
 
   try {
     // Get existing columns
