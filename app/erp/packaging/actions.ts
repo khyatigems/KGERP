@@ -973,8 +973,10 @@ function buildGpisLabelData(params: {
     weightRatti: inv.weightRatti ?? undefined,
     weightGrams: grams,
     color: inv.color ?? undefined,
-    clarityGrade: undefined, // Inventory doesn't have clarity field yet? Check schema.
-    cutGrade: undefined, // Inventory doesn't have cut field yet? Check schema.
+    clarityGrade: inv.clarityGrade || undefined,
+    cutGrade: inv.cutGrade || undefined,
+    shape: inv.shape || undefined,
+    cut: inv.cut || undefined,
     treatment: inv.treatment || "",
     originCountry: inv.origin || undefined,
     cutPolishedIn: "India",

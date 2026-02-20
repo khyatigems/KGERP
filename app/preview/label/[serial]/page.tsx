@@ -17,16 +17,6 @@ export async function generateMetadata({ params }: { params: Promise<{ serial: s
   };
 }
 
-function formatMfgDate(date: Date | null) {
-  if (!date) return "-";
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return "-";
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-}
-
 function formatPackingMonthYear(date: Date | null) {
     if (!date) return "-";
     const d = new Date(date);
@@ -63,7 +53,6 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
 
     // 4. Prepare Label Data
     const showRegisteredAddress = (s.showRegisteredAddress as boolean | undefined) ?? true;
-    const showSupport = (s.showSupport as boolean | undefined) ?? true;
     
     // Parse HSN (if needed internally, though not displayed prominent)
     // const categoryHsnMap = s.categoryHsnJson ? JSON.parse(s.categoryHsnJson as string) : {};
@@ -73,10 +62,7 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
     const stoneType = inv.stoneType || inv.gemType || "Natural";
     const originCountry = inv.originCountry || inv.origin || "-";
     const weightCarat = inv.weightValue?.toFixed(2) ?? "0.00";
-    const weightRatti = inv.weightRatti?.toFixed(2) ?? "-";
     const weightGrams = computeWeightGrams(inv).toFixed(2);
-    const toleranceCarat = (s.toleranceCarat as number) ?? 0.01;
-    const toleranceGram = (s.toleranceGram as number) ?? 0.01;
     const color = inv.color || "-";
     
     // Changes: Shape instead of Clarity
@@ -97,19 +83,12 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
     
     // Certificate Logic
     const certNo = inv.certificateNo || inv.certificateNumber || null;
-    const certLab = inv.lab || inv.certificateLab || "Certificate";
     
     // Detect if certNo is a URL
     const isCertUrl = certNo && (certNo.startsWith("http") || certNo.startsWith("www"));
     
     const logoUrl = (s.logoUrl as string) || null;
     const estYear = (s.estYear as string) || "2023";
-
-    // Prepare Support Info
-    const supportEmail = s.supportEmail as string;
-    const supportPhone = s.supportPhone as string;
-    const website = s.website as string;
-    const supportParts = [supportEmail, supportPhone, website].filter(Boolean);
 
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center py-10 px-4">

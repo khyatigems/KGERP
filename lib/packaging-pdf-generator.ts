@@ -165,6 +165,7 @@ export interface PackagingLabelData {
   labelVariant?: "RETAIL" | "EXPORT";
   labelVersion?: string;
   madeIn?: string;
+  shape?: string;
 }
 
 async function makeQrPng(text: string): Promise<string> {
@@ -402,17 +403,17 @@ async function renderLabel(
   curX += doc.getTextWidth(data.color || "-");
   
   doc.setFont("helvetica", "normal");
-  doc.text(" | Clarity: ", curX, textY);
-  curX += doc.getTextWidth(" | Clarity: ");
+  doc.text(" | Shape: ", curX, textY);
+  curX += doc.getTextWidth(" | Shape: ");
   doc.setFont("helvetica", "bold");
-  doc.text(data.clarity || "-", curX, textY);
-  curX += doc.getTextWidth(data.clarity || "-");
+  doc.text(data.shape || "-", curX, textY);
+  curX += doc.getTextWidth(data.shape || "-");
 
   doc.setFont("helvetica", "normal");
   doc.text(" | Cut: ", curX, textY);
   curX += doc.getTextWidth(" | Cut: ");
   doc.setFont("helvetica", "bold");
-  doc.text(data.cut || "-", curX, textY);
+  doc.text(data.cutGrade || data.cut || "-", curX, textY);
   textY += 2.5; // Reduced spacing (was 3)
 
   // Row 4: Origin

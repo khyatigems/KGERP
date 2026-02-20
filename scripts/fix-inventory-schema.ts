@@ -136,7 +136,7 @@ async function main() {
   try {
     // Get existing columns
     const result = await client.execute("PRAGMA table_info(Inventory)");
-    const existingColumns = new Set(result.rows.map((row: any) => row.name));
+    const existingColumns = new Set(result.rows.map((row) => (row as unknown as { name: string }).name));
     
     console.log("Existing columns:", Array.from(existingColumns).sort().join(", "));
 
