@@ -31,7 +31,7 @@ interface SkuPreviewContentProps {
     media: InventoryMedia[];
     certificates: InventoryCertificate[];
   };
-  companySettings: CompanySettings;
+  companySettings: CompanySettings | null;
   rate: number;
   totalAmount: number;
   isPerCarat: boolean;
