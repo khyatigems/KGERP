@@ -188,6 +188,22 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         });
     };
 
+    const setThermalRollPreset = () => {
+        setConfig({
+            ...DEFAULT_THERMAL_CONFIG,
+            labelWidth: 50,
+            labelHeight: 27.5,
+            marginTop: 0,
+            marginLeft: 0,
+            horizontalGap: 0,
+            verticalGap: 0,
+            qrSize: 10,
+            fontSize: 8,
+            showPrice: config.showPrice,
+            selectedFields: config.selectedFields || DEFAULT_FIELDS
+        });
+    };
+
     const handlePrint = async () => {
         setIsPrinting(true);
         try {
@@ -464,6 +480,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                 <div className="flex flex-wrap gap-2">
                                     <Button variant="outline" onClick={savePreset}>Save Preset</Button>
                                     <Button variant="secondary" onClick={setEpsonL3250}>Epson L3250 Preset</Button>
+                                    <Button variant="secondary" onClick={setThermalRollPreset}>Thermal Roll 50x25+Gap</Button>
                                 </div>
                             </div>
                             <div className="space-y-2">
