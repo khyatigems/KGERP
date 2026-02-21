@@ -8,17 +8,30 @@ import Link from "next/link";
 import { MediaGallery } from "@/components/preview/media-gallery";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { StatusBadge } from "@/components/preview/status-badge";
-import { Inventory } from "@prisma/client";
+import type { Inventory, InventoryMedia } from "@prisma/client";
+
+type InventoryCertificate = {
+  id: string;
+  name: string;
+  remarks?: string | null;
+  [key: string]: unknown;
+};
+
+type CompanySettings = {
+  logoUrl?: string | null;
+  companyName?: string | null;
+  [key: string]: unknown;
+};
 
 interface SkuPreviewContentProps {
   item: Inventory & {
     colorCode?: { name: string } | null;
     gemstoneCode?: { name: string } | null;
     cutCode?: { name: string } | null;
-    media: any[];
-    certificates: any[];
+    media: InventoryMedia[];
+    certificates: InventoryCertificate[];
   };
-  companySettings: any;
+  companySettings: CompanySettings;
   rate: number;
   totalAmount: number;
   isPerCarat: boolean;
@@ -26,6 +39,12 @@ interface SkuPreviewContentProps {
 
 export function SkuPreviewContent({ item, companySettings, rate, totalAmount, isPerCarat }: SkuPreviewContentProps) {
   const displayLogo = companySettings?.logoUrl;
+  const galleryMedia = item.media.map((m) => ({
+    id: m.id,
+    mediaType: m.type,
+    mediaUrl: m.mediaUrl,
+    isPrimary: m.isPrimary,
+  }));
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-4 md:p-8 flex items-center justify-center font-sans">
@@ -57,9 +76,8 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
           </div>
         </CardHeader>
         
-        {/* Media Gallery */}
         <div className="bg-white px-6 pb-2">
-          <MediaGallery media={item.media.map(m => ({...m, mediaType: m.type}))} itemName={item.itemName} />
+          <MediaGallery media={galleryMedia} itemName={item.itemName} />
         </div>
 
         <CardContent className="space-y-8 pt-6 bg-white px-8 pb-10">

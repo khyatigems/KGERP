@@ -78,7 +78,6 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts, certificates] = result.data!;
 
   if (!inventory) {

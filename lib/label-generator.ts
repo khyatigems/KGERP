@@ -152,8 +152,8 @@ function generateBarcodeDataUrl(text: string): string {
         const canvas = document.createElement("canvas");
         JsBarcode(canvas, text, {
             format: "CODE128",
-            width: 1.5, // Narrow width for compact printing
-            height: 30, // Will be scaled in PDF
+            width: 1.2,
+            height: 26,
             displayValue: false, // We print SKU manually
             margin: 0
         });
@@ -491,11 +491,10 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
 
     // 3. Barcode (Bottom Spanning)
     if (barcodeDataUrl) {
-        const barcodeHeight = 6;
-        const barcodeWidth = 35; // Max width
+        const barcodeHeight = 5;
+        const barcodeWidth = 30;
         const barcodeX = (width - barcodeWidth) / 2;
-        // Move up slightly to make room for micro text
-        const barcodeY = height - barcodeHeight - 2; 
+        const barcodeY = height - barcodeHeight - 1; 
         
         doc.addImage(barcodeDataUrl, "PNG", barcodeX, barcodeY, barcodeWidth, barcodeHeight);
 
