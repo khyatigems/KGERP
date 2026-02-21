@@ -13,7 +13,7 @@ export interface InvoiceLabelData {
 
 export const THERMAL_LABEL_CONFIG = {
     width: 50, // mm
-    height: 25, // mm
+    height: 27.5, // mm (25mm label + ~2.5mm gap)
     margin: 2, // mm
 };
 

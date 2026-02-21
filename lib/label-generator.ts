@@ -99,7 +99,7 @@ export const DEFAULT_THERMAL_CONFIG: LabelConfig = {
     horizontalGap: 0,
     verticalGap: 0,
     labelWidth: 50,
-    labelHeight: 25,
+    labelHeight: 27.5,
     showPrice: false,
     showEncodedPrice: false,
     qrSize: 10,
