@@ -25,6 +25,7 @@ export default auth((req) => {
   const isPublicRoute = 
     pathname.startsWith("/login") ||
     pathname.startsWith("/verify") ||
+    pathname.startsWith("/preview") ||
     pathname.startsWith("/api/serials/verify") ||
     pathname.startsWith("/api/auth"); // Removed root "/" from public, as it's dashboard
 
