@@ -485,7 +485,7 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
     // This usually clears the QR code, so it gets full width if Y > qrBottom
     let priceText = `R ${item.priceWithChecksum || item.sellingPrice}`;
     if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
-        priceText += ` (${Math.round(item.sellingRatePerCarat).toLocaleString()}/ct)`;
+        priceText += ` (${Math.round(item.sellingRatePerCarat).toLocaleString()})`;
     }
     printFitText(priceText, currentY, 9, 6, "helvetica", "bold");
 

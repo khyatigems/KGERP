@@ -382,7 +382,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                                             {(() => {
                                                                 let p = `R ${targets[0].priceWithChecksum || targets[0].sellingPrice}`;
                                                                 if (targets[0].pricingMode === "PER_CARAT" && targets[0].sellingRatePerCarat) {
-                                                                    p += ` (${Math.round(targets[0].sellingRatePerCarat).toLocaleString()}/ct)`;
+                                                                    p += ` (${Math.round(targets[0].sellingRatePerCarat).toLocaleString()})`;
                                                                 }
                                                                 return p;
                                                             })()}
