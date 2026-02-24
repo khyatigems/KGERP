@@ -11,16 +11,20 @@ import { randomBytes } from "crypto";
 import { InvoiceData } from "@/lib/invoice-generator";
 import { postJournalEntry, getAccountByCode, ACCOUNTS, PrismaTx } from "@/lib/accounting";
 
-const saleSchema = z.object({
+const saleItemSchema = z.object({
   inventoryId: z.string().uuid("Please select an item"),
+  sellingPrice: z.coerce.number().positive("Selling price must be positive"),
+  discount: z.coerce.number().min(0).default(0),
+});
+
+const saleSchema = z.object({
+  items: z.array(saleItemSchema).min(1, "Select at least one item"),
   platform: z.string().min(1, "Platform is required"),
   saleDate: z.coerce.date(),
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
   customerCity: z.string().optional(),
-  sellingPrice: z.coerce.number().positive("Selling price must be positive"),
-  discount: z.coerce.number().min(0).optional(),
   paymentMode: z.string().optional(),
   paymentStatus: z.string().optional(),
   shippingMethod: z.string().optional(),
@@ -45,7 +49,23 @@ export async function createSale(prevState: unknown, formData: FormData) {
   const rawData = Object.fromEntries(formData.entries());
   const invoiceDisplayOptions = formData.get("invoiceDisplayOptions") as string | null;
 
-  const parsed = saleSchema.safeParse(rawData);
+  let itemsData: { inventoryId: string; sellingPrice: number; discount: number }[] = [];
+  try {
+    if (typeof rawData.items === "string") {
+      itemsData = JSON.parse(rawData.items);
+    } else if (rawData.inventoryId && rawData.sellingPrice) {
+      itemsData = [{
+        inventoryId: String(rawData.inventoryId),
+        sellingPrice: Number(rawData.sellingPrice),
+        discount: rawData.discount ? Number(rawData.discount) : 0
+      }];
+    }
+  } catch {
+    return { message: "Invalid items data" };
+  }
+
+  const payload = { ...rawData, items: itemsData };
+  const parsed = saleSchema.safeParse(payload);
   if (!parsed.success) {
     return { message: "Invalid data", errors: parsed.error.flatten().fieldErrors };
   }
@@ -53,58 +73,43 @@ export async function createSale(prevState: unknown, formData: FormData) {
   const data = parsed.data;
 
   try {
-      // Check if item exists and is in stock
-      const item = await prisma.inventory.findUnique({ where: { id: data.inventoryId }});
-      if (!item) return { message: "Item not found" };
-      if (item.status !== "IN_STOCK" && item.status !== "RESERVED") {
-          return { message: "Item is not available for sale" };
+      const itemIds = data.items.map(i => i.inventoryId);
+      const inventoryItems = await prisma.inventory.findMany({
+          where: { id: { in: itemIds } }
+      });
+
+      if (inventoryItems.length !== itemIds.length) {
+          return { message: "One or more items not found" };
       }
 
-      const sellingPrice = data.sellingPrice;
-      const discount = data.discount || 0;
-      const netAmount = sellingPrice - discount;
-      
-      // Calculate profit
-      // Profit = NetAmount - (PurchaseCost + Expenses)
-      // For now, simple: NetAmount - (FlatPurchaseCost || (Weight * Rate))
-      let cost = item.flatPurchaseCost || 0;
-      if (cost === 0 && item.purchaseRatePerCarat && item.weightValue) {
-          cost = item.purchaseRatePerCarat * item.weightValue; // Assuming cts
+      const inventoryMap = new Map(inventoryItems.map(i => [i.id, i]));
+
+      for (const itemId of itemIds) {
+          const inv = inventoryMap.get(itemId);
+          if (!inv) return { message: "Item not found" };
+          if (inv.status !== "IN_STOCK" && inv.status !== "RESERVED") {
+              return { message: `Item ${inv.sku} is not available for sale` };
+          }
       }
-      
-      const profit = netAmount - cost;
+
+      const computedItems = data.items.map((input) => {
+          const inv = inventoryMap.get(input.inventoryId)!;
+          const sellingPrice = input.sellingPrice;
+          const discount = input.discount || 0;
+          const netAmount = sellingPrice - discount;
+          let cost = inv.flatPurchaseCost || 0;
+          if (cost === 0 && inv.purchaseRatePerCarat && inv.weightValue) {
+              cost = inv.purchaseRatePerCarat * inv.weightValue;
+          }
+          const profit = netAmount - cost;
+          return { inv, sellingPrice, discount, netAmount, profit };
+      });
+
+      const totalNetAmount = computedItems.reduce((sum, i) => sum + i.netAmount, 0);
+      const totalDiscount = computedItems.reduce((sum, i) => sum + i.discount, 0);
 
       await prisma.$transaction(async (tx) => {
-          // 1. Create Sale
-          const sale = await tx.sale.create({
-              data: {
-                  inventoryId: data.inventoryId,
-                  platform: data.platform,
-                  saleDate: data.saleDate,
-                  customerName: data.customerName,
-                  customerPhone: data.customerPhone,
-                  customerEmail: data.customerEmail,
-                  customerCity: data.customerCity,
-                  salePrice: data.sellingPrice,
-                  discountAmount: data.discount || 0,
-                  netAmount: netAmount,
-                  profit: profit,
-                  // paymentMode: data.paymentMode,
-                  paymentMethod: data.paymentMode, 
-                  paymentStatus: data.paymentStatus || "PENDING",
-                  // shippingMethod: data.shippingMethod, // Not in schema
-                  // trackingId: data.trackingId, // Not in schema
-                  notes: data.remarks,
-              }
-          });
-
-          // 2. Update Inventory Status
-          await tx.inventory.update({
-              where: { id: data.inventoryId },
-              data: { status: "SOLD" }
-          });
-
-          // 3. Generate Invoice
+          // 1. Generate Invoice
           // Invoice Number: INV-YYYY-SEQUENCE
           const year = new Date().getFullYear();
           
@@ -166,15 +171,43 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   invoiceNumber,
                   token,
                   isActive: true,
-                  subtotal: netAmount,
+                  subtotal: totalNetAmount,
                   taxTotal: 0, 
-                  discountTotal: data.discount || 0,
-                  totalAmount: netAmount,
+                  discountTotal: totalDiscount,
+                  totalAmount: totalNetAmount,
                   displayOptions: invoiceDisplayOptions
               }
           });
 
-          // 4. Update Quotation Status if linked and handle other quotations with same item
+          // 2. Create Sales and Update Inventory
+          for (const itemData of computedItems) {
+              await tx.sale.create({
+                  data: {
+                      inventoryId: itemData.inv.id,
+                      platform: data.platform,
+                      saleDate: data.saleDate,
+                      customerName: data.customerName,
+                      customerPhone: data.customerPhone,
+                      customerEmail: data.customerEmail,
+                      customerCity: data.customerCity,
+                      salePrice: itemData.sellingPrice,
+                      discountAmount: itemData.discount,
+                      netAmount: itemData.netAmount,
+                      profit: itemData.profit,
+                      paymentMethod: data.paymentMode, 
+                      paymentStatus: data.paymentStatus || "PENDING",
+                      notes: data.remarks,
+                      invoiceId: newInvoice.id
+                  }
+              });
+
+              await tx.inventory.update({
+                  where: { id: itemData.inv.id },
+                  data: { status: "SOLD" }
+              });
+          }
+
+          // 3. Update Quotation Status if linked and handle other quotations with same item
           if (data.quotationId) {
               // 4a. Update the accepted quotation
               await tx.quotation.update({
@@ -190,7 +223,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
               
               const otherQuotationItems = await tx.quotationItem.findMany({
                   where: {
-                      inventoryId: data.inventoryId,
+                      inventoryId: { in: itemIds },
                       quotationId: { not: data.quotationId }, // Exclude the one we just accepted
                       quotation: {
                           status: { in: ["DRAFT", "SENT", "PENDING_APPROVAL", "ACTIVE"] }
@@ -217,7 +250,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
               // we should still expire any active quotations that included this item.
               const quotationItemsWithItem = await tx.quotationItem.findMany({
                   where: {
-                      inventoryId: data.inventoryId,
+                      inventoryId: { in: itemIds },
                       quotation: {
                           status: { in: ["DRAFT", "SENT", "PENDING_APPROVAL", "ACTIVE"] }
                       }
@@ -239,13 +272,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
               }
           }
 
-          // 5. Update Sale with Invoice ID (New Relation)
-          await tx.sale.update({
-              where: { id: sale.id },
-              data: { invoiceId: newInvoice.id }
-          });
-
-          // 6. Accounting Entry (Double Entry)
+          // 4. Accounting Entry (Double Entry)
           try {
               const prismaTx = tx as PrismaTx;
               const acAR = await getAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, prismaTx);
@@ -258,8 +285,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   referenceId: newInvoice.id,
                   userId: session.user.id,
                   lines: [
-                      { accountId: acAR.id, debit: netAmount },
-                      { accountId: acSales.id, credit: netAmount }
+                      { accountId: acAR.id, debit: totalNetAmount },
+                      { accountId: acSales.id, credit: totalNetAmount }
                   ]
               }, prismaTx);
           } catch (accError) {
@@ -268,16 +295,18 @@ export async function createSale(prevState: unknown, formData: FormData) {
           }
       });
 
-      await logActivity({
-          entityType: "Sale",
-          entityId: data.inventoryId, // or sale ID, but inventoryId is good for tracking item history
-          entityIdentifier: item.sku,
-          actionType: "CREATE", // or STATUS_CHANGE
-          source: "WEB",
-          userId: session.user.id,
-          userName: session.user.name || session.user.email || "Unknown",
-          newData: data
-      });
+      for (const itemData of computedItems) {
+          await logActivity({
+              entityType: "Sale",
+              entityId: itemData.inv.id,
+              entityIdentifier: itemData.inv.sku,
+              actionType: "CREATE",
+              source: "WEB",
+              userId: session.user.id,
+              userName: session.user.name || session.user.email || "Unknown",
+              newData: data
+          });
+      }
 
   } catch (e) {
       console.error("Create Sale Error:", e);

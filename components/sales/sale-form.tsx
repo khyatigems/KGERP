@@ -1,10 +1,10 @@
 "use client";
 
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, type Resolver, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState, useEffect } from "react";
-import { Loader2, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +39,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { createSale } from "@/app/(dashboard)/sales/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -46,7 +54,11 @@ import { Inventory } from "@prisma/client";
 import { useSearchParams } from "next/navigation";
 
 const formSchema = z.object({
-  inventoryId: z.string().uuid("Please select an item"),
+  items: z.array(z.object({
+    inventoryId: z.string().uuid("Please select an item"),
+    sellingPrice: z.coerce.number().positive("Selling price must be positive"),
+    discount: z.coerce.number().min(0).default(0),
+  })).min(1, "Select at least one item"),
   platform: z.string().min(1, "Platform is required"),
   saleDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date",
@@ -55,8 +67,6 @@ const formSchema = z.object({
   customerPhone: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
   customerCity: z.string().optional(),
-  sellingPrice: z.coerce.number().positive("Selling price must be positive"),
-  discount: z.coerce.number().min(0).default(0),
   paymentMode: z.string().optional(),
   paymentStatus: z.string().default("PENDING"),
   shippingMethod: z.string().optional(),
@@ -118,18 +128,27 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   const preSelectedInventoryId = searchParams.get("inventoryId");
   const quoteId = searchParams.get("quoteId");
 
+  const getItemPrice = (inventoryId: string) => {
+    const item = inventoryItems.find(i => i.id === inventoryId);
+    if (!item) return 0;
+    if (item.pricingMode === "PER_CARAT") {
+      return (item.sellingRatePerCarat || 0) * (item.weightValue || 0);
+    }
+    return item.flatSellingPrice || 0;
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
-      inventoryId: preSelectedInventoryId || "",
+      items: preSelectedInventoryId
+        ? [{ inventoryId: preSelectedInventoryId, sellingPrice: getItemPrice(preSelectedInventoryId), discount: 0 }]
+        : [],
       platform: "WHATSAPP",
       saleDate: new Date().toISOString().split("T")[0],
       customerName: "",
       customerPhone: "",
       customerEmail: "",
       customerCity: "",
-      sellingPrice: 0,
-      discount: 0,
       paymentMode: "UPI",
       paymentStatus: "PAID",
       shippingMethod: "COURIER",
@@ -139,64 +158,59 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     },
   });
 
-  // Effect to set price if inventory is selected
-  const selectedInventoryId = form.watch("inventoryId");
+  const selectedItems = form.watch("items");
   const autoDelist = form.watch("autoDelistListings");
   
-  useEffect(() => {
-    if (selectedInventoryId) {
-        const item = inventoryItems.find(i => i.id === selectedInventoryId);
-        if (item) {
-            let price = 0;
-            if (item.pricingMode === "PER_CARAT") {
-                price = (item.sellingRatePerCarat || 0) * (item.weightValue || 0);
-            } else {
-                price = item.flatSellingPrice || 0;
-            }
-            // Only set if not already set or if user hasn't modified it? 
-            // For now, let's just default it if it's 0
-            if (form.getValues("sellingPrice") === 0) {
-                form.setValue("sellingPrice", price);
-            }
-        }
-    }
-  }, [selectedInventoryId, inventoryItems, form]);
-
   const [activeListings, setActiveListings] = useState<
-    { id: string; platform: string; listingUrl: string | null }[]
+    { inventoryId: string; listings: { id: string; platform: string; listingUrl: string | null }[] }[]
   >([]);
 
   useEffect(() => {
     async function fetchListings() {
-      if (!selectedInventoryId) {
+      if (!selectedItems.length) {
         setActiveListings([]);
         return;
       }
       try {
-        const res = await fetch(
-          `/api/inventory/${selectedInventoryId}/listings`
+        const results = await Promise.all(
+          selectedItems.map(async (selected) => {
+            const res = await fetch(`/api/inventory/${selected.inventoryId}/listings`);
+            if (!res.ok) {
+              return { inventoryId: selected.inventoryId, listings: [] };
+            }
+            const data = await res.json();
+            return { inventoryId: selected.inventoryId, listings: data.activeListings || [] };
+          })
         );
-        if (!res.ok) {
-          setActiveListings([]);
-          return;
-        }
-        const data = await res.json();
-        setActiveListings(data.activeListings || []);
+        setActiveListings(results);
       } catch {
         setActiveListings([]);
       }
     }
     fetchListings();
-  }, [selectedInventoryId]);
+  }, [selectedItems]);
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "items",
+  });
 
   async function onSubmit(data: FormValues) {
     setIsPending(true);
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        formData.append(key, value.toString());
-      }
-    });
+    formData.append("items", JSON.stringify(data.items));
+    formData.append("platform", data.platform);
+    formData.append("saleDate", data.saleDate);
+    if (data.customerName) formData.append("customerName", data.customerName);
+    if (data.customerPhone) formData.append("customerPhone", data.customerPhone);
+    if (data.customerEmail) formData.append("customerEmail", data.customerEmail);
+    if (data.customerCity) formData.append("customerCity", data.customerCity);
+    if (data.paymentMode) formData.append("paymentMode", data.paymentMode);
+    if (data.paymentStatus) formData.append("paymentStatus", data.paymentStatus);
+    if (data.shippingMethod) formData.append("shippingMethod", data.shippingMethod);
+    if (data.trackingId) formData.append("trackingId", data.trackingId);
+    if (data.remarks) formData.append("remarks", data.remarks);
+    formData.append("autoDelistListings", data.autoDelistListings ? "true" : "false");
     
     if (quoteId) {
         formData.append("quotationId", quoteId);
@@ -234,33 +248,24 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
             
             <FormField
               control={form.control}
-              name="inventoryId"
-              render={({ field }) => (
+              name="items"
+              render={() => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Inventory Item</FormLabel>
+                  <FormLabel>Inventory Items</FormLabel>
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                          )}
-                          disabled={!!preSelectedInventoryId}
-                        >
-                          {field.value
-                            ? (() => {
-                                const item = inventoryItems.find(
-                                  (i) => i.id === field.value
-                                );
-                                return item ? `${item.sku} - ${item.itemName}` : "Select item";
-                              })()
-                            : "Select item"}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between",
+                          !fields.length && "text-muted-foreground"
+                        )}
+                        type="button"
+                      >
+                        Add Item
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[400px] p-0">
                       <Command>
@@ -268,26 +273,33 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                         <CommandList>
                           <CommandEmpty>No item found.</CommandEmpty>
                           <CommandGroup>
-                            {inventoryItems.map((item) => (
-                              <CommandItem
-                                value={`${item.sku} ${item.itemName}`}
-                                key={item.id}
-                                onSelect={() => {
-                                  form.setValue("inventoryId", item.id);
-                                  setOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    item.id === field.value
-                                      ? "opacity-100"
-                                      : "opacity-0"
-                                  )}
-                                />
-                                {item.sku} - {item.itemName}
-                              </CommandItem>
-                            ))}
+                            {inventoryItems.map((item) => {
+                              const isSelected = fields.some((f) => f.inventoryId === item.id);
+                              return (
+                                <CommandItem
+                                  value={`${item.sku} ${item.itemName}`}
+                                  key={item.id}
+                                  onSelect={() => {
+                                    if (!isSelected) {
+                                      append({
+                                        inventoryId: item.id,
+                                        sellingPrice: getItemPrice(item.id),
+                                        discount: 0,
+                                      });
+                                    }
+                                    setOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      isSelected ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {item.sku} - {item.itemName}
+                                </CommandItem>
+                              );
+                            })}
                           </CommandGroup>
                         </CommandList>
                       </Command>
@@ -297,6 +309,73 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                 </FormItem>
               )}
             />
+
+            {fields.length > 0 && (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead className="w-[120px]">Price</TableHead>
+                      <TableHead className="w-[120px]">Discount</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fields.map((field, index) => {
+                      const item = inventoryItems.find(i => i.id === field.inventoryId);
+                      if (!item) return null;
+                      return (
+                        <TableRow key={field.id}>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium text-sm">{item.itemName}</span>
+                              <span className="text-xs text-muted-foreground">{item.sku}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.sellingPrice`}
+                              render={({ field: priceField }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input type="number" {...priceField} />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.discount`}
+                              render={({ field: discountField }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input type="number" {...discountField} />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => remove(index)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -340,60 +419,34 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="sellingPrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Selling Price</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="discount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Discount</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-            </div>
-
-            {activeListings.length > 0 && (
+            {activeListings.some(entry => entry.listings.length > 0) && (
               <div className="border rounded-md p-3 bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-100 border-amber-200 dark:border-amber-800 text-sm space-y-2">
                 <div className="font-semibold">
-                  This item is currently listed on other platforms:
+                  Some selected items are currently listed on other platforms:
                 </div>
                 <ul className="list-disc list-inside">
-                  {activeListings.map((listing) => (
-                    <li key={listing.id}>
-                      {listing.platform}
-                      {listing.listingUrl ? (
-                        <>
-                          {" "}
-                          -{" "}
-                          <a
-                            href={listing.listingUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline"
-                          >
-                            View listing
-                          </a>
-                        </>
-                      ) : null}
-                    </li>
-                  ))}
+                  {activeListings.flatMap((entry) => {
+                    const item = inventoryItems.find(i => i.id === entry.inventoryId);
+                    return entry.listings.map((listing) => (
+                      <li key={listing.id}>
+                        {item ? `${item.sku} - ${item.itemName}` : entry.inventoryId} ({listing.platform})
+                        {listing.listingUrl ? (
+                          <>
+                            {" "}
+                            -{" "}
+                            <a
+                              href={listing.listingUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline"
+                            >
+                              View listing
+                            </a>
+                          </>
+                        ) : null}
+                      </li>
+                    ));
+                  })}
                 </ul>
                 <div className="flex items-center gap-2">
                   <input
