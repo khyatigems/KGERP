@@ -4,6 +4,10 @@ import path from "node:path";
 import { createClient } from "@libsql/client";
 
 const rawUrl = process.env.DATABASE_URL || "";
+if (process.env.RUN_SAFE_MIGRATIONS !== "true") {
+  console.error("Safe migration blocked. Set RUN_SAFE_MIGRATIONS=true to proceed.");
+  process.exit(1);
+}
 const isFile = rawUrl.startsWith("file:");
 const isLibsql = rawUrl.startsWith("libsql:") || rawUrl.startsWith("https:");
 
