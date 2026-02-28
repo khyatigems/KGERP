@@ -3,6 +3,8 @@ import { getLandingPageSettings } from "@/app/(dashboard)/settings/landing-page/
 import { Check } from "lucide-react";
 import Image from "next/image";
 
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage() {
   const settings = await getLandingPageSettings();
   const highlights = settings.highlightsEnabled ? settings.highlights : [];
