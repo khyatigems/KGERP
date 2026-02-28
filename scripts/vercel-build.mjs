@@ -14,4 +14,4 @@ const env = {
 };
 
 execSync("npx prisma migrate deploy", { stdio: "inherit", env });
-execSync("npx prisma generate", { stdio: "inherit", env });
+execSync("next build", { stdio: "inherit", env });

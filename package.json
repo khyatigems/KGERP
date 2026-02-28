@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma migrate deploy && next build",
+    "build": "node scripts/vercel-build.mjs",
     "migrate:safe": "node scripts/safe-migrate.mjs",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "node scripts/prisma-generate.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

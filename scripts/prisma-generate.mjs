@@ -13,5 +13,4 @@ const env = {
   DATABASE_URL: normalizeUrl(process.env.DATABASE_URL),
 };
 
-execSync("npx prisma migrate deploy", { stdio: "inherit", env });
 execSync("npx prisma generate", { stdio: "inherit", env });
