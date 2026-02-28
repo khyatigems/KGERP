@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "node scripts/vercel-build.mjs",
     "migrate:safe": "node scripts/safe-migrate.mjs",
+    "patch:sale-columns": "node scripts/patch-sale-columns.mjs",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "node scripts/prisma-generate.mjs"
