@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   title: "New Purchase | KhyatiGems™",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function NewPurchasePage() {
   const vendors = await prisma.vendor.findMany({
     where: {
