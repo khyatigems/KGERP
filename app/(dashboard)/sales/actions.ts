@@ -9,6 +9,7 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import { randomBytes } from "crypto";
 import { InvoiceData } from "@/lib/invoice-generator";
+import { Prisma } from "@prisma/client";
 import { postJournalEntry, getAccountByCode, ACCOUNTS, PrismaTx } from "@/lib/accounting";
 
 const saleItemSchema = z.object({
@@ -24,7 +25,13 @@ const saleSchema = z.object({
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
+  customerAddress: z.string().optional(),
+  billingAddress: z.string().optional(),
   customerCity: z.string().optional(),
+  placeOfSupply: z.string().optional(),
+  shippingAddress: z.string().optional(),
+  shippingCharge: z.coerce.number().min(0).optional(),
+  additionalCharge: z.coerce.number().min(0).optional(),
   paymentMode: z.string().optional(),
   paymentStatus: z.string().optional(),
   shippingMethod: z.string().optional(),
@@ -105,7 +112,9 @@ export async function createSale(prevState: unknown, formData: FormData) {
           return { inv, sellingPrice, discount, netAmount, profit };
       });
 
-      const totalNetAmount = computedItems.reduce((sum, i) => sum + i.netAmount, 0);
+      const shippingCharge = data.shippingCharge || 0;
+      const additionalCharge = data.additionalCharge || 0;
+      const totalNetAmount = computedItems.reduce((sum, i) => sum + i.netAmount, 0) + shippingCharge + additionalCharge;
       const totalDiscount = computedItems.reduce((sum, i) => sum + i.discount, 0);
 
       await prisma.$transaction(async (tx) => {
@@ -181,24 +190,32 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
           // 2. Create Sales and Update Inventory
           for (const itemData of computedItems) {
+              const saleData = {
+                inventoryId: itemData.inv.id,
+                platform: data.platform,
+                saleDate: data.saleDate,
+                customerName: data.customerName,
+                customerPhone: data.customerPhone,
+                customerEmail: data.customerEmail,
+                customerAddress: data.customerAddress || data.billingAddress,
+                billingAddress: data.billingAddress,
+                customerCity: data.customerCity,
+                placeOfSupply: data.placeOfSupply,
+                shippingAddress: data.shippingAddress,
+                shippingCharge: shippingCharge,
+                additionalCharge: additionalCharge,
+                salePrice: itemData.sellingPrice,
+                discountAmount: itemData.discount,
+                netAmount: itemData.netAmount,
+                profit: itemData.profit,
+                paymentMethod: data.paymentMode,
+                paymentStatus: data.paymentStatus || "PENDING",
+                notes: data.remarks,
+                invoiceId: newInvoice.id
+              } as Prisma.SaleUncheckedCreateInput;
+
               await tx.sale.create({
-                  data: {
-                      inventoryId: itemData.inv.id,
-                      platform: data.platform,
-                      saleDate: data.saleDate,
-                      customerName: data.customerName,
-                      customerPhone: data.customerPhone,
-                      customerEmail: data.customerEmail,
-                      customerCity: data.customerCity,
-                      salePrice: itemData.sellingPrice,
-                      discountAmount: itemData.discount,
-                      netAmount: itemData.netAmount,
-                      profit: itemData.profit,
-                      paymentMethod: data.paymentMode, 
-                      paymentStatus: data.paymentStatus || "PENDING",
-                      notes: data.remarks,
-                      invoiceId: newInvoice.id
-                  }
+                data: saleData
               });
 
               await tx.inventory.update({
@@ -471,18 +488,21 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
         descriptionParts.push(item.inventory.itemName);
 
         const details: string[] = [];
-        if (displayOptions.showWeight) details.push(`${item.inventory.weightValue} ${item.inventory.weightUnit}`);
-        if (displayOptions.showRatti && item.inventory.weightRatti) details.push(`Ratti: ${item.inventory.weightRatti}`);
-        if (displayOptions.showDimensions && (item.inventory.dimensionsMm || item.inventory.measurements)) details.push(`Dim: ${item.inventory.dimensionsMm || item.inventory.measurements}`);
-        if (displayOptions.showGemType && item.inventory.gemType) details.push(`Type: ${item.inventory.gemType}`);
-        if (displayOptions.showColor && item.inventory.color) details.push(`Color: ${item.inventory.color}`);
-        if (displayOptions.showShape && item.inventory.shape) details.push(`Shape: ${item.inventory.shape}`);
-        
-        if (details.length > 0) descriptionParts.push(details.join(" • "));
-
-        if (displayOptions.showPrice && item.inventory.pricingMode === "PER_CARAT") {
-            descriptionParts.push(`Rate: ${item.inventory.sellingRatePerCarat}/ct`);
+        if (displayOptions.showWeight) {
+            const unit = item.inventory.weightUnit || "cts";
+            const label = unit.toLowerCase().includes("ct") ? "Carat" : "Weight";
+            details.push(`${label}: ${item.inventory.weightValue} ${unit}`);
         }
+        if (displayOptions.showRatti && item.inventory.weightRatti) details.push(`Ratti: ${item.inventory.weightRatti}`);
+        if (displayOptions.showPrice) {
+            const rateValue = item.inventory.pricingMode === "PER_CARAT"
+              ? item.inventory.sellingRatePerCarat
+              : item.inventory.flatSellingPrice;
+            const rateFallback = rateValue ?? basePrice ?? 0;
+            details.push(`Rate: Rs. ${Number(rateFallback || 0).toFixed(2)}`);
+        }
+        
+        if (details.length > 0) descriptionParts.push(details.join(" | "));
 
         return {
             sku: displayOptions.showSku ? item.inventory.sku : "",
@@ -501,7 +521,9 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
     const subtotalBase = processedItems.reduce((sum, item) => sum + item.basePrice, 0);
     const totalGst = processedItems.reduce((sum, item) => sum + item.gstAmount, 0);
     const discount = processedItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-    const total = processedItems.reduce((sum, item) => sum + item.total, 0);
+    const shippingCharge = sale.shippingCharge || 0;
+    const additionalCharge = sale.additionalCharge || 0;
+    const total = processedItems.reduce((sum, item) => sum + item.total, 0) + shippingCharge + additionalCharge;
 
     // Payment Status
     const allPaid = salesItems.every((s) => s.paymentStatus === "PAID");
@@ -520,7 +542,10 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
     // Customer
     // Prefer sale customer, then invoice/quotation customer
     const customerName = sale.customerName || invoice.quotation?.customer?.name || "Walk-in Customer";
-    const customerAddress = sale.customerCity || invoice.quotation?.customer?.city || invoice.quotation?.customer?.address || "";
+    const customerAddress = sale.customerAddress || sale.customerCity || invoice.quotation?.customer?.address || invoice.quotation?.customer?.city || "";
+    const billingAddress = sale.billingAddress || sale.customerAddress || customerAddress;
+    const shippingAddress = sale.shippingAddress || billingAddress;
+    const placeOfSupply = sale.placeOfSupply || sale.customerCity || billingAddress || "-";
     const customerPhone = sale.customerPhone || invoice.quotation?.customer?.phone || "";
     const customerEmail = sale.customerEmail || invoice.quotation?.customer?.email || "";
 
@@ -537,6 +562,7 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
             address: companySettings?.address || "",
             email: companySettings?.email || "",
             phone: companySettings?.phone || "",
+            website: companySettings?.website || "",
             gstin: companySettings?.gstin || undefined,
             logoUrl: companySettings?.invoiceLogoUrl || companySettings?.logoUrl || undefined,
         },
@@ -546,23 +572,38 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
             phone: customerPhone,
             email: customerEmail,
         },
-        items: processedItems.map(item => ({
-            sku: item.sku,
-            description: item.description,
-            quantity: 1,
-            unitPrice: item.basePrice,
-            gstRate: item.gstRate,
-            gstAmount: item.gstAmount,
-            total: item.total
-        })),
+        billingAddress,
+        shippingAddress,
+        placeOfSupply,
+        items: processedItems.map(item => {
+            const qtyLabel = item.inventory.weightRatti
+              ? `${item.inventory.weightRatti} Ratti`
+              : item.inventory.weightValue
+              ? `${item.inventory.weightValue} ${item.inventory.weightUnit}`
+              : "1";
+            return {
+                sku: item.sku,
+                description: item.description,
+                quantity: 1,
+                displayQty: qtyLabel,
+                unitPrice: item.basePrice,
+                gstRate: item.gstRate,
+                gstAmount: item.gstAmount,
+                total: item.total
+            };
+        }),
         subtotal: subtotalBase,
         discount,
         tax: totalGst,
+        shippingCharge,
+        additionalCharge,
         total,
         amountPaid: amountReceived,
         balanceDue,
         status: isPaid ? "PAID" : "DUE",
         paymentStatus,
+        paymentMethod: sale.paymentMethod || undefined,
+        paidAt: sale.saleDate || undefined,
         terms: invoiceSettings?.terms || undefined,
         notes: invoiceSettings?.footerNotes || undefined,
         bankDetails: paymentSettings?.bankEnabled ? {

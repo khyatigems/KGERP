@@ -5,6 +5,14 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createOrUpdateInvoiceFromSale } from "@/app/(dashboard)/invoices/actions";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -12,11 +20,33 @@ import { Loader2 } from "lucide-react";
 
 interface CreateInvoiceFormProps {
   saleId: string;
-  initialOptions: Record<string, boolean>;
+  initialOptions: Record<string, boolean | number | string>;
 }
 
 export function CreateInvoiceForm({ saleId, initialOptions }: CreateInvoiceFormProps) {
-  const [options, setOptions] = useState(initialOptions);
+  const [options, setOptions] = useState<Record<string, boolean>>(() => {
+    const out: Record<string, boolean> = {};
+    Object.entries(initialOptions).forEach(([k, v]) => {
+      if (typeof v === "boolean") out[k] = v;
+    });
+    return out;
+  });
+  const [shippingCharge, setShippingCharge] = useState(() => {
+    const v = initialOptions.shippingCharge;
+    return typeof v === "number" ? v : Number(v || 0);
+  });
+  const [additionalCharge, setAdditionalCharge] = useState(() => {
+    const v = initialOptions.additionalCharge;
+    return typeof v === "number" ? v : Number(v || 0);
+  });
+  const [invoiceDiscountType, setInvoiceDiscountType] = useState(() => {
+    const v = initialOptions.invoiceDiscountType;
+    return v === "PERCENT" ? "PERCENT" : "AMOUNT";
+  });
+  const [invoiceDiscountValue, setInvoiceDiscountValue] = useState(() => {
+    const v = initialOptions.invoiceDiscountValue;
+    return typeof v === "number" ? v : Number(v || 0);
+  });
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -27,7 +57,14 @@ export function CreateInvoiceForm({ saleId, initialOptions }: CreateInvoiceFormP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     startTransition(async () => {
-      const result = await createOrUpdateInvoiceFromSale(saleId, options);
+      const payload: Record<string, unknown> = {
+        ...options,
+        shippingCharge: Number.isFinite(shippingCharge) ? shippingCharge : 0,
+        additionalCharge: Number.isFinite(additionalCharge) ? additionalCharge : 0,
+        invoiceDiscountType,
+        invoiceDiscountValue: Number.isFinite(invoiceDiscountValue) ? invoiceDiscountValue : 0,
+      };
+      const result = await createOrUpdateInvoiceFromSale(saleId, payload);
       if (result.success) {
         toast.success(result.message);
         if (result.token) {
@@ -52,7 +89,9 @@ export function CreateInvoiceForm({ saleId, initialOptions }: CreateInvoiceFormP
     showRashi: "Rashi",
     showCertificates: "Certificates",
     showSku: "SKU",
-    showPrice: "Price Breakdown"
+    showPrice: "Price Breakdown",
+    showShippingCharge: "Show Shipping Charges",
+    showAdditionalCharge: "Show Additional Charges"
   };
 
   return (
@@ -70,6 +109,48 @@ export function CreateInvoiceForm({ saleId, initialOptions }: CreateInvoiceFormP
             </Label>
           </div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="shippingCharge">Shipping Charges</Label>
+          <Input
+            id="shippingCharge"
+            type="number"
+            value={shippingCharge}
+            onChange={(e) => setShippingCharge(Number(e.target.value || 0))}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="additionalCharge">Additional Charges</Label>
+          <Input
+            id="additionalCharge"
+            type="number"
+            value={additionalCharge}
+            onChange={(e) => setAdditionalCharge(Number(e.target.value || 0))}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="invoiceDiscountType">Invoice Discount Type</Label>
+          <Select value={invoiceDiscountType} onValueChange={setInvoiceDiscountType}>
+            <SelectTrigger id="invoiceDiscountType">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="AMOUNT">Amount</SelectItem>
+              <SelectItem value="PERCENT">Percent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="invoiceDiscountValue">Invoice Discount Value</Label>
+          <Input
+            id="invoiceDiscountValue"
+            type="number"
+            value={invoiceDiscountValue}
+            onChange={(e) => setInvoiceDiscountValue(Number(e.target.value || 0))}
+          />
+        </div>
       </div>
 
       <div className="flex justify-end gap-4">

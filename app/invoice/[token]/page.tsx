@@ -13,6 +13,35 @@ import type { Metadata } from "next";
 import { trackPublicView } from "@/lib/analytics";
 
 type SaleItem = Prisma.SaleGetPayload<{ include: { inventory: { include: { certificates: true, rashis: true } } } }>;
+type PrismaRecord = Record<string, unknown>;
+type PackagingSettingsRow = { categoryHsnJson?: string | null };
+type PackagingSettingsDelegate = {
+  findFirst: (args?: PrismaRecord) => Promise<PackagingSettingsRow | null>;
+};
+type PackagingPrismaClient = typeof prisma & {
+  gpisSettings: PackagingSettingsDelegate;
+};
+const packagingPrisma = prisma as unknown as PackagingPrismaClient;
+
+function parseCategoryHsnJson(input: unknown): Record<string, string> {
+  if (typeof input !== "string" || !input.trim()) return {};
+  try {
+    const parsed = JSON.parse(input) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof k !== "string") continue;
+      if (typeof v !== "string") continue;
+      const key = k.trim();
+      const val = v.trim();
+      if (!key || !val) continue;
+      out[key] = val;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +78,9 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   // Track View
   await trackPublicView("INVOICE_VIEW", invoice.id, invoice.invoiceNumber, sp);
 
+  const packagingSettings = await packagingPrisma.gpisSettings.findFirst();
+  const categoryHsnMap = parseCategoryHsnJson(packagingSettings?.categoryHsnJson);
+
   // Parse Display Options
   let displayOptions = {
     showWeight: true,
@@ -62,6 +94,12 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     showCertificates: true,
     showSku: true,
     showPrice: true,
+    showShippingCharge: false,
+    shippingCharge: 0,
+    showAdditionalCharge: false,
+    additionalCharge: 0,
+    invoiceDiscountType: "AMOUNT",
+    invoiceDiscountValue: 0,
   };
 
   if (invoice.displayOptions) {
@@ -152,8 +190,26 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   // Totals
   const subtotalBase = processedItems.reduce((sum, item) => sum + item.basePrice, 0);
   const totalGst = processedItems.reduce((sum, item) => sum + item.calculatedGst, 0);
-  const discount = processedItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-  const total = processedItems.reduce((sum, item) => sum + item.finalTotal, 0);
+  const itemDiscount = processedItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
+  const itemsTotal = processedItems.reduce((sum, item) => sum + item.finalTotal, 0);
+  const invoiceDiscountType = displayOptions.invoiceDiscountType === "PERCENT" ? "PERCENT" : "AMOUNT";
+  const invoiceDiscountValue = Number(displayOptions.invoiceDiscountValue || 0);
+  const invoiceDiscountAmount = invoiceDiscountType === "PERCENT"
+    ? (itemsTotal * invoiceDiscountValue) / 100
+    : invoiceDiscountValue;
+  const saleShippingCharge = (primarySale as { shippingCharge?: number | null }).shippingCharge || 0;
+  const saleAdditionalCharge = (primarySale as { additionalCharge?: number | null }).additionalCharge || 0;
+  const showShippingCharge = typeof displayOptions.showShippingCharge === "boolean"
+    ? displayOptions.showShippingCharge
+    : saleShippingCharge > 0;
+  const showAdditionalCharge = typeof displayOptions.showAdditionalCharge === "boolean"
+    ? displayOptions.showAdditionalCharge
+    : saleAdditionalCharge > 0;
+  const shippingCharge = showShippingCharge ? Number(displayOptions.shippingCharge || saleShippingCharge || 0) : 0;
+  const additionalCharge = showAdditionalCharge ? Number(displayOptions.additionalCharge || saleAdditionalCharge || 0) : 0;
+  const totalBeforeExtras = Math.max(0, itemsTotal - invoiceDiscountAmount);
+  const total = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
+  const discount = itemDiscount + invoiceDiscountAmount;
   
   // Balance Due Calculation
   const amountPaidCalculated = salesItems.reduce((sum, item) => {
@@ -179,7 +235,10 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
 
   // Customer Details (Fallback Logic)
   const customerName = primarySale.customerName || invoice.quotation?.customer?.name || "Walk-in Customer";
-  const customerAddress = primarySale.customerCity || invoice.quotation?.customer?.city || invoice.quotation?.customer?.address || "";
+  const customerAddress = primarySale.customerAddress || invoice.quotation?.customer?.address || primarySale.customerCity || invoice.quotation?.customer?.city || "";
+  const billingAddress = (primarySale as { billingAddress?: string | null }).billingAddress || primarySale.customerAddress || customerAddress;
+  const shippingAddress = (primarySale as { shippingAddress?: string | null }).shippingAddress || billingAddress;
+  const placeOfSupply = (primarySale as { placeOfSupply?: string | null }).placeOfSupply || primarySale.customerCity || invoice.quotation?.customer?.city || billingAddress || "-";
   const customerPhone = primarySale.customerPhone || invoice.quotation?.customer?.phone || "";
   const customerEmail = primarySale.customerEmail || invoice.quotation?.customer?.email || "";
 
@@ -192,6 +251,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
       address: companySettings?.address || "",
       email: companySettings?.email || "",
       phone: companySettings?.phone || "",
+      website: companySettings?.website || "",
       gstin: companySettings?.gstin || undefined,
       logoUrl: displayLogo || undefined,
     },
@@ -201,71 +261,45 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
       phone: customerPhone,
       email: customerEmail,
     },
+    billingAddress,
+    shippingAddress,
+    placeOfSupply,
     items: processedItems.map((item) => {
-      const pricingDetails = item.inventory.pricingMode === "PER_CARAT" 
-        ? `Rate: ${formatCurrency(item.inventory.sellingRatePerCarat || 0)}/ct` 
-        : "Flat Price";
-      
-      const certString = item.inventory.certificates && item.inventory.certificates.length > 0 
-        ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") 
-        : item.inventory.certification;
-
-      // Construct dynamic description based on displayOptions
       const descriptionParts: string[] = [];
-      
-      // Item Name (Always shown or maybe toggleable? Assuming always shown for now as it's the main identifier)
       descriptionParts.push(item.inventory.itemName);
 
       const details: string[] = [];
-
       if (displayOptions.showWeight) {
-        details.push(`${item.inventory.weightValue} ${item.inventory.weightUnit}`);
+        const unit = item.inventory.weightUnit || "cts";
+        const label = unit.toLowerCase().includes("ct") ? "Carat" : "Weight";
+        details.push(`${label}: ${item.inventory.weightValue} ${unit}`);
       }
-
       if (displayOptions.showRatti && item.inventory.weightRatti) {
         details.push(`Ratti: ${item.inventory.weightRatti}`);
       }
-
-      if (displayOptions.showDimensions && (item.inventory.dimensionsMm || item.inventory.measurements)) {
-         details.push(`Dim: ${item.inventory.dimensionsMm || item.inventory.measurements}`);
-      }
-
-      if (displayOptions.showGemType && item.inventory.gemType) {
-        details.push(`Type: ${item.inventory.gemType}`);
-      }
-      
-      if (displayOptions.showCategory && item.inventory.category) {
-        details.push(`Cat: ${item.inventory.category}`);
-      }
-
-      if (displayOptions.showColor && item.inventory.color) {
-        details.push(`Color: ${item.inventory.color}`);
-      }
-
-      if (displayOptions.showShape && item.inventory.shape) {
-        details.push(`Shape: ${item.inventory.shape}`);
-      }
-
-      if (displayOptions.showRashi && item.inventory.rashis && item.inventory.rashis.length > 0) {
-        details.push(`Rashi: ${item.inventory.rashis.map(r => r.name).join(", ")}`);
-      }
-
-      if (displayOptions.showCertificates && certString) {
-        details.push(`Cert: ${certString}`);
-      }
-
-      if (details.length > 0) {
-        descriptionParts.push(details.join(" • "));
-      }
-
       if (displayOptions.showPrice) {
-        descriptionParts.push(pricingDetails);
+        const rateValue = item.inventory.pricingMode === "PER_CARAT"
+          ? item.inventory.sellingRatePerCarat
+          : item.inventory.flatSellingPrice;
+        const rateFallback = rateValue ?? item.basePrice ?? 0;
+        details.push(`Rate: Rs. ${Number(rateFallback || 0).toFixed(2)}`);
+      }
+      if (details.length > 0) {
+        descriptionParts.push(details.join(" | "));
       }
 
+      const hsn = item.inventory.category ? categoryHsnMap[item.inventory.category] : undefined;
+      const qtyLabel = item.inventory.weightRatti
+        ? `${item.inventory.weightRatti} Ratti`
+        : item.inventory.weightValue
+        ? `${item.inventory.weightValue} ${item.inventory.weightUnit}`
+        : "1";
       return {
         sku: displayOptions.showSku ? item.inventory.sku : "",
+        hsn,
         description: descriptionParts.join("\n"),
         quantity: 1,
+        displayQty: qtyLabel,
         unitPrice: displayOptions.showPrice ? item.basePrice : 0, // Should we hide price value too? Usually invoice needs totals. User said "what information to b visible on the invoice". If they uncheck price, maybe they want a delivery challan style? But this is an invoice. Let's assume showPrice controls the *rate details* description mostly, but for columns, if showPrice is false, maybe we should hide the columns? But the PDF generator expects numbers.
         // If showPrice is false, it's weird for an invoice. I will keep the totals but maybe hide the rate details in description as I did above.
         // Actually, if showPrice is false, the user might want a "Delivery Challan" or "Memo" look. 
@@ -282,11 +316,15 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     subtotal: subtotalBase, // Show Base Subtotal
     discount,
     tax: totalGst,
+    shippingCharge: Number.isFinite(shippingCharge) ? shippingCharge : 0,
+    additionalCharge: Number.isFinite(additionalCharge) ? additionalCharge : 0,
     total,
     amountPaid: amountReceived,
     balanceDue,
     status: statusLabel,
     paymentStatus,
+    paymentMethod: primarySale.paymentMethod || undefined,
+    paidAt: primarySale.saleDate || undefined,
     terms: invoiceSettings?.terms || undefined,
     notes: invoiceSettings?.footerNotes || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
@@ -451,7 +489,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                 <div className="text-xs text-gray-500 mt-0.5">
                                     {item.inventory.pricingMode === "PER_CARAT" ? (
                                         <span>
-                                            Rate: {formatCurrency(item.inventory.sellingRatePerCarat || 0)}/ct
+                                            Rate: {formatCurrency(item.inventory.sellingRatePerCarat || 0)}
                                         </span>
                                     ) : (
                                         <span>Flat Price</span>

@@ -66,7 +66,13 @@ const formSchema = z.object({
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
+  customerAddress: z.string().optional(),
+  billingAddress: z.string().optional(),
   customerCity: z.string().optional(),
+  placeOfSupply: z.string().optional(),
+  shippingAddress: z.string().optional(),
+  shippingCharge: z.coerce.number().min(0).optional(),
+  additionalCharge: z.coerce.number().min(0).optional(),
   paymentMode: z.string().optional(),
   paymentStatus: z.string().default("PENDING"),
   shippingMethod: z.string().optional(),
@@ -82,6 +88,7 @@ interface ExistingCustomer {
   name: string;
   phone?: string | null;
   email?: string | null;
+  address?: string | null;
   city?: string | null;
 }
 
@@ -95,6 +102,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [billingSameAsShipping, setBillingSameAsShipping] = useState(false);
   const searchParams = useSearchParams();
 
   const [invoiceOptions, setInvoiceOptions] = useState({
@@ -109,6 +117,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     showCertificates: true,
     showSku: true,
     showPrice: true,
+    showShippingCharge: false,
+    showAdditionalCharge: false,
   });
 
   const fieldLabels: Record<string, string> = {
@@ -122,7 +132,9 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     showRashi: "Rashi",
     showCertificates: "Certificates",
     showSku: "SKU",
-    showPrice: "Price Breakdown"
+    showPrice: "Price Breakdown",
+    showShippingCharge: "Show Shipping Charges",
+    showAdditionalCharge: "Show Additional Charges",
   };
   
   const preSelectedInventoryId = searchParams.get("inventoryId");
@@ -148,7 +160,13 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
       customerName: "",
       customerPhone: "",
       customerEmail: "",
+      customerAddress: "",
+      billingAddress: "",
       customerCity: "",
+      placeOfSupply: "",
+      shippingAddress: "",
+      shippingCharge: 0,
+      additionalCharge: 0,
       paymentMode: "UPI",
       paymentStatus: "PAID",
       shippingMethod: "COURIER",
@@ -160,6 +178,13 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
 
   const selectedItems = form.watch("items");
   const autoDelist = form.watch("autoDelistListings");
+  const shippingAddressValue = form.watch("shippingAddress");
+
+  useEffect(() => {
+    if (billingSameAsShipping) {
+      form.setValue("billingAddress", shippingAddressValue || "");
+    }
+  }, [billingSameAsShipping, shippingAddressValue, form]);
   
   const [activeListings, setActiveListings] = useState<
     { inventoryId: string; listings: { id: string; platform: string; listingUrl: string | null }[] }[]
@@ -204,7 +229,13 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     if (data.customerName) formData.append("customerName", data.customerName);
     if (data.customerPhone) formData.append("customerPhone", data.customerPhone);
     if (data.customerEmail) formData.append("customerEmail", data.customerEmail);
+    if (data.customerAddress) formData.append("customerAddress", data.customerAddress);
+    if (data.billingAddress) formData.append("billingAddress", data.billingAddress);
     if (data.customerCity) formData.append("customerCity", data.customerCity);
+    if (data.placeOfSupply) formData.append("placeOfSupply", data.placeOfSupply);
+    if (data.shippingAddress) formData.append("shippingAddress", data.shippingAddress);
+    formData.append("shippingCharge", String(data.shippingCharge || 0));
+    formData.append("additionalCharge", String(data.additionalCharge || 0));
     if (data.paymentMode) formData.append("paymentMode", data.paymentMode);
     if (data.paymentStatus) formData.append("paymentStatus", data.paymentStatus);
     if (data.shippingMethod) formData.append("shippingMethod", data.shippingMethod);
@@ -557,7 +588,11 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                                 form.setValue("customerName", customer.name);
                                 form.setValue("customerPhone", customer.phone || "");
                                 form.setValue("customerEmail", customer.email || "");
+                                form.setValue("customerAddress", customer.address || "");
+                                form.setValue("billingAddress", customer.address || "");
                                 form.setValue("customerCity", customer.city || "");
+                                form.setValue("placeOfSupply", customer.city || "");
+                                form.setValue("shippingAddress", customer.address || "");
                                 setCustomerOpen(false);
                               }}
                             >
@@ -607,18 +642,84 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                 />
                 <FormField
                   control={form.control}
-                  name="customerCity"
+                  name="customerEmail"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>City</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="Mumbai" {...field} />
+                        <Input placeholder="email@example.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
             </div>
+
+            <FormField
+              control={form.control}
+              name="billingAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Billing Address</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Billing address" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="customerCity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input placeholder="City" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="placeOfSupply"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Place of Supply</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Place of supply" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="billingSameAsShipping"
+                checked={billingSameAsShipping}
+                onCheckedChange={(value) => setBillingSameAsShipping(Boolean(value))}
+              />
+              <Label htmlFor="billingSameAsShipping">Billing same as Shipping</Label>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="shippingAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Shipping Address</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Shipping address" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -647,6 +748,35 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                     </FormItem>
                   )}
                 />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="shippingCharge"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Shipping Charges</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="additionalCharge"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Additional Charges</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField

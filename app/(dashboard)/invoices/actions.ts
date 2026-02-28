@@ -9,7 +9,7 @@ import { auth } from "@/lib/auth";
 
 export async function createOrUpdateInvoiceFromSale(
   saleId: string,
-  displayOptions: Record<string, boolean>
+  displayOptions: Record<string, unknown>
 ) {
   const perm = await checkPermission(PERMISSIONS.INVOICE_MANAGE);
   if (!perm.success) return { success: false, message: perm.message };

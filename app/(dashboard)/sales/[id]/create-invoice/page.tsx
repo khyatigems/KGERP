@@ -30,6 +30,12 @@ export default async function CreateInvoicePage({ params }: { params: Promise<{ 
     showCertificates: true,
     showSku: true,
     showPrice: true,
+    showShippingCharge: false,
+    shippingCharge: 0,
+    showAdditionalCharge: false,
+    additionalCharge: 0,
+    invoiceDiscountType: "AMOUNT",
+    invoiceDiscountValue: 0,
   };
 
   if (sale.invoice?.displayOptions) {

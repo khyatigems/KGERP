@@ -16,6 +16,36 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const dynamic = "force-dynamic";
 
+type PrismaRecord = Record<string, unknown>;
+type PackagingSettingsRow = { categoryHsnJson?: string | null };
+type PackagingSettingsDelegate = {
+  findFirst: (args?: PrismaRecord) => Promise<PackagingSettingsRow | null>;
+};
+type PackagingPrismaClient = typeof prisma & {
+  gpisSettings: PackagingSettingsDelegate;
+};
+const packagingPrisma = prisma as unknown as PackagingPrismaClient;
+
+function parseCategoryHsnJson(input: unknown): Record<string, string> {
+  if (typeof input !== "string" || !input.trim()) return {};
+  try {
+    const parsed = JSON.parse(input) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof k !== "string") continue;
+      if (typeof v !== "string") continue;
+      const key = k.trim();
+      const val = v.trim();
+      if (!key || !val) continue;
+      out[key] = val;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 type InvoicePageProps = {
   params: Promise<{
     id: string;
@@ -56,9 +86,9 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
 
   // Calculate totals
   const subtotal = salesItems.reduce((sum, item) => sum + item.salePrice, 0);
-  const discount = salesItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
+  const baseDiscount = salesItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
   const gstAmount = salesItems.reduce((sum, item) => sum + (item.taxAmount || 0), 0);
-  const total = subtotal - discount + gstAmount;
+  const total = subtotal - baseDiscount + gstAmount;
 
   // Determine Payment Status
   const allPaid = salesItems.every(s => s.paymentStatus === "PAID");
@@ -80,12 +110,14 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     amountPaid = finalTotalAmount;
   }
   
-  const balanceDue = Math.max(0, finalTotalAmount - amountPaid);
+  let balanceDue = Math.max(0, finalTotalAmount - amountPaid);
 
   // Fetch Settings for PDF
   const companySettings = await prisma.companySettings.findFirst();
   const invoiceSettings = await prisma.invoiceSettings.findFirst();
   const paymentSettings = await prisma.paymentSettings.findFirst();
+  const packagingSettings = await packagingPrisma.gpisSettings.findFirst();
+  const categoryHsnMap = parseCategoryHsnJson(packagingSettings?.categoryHsnJson);
 
   const displayLogo = companySettings?.quotationLogoUrl || companySettings?.logoUrl;
 
@@ -97,6 +129,33 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     }
   } catch (e) {
     console.error("Failed to parse GST rates", e);
+  }
+
+  let displayOptions = {
+    showWeight: true,
+    showRatti: true,
+    showDimensions: true,
+    showGemType: true,
+    showCategory: true,
+    showColor: true,
+    showShape: true,
+    showRashi: true,
+    showCertificates: true,
+    showSku: true,
+    showPrice: true,
+    showShippingCharge: false,
+    shippingCharge: 0,
+    showAdditionalCharge: false,
+    additionalCharge: 0,
+    invoiceDiscountType: "AMOUNT",
+    invoiceDiscountValue: 0,
+  };
+
+  if (invoice.displayOptions) {
+    try {
+      const parsed = JSON.parse(invoice.displayOptions);
+      displayOptions = { ...displayOptions, ...parsed };
+    } catch {}
   }
 
   // Process Items (GST Calculation)
@@ -126,8 +185,27 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   // Totals
   const subtotalBase = processedItems.reduce((sum, item) => sum + item.basePrice, 0);
   const totalGst = processedItems.reduce((sum, item) => sum + item.calculatedGst, 0);
-  // const discount = salesItems.reduce((sum, item) => sum + (item.discount || 0), 0); // Already defined above
-  const pdfTotal = processedItems.reduce((sum, item) => sum + item.finalTotal, 0);
+  const itemDiscount = processedItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
+  const itemsTotal = processedItems.reduce((sum, item) => sum + item.finalTotal, 0);
+  const invoiceDiscountType = displayOptions.invoiceDiscountType === "PERCENT" ? "PERCENT" : "AMOUNT";
+  const invoiceDiscountValue = Number(displayOptions.invoiceDiscountValue || 0);
+  const invoiceDiscountAmount = invoiceDiscountType === "PERCENT"
+    ? (itemsTotal * invoiceDiscountValue) / 100
+    : invoiceDiscountValue;
+  const saleShippingCharge = (primarySale as { shippingCharge?: number | null }).shippingCharge || 0;
+  const saleAdditionalCharge = (primarySale as { additionalCharge?: number | null }).additionalCharge || 0;
+  const showShippingCharge = typeof displayOptions.showShippingCharge === "boolean"
+    ? displayOptions.showShippingCharge
+    : saleShippingCharge > 0;
+  const showAdditionalCharge = typeof displayOptions.showAdditionalCharge === "boolean"
+    ? displayOptions.showAdditionalCharge
+    : saleAdditionalCharge > 0;
+  const shippingCharge = showShippingCharge ? Number(displayOptions.shippingCharge || saleShippingCharge || 0) : 0;
+  const additionalCharge = showAdditionalCharge ? Number(displayOptions.additionalCharge || saleAdditionalCharge || 0) : 0;
+  const totalBeforeExtras = Math.max(0, itemsTotal - invoiceDiscountAmount);
+  const pdfTotal = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
+  const discount = itemDiscount + invoiceDiscountAmount;
+  balanceDue = Math.max(0, pdfTotal - amountPaid);
 
   const isPaid = paymentStatus === "PAID";
   // const balanceDue = isPaid ? 0 : pdfTotal; // Already calculated above
@@ -140,32 +218,62 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
       address: companySettings?.address || "",
       email: companySettings?.email || "",
       phone: companySettings?.phone || "",
+      website: companySettings?.website || "",
       gstin: companySettings?.gstin || undefined,
       logoUrl: displayLogo || undefined,
     },
     customer: {
       name: primarySale.customerName || "Walk-in Customer",
-      address: primarySale.customerCity || "",
+      address: primarySale.customerAddress || primarySale.customerCity || "",
       phone: primarySale.customerPhone || "",
       email: primarySale.customerEmail || "",
     },
-    items: processedItems.map((item) => ({
-      sku: item.inventory.sku,
-      description: item.inventory.itemName,
-      quantity: 1,
-      unitPrice: item.basePrice,
-      gstRate: item.gstRate,
-      gstAmount: item.calculatedGst,
-      total: item.finalTotal
-    })),
+    billingAddress: (primarySale as { billingAddress?: string | null }).billingAddress || primarySale.customerAddress || primarySale.customerCity || "",
+    shippingAddress: (primarySale as { shippingAddress?: string | null }).shippingAddress || (primarySale as { billingAddress?: string | null }).billingAddress || primarySale.customerAddress || primarySale.customerCity || "",
+    placeOfSupply: (primarySale as { placeOfSupply?: string | null }).placeOfSupply || primarySale.customerCity || primarySale.customerAddress || "-",
+    items: processedItems.map((item) => {
+      const qtyLabel = item.inventory.weightRatti
+        ? `${item.inventory.weightRatti} Ratti`
+        : item.inventory.weightValue
+        ? `${item.inventory.weightValue} ${item.inventory.weightUnit}`
+        : "1";
+      const detailLines: string[] = [];
+      const unit = item.inventory.weightUnit || "cts";
+      const label = unit.toLowerCase().includes("ct") ? "Carat" : "Weight";
+      if (displayOptions.showWeight) detailLines.push(`${label}: ${item.inventory.weightValue} ${unit}`);
+      if (displayOptions.showRatti && item.inventory.weightRatti) detailLines.push(`Ratti: ${item.inventory.weightRatti}`);
+      if (displayOptions.showPrice) {
+        const rateValue = item.inventory.pricingMode === "PER_CARAT"
+          ? item.inventory.sellingRatePerCarat
+          : item.inventory.flatSellingPrice;
+        const rateFallback = rateValue ?? item.basePrice ?? 0;
+        detailLines.push(`Rate: Rs. ${Number(rateFallback || 0).toFixed(2)}`);
+      }
+      const description = [item.inventory.itemName, ...detailLines].join("\n");
+      return {
+        sku: displayOptions.showSku ? item.inventory.sku : "",
+        hsn: item.inventory.category ? categoryHsnMap[item.inventory.category] : undefined,
+        description,
+        quantity: 1,
+        displayQty: qtyLabel,
+        unitPrice: displayOptions.showPrice ? item.basePrice : 0,
+        gstRate: item.gstRate,
+        gstAmount: item.calculatedGst,
+        total: item.finalTotal
+      };
+    }),
     subtotal: subtotalBase,
     discount,
     tax: totalGst,
+    shippingCharge: Number.isFinite(shippingCharge) ? shippingCharge : 0,
+    additionalCharge: Number.isFinite(additionalCharge) ? additionalCharge : 0,
     total: pdfTotal,
     amountPaid: amountPaid, 
     balanceDue: balanceDue,
     status: paymentStatus,
     paymentStatus,
+    paymentMethod: primarySale.paymentMethod || undefined,
+    paidAt: primarySale.saleDate || undefined,
     terms: invoiceSettings?.terms || undefined,
     notes: invoiceSettings?.footerNotes || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,

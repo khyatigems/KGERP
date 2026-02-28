@@ -431,7 +431,12 @@ model Sale {
   customerEmail  String?
   customerPhone  String?
   customerAddress String?
+  billingAddress String?
   customerCity   String?
+  placeOfSupply  String?
+  shippingAddress String?
+  shippingCharge Float    @default(0)
+  additionalCharge Float  @default(0)
   saleDate       DateTime @default(now())
   salePrice      Float
   taxAmount      Float    @default(0)
