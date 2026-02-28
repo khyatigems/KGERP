@@ -54,6 +54,8 @@ const run = async () => {
           message.includes("already exists") ||
           message.includes("no such table") ||
           message.includes("duplicate index name") ||
+          message.includes("UNIQUE constraint failed") ||
+          message.includes("unique constraint failed") ||
           message.includes("table") && message.includes("already exists");
         if (!allowed) {
           console.error("Migration failed:", statement);
