@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma migrate deploy && next build",
+    "migrate:safe": "node scripts/safe-migrate.mjs",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate"

@@ -504,10 +504,16 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
         
         if (details.length > 0) descriptionParts.push(details.join(" | "));
 
+        const qtyLabel = item.inventory.weightRatti
+            ? `${item.inventory.weightRatti} Ratti`
+            : item.inventory.weightValue
+            ? `${item.inventory.weightValue} ${item.inventory.weightUnit}`
+            : "1";
         return {
             sku: displayOptions.showSku ? item.inventory.sku : "",
             description: descriptionParts.join("\n"),
             quantity: 1,
+            displayQty: qtyLabel,
             unitPrice: item.salePrice, // Note: using salePrice here but might need basePrice depending on calculation
             basePrice: basePrice,
             gstRate,
@@ -521,8 +527,17 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
     const subtotalBase = processedItems.reduce((sum, item) => sum + item.basePrice, 0);
     const totalGst = processedItems.reduce((sum, item) => sum + item.gstAmount, 0);
     const discount = processedItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-    const shippingCharge = sale.shippingCharge || 0;
-    const additionalCharge = sale.additionalCharge || 0;
+    const saleMeta = sale as {
+        shippingCharge?: number | null;
+        additionalCharge?: number | null;
+        billingAddress?: string | null;
+        shippingAddress?: string | null;
+        placeOfSupply?: string | null;
+        customerAddress?: string | null;
+        customerCity?: string | null;
+    };
+    const shippingCharge = saleMeta.shippingCharge || 0;
+    const additionalCharge = saleMeta.additionalCharge || 0;
     const total = processedItems.reduce((sum, item) => sum + item.total, 0) + shippingCharge + additionalCharge;
 
     // Payment Status
@@ -542,10 +557,10 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
     // Customer
     // Prefer sale customer, then invoice/quotation customer
     const customerName = sale.customerName || invoice.quotation?.customer?.name || "Walk-in Customer";
-    const customerAddress = sale.customerAddress || sale.customerCity || invoice.quotation?.customer?.address || invoice.quotation?.customer?.city || "";
-    const billingAddress = sale.billingAddress || sale.customerAddress || customerAddress;
-    const shippingAddress = sale.shippingAddress || billingAddress;
-    const placeOfSupply = sale.placeOfSupply || sale.customerCity || billingAddress || "-";
+    const customerAddress = saleMeta.customerAddress || saleMeta.customerCity || invoice.quotation?.customer?.address || invoice.quotation?.customer?.city || "";
+    const billingAddress = saleMeta.billingAddress || saleMeta.customerAddress || customerAddress;
+    const shippingAddress = saleMeta.shippingAddress || billingAddress;
+    const placeOfSupply = saleMeta.placeOfSupply || saleMeta.customerCity || billingAddress || "-";
     const customerPhone = sale.customerPhone || invoice.quotation?.customer?.phone || "";
     const customerEmail = sale.customerEmail || invoice.quotation?.customer?.email || "";
 
@@ -575,23 +590,16 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
         billingAddress,
         shippingAddress,
         placeOfSupply,
-        items: processedItems.map(item => {
-            const qtyLabel = item.inventory.weightRatti
-              ? `${item.inventory.weightRatti} Ratti`
-              : item.inventory.weightValue
-              ? `${item.inventory.weightValue} ${item.inventory.weightUnit}`
-              : "1";
-            return {
-                sku: item.sku,
-                description: item.description,
-                quantity: 1,
-                displayQty: qtyLabel,
-                unitPrice: item.basePrice,
-                gstRate: item.gstRate,
-                gstAmount: item.gstAmount,
-                total: item.total
-            };
-        }),
+        items: processedItems.map(item => ({
+            sku: item.sku,
+            description: item.description,
+            quantity: 1,
+            displayQty: item.displayQty,
+            unitPrice: item.basePrice,
+            gstRate: item.gstRate,
+            gstAmount: item.gstAmount,
+            total: item.total
+        })),
         subtotal: subtotalBase,
         discount,
         tax: totalGst,
