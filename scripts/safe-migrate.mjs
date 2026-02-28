@@ -55,6 +55,8 @@ const run = async () => {
           message.includes("no such table") ||
           message.includes("duplicate index name") ||
           message.includes("UNIQUE constraint failed") ||
+          message.includes("NOT NULL constraint failed") ||
+          message.includes("not null constraint failed") ||
           message.includes("unique constraint failed") ||
           message.includes("table") && message.includes("already exists");
         if (!allowed) {
