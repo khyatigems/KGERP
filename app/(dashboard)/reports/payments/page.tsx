@@ -8,36 +8,46 @@ export default async function PaymentReportPage() {
   const today = new Date();
   const sixMonthsAgo = startOfMonth(subMonths(today, 5));
 
+  // Fetch payments without relation to avoid "Inconsistent query result" error
+  // if orphan payments exist (invalid invoiceId).
   const payments = await prisma.payment.findMany({
     where: {
       date: {
         gte: sixMonthsAgo,
       },
     },
-    include: {
-      invoice: {
-        select: {
-          invoiceNumber: true,
-          quotation: {
-            select: {
-              customerName: true,
-              customer: { select: { name: true } }
-            }
-          },
-          sales: {
-            select: {
-              customerName: true,
-              customer: { select: { name: true } }
-            },
-            take: 1
-          }
-        }
-      }
-    },
     orderBy: {
       date: "desc",
     },
   });
+
+  // Manually fetch invoices to handle potential orphans gracefully
+  const invoiceIds = [...new Set(payments.map(p => p.invoiceId))];
+  
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      id: { in: invoiceIds }
+    },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      quotation: {
+        select: {
+          customerName: true,
+          customer: { select: { name: true } }
+        }
+      },
+      sales: {
+        select: {
+          customerName: true,
+          customer: { select: { name: true } }
+        },
+        take: 1
+      }
+    }
+  });
+
+  const invoiceMap = new Map(invoices.map(inv => [inv.id, inv]));
 
   // Aggregate Data
   const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -53,9 +63,6 @@ export default async function PaymentReportPage() {
 
   payments.forEach((p) => {
     const monthKey = format(p.date, "MMM yyyy");
-    // Ensure the key exists in case of date mismatch (though initialized above)
-    // If payment date is outside the initialized range (unlikely with query), it will be skipped or added.
-    // Given the query filters by date, it should be fine.
     if (monthlyTrendMap.has(monthKey)) {
         const current = monthlyTrendMap.get(monthKey)!;
         monthlyTrendMap.set(monthKey, {
@@ -83,38 +90,49 @@ export default async function PaymentReportPage() {
 
   // Recent Payments Table Data
   const recentPayments = payments.map(p => {
+    const invoice = invoiceMap.get(p.invoiceId);
     let customerName = "Unknown Customer";
-    if (p.invoice.quotation?.customer?.name) {
-      customerName = p.invoice.quotation.customer.name;
-    } else if (p.invoice.quotation?.customerName) {
-      customerName = p.invoice.quotation.customerName;
-    } else if (p.invoice.sales?.[0]?.customer?.name) {
-      customerName = p.invoice.sales[0].customer.name;
-    } else if (p.invoice.sales?.[0]?.customerName) {
-      customerName = p.invoice.sales[0].customerName;
+    let invoiceNumber = "N/A";
+
+    if (invoice) {
+        invoiceNumber = invoice.invoiceNumber;
+        if (invoice.quotation?.customer?.name) {
+            customerName = invoice.quotation.customer.name;
+        } else if (invoice.quotation?.customerName) {
+            customerName = invoice.quotation.customerName;
+        } else if (invoice.sales?.[0]?.customer?.name) {
+            customerName = invoice.sales[0].customer.name;
+        } else if (invoice.sales?.[0]?.customerName) {
+            customerName = invoice.sales[0].customerName;
+        }
+    } else {
+        invoiceNumber = "ORPHAN (Missing Invoice)";
     }
 
     return {
       id: p.id,
       date: p.date,
-      invoiceNumber: p.invoice.invoiceNumber,
-      customerName,
+      invoiceNumber: invoiceNumber,
+      customerName: customerName,
       amount: p.amount,
       method: p.method,
-      notes: p.notes
+      reference: p.reference,
+      notes: p.notes,
     };
   });
+
+  const analyticsData = {
+    totalReceived,
+    totalPayments,
+    monthlyTrend,
+    methodDistribution,
+    recentPayments,
+  };
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Payment Reports</h1>
-      <PaymentAnalytics data={{
-        totalReceived,
-        totalPayments,
-        recentPayments,
-        monthlyTrend,
-        methodDistribution
-      }} />
+      <PaymentAnalytics data={analyticsData} />
     </div>
   );
 }
