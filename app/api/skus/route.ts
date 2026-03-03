@@ -9,7 +9,7 @@ export async function GET(request: Request) {
       select: { sku: true },
       where: { 
         sku: { not: undefined },
-        status: 'AVAILABLE' // Only fetch active inventory
+        status: 'IN_STOCK' // Correct status from schema
       },
       orderBy: { createdAt: 'desc' }
     });
