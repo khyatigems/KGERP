@@ -27,6 +27,7 @@ export default auth((req) => {
     pathname.startsWith("/verify") ||
     pathname.startsWith("/preview") ||
     pathname.startsWith("/api/serials/verify") ||
+    pathname.startsWith("/api/skus") ||
     pathname.startsWith("/api/auth"); // Removed root "/" from public, as it's dashboard
 
   // 1. Handle Public Routes

@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "../../KhyatiGems-Desktop Media Renaming"
+		},
+		{
+			"path": "."
 		}
 	],
 	"settings": {}
