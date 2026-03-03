@@ -1,24 +1,39 @@
 import { prisma } from "@/lib/prisma";
 import { SalesAnalytics } from "@/components/reports/sales-analytics";
-import { startOfMonth, subMonths, format } from "date-fns";
+import { startOfMonth, subMonths, format, endOfDay, startOfDay, parseISO } from "date-fns";
+import { ReportFilters } from "@/components/reports/report-filters";
+import { ExportButton } from "@/components/ui/export-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function SalesReportPage() {
-  // 1. Fetch Sales Data (Last 6 Months)
-  const today = new Date();
-  const sixMonthsAgo = startOfMonth(subMonths(today, 5));
+interface SalesReportPageProps {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}
 
+export default async function SalesReportPage({ searchParams }: SalesReportPageProps) {
+  const params = await searchParams;
+  // 1. Determine Date Range
+  const today = new Date();
+  const defaultFrom = startOfMonth(subMonths(today, 5)); // Last 6 months default
+  
+  const fromDate = params.from ? startOfDay(parseISO(params.from)) : defaultFrom;
+  const toDate = params.to ? endOfDay(parseISO(params.to)) : endOfDay(today);
+
+  // 2. Fetch Sales Data
   const sales = await prisma.sale.findMany({
     where: {
       saleDate: {
-        gte: sixMonthsAgo,
+        gte: fromDate,
+        lte: toDate,
       },
     },
     include: {
       inventory: {
         select: {
           category: true,
+          sku: true,
+          gemType: true,
+          stoneType: true
         },
       },
     },
@@ -27,22 +42,15 @@ export default async function SalesReportPage() {
     },
   });
 
-  // 2. Aggregate Data
+  // 3. Aggregate Data for Analytics
   const totalRevenue = sales.reduce((sum, sale) => sum + sale.netAmount, 0);
   const totalProfit = sales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
   const totalSales = sales.length;
   const averageOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
 
-  // Monthly Trend
+  // Monthly Trend (Dynamic based on range)
   const monthlyTrendMap = new Map<string, { revenue: number; profit: number; count: number }>();
   
-  // Initialize last 6 months
-  for (let i = 0; i < 6; i++) {
-    const monthDate = subMonths(today, 5 - i);
-    const monthKey = format(monthDate, "MMM yyyy");
-    monthlyTrendMap.set(monthKey, { revenue: 0, profit: 0, count: 0 });
-  }
-
   sales.forEach((sale) => {
     const monthKey = format(sale.saleDate, "MMM yyyy");
     const current = monthlyTrendMap.get(monthKey) || { revenue: 0, profit: 0, count: 0 };
@@ -79,9 +87,50 @@ export default async function SalesReportPage() {
     categoryDistribution,
   };
 
+  // 4. Prepare Export Data
+  const exportData = sales.map(sale => ({
+    Date: format(sale.saleDate, "yyyy-MM-dd"),
+    SKU: sale.inventory.sku,
+    Category: sale.inventory.category,
+    Type: sale.inventory.gemType || sale.inventory.stoneType || "-",
+    Customer: sale.customerName || "N/A",
+    "Net Amount": sale.netAmount,
+    Profit: sale.profit || 0,
+    Status: sale.paymentStatus
+  }));
+
+  const exportColumns = [
+    { header: "Date", key: "Date" },
+    { header: "SKU", key: "SKU" },
+    { header: "Category", key: "Category" },
+    { header: "Type", key: "Type" },
+    { header: "Customer", key: "Customer" },
+    { header: "Net Amount", key: "Net Amount" },
+    { header: "Profit", key: "Profit" },
+    { header: "Status", key: "Status" }
+  ];
+
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Sales Reports</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+           <h1 className="text-3xl font-bold tracking-tight">Sales Reports</h1>
+           <p className="text-muted-foreground text-sm mt-1">
+             Analyze sales performance, revenue trends, and category distribution.
+           </p>
+        </div>
+        <div className="flex items-center gap-2">
+            <ExportButton 
+                filename={`Sales_Report_${format(fromDate, 'yyyyMMdd')}_${format(toDate, 'yyyyMMdd')}`} 
+                data={exportData} 
+                columns={exportColumns}
+                title="Sales Report"
+            />
+        </div>
+      </div>
+
+      <ReportFilters />
+
       <SalesAnalytics data={analyticsData} />
     </div>
   );

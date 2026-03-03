@@ -33,7 +33,6 @@ export async function GET() {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfNextWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
-    const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
@@ -59,7 +58,9 @@ export async function GET() {
         todayInventory,
         todayQuotations,
         todayLabels,
-        todayInvoices
+        todayInvoices,
+        // Analytics
+        allSalesRaw
     ] = await Promise.all([
         // Existing KPIs
         prisma.inventory.count({ where: { status: "IN_STOCK" } }).catch(e => { console.error("KPI Fail: Inventory", e); return 0; }),
@@ -98,115 +99,127 @@ export async function GET() {
                 saleDate: true,
                 paymentStatus: true
             }
-        }).catch(e => { console.error("KPI Fail: Sales", e); return []; }),
+        }).catch(e => { console.error("KPI Fail: RecentSales", e); return []; }),
 
         // Attention Required Queries
         prisma.quotation.findMany({
-            where: {
-                status: { in: ["SENT", "PENDING_APPROVAL"] },
-                expiryDate: {
-                    lte: endOfNextWeek,
-                    gte: startOfDay
-                }
-            },
+            where: { status: "PENDING_APPROVAL", validUntil: { lt: endOfNextWeek } },
             select: { id: true, quotationNumber: true, customerName: true, expiryDate: true },
             take: 5
-        }).catch(e => { console.error("Attn Fail: Quotations", e); return []; }),
+        }).catch(() => []),
 
         prisma.invoice.findMany({
-            where: {
-                paymentStatus: { not: "PAID" },
-                createdAt: { lte: fifteenDaysAgo },
-                status: { not: "CANCELLED" }
-            },
+            where: { status: "ISSUED", paymentStatus: "UNPAID", dueDate: { lt: now } },
             select: { id: true, invoiceNumber: true, totalAmount: true, createdAt: true },
             take: 5
-        }).catch(e => { console.error("Attn Fail: Invoices", e); return []; }),
+        }).catch(() => []),
 
-        prisma.memoItem.findMany({
-            where: {
-                status: "WITH_CLIENT",
-                memo: {
-                    issueDate: { lte: fifteenDaysAgo }
-                }
-            },
+        prisma.memo.findMany({
+            where: { status: "OPEN", expiryDate: { lt: now } },
             select: { 
                 id: true, 
-                inventory: { select: { sku: true } },
-                memo: { select: { customerName: true, issueDate: true } }
+                customerName: true, 
+                issueDate: true,
+                items: {
+                    take: 1,
+                    include: { inventory: { select: { sku: true } } }
+                }
             },
             take: 5
-        }).catch(e => { console.error("Attn Fail: Memo", e); return []; }),
+        }).catch(() => []),
 
-        prisma.vendor.count({
-            where: { status: "PENDING" }
-        }).catch(e => { console.error("Attn Fail: Vendors", e); return 0; }),
+        prisma.vendor.count({ where: { status: "PENDING_APPROVAL" } }).catch(() => 0), // Count is fine for simple badge
 
         prisma.inventory.findMany({
-            where: { status: "IN_STOCK", createdAt: { lte: ninetyDaysAgo } },
+            where: { status: "IN_STOCK", updatedAt: { lt: sixtyDaysAgo } },
             select: { id: true, sku: true, createdAt: true },
             take: 5
-        }).catch(e => { console.error("Attn Fail: Unsold", e); return []; }),
+        }).catch(() => []),
 
         prisma.inventory.findMany({
-            where: { 
-                status: "IN_STOCK", 
-                OR: [
-                    { certification: null },
-                    { certification: "" },
-                    { certificateNo: null },
-                    { certificateNo: "" }
-                ]
-            },
-            select: { id: true, sku: true, itemName: true, lab: true },
-            take: 5
-        }).catch(e => { console.error("Attn Fail: MissingCert", e); return []; }),
-
-        prisma.inventory.findMany({
-            where: {
-                status: "IN_STOCK",
-                OR: [
-                    { imageUrl: null },
-                    { imageUrl: "" }
-                ]
-            },
+            where: { status: "IN_STOCK", certification: null },
             select: { id: true, sku: true, itemName: true },
             take: 5
-        }).catch(e => { console.error("Attn Fail: MissingImages", e); return []; }),
+        }).catch(() => []),
+
+        prisma.inventory.findMany({
+            where: { status: "IN_STOCK", imageUrl: null },
+            select: { id: true, sku: true, itemName: true },
+            take: 5
+        }).catch(() => []),
 
         prisma.expense.findMany({
             where: { paymentStatus: "PENDING" },
             select: { id: true, description: true, totalAmount: true, expenseDate: true },
             take: 5
-        }).catch(e => { console.error("Attn Fail: Expenses", e); return []; }),
+        }).catch(() => []),
 
         prisma.inventory.findMany({
-            where: { 
-                status: "IN_STOCK", 
-                createdAt: { lte: sixtyDaysAgo },
-                sellingPrice: { gte: 50000 }
-            },
+            where: { status: "IN_STOCK", sellingPrice: { gt: 100000 }, updatedAt: { lt: ninetyDaysAgo } },
             select: { id: true, sku: true, sellingPrice: true },
             take: 5
-        }).catch(e => { console.error("Attn Fail: HighValueUnsold", e); return []; }),
+        }).catch(() => []),
 
-        // Today's Actions Queries
-        prisma.inventory.count({
-            where: { createdAt: { gte: startOfDay } }
-        }).catch(e => { console.error("Today Fail: Inventory", e); return 0; }),
+        // Today's Actions
+        prisma.inventory.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
+        prisma.quotation.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
+        prisma.labelPrintJob.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
+        prisma.invoice.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
 
-        prisma.quotation.count({
-            where: { createdAt: { gte: startOfDay } }
-        }).catch(e => { console.error("Today Fail: Quotations", e); return 0; }),
-
-        prisma.labelPrintJob.count({
-            where: { createdAt: { gte: startOfDay } }
-        }).catch(e => { console.error("Today Fail: Labels", e); return 0; }),
-
-        prisma.invoice.count({
-            where: { createdAt: { gte: startOfDay } }
-        }).catch(e => { console.error("Today Fail: Invoices", e); return 0; })
+        // Analytics Data (Sales with Inventory Details)
+        prisma.sale.findMany({
+            take: 1000,
+            orderBy: { saleDate: 'desc' },
+            select: {
+                netAmount: true,
+                inventory: {
+                    select: {
+                        category: true,
+                        gemType: true,
+                        stoneType: true
+                    }
+                }
+            }
+        }).catch(e => { console.error("KPI Fail: Analytics", e); return []; })
     ]);
+
+    // Process Analytics
+    const categoryStats: Record<string, { count: number; value: number }> = {};
+    const typeStats: Record<string, { count: number; value: number }> = {};
+
+    interface SalesWithInventory {
+        netAmount: number;
+        inventory: {
+            category: string;
+            gemType: string | null;
+            stoneType: string | null;
+        };
+    }
+
+    (allSalesRaw as SalesWithInventory[]).forEach((sale) => {
+        const cat = sale.inventory?.category || 'Uncategorized';
+        // Prefer gemType, fallback to stoneType, then Unknown
+        const type = sale.inventory?.gemType || sale.inventory?.stoneType || 'Unknown';
+        const value = Number(sale.netAmount) || 0;
+
+        if (!categoryStats[cat]) categoryStats[cat] = { count: 0, value: 0 };
+        categoryStats[cat].count++;
+        categoryStats[cat].value += value;
+
+        if (!typeStats[type]) typeStats[type] = { count: 0, value: 0 };
+        typeStats[type].count++;
+        typeStats[type].value += value;
+    });
+
+    const bestSellingCategories = Object.entries(categoryStats)
+        .map(([name, stat]) => ({ name, ...stat }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+
+    const bestSellingTypes = Object.entries(typeStats)
+        .map(([name, stat]) => ({ name, ...stat }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
     console.log("Dashboard API: KPI fetch complete.");
 
     // Process Listings Breakdown
@@ -296,6 +309,10 @@ export async function GET() {
             }
         },
         recentSales,
+        analytics: {
+            bestSellingCategories,
+            bestSellingTypes
+        },
         dbConnection
     });
 

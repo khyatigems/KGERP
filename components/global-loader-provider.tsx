@@ -79,7 +79,7 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
   return (
     <GlobalLoaderContext.Provider value={{ isLoading, setIsLoading, showLoader, hideLoader }}>
       {children}
-      {isLoading && <AppLogoLoader label="Processing..." />}
+      {isLoading && <AppLogoLoader label={null} />}
     </GlobalLoaderContext.Provider>
   );
 }

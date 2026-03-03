@@ -7,6 +7,8 @@ import { PrintLabelWidget } from "./print-label-widget";
 import { QuickNotes } from "./quick-notes";
 import { AppLogoLoader } from "@/components/ui/app-logo-loader";
 import { useGlobalLoader } from "@/components/global-loader-provider";
+import { DashboardHeader } from "./dashboard-header";
+import { AnalyticsWidgets } from "./analytics-widgets";
 
 import { AttentionWidget } from "./attention-widget";
 import { TodaysActionsWidget } from "./todays-actions-widget";
@@ -27,7 +29,7 @@ export function DashboardView() {
   };
 
   if (error) return <div className="p-4 text-red-500">Failed to load dashboard data.</div>;
-  if (isLoading) return <div className="p-12 flex justify-center"><AppLogoLoader fullscreen={false} className="w-64 h-64" label="Loading Dashboard..." /></div>;
+  if (isLoading) return <AppLogoLoader fullscreen={true} label="Loading Dashboard Data..." />;
 
   // Handle case where API returns an error object or missing data
   if (!data || data.error || !data.kpis) {
@@ -41,31 +43,32 @@ export function DashboardView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <div className="flex items-center gap-4">
-            <div className={`px-3 py-1 rounded-full text-xs font-semibold ${data.dbConnection === 'Turso Cloud' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                DB: {data.dbConnection || 'Unknown'}
-            </div>
-            <Button onClick={handleRefresh} variant="outline" size="sm">Refresh</Button>
-        </div>
-      </div>
+      <DashboardHeader 
+        dbConnection={data.dbConnection} 
+        onRefresh={handleRefresh} 
+      />
       
       {/* 1. KPI Cards */}
       <KpiCards data={data} />
       
-      {/* 2. Attention Required */}
+      {/* 2. Analytics (New) */}
+      <AnalyticsWidgets 
+        categories={data.analytics?.bestSellingCategories || []}
+        types={data.analytics?.bestSellingTypes || []}
+      />
+
+      {/* 3. Attention Required */}
       <div className="grid grid-cols-1">
           <AttentionWidget data={data.kpis.attention} />
       </div>
 
-      {/* 3. Widgets Row */}
+      {/* 4. Widgets Row */}
       <div className="grid gap-6 md:grid-cols-2">
          <PrintLabelWidget count={data.kpis.printLabels.count} lastItem={data.kpis.printLabels.lastItem} />
          <QuickNotes />
       </div>
 
-      {/* 4. Today's Actions */}
+      {/* 5. Today's Actions */}
       <div className="grid grid-cols-1">
          <TodaysActionsWidget data={data.kpis.today} />
       </div>
