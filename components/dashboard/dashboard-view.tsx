@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { KpiCards } from "./kpi-cards";
@@ -16,8 +17,28 @@ import { TodaysActionsWidget } from "./todays-actions-widget";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function DashboardView() {
-  const { data, error, isLoading, mutate } = useSWR("/api/dashboard", fetcher);
+  const { data, error, isLoading, mutate } = useSWR("/api/dashboard", fetcher, {
+    refreshInterval: 15000,
+    revalidateOnFocus: true,
+  });
   const { showLoader, hideLoader } = useGlobalLoader();
+
+  useEffect(() => {
+    const onStorageChange = (event: StorageEvent) => {
+      if (event.key === "attention-visibility-last-change") {
+        mutate();
+      }
+    };
+    const onAttentionChange = () => {
+      mutate();
+    };
+    window.addEventListener("storage", onStorageChange);
+    window.addEventListener("attention-visibility-changed", onAttentionChange);
+    return () => {
+      window.removeEventListener("storage", onStorageChange);
+      window.removeEventListener("attention-visibility-changed", onAttentionChange);
+    };
+  }, [mutate]);
 
   const handleRefresh = async () => {
     showLoader();

@@ -1,21 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { PaymentAnalytics } from "@/components/reports/payment-analytics";
-import { startOfMonth, subMonths, format } from "date-fns";
+import { PaymentMethodCollectionsCard } from "@/components/reports/payment-method-collections-card";
+import { format, startOfMonth, subMonths } from "date-fns";
+import { getPaymentCompletenessValidation, reconcileHistoricalInvoicePayments } from "@/lib/payment-reconciliation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
 export default async function PaymentReportPage() {
-  const today = new Date();
-  const sixMonthsAgo = startOfMonth(subMonths(today, 5));
+  const [reconcileResult, validation] = await Promise.all([
+    reconcileHistoricalInvoicePayments({ dryRun: false }),
+    getPaymentCompletenessValidation()
+  ]);
 
   // Fetch payments without relation to avoid "Inconsistent query result" error
   // if orphan payments exist (invalid invoiceId).
   const payments = await prisma.payment.findMany({
-    where: {
-      date: {
-        gte: sixMonthsAgo,
-      },
-    },
     orderBy: {
       date: "desc",
     },
@@ -53,10 +53,13 @@ export default async function PaymentReportPage() {
   const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
   const totalPayments = payments.length;
 
+  const today = new Date();
   // Monthly Trend
   const monthlyTrendMap = new Map<string, { amount: number; count: number }>();
-  for (let i = 0; i < 6; i++) {
-    const monthDate = subMonths(today, 5 - i);
+  const oldestPaymentDate = payments.length > 0 ? payments[payments.length - 1].date : today;
+  const monthsSpan = Math.max(6, Math.min(24, (today.getFullYear() - oldestPaymentDate.getFullYear()) * 12 + (today.getMonth() - oldestPaymentDate.getMonth()) + 1));
+  for (let i = 0; i < monthsSpan; i++) {
+    const monthDate = subMonths(today, monthsSpan - 1 - i);
     const monthKey = format(monthDate, "MMM yyyy");
     monthlyTrendMap.set(monthKey, { amount: 0, count: 0 });
   }
@@ -132,6 +135,23 @@ export default async function PaymentReportPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Payment Reports</h1>
+      <Card>
+        <CardHeader>
+          <CardTitle>Historical Invoice Reconciliation</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 md:grid-cols-3 text-sm">
+          <div>Scanned Invoices: <span className="font-semibold">{reconcileResult.scannedInvoices}</span></div>
+          <div>Invoices With Expected Payments: <span className="font-semibold">{reconcileResult.invoicesWithExpectedPayments}</span></div>
+          <div>Invoices Backfilled: <span className="font-semibold">{reconcileResult.invoicesBackfilled}</span></div>
+          <div>Payments Created: <span className="font-semibold">{reconcileResult.createdPayments}</span></div>
+          <div>Backfilled Amount: <span className="font-semibold">₹{reconcileResult.totalBackfilledAmount.toFixed(2)}</span></div>
+          <div>Validation Mismatches: <span className="font-semibold">{validation.statusMismatches}</span></div>
+          <div>Total Invoices: <span className="font-semibold">{validation.invoiceCount}</span></div>
+          <div>Total Payment Rows: <span className="font-semibold">{validation.paymentCount}</span></div>
+          <div>Reconciliation Errors: <span className="font-semibold">{reconcileResult.errors.length + reconcileResult.discrepancies.length}</span></div>
+        </CardContent>
+      </Card>
+      <PaymentMethodCollectionsCard />
       <PaymentAnalytics data={analyticsData} />
     </div>
   );

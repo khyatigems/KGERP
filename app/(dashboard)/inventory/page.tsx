@@ -53,6 +53,7 @@ export default async function InventoryPage({
   const session = await auth();
   const userRole = session?.user?.role || "VIEWER";
   const canCreate = hasPermission(userRole, PERMISSIONS.INVENTORY_CREATE);
+  const canManageAttentionVisibility = hasPermission(userRole, PERMISSIONS.INVENTORY_EDIT);
 
   const { query, status, category, gemType, color, vendorId, collectionId, rashiId, weightRange } = await searchParams;
 
@@ -177,7 +178,7 @@ export default async function InventoryPage({
     try {
         const where = buildWhere(false);
         const results = await Promise.all([
-          prisma.inventory.findMany({
+          (prisma.inventory as any).findMany({
             where,
             orderBy: { createdAt: "desc" },
             select: {
@@ -188,7 +189,7 @@ export default async function InventoryPage({
                 depthPercent: true, ratio: true, origin: true, treatment: true, transparency: true, braceletType: true, standardSize: true,
                 beadSizeMm: true, beadCount: true, holeSizeMm: true, innerCircumferenceMm: true, pricingMode: true, sellingRatePerCarat: true,
                 flatSellingPrice: true, purchaseRatePerCarat: true, flatPurchaseCost: true, notes: true, stockLocation: true, purchaseId: true,
-                vendorId: true, batchId: true, imageUrl: true, videoUrl: true, rapPrice: true, discountPercent: true, createdAt: true, updatedAt: true,
+                hideFromAttention: true, vendorId: true, batchId: true, imageUrl: true, videoUrl: true, rapPrice: true, discountPercent: true, createdAt: true, updatedAt: true,
                 media: {
                     orderBy: [
                         { isPrimary: 'desc' },
@@ -196,7 +197,7 @@ export default async function InventoryPage({
                     ],
                     take: 1
                 }
-            }
+            } as any
           }),
           // Try to fetch master data individually, if they fail, return empty
           prisma.categoryCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
@@ -312,7 +313,7 @@ export default async function InventoryPage({
         />
       </div>
 
-      <InventoryCardList data={inventory} />
+      <InventoryCardList data={inventory} canManageAttentionVisibility={canManageAttentionVisibility} />
 
       <InventoryTable 
         data={inventory}
@@ -323,6 +324,7 @@ export default async function InventoryPage({
         rashis={rashis}
         certificates={certificates}
         collections={collections}
+        canManageAttentionVisibility={canManageAttentionVisibility}
       />
     </div>
   );

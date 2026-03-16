@@ -66,7 +66,14 @@ export function CreateInvoiceForm({ saleId, initialOptions }: CreateInvoiceFormP
       };
       const result = await createOrUpdateInvoiceFromSale(saleId, payload);
       if (result.success) {
-        toast.success(result.message);
+        if (typeof (result as any).outstandingDelta === "number" && (result as any).outstandingDelta > 0.009) {
+          toast.error(
+            `Outstanding balance increased by ₹${Number((result as any).outstandingDelta).toFixed(2)}. Please collect the additional amount before marking invoice as paid.`,
+            { duration: 10000 }
+          );
+        } else {
+          toast.success(result.message);
+        }
         if (result.token) {
            window.open(`/invoice/${result.token}`, '_blank');
            router.push("/sales");

@@ -1,8 +1,14 @@
+ "use client";
+
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Clock, FileText, User, ShieldAlert, Receipt, TrendingDown } from "lucide-react";
+import { AlertTriangle, Clock, FileText, User, ShieldAlert, Receipt, TrendingDown, EyeOff } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { applyAttentionVisibilityFilters } from "@/lib/attention-widget-visibility";
+import { toast } from "sonner";
 
 interface AttentionData {
     quotations: Array<{ id: string; quotationNumber: string; customerName: string; expiryDate: string | null }>;
@@ -17,18 +23,70 @@ interface AttentionData {
 }
 
 export function AttentionWidget({ data }: { data: AttentionData }) {
-    if (!data) return null;
+    const [hideMissingCertifications, setHideMissingCertifications] = useState(false);
+    const [hideMissingImages, setHideMissingImages] = useState(false);
+    const [optimisticHiddenSkus, setOptimisticHiddenSkus] = useState<Set<string>>(new Set());
+    const [isUpdatingSku, setIsUpdatingSku] = useState<string | null>(null);
 
-    const hasItems = 
-        data.quotations.length > 0 || 
-        data.invoices.length > 0 || 
-        data.memo.length > 0 || 
-        data.vendors > 0 || 
-        (data.unsold && data.unsold.length > 0) ||
-        (data.missingCertifications && data.missingCertifications.length > 0) ||
-        (data.missingImages && data.missingImages.length > 0) ||
-        (data.pendingExpenses && data.pendingExpenses.length > 0) ||
-        (data.highValueUnsold && data.highValueUnsold.length > 0);
+    useEffect(() => {
+        const certPref = localStorage.getItem("dashboard-hide-missing-certifications");
+        const imagePref = localStorage.getItem("dashboard-hide-missing-images");
+        setHideMissingCertifications(certPref === "1");
+        setHideMissingImages(imagePref === "1");
+    }, []);
+
+    const {
+        missingCertifications: visibleMissingCertifications,
+        missingImages: visibleMissingImages,
+        unsold: visibleUnsold,
+        highValueUnsold: visibleHighValueUnsold,
+        memo: visibleMemo,
+        hasItems
+    } = useMemo(
+        () =>
+            applyAttentionVisibilityFilters(data, {
+                hideMissingCertifications,
+                hideMissingImages,
+                runtimeHiddenSkuIds: optimisticHiddenSkus
+            }),
+        [data, hideMissingCertifications, hideMissingImages, optimisticHiddenSkus]
+    );
+
+    const hideSkuFromAttention = async (inventoryId: string, sku: string) => {
+        if (isUpdatingSku) return;
+        setIsUpdatingSku(sku);
+        try {
+            const response = await fetch(`/api/inventory/${inventoryId}/attention-visibility`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ hideFromAttention: true })
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result?.error || "Failed to hide SKU from attention widget");
+            }
+            setOptimisticHiddenSkus((prev) => new Set([...Array.from(prev), sku]));
+            localStorage.setItem("attention-visibility-last-change", Date.now().toString());
+            window.dispatchEvent(new Event("attention-visibility-changed"));
+            toast.success(`${sku} hidden from attention widget`);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to hide SKU from attention widget");
+        } finally {
+            setIsUpdatingSku(null);
+        }
+    };
+
+    const toggleMissingCertifications = () => {
+        const next = !hideMissingCertifications;
+        setHideMissingCertifications(next);
+        localStorage.setItem("dashboard-hide-missing-certifications", next ? "1" : "0");
+    };
+
+    const toggleMissingImages = () => {
+        const next = !hideMissingImages;
+        setHideMissingImages(next);
+        localStorage.setItem("dashboard-hide-missing-images", next ? "1" : "0");
+    };
 
     return (
         <Card className="h-full">
@@ -38,6 +96,26 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                         <AlertTriangle className="h-4 w-4 text-amber-500" />
                         Attention Required
                     </CardTitle>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant={hideMissingCertifications ? "secondary" : "outline"}
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            onClick={toggleMissingCertifications}
+                        >
+                            {hideMissingCertifications ? "Show Cert Alerts" : "Hide Cert Alerts"}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={hideMissingImages ? "secondary" : "outline"}
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            onClick={toggleMissingImages}
+                        >
+                            {hideMissingImages ? "Show Image Alerts" : "Hide Image Alerts"}
+                        </Button>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -102,13 +180,13 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                 )}
 
                 {/* Missing Certifications */}
-                {data.missingCertifications && data.missingCertifications.length > 0 && (
+                {visibleMissingCertifications.length > 0 && (
                     <div className="space-y-2">
                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                             <div className="w-1 h-1 rounded-full bg-blue-500" />
                             Missing Lab Certification
                         </h4>
-                        {data.missingCertifications.map(item => (
+                        {visibleMissingCertifications.map(item => (
                             <Link href={`/inventory/${item.id}`} key={item.id} className="block group">
                                 <div className="flex items-center justify-between text-sm p-2 rounded-md bg-blue-50/50 hover:bg-blue-50 border border-blue-100/50 transition-colors">
                                     <div className="flex items-center gap-2">
@@ -116,9 +194,24 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                                         <span className="font-medium text-blue-900 group-hover:underline">{item.sku}</span>
                                         <span className="text-blue-700 truncate max-w-[120px]">- {item.itemName}</span>
                                     </div>
-                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">
-                                        {item.lab ? `${item.lab} MISSING` : "MISSING CERT"}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            disabled={isUpdatingSku === item.sku}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                hideSkuFromAttention(item.id, item.sku);
+                                            }}
+                                        >
+                                            <EyeOff className="h-4 w-4" />
+                                        </Button>
+                                        <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">
+                                            {item.lab ? `${item.lab} MISSING` : "MISSING CERT"}
+                                        </span>
+                                    </div>
                                 </div>
                             </Link>
                         ))}
@@ -126,13 +219,13 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                 )}
 
                 {/* Missing Images */}
-                {data.missingImages && data.missingImages.length > 0 && (
+                {visibleMissingImages.length > 0 && (
                     <div className="space-y-2">
                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                             <div className="w-1 h-1 rounded-full bg-rose-500" />
                             Missing Item Images
                         </h4>
-                        {data.missingImages.map(item => (
+                        {visibleMissingImages.map(item => (
                             <Link href={`/inventory/${item.id}`} key={item.id} className="block group">
                                 <div className="flex items-center justify-between text-sm p-2 rounded-md bg-rose-50/50 hover:bg-rose-50 border border-rose-100/50 transition-colors">
                                     <div className="flex items-center gap-2">
@@ -140,7 +233,22 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                                         <span className="font-medium text-rose-900 group-hover:underline">{item.sku}</span>
                                         <span className="text-rose-700 truncate max-w-[150px]">- {item.itemName}</span>
                                     </div>
-                                    <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">NO IMAGE</span>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            disabled={isUpdatingSku === item.sku}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                hideSkuFromAttention(item.id, item.sku);
+                                            }}
+                                        >
+                                            <EyeOff className="h-4 w-4" />
+                                        </Button>
+                                        <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">NO IMAGE</span>
+                                    </div>
                                 </div>
                             </Link>
                         ))}
@@ -174,13 +282,13 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                 )}
 
                 {/* Overdue Memo */}
-                {data.memo.length > 0 && (
+                {visibleMemo.length > 0 && (
                     <div className="space-y-2">
                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                             <div className="w-1 h-1 rounded-full bg-orange-500" />
                             Overdue Memo Items (15+ Days)
                         </h4>
-                        {data.memo.map(m => (
+                        {visibleMemo.map(m => (
                             <div key={m.id} className="flex items-center justify-between text-sm p-2 rounded-md bg-orange-50/50 border border-orange-100/50">
                                 <div className="flex items-center gap-2">
                                     <Clock className="h-3.5 w-3.5 text-orange-600" />
@@ -196,13 +304,13 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                 )}
 
                 {/* High Value Unsold */}
-                {data.highValueUnsold && data.highValueUnsold.length > 0 && (
+                {visibleHighValueUnsold.length > 0 && (
                     <div className="space-y-2">
                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                             <div className="w-1 h-1 rounded-full bg-rose-500" />
                             High Value Stagnant Stock (&gt;60 Days)
                         </h4>
-                        {data.highValueUnsold.map(item => (
+                        {visibleHighValueUnsold.map(item => (
                             <Link href={`/inventory/${item.id}`} key={item.id} className="block group">
                                 <div className="flex items-center justify-between text-sm p-2 rounded-md bg-rose-50/50 hover:bg-rose-50 border border-rose-100/50 transition-colors">
                                     <div className="flex items-center gap-2">
@@ -236,13 +344,13 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                 )}
 
                 {/* Unsold Inventory */}
-                {data.unsold && data.unsold.length > 0 && (
+                {visibleUnsold.length > 0 && (
                     <div className="space-y-2">
                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
                             <div className="w-1 h-1 rounded-full bg-stone-500" />
                             Stagnant Stock (90+ Days)
                         </h4>
-                         {data.unsold.map(item => (
+                         {visibleUnsold.map(item => (
                             <Link href={`/inventory/${item.id}`} key={item.id} className="block group">
                                 <div className="flex items-center justify-between text-sm p-2 rounded-md bg-stone-50/50 hover:bg-stone-50 border border-stone-100/50 transition-colors">
                                     <div className="flex items-center gap-2">

@@ -3,8 +3,8 @@
 import { useForm, type Resolver, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useState, useEffect } from "react";
-import { Loader2, Check, ChevronsUpDown, X } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Loader2, Check, ChevronsUpDown, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -79,6 +80,14 @@ const formSchema = z.object({
   trackingId: z.string().optional(),
   remarks: z.string().optional(),
   autoDelistListings: z.boolean().default(true),
+  autoFillSplitFromSingle: z.boolean().default(true),
+  initialPayments: z.array(z.object({
+    amount: z.coerce.number().positive("Amount must be greater than zero"),
+    method: z.string().min(1, "Method is required"),
+    date: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
+    reference: z.string().optional(),
+    notes: z.string().optional(),
+  })).default([]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -173,12 +182,37 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
       trackingId: "",
       remarks: "",
       autoDelistListings: true,
+      autoFillSplitFromSingle: true,
+      initialPayments: [],
     },
   });
 
   const selectedItems = form.watch("items");
+  const autoFillSplitFromSingle = form.watch("autoFillSplitFromSingle");
+  const shippingChargeValue = form.watch("shippingCharge");
+  const additionalChargeValue = form.watch("additionalCharge");
+  const initialPaymentsValue = form.watch("initialPayments");
   const autoDelist = form.watch("autoDelistListings");
   const shippingAddressValue = form.watch("shippingAddress");
+
+  const computedInvoiceTotal = useMemo(() => {
+    const itemsTotal = selectedItems.reduce((sum, item) => {
+      const price = Number(item.sellingPrice || 0);
+      const discount = Number(item.discount || 0);
+      return sum + Math.max(0, price - discount);
+    }, 0);
+    return itemsTotal + Number(shippingChargeValue || 0) + Number(additionalChargeValue || 0);
+  }, [selectedItems, shippingChargeValue, additionalChargeValue]);
+
+  const allocatedPaymentTotal = useMemo(
+    () => (initialPaymentsValue || []).reduce((sum, p) => sum + Number(p.amount || 0), 0),
+    [initialPaymentsValue]
+  );
+  const computedPaymentStatus = useMemo(() => {
+    if (allocatedPaymentTotal >= computedInvoiceTotal - 0.01 && computedInvoiceTotal > 0) return "PAID";
+    if (allocatedPaymentTotal > 0) return "PARTIAL";
+    return "UNPAID";
+  }, [allocatedPaymentTotal, computedInvoiceTotal]);
 
   useEffect(() => {
     if (billingSameAsShipping) {
@@ -220,6 +254,22 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     name: "items",
   });
 
+  const {
+    fields: paymentFields,
+    append: appendPayment,
+    remove: removePayment,
+    replace: replacePayments,
+  } = useFieldArray({
+    control: form.control,
+    name: "initialPayments",
+  });
+
+  useEffect(() => {
+    if (autoFillSplitFromSingle && paymentFields.length > 0) {
+      replacePayments([]);
+    }
+  }, [autoFillSplitFromSingle, paymentFields.length, replacePayments]);
+
   async function onSubmit(data: FormValues) {
     setIsPending(true);
     const formData = new FormData();
@@ -237,11 +287,17 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     formData.append("shippingCharge", String(data.shippingCharge || 0));
     formData.append("additionalCharge", String(data.additionalCharge || 0));
     if (data.paymentMode) formData.append("paymentMode", data.paymentMode);
-    if (data.paymentStatus) formData.append("paymentStatus", data.paymentStatus);
+    if (autoFillSplitFromSingle) {
+      if (data.paymentStatus) formData.append("paymentStatus", data.paymentStatus);
+    } else {
+      formData.append("paymentStatus", computedPaymentStatus);
+    }
     if (data.shippingMethod) formData.append("shippingMethod", data.shippingMethod);
     if (data.trackingId) formData.append("trackingId", data.trackingId);
     if (data.remarks) formData.append("remarks", data.remarks);
     formData.append("autoDelistListings", data.autoDelistListings ? "true" : "false");
+    formData.append("autoFillSplitFromSingle", data.autoFillSplitFromSingle ? "true" : "false");
+    formData.append("initialPayments", JSON.stringify(data.initialPayments || []));
     
     if (quoteId) {
         formData.append("quotationId", quoteId);
@@ -499,53 +555,206 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
               </div>
             )}
             
-             <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="paymentMode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment Mode</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Mode" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="UPI">UPI</SelectItem>
-                          <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                          <SelectItem value="CASH">Cash</SelectItem>
-                          <SelectItem value="PAYPAL">PayPal</SelectItem>
-                          <SelectItem value="CC">Credit Card</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="paymentStatus"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="PAID">Paid</SelectItem>
-                          <SelectItem value="PENDING">Pending</SelectItem>
-                          <SelectItem value="PARTIAL">Partial</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <div className="grid grid-cols-2 gap-4">
+                {autoFillSplitFromSingle ? (
+                  <FormField
+                    control={form.control}
+                    name="paymentMode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Payment Mode</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Mode" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="UPI">UPI</SelectItem>
+                            <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                            <SelectItem value="CASH">Cash</SelectItem>
+                            <SelectItem value="PAYPAL">PayPal</SelectItem>
+                            <SelectItem value="CC">Credit Card</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : (
+                  <div className="rounded-md border px-3 py-2 text-sm">
+                    <div className="text-xs text-muted-foreground">Payment Mode</div>
+                    <div className="font-semibold">Auto from split rows</div>
+                  </div>
+                )}
+                {autoFillSplitFromSingle ? (
+                  <FormField
+                    control={form.control}
+                    name="paymentStatus"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="PAID">Paid</SelectItem>
+                            <SelectItem value="UNPAID">Pending</SelectItem>
+                            <SelectItem value="PARTIAL">Partial</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : (
+                  <div className="rounded-md border px-3 py-2 text-sm">
+                    <div className="text-xs text-muted-foreground">Status (Auto)</div>
+                    <div className="font-semibold">{computedPaymentStatus}</div>
+                  </div>
+                )}
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">Initial Payments (Multi-payment)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Total: {computedInvoiceTotal.toFixed(2)} | Allocated: {allocatedPaymentTotal.toFixed(2)} | Pending: {Math.max(0, computedInvoiceTotal - allocatedPaymentTotal).toFixed(2)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    appendPayment({
+                      amount: 0,
+                      method: form.getValues("paymentMode") || "UPI",
+                      date: form.getValues("saleDate"),
+                      reference: "",
+                      notes: "",
+                    })
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Payment
+                </Button>
+              </div>
+
+              <FormField
+                control={form.control}
+                name="autoFillSplitFromSingle"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(Boolean(checked))} />
+                    </FormControl>
+                    <FormLabel className="text-sm font-normal">
+                      Auto-fill split from single payment fields
+                    </FormLabel>
+                    <Badge variant="secondary" className="ml-2">
+                      {autoFillSplitFromSingle ? "Single-payment mode" : "Split-payment mode"}
+                    </Badge>
+                  </FormItem>
+                )}
+              />
+
+              {autoFillSplitFromSingle ? (
+                <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  Using single-payment mode. Split rows are hidden for cleaner entry.  
+                  Keep this ON to use Payment Mode + Status flow, or turn OFF to record manual split payments.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[120px]">Amount</TableHead>
+                      <TableHead className="w-[160px]">Method</TableHead>
+                      <TableHead className="w-[150px]">Date</TableHead>
+                      <TableHead>Reference</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paymentFields.map((field, index) => (
+                      <TableRow key={field.id}>
+                        <TableCell>
+                          <FormField
+                            control={form.control}
+                            name={`initialPayments.${index}.amount`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input type="number" step="0.01" {...field} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormField
+                            control={form.control}
+                            name={`initialPayments.${index}.method`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Method" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="UPI">UPI</SelectItem>
+                                    <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                                    <SelectItem value="CASH">Cash</SelectItem>
+                                    <SelectItem value="CHEQUE">Cheque</SelectItem>
+                                    <SelectItem value="OTHER">Other</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormItem>
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormField
+                            control={form.control}
+                            name={`initialPayments.${index}.date`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input type="date" {...field} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormField
+                            control={form.control}
+                            name={`initialPayments.${index}.reference`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input placeholder="Txn Ref" {...field} />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removePayment(index)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </div>
           </div>
 

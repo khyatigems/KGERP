@@ -135,7 +135,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-function generateAiDescription(values: FormValues) {
+function generateFallbackDescription(values: FormValues) {
   const {
     itemName,
     weightValue,
@@ -193,6 +193,8 @@ interface InventoryFormProps {
 export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], initialData }: InventoryFormProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [additionalProductInfo, setAdditionalProductInfo] = useState("");
   const [skuPreview, setSkuPreview] = useState<string>("");
   const [isSkuPreviewOpen, setIsSkuPreviewOpen] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<{
@@ -1505,15 +1507,51 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                       variant="outline"
                       size="sm"
                       className="h-7 text-xs gap-1.5 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                      onClick={() => {
+                      disabled={isGeneratingDescription}
+                      onClick={async () => {
                         const values = form.getValues();
-                        const desc = generateAiDescription(values);
-                        form.setValue("notes", desc, { shouldDirty: true });
+                        setIsGeneratingDescription(true);
+                        try {
+                          const response = await fetch("/api/ai/inventory-description", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              inventory: values,
+                              additionalInfo: additionalProductInfo
+                            })
+                          });
+                          if (!response.ok) {
+                            throw new Error("AI request failed");
+                          }
+                          const result = await response.json();
+                          const generated = typeof result?.description === "string" ? result.description.trim() : "";
+                          const finalDescription = generated || generateFallbackDescription(values);
+                          form.setValue("notes", finalDescription, { shouldDirty: true });
+                          if (result?.warning) {
+                            toast.warning(result.warning);
+                          } else {
+                            toast.success("Product description generated");
+                          }
+                        } catch {
+                          const fallback = generateFallbackDescription(values);
+                          form.setValue("notes", fallback, { shouldDirty: true });
+                          toast.warning("AI service unavailable. Added structured fallback description.");
+                        } finally {
+                          setIsGeneratingDescription(false);
+                        }
                       }}
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Generate AI Description
+                      {isGeneratingDescription ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      {isGeneratingDescription ? "Generating..." : "Generate Smart Description"}
                     </Button>
+                  </div>
+                  <div className="mb-2">
+                    <Textarea
+                      className="min-h-[80px] text-sm"
+                      placeholder="Add Product Information for AI (optional). Example: buyer style, tone, selling focus, special highlights."
+                      value={additionalProductInfo}
+                      onChange={(e) => setAdditionalProductInfo(e.target.value)}
+                    />
                   </div>
                   <FormControl>
                     <Textarea className="min-h-[300px] font-mono text-sm" placeholder="Any additional details..." {...field} />

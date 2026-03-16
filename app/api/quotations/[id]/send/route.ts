@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { withFreezeGuard } from "@/lib/governance";
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function sendQuotation(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     const { id } = await params;
@@ -113,3 +114,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export const POST = withFreezeGuard("Quotation send", sendQuotation);

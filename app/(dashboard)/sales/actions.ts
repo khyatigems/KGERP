@@ -10,12 +10,23 @@ import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import { randomBytes } from "crypto";
 import { InvoiceData } from "@/lib/invoice-generator";
 import { Prisma } from "@prisma/client";
-import { postJournalEntry, getAccountByCode, ACCOUNTS, PrismaTx } from "@/lib/accounting";
+import { postJournalEntry, getOrCreateAccountByCode, ACCOUNTS, PrismaTx } from "@/lib/accounting";
+import { normalizeDateToUtcNoon } from "@/lib/date";
+import { getInvoiceDisplayDate } from "@/lib/invoice-date";
+import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
 
 const saleItemSchema = z.object({
   inventoryId: z.string().uuid("Please select an item"),
   sellingPrice: z.coerce.number().positive("Selling price must be positive"),
   discount: z.coerce.number().min(0).default(0),
+});
+
+const initialPaymentSchema = z.object({
+  amount: z.coerce.number().positive("Payment amount must be positive"),
+  method: z.string().min(1, "Payment method is required"),
+  date: z.coerce.date(),
+  reference: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 const saleSchema = z.object({
@@ -38,6 +49,8 @@ const saleSchema = z.object({
   trackingId: z.string().optional(),
   remarks: z.string().optional(),
   quotationId: z.string().optional(),
+  autoFillSplitFromSingle: z.coerce.boolean().optional().default(true),
+  initialPayments: z.array(initialPaymentSchema).optional().default([]),
 });
 
 function generateInvoiceToken() {
@@ -52,11 +65,17 @@ export async function createSale(prevState: unknown, formData: FormData) {
   if (!session) {
     return { message: "Unauthorized" };
   }
+  try {
+    await assertNotFrozen("Sale creation");
+  } catch (error) {
+    return { message: error instanceof Error ? error.message : "System is in freeze mode" };
+  }
 
   const rawData = Object.fromEntries(formData.entries());
   const invoiceDisplayOptions = formData.get("invoiceDisplayOptions") as string | null;
 
   let itemsData: { inventoryId: string; sellingPrice: number; discount: number }[] = [];
+  let initialPaymentsData: { amount: number; method: string; date: string; reference?: string; notes?: string }[] = [];
   try {
     if (typeof rawData.items === "string") {
       itemsData = JSON.parse(rawData.items);
@@ -67,17 +86,21 @@ export async function createSale(prevState: unknown, formData: FormData) {
         discount: rawData.discount ? Number(rawData.discount) : 0
       }];
     }
+    if (typeof rawData.initialPayments === "string") {
+      initialPaymentsData = JSON.parse(rawData.initialPayments);
+    }
   } catch {
     return { message: "Invalid items data" };
   }
 
-  const payload = { ...rawData, items: itemsData };
+  const payload = { ...rawData, items: itemsData, initialPayments: initialPaymentsData };
   const parsed = saleSchema.safeParse(payload);
   if (!parsed.success) {
     return { message: "Invalid data", errors: parsed.error.flatten().fieldErrors };
   }
 
   const data = parsed.data;
+  const governance = await getGovernanceConfig();
 
   try {
       const itemIds = data.items.map(i => i.inventoryId);
@@ -97,6 +120,13 @@ export async function createSale(prevState: unknown, formData: FormData) {
           if (inv.status !== "IN_STOCK" && inv.status !== "RESERVED") {
               return { message: `Item ${inv.sku} is not available for sale` };
           }
+          if (governance.blockSaleWithoutCertification && !(inv.certification || "").trim()) {
+              return { message: `Certification is required before selling SKU ${inv.sku}` };
+          }
+      }
+
+      if (governance.blockInvoiceWithoutCustomerName && !(data.customerName || "").trim()) {
+        return { message: "Customer name is required to generate invoice under governance rules" };
       }
 
       const computedItems = data.items.map((input) => {
@@ -116,6 +146,58 @@ export async function createSale(prevState: unknown, formData: FormData) {
       const additionalCharge = data.additionalCharge || 0;
       const totalNetAmount = computedItems.reduce((sum, i) => sum + i.netAmount, 0) + shippingCharge + additionalCharge;
       const totalDiscount = computedItems.reduce((sum, i) => sum + i.discount, 0);
+      const allowedPaymentMethods = new Set(["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER", "PAYPAL", "CC"]);
+
+      let normalizedPayments = (data.initialPayments || []).map((p) => ({
+        amount: Number(p.amount),
+        method: p.method,
+        date: new Date(p.date),
+        reference: p.reference || undefined,
+        notes: p.notes || undefined,
+      }));
+
+      if (normalizedPayments.length === 0 && data.paymentStatus === "PAID" && data.autoFillSplitFromSingle) {
+        normalizedPayments = [
+          {
+            amount: totalNetAmount,
+            method: data.paymentMode || "CASH",
+            date: data.saleDate,
+            reference: undefined,
+            notes: "Auto-recorded at sale creation",
+          }
+        ];
+      }
+
+      for (const payment of normalizedPayments) {
+        if (!allowedPaymentMethods.has(payment.method)) {
+          return { message: `Unsupported payment method: ${payment.method}` };
+        }
+        if (!(payment.date instanceof Date) || Number.isNaN(payment.date.getTime())) {
+          return { message: "Invalid payment date in initial payments" };
+        }
+      }
+
+      const paidAmount = normalizedPayments.reduce((sum, p) => sum + p.amount, 0);
+      if (paidAmount > totalNetAmount + 0.009) {
+        return { message: `Initial payments exceed invoice total by ${(paidAmount - totalNetAmount).toFixed(2)}` };
+      }
+      if (data.autoFillSplitFromSingle && (data.paymentStatus || "").toUpperCase() === "PARTIAL" && normalizedPayments.length === 0) {
+        return { message: "Add at least one payment entry for PARTIAL status" };
+      }
+      if (data.autoFillSplitFromSingle && (data.paymentStatus || "").toUpperCase() === "PAID" && normalizedPayments.length === 0) {
+        return { message: "Add at least one payment entry or enable auto-fill split for PAID status" };
+      }
+
+      const invoicePaymentStatus =
+        paidAmount >= totalNetAmount - 0.01
+          ? "PAID"
+          : paidAmount > 0
+          ? "PARTIAL"
+          : data.paymentStatus === "UNPAID" || data.paymentStatus === "PENDING"
+          ? "UNPAID"
+          : data.paymentStatus === "PARTIAL"
+          ? "PARTIAL"
+          : "UNPAID";
 
       await prisma.$transaction(async (tx) => {
           // 1. Generate Invoice
@@ -175,16 +257,20 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
           const token = generateInvoiceToken();
 
-          const newInvoice = await tx.invoice.create({
+          const newInvoice = await (tx.invoice as any).create({
               data: {
                   invoiceNumber,
                   token,
                   isActive: true,
+                  invoiceDate: normalizeDateToUtcNoon(data.saleDate),
                   subtotal: totalNetAmount,
                   taxTotal: 0, 
                   discountTotal: totalDiscount,
                   totalAmount: totalNetAmount,
-                  displayOptions: invoiceDisplayOptions
+                  displayOptions: invoiceDisplayOptions,
+                  paymentStatus: invoicePaymentStatus,
+                  paidAmount: paidAmount >= totalNetAmount - 0.01 ? totalNetAmount : paidAmount,
+                  status: invoicePaymentStatus === "PAID" ? "PAID" : "ISSUED"
               }
           });
 
@@ -209,7 +295,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
                 netAmount: itemData.netAmount,
                 profit: itemData.profit,
                 paymentMethod: data.paymentMode,
-                paymentStatus: data.paymentStatus || "PENDING",
+                paymentStatus: invoicePaymentStatus,
                 notes: data.remarks,
                 invoiceId: newInvoice.id
               } as Prisma.SaleUncheckedCreateInput;
@@ -222,6 +308,20 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   where: { id: itemData.inv.id },
                   data: { status: "SOLD" }
               });
+          }
+
+          for (const payment of normalizedPayments) {
+            await tx.payment.create({
+              data: {
+                invoiceId: newInvoice.id,
+                amount: payment.amount,
+                method: payment.method,
+                date: payment.date,
+                reference: payment.reference,
+                notes: payment.notes,
+                recordedBy: session.user.id
+              }
+            });
           }
 
           // 3. Update Quotation Status if linked and handle other quotations with same item
@@ -292,8 +392,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
           // 4. Accounting Entry (Double Entry)
           try {
               const prismaTx = tx as PrismaTx;
-              const acAR = await getAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, prismaTx);
-              const acSales = await getAccountByCode(ACCOUNTS.INCOME.SALES, prismaTx);
+              const acAR = await getOrCreateAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, prismaTx);
+              const acSales = await getOrCreateAccountByCode(ACCOUNTS.INCOME.SALES, prismaTx);
               
               await postJournalEntry({
                   date: new Date(),
@@ -569,7 +669,7 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
 
     return {
         invoiceNumber: invoice.invoiceNumber,
-        date: invoice.createdAt,
+        date: getInvoiceDisplayDate(invoice as any),
         publicUrl,
         token: invoice.token,
         company: {

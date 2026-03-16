@@ -11,9 +11,10 @@ interface InventoryItem extends Inventory {
 
 interface InventoryCardListProps {
   data: InventoryItem[];
+  canManageAttentionVisibility: boolean;
 }
 
-export function InventoryCardList({ data }: InventoryCardListProps) {
+export function InventoryCardList({ data, canManageAttentionVisibility }: InventoryCardListProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:hidden">
       {data.map((item) => {
@@ -45,7 +46,7 @@ export function InventoryCardList({ data }: InventoryCardListProps) {
                     </p>
                   )}
                 </div>
-                <InventoryActions item={item} />
+                <InventoryActions item={item} canManageAttentionVisibility={canManageAttentionVisibility} />
               </div>
               <div className="flex items-center justify-between mt-2">
                  <p className="text-sm font-medium">{formatCurrency(price)}</p>

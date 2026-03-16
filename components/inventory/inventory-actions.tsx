@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, MoreHorizontal, Pencil, IndianRupee, FileText, Globe, Printer } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Eye, MoreHorizontal, Pencil, IndianRupee, FileText, Globe, Printer, EyeOff, EyeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +15,7 @@ import {
 import { InventoryQrDialog } from "./inventory-qr";
 import { ListingManager } from "./listing-manager";
 import { LabelPrintDialog } from "./label-print-dialog";
+import { toast } from "sonner";
 
 interface InventoryActionsProps {
   item: {
@@ -32,13 +35,46 @@ interface InventoryActionsProps {
     shape?: string | null;
     dimensionsMm?: string | null;
     stockLocation?: string | null;
+    hideFromAttention?: boolean | null;
   };
+  canManageAttentionVisibility: boolean;
 }
 
-export function InventoryActions({ item }: InventoryActionsProps) {
+export function InventoryActions({ item, canManageAttentionVisibility }: InventoryActionsProps) {
+  const router = useRouter();
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const sellingPrice = item.pricingMode === "PER_CARAT"
     ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
     : item.flatSellingPrice || 0;
+  const isHiddenFromAttention = Boolean(item.hideFromAttention);
+
+  const toggleAttentionVisibility = async () => {
+    if (!canManageAttentionVisibility || isUpdatingVisibility) return;
+    setIsUpdatingVisibility(true);
+    try {
+      const response = await fetch(`/api/inventory/${item.id}/attention-visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hideFromAttention: !isHiddenFromAttention }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || "Failed to update SKU attention visibility");
+      }
+      localStorage.setItem("attention-visibility-last-change", Date.now().toString());
+      window.dispatchEvent(new Event("attention-visibility-changed"));
+      toast.success(
+        result.hideFromAttention
+          ? `${item.sku} hidden from attention widget`
+          : `${item.sku} visible in attention widget`
+      );
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update SKU attention visibility");
+    } finally {
+      setIsUpdatingVisibility(false);
+    }
+  };
 
   return (
     <div className="flex items-center justify-end gap-1">
@@ -58,6 +94,20 @@ export function InventoryActions({ item }: InventoryActionsProps) {
               <Eye className="mr-2 h-4 w-4" /> View Details
             </Link>
           </DropdownMenuItem>
+              {canManageAttentionVisibility && (
+                <DropdownMenuItem onClick={toggleAttentionVisibility} disabled={isUpdatingVisibility}>
+                  {isHiddenFromAttention ? (
+                    <EyeIcon className="mr-2 h-4 w-4" />
+                  ) : (
+                    <EyeOff className="mr-2 h-4 w-4" />
+                  )}
+                  {isUpdatingVisibility
+                    ? "Updating..."
+                    : isHiddenFromAttention
+                    ? "Show In Attention Widget"
+                    : "Hide From Attention Widget"}
+                </DropdownMenuItem>
+              )}
           {item.status === "IN_STOCK" && (
             <>
               <DropdownMenuItem asChild>

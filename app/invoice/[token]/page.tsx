@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { buildInvoiceWhatsappLink } from "@/lib/whatsapp";
 import { Share2 } from "lucide-react";
 import { PrintButton } from "@/components/invoice/print-button";
@@ -9,6 +10,8 @@ import { RazorpayButton } from "@/components/invoice/razorpay-button";
 import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
 import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
+import { selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
+import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-breakdown";
 import type { Metadata } from "next";
 import { trackPublicView } from "@/lib/analytics";
 
@@ -62,6 +65,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
       sales: {
         include: { inventory: { include: { certificates: true, rashis: true } } }
       },
+      payments: true,
       legacySale: {
         include: { inventory: { include: { certificates: true, rashis: true } } }
       },
@@ -177,16 +181,6 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     };
   });
 
-  // Payment Status Logic
-  const allPaid = salesItems.every((s) => s.paymentStatus === "PAID");
-  const anyPaidOrPartial = salesItems.some((s) => s.paymentStatus === "PAID" || s.paymentStatus === "PARTIAL");
-  let paymentStatus = "UNPAID";
-  if (allPaid) paymentStatus = "PAID";
-  else if (anyPaidOrPartial) paymentStatus = "PARTIAL";
-
-  const isPaid = paymentStatus === "PAID";
-  // const isPartial = paymentStatus === "PARTIAL";
-  
   // Totals
   const subtotalBase = processedItems.reduce((sum, item) => sum + item.basePrice, 0);
   const totalGst = processedItems.reduce((sum, item) => sum + item.calculatedGst, 0);
@@ -211,7 +205,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const total = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
   const discount = itemDiscount + invoiceDiscountAmount;
   
-  // Balance Due Calculation
+  // Balance Due & Payment Status Calculation
   const amountPaidCalculated = salesItems.reduce((sum, item) => {
     if (item.paymentStatus === "PAID") return sum + (item.netAmount || item.salePrice);
     if (item.paymentStatus === "PARTIAL") {
@@ -221,8 +215,37 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     return sum;
   }, 0);
 
-  const balanceDue = isPaid ? 0 : Math.max(0, total - amountPaidCalculated);
-  const amountReceived = amountPaidCalculated;
+  const paymentSummary = aggregateInvoicePayments(invoice.payments || []);
+  const amountReceived = paymentSummary.rows.length > 0
+    ? paymentSummary.netReceived
+    : (invoice.paidAmount && invoice.paidAmount > 0)
+    ? invoice.paidAmount
+    : amountPaidCalculated;
+  let balanceDue = Math.max(0, total - amountReceived);
+  let paymentStatus = "UNPAID";
+  if (amountReceived >= total - 0.01) {
+    paymentStatus = "PAID";
+  } else if (amountReceived > 0) {
+    paymentStatus = "PARTIAL";
+  }
+  const healResult = await selfHealInvoicePaymentOnLoad({
+    invoiceId: invoice.id,
+    invoiceNumber: invoice.invoiceNumber,
+    persistedTotalAmount: invoice.totalAmount || 0,
+    computedTotalAmount: total,
+    paidAmount: amountReceived,
+    currentPaymentStatus: invoice.paymentStatus || "UNPAID",
+    currentStatus: invoice.status || "ISSUED"
+  });
+  paymentStatus = healResult.paymentStatus;
+  balanceDue = healResult.balanceDue;
+  const paymentBreakdownRows = paymentSummary.rows
+    .filter((row) => Math.abs(row.amount) > 0.009)
+    .map((row) => ({ method: getPaymentMethodLabel(row.method), amount: row.amount }));
+  const latestPaymentDate = (invoice.payments || [])
+    .slice()
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
+  const isPaid = paymentStatus === "PAID";
 
   const isOriginal = true; 
   const statusLabel = isOriginal ? "ORIGINAL INVOICE" : "DUPLICATE INVOICE";
@@ -245,7 +268,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   // Construct InvoiceData for PDF
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
-    date: invoice.createdAt,
+    date: getInvoiceDisplayDate(invoice),
     company: {
       name: companySettings?.companyName || "KhyatiGems",
       address: companySettings?.address || "",
@@ -323,8 +346,9 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     balanceDue,
     status: statusLabel,
     paymentStatus,
-    paymentMethod: primarySale.paymentMethod || undefined,
-    paidAt: primarySale.saleDate || undefined,
+    paymentMethod: paymentBreakdownRows.length === 1 ? paymentBreakdownRows[0].method : (primarySale.paymentMethod || undefined),
+    paidAt: latestPaymentDate || primarySale.saleDate || undefined,
+    paymentBreakdown: paymentBreakdownRows,
     terms: invoiceSettings?.terms || undefined,
     notes: invoiceSettings?.footerNotes || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
@@ -393,7 +417,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                     <h1 className="text-4xl font-light text-gray-300 tracking-tight">INVOICE</h1>
                     <div className="mt-4 space-y-1">
                         <p className="text-lg font-bold text-gray-900">#{invoice.invoiceNumber}</p>
-                        <p className="text-sm text-gray-500">{formatDate(invoice.createdAt)}</p>
+                        <p className="text-sm text-gray-500">{formatDate(getInvoiceDisplayDate(invoice))}</p>
                         <div className="pt-2">
                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-wider rounded border border-gray-200">
                                 {statusLabel}
@@ -546,6 +570,17 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                 <span>Pending Amount</span>
                                 <span>{formatCurrency(balanceDue)}</span>
                             </div>
+                            {paymentBreakdownRows.length > 0 && (
+                              <div className="pt-2 border-t border-dashed border-gray-200 space-y-1">
+                                <div className="text-xs font-semibold text-gray-700">Payment Breakdown</div>
+                                {paymentBreakdownRows.map((row) => (
+                                  <div key={`${row.method}-${row.amount}`} className="flex justify-between text-xs text-gray-600">
+                                    <span>{row.method}</span>
+                                    <span>{row.amount < 0 ? "-" : ""}{formatCurrency(Math.abs(row.amount))}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                         </div>
                     </div>
                 </div>

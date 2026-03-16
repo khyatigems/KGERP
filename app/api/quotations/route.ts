@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { createQuotationSchema } from "@/lib/schemas/quotation";
 import { generateQuotationToken } from "@/lib/tokens";
+import { withFreezeGuard } from "@/lib/governance";
 
-export async function POST(req: Request) {
+async function createQuotation(req: Request) {
   try {
     const session = await auth();
     // Assuming permissions are checked here or we just allow authenticated users for now
@@ -140,3 +141,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export const POST = withFreezeGuard("Quotation creation", createQuotation);

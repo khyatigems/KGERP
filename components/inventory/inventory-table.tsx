@@ -11,7 +11,8 @@ import { InventoryActions } from "@/components/inventory/inventory-actions";
 import { InventoryCardMedia } from "@/components/inventory/inventory-card-media";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { BulkEditDialog } from "./bulk-edit-dialog";
-import { Edit } from "lucide-react";
+import { BulkCertificateDialog } from "./bulk-certificate-dialog";
+import { Edit, ShieldCheck } from "lucide-react";
 
 interface InventoryTableProps {
   data: any[];
@@ -22,6 +23,7 @@ interface InventoryTableProps {
   rashis: any[];
   certificates: any[];
   collections: any[];
+  canManageAttentionVisibility: boolean;
 }
 
 export function InventoryTable({
@@ -33,9 +35,11 @@ export function InventoryTable({
   rashis,
   certificates,
   collections,
+  canManageAttentionVisibility,
 }: InventoryTableProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
+  const [isBulkCertificateDialogOpen, setIsBulkCertificateDialogOpen] = useState(false);
 
   const vendorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -67,6 +71,10 @@ export function InventoryTable({
           <Button size="sm" onClick={() => setIsBulkEditDialogOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Bulk Edit
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setIsBulkCertificateDialogOpen(true)}>
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            Bulk Certificates
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
             Clear Selection
@@ -186,7 +194,7 @@ export function InventoryTable({
                     <TableCell className="text-xs">{item.stockLocation || "-"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
                     <TableCell className="text-right">
-                      <InventoryActions item={item} />
+                      <InventoryActions item={item} canManageAttentionVisibility={canManageAttentionVisibility} />
                     </TableCell>
                   </TableRow>
                 );
@@ -208,6 +216,12 @@ export function InventoryTable({
         certificates={certificates}
         vendors={vendors}
         collections={collections}
+      />
+      <BulkCertificateDialog
+        selectedIds={selectedIds}
+        open={isBulkCertificateDialogOpen}
+        onOpenChange={setIsBulkCertificateDialogOpen}
+        onSuccess={() => setSelectedIds([])}
       />
     </div>
   );

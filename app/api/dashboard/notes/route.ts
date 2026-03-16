@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { withFreezeGuard } from "@/lib/governance";
 
 const NoteSchema = z.object({
   content: z.string().min(1),
@@ -22,7 +23,7 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+async function createDashboardNote(req: Request) {
     try {
         const body = await req.json();
         const { content, color, position } = NoteSchema.parse(body);
@@ -74,7 +75,7 @@ export async function POST(req: Request) {
     }
 }
 
-export async function PUT(req: Request) {
+async function updateDashboardNote(req: Request) {
     try {
         const body = await req.json();
         const { id, content, color } = z.object({
@@ -97,7 +98,7 @@ export async function PUT(req: Request) {
     }
 }
 
-export async function DELETE(req: Request) {
+async function deleteDashboardNote(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
@@ -112,3 +113,7 @@ export async function DELETE(req: Request) {
         return NextResponse.json({ error: "Failed to delete note" }, { status: 500 });
     }
 }
+
+export const POST = withFreezeGuard("Dashboard note creation", createDashboardNote);
+export const PUT = withFreezeGuard("Dashboard note update", updateDashboardNote);
+export const DELETE = withFreezeGuard("Dashboard note deletion", deleteDashboardNote);

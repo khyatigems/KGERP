@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
+import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
 
 const listingSchema = z.object({
   inventoryId: z.string().uuid(),
@@ -19,17 +20,31 @@ const listingSchema = z.object({
 export async function addListing(data: z.infer<typeof listingSchema>) {
   const session = await auth();
   if (!session) return { success: false, message: "Unauthorized" };
+  try {
+    await assertNotFrozen("Listing creation");
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : "System is in freeze mode" };
+  }
 
   const parsed = listingSchema.safeParse(data);
   if (!parsed.success) return { success: false, message: "Invalid data", errors: parsed.error.flatten().fieldErrors };
 
   try {
+    const governance = await getGovernanceConfig();
     const inventory = await prisma.inventory.findUnique({
         where: { id: data.inventoryId },
         select: { sku: true }
     });
 
     if (!inventory) return { success: false, message: "Inventory item not found" };
+    if (governance.minImagesForListing > 0) {
+      const imageCount = await prisma.inventoryMedia.count({
+        where: { inventoryId: data.inventoryId, type: "IMAGE" }
+      });
+      if (imageCount < governance.minImagesForListing) {
+        return { success: false, message: `At least ${governance.minImagesForListing} images are required before listing` };
+      }
+    }
 
     const listing = await prisma.listing.create({
       data: {
@@ -73,6 +88,11 @@ export async function addListing(data: z.infer<typeof listingSchema>) {
 export async function updateListing(id: string, data: Partial<z.infer<typeof listingSchema>>) {
     const session = await auth();
     if (!session) return { success: false, message: "Unauthorized" };
+    try {
+        await assertNotFrozen("Listing update");
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : "System is in freeze mode" };
+    }
 
     try {
         const existing = await prisma.listing.findUnique({ 
@@ -142,6 +162,11 @@ export async function getListingHistory(listingId: string) {
 export async function deleteListing(id: string) {
     const session = await auth();
     if (!session) return { success: false, message: "Unauthorized" };
+    try {
+        await assertNotFrozen("Listing deletion");
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : "System is in freeze mode" };
+    }
 
     try {
         const existing = await prisma.listing.findUnique({ 
@@ -174,6 +199,11 @@ export async function deleteListing(id: string) {
 export async function updateListingsStatus(ids: string[], status: string) {
     const session = await auth();
     if (!session) return { success: false, message: "Unauthorized" };
+    try {
+        await assertNotFrozen("Bulk listing status update");
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : "System is in freeze mode" };
+    }
 
     try {
         const listings = await prisma.listing.findMany({
@@ -210,6 +240,11 @@ export async function updateListingsStatus(ids: string[], status: string) {
 export async function deleteListings(ids: string[]) {
     const session = await auth();
     if (!session) return { success: false, message: "Unauthorized" };
+    try {
+        await assertNotFrozen("Bulk listing deletion");
+    } catch (error) {
+        return { success: false, message: error instanceof Error ? error.message : "System is in freeze mode" };
+    }
 
     try {
         const listings = await prisma.listing.findMany({

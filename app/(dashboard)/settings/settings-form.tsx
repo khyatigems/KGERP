@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { updateSettings } from "./actions";
 import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
 
 export function SettingsForm({ config }: { config: Record<string, string> }) {
   const [message, setMessage] = useState("");
@@ -48,6 +49,40 @@ export function SettingsForm({ config }: { config: Record<string, string> }) {
               <div className="space-y-2">
                 <Label htmlFor="quotation_prefix">Quotation Prefix</Label>
                 <Input id="quotation_prefix" name="quotation_prefix" defaultValue={config.quotation_prefix} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Phase 3 Governance</CardTitle>
+              <CardDescription>Controls for freeze mode and data completeness enforcement.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="space-y-1">
+                  <Label htmlFor="governance_freeze_mode">System Freeze Mode (Read-only)</Label>
+                  <p className="text-xs text-muted-foreground">Block write operations across governance-protected flows.</p>
+                </div>
+                <Switch id="governance_freeze_mode" name="governance_freeze_mode" defaultChecked={config.governance_freeze_mode === "true"} />
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="space-y-1">
+                  <Label htmlFor="governance_block_sale_without_cert">Block sale if certification missing</Label>
+                  <p className="text-xs text-muted-foreground">Requires inventory certification before sale creation.</p>
+                </div>
+                <Switch id="governance_block_sale_without_cert" name="governance_block_sale_without_cert" defaultChecked={config.governance_block_sale_without_cert === "true"} />
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="space-y-1">
+                  <Label htmlFor="governance_block_invoice_without_customer_name">Block invoice if customer name missing</Label>
+                  <p className="text-xs text-muted-foreground">Enforces customer identity for invoice generation.</p>
+                </div>
+                <Switch id="governance_block_invoice_without_customer_name" name="governance_block_invoice_without_customer_name" defaultChecked={config.governance_block_invoice_without_customer_name === "true"} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="governance_min_images_for_listing">Minimum images required before listing</Label>
+                <Input id="governance_min_images_for_listing" name="governance_min_images_for_listing" type="number" min={0} defaultValue={config.governance_min_images_for_listing || "0"} />
               </div>
             </CardContent>
           </Card>

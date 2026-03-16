@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,10 @@ import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
 import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { buildWhatsappUrl } from "@/lib/whatsapp";
+import { buildUpiUri } from "@/lib/upi";
+import { selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
+import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-breakdown";
 
 export const dynamic = "force-dynamic";
 
@@ -103,8 +108,9 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   // Calculate Balance
   // Use invoice.totalAmount if available, else calculated total
   const finalTotalAmount = invoice.totalAmount > 0 ? invoice.totalAmount : total;
+  const paymentSummary = aggregateInvoicePayments(invoice.payments || []);
   
-  let amountPaid = invoice.paidAmount || 0;
+  let amountPaid = paymentSummary.rows.length > 0 ? paymentSummary.netReceived : (invoice.paidAmount || 0);
   // Fallback: If status is PAID but amountPaid is 0, assume full payment (legacy)
   if (paymentStatus === "PAID" && amountPaid === 0) {
     amountPaid = finalTotalAmount;
@@ -205,14 +211,30 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const totalBeforeExtras = Math.max(0, itemsTotal - invoiceDiscountAmount);
   const pdfTotal = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
   const discount = itemDiscount + invoiceDiscountAmount;
-  balanceDue = Math.max(0, pdfTotal - amountPaid);
+  const healResult = await selfHealInvoicePaymentOnLoad({
+    invoiceId: invoice.id,
+    invoiceNumber: invoice.invoiceNumber,
+    persistedTotalAmount: invoice.totalAmount || 0,
+    computedTotalAmount: pdfTotal,
+    paidAmount: amountPaid,
+    currentPaymentStatus: invoice.paymentStatus || paymentStatus,
+    currentStatus: invoice.status || "ISSUED"
+  });
+  paymentStatus = healResult.paymentStatus;
+  balanceDue = healResult.balanceDue;
+  const paymentBreakdownRows = paymentSummary.rows
+    .filter((row) => Math.abs(row.amount) > 0.009)
+    .map((row) => ({ method: getPaymentMethodLabel(row.method), amount: row.amount }));
+  const latestPaymentDate = (invoice.payments || [])
+    .slice()
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
 
   const isPaid = paymentStatus === "PAID";
   // const balanceDue = isPaid ? 0 : pdfTotal; // Already calculated above
 
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
-    date: invoice.createdAt,
+    date: getInvoiceDisplayDate(invoice),
     company: {
       name: companySettings?.companyName || "KhyatiGems",
       address: companySettings?.address || "",
@@ -272,8 +294,9 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     balanceDue: balanceDue,
     status: paymentStatus,
     paymentStatus,
-    paymentMethod: primarySale.paymentMethod || undefined,
-    paidAt: primarySale.saleDate || undefined,
+    paymentMethod: paymentBreakdownRows.length === 1 ? paymentBreakdownRows[0].method : (primarySale.paymentMethod || undefined),
+    paidAt: latestPaymentDate || primarySale.saleDate || undefined,
+    paymentBreakdown: paymentBreakdownRows,
     terms: invoiceSettings?.terms || undefined,
     notes: invoiceSettings?.footerNotes || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
@@ -287,6 +310,35 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
       ? `upi://pay?pa=${paymentSettings.upiId}&pn=${encodeURIComponent(paymentSettings.upiPayeeName || "")}&am=${pdfTotal.toFixed(2)}&cu=INR`
       : undefined
   };
+
+  const baseUrl = process.env.APP_BASE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const invoiceUrl = `${baseUrl}/invoice/${invoice.token}`;
+  const outstandingAmount = balanceDue;
+  const upiUri = paymentSettings?.upiEnabled && paymentSettings.upiId && outstandingAmount > 0
+    ? buildUpiUri({
+        vpa: paymentSettings.upiId,
+        payeeName: paymentSettings.upiPayeeName || "KhyatiGems",
+        amount: outstandingAmount,
+        transactionNote: `Invoice ${invoice.invoiceNumber}`
+      })
+    : null;
+  const paymentLinkWhatsappUrl = outstandingAmount > 0
+    ? buildWhatsappUrl(
+        [
+          "Namaste 🙏",
+          "",
+          `Outstanding amount for invoice ${invoice.invoiceNumber}: ₹${outstandingAmount.toFixed(2)}`,
+          "",
+          "Invoice link:",
+          invoiceUrl,
+          upiUri ? "" : "",
+          upiUri ? "UPI payment link:" : "",
+          upiUri ? upiUri : "",
+          "",
+          "Please pay the outstanding amount to complete the invoice."
+        ].filter(Boolean).join("\n")
+      )
+    : null;
   
   // For PARTIAL/UNPAID, use calculated values (already set in object definition)
   
@@ -315,9 +367,23 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
                     Public Link
                 </Link>
             </Button>
+            {paymentLinkWhatsappUrl && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={paymentLinkWhatsappUrl} target="_blank">
+                  Send Payment Link
+                </Link>
+              </Button>
+            )}
             <DownloadPdfButton data={pdfData} />
         </div>
       </div>
+
+      {invoice.paidAmount > 0 && balanceDue > 0 && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-900">
+          <div className="font-semibold">Outstanding balance increased.</div>
+          <div className="text-sm">Please collect the additional amount of ₹{balanceDue.toFixed(2)} before marking invoice as paid.</div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
@@ -350,8 +416,8 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                      <span className="text-muted-foreground">Created Date</span>
-                      <span className="font-medium">{formatDate(invoice.createdAt)}</span>
+                      <span className="text-muted-foreground">Invoice Date</span>
+                      <span className="font-medium">{formatDate(getInvoiceDisplayDate(invoice))}</span>
                   </div>
                   {invoice.quotationId && (
                       <div className="flex justify-between">
@@ -397,7 +463,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
           </CardContent>
       </Card>
 
-      <PaymentHistory payments={invoice.payments || []} />
+      <PaymentHistory payments={invoice.payments || []} totalAmount={pdfTotal} invoiceId={invoice.id} />
 
       <Card>
         <CardHeader>

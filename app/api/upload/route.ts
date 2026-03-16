@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadToCloudinary } from '@/lib/cloudinary';
 import { uploadToImageKit } from '@/lib/imagekit';
+import { withFreezeGuard } from "@/lib/governance";
 
-export async function POST(req: NextRequest) {
+async function uploadMedia(req: NextRequest) {
   try {
     const formData = await req.formData();
     const files = formData.getAll('file') as File[];
@@ -96,3 +97,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
+
+export const POST = withFreezeGuard("Media upload", uploadMedia);

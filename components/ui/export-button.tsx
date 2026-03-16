@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { exportToExcel, exportToPDF } from "@/lib/export";
+import { exportToCSV, exportToExcel, exportToPDF } from "@/lib/export";
 
 interface ColumnConfig {
   header: string;
@@ -41,6 +41,17 @@ export function ExportButton({
     exportToExcel(excelData, filename);
   };
 
+  const handleExportCSV = () => {
+    const csvData = data.map(item => {
+      const row: Record<string, unknown> = {};
+      columns.forEach(col => {
+        row[col.header] = item[col.key];
+      });
+      return row;
+    });
+    exportToCSV(csvData, filename);
+  };
+
   const handleExportPDF = () => {
     const headers = columns.map(c => c.header);
     const rows = data.map(item => columns.map(col => item[col.key] as string | number));
@@ -56,6 +67,9 @@ export function ExportButton({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={handleExportCSV}>
+          Export to CSV
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleExportExcel}>
           Export to Excel
         </DropdownMenuItem>

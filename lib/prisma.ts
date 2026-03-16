@@ -3,9 +3,9 @@ import { PrismaLibSQL } from "@prisma/adapter-libsql"
 import { createClient } from "@libsql/client"
 import { config } from "dotenv"
 
-// Force reload env if it looks like local default or is missing, to fix stale env vars
-if (!process.env.DATABASE_URL || process.env.DATABASE_URL.startsWith('file:')) {
-  config({ path: '.env', override: true });
+if (!process.env.DATABASE_URL) {
+  config({ path: ".env.local" });
+  config({ path: ".env" });
 }
 
 const connectionString = process.env.DATABASE_URL || "file:./dev.db"
@@ -46,13 +46,28 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
   // Define a minimal interface for the potentially stale client
   interface StaleClient {
     expense?: unknown;
+    reportExportJob?: unknown;
+    workerLockHeartbeat?: unknown;
+    analyticsDailySnapshot?: unknown;
+    analyticsInventorySnapshot?: unknown;
+    analyticsVendorSnapshot?: unknown;
+    analyticsSalesSnapshot?: unknown;
+    analyticsLabelSnapshot?: unknown;
     $disconnect?: () => Promise<void>;
   }
   
   const client = globalForPrisma.prisma as unknown as StaleClient;
-  // If the existing client doesn't have the 'expense' model, it's stale.
-  if (!client.expense) {
-    console.warn("Prisma: Detected stale client instance (missing 'expense'). Re-initializing...");
+  const staleMissingModel =
+    !client.expense ||
+    !client.reportExportJob ||
+    !client.workerLockHeartbeat ||
+    !client.analyticsDailySnapshot ||
+    !client.analyticsInventorySnapshot ||
+    !client.analyticsVendorSnapshot ||
+    !client.analyticsSalesSnapshot ||
+    !client.analyticsLabelSnapshot;
+  if (staleMissingModel) {
+    console.warn("Prisma: Detected stale client instance (missing required models). Re-initializing...");
     // Disconnect safely if possible
     client.$disconnect?.().catch((e: unknown) => console.error("Error disconnecting stale client:", e));
     globalForPrisma.prisma = undefined;

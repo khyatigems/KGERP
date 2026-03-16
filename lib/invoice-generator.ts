@@ -46,6 +46,10 @@ export interface InvoiceData {
   paymentStatus: string;
   paymentMethod?: string;
   paidAt?: Date;
+  paymentBreakdown?: Array<{
+    method: string;
+    amount: number;
+  }>;
   terms?: string;
   notes?: string;
   signatureUrl?: string;
@@ -264,12 +268,10 @@ export async function generateInvoicePDF(data: InvoiceData) {
     const skuLine = item.sku ? `SKU: ${item.sku}` : "";
     const hsnLine = item.hsn ? `HSN: ${item.hsn}` : "";
     const itemText = [nameLine, skuLine, hsnLine, ...extraLines].filter(Boolean).join("\n");
-    const qtyDisplay = item.displayQty || qty.toString();
     return [
       index + 1,
       itemText,
       formatCurrencyPDF(item.unitPrice),
-      qtyDisplay,
       formatCurrencyPDF(taxable),
       `${formatCurrencyPDF(taxAmount)}${item.gstRate ? ` (${item.gstRate}%)` : ""}`,
       formatCurrencyPDF(amount)
@@ -283,7 +285,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
 
   autoTable(doc, {
     startY: y,
-    head: [["#", "Item", "Rate / Item", "Qty", "Taxable Value", "Tax Amount", "Amount"]],
+    head: [["#", "Item", "Rate / Item", "Taxable Value", "Tax Amount", "Amount"]],
     body: items,
     theme: "plain",
     headStyles: {
@@ -304,12 +306,11 @@ export async function generateInvoicePDF(data: InvoiceData) {
     },
     columnStyles: {
       0: { cellWidth: 6 },
-      1: { cellWidth: 70, overflow: "linebreak" },
-      2: { cellWidth: 20, halign: "right" },
-      3: { cellWidth: 16, halign: "center" },
-      4: { cellWidth: 24, halign: "right" },
-      5: { cellWidth: 22, halign: "right" },
-      6: { cellWidth: 20, halign: "right" }
+      1: { cellWidth: 76, overflow: "linebreak" },
+      2: { cellWidth: 22, halign: "right" },
+      3: { cellWidth: 25, halign: "right" },
+      4: { cellWidth: 25, halign: "right" },
+      5: { cellWidth: 24, halign: "right" }
     },
     didDrawCell: (dataCell) => {
       const { row, table, column, section, cell } = dataCell;
@@ -355,8 +356,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   const totalItems = data.items.length;
-  const totalQty = data.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-  doc.text(`Total Items / Qty : ${totalItems} / ${totalQty}`, margin, wordsY);
+  doc.text(`Total Items : ${totalItems}`, margin, wordsY);
   doc.setFont("helvetica", "normal");
   const wordsLines = doc.splitTextToSize(`Total amount (in words): INR ${amountWords}`, 95);
   doc.text(wordsLines, margin, wordsY + 4);
@@ -415,6 +415,16 @@ export async function generateInvoicePDF(data: InvoiceData) {
     doc.text(formatCurrencyPDF(data.amountPaid), pageWidth - margin, y, { align: "right" });
     doc.setTextColor(0);
     y += 6;
+    if (data.paymentBreakdown && data.paymentBreakdown.length > 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      for (const row of data.paymentBreakdown) {
+        const sign = row.amount < 0 ? "-" : "";
+        doc.text(`${row.method}: ${sign}${formatCurrencyPDF(Math.abs(row.amount))}`, pageWidth - margin, y - 1, { align: "right" });
+        y += 4;
+      }
+      y += 2;
+    }
     if (data.paidAt || data.paymentMethod) {
       const paidParts = [
         data.paymentMethod ? `via ${data.paymentMethod}` : "",

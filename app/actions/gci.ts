@@ -193,3 +193,55 @@ export async function generateGciCertificate(
     return { success: false, error: "Internal Server Error" };
   }
 }
+
+export async function generateBulkGciCertificates(inventoryIds: string[]) {
+  const uniqueIds = Array.from(new Set(inventoryIds.filter(Boolean)));
+  if (uniqueIds.length === 0) {
+    return {
+      success: false,
+      message: "No inventory items selected",
+      total: 0,
+      generated: 0,
+      failed: 0,
+      failures: [] as Array<{ inventoryId: string; sku: string; reason: string }>
+    };
+  }
+
+  const inventoryRows = await prisma.inventory.findMany({
+    where: { id: { in: uniqueIds } },
+    select: { id: true, sku: true }
+  });
+
+  const skuById = new Map(inventoryRows.map((row) => [row.id, row.sku]));
+  const failures: Array<{ inventoryId: string; sku: string; reason: string }> = [];
+  let generated = 0;
+
+  for (const inventoryId of uniqueIds) {
+    const result = await generateGciCertificate(inventoryId);
+    if (result.success) {
+      generated += 1;
+      continue;
+    }
+
+    failures.push({
+      inventoryId,
+      sku: skuById.get(inventoryId) || "Unknown SKU",
+      reason: result.error || "Certificate generation failed"
+    });
+  }
+
+  revalidatePath("/inventory");
+  revalidatePath("/reports");
+
+  return {
+    success: generated > 0,
+    message:
+      failures.length === 0
+        ? `Certificates generated for ${generated} item(s)`
+        : `Generated ${generated} certificate(s), ${failures.length} item(s) failed`,
+    total: uniqueIds.length,
+    generated,
+    failed: failures.length,
+    failures
+  };
+}

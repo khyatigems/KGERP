@@ -15,6 +15,10 @@ const settingsSchema = z.object({
   bank_ifsc: z.string().optional(),
   invoice_prefix: z.string().default("KG"),
   quotation_prefix: z.string().default("KGQ"),
+  governance_freeze_mode: z.preprocess((v) => v === "on" || v === "true", z.boolean()).default(false),
+  governance_block_sale_without_cert: z.preprocess((v) => v === "on" || v === "true", z.boolean()).default(false),
+  governance_block_invoice_without_customer_name: z.preprocess((v) => v === "on" || v === "true", z.boolean()).default(false),
+  governance_min_images_for_listing: z.coerce.number().int().min(0).default(0),
 });
 
 import { PERMISSIONS } from "@/lib/permissions";

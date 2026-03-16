@@ -69,6 +69,46 @@ export async function getAccountByCode(code: string, tx: PrismaTx = prisma) {
   return account;
 }
 
+const DEFAULT_ACCOUNTS: Array<{ code: string; name: string; type: string; subtype: string }> = [
+  { code: "1001", name: "Cash on Hand", type: "ASSET", subtype: "CASH" },
+  { code: "1002", name: "Bank HDFC", type: "ASSET", subtype: "BANK" },
+  { code: "1003", name: "Bank SBI", type: "ASSET", subtype: "BANK" },
+  { code: "1010", name: "Accounts Receivable", type: "ASSET", subtype: "AR" },
+  { code: "1020", name: "Inventory Asset", type: "ASSET", subtype: "INVENTORY" },
+  { code: "2001", name: "Accounts Payable", type: "LIABILITY", subtype: "AP" },
+  { code: "2010", name: "GST Payable", type: "LIABILITY", subtype: "TAX" },
+  { code: "2020", name: "Duties & Taxes", type: "LIABILITY", subtype: "TAX" },
+  { code: "3001", name: "Capital Account", type: "EQUITY", subtype: "CAPITAL" },
+  { code: "3002", name: "Retained Earnings", type: "EQUITY", subtype: "RETAINED_EARNINGS" },
+  { code: "4001", name: "Sales Revenue", type: "INCOME", subtype: "REVENUE" },
+  { code: "4002", name: "Other Income", type: "INCOME", subtype: "OTHER_INCOME" },
+  { code: "5001", name: "Cost of Goods Sold", type: "EXPENSE", subtype: "COGS" },
+  { code: "5002", name: "Salary Expense", type: "EXPENSE", subtype: "OPERATING" },
+  { code: "5003", name: "Rent Expense", type: "EXPENSE", subtype: "OPERATING" },
+  { code: "5004", name: "Electricity Expense", type: "EXPENSE", subtype: "OPERATING" },
+  { code: "5005", name: "Office Expenses", type: "EXPENSE", subtype: "OPERATING" }
+];
+
+export async function getOrCreateAccountByCode(code: string, tx: PrismaTx = prisma) {
+  const existing = await tx.account.findUnique({ where: { code } });
+  if (existing) return existing;
+
+  const defaults = DEFAULT_ACCOUNTS.find((a) => a.code === code);
+  if (!defaults) {
+    throw new Error(`Account code ${code} not found in Chart of Accounts`);
+  }
+
+  return tx.account.create({
+    data: {
+      code: defaults.code,
+      name: defaults.name,
+      type: defaults.type,
+      subtype: defaults.subtype,
+      isActive: true
+    }
+  });
+}
+
 /**
  * Common account codes for easy reference
  */

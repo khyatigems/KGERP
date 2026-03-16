@@ -6,6 +6,10 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { generateInvoiceToken } from "@/lib/tokens";
 import { auth } from "@/lib/auth";
+import { normalizeDateToUtcNoon } from "@/lib/date";
+import { updateInvoiceBillingFromDisplayOptions } from "@/lib/invoice-billing";
+import { logActivity } from "@/lib/activity-logger";
+import { recordInvoicePayment } from "@/lib/invoice-payment";
 
 export async function createOrUpdateInvoiceFromSale(
   saleId: string,
@@ -29,13 +33,49 @@ export async function createOrUpdateInvoiceFromSale(
 
     if (sale.invoice) {
       // Update existing invoice
-      await prisma.invoice.update({
+      const existingInvoice = await (prisma.invoice as any).findUnique({
         where: { id: sale.invoice.id },
-        data: {
-          displayOptions: displayOptionsStr
+        select: {
+          id: true,
+          token: true,
+          invoiceNumber: true,
+          invoiceDate: true,
+          createdAt: true,
+          totalAmount: true,
+          paidAmount: true,
+          paymentStatus: true,
+          status: true,
         }
       });
-      return { success: true, message: "Invoice updated successfully", invoiceId: sale.invoice.id, token: sale.invoice.token };
+
+      if (!existingInvoice) return { success: false, message: "Invoice not found" };
+
+      const userName = session.user.name || session.user.email || "Unknown";
+      const ensuredInvoiceDate = existingInvoice.invoiceDate || normalizeDateToUtcNoon(sale.saleDate);
+
+      await (prisma.invoice as any).update({
+        where: { id: existingInvoice.id },
+        data: { invoiceDate: ensuredInvoiceDate }
+      });
+
+      const billing = await updateInvoiceBillingFromDisplayOptions({
+        invoiceId: existingInvoice.id,
+        displayOptions,
+        displayOptionsStr,
+        actor: { userId: session.user.id, userName }
+      });
+
+      if (!billing.success) return { success: false, message: billing.message };
+
+      return {
+        success: true,
+        message: "Invoice updated successfully",
+        invoiceId: existingInvoice.id,
+        token: existingInvoice.token,
+        paymentStatus: billing.paymentStatus,
+        outstandingDelta: billing.outstandingDelta,
+        balanceDue: billing.balanceDue,
+      };
     } else {
       // Create new invoice
       const invoiceId = await prisma.$transaction(async (tx) => {
@@ -67,11 +107,12 @@ export async function createOrUpdateInvoiceFromSale(
         const invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, "0")}`;
         const token = generateInvoiceToken();
 
-        const invoice = await tx.invoice.create({
+        const invoice = await (tx.invoice as any).create({
           data: {
             invoiceNumber,
             token,
             isActive: true,
+            invoiceDate: normalizeDateToUtcNoon(sale.saleDate),
             subtotal: sale.netAmount,
             taxTotal: 0,
             discountTotal: sale.discountAmount || 0,
@@ -114,6 +155,8 @@ export async function updateInvoicePaymentStatus(
 ) {
   const perm = await checkPermission(PERMISSIONS.INVOICE_MANAGE);
   if (!perm.success) return { success: false, message: perm.message };
+  const session = await auth();
+  if (!session?.user) return { success: false, message: "Unauthorized" };
 
   try {
     const invoice = await prisma.invoice.findUnique({
@@ -141,6 +184,25 @@ export async function updateInvoicePaymentStatus(
         })
       ]);
 
+      await logActivity({
+        entityType: "Invoice",
+        entityId: invoiceId,
+        entityIdentifier: invoice.invoiceNumber,
+        actionType: "EDIT",
+        source: "WEB",
+        userId: session.user.id,
+        userName: session.user.name || session.user.email || "Unknown",
+        oldData: {
+          paymentStatus: invoice.paymentStatus,
+          paidAmount: invoice.paidAmount
+        },
+        newData: {
+          paymentStatus: "UNPAID",
+          paidAmount: 0
+        },
+        details: "Payment status reset and all payment entries removed"
+      });
+
       revalidatePath(`/invoices/${invoiceId}`);
       revalidatePath("/invoices");
       return { success: true, message: "Payment status reset to Unpaid" };
@@ -150,74 +212,22 @@ export async function updateInvoicePaymentStatus(
       return { success: false, message: "Payment details required" };
     }
 
-    // Handle PAID and PARTIAL
-    const currentPaid = invoice.paidAmount || 0;
-    const total = invoice.totalAmount;
-    const remaining = total - currentPaid;
-    
-    let amountToRecord = paymentDetails.amount;
-    
-    // Validation
-    if (status === "PAID") {
-      // Ensure we record the full remaining amount
-      if (amountToRecord < remaining) {
-        // If user entered less but selected PAID, we could either error or force it.
-        // Requirement: "If 'Paid' is selected, the system must automatically record the full remaining amount."
-        // We'll trust the amount passed matches remaining (UI handles pre-fill), 
-        // OR we override it here to be safe.
-        amountToRecord = remaining;
-      }
-    }
-
-    if (amountToRecord <= 0) {
-      return { success: false, message: "Invalid payment amount" };
-    }
-
-    // Determine final status
-    let newPaidAmount = currentPaid + amountToRecord;
-    let finalStatus = status;
-    
-    // Auto-switch to PAID if full amount reached
-    if (newPaidAmount >= total - 0.01) { // Tolerance for float
-      finalStatus = "PAID";
-      newPaidAmount = total; // Cap at total to avoid overpayment issues
-    }
-
-    await prisma.$transaction(async (tx) => {
-      // 1. Create Payment Record
-      await tx.payment.create({
-        data: {
-          invoiceId,
-          amount: amountToRecord,
-          method: paymentDetails.method,
-          date: new Date(paymentDetails.date),
-          reference: paymentDetails.reference,
-          notes: paymentDetails.notes
-        }
-      });
-
-      // 2. Update Invoice
-      await tx.invoice.update({
-        where: { id: invoiceId },
-        data: {
-          paymentStatus: finalStatus,
-          paidAmount: newPaidAmount,
-          status: finalStatus === "PAID" ? "PAID" : "ISSUED" // Keep as ISSUED if Partial
-        }
-      });
-
-      // 3. Update Sales
-      // If Partial, sales are also marked Partial. If Paid, Paid.
-      await tx.sale.updateMany({
-        where: { invoiceId },
-        data: { paymentStatus: finalStatus }
-      });
+    const recordResult = await recordInvoicePayment({
+      invoiceId,
+      targetStatus: status === "PAID" ? "PAID" : "PARTIAL",
+      amount: paymentDetails.amount,
+      method: paymentDetails.method,
+      date: paymentDetails.date,
+      reference: paymentDetails.reference,
+      notes: paymentDetails.notes,
+      actor: { userId: session.user.id, userName: session.user.name || session.user.email || "Unknown" }
     });
+    if (!recordResult.success) return recordResult;
 
     revalidatePath(`/invoices/${invoiceId}`);
+    revalidatePath(`/invoice/${invoice.token}`);
     revalidatePath("/invoices");
-    
-    return { success: true, message: `Payment recorded successfully (${finalStatus})` };
+    return recordResult;
 
   } catch (error) {
     console.error("Failed to update payment status:", error);

@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!isAuthorizedCronRequest(request)) {
+    return NextResponse.json({ error: "Unauthorized cron request" }, { status: 401 });
+  }
   const now = new Date();
   const inTwoDays = new Date();
   inTwoDays.setDate(inTwoDays.getDate() + 2);
@@ -58,4 +62,3 @@ export async function GET() {
     );
   }
 }
-

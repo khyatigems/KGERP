@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updateInvoicePaymentStatus } from "@/app/(dashboard)/invoices/actions";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ interface PaymentStatusSelectProps {
 
 export function PaymentStatusSelect({ invoiceId, currentStatus, amountDue, totalAmount, disabled }: PaymentStatusSelectProps) {
   void totalAmount;
+  const router = useRouter();
   const [status, setStatus] = useState(currentStatus);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,6 +53,7 @@ export function PaymentStatusSelect({ invoiceId, currentStatus, amountDue, total
       const result = await updateInvoicePaymentStatus(invoiceId, newStatus, paymentDetails);
       if (result.success) {
         toast.success(result.message);
+        router.refresh();
       } else {
         toast.error(result.message);
         setStatus(currentStatus); // Revert

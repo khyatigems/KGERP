@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -63,6 +64,10 @@ export function PaymentModal({
     
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) return;
+    if (targetStatus === "PARTIAL" && numAmount > amountDue + 0.009) {
+      toast.error(`Amount cannot exceed pending amount (${formatCurrency(amountDue)})`);
+      return;
+    }
 
     await onConfirm({
       amount: numAmount,

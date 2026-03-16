@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { Button } from "@/components/ui/button";
 import { LoadingLink } from "@/components/ui/loading-link";
 import {
@@ -28,8 +29,8 @@ type InvoiceWithRelations = Invoice & {
 };
 
 export default async function InvoicesPage() {
-  const invoices = await prisma.invoice.findMany({
-    orderBy: { createdAt: "desc" },
+  const invoices = await (prisma.invoice as any).findMany({
+    orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }] as any,
     include: {
       sales: true,
       legacySale: true,
@@ -84,7 +85,7 @@ export default async function InvoicesPage() {
                 return (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
-                    <TableCell>{formatDate(invoice.createdAt)}</TableCell>
+                    <TableCell>{formatDate(getInvoiceDisplayDate(invoice))}</TableCell>
                     <TableCell>{customerName}</TableCell>
                     <TableCell>{sales.length}</TableCell>
                     <TableCell>{formatCurrency(totalAmount)}</TableCell>

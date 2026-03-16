@@ -238,6 +238,7 @@ model Inventory {
   profit          Float?
   condition       String   @default("New")
   status          String   @default("IN_STOCK") // IN_STOCK, SOLD, MEMO, PROCESSING
+  hideFromAttention Boolean @default(false)
   location        String?
   certificateNo   String?
   certificateNumber String? @map("certificate_number")
@@ -327,6 +328,7 @@ model Inventory {
 
   @@index([purchaseId])
   @@index([status])
+  @@index([vendorId])
   @@index([category])
   @@index([categoryCodeId])
   @@index([gemstoneCodeId])
@@ -461,6 +463,7 @@ model Sale {
 
   @@index([customerId])
   @@index([inventoryId])
+  @@index([saleDate])
   @@index([invoiceId])
   @@index([legacyInvoiceId])
 }
@@ -543,6 +546,7 @@ model Invoice {
   status        String   @default("DRAFT") // DRAFT, ISSUED, PAID, CANCELLED
   isActive      Boolean  @default(true)
   dueDate       DateTime?
+  invoiceDate   DateTime?
   notes         String?
   displayOptions String? // JSON string for column visibility
   subtotal      Float
@@ -561,6 +565,7 @@ model Invoice {
   paidAmount    Float      @default(0)
 
   @@index([quotationId])
+  @@index([paymentStatus])
 }
 
 model Payment {
@@ -757,6 +762,139 @@ model SalesMarginAnalytics {
   user      User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])
+}
+
+model ReportExportJob {
+  id            String   @id @default(uuid())
+  reportType    String
+  format        String
+  dateFrom      DateTime?
+  dateTo        DateTime?
+  filtersJson   String?
+  status        String   @default("QUEUED") // QUEUED, PROCESSING, COMPLETED, FAILED
+  requestedById String?
+  requestedBy   String?
+  downloadUrl   String?
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([reportType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([requestedById])
+}
+
+model WorkerLockHeartbeat {
+  id          String   @id
+  ownerId     String
+  leaseUntil  DateTime
+  heartbeatAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([leaseUntil])
+  @@index([ownerId])
+}
+
+model AnalyticsDailySnapshot {
+  id                 String   @id @default(uuid())
+  snapshotDate       DateTime @unique
+
+  inventoryCount     Int
+  inventoryValueCost Float
+  inventoryValueSell Float
+
+  salesCount         Int
+  salesRevenue       Float
+  profitAmount       Float
+
+  invoiceCount       Int
+  pendingInvoices    Int
+  paymentReceived    Float
+
+  createdAt          DateTime @default(now())
+
+  @@index([snapshotDate])
+}
+
+model AnalyticsInventorySnapshot {
+  id             String   @id @default(uuid())
+  inventoryId    String   @unique
+
+  sku            String
+  itemName       String
+  category       String
+  vendorName     String
+
+  purchaseCost   Float
+  sellingPrice   Float
+
+  daysInStock    Int
+  status         String
+  ageBucket      String
+
+  createdAt      DateTime @default(now())
+
+  @@index([category])
+  @@index([vendorName])
+  @@index([status])
+  @@index([daysInStock])
+  @@index([ageBucket])
+}
+
+model AnalyticsVendorSnapshot {
+  id                 String    @id @default(uuid())
+  vendorId           String
+  snapshotDate       DateTime
+
+  vendorName         String
+  totalItemsSupplied Int
+  totalPurchaseValue Float
+  inventoryInStock   Int
+  inventoryValue     Float
+  lastPurchaseDate   DateTime?
+
+  createdAt          DateTime  @default(now())
+
+  @@unique([vendorId, snapshotDate])
+  @@index([vendorId])
+  @@index([snapshotDate])
+}
+
+model AnalyticsSalesSnapshot {
+  id               String   @id @default(uuid())
+  saleId           String   @unique
+
+  sku              String
+  itemName         String
+  category         String
+
+  purchaseCost     Float
+  sellingPrice     Float
+  profitAmount     Float
+
+  saleDate         DateTime
+  saleCycleDays    Int
+
+  createdAt        DateTime @default(now())
+
+  @@index([saleDate])
+  @@index([category])
+  @@index([saleCycleDays])
+}
+
+model AnalyticsLabelSnapshot {
+  id              String   @id @default(uuid())
+  jobId           String
+  printedBy       String
+  labelsPrinted   Int
+  printedAt       DateTime
+  createdAt       DateTime @default(now())
+
+  @@index([jobId])
+  @@index([printedBy])
+  @@index([printedAt])
 }
 
 model PriceOverrideAudit {

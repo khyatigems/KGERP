@@ -4,8 +4,9 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-logger";
 import { createInvoiceVersion } from "@/lib/invoice-versioning";
+import { withFreezeGuard } from "@/lib/governance";
 
-export async function POST(req: NextRequest) {
+async function handleRazorpayWebhook(req: NextRequest) {
   try {
     const body = await req.text();
     const signature = req.headers.get("x-razorpay-signature");
@@ -114,3 +115,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export const POST = withFreezeGuard(
+  "Razorpay webhook write processing",
+  handleRazorpayWebhook,
+  {
+    onBlocked: () => NextResponse.json({ status: "ok", skipped: true, reason: "freeze_mode" })
+  }
+);

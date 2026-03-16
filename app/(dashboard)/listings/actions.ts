@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
 
 type PrismaWithListing = typeof prisma & {
   listing: {
@@ -32,6 +33,11 @@ export async function createListing(prevState: unknown, formData: FormData) {
   if (!session) {
     return { message: "Unauthorized" };
   }
+  try {
+    await assertNotFrozen("Listing creation");
+  } catch (error) {
+    return { message: error instanceof Error ? error.message : "System is in freeze mode" };
+  }
 
   const raw = Object.fromEntries(formData.entries());
 
@@ -41,10 +47,20 @@ export async function createListing(prevState: unknown, formData: FormData) {
   }
 
   const data = parsed.data;
+  const governance = await getGovernanceConfig();
 
   const prismaWithListing = prisma as PrismaWithListing;
 
   try {
+    if (governance.minImagesForListing > 0) {
+      const imageCount = await prisma.inventoryMedia.count({
+        where: { inventoryId: data.inventoryId, type: "IMAGE" }
+      });
+      if (imageCount < governance.minImagesForListing) {
+        return { message: `At least ${governance.minImagesForListing} images are required before listing` };
+      }
+    }
+
     await prismaWithListing.listing.create({
       data: {
         inventoryId: data.inventoryId,
@@ -75,6 +91,11 @@ export async function updateListingStatus(
   const session = await auth();
   if (!session) {
     return { message: "Unauthorized" };
+  }
+  try {
+    await assertNotFrozen("Listing status update");
+  } catch (error) {
+    return { message: error instanceof Error ? error.message : "System is in freeze mode" };
   }
 
   const prismaWithListing = prisma as PrismaWithListing;

@@ -91,6 +91,24 @@ Routing basics:
 - `/quote/[token]` – Public quotation
 - `/invoice/[token]` – Public invoice
 
+## Attention Widget Visibility Controls
+
+- **Global alert hiding (dashboard only):**
+  - `Hide Cert Alerts` hides the entire missing certification alert section for the current browser.
+  - `Hide Image Alerts` hides the entire missing image alert section for the current browser.
+  - These do not change SKU data in the database.
+
+- **SKU-specific hiding (inventory-managed):**
+  - In inventory actions, use `Hide From Attention Widget` / `Show In Attention Widget` for a specific SKU.
+  - This sets `Inventory.hideFromAttention` and filters that SKU out of dashboard attention data.
+  - This only affects dashboard attention visibility and does not change reports, inventory status, pricing, or sales flows.
+  - Each hide/unhide operation is recorded in activity logs with user attribution and timestamp.
+
+- **API endpoint for SKU visibility:**
+  - `GET /api/inventory/:id/attention-visibility`
+  - `PATCH /api/inventory/:id/attention-visibility` with `{ "hideFromAttention": true|false }`
+  - Requires authenticated user with inventory permissions.
+
 ## 6️⃣ Core Engineering Rules (MANDATORY)
 
 - **Purchases ≠ Inventory**
