@@ -9,80 +9,65 @@ datasource db {
   relationMode = "prisma"
 }
 
-// Enums removed for SQLite compatibility. 
-// Validated via application logic (Zod).
-
-//// USER & AUTH
-
 model User {
-  id                 String    @id @default(uuid())
-  name               String
-  email              String    @unique
-  password           String
-  role               String // SUPER_ADMIN | ADMIN | SALES | ACCOUNTS | VIEWER
-  avatar             String?   // Stores SVG content or ID
-  lastLogin          DateTime?
-  lastPasswordChange DateTime?
-  forceLogoutBefore  DateTime?
-  createdAt          DateTime  @default(now())
-
+  id                         String                 @id @default(uuid())
+  name                       String
+  email                      String                 @unique
+  password                   String
+  role                       String
+  avatar                     String?
+  lastLogin                  DateTime?
+  lastPasswordChange         DateTime?
+  forceLogoutBefore          DateTime?
+  createdAt                  DateTime               @default(now())
   labelCartItems             LabelCartItem[]
   packagingCartItems         PackagingCartItem[]
   labelPrintJobs             LabelPrintJob[]
   createdLandingPageVersions LandingPageVersion[]
-
-  // Quotation Relations
-  createdQuotations  Quotation[]            @relation("CreatedQuotations")
-  createdSerials     SerializedUnit[]       @relation("CreatedSerials")
-  printedSerials     SerializedUnit[]       @relation("PrintedSerials")
-  approvedQuotations Quotation[]            @relation("ApprovedQuotations")
-  marginAnalytics    SalesMarginAnalytics[]
-  priceOverrides     PriceOverrideAudit[]
-
-  dashboardNotes     DashboardNote[]
-  
-  // Expense Relations
-  expenses           Expense[]
-  vouchers           Voucher[]
-  journalEntries     JournalEntry[]
+  createdQuotations          Quotation[]            @relation("CreatedQuotations")
+  createdSerials             SerializedUnit[]       @relation("CreatedSerials")
+  printedSerials             SerializedUnit[]       @relation("PrintedSerials")
+  approvedQuotations         Quotation[]            @relation("ApprovedQuotations")
+  marginAnalytics            SalesMarginAnalytics[]
+  priceOverrides             PriceOverrideAudit[]
+  dashboardNotes             DashboardNote[]
+  expenses                   Expense[]
+  vouchers                   Voucher[]
+  journalEntries             JournalEntry[]
 }
 
 model InventoryMetrics {
-  inventoryId   String   @id
-  daysInStock   Int
-  memoDays      Int?
-  lastUpdated   DateTime @updatedAt
+  inventoryId String   @id
+  daysInStock Int
+  memoDays    Int?
+  lastUpdated DateTime @updatedAt
 }
 
-//// LANDING PAGE SETTINGS (VERSIONED)
-
 model LandingPageSettings {
-  id                String    @id @default(uuid())
-  brandTitle        String    @default("KhyatiGems™ ERP")
-  subtitle          String    @default("Internal Operations & Management Platform")
-  accessNotice      String    @default("Authorized internal access only")
-  slideshowEnabled  Boolean   @default(true)
-  highlightsEnabled Boolean   @default(true)
-  whatsNewEnabled   Boolean   @default(false)
-  highlights        String    @default("[]") // JSON string array
+  id                String             @id @default(uuid())
+  brandTitle        String             @default("KhyatiGems™ ERP")
+  subtitle          String             @default("Internal Operations & Management Platform")
+  accessNotice      String             @default("Authorized internal access only")
+  slideshowEnabled  Boolean            @default(true)
+  highlightsEnabled Boolean            @default(true)
+  whatsNewEnabled   Boolean            @default(false)
+  highlights        String             @default("[]")
   whatsNewText      String?
   whatsNewUpdatedAt DateTime?
-  activeVersion     Int       @default(1)
+  activeVersion     Int                @default(1)
   updatedByUserId   String
-  updatedAt         DateTime  @updatedAt
-
-  slides LandingPageSlide[]
+  updatedAt         DateTime           @updatedAt
+  slides            LandingPageSlide[]
 }
 
 model LandingPageSlide {
-  id           String  @id @default(uuid())
+  id           String              @id @default(uuid())
   settingsId   String
   title        String
   description  String
   displayOrder Int
-  isActive     Boolean @default(true)
-
-  settings LandingPageSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+  isActive     Boolean             @default(true)
+  settings     LandingPageSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
 
   @@index([settingsId])
 }
@@ -90,17 +75,14 @@ model LandingPageSlide {
 model LandingPageVersion {
   id              String   @id @default(uuid())
   versionNumber   Int
-  snapshot        String // Full JSON snapshot of settings + slides
+  snapshot        String
   createdByUserId String
   createdAt       DateTime @default(now())
   isRollback      Boolean  @default(false)
-
-  createdBy User @relation(fields: [createdByUserId], references: [id])
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
 
   @@index([createdByUserId])
 }
-
-//// MASTER DATA CODES
 
 model CategoryCode {
   id          String      @id @default(uuid())
@@ -173,158 +155,138 @@ model CertificateCode {
   inventories Inventory[]
 }
 
-//// VENDORS
-
 model Vendor {
-  id         String   @id @default(uuid())
-  name       String   @unique
-  phone      String?
-  email      String?
-  address    String?
-  city       String?
-  state      String?
-  country    String?
-  vendorType String?
-  gstin      String?
-  pan        String?
-  notes      String?
-  status     String   @default("PENDING") // PENDING, APPROVED, BLOCKED
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  purchases Purchase[]
+  id          String      @id @default(uuid())
+  name        String      @unique
+  phone       String?
+  email       String?
+  address     String?
+  city        String?
+  state       String?
+  country     String?
+  vendorType  String?
+  gstin       String?
+  pan         String?
+  notes       String?
+  status      String      @default("PENDING")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  purchases   Purchase[]
   inventories Inventory[]
 }
 
 model Customer {
-  id        String   @id @default(uuid())
-  name      String
-  email     String?
-  phone     String?
-  address   String?
-  city      String?
-  state     String?
-  country   String?
-  pincode   String?
-  pan       String?
-  gstin     String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id         String      @id @default(uuid())
+  name       String
+  email      String?
+  phone      String?
+  address    String?
+  city       String?
+  state      String?
+  country    String?
+  pincode    String?
+  pan        String?
+  gstin      String?
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
   quotations Quotation[]
   sales      Sale[]
 }
 
-//// INVENTORY & PRODUCTS
-
 model Inventory {
-  id              String   @id @default(uuid())
-  sku             String   @unique
-  itemName        String
-  internalName    String?
-  category        String // Loose, Certified, Parcel
-  gemType         String?
-  stoneType       String?  @map("stone_type")
-  description     String?
-  pieces          Int      @default(1)
-  weightValue     Float?   @default(0)
-  weightUnit      String?
-  carats          Float   @default(0)
-  weightRatti     Float?
-  weightGrams     Float?   @map("weight_grams")
-  costPrice       Float
-  sellingPrice    Float
-  profit          Float?
-  condition       String   @default("New")
-  status          String   @default("IN_STOCK") // IN_STOCK, SOLD, MEMO, PROCESSING
-  hideFromAttention Boolean @default(false)
-  location        String?
-  certificateNo   String?
-  certificateNumber String? @map("certificate_number")
-  certification   String?
-  lab             String? // GIA, IGI, HRD
-  certificateLab  String?  @default("GCI") @map("certificate_lab")
-  shape           String?
-  color           String?
-  clarity         String?
-  clarityGrade    String?  @map("clarity_grade")
-  cut             String?
-  cutGrade        String?  @map("cut_grade")
-  polish          String?
-  symmetry        String?
-  fluorescence    String?
-  measurements    String?
-  dimensionsMm    String?
-  tablePercent    Float?
-  depthPercent    Float?
-  ratio           Float?
-  origin          String?
-  originCountry   String?  @map("origin_country")
-  treatment       String?
-  cutPolishedIn   String?  @default("India") @map("cut_polished_in")
-  qcCode          String?  @map("qc_code")
-  hsnCode         String?  @map("hsn_code")
-  transparency    String?
-  
-  // Jewelry specific fields
-  braceletType        String?
-  standardSize        String?
-  beadSizeMm          Float?
-  beadCount           Int?
-  holeSizeMm          Float?
+  id                   String              @id @default(uuid())
+  sku                  String              @unique
+  itemName             String
+  internalName         String?
+  category             String
+  gemType              String?
+  stoneType            String?             @map("stone_type")
+  description          String?
+  pieces               Int                 @default(1)
+  weightValue          Float?              @default(0)
+  weightUnit           String?
+  carats               Float               @default(0)
+  weightRatti          Float?
+  weightGrams          Float?              @map("weight_grams")
+  costPrice            Float
+  sellingPrice         Float
+  profit               Float?
+  condition            String              @default("New")
+  status               String              @default("IN_STOCK")
+  hideFromAttention    Boolean             @default(false)
+  location             String?
+  certificateNo        String?
+  certificateNumber    String?             @map("certificate_number")
+  certification        String?
+  lab                  String?
+  certificateLab       String?             @default("GCI") @map("certificate_lab")
+  shape                String?
+  color                String?
+  clarity              String?
+  clarityGrade         String?             @map("clarity_grade")
+  cut                  String?
+  cutGrade             String?             @map("cut_grade")
+  polish               String?
+  symmetry             String?
+  fluorescence         String?
+  measurements         String?
+  dimensionsMm         String?
+  tablePercent         Float?
+  depthPercent         Float?
+  ratio                Float?
+  origin               String?
+  originCountry        String?             @map("origin_country")
+  treatment            String?
+  cutPolishedIn        String?             @default("India") @map("cut_polished_in")
+  qcCode               String?             @map("qc_code")
+  hsnCode              String?             @map("hsn_code")
+  transparency         String?
+  braceletType         String?
+  standardSize         String?
+  beadSizeMm           Float?
+  beadCount            Int?
+  holeSizeMm           Float?
   innerCircumferenceMm Float?
-  
-  // Pricing
-  pricingMode         String  @default("FIXED") // FIXED, PER_CARAT
-  sellingRatePerCarat Float?
-  flatSellingPrice    Float?
+  pricingMode          String              @default("FIXED")
+  sellingRatePerCarat  Float?
+  flatSellingPrice     Float?
   purchaseRatePerCarat Float?
-  flatPurchaseCost    Float?
-  notes               String?
-  certificateComments String?
-  stockLocation       String?
-  
-  purchaseId      String?
-  vendorId        String?
-  batchId         String?
-  imageUrl        String?
-  videoUrl        String?
-  rapPrice        Float?   @default(0)
-  discountPercent Float?   @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  // Relations to Codes
-  categoryCodeId   String?
-  categoryCode     CategoryCode?   @relation(fields: [categoryCodeId], references: [id])
-  
-  gemstoneCodeId   String?
-  gemstoneCode     GemstoneCode?   @relation(fields: [gemstoneCodeId], references: [id])
-  
-  colorCodeId      String?
-  colorCode        ColorCode?      @relation(fields: [colorCodeId], references: [id])
-  
-  cutCodeId        String?
-  cutCode          CutCode?        @relation(fields: [cutCodeId], references: [id])
-  
-  collectionCodeId String?
-  collectionCode   CollectionCode? @relation(fields: [collectionCodeId], references: [id])
-  
-  rashis           RashiCode[]
-  certificates     CertificateCode[]
-  media            InventoryMedia[]
-
-  // Relations
-  purchase       Purchase?       @relation(fields: [purchaseId], references: [id])
-  vendor         Vendor?         @relation(fields: [vendorId], references: [id])
-  listings       Listing[]
-  sales          Sale[]
-  memoItems      MemoItem[]
-  quotationItems QuotationItem[]
-  labelCartItems LabelCartItem[]
-  packagingCartItems PackagingCartItem[]
-  serializedUnits SerializedUnit[]
+  flatPurchaseCost     Float?
+  notes                String?
+  certificateComments  String?
+  stockLocation        String?
+  purchaseId           String?
+  vendorId             String?
+  batchId              String?
+  imageUrl             String?
+  videoUrl             String?
+  rapPrice             Float?              @default(0)
+  discountPercent      Float?              @default(0)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  categoryCodeId       String?
+  gemstoneCodeId       String?
+  colorCodeId          String?
+  cutCodeId            String?
+  collectionCodeId     String?
+  categoryCode         CategoryCode?       @relation(fields: [categoryCodeId], references: [id])
+  gemstoneCode         GemstoneCode?       @relation(fields: [gemstoneCodeId], references: [id])
+  colorCode            ColorCode?          @relation(fields: [colorCodeId], references: [id])
+  cutCode              CutCode?            @relation(fields: [cutCodeId], references: [id])
+  collectionCode       CollectionCode?     @relation(fields: [collectionCodeId], references: [id])
+  rashis               RashiCode[]
+  certificates         CertificateCode[]
+  media                InventoryMedia[]
+  purchase             Purchase?           @relation(fields: [purchaseId], references: [id])
+  vendor               Vendor?             @relation(fields: [vendorId], references: [id])
+  listings             Listing[]
+  sales                Sale[]
+  memoItems            MemoItem[]
+  quotationItems       QuotationItem[]
+  labelCartItems       LabelCartItem[]
+  packagingCartItems   PackagingCartItem[]
+  serializedUnits      SerializedUnit[]
 
   @@index([purchaseId])
   @@index([status])
@@ -338,33 +300,30 @@ model Inventory {
 }
 
 model InventoryMedia {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   inventoryId String
   mediaUrl    String
-  type        String   // IMAGE, VIDEO
-  isPrimary   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  
+  type        String
+  isPrimary   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
   inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
-  
+
   @@index([inventoryId])
 }
 
 model Purchase {
-  id            String    @id @default(uuid())
+  id            String         @id @default(uuid())
   invoiceNo     String?
   purchaseDate  DateTime
   vendorId      String?
   totalAmount   Float
-  paymentStatus String    @default("PENDING") // PENDING, PAID, PARTIAL
-  paymentMode   String?   // CASH, BANK, etc.
+  paymentStatus String         @default("PENDING")
+  paymentMode   String?
   notes         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   items         Inventory[]
-
-  vendor Vendor? @relation(fields: [vendorId], references: [id])
-
+  vendor        Vendor?        @relation(fields: [vendorId], references: [id])
   purchaseItems PurchaseItem[]
 
   @@index([vendorId])
@@ -384,29 +343,25 @@ model PurchaseItem {
   unitCost    Float
   totalCost   Float
   notes       String?
-  
   purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  
+
   @@index([purchaseId])
 }
 
-//// SALES & LISTINGS
-
 model Listing {
-  id          String   @id @default(uuid())
-  inventoryId String
-  platform    String // RAPNET, IDEX, WEBSITE, ETSY, EBAY
-  externalId  String?
-  listedPrice Float
-  currency    String   @default("USD")
-  status      String   @default("ACTIVE") // ACTIVE, INACTIVE, SOLD
-  listedDate  DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  listingUrl  String?
-  listingRef  String?
-
-  inventory Inventory @relation(fields: [inventoryId], references: [id])
+  id           String                @id @default(uuid())
+  inventoryId  String
+  platform     String
+  externalId   String?
+  listedPrice  Float
+  currency     String                @default("USD")
+  status       String                @default("ACTIVE")
+  listedDate   DateTime              @default(now())
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  listingUrl   String?
+  listingRef   String?
+  inventory    Inventory             @relation(fields: [inventoryId], references: [id])
   priceHistory ListingPriceHistory[]
 
   @@index([inventoryId])
@@ -418,48 +373,43 @@ model ListingPriceHistory {
   price     Float
   changedBy String
   changedAt DateTime @default(now())
-
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@index([listingId])
 }
 
 model Sale {
-  id             String   @id @default(uuid())
-  orderId        String?
-  inventoryId    String
-  customerId     String?
-  customerName   String?
-  customerEmail  String?
-  customerPhone  String?
-  customerAddress String?
-  billingAddress String?
-  customerCity   String?
-  placeOfSupply  String?
-  shippingAddress String?
-  shippingCharge Float    @default(0)
-  additionalCharge Float  @default(0)
-  saleDate       DateTime @default(now())
-  salePrice      Float
-  taxAmount      Float    @default(0)
-  discountAmount Float    @default(0)
-  netAmount      Float
-  paymentStatus  String   @default("PENDING") // PENDING, PAID, PARTIAL
-  paymentMethod  String? // CASH, BANK, CHEQUE, CARD
-  platform       String   @default("OFFLINE") // OFFLINE, WEBSITE, RAPNET
-  notes          String?
-  invoiceId      String?
-  legacyInvoiceId String? @unique
-
-  // Cost snapshot for profit calculation
+  id                String    @id @default(uuid())
+  orderId           String?
+  inventoryId       String
+  customerId        String?
+  customerName      String?
+  customerEmail     String?
+  customerPhone     String?
+  customerAddress   String?
+  billingAddress    String?
+  customerCity      String?
+  placeOfSupply     String?
+  shippingAddress   String?
+  shippingCharge    Float     @default(0)
+  additionalCharge  Float     @default(0)
+  saleDate          DateTime  @default(now())
+  salePrice         Float
+  taxAmount         Float     @default(0)
+  discountAmount    Float     @default(0)
+  netAmount         Float
+  paymentStatus     String    @default("PENDING")
+  paymentMethod     String?
+  platform          String    @default("OFFLINE")
+  notes             String?
+  invoiceId         String?
+  legacyInvoiceId   String?   @unique
   costPriceSnapshot Float?
   profit            Float?
-
-  
-  customer  Customer? @relation(fields: [customerId], references: [id])
-  inventory Inventory @relation(fields: [inventoryId], references: [id])
-  invoice   Invoice?  @relation("NewInvoice", fields: [invoiceId], references: [id])
-  legacyInvoice Invoice? @relation("LegacyInvoice", fields: [legacyInvoiceId], references: [id])
+  customer          Customer? @relation(fields: [customerId], references: [id])
+  inventory         Inventory @relation(fields: [inventoryId], references: [id])
+  invoice           Invoice?  @relation("NewInvoice", fields: [invoiceId], references: [id])
+  legacyInvoice     Invoice?  @relation("LegacyInvoice", fields: [legacyInvoiceId], references: [id])
 
   @@index([customerId])
   @@index([inventoryId])
@@ -469,54 +419,49 @@ model Sale {
 }
 
 model Memo {
-  id           String   @id @default(uuid())
+  id           String     @id @default(uuid())
   customerName String
-  issueDate    DateTime @default(now())
+  issueDate    DateTime   @default(now())
   expiryDate   DateTime?
-  status       String   @default("OPEN") // OPEN, CLOSED, OVERDUE
+  status       String     @default("OPEN")
   notes        String?
   items        MemoItem[]
 }
 
 model MemoItem {
-  id          String @id @default(uuid())
+  id          String    @id @default(uuid())
   memoId      String
   inventoryId String
-  status      String @default("WITH_CLIENT") // WITH_CLIENT, RETURNED, SOLD
-
-  memo      Memo      @relation(fields: [memoId], references: [id])
-  inventory Inventory @relation(fields: [inventoryId], references: [id])
+  status      String    @default("WITH_CLIENT")
+  memo        Memo      @relation(fields: [memoId], references: [id])
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
 
   @@index([memoId])
   @@index([inventoryId])
 }
 
-//// INVOICING & QUOTATIONS
-
 model Quotation {
-  id              String   @id @default(uuid())
-  quotationNumber String   @unique
-  token           String   @unique @default(cuid())
+  id              String          @id @default(uuid())
+  quotationNumber String          @unique
+  token           String          @unique @default(cuid())
   customerId      String?
   customerName    String
   customerEmail   String?
   customerMobile  String?
   customerAddress String?
   customerCity    String?
-  status          String   @default("DRAFT") // DRAFT, SENT, APPROVED, REJECTED, EXPIRED, CONVERTED
+  status          String          @default("DRAFT")
   totalAmount     Float
   validUntil      DateTime?
   expiryDate      DateTime?
   notes           String?
   createdById     String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  customer        Customer? @relation(fields: [customerId], references: [id])
-  createdBy       User     @relation("CreatedQuotations", fields: [createdById], references: [id])
-  approvedBy      User?    @relation("ApprovedQuotations", fields: [approvedById], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   approvedById    String?
-  
+  customer        Customer?       @relation(fields: [customerId], references: [id])
+  createdBy       User            @relation("CreatedQuotations", fields: [createdById], references: [id])
+  approvedBy      User?           @relation("ApprovedQuotations", fields: [approvedById], references: [id])
   items           QuotationItem[]
   invoices        Invoice[]
 
@@ -526,11 +471,10 @@ model Quotation {
 }
 
 model QuotationItem {
-  id          String @id @default(uuid())
+  id          String    @id @default(uuid())
   quotationId String
   inventoryId String
   quotedPrice Float
-  
   quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   inventory   Inventory @relation(fields: [inventoryId], references: [id])
 
@@ -539,48 +483,46 @@ model QuotationItem {
 }
 
 model Invoice {
-  id            String   @id @default(uuid())
-  invoiceNumber String   @unique
-  token         String   @unique @default(cuid()) // For public access
-  quotationId   String?
-  status        String   @default("DRAFT") // DRAFT, ISSUED, PAID, CANCELLED
-  isActive      Boolean  @default(true)
-  dueDate       DateTime?
-  invoiceDate   DateTime?
-  notes         String?
-  displayOptions String? // JSON string for column visibility
-  subtotal      Float
-  taxTotal      Float
-  discountTotal Float
-  totalAmount   Float
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  quotation     Quotation? @relation(fields: [quotationId], references: [id])
-  sales         Sale[]     @relation("NewInvoice")
-  legacySale    Sale?      @relation("LegacyInvoice")
-  versions      InvoiceVersion[]
-  payments      Payment[]
-  paymentStatus String     @default("UNPAID") // UNPAID, PARTIAL, PAID
-  paidAmount    Float      @default(0)
+  id             String           @id @default(uuid())
+  invoiceNumber  String           @unique
+  token          String           @unique @default(cuid())
+  quotationId    String?
+  status         String           @default("DRAFT")
+  isActive       Boolean          @default(true)
+  dueDate        DateTime?
+  notes          String?
+  displayOptions String?
+  subtotal       Float
+  taxTotal       Float
+  discountTotal  Float
+  totalAmount    Float
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  paymentStatus  String           @default("UNPAID")
+  paidAmount     Float            @default(0)
+  invoiceDate    DateTime?
+  quotation      Quotation?       @relation(fields: [quotationId], references: [id])
+  sales          Sale[]           @relation("NewInvoice")
+  legacySale     Sale?            @relation("LegacyInvoice")
+  versions       InvoiceVersion[]
+  payments       Payment[]
 
   @@index([quotationId])
   @@index([paymentStatus])
 }
 
 model Payment {
-  id          String   @id @default(uuid())
-  invoiceId   String
-  amount      Float
-  date        DateTime @default(now())
-  method      String   // CASH, UPI, BANK_TRANSFER, CHEQUE, OTHER
-  reference   String?  // Transaction ID
-  notes       String?
-  recordedBy  String?  // User ID or Name
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  invoiceId  String
+  amount     Float
+  date       DateTime @default(now())
+  method     String
+  reference  String?
+  notes      String?
+  recordedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
 }
@@ -590,50 +532,47 @@ model InvoiceVersion {
   invoiceId     String
   versionNumber Int
   reason        String?
-  snapshot      String? // JSON string
+  snapshot      String?
   createdAt     DateTime @default(now())
-
   invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
 }
 
-//// SYSTEM SETTINGS & CONFIG
-
 model Setting {
-  id          String @id @default(uuid())
-  key         String @unique
+  id          String   @id @default(uuid())
+  key         String   @unique
   value       String
   description String?
   updatedAt   DateTime @updatedAt
 }
 
 model CompanySettings {
-  id              String  @id @default(uuid())
-  companyName     String
-  address         String?
-  addressLine1    String?
-  addressLine2    String?
-  city            String?
-  state           String?
-  pincode         String?
-  country         String?
-  phone           String?
-  email           String?
-  website         String?
-  gstin           String?
-  pan             String?
-  bankName        String?
-  bankAccountNo   String?
-  bankIfsc        String?
-  bankBranch      String?
-  logoUrl         String?
-  invoiceLogoUrl  String?
-  quotationLogoUrl String?
-  skuViewLogoUrl  String?
-  otherDocsLogoUrl String?
+  id                 String   @id @default(uuid())
+  companyName        String
+  address            String?
+  addressLine1       String?
+  addressLine2       String?
+  city               String?
+  state              String?
+  pincode            String?
+  country            String?
+  phone              String?
+  email              String?
+  website            String?
+  gstin              String?
+  pan                String?
+  bankName           String?
+  bankAccountNo      String?
+  bankIfsc           String?
+  bankBranch         String?
+  logoUrl            String?
+  invoiceLogoUrl     String?
+  quotationLogoUrl   String?
+  skuViewLogoUrl     String?
+  otherDocsLogoUrl   String?
   termsAndConditions String?
-  updatedAt       DateTime @updatedAt
+  updatedAt          DateTime @updatedAt
 }
 
 model InvoiceSettings {
@@ -645,7 +584,7 @@ model InvoiceSettings {
   footerNotes         String?
   gstEnabled          Boolean  @default(false)
   gstType             String   @default("CGST_SGST")
-  categoryGstRates    String?  // JSON string
+  categoryGstRates    String?
   updatedAt           DateTime @updatedAt
 }
 
@@ -667,8 +606,6 @@ model PaymentSettings {
   updatedAt         DateTime @updatedAt
 }
 
-//// LOGS & ANALYTICS
-
 model ActivityLog {
   id               String   @id @default(uuid())
   entityType       String
@@ -687,23 +624,22 @@ model ActivityLog {
 }
 
 model LabelPrintJob {
-  id          String   @id @default(uuid())
+  id          String              @id @default(uuid())
   userId      String
   layoutId    String?
   printerId   String?
-  status      String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  status      String              @default("PENDING")
   printFormat String?
-  totalItems  Int      @default(0)
-  createdAt   DateTime @default(now())
-  
-  user        User     @relation(fields: [userId], references: [id])
+  totalItems  Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  user        User                @relation(fields: [userId], references: [id])
   items       LabelPrintJobItem[]
-  
+
   @@index([userId])
 }
 
 model LabelPrintJobItem {
-  id                String   @id @default(uuid())
+  id                String        @id @default(uuid())
   jobId             String
   sku               String
   sellingPrice      Float
@@ -712,34 +648,31 @@ model LabelPrintJobItem {
   checksumMethod    String?
   encodingVersion   Int?
   internalName      String?
-  
   job               LabelPrintJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  
+
   @@index([jobId])
 }
 
 model LabelCartItem {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   userId      String
   inventoryId String
-  addedAt     DateTime @default(now())
-  
+  addedAt     DateTime  @default(now())
   user        User      @relation(fields: [userId], references: [id])
   inventory   Inventory @relation(fields: [inventoryId], references: [id])
-  
+
   @@unique([userId, inventoryId])
   @@index([userId])
   @@index([inventoryId])
 }
 
 model PackagingCartItem {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   userId      String
   inventoryId String
-  quantity    Int      @default(1)
+  quantity    Int       @default(1)
   location    String?
-  addedAt     DateTime @default(now())
-
+  addedAt     DateTime  @default(now())
   user        User      @relation(fields: [userId], references: [id])
   inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
 
@@ -751,33 +684,32 @@ model PackagingCartItem {
 model SalesMarginAnalytics {
   id        String   @id @default(uuid())
   userId    String?
-  period    String   // MONTHLY, QUARTERLY, YEARLY
+  period    String
   startDate DateTime
   endDate   DateTime
   revenue   Float
   cost      Float
   margin    Float
   createdAt DateTime @default(now())
-
   user      User?    @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
 
 model ReportExportJob {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   reportType    String
   format        String
   dateFrom      DateTime?
   dateTo        DateTime?
   filtersJson   String?
-  status        String   @default("QUEUED") // QUEUED, PROCESSING, COMPLETED, FAILED
+  status        String    @default("QUEUED")
   requestedById String?
   requestedBy   String?
   downloadUrl   String?
   errorMessage  String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([reportType])
   @@index([status])
@@ -800,41 +732,33 @@ model WorkerLockHeartbeat {
 model AnalyticsDailySnapshot {
   id                 String   @id @default(uuid())
   snapshotDate       DateTime @unique
-
   inventoryCount     Int
   inventoryValueCost Float
   inventoryValueSell Float
-
   salesCount         Int
   salesRevenue       Float
   profitAmount       Float
-
   invoiceCount       Int
   pendingInvoices    Int
   paymentReceived    Float
-
   createdAt          DateTime @default(now())
 
   @@index([snapshotDate])
 }
 
 model AnalyticsInventorySnapshot {
-  id             String   @id @default(uuid())
-  inventoryId    String   @unique
-
-  sku            String
-  itemName       String
-  category       String
-  vendorName     String
-
-  purchaseCost   Float
-  sellingPrice   Float
-
-  daysInStock    Int
-  status         String
-  ageBucket      String
-
-  createdAt      DateTime @default(now())
+  id           String   @id @default(uuid())
+  inventoryId  String   @unique
+  sku          String
+  itemName     String
+  category     String
+  vendorName   String
+  purchaseCost Float
+  sellingPrice Float
+  daysInStock  Int
+  status       String
+  ageBucket    String
+  createdAt    DateTime @default(now())
 
   @@index([category])
   @@index([vendorName])
@@ -847,14 +771,12 @@ model AnalyticsVendorSnapshot {
   id                 String    @id @default(uuid())
   vendorId           String
   snapshotDate       DateTime
-
   vendorName         String
   totalItemsSupplied Int
   totalPurchaseValue Float
   inventoryInStock   Int
   inventoryValue     Float
   lastPurchaseDate   DateTime?
-
   createdAt          DateTime  @default(now())
 
   @@unique([vendorId, snapshotDate])
@@ -863,21 +785,17 @@ model AnalyticsVendorSnapshot {
 }
 
 model AnalyticsSalesSnapshot {
-  id               String   @id @default(uuid())
-  saleId           String   @unique
-
-  sku              String
-  itemName         String
-  category         String
-
-  purchaseCost     Float
-  sellingPrice     Float
-  profitAmount     Float
-
-  saleDate         DateTime
-  saleCycleDays    Int
-
-  createdAt        DateTime @default(now())
+  id            String   @id @default(uuid())
+  saleId        String   @unique
+  sku           String
+  itemName      String
+  category      String
+  purchaseCost  Float
+  sellingPrice  Float
+  profitAmount  Float
+  saleDate      DateTime
+  saleCycleDays Int
+  createdAt     DateTime @default(now())
 
   @@index([saleDate])
   @@index([category])
@@ -885,12 +803,12 @@ model AnalyticsSalesSnapshot {
 }
 
 model AnalyticsLabelSnapshot {
-  id              String   @id @default(uuid())
-  jobId           String
-  printedBy       String
-  labelsPrinted   Int
-  printedAt       DateTime
-  createdAt       DateTime @default(now())
+  id            String   @id @default(uuid())
+  jobId         String
+  printedBy     String
+  labelsPrinted Int
+  printedAt     DateTime
+  createdAt     DateTime @default(now())
 
   @@index([jobId])
   @@index([printedBy])
@@ -906,57 +824,48 @@ model PriceOverrideAudit {
   reason        String?
   approvedBy    String?
   createdAt     DateTime @default(now())
-
   user          User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
 
 model DashboardNote {
-  id        String   @id @default(uuid())
-  content   String
-  color     String   @default("yellow") // yellow, blue, green, red, purple
-  position  Int      @default(0)
+  id          String   @id @default(uuid())
+  content     String
+  color       String   @default("yellow")
+  position    Int      @default(0)
   createdById String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  createdBy User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation(fields: [createdById], references: [id])
 
   @@index([createdById])
 }
 
-//// EXPENSE MANAGEMENT
-
 model ExpenseCategory {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  code        String?  @unique
-  gstAllowed  Boolean  @default(false)
-  status      String   @default("ACTIVE") // ACTIVE | DISABLED
-  createdAt   DateTime @default(now())
-  
-  expenses    Expense[]
+  id         String    @id @default(uuid())
+  name       String    @unique
+  code       String?   @unique
+  gstAllowed Boolean   @default(false)
+  status     String    @default("ACTIVE")
+  createdAt  DateTime  @default(now())
+  expenses   Expense[]
 }
 
 model Voucher {
-  id            String   @id @default(uuid())
-  voucherNumber String   @unique // Format: EXP/2026/0001
-  voucherType   String   // EXPENSE | PAYMENT | REVERSAL
-  voucherDate   DateTime
-  
-  referenceId   String?  // ID of the related entity (Expense, etc.)
-  narration     String?
-  amount        Float
-  
-  isReversed    Boolean  @default(false)
+  id             String   @id @default(uuid())
+  voucherNumber  String   @unique
+  voucherType    String
+  voucherDate    DateTime
+  referenceId    String?
+  narration      String?
+  amount         Float
+  isReversed     Boolean  @default(false)
   reversalReason String?
-  
-  createdById   String
-  createdAt     DateTime @default(now())
-  
-  createdBy     User     @relation(fields: [createdById], references: [id])
-  expense       Expense?
+  createdById    String
+  createdAt      DateTime @default(now())
+  createdBy      User     @relation(fields: [createdById], references: [id])
+  expense        Expense?
 
   @@index([createdById])
   @@index([voucherNumber])
@@ -965,120 +874,97 @@ model Voucher {
 }
 
 model Expense {
-  id              String   @id @default(uuid())
-  expenseDate     DateTime
-  categoryId      String
-  description     String
-  vendorName      String?
-  referenceNo     String?
-
-  // Simplified Amount (GST calculation moved to UI/Voucher logic if needed, or just total stored)
-  totalAmount     Float
-
-  paymentMode     String   // CASH | UPI | BANK | CARD | WALLET
-  paymentStatus   String   @default("PAID") // PAID | PENDING | PARTIAL
-  paidAmount      Float    @default(0)
-  paymentDate     DateTime?
-  paymentRef      String?
-
-  attachmentUrl   String?
-  
-  // Accounting Link
-  voucherId       String?   @unique
-  voucher         Voucher?  @relation(fields: [voucherId], references: [id])
-
-  createdById     String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  category        ExpenseCategory @relation(fields: [categoryId], references: [id])
-  createdBy       User            @relation(fields: [createdById], references: [id])
+  id            String          @id @default(uuid())
+  expenseDate   DateTime
+  categoryId    String
+  description   String
+  vendorName    String?
+  referenceNo   String?
+  totalAmount   Float
+  paymentMode   String
+  paymentStatus String          @default("PAID")
+  paidAmount    Float           @default(0)
+  paymentDate   DateTime?
+  paymentRef    String?
+  attachmentUrl String?
+  voucherId     String?         @unique
+  createdById   String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  voucher       Voucher?        @relation(fields: [voucherId], references: [id])
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+  createdBy     User            @relation(fields: [createdById], references: [id])
 
   @@index([categoryId])
   @@index([createdById])
   @@index([expenseDate])
 }
 
-//// ACCOUNTING MODULE
-
-// Chart of Accounts
 model Account {
-  id          String   @id @default(uuid())
-  code        String   @unique // e.g., "1001"
-  name        String   // e.g., "Cash on Hand"
-  type        String   // ASSET, LIABILITY, EQUITY, INCOME, EXPENSE
-  subtype     String?  // CASH, BANK, AR, AP, DIRECT_EXPENSE, etc.
-  description String?
-  isActive    Boolean  @default(true)
-  
+  id           String        @id @default(uuid())
+  code         String        @unique
+  name         String
+  type         String
+  subtype      String?
+  description  String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   journalLines JournalLine[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
 
-// Journal Entry (The header for a transaction)
 model JournalEntry {
-  id            String   @id @default(uuid())
+  id            String        @id @default(uuid())
   date          DateTime
   description   String
-  referenceType String?  // INVOICE, EXPENSE, PAYMENT, MANUAL
-  referenceId   String?  // ID of the source document
-  
-  lines         JournalLine[]
-  
+  referenceType String?
+  referenceId   String?
   createdById   String
-  createdBy     User     @relation(fields: [createdById], references: [id])
-  createdAt     DateTime @default(now())
-  
+  createdAt     DateTime      @default(now())
+  lines         JournalLine[]
+  createdBy     User          @relation(fields: [createdById], references: [id])
+
   @@index([date])
   @@index([referenceId])
 }
 
-// Journal Line Items (Debits and Credits)
 model JournalLine {
   id             String       @id @default(uuid())
   journalEntryId String
   accountId      String
-  
   debit          Float        @default(0)
   credit         Float        @default(0)
-  
-  description    String?      // Line-level narration
-  
+  description    String?
   journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
   account        Account      @relation(fields: [accountId], references: [id])
-  
+
   @@index([journalEntryId])
   @@index([accountId])
 }
 
-//// SERIALIZED PACKAGING & AUTHENTICATION
-
 model SerializedUnit {
-  id              String    @id @default(uuid())
+  id              String              @id @default(uuid())
   inventoryId     String
   sku             String
-  serialNumber    String    @unique
+  serialNumber    String              @unique
   fullHash        String
   shortHash       String
-  packagingStatus String    @default("GENERATED") // GENERATED, PRINTED, SOLD, RETURNED, VOID
-  printCount      Int       @default(0)
-  qrScanCount     Int       @default(0)
+  packagingStatus String              @default("GENERATED")
+  printCount      Int                 @default(0)
+  qrScanCount     Int                 @default(0)
   firstScanAt     DateTime?
   lastScanAt      DateTime?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime            @default(now())
   createdById     String
   printedAt       DateTime?
   printedById     String?
   soldAt          DateTime?
   returnedAt      DateTime?
   voidReason      String?
-  isActive        Boolean   @default(true)
-
-  inventory       Inventory @relation(fields: [inventoryId], references: [id])
-  createdBy       User      @relation("CreatedSerials", fields: [createdById], references: [id])
-  printedBy       User?     @relation("PrintedSerials", fields: [printedById], references: [id])
+  isActive        Boolean             @default(true)
+  inventory       Inventory           @relation(fields: [inventoryId], references: [id])
+  createdBy       User                @relation("CreatedSerials", fields: [createdById], references: [id])
+  printedBy       User?               @relation("PrintedSerials", fields: [printedById], references: [id])
   logs            SerialActivityLog[]
 
   @@index([inventoryId])
@@ -1088,105 +974,100 @@ model SerializedUnit {
 }
 
 model SerialActivityLog {
-  id              String   @id @default(uuid())
-  serialId        String
-  actionType      String   // GENERATE, PRINT, REPRINT, VERIFY, SELL, RETURN, VOID
-  userId          String?
-  ipAddress       String?
-  userAgent       String?
-  timestamp       DateTime @default(now())
-  metadata        String?  // JSON string
-
-  serial          SerializedUnit @relation(fields: [serialId], references: [id])
+  id         String         @id @default(uuid())
+  serialId   String
+  actionType String
+  userId     String?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime       @default(now())
+  metadata   String?
+  serial     SerializedUnit @relation(fields: [serialId], references: [id])
 
   @@index([serialId])
   @@index([timestamp])
 }
 
-//// GPIS - PACKAGING IDENTITY MODULE (NEW)
-
 model GpisSettings {
-  id                 String   @id @default(uuid())
-  brandName          String?
-  tagline            String?
-  estYear            String?
-  registeredAddress  String?
-  gstin              String?
-  iec                String?
-  supportEmail       String?
-  supportPhone       String?
-  supportTimings     String?
-  website            String?
-  categoryHsnJson    String?  // JSON map: { [category]: hsn }
-  showRegisteredAddress Boolean @default(true)
-  showGstin          Boolean @default(true)
-  showIec            Boolean @default(true)
-  showSupport        Boolean @default(true)
-  showWatermark      Boolean @default(true)
-  watermarkText      String?
-  watermarkOpacity   Int      @default(6) // percent, recommended 3-10
-  watermarkRotation  Int      @default(-30)
-  watermarkFontSize  Int      @default(16)
-  watermarkFontFamily String? @default("helvetica")
-  labelFontFamily    String?  @default("helvetica")
-  microBorderText    String?  @default("KHYATI GEMS AUTHENTIC PRODUCT")
-
-  toleranceCarat     Float    @default(0.05)
-  toleranceGram      Float    @default(0.01)
-  labelVersion       String?
-  logoUrl            String?
-  careInstruction    String?
-  legalMetrologyLine String?
-  updatedAt          DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  brandName             String?
+  tagline               String?
+  estYear               String?
+  registeredAddress     String?
+  gstin                 String?
+  iec                   String?
+  supportEmail          String?
+  supportPhone          String?
+  supportTimings        String?
+  website               String?
+  categoryHsnJson       String?
+  showRegisteredAddress Boolean  @default(true)
+  showGstin             Boolean  @default(true)
+  showIec               Boolean  @default(true)
+  showSupport           Boolean  @default(true)
+  showWatermark         Boolean  @default(true)
+  watermarkText         String?
+  watermarkOpacity      Int      @default(6)
+  watermarkRotation     Int      @default(-30)
+  watermarkFontSize     Int      @default(16)
+  watermarkFontFamily   String?  @default("helvetica")
+  labelFontFamily       String?  @default("helvetica")
+  microBorderText       String?  @default("KHYATI GEMS AUTHENTIC PRODUCT")
+  toleranceCarat        Float    @default(0.05)
+  toleranceGram         Float    @default(0.01)
+  labelVersion          String?
+  logoUrl               String?
+  careInstruction       String?
+  legalMetrologyLine    String?
+  updatedAt             DateTime @updatedAt
 }
 
 model GpisLayoutPreset {
-  id           String   @id @default(uuid())
-  name         String   @unique
-  unit         String   @default("MM") // MM | IN
-  pageWidthMm  Float    @default(210)
-  pageHeightMm Float    @default(297)
-  cols         Int      @default(2)
-  rows         Int      @default(5)
-  labelWidthMm Float    @default(100)
-  labelHeightMm Float   @default(50)
-  marginLeftMm Float    @default(5)
-  marginTopMm  Float    @default(23.5)
-  gapXmm       Float    @default(0)
-  gapYmm       Float    @default(0)
-  offsetXmm    Float    @default(0)
-  offsetYmm    Float    @default(0)
-  startPosition Int     @default(1)
-  selectedFieldsJson String? // JSON string array
-  isDefault    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  name               String   @unique
+  unit               String   @default("MM")
+  pageWidthMm        Float    @default(210)
+  pageHeightMm       Float    @default(297)
+  cols               Int      @default(2)
+  rows               Int      @default(5)
+  labelWidthMm       Float    @default(100)
+  labelHeightMm      Float    @default(50)
+  marginLeftMm       Float    @default(5)
+  marginTopMm        Float    @default(23.5)
+  gapXmm             Float    @default(0)
+  gapYmm             Float    @default(0)
+  offsetXmm          Float    @default(0)
+  offsetYmm          Float    @default(0)
+  startPosition      Int      @default(1)
+  selectedFieldsJson String?
+  isDefault          Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@map("gpis_layout_presets")
 }
 
 model GpisSerial {
-  id                String   @id @default(uuid())
+  id                String             @id @default(uuid())
   sku               String
-  serialNumber      String   @unique
+  serialNumber      String             @unique
   categoryCode      String
   yearMonth         String?
   runningNumber     Int?
   hashFragment      String?
-  status            String   @default("ACTIVE") // ACTIVE, REPRINTED, CANCELLED
+  status            String             @default("ACTIVE")
   inventoryLocation String?
   qcCode            String?
-  packedAt          DateTime @default(now())
-  packingDate       DateTime @default(now()) @map("packing_date")
-  reprintCount      Int      @default(0)
-  labelVersion      String?  @map("label_version")
-  unitQuantity      Int      @default(1) @map("unit_quantity")
-  madeIn            String   @default("India") @map("made_in")
-  declaredOriginal  Boolean  @default(true) @map("declared_original")
+  packedAt          DateTime           @default(now())
+  packingDate       DateTime           @default(now()) @map("packing_date")
+  reprintCount      Int                @default(0)
+  labelVersion      String?            @map("label_version")
+  unitQuantity      Int                @default(1) @map("unit_quantity")
+  madeIn            String             @default("India") @map("made_in")
+  declaredOriginal  Boolean            @default(true) @map("declared_original")
   createdBy         String?
-  createdAt         DateTime @default(now())
-
-  printJobItems      GpisPrintJobItem[]
+  createdAt         DateTime           @default(now())
+  printJobItems     GpisPrintJobItem[]
 
   @@index([sku])
   @@index([status])
@@ -1194,35 +1075,33 @@ model GpisSerial {
 }
 
 model GpisPrintJob {
-  id          String   @id @default(uuid())
-  printJobId  String   @unique
-  sku         String?
-  startSerial String?
-  endSerial   String?
-  totalLabels Int?
-  printerType String?  // A4
-  printedBy   String?
-  printedAt   DateTime @default(now())
-  status      String?  // COMPLETED, SUPERSEDED
+  id             String             @id @default(uuid())
+  printJobId     String             @unique
+  sku            String?
+  startSerial    String?
+  endSerial      String?
+  totalLabels    Int?
+  printerType    String?
+  printedBy      String?
+  printedAt      DateTime           @default(now())
+  status         String?
   supersededById String?
-  supersededAt DateTime?
-
-  items       GpisPrintJobItem[]
+  supersededAt   DateTime?
+  items          GpisPrintJobItem[]
 
   @@index([printJobId])
   @@index([sku])
 }
 
 model GpisPrintJobItem {
-  id         String   @id @default(uuid())
-  printJobId String
-  serialId   String
+  id           String       @id @default(uuid())
+  printJobId   String
+  serialId     String
   serialNumber String
-  sku        String
-  createdAt  DateTime @default(now())
-
-  printJob   GpisPrintJob @relation(fields: [printJobId], references: [id], onDelete: Cascade)
-  serial     GpisSerial   @relation(fields: [serialId], references: [id], onDelete: Cascade)
+  sku          String
+  createdAt    DateTime     @default(now())
+  printJob     GpisPrintJob @relation(fields: [printJobId], references: [id], onDelete: Cascade)
+  serial       GpisSerial   @relation(fields: [serialId], references: [id], onDelete: Cascade)
 
   @@index([serialNumber])
   @@index([sku])
@@ -1240,4 +1119,22 @@ model GpisVerificationLog {
 
   @@index([serialNumber])
   @@index([scannedAt])
+}
+
+model CertificateCodeToInventory {
+  A String
+  B String
+
+  @@unique([A, B], map: "_CertificateCodeToInventory_AB_unique")
+  @@index([B], map: "_CertificateCodeToInventory_B_index")
+  @@map("_CertificateCodeToInventory")
+}
+
+model InventoryToRashiCode {
+  A String
+  B String
+
+  @@unique([A, B], map: "_InventoryToRashiCode_AB_unique")
+  @@index([B], map: "_InventoryToRashiCode_B_index")
+  @@map("_InventoryToRashiCode")
 }
