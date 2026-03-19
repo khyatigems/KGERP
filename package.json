@@ -22,7 +22,7 @@
     "test:multi-payment": "tsx scripts/tests/multi-payment.integration.ts",
     "test:reports:routes": "tsx scripts/tests/reports-route-resolution.unit.ts",
     "test:reports:snapshots": "tsx scripts/tests/reports-dom-snapshot.unit.ts",
-    "test:reports": "npm run test:reports:routes && npm run test:reports:snapshots",
+    "test:reports": "npm run test:reports:routes && npm run test:reports:snapshots && tsx scripts/tests/reports-fallback.integration.ts",
     "test:payments:reconcile": "tsx scripts/tests/payments-reconciliation.integration.ts",
     "test:export:queue": "tsx scripts/tests/export-job-queue.integration.ts",
     "analytics:daily": "tsx scripts/generate-daily-analytics.ts",
