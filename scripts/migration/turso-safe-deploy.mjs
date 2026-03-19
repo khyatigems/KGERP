@@ -44,6 +44,27 @@ function sha256(content) {
   return crypto.createHash("sha256").update(content).digest("hex");
 }
 
+function splitSqlStatements(sql) {
+  return String(sql)
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+function isIgnorableSqlError(errorText) {
+  return (
+    errorText.includes("already exists") ||
+    errorText.includes("duplicate column name") ||
+    errorText.includes("UNIQUE constraint failed") ||
+    errorText.includes("index") && errorText.includes("already exists")
+  );
+}
+
+function isDestructiveSql(statement) {
+  const s = String(statement);
+  return /\bDROP\s+TABLE\b/i.test(s) || /\bDROP\s+COLUMN\b/i.test(s) || /\bTRUNCATE\b/i.test(s) || /\bDELETE\s+FROM\b/i.test(s);
+}
+
 async function ensurePrismaMigrationsTable(client) {
   await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
@@ -57,6 +78,37 @@ async function ensurePrismaMigrationsTable(client) {
       "applied_steps_count" INTEGER NOT NULL DEFAULT 0
     );
   `);
+}
+
+async function getExistingTables(client) {
+  const result = await client.execute(`
+    SELECT name FROM sqlite_master
+    WHERE type='table'
+      AND name NOT LIKE 'sqlite_%'
+    ORDER BY name ASC
+  `);
+  return new Set(result.rows.map((row) => String(row.name)));
+}
+
+async function executeMigrationSqlSafely(client, sql, { skipDestructive }) {
+  const statements = splitSqlStatements(sql);
+  for (const stmt of statements) {
+    if (isDestructiveSql(stmt)) {
+      if (skipDestructive) continue;
+      if (process.env.ALLOW_DESTRUCTIVE_MIGRATION === "true") {
+        await client.execute(stmt);
+        continue;
+      }
+      throw new Error("Destructive migration SQL detected. Set ALLOW_DESTRUCTIVE_MIGRATION=true to bypass after manual review.");
+    }
+    try {
+      await client.execute(stmt);
+    } catch (error) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      if (isIgnorableSqlError(errorText)) continue;
+      throw error;
+    }
+  }
 }
 
 function createLibsqlClientOrNull(rawUrl) {
@@ -110,8 +162,31 @@ async function applyLibsqlMigrations(client) {
   const folders = listMigrationFolders();
   const applied = await getAppliedLibsqlMigrations(client);
   const pending = folders.filter((folder) => !applied.has(folder));
-  if (!pending.length) {
+  const existingTables = await getExistingTables(client);
+  const requiredTableMissing = !existingTables.has("AnalyticsDailySnapshot");
+  if (!pending.length && !requiredTableMissing) {
     process.stdout.write("[safe-deploy] no pending migrations to apply (libsql)\n");
+    return;
+  }
+  if (!pending.length && requiredTableMissing) {
+    process.stdout.write("[safe-deploy] schema repair: missing AnalyticsDailySnapshot, applying non-destructive statements\n");
+    const repairSet = new Set(folders);
+    const now = new Date().toISOString();
+    await ensurePrismaMigrationsTable(client);
+    const existingApplied = applied;
+    for (const folder of repairSet) {
+      const filePath = path.join(process.cwd(), "prisma", "migrations", folder, "migration.sql");
+      if (!fs.existsSync(filePath)) continue;
+      const sql = fs.readFileSync(filePath, "utf-8");
+      await executeMigrationSqlSafely(client, sql, { skipDestructive: true });
+      if (!existingApplied.has(folder)) {
+        await client.execute(
+          `INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
+           VALUES (?, ?, ?, ?, NULL, NULL, ?, 1)`,
+          [crypto.randomUUID(), sha256(sql), now, folder, now]
+        );
+      }
+    }
     return;
   }
   const now = new Date().toISOString();
@@ -120,7 +195,7 @@ async function applyLibsqlMigrations(client) {
     if (!fs.existsSync(filePath)) continue;
     const sql = fs.readFileSync(filePath, "utf-8");
     process.stdout.write(`[safe-deploy] apply migration: ${folder}\n`);
-    await client.executeMultiple(sql);
+    await executeMigrationSqlSafely(client, sql, { skipDestructive: false });
     await ensurePrismaMigrationsTable(client);
     await client.execute(
       `INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
