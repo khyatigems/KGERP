@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import { createClient } from "@libsql/client";
 import { getDatabaseUrl, parseLibsqlCredentials } from "./libsql-client.mjs";
 
@@ -10,6 +10,25 @@ const destructivePatterns = [
   /\bTRUNCATE\b/i,
   /\bDELETE\s+FROM\b/i
 ];
+
+function sha256(content) {
+  return crypto.createHash("sha256").update(content).digest("hex");
+}
+
+async function ensurePrismaMigrationsTable(client) {
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "checksum" TEXT NOT NULL,
+      "finished_at" DATETIME,
+      "migration_name" TEXT NOT NULL,
+      "logs" TEXT,
+      "rolled_back_at" DATETIME,
+      "started_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "applied_steps_count" INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+}
 
 async function getAppliedMigrations() {
   const rawUrl = getDatabaseUrl();
@@ -64,17 +83,17 @@ async function getAppliedMigrations() {
         );
       }
       process.stdout.write("[guard] baselining existing non-empty DB (missing _prisma_migrations)\n");
+      await ensurePrismaMigrationsTable(client);
+      const now = new Date().toISOString();
       for (const folder of folders) {
-        const result = spawnSync(`npx prisma migrate resolve --applied ${folder}`, {
-          env: process.env,
-          encoding: "utf-8",
-          shell: true
-        });
-        if (result.stdout) process.stdout.write(result.stdout);
-        if (result.stderr) process.stderr.write(result.stderr);
-        if (result.status !== 0) {
-          throw new Error(`Baseline failed for migration: ${folder}`);
-        }
+        const filePath = path.join(process.cwd(), "prisma", "migrations", folder, "migration.sql");
+        const sql = fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf-8") : "";
+        const checksum = sha256(sql);
+        await client.execute(
+          `INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
+           VALUES (?, ?, ?, ?, NULL, NULL, ?, 1)`,
+          [crypto.randomUUID(), checksum, now, folder, now]
+        );
       }
       return new Set(folders);
     }

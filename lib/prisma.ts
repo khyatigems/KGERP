@@ -19,19 +19,20 @@ if (!process.env.DATABASE_URL) {
   config({ path: ".env" });
 }
 
-const connectionString = process.env.DATABASE_URL || "file:./dev.db"
+const databaseUrl = process.env.DATABASE_URL || "file:./dev.db";
+const tursoDatabaseUrl = process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || "";
 
 if (!process.env.DATABASE_URL) {
   console.warn("⚠️  WARNING: DATABASE_URL is not set in environment. Falling back to local SQLite database.");
 }
 
-if (!connectionString) {
+if (!databaseUrl) {
   console.error("Prisma: DATABASE_URL is not set");
 } else {
   // Log the connection string (masking auth tokens if present)
-  const logUrl = connectionString.includes("authToken") 
-    ? connectionString.split("?")[0] + "?authToken=***" 
-    : connectionString;
+  const logUrl = databaseUrl.includes("authToken")
+    ? databaseUrl.split("?")[0] + "?authToken=***"
+    : databaseUrl;
   console.log("Prisma: Using connection string:", logUrl);
 
 }
@@ -41,13 +42,14 @@ const globalForPrisma = global as unknown as {
 }
 
 // Determine if we are using LibSQL (Turso)
-const isLibsql = connectionString?.startsWith('libsql:') || connectionString?.startsWith('https:')
+const isLibsql = !!tursoDatabaseUrl || databaseUrl.startsWith("libsql:") || databaseUrl.startsWith("https:")
 
 // Configure adapter only when using LibSQL (Turso)
 const adapter = isLibsql
   ? new PrismaLibSQL(
       (() => {
-        const { url, authToken } = parseLibsqlCredentials(connectionString!);
+        const source = tursoDatabaseUrl || databaseUrl;
+        const { url, authToken } = parseLibsqlCredentials(source);
         return createClient({ url, authToken });
       })()
     )
@@ -89,13 +91,17 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
 const prismaBase =
   globalForPrisma.prisma ??
   (() => {
-    console.log("Initializing NEW Prisma Client with URL:", connectionString);
+    console.log("Initializing NEW Prisma Client with URL:", databaseUrl);
     return new PrismaClient({
       adapter,
       log: ['query', 'error', 'warn'],
-      datasources: isLibsql ? undefined : {
+      datasources: isLibsql ? {
         db: {
-          url: connectionString
+          url: databaseUrl
+        }
+      } : {
+        db: {
+          url: databaseUrl
         }
       }
     });

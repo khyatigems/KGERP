@@ -2,7 +2,7 @@ import "dotenv/config";
 import { createClient } from "@libsql/client";
 
 export function getDatabaseUrl() {
-  const url = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || "";
+  const url = process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || process.env.DATABASE_URL || "";
   if (!url) {
     throw new Error("DATABASE_URL (or TURSO_DATABASE_URL) is required");
   }
