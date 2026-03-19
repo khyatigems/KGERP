@@ -46,11 +46,22 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
     isPrimary: m.isPrimary,
   }));
   const rawCert = (item as unknown as { certificateNumber?: string | null; certificateNo?: string | null }).certificateNumber || item.certificateNo || null;
-  const certIsUrl = !!rawCert && (String(rawCert).startsWith("http://") || String(rawCert).startsWith("https://") || String(rawCert).startsWith("www."));
-  const certificateUrl = certIsUrl ? String(rawCert).replace(/^www\./, "https://www.") : null;
-  const certificateNumber = !certIsUrl && rawCert ? String(rawCert) : null;
+  const rawCertText = rawCert ? String(rawCert).trim() : "";
+  const parsedUrl = (() => {
+    if (!rawCertText) return null;
+    const candidate = rawCertText.startsWith("www.") ? `https://${rawCertText}` : rawCertText;
+    try {
+      const u = new URL(candidate);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+      return u.toString();
+    } catch {
+      return null;
+    }
+  })();
+  const certificateUrl = parsedUrl;
+  const certificateNumber = !certificateUrl && rawCertText ? rawCertText : null;
   const certificateAuthority = (item as unknown as { certificateLab?: string | null }).certificateLab || item.lab || null;
-  const showCertification = !!certificateNumber || !!certificateUrl;
+  const showCertification = !!certificateNumber || !!certificateAuthority || !!certificateUrl;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-4 md:p-8 flex items-center justify-center font-sans">
@@ -165,31 +176,27 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
           </div>
 
           {showCertification && (
-            <div className="space-y-3">
-              <Card className="border-stone-100 shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base text-stone-900 font-serif">Certification</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {certificateNumber && (
-                    <div className="flex items-center justify-between rounded-lg border border-stone-100 bg-white px-3 py-2">
-                      <span className="text-stone-400 block text-[10px] uppercase tracking-widest font-semibold">Certificate Number</span>
-                      <span className="font-serif text-stone-800 text-sm">{certificateNumber}</span>
-                    </div>
-                  )}
-                  {certificateAuthority && (
-                    <div className="flex items-center justify-between rounded-lg border border-stone-100 bg-white px-3 py-2">
-                      <span className="text-stone-400 block text-[10px] uppercase tracking-widest font-semibold">Certification Authority</span>
-                      <span className="font-serif text-stone-800 text-sm">{String(certificateAuthority)}</span>
-                    </div>
-                  )}
-                  {certificateUrl && (
-                    <Button asChild className="w-full rounded-xl bg-stone-900 hover:bg-stone-800 text-white h-11">
-                      <Link href={certificateUrl} target="_blank">View Certificate</Link>
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+            <div className="space-y-3 col-span-2">
+              <span className="text-stone-400 block text-[10px] uppercase tracking-widest font-semibold">Certification</span>
+              <div className="rounded-2xl border border-stone-100 bg-white shadow-sm p-4 space-y-3">
+                {certificateNumber && (
+                  <div className="flex items-start justify-between gap-4 rounded-lg border border-stone-100 bg-white px-3 py-2">
+                    <span className="text-stone-400 block text-[10px] uppercase tracking-widest font-semibold">Certificate Number</span>
+                    <span className="font-serif text-stone-800 text-sm break-words text-right">{certificateNumber}</span>
+                  </div>
+                )}
+                {certificateAuthority && (
+                  <div className="flex items-start justify-between gap-4 rounded-lg border border-stone-100 bg-white px-3 py-2">
+                    <span className="text-stone-400 block text-[10px] uppercase tracking-widest font-semibold">Authority</span>
+                    <span className="font-serif text-stone-800 text-sm break-words text-right">{String(certificateAuthority)}</span>
+                  </div>
+                )}
+                {certificateUrl && (
+                  <Button asChild className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-6 text-lg shadow-lg shadow-stone-900/10 transition-all hover:scale-[1.01] hover:shadow-xl rounded-xl">
+                    <Link href={certificateUrl} target="_blank" rel="noopener noreferrer">View Certificate</Link>
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
@@ -200,7 +207,7 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
             >
               <Link href={`https://wa.me/?text=Hi, I am interested in ${item.itemName} (${item.sku})`} target="_blank">
                 <WhatsAppIcon className="w-6 h-6 mr-2" />
-                Inquire on WhatsApp
+                Chat on WhatsApp
               </Link>
             </Button>
           </div>

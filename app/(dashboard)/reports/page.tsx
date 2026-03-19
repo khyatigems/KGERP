@@ -96,7 +96,7 @@ export default async function ReportsHubPage() {
             prisma.sale.count({ where: { saleDate: { gte: monthStartUtc } } }),
             prisma.sale.aggregate({ _avg: { netAmount: true }, where: { saleDate: { gte: monthStartUtc } } }),
             prisma.invoice.count({ where: { paymentStatus: "PAID", isActive: true } }),
-            prisma.$queryRaw<{ count: number }[]>`SELECT COUNT(*) as count FROM "Invoice" WHERE "isActive" = 1 AND "totalAmount" > COALESCE("paidAmount", 0)`.then((r) => r[0]?.count || 0),
+            prisma.$queryRaw<{ count: unknown }[]>`SELECT CAST(COUNT(*) AS INTEGER) as count FROM "Invoice" WHERE "isActive" = 1 AND "totalAmount" > COALESCE("paidAmount", 0)`.then((r) => Number(r[0]?.count ?? 0)),
             prisma.listing.count({ where: { status: "ACTIVE" } }),
             prisma.listing.groupBy({ by: ["platform"], where: { status: "ACTIVE" }, _count: { id: true } }),
             prisma.analyticsSalesSnapshot.groupBy({ by: ["category"], _avg: { profitAmount: true }, orderBy: { _avg: { profitAmount: "desc" } }, take: 1 }),
@@ -150,6 +150,7 @@ export default async function ReportsHubPage() {
         throw error;
     }
 
+    pendingInvoices = Number(pendingInvoices);
     if (!slowMoving || slowMoving.length === 0) {
         const oldest = await prisma.inventory.findMany({
             where: { status: "IN_STOCK" },

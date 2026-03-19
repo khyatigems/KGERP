@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
-import Link from "next/link";
+import Image from "next/image";
 
 export default async function VerifyPage({
   params,
@@ -163,13 +163,9 @@ export default async function VerifyPage({
               <CardTitle className="text-base">Product Image</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={inventory.imageUrl}
-                alt={itemName}
-                className="w-full rounded-xl border bg-white object-contain"
-                loading="lazy"
-              />
+              <div className="w-full rounded-xl border bg-white overflow-hidden">
+                <Image src={inventory.imageUrl} alt={itemName} className="w-full h-auto object-contain" width={900} height={900} unoptimized />
+              </div>
             </CardContent>
           </Card>
         )}
@@ -236,16 +232,6 @@ export default async function VerifyPage({
               <Button asChild variant="outline" className="w-full">
                 <a href={`mailto:${company.email}`}>Contact Support</a>
               </Button>
-            )}
-            {company?.phone && (
-              <div className="flex flex-wrap gap-2">
-                <Button asChild variant="outline" className="flex-1 min-w-[140px]">
-                  <a href={`tel:${company.phone}`}>Call</a>
-                </Button>
-                <Button asChild variant="outline" className="flex-1 min-w-[140px]">
-                  <Link href={`https://wa.me/${company.phone.replace(/\D/g, "")}`} target="_blank">WhatsApp</Link>
-                </Button>
-              </div>
             )}
           </CardContent>
         </Card>

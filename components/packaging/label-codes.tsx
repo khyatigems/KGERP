@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
 
@@ -56,17 +57,18 @@ export function PackagingLabelCodes({ sku, barcodeText, verifyUrl }: Props) {
       </div>
 
       {barcodeDataUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={barcodeDataUrl} alt="Barcode" className="w-full h-[36px] object-contain bg-white border rounded" />
+        <div className="w-full h-[36px] bg-white border rounded overflow-hidden">
+          <Image src={barcodeDataUrl} alt="Barcode" className="h-[36px] w-full object-contain" width={240} height={36} unoptimized />
+        </div>
       )}
 
       {qrDataUrl && (
         <div className="flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrDataUrl} alt="QR Code" className="h-[64px] w-[64px] object-contain bg-white border rounded" />
+          <div className="h-[64px] w-[64px] bg-white border rounded overflow-hidden">
+            <Image src={qrDataUrl} alt="QR Code" className="h-[64px] w-[64px] object-contain" width={64} height={64} unoptimized />
+          </div>
         </div>
       )}
     </div>
   );
 }
-
