@@ -45,6 +45,12 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
     mediaUrl: m.mediaUrl,
     isPrimary: m.isPrimary,
   }));
+  const rawCert = (item as unknown as { certificateNumber?: string | null; certificateNo?: string | null }).certificateNumber || item.certificateNo || null;
+  const certIsUrl = !!rawCert && (String(rawCert).startsWith("http://") || String(rawCert).startsWith("https://") || String(rawCert).startsWith("www."));
+  const certificateUrl = certIsUrl ? String(rawCert).replace(/^www\./, "https://www.") : null;
+  const certificateNumber = !certIsUrl && rawCert ? String(rawCert) : null;
+  const certificateAuthority = (item as unknown as { certificateLab?: string | null }).certificateLab || item.lab || null;
+  const showCertification = !!certificateNumber || !!certificateUrl;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-4 md:p-8 flex items-center justify-center font-sans">
@@ -157,6 +163,35 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
               </div>
             )}
           </div>
+
+          {showCertification && (
+            <div className="space-y-3">
+              <Card className="border-stone-100 shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base text-stone-900 font-serif">Certification</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {certificateNumber && (
+                    <div className="flex items-center justify-between rounded-lg border border-stone-100 bg-white px-3 py-2">
+                      <span className="text-stone-400 block text-[10px] uppercase tracking-widest font-semibold">Certificate Number</span>
+                      <span className="font-serif text-stone-800 text-sm">{certificateNumber}</span>
+                    </div>
+                  )}
+                  {certificateAuthority && (
+                    <div className="flex items-center justify-between rounded-lg border border-stone-100 bg-white px-3 py-2">
+                      <span className="text-stone-400 block text-[10px] uppercase tracking-widest font-semibold">Certification Authority</span>
+                      <span className="font-serif text-stone-800 text-sm">{String(certificateAuthority)}</span>
+                    </div>
+                  )}
+                  {certificateUrl && (
+                    <Button asChild className="w-full rounded-xl bg-stone-900 hover:bg-stone-800 text-white h-11">
+                      <Link href={certificateUrl} target="_blank">View Certificate</Link>
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           <div className="pt-4 flex flex-col gap-3">
             <Button 
