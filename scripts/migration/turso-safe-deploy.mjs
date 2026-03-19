@@ -65,6 +65,132 @@ function isDestructiveSql(statement) {
   return /\bDROP\s+TABLE\b/i.test(s) || /\bDROP\s+COLUMN\b/i.test(s) || /\bTRUNCATE\b/i.test(s) || /\bDELETE\s+FROM\b/i.test(s);
 }
 
+async function ensureColumn(client, table, column, ddl) {
+  const rows = await client.execute(`PRAGMA table_info("${table}")`);
+  const existing = new Set(rows.rows.map((r) => String(r.name)));
+  if (existing.has(column)) return;
+  await client.execute(`ALTER TABLE "${table}" ADD COLUMN ${ddl}`);
+}
+
+async function ensureTable(client, createSql) {
+  await client.executeMultiple(createSql);
+}
+
+async function ensureRuntimeSchema(client) {
+  await ensureColumn(client, "Inventory", "hideFromAttention", `"hideFromAttention" INTEGER NOT NULL DEFAULT 0`);
+  await client.execute(`UPDATE "Inventory" SET "category"='UNKNOWN' WHERE "category" IS NULL`);
+  await ensureColumn(client, "Invoice", "invoiceDate", `"invoiceDate" DATETIME`);
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "AnalyticsDailySnapshot" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "snapshotDate" DATETIME NOT NULL,
+      "inventoryCount" INTEGER NOT NULL,
+      "inventoryValueCost" REAL NOT NULL,
+      "inventoryValueSell" REAL NOT NULL,
+      "salesCount" INTEGER NOT NULL,
+      "salesRevenue" REAL NOT NULL,
+      "profitAmount" REAL NOT NULL,
+      "invoiceCount" INTEGER NOT NULL,
+      "pendingInvoices" INTEGER NOT NULL,
+      "paymentReceived" REAL NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "AnalyticsDailySnapshot_snapshotDate_key" ON "AnalyticsDailySnapshot"("snapshotDate");
+    CREATE INDEX IF NOT EXISTS "AnalyticsDailySnapshot_snapshotDate_idx" ON "AnalyticsDailySnapshot"("snapshotDate");
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "AnalyticsInventorySnapshot" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "inventoryId" TEXT NOT NULL,
+      "sku" TEXT NOT NULL,
+      "itemName" TEXT NOT NULL,
+      "category" TEXT NOT NULL,
+      "vendorName" TEXT NOT NULL,
+      "purchaseCost" REAL NOT NULL,
+      "sellingPrice" REAL NOT NULL,
+      "daysInStock" INTEGER NOT NULL,
+      "status" TEXT NOT NULL,
+      "ageBucket" TEXT NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "AnalyticsInventorySnapshot_inventoryId_key" ON "AnalyticsInventorySnapshot"("inventoryId");
+    CREATE INDEX IF NOT EXISTS "AnalyticsInventorySnapshot_category_idx" ON "AnalyticsInventorySnapshot"("category");
+    CREATE INDEX IF NOT EXISTS "AnalyticsInventorySnapshot_vendorName_idx" ON "AnalyticsInventorySnapshot"("vendorName");
+    CREATE INDEX IF NOT EXISTS "AnalyticsInventorySnapshot_status_idx" ON "AnalyticsInventorySnapshot"("status");
+    CREATE INDEX IF NOT EXISTS "AnalyticsInventorySnapshot_daysInStock_idx" ON "AnalyticsInventorySnapshot"("daysInStock");
+    CREATE INDEX IF NOT EXISTS "AnalyticsInventorySnapshot_ageBucket_idx" ON "AnalyticsInventorySnapshot"("ageBucket");
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "AnalyticsVendorSnapshot" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "vendorId" TEXT NOT NULL,
+      "snapshotDate" DATETIME NOT NULL,
+      "vendorName" TEXT NOT NULL,
+      "totalItemsSupplied" INTEGER NOT NULL,
+      "totalPurchaseValue" REAL NOT NULL,
+      "inventoryInStock" INTEGER NOT NULL,
+      "inventoryValue" REAL NOT NULL,
+      "lastPurchaseDate" DATETIME,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "AnalyticsVendorSnapshot_vendorId_snapshotDate_key" ON "AnalyticsVendorSnapshot"("vendorId","snapshotDate");
+    CREATE INDEX IF NOT EXISTS "AnalyticsVendorSnapshot_vendorId_idx" ON "AnalyticsVendorSnapshot"("vendorId");
+    CREATE INDEX IF NOT EXISTS "AnalyticsVendorSnapshot_snapshotDate_idx" ON "AnalyticsVendorSnapshot"("snapshotDate");
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "AnalyticsSalesSnapshot" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "saleId" TEXT NOT NULL,
+      "sku" TEXT NOT NULL,
+      "itemName" TEXT NOT NULL,
+      "category" TEXT NOT NULL,
+      "purchaseCost" REAL NOT NULL,
+      "sellingPrice" REAL NOT NULL,
+      "profitAmount" REAL NOT NULL,
+      "saleDate" DATETIME NOT NULL,
+      "saleCycleDays" INTEGER NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "AnalyticsSalesSnapshot_saleId_key" ON "AnalyticsSalesSnapshot"("saleId");
+    CREATE INDEX IF NOT EXISTS "AnalyticsSalesSnapshot_saleDate_idx" ON "AnalyticsSalesSnapshot"("saleDate");
+    CREATE INDEX IF NOT EXISTS "AnalyticsSalesSnapshot_category_idx" ON "AnalyticsSalesSnapshot"("category");
+    CREATE INDEX IF NOT EXISTS "AnalyticsSalesSnapshot_saleCycleDays_idx" ON "AnalyticsSalesSnapshot"("saleCycleDays");
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "AnalyticsLabelSnapshot" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "jobId" TEXT NOT NULL,
+      "printedBy" TEXT NOT NULL,
+      "labelsPrinted" INTEGER NOT NULL,
+      "printedAt" DATETIME NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS "AnalyticsLabelSnapshot_jobId_idx" ON "AnalyticsLabelSnapshot"("jobId");
+    CREATE INDEX IF NOT EXISTS "AnalyticsLabelSnapshot_printedBy_idx" ON "AnalyticsLabelSnapshot"("printedBy");
+    CREATE INDEX IF NOT EXISTS "AnalyticsLabelSnapshot_printedAt_idx" ON "AnalyticsLabelSnapshot"("printedAt");
+  `
+  );
+}
+
 async function ensurePrismaMigrationsTable(client) {
   await client.executeMultiple(`
     CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
@@ -209,11 +335,13 @@ async function run() {
   runStep("guard destructive migrations", "node scripts/migration/guard-destructive-migrations.mjs");
   const rawUrl = getDatabaseUrl();
   const libsqlClient = createLibsqlClientOrNull(rawUrl);
+  if (libsqlClient) {
+    process.stdout.write("[safe-deploy] ensure runtime schema (libsql)\n");
+    await ensureRuntimeSchema(libsqlClient);
+  }
   if (process.env.RUN_SAFE_MIGRATIONS !== "true") {
     process.stdout.write("[safe-deploy] skipped (RUN_SAFE_MIGRATIONS is not true)\n");
-    if (libsqlClient) {
-      await applyLibsqlMigrations(libsqlClient);
-    } else {
+    if (!libsqlClient) {
       runStep("prisma migrate deploy", "npx prisma migrate deploy");
     }
     return;
