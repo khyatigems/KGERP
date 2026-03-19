@@ -63,6 +63,18 @@ export default async function ReportsHubPage() {
         throw error;
     }
 
+    const liveInventory = await (async () => {
+        try {
+            const [count, sums] = await Promise.all([
+                prisma.inventory.count({ where: { status: "IN_STOCK" } }),
+                prisma.inventory.aggregate({ where: { status: "IN_STOCK" }, _sum: { sellingPrice: true } })
+            ]);
+            return { count, sellValue: sums._sum.sellingPrice || 0 };
+        } catch {
+            return { count: 0, sellValue: 0 };
+        }
+    })();
+
     let salesTodayCount: number;
     let salesMonthCount: number;
     let avgSale: any;
@@ -84,7 +96,7 @@ export default async function ReportsHubPage() {
             prisma.sale.count({ where: { saleDate: { gte: monthStartUtc } } }),
             prisma.sale.aggregate({ _avg: { netAmount: true }, where: { saleDate: { gte: monthStartUtc } } }),
             prisma.invoice.count({ where: { paymentStatus: "PAID", isActive: true } }),
-            prisma.invoice.count({ where: { paymentStatus: { not: "PAID" }, isActive: true } }),
+            prisma.$queryRaw<{ count: number }[]>`SELECT COUNT(*) as count FROM "Invoice" WHERE "isActive" = 1 AND "totalAmount" > COALESCE("paidAmount", 0)`.then((r) => r[0]?.count || 0),
             prisma.listing.count({ where: { status: "ACTIVE" } }),
             prisma.listing.groupBy({ by: ["platform"], where: { status: "ACTIVE" }, _count: { id: true } }),
             prisma.analyticsSalesSnapshot.groupBy({ by: ["category"], _avg: { profitAmount: true }, orderBy: { _avg: { profitAmount: "desc" } }, take: 1 }),
@@ -136,6 +148,21 @@ export default async function ReportsHubPage() {
             return renderSetup();
         }
         throw error;
+    }
+
+    if (!slowMoving || slowMoving.length === 0) {
+        const oldest = await prisma.inventory.findMany({
+            where: { status: "IN_STOCK" },
+            orderBy: { createdAt: "asc" },
+            take: 5,
+            select: { id: true, sku: true, itemName: true, createdAt: true }
+        });
+        slowMoving = oldest.map((i: { id: string; sku: string; itemName: string; createdAt: Date }) => ({
+            id: i.id,
+            sku: i.sku,
+            itemName: i.itemName,
+            daysInStock: Math.max(0, Math.floor((Date.now() - i.createdAt.getTime()) / (1000 * 60 * 60 * 24)))
+        }));
     }
 
     const collectionRate = paidInvoices + pendingInvoices > 0 ? (paidInvoices / (paidInvoices + pendingInvoices)) * 100 : 0;
@@ -199,7 +226,7 @@ export default async function ReportsHubPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Inventory Health</CardTitle><Boxes className="h-4 w-4 text-blue-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Items in Stock: <span className="font-semibold">{latestSnapshot?.inventoryCount ?? 0}</span></div><div>Inventory Value: <span className="font-semibold">{formatCurrency(latestSnapshot?.inventoryValueSell ?? 0)}</span></div><div>Slow Moving: <span className="font-semibold">{slowMoving.length}</span></div></CardContent></Card>
+                <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Inventory Health</CardTitle><Boxes className="h-4 w-4 text-blue-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Items in Stock: <span className="font-semibold">{(latestSnapshot?.inventoryCount ?? 0) || liveInventory.count}</span></div><div>Inventory Value: <span className="font-semibold">{formatCurrency((latestSnapshot?.inventoryValueSell ?? 0) || liveInventory.sellValue)}</span></div><div>Slow Moving: <span className="font-semibold">{slowMoving.length}</span></div></CardContent></Card>
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Sales Performance</CardTitle><TrendingUp className="h-4 w-4 text-green-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Sales Today: <span className="font-semibold">{salesTodayCount}</span></div><div>Sales This Month: <span className="font-semibold">{salesMonthCount}</span></div><div>Avg Sale Price: <span className="font-semibold">{formatCurrency(avgSale._avg.netAmount || 0)}</span></div></CardContent></Card>
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Payments Status</CardTitle><CircleDollarSign className="h-4 w-4 text-yellow-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Paid Invoices: <span className="font-semibold">{paidInvoices}</span></div><div>Pending Payments: <span className="font-semibold">{pendingInvoices}</span></div><div>Collection Rate: <span className="font-semibold">{collectionRate.toFixed(1)}%</span></div></CardContent></Card>
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Profit Insights</CardTitle><Percent className="h-4 w-4 text-amber-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Avg Margin: <span className="font-semibold">{formatCurrency(avgMarginSnapshot._avg.profitAmount || 0)}</span></div><div>Highest Category: <span className="font-semibold">{marginCategory[0]?.category || "-"}</span></div><div>Lowest Category: <span className="font-semibold">{lowMarginCategory[0]?.category || "-"}</span></div></CardContent></Card>
