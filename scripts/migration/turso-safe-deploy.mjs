@@ -38,13 +38,13 @@ function maybeBaselineOnP3005(error) {
 }
 
 function run() {
+  runStep("guard destructive migrations", "node scripts/migration/guard-destructive-migrations.mjs");
   if (process.env.RUN_SAFE_MIGRATIONS !== "true") {
     process.stdout.write("[safe-deploy] skipped (RUN_SAFE_MIGRATIONS is not true)\n");
     runStep("prisma migrate deploy", "npx prisma migrate deploy");
     return;
   }
 
-  runStep("guard destructive migrations", "node scripts/migration/guard-destructive-migrations.mjs");
   runStep("pre-migration backup", "node scripts/migration/turso-backup.mjs");
   runStep("pre-migration validation snapshot", "node scripts/migration/turso-validate.mjs");
   try {

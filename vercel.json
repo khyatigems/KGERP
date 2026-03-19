@@ -2,7 +2,6 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./",
   "crons": [
     {
       "path": "/api/cron/analytics/daily",
