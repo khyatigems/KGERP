@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
-import { formatInrCurrency, formatInrNumber, formatInrValue } from "@/lib/number-formatting";
+import { formatInrCurrency, formatInrNumber } from "@/lib/number-formatting";
 
 const FONTS: Record<string, { normal: string; bold: string; italic?: string; bolditalic?: string }> = {
     notosansdisplay: {

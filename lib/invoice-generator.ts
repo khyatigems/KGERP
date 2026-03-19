@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDate } from "@/lib/utils";
-import { formatInrCurrency, sanitizeNumberText } from "@/lib/number-formatting";
+import { sanitizeNumberText } from "@/lib/number-formatting";
 
 export interface InvoiceData {
   invoiceNumber: string;
@@ -389,8 +389,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
       cellPadding: tablePadding,
       lineWidth: 0,
       lineColor: lightGray,
-      overflow: "linebreak",
-      charSpace: 0
+      overflow: "linebreak"
     },
     columnStyles: {
       0: { cellWidth: 6 },
