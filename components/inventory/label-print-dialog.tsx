@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 import { generateLabelPDF, LabelConfig, DEFAULT_TAG_CONFIG, DEFAULT_A4_CONFIG, DEFAULT_THERMAL_CONFIG, LabelItem, DEFAULT_FIELDS } from "@/lib/label-generator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { createLabelJob } from "@/app/(dashboard)/labels/actions";
+import { createLabelJob, updateLabelJobStatus } from "@/app/(dashboard)/labels/actions";
 import { signOut } from "next-auth/react";
 import JsBarcode from "jsbarcode";
 import { getCompanySettings } from "@/app/(dashboard)/settings/company/actions";
@@ -206,6 +206,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
 
     const handlePrint = async () => {
         setIsPrinting(true);
+        let jobId: string | undefined;
         try {
             // 1. Create Job & Get Checksums (Server-Side)
             const inventoryIds = targets.map(t => t.id);
@@ -218,6 +219,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                 console.error("Print Job Creation Failed:", res);
                 throw new Error(res?.message || "Failed to create print job. Please check if you are logged in.");
             }
+            jobId = res.jobId;
 
             // 2. Generate PDF with returned items (containing checksums)
             // Map res.items to LabelItem interface
@@ -242,6 +244,9 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             }));
 
             const pdfUrl = await generateLabelPDF(finalItems, { ...config, companyLogo: companyLogoData });
+            if (jobId) {
+                await updateLabelJobStatus(jobId, "COMPLETED");
+            }
             
             // Open PDF
             const win = window.open(pdfUrl, "_blank");
@@ -257,6 +262,11 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         } catch (error: unknown) {
             console.error("Print failed", error);
             const msg = error instanceof Error ? error.message : "Failed to generate labels";
+            if (jobId) {
+                try {
+                    await updateLabelJobStatus(jobId, "FAILED");
+                } catch {}
+            }
             
             if (msg.includes("Session invalid")) {
                 toast.error("Session expired. Redirecting to login...");

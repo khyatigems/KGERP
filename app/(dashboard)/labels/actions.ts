@@ -366,10 +366,13 @@ export async function updateLabelJobStatus(jobId: string, status: "PENDING" | "C
     const session = await auth();
     if (!session?.user?.id) return { success: false, message: "Unauthorized" };
     try {
-        await prisma.labelPrintJob.update({
-            where: { id: jobId },
+        const result = await prisma.labelPrintJob.updateMany({
+            where: { id: jobId, userId: session.user.id },
             data: { status }
         });
+        if (result.count === 0) {
+            return { success: false, message: "Job not found" };
+        }
         revalidatePath("/labels");
         return { success: true };
     } catch (e) {
