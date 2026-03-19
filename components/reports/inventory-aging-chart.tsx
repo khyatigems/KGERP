@@ -47,7 +47,7 @@ export function InventoryAgingChart({ data }: { data: BucketStat[] }) {
       </CardHeader>
       <CardContent>
         <div className="h-[280px]">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
             <BarChart data={chartRows} barCategoryGap={24}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="bucket" />

@@ -38,7 +38,7 @@ export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
         </CardHeader>
         <CardContent className="h-[300px]">
           {categories && categories.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
               <BarChart data={categories} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" width={100} tick={{fontSize: 12}} />
@@ -64,7 +64,7 @@ export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
         </CardHeader>
         <CardContent className="h-[300px]">
            {types && types.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
               <BarChart data={types} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" width={100} tick={{fontSize: 12}} />

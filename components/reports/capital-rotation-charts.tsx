@@ -51,7 +51,7 @@ export function CapitalRotationCharts({
         </CardHeader>
         <CardContent>
           <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
               <BarChart data={byCategory}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="category" />
@@ -79,7 +79,7 @@ export function CapitalRotationCharts({
         </CardHeader>
         <CardContent>
           <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
               <BarChart data={ageValueByBucket}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="bucket" />
