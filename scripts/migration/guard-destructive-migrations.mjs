@@ -22,8 +22,11 @@ async function getAppliedMigrations() {
   try {
     const result = await client.execute("SELECT migration_name FROM _prisma_migrations");
     return new Set(result.rows.map((row) => String(row.migration_name)));
-  } catch {
-    return new Set();
+  } catch (error) {
+    if (isFile) return new Set();
+    throw new Error(
+      "Unable to read applied migrations from Turso. Ensure DATABASE_URL is a libsql/https URL and TURSO_AUTH_TOKEN (or ?authToken=...) is set."
+    );
   }
 }
 
