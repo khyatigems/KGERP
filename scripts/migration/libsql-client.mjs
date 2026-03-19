@@ -2,9 +2,9 @@ import "dotenv/config";
 import { createClient } from "@libsql/client";
 
 export function getDatabaseUrl() {
-  const url = process.env.DATABASE_URL || "";
+  const url = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || "";
   if (!url) {
-    throw new Error("DATABASE_URL is required");
+    throw new Error("DATABASE_URL (or TURSO_DATABASE_URL) is required");
   }
   return url;
 }
@@ -12,7 +12,12 @@ export function getDatabaseUrl() {
 export function parseLibsqlCredentials(rawUrl) {
   const normalized = rawUrl.startsWith("https://") ? rawUrl.replace(/^https:\/\//, "libsql://") : rawUrl;
   const [base, query = ""] = normalized.split("?");
-  const authToken = new URLSearchParams(query).get("authToken") || process.env.TURSO_AUTH_TOKEN || undefined;
+  const authToken =
+    new URLSearchParams(query).get("authToken") ||
+    process.env.TURSO_AUTH_TOKEN ||
+    process.env.TURSO_TOKEN ||
+    process.env.TURSO_API_TOKEN ||
+    undefined;
   return { url: base, authToken };
 }
 

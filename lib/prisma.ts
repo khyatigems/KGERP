@@ -3,6 +3,18 @@ import { PrismaLibSQL } from "@prisma/adapter-libsql"
 import { createClient } from "@libsql/client"
 import { config } from "dotenv"
 
+function parseLibsqlCredentials(rawUrl: string) {
+  const normalized = rawUrl.startsWith("https://") ? rawUrl.replace(/^https:\/\//, "libsql://") : rawUrl;
+  const [base, query = ""] = normalized.split("?");
+  const authToken =
+    new URLSearchParams(query).get("authToken") ??
+    process.env.TURSO_AUTH_TOKEN ??
+    process.env.TURSO_TOKEN ??
+    process.env.TURSO_API_TOKEN ??
+    undefined;
+  return { url: base, authToken };
+}
+
 if (!process.env.DATABASE_URL) {
   config({ path: ".env.local" });
   config({ path: ".env" });
@@ -35,9 +47,10 @@ const isLibsql = connectionString?.startsWith('libsql:') || connectionString?.st
 // Configure adapter only when using LibSQL (Turso)
 const adapter = isLibsql
   ? new PrismaLibSQL(
-      createClient({
-        url: connectionString!,
-      })
+      (() => {
+        const { url, authToken } = parseLibsqlCredentials(connectionString!);
+        return createClient({ url, authToken });
+      })()
     )
   : null
 
