@@ -45,11 +45,13 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
     mediaUrl: m.mediaUrl,
     isPrimary: m.isPrimary,
   }));
+  const rawCertUrlSource = (item as unknown as { certificateComments?: string | null }).certificateComments || null;
   const rawCert = (item as unknown as { certificateNumber?: string | null; certificateNo?: string | null }).certificateNumber || item.certificateNo || null;
   const rawCertText = rawCert ? String(rawCert).trim() : "";
   const parsedUrl = (() => {
-    if (!rawCertText) return null;
-    const candidate = rawCertText.startsWith("www.") ? `https://${rawCertText}` : rawCertText;
+    const source = rawCertUrlSource ? String(rawCertUrlSource).trim() : "";
+    if (!source) return null;
+    const candidate = source.startsWith("www.") ? `https://${source}` : source;
     try {
       const u = new URL(candidate);
       if (u.protocol !== "http:" && u.protocol !== "https:") return null;

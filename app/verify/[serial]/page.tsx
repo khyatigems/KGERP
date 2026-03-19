@@ -62,10 +62,21 @@ export default async function VerifyPage({
 
   const weightCt = inventory?.weightValue ? `${inventory.weightValue.toFixed(2)} ct` : null;
   const weightGrams = inventory ? `${computeWeightGrams(inventory).toFixed(2)} g` : null;
+  const rawCertUrlSource = (inventory as any)?.certificateComments || null;
+  const certUrl = (() => {
+    const source = rawCertUrlSource ? String(rawCertUrlSource).trim() : "";
+    if (!source) return null;
+    const candidate = source.startsWith("www.") ? `https://${source}` : source;
+    try {
+      const u = new URL(candidate);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+      return u.toString();
+    } catch {
+      return null;
+    }
+  })();
   const certRaw = inventory?.certificateNo || (inventory as any)?.certificateNumber || null;
-  const certIsUrl = !!certRaw && (String(certRaw).startsWith("http://") || String(certRaw).startsWith("https://") || String(certRaw).startsWith("www."));
-  const certUrl = certIsUrl ? String(certRaw).replace(/^www\./, "https://www.") : null;
-  const certNumber = !certIsUrl && certRaw ? String(certRaw) : null;
+  const certNumber = certRaw ? String(certRaw) : null;
   const certAuthority = (inventory as any)?.certificateLab || inventory?.lab || null;
 
   const mrp = inventory?.sellingPrice
