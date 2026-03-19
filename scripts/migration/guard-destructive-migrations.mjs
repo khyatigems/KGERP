@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { createClient } from "@libsql/client";
 import { getDatabaseUrl, parseLibsqlCredentials } from "./libsql-client.mjs";
 
@@ -26,6 +27,14 @@ async function getAppliedMigrations() {
         const { url, authToken } = parseLibsqlCredentials(rawUrl);
         return createClient({ url, authToken });
       })();
+  const folders = (() => {
+    const migrationsDir = path.join(process.cwd(), "prisma", "migrations");
+    if (!fs.existsSync(migrationsDir)) return [];
+    return fs
+      .readdirSync(migrationsDir)
+      .filter((name) => fs.statSync(path.join(migrationsDir, name)).isDirectory())
+      .sort();
+  })();
   try {
     const result = await client.execute("SELECT migration_name FROM _prisma_migrations");
     return new Set(result.rows.map((row) => String(row.migration_name)));
@@ -34,6 +43,41 @@ async function getAppliedMigrations() {
     const base = rawUrl.split("?")[0];
     const safeUrl = base.replace(/^libsql:\/\//, "libsql://").replace(/^https:\/\//, "https://");
     const errorText = error instanceof Error ? error.message : String(error);
+    if (errorText.includes("no such table: _prisma_migrations")) {
+      const tablesResult = await client.execute(`
+        SELECT name FROM sqlite_master
+        WHERE type='table'
+          AND name NOT LIKE 'sqlite_%'
+          AND name != '_prisma_migrations'
+        ORDER BY name ASC
+      `);
+      const tableNames = tablesResult.rows.map((row) => String(row.name));
+      if (tableNames.length === 0) {
+        return new Set();
+      }
+      if (process.env.ALLOW_BASELINE_ON_NON_EMPTY_DB !== "true") {
+        throw new Error(
+          `Detected non-empty DB without _prisma_migrations.\n` +
+            `- url: ${safeUrl}\n` +
+            `- env: ${JSON.stringify(envHints)}\n` +
+            `Set ALLOW_BASELINE_ON_NON_EMPTY_DB=true to baseline safely.`
+        );
+      }
+      process.stdout.write("[guard] baselining existing non-empty DB (missing _prisma_migrations)\n");
+      for (const folder of folders) {
+        const result = spawnSync(`npx prisma migrate resolve --applied ${folder}`, {
+          env: process.env,
+          encoding: "utf-8",
+          shell: true
+        });
+        if (result.stdout) process.stdout.write(result.stdout);
+        if (result.stderr) process.stderr.write(result.stderr);
+        if (result.status !== 0) {
+          throw new Error(`Baseline failed for migration: ${folder}`);
+        }
+      }
+      return new Set(folders);
+    }
     throw new Error(
       `Unable to read applied migrations from Turso.\n` +
         `- url: ${safeUrl}\n` +
