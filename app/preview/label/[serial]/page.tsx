@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { computeWeightGrams } from "@/lib/utils";
 import { getPackagingSettings } from "@/app/erp/packaging/actions";
 import { ExternalLink } from "lucide-react";
+import { PackagingLabelCodes } from "@/components/packaging/label-codes";
 
 interface PreviewLabelPageProps {
   params: Promise<{ serial: string }>;
@@ -63,6 +64,8 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
     const originCountry = inv.originCountry || inv.origin || "-";
     const weightCarat = inv.weightValue?.toFixed(2) ?? "0.00";
     const weightGrams = computeWeightGrams(inv).toFixed(2);
+    const netWeightGrams = weightGrams;
+    const grossWeightGrams = weightGrams;
     const color = inv.color || "-";
     
     // Changes: Shape instead of Clarity
@@ -70,6 +73,7 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
     
     // Changes: Cut fetched correctly
     const cut = inv.cutGrade || inv.cut || "-";
+    const dimensionsMm = inv.dimensionsMm || "-";
     
     const treatment = inv.treatment || "None";
     const sku = inv.sku;
@@ -89,6 +93,12 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
     
     const logoUrl = (s.logoUrl as string) || null;
     const estYear = (s.estYear as string) || "2023";
+    const baseUrl =
+      (typeof s.supportWebsite === "string" && s.supportWebsite.trim()) ||
+      (typeof s.website === "string" && s.website.trim()) ||
+      "https://erp.khyatigems.com";
+    const verifyUrl = `${baseUrl.replace(/\/$/, "")}/verify/${encodeURIComponent(serialNumber)}`;
+    const skuImageUrl = inv.imageUrl || null;
 
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center py-10 px-4">
@@ -146,10 +156,18 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
                   <div className="whitespace-nowrap overflow-hidden text-ellipsis leading-tight mt-1">
                     <strong>Color:</strong> {color} | <strong>Origin:</strong> {originCountry}
                   </div>
+
+                  <div className="whitespace-nowrap overflow-hidden text-ellipsis leading-tight mt-1">
+                    <strong>Dim:</strong> {dimensionsMm}
+                  </div>
                   
                   {/* Row 3 - Weights */}
                   <div className="whitespace-nowrap overflow-hidden text-ellipsis leading-tight mt-1">
                      <strong>Wt:</strong> {weightCarat} CT | {weightGrams} g
+                  </div>
+
+                  <div className="whitespace-nowrap overflow-hidden text-ellipsis leading-tight mt-1">
+                    <strong>Net Wt:</strong> {netWeightGrams} g | <strong>Gross Wt:</strong> {grossWeightGrams} g
                   </div>
 
                   {/* Row 4 - Treatment/Cert */}
@@ -186,6 +204,13 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
                   <div className="whitespace-nowrap overflow-hidden text-ellipsis text-[7.5pt] leading-[1.2] mt-[2px]">
                      <strong>MRP:</strong> <span className="font-bold tabular-nums tracking-normal">{mrp}</span> <span className="text-[6px] text-gray-500">(Incl. Taxes)</span>
                   </div>
+
+                  {skuImageUrl && (
+                    <div className="mt-[4px]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={skuImageUrl} alt={gemstoneName} className="h-[34px] w-full rounded border object-cover" />
+                    </div>
+                  )}
                   
                    {/* ADDRESS */}
                    <div className="whitespace-nowrap overflow-hidden text-ellipsis text-[6.5pt] leading-[1.1] mt-[3px] text-gray-600">
@@ -202,28 +227,21 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
                 </div>
               </div>
 
-              {/* RIGHT COLUMN - SKU & Serial (Replaced QR) */}
               <div className="w-[110px] relative flex flex-col items-center justify-center border-l border-gray-100 bg-gray-50/50 px-2 py-2">
-                 
-                 <div className="text-center w-full">
-                    <div className="text-[7px] text-gray-500 uppercase tracking-wider mb-0.5">SKU</div>
-                    <div className="font-mono font-bold text-[10px] break-all leading-tight bg-white border rounded px-1 py-0.5 shadow-sm">
-                      {sku}
-                    </div>
-                 </div>
+                <div className="text-center w-full mb-1">
+                  <div className="text-[7px] text-gray-500 uppercase tracking-wider mb-0.5">Serial No</div>
+                  <div className="font-mono font-bold text-[11px] text-blue-700 tracking-wide break-all">
+                    {serialNumber}
+                  </div>
+                </div>
 
-                 <div className="my-3 w-full border-t border-gray-200"></div>
+                <div className="my-2 w-full border-t border-gray-200"></div>
 
-                 <div className="text-center w-full">
-                    <div className="text-[7px] text-gray-500 uppercase tracking-wider mb-0.5">Serial No</div>
-                    <div className="font-mono font-bold text-[11px] text-blue-700 tracking-wide break-all">
-                      {serialNumber}
-                    </div>
-                 </div>
+                <PackagingLabelCodes sku={sku} barcodeText={sku} verifyUrl={verifyUrl} />
 
-                 <div className="mt-4 text-[6px] text-center text-gray-400 leading-tight">
-                   Scan physical label to verify
-                 </div>
+                <div className="mt-2 text-[6px] text-center text-gray-400 leading-tight">
+                  Scan QR to verify authenticity
+                </div>
               </div>
             </div>
 

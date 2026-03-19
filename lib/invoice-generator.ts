@@ -195,6 +195,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
   });
   await loadFont(doc, "poppins");
   const fontFamily = loadedFonts.has("poppins") ? "poppins" : "helvetica";
+  doc.setCharSpace(0);
 
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
@@ -234,16 +235,16 @@ export async function generateInvoicePDF(data: InvoiceData) {
     ? data.company.gstin.substring(2, 12)
     : "";
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(...blue);
   doc.text("TAX INVOICE", margin, y);
   doc.setFontSize(7.2);
   doc.setTextColor(0);
-  doc.text("ORIGINAL FOR RECIPIENT", pageWidth - margin, y, { align: "right" });
+  doc.text("ORIGINAL FOR RECIPIENT", pageWidth - margin - 34, y, { align: "right" });
   y += 5.5;
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.setFontSize(11.5);
   doc.setTextColor(0);
   doc.text(data.company.name, margin, y);
@@ -258,14 +259,14 @@ export async function generateInvoicePDF(data: InvoiceData) {
   }
 
   y += 3.5;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.setFontSize(8);
   const gstLine = data.company.gstin ? `GSTIN ${data.company.gstin}` : "";
   const panLine = panFromGstin ? `PAN ${panFromGstin}` : "";
   doc.text([gstLine, panLine].filter(Boolean).join("   "), margin, y);
 
   y += 4.5;
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontFamily, "normal");
   doc.setFontSize(7.8);
   doc.text(data.company.phone ? `Mobile: ${data.company.phone}` : "", margin, y);
   if (data.company.email) {
@@ -279,18 +280,18 @@ export async function generateInvoicePDF(data: InvoiceData) {
   }
 
   const invoiceMetaY = y;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.text(`Invoice #: ${data.invoiceNumber}`, margin, invoiceMetaY);
   doc.text(`Invoice Date: ${formatDate(data.date)}`, margin + 73, invoiceMetaY);
   y += 6.2;
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.text("Customer Details:", margin, y);
   doc.text("Billing Address:", margin + 70, y);
   doc.text("Shipping Address:", margin + 128, y);
   y += 3.8;
 
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontFamily, "normal");
   const colGap = 4;
   const customerX = margin;
   const billingX = margin + 70;
@@ -365,6 +366,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
     theme: "plain",
     headStyles: {
       textColor: blue,
+      font: fontFamily,
       fontStyle: "bold",
       fontSize: tableFont,
       halign: "left",
@@ -537,18 +539,18 @@ export async function generateInvoicePDF(data: InvoiceData) {
   let infoY = y + 24;
   const wrapWidth = pageWidth - margin * 2 - 60;
   if (data.terms) {
-    doc.setFont("helvetica", "bold");
+    doc.setFont(fontFamily, "bold");
     doc.text("Terms & Conditions:", margin, infoY);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(fontFamily, "normal");
     const lines = doc.splitTextToSize(data.terms, wrapWidth);
     doc.text(lines, margin, infoY + 4);
     infoY += 4 + lines.length * 4;
   }
 
   if (data.notes) {
-    doc.setFont("helvetica", "bold");
+    doc.setFont(fontFamily, "bold");
     doc.text("Notes:", margin, infoY + 2);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(fontFamily, "normal");
     const lines = doc.splitTextToSize(data.notes, wrapWidth);
     doc.text(lines, margin, infoY + 6);
   }

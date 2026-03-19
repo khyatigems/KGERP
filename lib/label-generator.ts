@@ -114,6 +114,24 @@ export const DEFAULT_FIELDS = [
     "companyLogo"
 ];
 
+const INR_FORMATTER_2DP = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const INR_FORMATTER_0DP = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+function formatInrNumber(value: number, decimals: 0 | 2) {
+    const formatted = decimals === 0 ? INR_FORMATTER_0DP.format(value) : INR_FORMATTER_2DP.format(value);
+    return formatted.replace(/\s/g, "");
+}
+
+function formatInrValue(value: unknown) {
+    if (typeof value === "number") return formatInrNumber(value, 2);
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (/^-?\d+(\.\d+)?$/.test(trimmed)) return formatInrNumber(Number(trimmed), 2);
+        return trimmed.replace(/\s/g, "");
+    }
+    return formatInrNumber(0, 2);
+}
+
 export const DEFAULT_TAG_CONFIG: LabelConfig = {
     pageSize: "TAG",
     rows: 1,
@@ -231,6 +249,7 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
     });
     await loadFont(doc, "poppins");
     const pdfFontFamily = loadedFonts.has("poppins") ? "poppins" : "helvetica";
+    doc.setCharSpace(0);
 
     const qrCodes: Record<string, string> = {};
     const barcodes: Record<string, string> = {};
@@ -444,11 +463,12 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
         doc.setFontSize(config.fontSize + 1);
         
         // Use server-provided checksum price (Total Price)
-        let priceText = `₹${item.priceWithChecksum || item.sellingPrice}`;
+        const basePrice = item.priceWithChecksum ?? item.sellingPrice;
+        let priceText = `₹${formatInrValue(basePrice)}`;
 
         // Append mode indicator
         if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
-            priceText += ` (${item.sellingRatePerCarat.toLocaleString()}/ct)`;
+            priceText += ` (₹${formatInrNumber(item.sellingRatePerCarat, 0)}/ct)`;
         } else if (item.pricingMode === "FLAT") {
             priceText += ` (Flat)`;
         }
@@ -568,9 +588,10 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
     // Line 5: Price (Bold)
     // This usually clears the QR code, so it gets full width if Y > qrBottom
     if (fields.includes("price")) {
-        let priceText = `₹${item.priceWithChecksum || item.sellingPrice}`;
+        const basePrice = item.priceWithChecksum ?? item.sellingPrice;
+        let priceText = `₹${formatInrValue(basePrice)}`;
         if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
-            priceText += ` (${Math.round(item.sellingRatePerCarat).toLocaleString()})`;
+            priceText += ` (₹${formatInrNumber(Math.round(item.sellingRatePerCarat), 0)})`;
         }
         printFitText(priceText, currentY, 9, 6, fontFamily, "bold");
     }
