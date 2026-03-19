@@ -382,7 +382,7 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
         doc.setFontSize(config.fontSize + 1);
         
         // Use server-provided checksum price (Total Price)
-        let priceText = `R ${item.priceWithChecksum || item.sellingPrice}`;
+        let priceText = `₹${item.priceWithChecksum || item.sellingPrice}`;
 
         // Append mode indicator
         if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
@@ -414,6 +414,7 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
     const qrBottom = padding + qrSize; 
     
     doc.setTextColor(0);
+    const fields = config.selectedFields || DEFAULT_FIELDS;
 
     // Helper to print text with auto-scaling to fit width
     const printFitText = (text: string, y: number, maxFontSize: number, minFontSize: number, fontName: string, fontStyle: string) => {
@@ -453,41 +454,63 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
     };
 
     // 1. QR Code (Top Right)
-    if (qrDataUrl) {
+    if (fields.includes("qrCode") && qrDataUrl) {
         doc.addImage(qrDataUrl, "PNG", width - qrSize - padding, padding, qrSize, qrSize);
     }
 
     let currentY = contentY + 3; // Initial baseline
     
     // Line 1: Item Name (Bold)
-    printFitText(item.itemName, currentY, 9, 5, "helvetica", "bold");
-    currentY += 3.5;
+    if (fields.includes("itemName")) {
+        printFitText(item.itemName, currentY, 9, 5, "helvetica", "bold");
+        currentY += 3.5;
+    }
 
     // Line 2: SKU (Monospace)
     // SKU is critical, try to keep it readable.
-    printFitText(item.sku, currentY, 8, 5, "courier", "bold");
-    currentY += 3;
+    if (fields.includes("sku")) {
+        printFitText(item.sku, currentY, 8, 5, "courier", "bold");
+        currentY += 3;
+    }
 
     // Line 3: GemType • Color (Regular)
-    const line3 = [item.gemType, item.color].filter(Boolean).join(" • ");
-    printFitText(line3, currentY, 8, 5, "helvetica", "normal");
-    currentY += 3;
+    if (fields.includes("gemType") || fields.includes("color")) {
+        const line3Parts = [];
+        if (fields.includes("gemType")) line3Parts.push(item.gemType);
+        if (fields.includes("color")) line3Parts.push(item.color);
+        const line3 = line3Parts.filter(Boolean).join(" • ");
+        if (line3) {
+            printFitText(line3, currentY, 8, 5, "helvetica", "normal");
+            currentY += 3;
+        }
+    }
 
     // Line 4: Weight • Shape (Regular)
     // This line was overlapping in user's image.
-    let weightText = `${item.weightValue} ${item.weightUnit}`;
-    if (item.weightRatti) weightText += ` (${item.weightRatti.toFixed(2)} Ratti)`;
-    const line4 = [weightText, item.shape].filter(Boolean).join(" • ");
-    printFitText(line4, currentY, 8, 5, "helvetica", "normal");
-    currentY += 3.5;
+    if (fields.includes("weight") || (fields.includes("shape") && item.shape)) {
+        const line4Parts: string[] = [];
+        if (fields.includes("weight")) {
+            let weightText = `${item.weightValue} ${item.weightUnit}`;
+            if (item.weightRatti) weightText += ` (${item.weightRatti.toFixed(2)} Ratti)`;
+            line4Parts.push(weightText);
+        }
+        if (fields.includes("shape") && item.shape) line4Parts.push(item.shape);
+        const line4 = line4Parts.filter(Boolean).join(" • ");
+        if (line4) {
+            printFitText(line4, currentY, 8, 5, "helvetica", "normal");
+            currentY += 3.5;
+        }
+    }
 
     // Line 5: Price (Bold)
     // This usually clears the QR code, so it gets full width if Y > qrBottom
-    let priceText = `R ${item.priceWithChecksum || item.sellingPrice}`;
-    if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
-        priceText += ` (${Math.round(item.sellingRatePerCarat).toLocaleString()})`;
+    if (fields.includes("price")) {
+        let priceText = `₹${item.priceWithChecksum || item.sellingPrice}`;
+        if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
+            priceText += ` (${Math.round(item.sellingRatePerCarat).toLocaleString()})`;
+        }
+        printFitText(priceText, currentY, 9, 6, "helvetica", "bold");
     }
-    printFitText(priceText, currentY, 9, 6, "helvetica", "bold");
 
     // 3. Barcode (Bottom Spanning)
     if (barcodeDataUrl) {
