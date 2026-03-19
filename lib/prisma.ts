@@ -95,15 +95,13 @@ const prismaBase =
     return new PrismaClient({
       adapter,
       log: ['query', 'error', 'warn'],
-      datasources: isLibsql ? {
-        db: {
-          url: databaseUrl
-        }
-      } : {
-        db: {
-          url: databaseUrl
-        }
-      }
+      datasources: isLibsql
+        ? undefined
+        : {
+            db: {
+              url: databaseUrl
+            }
+          }
     });
   })();
 
