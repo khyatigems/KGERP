@@ -9,6 +9,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await runDailyAnalyticsSnapshots();
+    if (!result.ok && (result as { skipped?: boolean }).skipped) {
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        message: "Daily analytics snapshots skipped (tables not ready)",
+        runDate: result.runDate
+      });
+    }
     return NextResponse.json({
       success: true,
       message: "Daily analytics snapshots generated",

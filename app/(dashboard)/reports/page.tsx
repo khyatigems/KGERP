@@ -25,7 +25,41 @@ export default async function ReportsHubPage() {
     const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0));
     const monthStartUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1, 0, 0, 0, 0));
 
-    const latestSnapshot = await prisma.analyticsDailySnapshot.findFirst({ orderBy: { snapshotDate: "desc" } });
+    const isMissingTableError = (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        return message.includes("no such table");
+    };
+
+    let latestSnapshot: Awaited<ReturnType<typeof prisma.analyticsDailySnapshot.findFirst>> = null;
+    try {
+        latestSnapshot = await prisma.analyticsDailySnapshot.findFirst({ orderBy: { snapshotDate: "desc" } });
+    } catch (error) {
+        if (isMissingTableError(error)) {
+            return (
+                <div className="space-y-6">
+                    <div>
+                        <h2 className="text-3xl font-bold tracking-tight">Reports Dashboard</h2>
+                        <p className="text-sm text-muted-foreground">Analytics tables are initializing. Please refresh in a minute.</p>
+                    </div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Setup In Progress</CardTitle>
+                            <CardDescription>Reports need analytics snapshot tables to load.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <div className="text-sm text-muted-foreground">If this persists, run the daily cron once and redeploy.</div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button asChild variant="outline" size="sm"><Link href="/inventory">Inventory</Link></Button>
+                                <Button asChild variant="outline" size="sm"><Link href="/sales">Sales</Link></Button>
+                                <Button asChild variant="outline" size="sm"><Link href="/accounting/reports">Accounting</Link></Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            );
+        }
+        throw error;
+    }
 
     const [salesTodayCount, salesMonthCount, avgSale, paidInvoices, pendingInvoices, activeListings, listingBreakdown, marginCategory, lowMarginCategory, avgMarginSnapshot] = await Promise.all([
         prisma.sale.count({ where: { saleDate: { gte: todayUtc } } }),

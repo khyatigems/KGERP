@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
 
+function isMissingTableError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("no such table");
+}
+
 function startOfUtcDay(input: Date) {
   return new Date(Date.UTC(input.getUTCFullYear(), input.getUTCMonth(), input.getUTCDate(), 0, 0, 0, 0));
 }
@@ -229,10 +234,17 @@ async function refreshLabelSnapshot() {
 }
 
 export async function runDailyAnalyticsSnapshots(runDate = new Date()) {
-  await generateDailySnapshot(runDate);
-  await refreshInventorySnapshot(runDate);
-  await refreshVendorSnapshot(runDate);
-  await refreshSalesSnapshot();
-  await refreshLabelSnapshot();
-  return { ok: true, runDate: runDate.toISOString() };
+  try {
+    await generateDailySnapshot(runDate);
+    await refreshInventorySnapshot(runDate);
+    await refreshVendorSnapshot(runDate);
+    await refreshSalesSnapshot();
+    await refreshLabelSnapshot();
+    return { ok: true, runDate: runDate.toISOString() };
+  } catch (error) {
+    if (isMissingTableError(error)) {
+      return { ok: false, skipped: true, runDate: runDate.toISOString() };
+    }
+    throw error;
+  }
 }
