@@ -57,6 +57,25 @@ export default async function InventoryPage({
 
   const { query, status, category, gemType, color, vendorId, collectionId, rashiId, weightRange } = await searchParams;
 
+  const existingTables = await (async () => {
+    try {
+      const rows = await prisma.$queryRaw<{ name: string }[]>`SELECT name FROM sqlite_master WHERE type='table'`;
+      return new Set(rows.map((r) => r.name));
+    } catch {
+      return new Set<string>();
+    }
+  })();
+
+  const canMedia = existingTables.has("InventoryMedia");
+  const canCategoryCode = existingTables.has("CategoryCode");
+  const canGemstoneCode = existingTables.has("GemstoneCode");
+  const canColorCode = existingTables.has("ColorCode");
+  const canCutCode = existingTables.has("CutCode");
+  const canCollectionCode = existingTables.has("CollectionCode");
+  const canRashi = existingTables.has("RashiCode") && existingTables.has("_InventoryToRashiCode");
+  const canCertificate = existingTables.has("CertificateCode") && existingTables.has("_CertificateCodeToInventory");
+  const canVendor = existingTables.has("Vendor");
+
   const buildWhere = (strict: boolean): Prisma.InventoryWhereInput => {
     const w: Prisma.InventoryWhereInput = {};
 
@@ -136,36 +155,35 @@ export default async function InventoryPage({
 
   try {
     const where = buildWhere(true);
+    const include: any = {};
+    if (canMedia) {
+      include.media = {
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+        take: 1,
+      };
+    }
+    if (canCategoryCode) include.categoryCode = { select: { name: true, code: true } };
+    if (canGemstoneCode) include.gemstoneCode = { select: { name: true, code: true } };
+    if (canColorCode) include.colorCode = { select: { name: true, code: true } };
+    if (canCutCode) include.cutCode = { select: { name: true, code: true } };
+    if (canCollectionCode) include.collectionCode = { select: { name: true } };
+    if (canRashi) include.rashis = { select: { name: true } };
+    if (canCertificate) include.certificates = { select: { name: true, remarks: true } };
     const results = await Promise.all([
       prisma.inventory.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        include: {
-          media: {
-            orderBy: [
-              { isPrimary: 'desc' },
-              { createdAt: 'asc' }
-            ],
-            take: 1
-          },
-          categoryCode: { select: { name: true, code: true } },
-          gemstoneCode: { select: { name: true, code: true } },
-          colorCode: { select: { name: true, code: true } },
-          cutCode: { select: { name: true, code: true } },
-          collectionCode: { select: { name: true } },
-          rashis: { select: { name: true } },
-          certificates: { select: { name: true, remarks: true } },
-        },
+        include,
       }),
-      prisma.categoryCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      prisma.gemstoneCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      prisma.colorCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-      prisma.certificateCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      canCategoryCode ? prisma.categoryCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : Promise.resolve([]),
+      canGemstoneCode ? prisma.gemstoneCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : Promise.resolve([]),
+      canColorCode ? prisma.colorCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : Promise.resolve([]),
+      canVendor ? prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }) : Promise.resolve([]),
+      canCollectionCode ? prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }) : Promise.resolve([]),
+      canRashi ? prisma.rashiCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }) : Promise.resolve([]),
+      canCertificate ? prisma.certificateCode.findMany({ where: { status: "ACTIVE" }, orderBy: { name: "asc" }, select: { id: true, name: true } }) : Promise.resolve([]),
     ]);
-    rawInventory = results[0] as InventoryListItem[];
+    rawInventory = results[0] as unknown as InventoryListItem[];
     categories = results[1] as { id: string; name: string }[];
     gemstones = results[2] as { id: string; name: string }[];
     colors = results[3] as { id: string; name: string }[];
@@ -177,35 +195,36 @@ export default async function InventoryPage({
     console.error("Inventory fetch failed (strict mode), falling back to safe mode:", error);
     try {
         const where = buildWhere(false);
+        const select: any = {
+          id: true, sku: true, itemName: true, internalName: true, category: true, gemType: true, description: true, pieces: true,
+          weightValue: true, weightUnit: true, carats: true, weightRatti: true, costPrice: true, sellingPrice: true, profit: true,
+          status: true, location: true, certificateNo: true, certification: true, lab: true, shape: true, color: true, clarity: true,
+          cut: true, polish: true, symmetry: true, fluorescence: true, measurements: true, dimensionsMm: true, tablePercent: true,
+          depthPercent: true, ratio: true, origin: true, treatment: true, transparency: true, braceletType: true, standardSize: true,
+          beadSizeMm: true, beadCount: true, holeSizeMm: true, innerCircumferenceMm: true, pricingMode: true, sellingRatePerCarat: true,
+          flatSellingPrice: true, purchaseRatePerCarat: true, flatPurchaseCost: true, notes: true, stockLocation: true, purchaseId: true,
+          hideFromAttention: true, vendorId: true, batchId: true, imageUrl: true, videoUrl: true, rapPrice: true, discountPercent: true, createdAt: true, updatedAt: true,
+        };
+        if (canMedia) {
+          select.media = {
+            orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+            take: 1,
+          };
+        }
         const results = await Promise.all([
           (prisma.inventory as any).findMany({
             where,
             orderBy: { createdAt: "desc" },
-            select: {
-                id: true, sku: true, itemName: true, internalName: true, category: true, gemType: true, description: true, pieces: true,
-                weightValue: true, weightUnit: true, carats: true, weightRatti: true, costPrice: true, sellingPrice: true, profit: true,
-                status: true, location: true, certificateNo: true, certification: true, lab: true, shape: true, color: true, clarity: true,
-                cut: true, polish: true, symmetry: true, fluorescence: true, measurements: true, dimensionsMm: true, tablePercent: true,
-                depthPercent: true, ratio: true, origin: true, treatment: true, transparency: true, braceletType: true, standardSize: true,
-                beadSizeMm: true, beadCount: true, holeSizeMm: true, innerCircumferenceMm: true, pricingMode: true, sellingRatePerCarat: true,
-                flatSellingPrice: true, purchaseRatePerCarat: true, flatPurchaseCost: true, notes: true, stockLocation: true, purchaseId: true,
-                hideFromAttention: true, vendorId: true, batchId: true, imageUrl: true, videoUrl: true, rapPrice: true, discountPercent: true, createdAt: true, updatedAt: true,
-                media: {
-                    orderBy: [
-                        { isPrimary: 'desc' },
-                        { createdAt: 'asc' }
-                    ],
-                    take: 1
-                }
-            } as any
+            select,
           }),
           // Try to fetch master data individually, if they fail, return empty
-          prisma.categoryCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
-          prisma.gemstoneCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
-          prisma.colorCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
-          prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []),
+          canCategoryCode ? prisma.categoryCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []) : Promise.resolve([]),
+          canGemstoneCode ? prisma.gemstoneCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []) : Promise.resolve([]),
+          canColorCode ? prisma.colorCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []) : Promise.resolve([]),
+          canVendor ? prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []) : Promise.resolve([]),
         ]);
-        rawInventory = results[0] as unknown as InventoryListItem[];
+        const baseItems = results[0] as unknown as InventoryListItem[];
+        rawInventory = canMedia ? baseItems : (baseItems as any).map((item: any) => ({ ...item, media: [] }));
         categories = results[1] as { id: string; name: string }[];
         gemstones = results[2] as { id: string; name: string }[];
         colors = results[3] as { id: string; name: string }[];

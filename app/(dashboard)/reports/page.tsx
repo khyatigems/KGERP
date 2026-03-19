@@ -30,87 +30,113 @@ export default async function ReportsHubPage() {
         return message.includes("no such table");
     };
 
+    const renderSetup = () => (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-3xl font-bold tracking-tight">Reports Dashboard</h2>
+                <p className="text-sm text-muted-foreground">Analytics tables are initializing. Please refresh in a minute.</p>
+            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Setup In Progress</CardTitle>
+                    <CardDescription>Reports need analytics snapshot tables to load.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="text-sm text-muted-foreground">If this persists, run the daily cron once and redeploy.</div>
+                    <div className="flex flex-wrap gap-2">
+                        <Button asChild variant="outline" size="sm"><Link href="/inventory">Inventory</Link></Button>
+                        <Button asChild variant="outline" size="sm"><Link href="/sales">Sales</Link></Button>
+                        <Button asChild variant="outline" size="sm"><Link href="/accounting/reports">Accounting</Link></Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+
     let latestSnapshot: Awaited<ReturnType<typeof prisma.analyticsDailySnapshot.findFirst>> = null;
     try {
         latestSnapshot = await prisma.analyticsDailySnapshot.findFirst({ orderBy: { snapshotDate: "desc" } });
     } catch (error) {
         if (isMissingTableError(error)) {
-            return (
-                <div className="space-y-6">
-                    <div>
-                        <h2 className="text-3xl font-bold tracking-tight">Reports Dashboard</h2>
-                        <p className="text-sm text-muted-foreground">Analytics tables are initializing. Please refresh in a minute.</p>
-                    </div>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Setup In Progress</CardTitle>
-                            <CardDescription>Reports need analytics snapshot tables to load.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="text-sm text-muted-foreground">If this persists, run the daily cron once and redeploy.</div>
-                            <div className="flex flex-wrap gap-2">
-                                <Button asChild variant="outline" size="sm"><Link href="/inventory">Inventory</Link></Button>
-                                <Button asChild variant="outline" size="sm"><Link href="/sales">Sales</Link></Button>
-                                <Button asChild variant="outline" size="sm"><Link href="/accounting/reports">Accounting</Link></Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            );
+            return renderSetup();
         }
         throw error;
     }
 
-    const [salesTodayCount, salesMonthCount, avgSale, paidInvoices, pendingInvoices, activeListings, listingBreakdown, marginCategory, lowMarginCategory, avgMarginSnapshot] = await Promise.all([
-        prisma.sale.count({ where: { saleDate: { gte: todayUtc } } }),
-        prisma.sale.count({ where: { saleDate: { gte: monthStartUtc } } }),
-        prisma.sale.aggregate({ _avg: { netAmount: true }, where: { saleDate: { gte: monthStartUtc } } }),
-        prisma.invoice.count({ where: { paymentStatus: "PAID", isActive: true } }),
-        prisma.invoice.count({ where: { paymentStatus: { not: "PAID" }, isActive: true } }),
-        prisma.listing.count({ where: { status: "ACTIVE" } }),
-        prisma.listing.groupBy({ by: ["platform"], where: { status: "ACTIVE" }, _count: { id: true } }),
-        prisma.analyticsSalesSnapshot.groupBy({ by: ["category"], _avg: { profitAmount: true }, orderBy: { _avg: { profitAmount: "desc" } }, take: 1 }),
-        prisma.analyticsSalesSnapshot.groupBy({ by: ["category"], _avg: { profitAmount: true }, orderBy: { _avg: { profitAmount: "asc" } }, take: 1 }),
-        prisma.analyticsSalesSnapshot.aggregate({ _avg: { profitAmount: true } }),
-    ]);
+    let salesTodayCount: number;
+    let salesMonthCount: number;
+    let avgSale: any;
+    let paidInvoices: number;
+    let pendingInvoices: number;
+    let activeListings: number;
+    let listingBreakdown: any;
+    let marginCategory: any;
+    let lowMarginCategory: any;
+    let avgMarginSnapshot: any;
+    let recentSales: any;
+    let slowMoving: any;
+    let pendingPaymentsRows: any;
+    let recentLabelJobs: any;
 
-    const recentSales = await prisma.sale.findMany({
-        orderBy: { saleDate: "desc" },
-        take: 5,
-        select: {
-            id: true,
-            netAmount: true,
-            customerName: true,
-            inventory: { select: { sku: true } },
-            invoice: { select: { invoiceNumber: true } }
+    try {
+        [salesTodayCount, salesMonthCount, avgSale, paidInvoices, pendingInvoices, activeListings, listingBreakdown, marginCategory, lowMarginCategory, avgMarginSnapshot] = await Promise.all([
+            prisma.sale.count({ where: { saleDate: { gte: todayUtc } } }),
+            prisma.sale.count({ where: { saleDate: { gte: monthStartUtc } } }),
+            prisma.sale.aggregate({ _avg: { netAmount: true }, where: { saleDate: { gte: monthStartUtc } } }),
+            prisma.invoice.count({ where: { paymentStatus: "PAID", isActive: true } }),
+            prisma.invoice.count({ where: { paymentStatus: { not: "PAID" }, isActive: true } }),
+            prisma.listing.count({ where: { status: "ACTIVE" } }),
+            prisma.listing.groupBy({ by: ["platform"], where: { status: "ACTIVE" }, _count: { id: true } }),
+            prisma.analyticsSalesSnapshot.groupBy({ by: ["category"], _avg: { profitAmount: true }, orderBy: { _avg: { profitAmount: "desc" } }, take: 1 }),
+            prisma.analyticsSalesSnapshot.groupBy({ by: ["category"], _avg: { profitAmount: true }, orderBy: { _avg: { profitAmount: "asc" } }, take: 1 }),
+            prisma.analyticsSalesSnapshot.aggregate({ _avg: { profitAmount: true } }),
+        ]);
+
+        [recentSales, slowMoving, pendingPaymentsRows, recentLabelJobs] = await Promise.all([
+            prisma.sale.findMany({
+                orderBy: { saleDate: "desc" },
+                take: 5,
+                select: {
+                    id: true,
+                    netAmount: true,
+                    customerName: true,
+                    inventory: { select: { sku: true } },
+                    invoice: { select: { invoiceNumber: true } }
+                }
+            }),
+            prisma.analyticsInventorySnapshot.findMany({
+                where: { status: "IN_STOCK" },
+                orderBy: { daysInStock: "desc" },
+                take: 5
+            }),
+            prisma.invoice.findMany({
+                where: { paymentStatus: { not: "PAID" }, isActive: true },
+                orderBy: { updatedAt: "desc" },
+                take: 5,
+                select: {
+                    invoiceNumber: true,
+                    totalAmount: true,
+                    paidAmount: true,
+                    sales: { take: 1, select: { customerName: true } }
+                }
+            }),
+            prisma.labelPrintJob.findMany({
+                orderBy: { createdAt: "desc" },
+                take: 5,
+                select: {
+                    id: true,
+                    totalItems: true,
+                    status: true,
+                    user: { select: { name: true } }
+                }
+            }),
+        ]);
+    } catch (error) {
+        if (isMissingTableError(error)) {
+            return renderSetup();
         }
-    });
-    const slowMoving = await prisma.analyticsInventorySnapshot.findMany({
-        where: { status: "IN_STOCK" },
-        orderBy: { daysInStock: "desc" },
-        take: 5
-    });
-    const pendingPaymentsRows = await prisma.invoice.findMany({
-        where: { paymentStatus: { not: "PAID" }, isActive: true },
-        orderBy: { updatedAt: "desc" },
-        take: 5,
-        select: {
-            invoiceNumber: true,
-            totalAmount: true,
-            paidAmount: true,
-            sales: { take: 1, select: { customerName: true } }
-        }
-    });
-    const recentLabelJobs = await prisma.labelPrintJob.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: {
-            id: true,
-            totalItems: true,
-            status: true,
-            user: { select: { name: true } }
-        }
-    });
+        throw error;
+    }
 
     const collectionRate = paidInvoices + pendingInvoices > 0 ? (paidInvoices / (paidInvoices + pendingInvoices)) * 100 : 0;
     const governanceConfig = await getGovernanceConfig();
@@ -204,7 +230,7 @@ export default async function ReportsHubPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-                <Card><CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>SKU</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>User</TableHead></TableRow></TableHeader><TableBody>{recentSales.map((sale) => (<TableRow key={sale.id}><TableCell>{sale.invoice?.invoiceNumber || "-"}</TableCell><TableCell>{sale.inventory.sku}</TableCell><TableCell className="text-right">{formatCurrency(sale.netAmount || 0)}</TableCell><TableCell>{sale.customerName || "-"}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
+                <Card><CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>SKU</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>User</TableHead></TableRow></TableHeader><TableBody>{recentSales.map((sale: any) => (<TableRow key={sale.id}><TableCell>{sale.invoice?.invoiceNumber || "-"}</TableCell><TableCell>{sale.inventory.sku}</TableCell><TableCell className="text-right">{formatCurrency(sale.netAmount || 0)}</TableCell><TableCell>{sale.customerName || "-"}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                 <Card><CardHeader><CardTitle>Slow Moving Inventory</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Item</TableHead><TableHead className="text-right">Days</TableHead></TableRow></TableHeader><TableBody>{slowMoving.map((item: { id: string; sku: string; itemName: string; daysInStock: number }) => (<TableRow key={item.id}><TableCell>{item.sku}</TableCell><TableCell>{item.itemName}</TableCell><TableCell className="text-right">{item.daysInStock}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                 <Card><CardHeader><CardTitle>Pending Payments</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>Customer</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{pendingPaymentsRows.map((row: { invoiceNumber: string; totalAmount: number; paidAmount: number | null; sales: Array<{ customerName: string | null }> }) => (<TableRow key={row.invoiceNumber}><TableCell>{row.invoiceNumber}</TableCell><TableCell>{row.sales[0]?.customerName || "-"}</TableCell><TableCell className="text-right">{formatCurrency(Math.max(0, row.totalAmount - (row.paidAmount || 0)))}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                 <Card><CardHeader><CardTitle>Recent Label Jobs</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Job</TableHead><TableHead>Printed By</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Labels</TableHead></TableRow></TableHeader><TableBody>{recentLabelJobs.map((job: { id: string; totalItems: number; status: string; user: { name: string | null } }) => (<TableRow key={job.id}><TableCell>{job.id.slice(0, 8)}</TableCell><TableCell>{job.user.name || "-"}</TableCell><TableCell><Badge variant="outline">{job.status}</Badge></TableCell><TableCell className="text-right">{job.totalItems}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
