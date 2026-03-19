@@ -91,16 +91,16 @@ const loadImageMeta = (url: string): Promise<{ dataUrl: string; width: number; h
 };
 
 const formatCurrencyPDF = (amount: number | undefined | null) => {
-    if (amount === undefined || amount === null || isNaN(amount)) return "Rs. 0.00";
-    try {
-        const fmt = new Intl.NumberFormat('en-IN', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-        return `Rs. ${fmt.format(amount)}`;
-    } catch {
-        return `Rs. ${amount.toFixed(2)}`;
-    }
+  if (amount === undefined || amount === null || isNaN(amount)) return "₹0.00";
+  try {
+    const fmt = new Intl.NumberFormat("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return `₹${fmt.format(amount)}`;
+  } catch {
+    return `₹${Number(amount).toFixed(2)}`;
+  }
 };
 
 function convertNumberToWords(amount: number): string {
@@ -195,7 +195,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
     const scale = Math.min(logoBoxW / (logoW || logoBoxW), logoBoxH / (logoH || logoBoxH));
     const w = (logoW || logoBoxW) * scale;
     const h = (logoH || logoBoxH) * scale;
-    doc.addImage(logoDataUrl, "PNG", pageWidth - margin - w, margin, w, h, undefined, "FAST");
+    doc.addImage(logoDataUrl, "PNG", pageWidth - margin - w, margin + 4, w, h, undefined, "FAST");
   }
 
   y += 3.5;
@@ -232,18 +232,34 @@ export async function generateInvoicePDF(data: InvoiceData) {
   y += 3.8;
 
   doc.setFont("helvetica", "normal");
-  const customerLines = [
+  const colGap = 4;
+  const customerX = margin;
+  const billingX = margin + 70;
+  const shippingX = margin + 128;
+  const customerW = billingX - customerX - colGap;
+  const billingW = shippingX - billingX - colGap;
+  const shippingW = pageWidth - margin - shippingX;
+
+  const customerText = [
     data.customer.name,
     data.customer.phone ? `Ph: ${data.customer.phone}` : "",
-  ].filter(Boolean);
-  doc.text(customerLines, margin, y);
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-  const billingLines = [data.customer.address || ""].filter(Boolean);
-  const billingText = data.billingAddress || billingLines.join("\n") || "-";
+  const billingText = data.billingAddress || data.customer.address || "-";
   const shippingText = data.shippingAddress || billingText;
-  doc.text(billingText, margin + 70, y);
-  doc.text(shippingText, margin + 128, y);
-  y += 11.2;
+
+  const customerWrapped = doc.splitTextToSize(customerText, customerW);
+  const billingWrapped = doc.splitTextToSize(billingText, billingW);
+  const shippingWrapped = doc.splitTextToSize(shippingText, shippingW);
+
+  const lineH = 3.6;
+  doc.text(customerWrapped, customerX, y);
+  doc.text(billingWrapped, billingX, y);
+  doc.text(shippingWrapped, shippingX, y);
+  const blockLines = Math.max(customerWrapped.length, billingWrapped.length, shippingWrapped.length);
+  y += blockLines * lineH + 2.2;
 
   const placeOfSupply = data.placeOfSupply || data.customer.address || "-";
   doc.setFont("helvetica", "bold");
@@ -425,7 +441,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
       }
       y += 2;
     }
-    if (data.paidAt || data.paymentMethod) {
+    if ((!data.paymentBreakdown || data.paymentBreakdown.length === 0) && (data.paidAt || data.paymentMethod)) {
       const paidParts = [
         data.paymentMethod ? `via ${data.paymentMethod}` : "",
         data.paidAt ? `on ${formatDate(data.paidAt)}` : ""

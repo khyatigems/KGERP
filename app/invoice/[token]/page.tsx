@@ -433,7 +433,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Bill To</h3>
                     <div className="text-gray-900 font-medium text-lg">{customerName}</div>
                     <div className="text-sm text-gray-600 mt-1 space-y-0.5">
-                        {customerAddress && <p>{customerAddress}</p>}
+                        {customerAddress && <p className="whitespace-pre-wrap break-words">{customerAddress}</p>}
                         {customerPhone && <p>{customerPhone}</p>}
                         {customerEmail && <p>{customerEmail}</p>}
                     </div>
