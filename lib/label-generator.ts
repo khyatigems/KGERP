@@ -2,6 +2,63 @@ import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
 
+const FONTS: Record<string, { normal: string; bold: string; italic?: string; bolditalic?: string }> = {
+    poppins: {
+        normal: "https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.ttf",
+        bold: "https://fonts.gstatic.com/s/poppins/v20/pxiByp8kv8JHgFVrLCz7Z1xlFQ.ttf",
+        italic: "https://fonts.gstatic.com/s/poppins/v20/pxiGyp8kv8JHgFVrJJLucHtF.ttf",
+        bolditalic: "https://fonts.gstatic.com/s/poppins/v20/pxiDyp8kv8JHgFVrJJLmy1zlFPE.ttf"
+    }
+};
+
+const loadedFonts = new Set<string>();
+
+function arrayBufferToBinaryString(buffer: ArrayBuffer) {
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+    return binary;
+}
+
+async function loadFont(doc: jsPDF, family: string) {
+    if (loadedFonts.has(family)) return;
+    const fontDef = FONTS[family];
+    if (!fontDef) return;
+
+    const promises = [
+        fetch(fontDef.normal).then((r) => (r.ok ? r.arrayBuffer() : null)),
+        fetch(fontDef.bold).then((r) => (r.ok ? r.arrayBuffer() : null)),
+    ];
+    if (fontDef.italic) promises.push(fetch(fontDef.italic).then((r) => (r.ok ? r.arrayBuffer() : null)));
+    if (fontDef.bolditalic) promises.push(fetch(fontDef.bolditalic).then((r) => (r.ok ? r.arrayBuffer() : null)));
+
+    const [normBuf, boldBuf, italicBuf, boldItalicBuf] = await Promise.all(promises);
+
+    if (normBuf) {
+        const normStr = arrayBufferToBinaryString(normBuf);
+        doc.addFileToVFS(`${family}-Regular.ttf`, normStr);
+        doc.addFont(`${family}-Regular.ttf`, family, "normal");
+    }
+    if (boldBuf) {
+        const boldStr = arrayBufferToBinaryString(boldBuf);
+        doc.addFileToVFS(`${family}-Bold.ttf`, boldStr);
+        doc.addFont(`${family}-Bold.ttf`, family, "bold");
+    }
+    if (italicBuf && fontDef.italic) {
+        const italicStr = arrayBufferToBinaryString(italicBuf);
+        doc.addFileToVFS(`${family}-Italic.ttf`, italicStr);
+        doc.addFont(`${family}-Italic.ttf`, family, "italic");
+    }
+    if (boldItalicBuf && fontDef.bolditalic) {
+        const biStr = arrayBufferToBinaryString(boldItalicBuf);
+        doc.addFileToVFS(`${family}-BoldItalic.ttf`, biStr);
+        doc.addFont(`${family}-BoldItalic.ttf`, family, "bolditalic");
+    }
+
+    loadedFonts.add(family);
+}
+
 export interface LabelItem {
     id: string;
     sku: string;
@@ -40,6 +97,7 @@ export interface LabelConfig {
     selectedFields: string[];
     companyLogo?: string; // Base64 Data URL
     thermalLogoUrl?: string; // Generated Black Logo
+    pdfFontFamily?: string;
 }
 
 export const DEFAULT_FIELDS = [
@@ -171,6 +229,8 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
         unit: "mm",
         format: isCustomSize ? [config.labelHeight, config.labelWidth] : "a4"
     });
+    await loadFont(doc, "poppins");
+    const pdfFontFamily = loadedFonts.has("poppins") ? "poppins" : "helvetica";
 
     const qrCodes: Record<string, string> = {};
     const barcodes: Record<string, string> = {};
@@ -202,7 +262,7 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
     let currentItemIndex = 0;
     
     if (config.pageSize === "TAG" || config.pageSize === "THERMAL") {
-        const effectiveConfig = { ...config, thermalLogoUrl }; 
+        const effectiveConfig = { ...config, thermalLogoUrl, pdfFontFamily }; 
 
         items.forEach((item, index) => {
             const key = item.serialNumber || item.sku;
@@ -214,6 +274,7 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
     } else {
         const itemsPerPage = config.rows * config.cols;
         const totalPages = Math.ceil(items.length / itemsPerPage);
+        const effectiveConfig = { ...config, pdfFontFamily };
 
         for (let page = 0; page < totalPages; page++) {
             if (page > 0) doc.addPage("a4", "portrait");
@@ -231,7 +292,7 @@ export async function generateLabelPDF(items: LabelItem[], config: LabelConfig) 
                     doc.setLineWidth(0.1);
                     doc.rect(x, y, config.labelWidth, config.labelHeight);
 
-                    renderLabel(doc, item, x, y, config, qrCodes[key], barcodes[key]);
+                    renderLabel(doc, item, x, y, effectiveConfig, qrCodes[key], barcodes[key]);
                     
                     currentItemIndex++;
                 }
@@ -255,6 +316,7 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
     
     // Safety check for selectedFields
     const fields = config.selectedFields || DEFAULT_FIELDS;
+    const fontFamily = config.pdfFontFamily || "helvetica";
     
     doc.setTextColor(0);
     
@@ -268,7 +330,7 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
 
     // 2. Item Name
     if (fields.includes("itemName")) {
-        doc.setFont("helvetica", "bold");
+        doc.setFont(fontFamily, "bold");
         
         // Calculate available width
         // QR Code is at right side with size + margin
@@ -311,7 +373,7 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
 
     // 2.5 Internal Name (Below Item Name, Small, Bold)
     if (fields.includes("internalName") && item.internalName) {
-        doc.setFont("helvetica", "bold");
+        doc.setFont(fontFamily, "bold");
         doc.setFontSize(config.fontSize - 1); // Smaller than item name
         doc.text(item.internalName, contentX, currentY);
         currentY += lineHeight + 0.5;
@@ -326,7 +388,7 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
     }
 
     // 4. Details Section
-    doc.setFont("helvetica", "normal");
+    doc.setFont(fontFamily, "normal");
     doc.setFontSize(config.fontSize - 1);
 
     // Compact Details: Try to combine more info
@@ -371,14 +433,14 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
         doc.setFont("courier", "normal");
         doc.setFontSize(config.fontSize - 1);
         doc.text(`Loc: ${item.stockLocation}`, contentX, currentY);
-        doc.setFont("helvetica", "normal");
+        doc.setFont(fontFamily, "normal");
         doc.setFontSize(config.fontSize - 1);
         currentY += lineHeight;
     }
 
     // Price
     if (fields.includes("price")) {
-        doc.setFont("helvetica", "bold");
+        doc.setFont(fontFamily, "bold");
         doc.setFontSize(config.fontSize + 1);
         
         // Use server-provided checksum price (Total Price)
@@ -396,7 +458,7 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
 
     // Footer Branding (Smaller, Bottom Centered)
     if (fields.includes("companyName") || fields.includes("companyLogo")) {
-        doc.setFont("helvetica", "normal");
+        doc.setFont(fontFamily, "normal");
         doc.setFontSize(4); // Very small
         doc.setTextColor(0); // Black
         doc.text("KhyatiGems™", x + (config.labelWidth / 2), y + config.labelHeight - 1, { align: "center" });
@@ -415,6 +477,7 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
     
     doc.setTextColor(0);
     const fields = config.selectedFields || DEFAULT_FIELDS;
+    const fontFamily = config.pdfFontFamily || "helvetica";
 
     // Helper to print text with auto-scaling to fit width
     const printFitText = (text: string, y: number, maxFontSize: number, minFontSize: number, fontName: string, fontStyle: string) => {
@@ -462,7 +525,7 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
     
     // Line 1: Item Name (Bold)
     if (fields.includes("itemName")) {
-        printFitText(item.itemName, currentY, 9, 5, "helvetica", "bold");
+        printFitText(item.itemName, currentY, 9, 5, fontFamily, "bold");
         currentY += 3.5;
     }
 
@@ -480,7 +543,7 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
         if (fields.includes("color")) line3Parts.push(item.color);
         const line3 = line3Parts.filter(Boolean).join(" • ");
         if (line3) {
-            printFitText(line3, currentY, 8, 5, "helvetica", "normal");
+            printFitText(line3, currentY, 8, 5, fontFamily, "normal");
             currentY += 3;
         }
     }
@@ -497,7 +560,7 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
         if (fields.includes("shape") && item.shape) line4Parts.push(item.shape);
         const line4 = line4Parts.filter(Boolean).join(" • ");
         if (line4) {
-            printFitText(line4, currentY, 8, 5, "helvetica", "normal");
+            printFitText(line4, currentY, 8, 5, fontFamily, "normal");
             currentY += 3.5;
         }
     }
@@ -509,7 +572,7 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
         if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
             priceText += ` (${Math.round(item.sellingRatePerCarat).toLocaleString()})`;
         }
-        printFitText(priceText, currentY, 9, 6, "helvetica", "bold");
+        printFitText(priceText, currentY, 9, 6, fontFamily, "bold");
     }
 
     // 3. Barcode (Bottom Spanning)

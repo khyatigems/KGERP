@@ -103,6 +103,63 @@ const formatCurrencyPDF = (amount: number | undefined | null) => {
   }
 };
 
+const FONTS: Record<string, { normal: string; bold: string; italic?: string; bolditalic?: string }> = {
+  poppins: {
+    normal: "https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.ttf",
+    bold: "https://fonts.gstatic.com/s/poppins/v20/pxiByp8kv8JHgFVrLCz7Z1xlFQ.ttf",
+    italic: "https://fonts.gstatic.com/s/poppins/v20/pxiGyp8kv8JHgFVrJJLucHtF.ttf",
+    bolditalic: "https://fonts.gstatic.com/s/poppins/v20/pxiDyp8kv8JHgFVrJJLmy1zlFPE.ttf",
+  },
+};
+
+const loadedFonts = new Set<string>();
+
+function arrayBufferToBinaryString(buffer: ArrayBuffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+  return binary;
+}
+
+async function loadFont(doc: jsPDF, family: string) {
+  if (loadedFonts.has(family)) return;
+  const fontDef = FONTS[family];
+  if (!fontDef) return;
+
+  const promises = [
+    fetch(fontDef.normal).then((r) => (r.ok ? r.arrayBuffer() : null)),
+    fetch(fontDef.bold).then((r) => (r.ok ? r.arrayBuffer() : null)),
+  ];
+  if (fontDef.italic) promises.push(fetch(fontDef.italic).then((r) => (r.ok ? r.arrayBuffer() : null)));
+  if (fontDef.bolditalic) promises.push(fetch(fontDef.bolditalic).then((r) => (r.ok ? r.arrayBuffer() : null)));
+
+  const [normBuf, boldBuf, italicBuf, boldItalicBuf] = await Promise.all(promises);
+
+  if (normBuf) {
+    const normStr = arrayBufferToBinaryString(normBuf);
+    doc.addFileToVFS(`${family}-Regular.ttf`, normStr);
+    doc.addFont(`${family}-Regular.ttf`, family, "normal");
+  }
+  if (boldBuf) {
+    const boldStr = arrayBufferToBinaryString(boldBuf);
+    doc.addFileToVFS(`${family}-Bold.ttf`, boldStr);
+    doc.addFont(`${family}-Bold.ttf`, family, "bold");
+  }
+  if (italicBuf && fontDef.italic) {
+    const italicStr = arrayBufferToBinaryString(italicBuf);
+    doc.addFileToVFS(`${family}-Italic.ttf`, italicStr);
+    doc.addFont(`${family}-Italic.ttf`, family, "italic");
+  }
+  if (boldItalicBuf && fontDef.bolditalic) {
+    const biStr = arrayBufferToBinaryString(boldItalicBuf);
+    doc.addFileToVFS(`${family}-BoldItalic.ttf`, biStr);
+    doc.addFont(`${family}-BoldItalic.ttf`, family, "bolditalic");
+  }
+
+  loadedFonts.add(family);
+}
+
 function convertNumberToWords(amount: number): string {
   const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
   const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
@@ -136,6 +193,8 @@ export async function generateInvoicePDF(data: InvoiceData) {
     unit: "mm",
     format: "a4",
   });
+  await loadFont(doc, "poppins");
+  const fontFamily = loadedFonts.has("poppins") ? "poppins" : "helvetica";
 
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
@@ -262,9 +321,9 @@ export async function generateInvoicePDF(data: InvoiceData) {
   y += blockLines * lineH + 2.2;
 
   const placeOfSupply = data.placeOfSupply || data.customer.address || "-";
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.text("Place of Supply:", margin, y);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontFamily, "normal");
   doc.text(placeOfSupply, margin + 30, y);
   y += 5.2;
 
@@ -313,6 +372,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
       lineColor: blue
     },
     styles: {
+      font: fontFamily,
       fontSize: tableFont,
       textColor: 0,
       cellPadding: tablePadding,
@@ -369,16 +429,16 @@ export async function generateInvoicePDF(data: InvoiceData) {
   const totalsX = pageWidth - margin - 58;
   const wordsY = y;
   const amountWords = convertNumberToWords(data.total);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.setFontSize(8);
   const totalItems = data.items.length;
   doc.text(`Total Items : ${totalItems}`, margin, wordsY);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontFamily, "normal");
   const wordsLines = doc.splitTextToSize(`Total amount (in words): INR ${amountWords}`, 95);
   doc.text(wordsLines, margin, wordsY + 4);
 
   let totalsY = y;
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontFamily, "normal");
   doc.setFontSize(8);
   doc.text("Taxable Amount", totalsX, totalsY);
   doc.text(formatCurrencyPDF(taxableTotal), pageWidth - margin, totalsY, { align: "right" });
@@ -410,13 +470,13 @@ export async function generateInvoicePDF(data: InvoiceData) {
     totalsY += 4;
   }
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.setFontSize(10);
   doc.text("Total", totalsX, totalsY);
   doc.text(formatCurrencyPDF(data.total), pageWidth - margin, totalsY, { align: "right" });
   totalsY += 6;
 
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontFamily, "normal");
   doc.setFontSize(8);
   doc.text(`Total Discount`, totalsX, totalsY);
   doc.text(formatCurrencyPDF(data.discount), pageWidth - margin, totalsY, { align: "right" });
@@ -425,14 +485,14 @@ export async function generateInvoicePDF(data: InvoiceData) {
   y = Math.max(totalsY, wordsY + 4 + (wordsLines.length * 4)) + 2;
 
   if (data.amountPaid > 0) {
-    doc.setFont("helvetica", "bold");
+    doc.setFont(fontFamily, "bold");
     doc.setTextColor(22, 163, 74);
     doc.text("Amount Paid", pageWidth - margin - 40, y, { align: "right" });
     doc.text(formatCurrencyPDF(data.amountPaid), pageWidth - margin, y, { align: "right" });
     doc.setTextColor(0);
     y += 6;
     if (data.paymentBreakdown && data.paymentBreakdown.length > 0) {
-      doc.setFont("helvetica", "normal");
+      doc.setFont(fontFamily, "normal");
       doc.setFontSize(7);
       for (const row of data.paymentBreakdown) {
         const sign = row.amount < 0 ? "-" : "";
@@ -447,13 +507,13 @@ export async function generateInvoicePDF(data: InvoiceData) {
         data.paidAt ? `on ${formatDate(data.paidAt)}` : ""
       ].filter(Boolean).join(" ");
       if (paidParts) {
-        doc.setFont("helvetica", "normal");
+        doc.setFont(fontFamily, "normal");
         doc.setFontSize(7);
         doc.text(paidParts, pageWidth - margin, y - 1, { align: "right" });
       }
     }
   } else if (data.balanceDue > 0) {
-    doc.setFont("helvetica", "bold");
+    doc.setFont(fontFamily, "bold");
     doc.setTextColor(220, 38, 38);
     doc.text("Balance Due", pageWidth - margin - 40, y, { align: "right" });
     doc.text(formatCurrencyPDF(data.balanceDue), pageWidth - margin, y, { align: "right" });
@@ -462,9 +522,9 @@ export async function generateInvoicePDF(data: InvoiceData) {
   }
 
   y += 4;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(fontFamily, "bold");
   doc.text("Bank Details:", margin, y);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(fontFamily, "normal");
   if (data.bankDetails) {
     doc.text(`Bank: ${data.bankDetails.bankName}`, margin, y + 4);
     doc.text(`Account #: ${data.bankDetails.accountNumber}`, margin, y + 8);
