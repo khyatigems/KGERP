@@ -84,6 +84,161 @@ async function ensureRuntimeSchema(client) {
   await ensureTable(
     client,
     `
+    CREATE TABLE IF NOT EXISTS "GpisSettings" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "brandName" TEXT,
+      "tagline" TEXT,
+      "estYear" TEXT,
+      "registeredAddress" TEXT,
+      "gstin" TEXT,
+      "iec" TEXT,
+      "supportEmail" TEXT,
+      "supportPhone" TEXT,
+      "supportTimings" TEXT,
+      "website" TEXT,
+      "categoryHsnJson" TEXT,
+      "showRegisteredAddress" INTEGER NOT NULL DEFAULT 1,
+      "showGstin" INTEGER NOT NULL DEFAULT 1,
+      "showIec" INTEGER NOT NULL DEFAULT 1,
+      "showSupport" INTEGER NOT NULL DEFAULT 1,
+      "showWatermark" INTEGER NOT NULL DEFAULT 1,
+      "watermarkText" TEXT,
+      "watermarkOpacity" INTEGER NOT NULL DEFAULT 6,
+      "watermarkRotation" INTEGER NOT NULL DEFAULT -30,
+      "watermarkFontSize" INTEGER NOT NULL DEFAULT 16,
+      "watermarkFontFamily" TEXT DEFAULT 'helvetica',
+      "labelFontFamily" TEXT DEFAULT 'helvetica',
+      "microBorderText" TEXT DEFAULT 'KHYATI GEMS AUTHENTIC PRODUCT',
+      "toleranceCarat" REAL NOT NULL DEFAULT 0.05,
+      "toleranceGram" REAL NOT NULL DEFAULT 0.01,
+      "labelVersion" TEXT,
+      "logoUrl" TEXT,
+      "careInstruction" TEXT,
+      "legalMetrologyLine" TEXT,
+      "updatedAt" DATETIME NOT NULL
+    );
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "gpis_layout_presets" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "unit" TEXT NOT NULL DEFAULT 'MM',
+      "pageWidthMm" REAL NOT NULL DEFAULT 210,
+      "pageHeightMm" REAL NOT NULL DEFAULT 297,
+      "cols" INTEGER NOT NULL DEFAULT 2,
+      "rows" INTEGER NOT NULL DEFAULT 5,
+      "labelWidthMm" REAL NOT NULL DEFAULT 100,
+      "labelHeightMm" REAL NOT NULL DEFAULT 50,
+      "marginLeftMm" REAL NOT NULL DEFAULT 5,
+      "marginTopMm" REAL NOT NULL DEFAULT 23.5,
+      "gapXmm" REAL NOT NULL DEFAULT 0,
+      "gapYmm" REAL NOT NULL DEFAULT 0,
+      "offsetXmm" REAL NOT NULL DEFAULT 0,
+      "offsetYmm" REAL NOT NULL DEFAULT 0,
+      "startPosition" INTEGER NOT NULL DEFAULT 1,
+      "selectedFieldsJson" TEXT,
+      "isDefault" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "gpis_layout_presets_name_key" ON "gpis_layout_presets"("name");
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "GpisSerial" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "sku" TEXT NOT NULL,
+      "serialNumber" TEXT NOT NULL,
+      "categoryCode" TEXT NOT NULL,
+      "yearMonth" TEXT,
+      "runningNumber" INTEGER,
+      "hashFragment" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+      "inventoryLocation" TEXT,
+      "qcCode" TEXT,
+      "packedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "packing_date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "reprintCount" INTEGER NOT NULL DEFAULT 0,
+      "label_version" TEXT,
+      "unit_quantity" INTEGER NOT NULL DEFAULT 1,
+      "made_in" TEXT NOT NULL DEFAULT 'India',
+      "declared_original" INTEGER NOT NULL DEFAULT 1,
+      "createdBy" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "GpisSerial_serialNumber_key" ON "GpisSerial"("serialNumber");
+    CREATE INDEX IF NOT EXISTS "GpisSerial_sku_idx" ON "GpisSerial"("sku");
+    CREATE INDEX IF NOT EXISTS "GpisSerial_status_idx" ON "GpisSerial"("status");
+    CREATE INDEX IF NOT EXISTS "GpisSerial_serialNumber_idx" ON "GpisSerial"("serialNumber");
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "GpisPrintJob" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "printJobId" TEXT NOT NULL,
+      "sku" TEXT,
+      "startSerial" TEXT,
+      "endSerial" TEXT,
+      "totalLabels" INTEGER,
+      "printerType" TEXT,
+      "printedBy" TEXT,
+      "printedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "status" TEXT,
+      "supersededById" TEXT,
+      "supersededAt" DATETIME
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "GpisPrintJob_printJobId_key" ON "GpisPrintJob"("printJobId");
+    CREATE INDEX IF NOT EXISTS "GpisPrintJob_printJobId_idx" ON "GpisPrintJob"("printJobId");
+    CREATE INDEX IF NOT EXISTS "GpisPrintJob_sku_idx" ON "GpisPrintJob"("sku");
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "gpis_print_job_items" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "printJobId" TEXT NOT NULL,
+      "serialId" TEXT NOT NULL,
+      "serialNumber" TEXT NOT NULL,
+      "sku" TEXT NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS "gpis_print_job_items_serialNumber_idx" ON "gpis_print_job_items"("serialNumber");
+    CREATE INDEX IF NOT EXISTS "gpis_print_job_items_sku_idx" ON "gpis_print_job_items"("sku");
+    CREATE INDEX IF NOT EXISTS "gpis_print_job_items_printJobId_idx" ON "gpis_print_job_items"("printJobId");
+    CREATE INDEX IF NOT EXISTS "gpis_print_job_items_serialId_idx" ON "gpis_print_job_items"("serialId");
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
+    CREATE TABLE IF NOT EXISTS "GpisVerificationLog" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "serialNumber" TEXT NOT NULL,
+      "scannedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "ipAddress" TEXT,
+      "userAgent" TEXT
+    );
+    CREATE INDEX IF NOT EXISTS "GpisVerificationLog_serialNumber_idx" ON "GpisVerificationLog"("serialNumber");
+    CREATE INDEX IF NOT EXISTS "GpisVerificationLog_scannedAt_idx" ON "GpisVerificationLog"("scannedAt");
+  `
+  );
+
+  await ensureTable(
+    client,
+    `
     CREATE TABLE IF NOT EXISTS "AnalyticsDailySnapshot" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "snapshotDate" DATETIME NOT NULL,
