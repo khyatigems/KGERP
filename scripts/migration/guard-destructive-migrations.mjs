@@ -13,6 +13,13 @@ const destructivePatterns = [
 async function getAppliedMigrations() {
   const rawUrl = getDatabaseUrl();
   const isFile = rawUrl.startsWith("file:");
+  const envHints = {
+    has_DATABASE_URL: !!process.env.DATABASE_URL,
+    has_TURSO_DATABASE_URL: !!process.env.TURSO_DATABASE_URL,
+    has_TURSO_URL: !!process.env.TURSO_URL,
+    has_TURSO_AUTH_TOKEN: !!process.env.TURSO_AUTH_TOKEN,
+    has_TURSO_TOKEN: !!process.env.TURSO_TOKEN
+  };
   const client = isFile
     ? createClient({ url: rawUrl })
     : (() => {
@@ -24,8 +31,15 @@ async function getAppliedMigrations() {
     return new Set(result.rows.map((row) => String(row.migration_name)));
   } catch (error) {
     if (isFile) return new Set();
+    const base = rawUrl.split("?")[0];
+    const safeUrl = base.replace(/^libsql:\/\//, "libsql://").replace(/^https:\/\//, "https://");
+    const errorText = error instanceof Error ? error.message : String(error);
     throw new Error(
-      "Unable to read applied migrations from Turso. Ensure DATABASE_URL is a libsql/https URL and TURSO_AUTH_TOKEN (or ?authToken=...) is set."
+      `Unable to read applied migrations from Turso.\n` +
+        `- url: ${safeUrl}\n` +
+        `- env: ${JSON.stringify(envHints)}\n` +
+        `- cause: ${errorText}\n` +
+        `Ensure TURSO_DATABASE_URL (or DATABASE_URL) and TURSO_AUTH_TOKEN are set in Vercel Production (Build & Runtime).`
     );
   }
 }

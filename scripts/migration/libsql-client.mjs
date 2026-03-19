@@ -16,7 +16,6 @@ export function parseLibsqlCredentials(rawUrl) {
     new URLSearchParams(query).get("authToken") ||
     process.env.TURSO_AUTH_TOKEN ||
     process.env.TURSO_TOKEN ||
-    process.env.TURSO_API_TOKEN ||
     undefined;
   return { url: base, authToken };
 }
