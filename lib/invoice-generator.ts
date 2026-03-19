@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDate } from "@/lib/utils";
+import { formatInrCurrency, sanitizeNumberText } from "@/lib/number-formatting";
 
 export interface InvoiceData {
   invoiceNumber: string;
@@ -97,13 +98,19 @@ const formatCurrencyPDF = (amount: number | undefined | null) => {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    return `₹${fmt.format(amount)}`;
+    return sanitizeNumberText(`₹${fmt.format(amount)}`);
   } catch {
-    return `₹${Number(amount).toFixed(2)}`;
+    return sanitizeNumberText(`₹${Number(amount).toFixed(2)}`);
   }
 };
 
 const FONTS: Record<string, { normal: string; bold: string; italic?: string; bolditalic?: string }> = {
+  notosansdisplay: {
+    normal: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLplK4fy6r6tOBEJg0IAKzqdFZVZxokvfn_BDLxR.ttf",
+    bold: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLplK4fy6r6tOBEJg0IAKzqdFZVZxokvfn_BDLxR.ttf",
+    italic: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLpjK4fy6r6tOBEJg0IAKzqdFZVZxrktdHvjCaxRgew.ttf",
+    bolditalic: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLpjK4fy6r6tOBEJg0IAKzqdFZVZxrktdHvjCaxRgew.ttf",
+  },
   poppins: {
     normal: "https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.ttf",
     bold: "https://fonts.gstatic.com/s/poppins/v20/pxiByp8kv8JHgFVrLCz7Z1xlFQ.ttf",
@@ -193,8 +200,10 @@ export async function generateInvoicePDF(data: InvoiceData) {
     unit: "mm",
     format: "a4",
   });
+  await loadFont(doc, "notosansdisplay");
   await loadFont(doc, "poppins");
-  const fontFamily = loadedFonts.has("poppins") ? "poppins" : "helvetica";
+  const fontFamily = loadedFonts.has("poppins") ? "poppins" : (loadedFonts.has("notosansdisplay") ? "notosansdisplay" : "helvetica");
+  const numberFont = loadedFonts.has("notosansdisplay") ? "notosansdisplay" : fontFamily;
   doc.setCharSpace(0);
 
   const pageWidth = doc.internal.pageSize.width;
@@ -374,13 +383,14 @@ export async function generateInvoicePDF(data: InvoiceData) {
       lineColor: blue
     },
     styles: {
-      font: fontFamily,
+      font: numberFont,
       fontSize: tableFont,
       textColor: 0,
       cellPadding: tablePadding,
       lineWidth: 0,
       lineColor: lightGray,
-      overflow: "linebreak"
+      overflow: "linebreak",
+      charSpace: 0
     },
     columnStyles: {
       0: { cellWidth: 6 },

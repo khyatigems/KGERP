@@ -23,6 +23,7 @@
     "test:reports:routes": "tsx scripts/tests/reports-route-resolution.unit.ts",
     "test:reports:snapshots": "tsx scripts/tests/reports-dom-snapshot.unit.ts",
     "test:reports": "npm run test:reports:routes && npm run test:reports:snapshots && tsx scripts/tests/reports-fallback.integration.ts",
+    "test:number-formatting": "tsx scripts/tests/number-formatting.unit.ts",
     "test:payments:reconcile": "tsx scripts/tests/payments-reconciliation.integration.ts",
     "test:export:queue": "tsx scripts/tests/export-job-queue.integration.ts",
     "analytics:daily": "tsx scripts/generate-daily-analytics.ts",
