@@ -8,9 +8,8 @@ function assert(condition: unknown, message: string) {
 }
 
 async function run() {
-  const tx = prisma as any;
-  const ar = await getOrCreateAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, tx);
-  const sales = await getOrCreateAccountByCode(ACCOUNTS.INCOME.SALES, tx);
+  const ar = await getOrCreateAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, prisma);
+  const sales = await getOrCreateAccountByCode(ACCOUNTS.INCOME.SALES, prisma);
 
   assert(ar.code === "1010", "Accounts receivable code should be 1010");
   assert(sales.code === "4001", "Sales revenue code should be 4001");

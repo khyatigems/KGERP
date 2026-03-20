@@ -454,7 +454,7 @@ async function renderLabel(
   
   if (hasField(options, "qr")) {
     try {
-      const qrText = `https://erp.khyatigems.com/preview/${data.serial}`;
+      const qrText = `https://erp.khyatigems.com/verify/${data.serial}`;
       const qr = await makeQrPng(qrText);
       
       const qrY = contentY + 2; // Reduced top margin

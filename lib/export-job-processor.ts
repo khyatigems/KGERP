@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCapitalRotationAnalyticsUncached, getInventoryAgingAnalytics, getReportsAnalyticsSummaryUncached } from "@/lib/reports-analytics";
 import { randomUUID } from "crypto";
+import { ensureReportExportJobSchema } from "@/lib/report-export-job-schema";
 
 const EXPORT_WORKER_LOCK_ID = "REPORT_EXPORT_PROCESSOR";
 const LEASE_MS = 90_000;
@@ -166,6 +167,7 @@ async function recoverStaleProcessingJobs() {
 }
 
 export async function processQueuedExportJobs(limit = 5) {
+  await ensureReportExportJobSchema();
   const ownerId = randomUUID();
   const acquired = await acquireExportWorkerLock(ownerId);
   if (!acquired) {

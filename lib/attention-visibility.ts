@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-logger";
-const prismaAny = prisma as any;
 
 type AttentionVisibilityActor = {
   userId?: string;
@@ -8,7 +7,7 @@ type AttentionVisibilityActor = {
 };
 
 export async function getInventoryAttentionVisibility(inventoryId: string) {
-  return prismaAny.inventory.findUnique({
+  return prisma.inventory.findUnique({
     where: { id: inventoryId },
     select: {
       id: true,
@@ -23,7 +22,7 @@ export async function setInventoryAttentionVisibility(
   hideFromAttention: boolean,
   actor: AttentionVisibilityActor
 ) {
-  const inventory = await prismaAny.inventory.findUnique({
+  const inventory = await prisma.inventory.findUnique({
     
     where: { id: inventoryId },
     select: {
@@ -49,7 +48,7 @@ export async function setInventoryAttentionVisibility(
     };
   }
 
-  const updated = await prismaAny.inventory.update({
+  const updated = await prisma.inventory.update({
     where: { id: inventoryId },
     data: { hideFromAttention },
     select: {

@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
-import { formatInrCurrency, formatInrNumber } from "@/lib/number-formatting";
+import { formatInrNumber, formatInrValue } from "@/lib/number-formatting";
 
 const FONTS: Record<string, { normal: string; bold: string; italic?: string; bolditalic?: string }> = {
     notosansdisplay: {
@@ -454,11 +454,11 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
         
         // Use server-provided checksum price (Total Price)
         const basePrice = item.priceWithChecksum ?? item.sellingPrice;
-        let priceText = formatInrCurrency(basePrice);
+        let priceText = `R ${formatInrValue(basePrice)}`;
 
         // Append mode indicator
         if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
-            priceText += ` (₹${formatInrNumber(item.sellingRatePerCarat, 0)}/ct)`;
+            priceText += ` (R ${formatInrNumber(item.sellingRatePerCarat, 0)}/ct)`;
         } else if (item.pricingMode === "FLAT") {
             priceText += ` (Flat)`;
         }
@@ -579,9 +579,9 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
     // This usually clears the QR code, so it gets full width if Y > qrBottom
     if (fields.includes("price")) {
         const basePrice = item.priceWithChecksum ?? item.sellingPrice;
-        let priceText = formatInrCurrency(basePrice);
+        let priceText = `R ${formatInrValue(basePrice)}`;
         if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
-            priceText += ` (₹${formatInrNumber(Math.round(item.sellingRatePerCarat), 0)})`;
+            priceText += ` (R ${formatInrNumber(Math.round(item.sellingRatePerCarat), 0)})`;
         }
         printFitText(priceText, currentY, 9, 6, fontFamily, "bold");
     }

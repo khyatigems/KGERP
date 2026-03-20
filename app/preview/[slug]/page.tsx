@@ -1,9 +1,8 @@
 
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Metadata } from "next";
 import { getPublicLabelData } from "@/app/erp/packaging/actions";
-import { PackagingLabel } from "@/components/packaging/public-label-preview";
 import { SkuPreviewContent } from "@/components/preview/sku-preview-content";
 import { trackPublicView } from "@/lib/analytics";
 
@@ -44,12 +43,9 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   const serialRes = await getPublicLabelData(slug);
   
   if (serialRes.success && serialRes.data) {
-    // Render Label Preview
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 print:p-0 print:bg-white">
-        <PackagingLabel data={serialRes.data} />
-      </div>
-    );
+    const source = typeof sp.source === "string" ? sp.source : (Array.isArray(sp.source) ? sp.source[0] : undefined);
+    const query = source ? `?source=${encodeURIComponent(source)}` : "";
+    redirect(`/verify/${encodeURIComponent(slug)}${query}`);
   }
 
   // 2. If not a serial, try finding it as a SKU

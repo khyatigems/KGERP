@@ -25,7 +25,13 @@ interface PaymentHistoryProps {
 export function PaymentHistory({ payments, totalAmount, invoiceId }: PaymentHistoryProps) {
   if (!payments || payments.length === 0) return null;
   const sorted = [...payments].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  let runningPaid = 0;
+  const rows = sorted.reduce<Array<Payment & { runningPaid: number; pendingAfter: number }>>((acc, payment) => {
+    const prev = acc.length ? acc[acc.length - 1].runningPaid : 0;
+    const runningPaid = prev + payment.amount;
+    const pendingAfter = Math.max(0, totalAmount - runningPaid);
+    acc.push({ ...payment, runningPaid, pendingAfter });
+    return acc;
+  }, []);
 
   return (
     <Card>
@@ -46,10 +52,7 @@ export function PaymentHistory({ payments, totalAmount, invoiceId }: PaymentHist
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sorted.map((payment) => {
-              runningPaid += payment.amount;
-              const pendingAfter = Math.max(0, totalAmount - runningPaid);
-              return (
+            {rows.map((payment) => (
               <TableRow key={payment.id}>
                 <TableCell>{formatDate(payment.date)}</TableCell>
                 <TableCell>
@@ -57,7 +60,7 @@ export function PaymentHistory({ payments, totalAmount, invoiceId }: PaymentHist
                 </TableCell>
                 <TableCell className="font-mono text-xs">{payment.reference || "-"}</TableCell>
                 <TableCell className="text-right font-medium">
-                  {formatCurrency(pendingAfter)}
+                  {formatCurrency(payment.pendingAfter)}
                 </TableCell>
                 <TableCell className="text-right font-medium">
                   {formatCurrency(payment.amount)}
@@ -73,7 +76,7 @@ export function PaymentHistory({ payments, totalAmount, invoiceId }: PaymentHist
                   {payment.notes || "-"}
                 </TableCell>
               </TableRow>
-            )})}
+            ))}
           </TableBody>
         </Table>
       </CardContent>

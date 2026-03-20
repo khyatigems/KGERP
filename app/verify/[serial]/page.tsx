@@ -2,12 +2,14 @@ import { verifySerialPublic } from "@/app/erp/packaging/actions";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { computeWeightGrams } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { AlertTriangle, ShieldCheck } from "lucide-react";
-import { format } from "date-fns";
-import Image from "next/image";
+import { formatInrCurrency, normalizeCertificateUrl } from "@/lib/number-formatting";
+import VerificationBanner from "@/components/qr-page/VerificationBanner";
+import ProductCard from "@/components/qr-page/ProductCard";
+import ProductImage from "@/components/qr-page/ProductImage";
+import CertificateCard from "@/components/qr-page/CertificateCard";
+import PackagingDetails from "@/components/qr-page/PackagingDetails";
+import ContactSupport from "@/components/qr-page/ContactSupport";
+import Footer from "@/components/qr-page/Footer";
 
 export default async function VerifyPage({
   params,
@@ -21,236 +23,85 @@ export default async function VerifyPage({
 
   const result = await verifySerialPublic(serial, ip, ua);
   const company = await prisma.companySettings.findFirst();
+  const supportEmail = company?.email || "support@khyatigems.com";
 
   if (!result.success || !result.data) {
     return (
-      <div className="min-h-screen bg-white">
-        <div className="mx-auto w-full max-w-2xl px-4 py-10 space-y-6">
-          <Card className="border-red-200 bg-red-50/60">
-            <CardHeader className="space-y-2">
-              <CardTitle className="text-lg text-red-700">Unable to verify</CardTitle>
-              <div className="text-sm text-red-600">This serial number was not found in our records.</div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-md bg-white/70 border border-red-100 p-3">
-                <div className="text-xs text-red-600 uppercase tracking-wider">Serial</div>
-                <div className="mt-1 font-mono text-base font-semibold text-red-800">{serial}</div>
-              </div>
-              <div className="text-sm text-muted-foreground">Need help? Contact Support below.</div>
-              {company?.email && (
-                <Button asChild variant="outline" className="w-full">
-                  <a href={`mailto:${company.email}`}>Email Support</a>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="text-center text-xs text-muted-foreground">
-            <div>{company?.website || "khyatigems.com"}</div>
-            <div>Original Product</div>
+      <div className="min-h-screen bg-[#F9FAFB] px-4 py-6">
+        <div className="max-w-[420px] mx-auto space-y-4">
+          <div className="bg-white rounded-[14px] shadow-sm p-4 border border-red-100">
+            <p className="text-sm font-semibold text-red-700">Unable to verify</p>
+            <p className="text-xs text-red-600 mt-1">This serial number was not found in our records.</p>
+            <div className="mt-3 text-xs text-gray-500">Serial</div>
+            <div className="font-mono text-sm font-semibold text-gray-900 break-all">{serial}</div>
           </div>
+          <ContactSupport email={supportEmail} />
+          <Footer website={company?.website} />
         </div>
       </div>
     );
   }
 
   const { serial: serialData, inventory } = result.data;
-  const isVoid = serialData.status === "CANCELLED";
-  const packedOn = serialData.packedAt ? format(new Date(serialData.packedAt), "dd MMM yyyy") : "-";
-  const sku = serialData.sku || "-";
-  const itemName = inventory?.itemName || "-";
-
-  const weightCt = inventory?.weightValue ? `${inventory.weightValue.toFixed(2)} ct` : null;
-  const weightGrams = inventory ? `${computeWeightGrams(inventory).toFixed(2)} g` : null;
-  const rawCertUrlSource = (inventory as any)?.certificateComments || null;
-  const certUrl = (() => {
-    const source = rawCertUrlSource ? String(rawCertUrlSource).trim() : "";
-    if (!source) return null;
-    const candidate = source.startsWith("www.") ? `https://${source}` : source;
-    try {
-      const u = new URL(candidate);
-      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
-      return u.toString();
-    } catch {
-      return null;
-    }
+  const isCancelled = serialData.status === "CANCELLED";
+  const packedOnDate = (() => {
+    const v = serialData.packedAt;
+    if (!v) return null;
+    const d = v instanceof Date ? v : new Date(v);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
   })();
-  const certRaw = inventory?.certificateNo || (inventory as any)?.certificateNumber || null;
-  const certNumber = certRaw ? String(certRaw) : null;
-  const certAuthority = (inventory as any)?.certificateLab || inventory?.lab || null;
+  const sku = serialData.sku || null;
+  const itemName = inventory?.itemName || "Product";
 
-  const mrp = inventory?.sellingPrice
-    ? `₹${Number(inventory.sellingPrice).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : null;
+  const fields: Array<{ label: string; value: string }> = [];
+  if (inventory?.weightValue) {
+    const grams = computeWeightGrams(inventory).toFixed(2);
+    fields.push({ label: "Weight", value: `${inventory.weightValue.toFixed(2)} ct • ${grams} g` });
+  }
+  if (inventory?.shape) fields.push({ label: "Shape", value: inventory.shape });
+  if (inventory?.color) fields.push({ label: "Color", value: inventory.color });
+  const cutValue = inventory?.cutGrade || inventory?.cut || null;
+  if (cutValue) fields.push({ label: "Cut", value: cutValue });
+  if (inventory?.dimensionsMm) fields.push({ label: "Dimensions", value: `${inventory.dimensionsMm} mm` });
+  if (inventory?.transparency) fields.push({ label: "Transparency", value: inventory.transparency });
+  if (inventory?.treatment) fields.push({ label: "Treatment", value: inventory.treatment });
 
-  const showField = (value: unknown) => value !== null && value !== undefined && String(value).trim() !== "" && String(value).trim() !== "-";
+  const certNumber = inventory?.certificateNo || null;
+  const certAuthority = inventory?.certificateLab || inventory?.lab || null;
+  const certUrl = normalizeCertificateUrl(inventory?.certificateComments || null);
+  const mrp = inventory?.sellingPrice ? formatInrCurrency(inventory.sellingPrice) : null;
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="mx-auto w-full max-w-2xl px-4 py-10 space-y-6">
-        <div className={`rounded-xl border px-4 py-4 ${isVoid ? "border-red-200 bg-red-50/60" : "border-emerald-200 bg-emerald-50/60"}`}>
-          <div className="flex items-start gap-3">
-            {isVoid ? (
-              <AlertTriangle className="h-6 w-6 text-red-600 mt-0.5" />
-            ) : (
-              <ShieldCheck className="h-6 w-6 text-emerald-600 mt-0.5" />
-            )}
-            <div className="flex-1 space-y-1">
-              <div className={`text-base font-semibold ${isVoid ? "text-red-700" : "text-emerald-700"}`}>
-                {isVoid ? "Product Flagged" : "Product Verified by Khyati Gems"}
-              </div>
-              <div className="text-xs text-muted-foreground">This item is securely recorded in our system</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Badge variant="outline" className="bg-white/70">{sku}</Badge>
-                <Badge variant="outline" className="bg-white/70">Packed {packedOn}</Badge>
-                <Badge variant="outline" className="bg-white/70 font-mono">{serialData.serialNumber}</Badge>
-              </div>
-            </div>
+    <div className="min-h-screen bg-[#F9FAFB] px-4 py-6">
+      <div className="max-w-[420px] mx-auto space-y-4">
+        {isCancelled ? (
+          <div className="bg-white rounded-[14px] shadow-sm p-4 border border-amber-200">
+            <p className="text-sm font-semibold text-amber-800">Verification unavailable</p>
+            <p className="text-xs text-amber-700 mt-1">This item is not active in our system.</p>
           </div>
-        </div>
-
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Product Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">Item Name</div>
-                <div className="text-base font-semibold text-foreground">{itemName}</div>
-              </div>
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">Weight</div>
-                <div className="text-base font-semibold text-foreground">
-                  {[weightCt, weightGrams].filter(Boolean).join(" • ") || "-"}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {showField(inventory?.shape) && (
-                <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                  <span className="text-xs text-muted-foreground">Shape</span>
-                  <span className="text-sm font-semibold text-foreground">{inventory?.shape}</span>
-                </div>
-              )}
-              {showField(inventory?.color) && (
-                <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                  <span className="text-xs text-muted-foreground">Color</span>
-                  <span className="text-sm font-semibold text-foreground">{inventory?.color}</span>
-                </div>
-              )}
-              {showField((inventory as any)?.cutGrade || inventory?.cut) && (
-                <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                  <span className="text-xs text-muted-foreground">Cut</span>
-                  <span className="text-sm font-semibold text-foreground">{(inventory as any)?.cutGrade || inventory?.cut}</span>
-                </div>
-              )}
-              {showField(inventory?.dimensionsMm) && (
-                <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                  <span className="text-xs text-muted-foreground">Dimensions</span>
-                  <span className="text-sm font-semibold text-foreground">{inventory?.dimensionsMm} mm</span>
-                </div>
-              )}
-              {showField(inventory?.transparency) && (
-                <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                  <span className="text-xs text-muted-foreground">Transparency</span>
-                  <span className="text-sm font-semibold text-foreground">{inventory?.transparency}</span>
-                </div>
-              )}
-              {showField(inventory?.treatment) && (
-                <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                  <span className="text-xs text-muted-foreground">Treatment</span>
-                  <span className="text-sm font-semibold text-foreground">{inventory?.treatment}</span>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {inventory?.imageUrl && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base">Product Image</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="w-full rounded-xl border bg-white overflow-hidden">
-                <Image src={inventory.imageUrl} alt={itemName} className="w-full h-auto object-contain" width={900} height={900} unoptimized />
-              </div>
-            </CardContent>
-          </Card>
+        ) : (
+          <VerificationBanner sku={sku} packedOn={packedOnDate} />
         )}
 
-        {(certNumber || certUrl) && (
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base">Certification</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {certNumber && (
-                <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                  <span className="text-xs text-muted-foreground">Certificate Number</span>
-                  <span className="text-sm font-semibold text-foreground">{certNumber}</span>
-                </div>
-              )}
-              {showField(certAuthority) && (
-                <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                  <span className="text-xs text-muted-foreground">Certification Authority</span>
-                  <span className="text-sm font-semibold text-foreground">{String(certAuthority)}</span>
-                </div>
-              )}
-              {certUrl && (
-                <Button asChild className="w-full rounded-lg">
-                  <a href={certUrl} target="_blank" rel="noopener noreferrer">View Certificate</a>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        <ProductCard
+          name={itemName}
+          fields={fields}
+        />
 
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Packaging Details</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-              <span className="text-xs text-muted-foreground">Packed On</span>
-              <span className="text-sm font-semibold text-foreground">{packedOn}</span>
-            </div>
-            {mrp && (
-              <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                <span className="text-xs text-muted-foreground">MRP (Incl. taxes)</span>
-                <span className="text-sm font-semibold text-foreground">{mrp}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-              <span className="text-xs text-muted-foreground">Country</span>
-              <span className="text-sm font-semibold text-foreground">India</span>
-            </div>
-            <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-              <span className="text-xs text-muted-foreground">SKU</span>
-              <span className="text-sm font-semibold text-foreground font-mono">{sku}</span>
-            </div>
-          </CardContent>
-        </Card>
+        {inventory?.imageUrl && <ProductImage imageUrl={inventory.imageUrl} alt={itemName} />}
 
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Need help?</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {company?.email && (
-              <Button asChild variant="outline" className="w-full">
-                <a href={`mailto:${company.email}`}>Contact Support</a>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <CertificateCard
+          number={certNumber}
+          authority={certAuthority}
+          url={certUrl}
+        />
 
-        <div className="text-center text-xs text-muted-foreground space-y-1">
-          <div>{company?.website || "khyatigems.com"}</div>
-          <div>Original Product</div>
-        </div>
+        <PackagingDetails packedOn={packedOnDate || "-"} mrp={mrp} />
+
+        <ContactSupport email={supportEmail} />
+
+        <Footer website={company?.website} />
       </div>
     </div>
   );

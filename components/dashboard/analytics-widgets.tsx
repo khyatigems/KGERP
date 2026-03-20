@@ -14,22 +14,26 @@ interface AnalyticsWidgetsProps {
   types: AnalyticsData[];
 }
 
+const COLORS = ["#181547", "#D03837", "#FFBB28", "#FF8042", "#8884d8"];
+
+type TooltipPayload = { value: number; payload: AnalyticsData };
+type TooltipProps = { active?: boolean; payload?: TooltipPayload[]; label?: string };
+
+function CustomTooltip({ active, payload, label }: TooltipProps) {
+  if (!active || !payload || payload.length === 0) return null;
+  const first = payload[0];
+  const sales = typeof first.value === "number" ? first.value : 0;
+  const qty = first.payload?.count ?? 0;
+  return (
+    <div className="bg-white dark:bg-zinc-800 p-2 border border-border shadow-md rounded-md text-xs">
+      <p className="font-semibold">{label}</p>
+      <p className="text-primary">Sales: ₹{sales.toLocaleString("en-IN")}</p>
+      <p className="text-muted-foreground">Qty: {qty}</p>
+    </div>
+  );
+}
+
 export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
-  const COLORS = ['#181547', '#D03837', '#FFBB28', '#FF8042', '#8884d8'];
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white dark:bg-zinc-800 p-2 border border-border shadow-md rounded-md text-xs">
-          <p className="font-semibold">{label}</p>
-          <p className="text-primary">Sales: ₹{payload[0].value.toLocaleString()}</p>
-          <p className="text-muted-foreground">Qty: {payload[0].payload.count}</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card>

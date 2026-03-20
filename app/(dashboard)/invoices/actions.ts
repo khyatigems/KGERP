@@ -33,7 +33,7 @@ export async function createOrUpdateInvoiceFromSale(
 
     if (sale.invoice) {
       // Update existing invoice
-      const existingInvoice = await (prisma.invoice as any).findUnique({
+      const existingInvoice = await prisma.invoice.findUnique({
         where: { id: sale.invoice.id },
         select: {
           id: true,
@@ -53,7 +53,7 @@ export async function createOrUpdateInvoiceFromSale(
       const userName = session.user.name || session.user.email || "Unknown";
       const ensuredInvoiceDate = existingInvoice.invoiceDate || normalizeDateToUtcNoon(sale.saleDate);
 
-      await (prisma.invoice as any).update({
+      await prisma.invoice.update({
         where: { id: existingInvoice.id },
         data: { invoiceDate: ensuredInvoiceDate }
       });
@@ -107,7 +107,7 @@ export async function createOrUpdateInvoiceFromSale(
         const invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, "0")}`;
         const token = generateInvoiceToken();
 
-        const invoice = await (tx.invoice as any).create({
+        const invoice = await tx.invoice.create({
           data: {
             invoiceNumber,
             token,
@@ -130,7 +130,8 @@ export async function createOrUpdateInvoiceFromSale(
         return invoice.id;
       });
 
-      return { success: true, message: "Invoice created successfully", invoiceId, token: (await prisma.invoice.findUnique({where: {id: invoiceId}}))?.token };
+      const created = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { token: true } });
+      return { success: true, message: "Invoice created successfully", invoiceId, token: created?.token };
     }
   } catch (error) {
     console.error("Failed to create/update invoice:", error);

@@ -68,7 +68,8 @@ async function main() {
 
   const summary = await getReportsAnalyticsSummaryUncached();
   assert(summary.latestSnapshot, "expected latestSnapshot");
-  assert((summary.latestSnapshot as any).inventoryCount >= 2, "expected inventoryCount >= 2");
+  const snapshot = summary.latestSnapshot as unknown as { inventoryCount: number };
+  assert(snapshot.inventoryCount >= 2, "expected inventoryCount >= 2");
 
   const aging = await getInventoryAgingAnalytics({ page: 1, pageSize: 50 });
   assert(aging.total >= 2, "expected inventory aging rows");

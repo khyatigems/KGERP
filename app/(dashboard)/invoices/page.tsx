@@ -29,8 +29,8 @@ type InvoiceWithRelations = Invoice & {
 };
 
 export default async function InvoicesPage() {
-  const invoices = await (prisma.invoice as any).findMany({
-    orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }] as any,
+  const invoices = await prisma.invoice.findMany({
+    orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }],
     include: {
       sales: true,
       legacySale: true,

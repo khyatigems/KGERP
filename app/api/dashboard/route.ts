@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-const prismaAny = prisma as any;
 
 export const dynamic = 'force-dynamic';
 
@@ -70,10 +69,11 @@ export async function GET() {
             where: { status: { in: ["LISTED", "ACTIVE"] } },
             _count: { id: true }
         }).catch(e => { console.error("KPI Fail: Listings", e); return []; }),
-        prisma.quotation.count({ 
-            where: { 
-                status: { in: ["SENT", "PENDING_APPROVAL", "APPROVED", "ACCEPTED", "ACTIVE"] } 
-            } 
+        prisma.quotation.count({
+            where: {
+                status: "ACTIVE",
+                OR: [{ expiryDate: null }, { expiryDate: { gte: now } }]
+            }
         }).catch(e => { console.error("KPI Fail: Quotations", e); return 0; }),
         prisma.invoice.count().catch(e => { console.error("KPI Fail: Invoices", e); return 0; }),
         prisma.labelCartItem.count({
@@ -115,7 +115,7 @@ export async function GET() {
             take: 5
         }).catch(() => []),
 
-        prismaAny.memo.findMany({
+        prisma.memo.findMany({
             where: { 
                 status: "OPEN", 
                 expiryDate: { lt: now },
@@ -142,19 +142,19 @@ export async function GET() {
 
         prisma.vendor.count({ where: { status: "PENDING_APPROVAL" } }).catch(() => 0), // Count is fine for simple badge
 
-        prismaAny.inventory.findMany({
+        prisma.inventory.findMany({
             where: { status: "IN_STOCK", hideFromAttention: false, updatedAt: { lt: sixtyDaysAgo } },
             select: { id: true, sku: true, createdAt: true },
             take: 5
         }).catch(() => []),
 
-        prismaAny.inventory.findMany({
+        prisma.inventory.findMany({
             where: { status: "IN_STOCK", hideFromAttention: false, certification: null },
             select: { id: true, sku: true, itemName: true },
             take: 5
         }).catch(() => []),
 
-        prismaAny.inventory.findMany({
+        prisma.inventory.findMany({
             where: { status: "IN_STOCK", hideFromAttention: false, imageUrl: null },
             select: { id: true, sku: true, itemName: true },
             take: 5
@@ -166,7 +166,7 @@ export async function GET() {
             take: 5
         }).catch(() => []),
 
-        prismaAny.inventory.findMany({
+        prisma.inventory.findMany({
             where: { status: "IN_STOCK", hideFromAttention: false, sellingPrice: { gt: 100000 }, updatedAt: { lt: ninetyDaysAgo } },
             select: { id: true, sku: true, sellingPrice: true },
             take: 5
@@ -275,7 +275,7 @@ export async function GET() {
         labels: 0
     };
 
-    const normalizedMemo = (overdueMemoItems as any[]).map((memo: any) => ({
+    const normalizedMemo = (overdueMemoItems as Array<{ id: string; customerName: string; issueDate: Date; items: Array<{ inventory: { sku: string } | null }> }>).map((memo) => ({
         id: memo.id,
         inventory: { sku: memo.items?.[0]?.inventory?.sku || "N/A" },
         memo: { customerName: memo.customerName, issueDate: memo.issueDate }

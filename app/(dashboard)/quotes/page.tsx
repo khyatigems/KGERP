@@ -38,6 +38,18 @@ export default async function QuotationsPage() {
     },
   });
 
+  const now = new Date();
+  const getDisplayStatus = (quote: { status: string; expiryDate: Date | null }) => {
+    const exp = quote.expiryDate;
+    if (!exp) return quote.status;
+    const expTime = exp instanceof Date ? exp.getTime() : new Date(exp).getTime();
+    if (Number.isNaN(expTime)) return quote.status;
+    const isExpired = expTime < now.getTime();
+    const expirable = ["SENT", "PENDING_APPROVAL", "APPROVED", "ACCEPTED", "ACTIVE"].includes(quote.status);
+    if (isExpired && expirable) return "EXPIRED";
+    return quote.status;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end">
@@ -78,6 +90,9 @@ export default async function QuotationsPage() {
               </TableRow>
             ) : (
               quotes.map((quote) => (
+                (() => {
+                  const displayStatus = getDisplayStatus({ status: quote.status, expiryDate: quote.expiryDate });
+                  return (
                 <TableRow key={quote.id}>
                   <TableCell className="font-medium">
                     {quote.quotationNumber}
@@ -96,19 +111,19 @@ export default async function QuotationsPage() {
                   <TableCell>
                     <Badge
                       variant={
-                        ["SENT", "APPROVED", "ACCEPTED", "ACTIVE", "CONVERTED"].includes(quote.status) ? "default" :
-                        ["EXPIRED", "CANCELLED"].includes(quote.status) ? "destructive" :
+                        ["SENT", "APPROVED", "ACCEPTED", "ACTIVE", "CONVERTED"].includes(displayStatus) ? "default" :
+                        ["EXPIRED", "CANCELLED"].includes(displayStatus) ? "destructive" :
                         "secondary"
                       }
                       className={
-                        quote.status === "PENDING_APPROVAL" ? "bg-amber-500 hover:bg-amber-600 text-white" :
-                        quote.status === "APPROVED" ? "bg-green-600 hover:bg-green-700" :
-                        quote.status === "ACCEPTED" ? "bg-teal-600 hover:bg-teal-700" :
-                        quote.status === "CONVERTED" ? "bg-indigo-600 hover:bg-indigo-700" :
+                        displayStatus === "PENDING_APPROVAL" ? "bg-amber-500 hover:bg-amber-600 text-white" :
+                        displayStatus === "APPROVED" ? "bg-green-600 hover:bg-green-700" :
+                        displayStatus === "ACCEPTED" ? "bg-teal-600 hover:bg-teal-700" :
+                        displayStatus === "CONVERTED" ? "bg-indigo-600 hover:bg-indigo-700" :
                         undefined
                       }
                     >
-                      {quote.status === "CONVERTED" ? "INVOICED" : quote.status.replace(/_/g, " ")}
+                      {displayStatus === "CONVERTED" ? "INVOICED" : displayStatus.replace(/_/g, " ")}
                     </Badge>
                   </TableCell>
                   <TableCell>{quote.expiryDate ? formatDate(quote.expiryDate) : "-"}</TableCell>
@@ -121,6 +136,8 @@ export default async function QuotationsPage() {
                     </Button>
                   </TableCell>
                 </TableRow>
+                  );
+                })()
               ))
             )}
           </TableBody>

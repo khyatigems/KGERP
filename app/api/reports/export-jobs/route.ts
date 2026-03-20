@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { isAllowedExportReportType, processQueuedExportJobs } from "@/lib/export-job-processor";
 import { withFreezeGuard } from "@/lib/governance";
+import { ensureReportExportJobSchema } from "@/lib/report-export-job-schema";
 
 export const revalidate = 0;
 
@@ -13,6 +14,8 @@ export async function GET(request: NextRequest) {
   if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  await ensureReportExportJobSchema();
 
   const limit = Math.min(100, Math.max(5, Number(request.nextUrl.searchParams.get("limit") || 20)));
   const jobs = await prisma.reportExportJob.findMany({
@@ -28,6 +31,8 @@ async function postExportJob(request: NextRequest) {
   if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  await ensureReportExportJobSchema();
 
   const body = (await request.json()) as {
     reportType?: string;

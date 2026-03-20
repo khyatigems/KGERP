@@ -8,17 +8,14 @@ interface LiveClockProps {
 }
 
 export function LiveClock({ className }: LiveClockProps) {
-  const [time, setTime] = useState<Date | null>(null);
+  const [time, setTime] = useState<Date>(() => new Date());
 
   useEffect(() => {
-    setTime(new Date());
     const timer = setInterval(() => {
       setTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
-  if (!time) return null; // Prevent hydration mismatch
 
   return (
     <div className={cn("flex flex-col items-end", className)}>

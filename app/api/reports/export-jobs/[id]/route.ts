@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { withFreezeGuard } from "@/lib/governance";
+import { ensureReportExportJobSchema } from "@/lib/report-export-job-schema";
 
 async function patchExportJob(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -10,6 +11,8 @@ async function patchExportJob(request: NextRequest, { params }: { params: Promis
   if (!hasPermission(session.user.role, PERMISSIONS.SETTINGS_MANAGE)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  await ensureReportExportJobSchema();
 
   const { id } = await params;
   const body = (await request.json()) as {

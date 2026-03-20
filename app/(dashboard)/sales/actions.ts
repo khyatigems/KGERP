@@ -257,7 +257,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
           const token = generateInvoiceToken();
 
-          const newInvoice = await (tx.invoice as any).create({
+          const newInvoice = await tx.invoice.create({
               data: {
                   invoiceNumber,
                   token,
@@ -669,7 +669,7 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
 
     return {
         invoiceNumber: invoice.invoiceNumber,
-        date: getInvoiceDisplayDate(invoice as any),
+        date: getInvoiceDisplayDate(invoice),
         publicUrl,
         token: invoice.token,
         company: {

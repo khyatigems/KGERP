@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { getCapitalRotationAnalyticsUncached, getInventoryAgingAnalytics, getReportsAnalyticsSummaryUncached } from "@/lib/reports-analytics";
+import { ensureReportExportJobSchema } from "@/lib/report-export-job-schema";
 
 function parseFilters(filtersJson: string | null) {
   if (!filtersJson) return {};
@@ -80,6 +81,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  await ensureReportExportJobSchema();
 
   const { id } = await params;
   const job = await prisma.reportExportJob.findUnique({

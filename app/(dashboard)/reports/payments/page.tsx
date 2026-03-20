@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { PaymentAnalytics } from "@/components/reports/payment-analytics";
 import { PaymentMethodCollectionsCard } from "@/components/reports/payment-method-collections-card";
-import { format, startOfMonth, subMonths } from "date-fns";
+import { format, subMonths } from "date-fns";
 import { getPaymentCompletenessValidation, reconcileHistoricalInvoicePayments } from "@/lib/payment-reconciliation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

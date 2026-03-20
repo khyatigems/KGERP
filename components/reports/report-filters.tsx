@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns";
 import { DateRangePickerWithPresets } from "@/components/ui/date-range-picker-with-presets";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function ReportFilters() {
   const router = useRouter();

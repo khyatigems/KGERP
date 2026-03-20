@@ -194,6 +194,15 @@ function convertNumberToWords(amount: number): string {
   return words + " Only";
 }
 
+function normalizeAddressText(input: string) {
+  return input
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/(\d)([A-Za-z])/g, "$1 $2")
+    .replace(/([A-Za-z])(\d)/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function generateInvoicePDF(data: InvoiceData) {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -205,6 +214,17 @@ export async function generateInvoicePDF(data: InvoiceData) {
   const fontFamily = loadedFonts.has("poppins") ? "poppins" : (loadedFonts.has("notosansdisplay") ? "notosansdisplay" : "helvetica");
   const numberFont = loadedFonts.has("notosansdisplay") ? "notosansdisplay" : fontFamily;
   doc.setCharSpace(0);
+
+  const writeAmountRight = (text: string, x: number, y: number, opts?: { bold?: boolean; fontSize?: number }) => {
+    const prevFont = doc.getFont().fontName;
+    const prevStyle = doc.getFont().fontStyle;
+    const prevSize = doc.getFontSize();
+    doc.setFont(numberFont, opts?.bold ? "bold" : "normal");
+    if (opts?.fontSize) doc.setFontSize(opts.fontSize);
+    doc.text(text, x, y, { align: "right" });
+    doc.setFont(prevFont, prevStyle);
+    doc.setFontSize(prevSize);
+  };
 
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
@@ -316,8 +336,8 @@ export async function generateInvoicePDF(data: InvoiceData) {
     .filter(Boolean)
     .join("\n");
 
-  const billingText = data.billingAddress || data.customer.address || "-";
-  const shippingText = data.shippingAddress || billingText;
+  const billingText = normalizeAddressText(data.billingAddress || data.customer.address || "-");
+  const shippingText = normalizeAddressText(data.shippingAddress || billingText);
 
   const customerWrapped = doc.splitTextToSize(customerText, customerW);
   const billingWrapped = doc.splitTextToSize(billingText, billingW);
@@ -452,45 +472,45 @@ export async function generateInvoicePDF(data: InvoiceData) {
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(8);
   doc.text("Taxable Amount", totalsX, totalsY);
-  doc.text(formatCurrencyPDF(taxableTotal), pageWidth - margin, totalsY, { align: "right" });
+  writeAmountRight(formatCurrencyPDF(taxableTotal), pageWidth - margin, totalsY);
   totalsY += 4;
 
   doc.text(`CGST ${halfRate.toFixed(3)}%`, totalsX, totalsY);
-  doc.text(formatCurrencyPDF(cgst), pageWidth - margin, totalsY, { align: "right" });
+  writeAmountRight(formatCurrencyPDF(cgst), pageWidth - margin, totalsY);
   totalsY += 4;
 
   doc.text(`SGST ${halfRate.toFixed(3)}%`, totalsX, totalsY);
-  doc.text(formatCurrencyPDF(sgst), pageWidth - margin, totalsY, { align: "right" });
+  writeAmountRight(formatCurrencyPDF(sgst), pageWidth - margin, totalsY);
   totalsY += 4;
 
   if (data.discount > 0) {
     doc.text("Discount", totalsX, totalsY);
-    doc.text(`-${formatCurrencyPDF(data.discount)}`, pageWidth - margin, totalsY, { align: "right" });
+    writeAmountRight(`-${formatCurrencyPDF(data.discount)}`, pageWidth - margin, totalsY);
     totalsY += 4;
   }
 
   if (data.shippingCharge && data.shippingCharge > 0) {
     doc.text("Shipping Charges", totalsX, totalsY);
-    doc.text(formatCurrencyPDF(data.shippingCharge), pageWidth - margin, totalsY, { align: "right" });
+    writeAmountRight(formatCurrencyPDF(data.shippingCharge), pageWidth - margin, totalsY);
     totalsY += 4;
   }
 
   if (data.additionalCharge && data.additionalCharge > 0) {
     doc.text("Additional Charges", totalsX, totalsY);
-    doc.text(formatCurrencyPDF(data.additionalCharge), pageWidth - margin, totalsY, { align: "right" });
+    writeAmountRight(formatCurrencyPDF(data.additionalCharge), pageWidth - margin, totalsY);
     totalsY += 4;
   }
 
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(10);
   doc.text("Total", totalsX, totalsY);
-  doc.text(formatCurrencyPDF(data.total), pageWidth - margin, totalsY, { align: "right" });
+  writeAmountRight(formatCurrencyPDF(data.total), pageWidth - margin, totalsY, { bold: true, fontSize: 10 });
   totalsY += 6;
 
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(8);
   doc.text(`Total Discount`, totalsX, totalsY);
-  doc.text(formatCurrencyPDF(data.discount), pageWidth - margin, totalsY, { align: "right" });
+  writeAmountRight(formatCurrencyPDF(data.discount), pageWidth - margin, totalsY);
   totalsY += 5;
 
   y = Math.max(totalsY, wordsY + 4 + (wordsLines.length * 4)) + 2;
@@ -499,7 +519,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
     doc.setFont(fontFamily, "bold");
     doc.setTextColor(22, 163, 74);
     doc.text("Amount Paid", pageWidth - margin - 40, y, { align: "right" });
-    doc.text(formatCurrencyPDF(data.amountPaid), pageWidth - margin, y, { align: "right" });
+    writeAmountRight(formatCurrencyPDF(data.amountPaid), pageWidth - margin, y, { bold: true });
     doc.setTextColor(0);
     y += 6;
     if (data.paymentBreakdown && data.paymentBreakdown.length > 0) {
@@ -507,7 +527,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
       doc.setFontSize(7);
       for (const row of data.paymentBreakdown) {
         const sign = row.amount < 0 ? "-" : "";
-        doc.text(`${row.method}: ${sign}${formatCurrencyPDF(Math.abs(row.amount))}`, pageWidth - margin, y - 1, { align: "right" });
+        writeAmountRight(`${row.method}: ${sign}${formatCurrencyPDF(Math.abs(row.amount))}`, pageWidth - margin, y - 1);
         y += 4;
       }
       y += 2;
@@ -527,7 +547,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
     doc.setFont(fontFamily, "bold");
     doc.setTextColor(220, 38, 38);
     doc.text("Balance Due", pageWidth - margin - 40, y, { align: "right" });
-    doc.text(formatCurrencyPDF(data.balanceDue), pageWidth - margin, y, { align: "right" });
+    writeAmountRight(formatCurrencyPDF(data.balanceDue), pageWidth - margin, y, { bold: true });
     doc.setTextColor(0);
     y += 6;
   }

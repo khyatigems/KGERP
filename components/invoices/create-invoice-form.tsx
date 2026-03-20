@@ -66,9 +66,10 @@ export function CreateInvoiceForm({ saleId, initialOptions }: CreateInvoiceFormP
       };
       const result = await createOrUpdateInvoiceFromSale(saleId, payload);
       if (result.success) {
-        if (typeof (result as any).outstandingDelta === "number" && (result as any).outstandingDelta > 0.009) {
+        const delta = "outstandingDelta" in result ? (result as { outstandingDelta?: unknown }).outstandingDelta : undefined;
+        if (typeof delta === "number" && delta > 0.009) {
           toast.error(
-            `Outstanding balance increased by ₹${Number((result as any).outstandingDelta).toFixed(2)}. Please collect the additional amount before marking invoice as paid.`,
+            `Outstanding balance increased by ₹${Number(delta).toFixed(2)}. Please collect the additional amount before marking invoice as paid.`,
             { duration: 10000 }
           );
         } else {
@@ -109,7 +110,7 @@ export function CreateInvoiceForm({ saleId, initialOptions }: CreateInvoiceFormP
             <Checkbox 
               id={key} 
               checked={value} 
-              onCheckedChange={(c) => handleChange(key, c as boolean)} 
+              onCheckedChange={(c) => handleChange(key, c === true)} 
             />
             <Label htmlFor={key} className="cursor-pointer flex-1 font-medium">
               {fieldLabels[key] || key}

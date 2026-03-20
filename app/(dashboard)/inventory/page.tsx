@@ -155,7 +155,7 @@ export default async function InventoryPage({
 
   try {
     const where = buildWhere(true);
-    const include: any = {};
+    const include: Prisma.InventoryInclude = {};
     if (canMedia) {
       include.media = {
         orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
@@ -195,7 +195,8 @@ export default async function InventoryPage({
     console.error("Inventory fetch failed (strict mode), falling back to safe mode:", error);
     try {
         const where = buildWhere(false);
-        const select: any = {
+        type InventoryRow = Omit<InventoryListItem, "media"> & Partial<Pick<InventoryListItem, "media">>;
+        const select: Prisma.InventorySelect = {
           id: true, sku: true, itemName: true, internalName: true, category: true, gemType: true, description: true, pieces: true,
           weightValue: true, weightUnit: true, carats: true, weightRatti: true, costPrice: true, sellingPrice: true, profit: true,
           status: true, location: true, certificateNo: true, certification: true, lab: true, shape: true, color: true, clarity: true,
@@ -212,7 +213,7 @@ export default async function InventoryPage({
           };
         }
         const results = await Promise.all([
-          (prisma.inventory as any).findMany({
+          prisma.inventory.findMany({
             where,
             orderBy: { createdAt: "desc" },
             select,
@@ -223,8 +224,11 @@ export default async function InventoryPage({
           canColorCode ? prisma.colorCode.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []) : Promise.resolve([]),
           canVendor ? prisma.vendor.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }).catch(() => []) : Promise.resolve([]),
         ]);
-        const baseItems = results[0] as unknown as InventoryListItem[];
-        rawInventory = canMedia ? baseItems : (baseItems as any).map((item: any) => ({ ...item, media: [] }));
+        const baseItems = results[0] as unknown as InventoryRow[];
+        rawInventory = baseItems.map((item) => ({
+          ...(item as Omit<InventoryListItem, "media">),
+          media: canMedia ? (item.media || []) : [],
+        }));
         categories = results[1] as { id: string; name: string }[];
         gemstones = results[2] as { id: string; name: string }[];
         colors = results[3] as { id: string; name: string }[];

@@ -10,20 +10,29 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExportJobCenter } from "@/components/reports/export-job-center";
 import { getGovernanceConfig } from "@/lib/governance";
+import { ReportsRangeSelect } from "@/components/reports/reports-range-select";
 
-export default async function ReportsHubPage() {
+export default async function ReportsHubPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
     const session = await auth();
     if (!session?.user) redirect("/login");
     if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
 
     const canViewFinancials = hasPermission(session.user.role, PERMISSIONS.REPORTS_FINANCIAL);
     const canViewExpenses = hasPermission(session.user.role, PERMISSIONS.EXPENSE_REPORT);
+    const sp = await searchParams;
+    const rangeDays = (() => {
+        const raw = sp.range;
+        const v = Array.isArray(raw) ? raw[0] : raw;
+        const n = v ? Number(v) : 30;
+        if (n === 7 || n === 30 || n === 90) return n;
+        return 30;
+    })();
+
     const today = new Date();
     const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0, 0));
-    const monthStartUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1, 0, 0, 0, 0));
+    const rangeStartUtc = new Date(todayUtc.getTime() - rangeDays * 24 * 60 * 60 * 1000);
 
     const isMissingTableError = (error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
@@ -75,33 +84,27 @@ export default async function ReportsHubPage() {
         }
     })();
 
-    let salesTodayCount: number;
-    let salesMonthCount: number;
-    let avgSale: any;
-    let paidInvoices: number;
-    let pendingInvoices: number;
-    let activeListings: number;
-    let listingBreakdown: any;
-    let marginCategory: any;
-    let lowMarginCategory: any;
-    let avgMarginSnapshot: any;
-    let recentSales: any;
-    let slowMoving: any;
-    let pendingPaymentsRows: any;
-    let recentLabelJobs: any;
+    let salesTodayCount = 0;
+    let salesMonthCount = 0;
+    let avgSale: { _avg: { netAmount: number | null } } = { _avg: { netAmount: 0 } };
+    let paidInvoices = 0;
+    let pendingInvoices = 0;
+    let activeListings = 0;
+    let listingBreakdown: Array<{ platform: string; _count: { id: number } }> = [];
+    let recentSales: Array<{ id: string; netAmount: number | null; customerName: string | null; inventory: { sku: string }; invoice: { invoiceNumber: string } | null }> = [];
+    let slowMoving: Array<{ id: string; sku: string; itemName: string; daysInStock: number }> = [];
+    let pendingPaymentsRows: Array<{ invoiceNumber: string; totalAmount: number; paidAmount: number | null; sales: Array<{ customerName: string | null }> }> = [];
+    let recentLabelJobs: Array<{ id: string; totalItems: number; status: string; user: { name: string | null } }> = [];
 
     try {
-        [salesTodayCount, salesMonthCount, avgSale, paidInvoices, pendingInvoices, activeListings, listingBreakdown, marginCategory, lowMarginCategory, avgMarginSnapshot] = await Promise.all([
+        [salesTodayCount, salesMonthCount, avgSale, paidInvoices, pendingInvoices, activeListings, listingBreakdown] = await Promise.all([
             prisma.sale.count({ where: { saleDate: { gte: todayUtc } } }),
-            prisma.sale.count({ where: { saleDate: { gte: monthStartUtc } } }),
-            prisma.sale.aggregate({ _avg: { netAmount: true }, where: { saleDate: { gte: monthStartUtc } } }),
-            prisma.invoice.count({ where: { paymentStatus: "PAID", isActive: true } }),
-            prisma.$queryRaw<{ count: unknown }[]>`SELECT CAST(COUNT(*) AS INTEGER) as count FROM "Invoice" WHERE "isActive" = 1 AND "totalAmount" > COALESCE("paidAmount", 0)`.then((r) => Number(r[0]?.count ?? 0)),
+            prisma.sale.count({ where: { saleDate: { gte: rangeStartUtc } } }),
+            prisma.sale.aggregate({ _avg: { netAmount: true }, where: { saleDate: { gte: rangeStartUtc } } }),
+            prisma.invoice.count({ where: { paymentStatus: "PAID", isActive: true, invoiceDate: { gte: rangeStartUtc } } }),
+            prisma.$queryRaw<{ count: unknown }[]>`SELECT CAST(COUNT(*) AS INTEGER) as count FROM "Invoice" WHERE "isActive" = 1 AND "invoiceDate" >= ${rangeStartUtc} AND "totalAmount" > COALESCE("paidAmount", 0)`.then((r) => Number(r[0]?.count ?? 0)),
             prisma.listing.count({ where: { status: "ACTIVE" } }),
             prisma.listing.groupBy({ by: ["platform"], where: { status: "ACTIVE" }, _count: { id: true } }),
-            prisma.analyticsSalesSnapshot.groupBy({ by: ["category"], _avg: { profitAmount: true }, orderBy: { _avg: { profitAmount: "desc" } }, take: 1 }),
-            prisma.analyticsSalesSnapshot.groupBy({ by: ["category"], _avg: { profitAmount: true }, orderBy: { _avg: { profitAmount: "asc" } }, take: 1 }),
-            prisma.analyticsSalesSnapshot.aggregate({ _avg: { profitAmount: true } }),
         ]);
 
         [recentSales, slowMoving, pendingPaymentsRows, recentLabelJobs] = await Promise.all([
@@ -151,6 +154,46 @@ export default async function ReportsHubPage() {
     }
 
     pendingInvoices = Number(pendingInvoices);
+
+    const profitStats = await (async () => {
+        try {
+            const [avgRow] = await prisma.$queryRaw<Array<{ avgProfit: number | null }>>`
+              SELECT CAST(AVG(COALESCE("profit", "netAmount" - COALESCE("costPriceSnapshot", 0))) AS REAL) as avgProfit
+              FROM "Sale"
+              WHERE "saleDate" >= ${rangeStartUtc}
+            `;
+
+            const [highRow] = await prisma.$queryRaw<Array<{ category: string | null; avgProfit: number | null }>>`
+              SELECT i."category" as category,
+                     CAST(AVG(COALESCE(s."profit", s."netAmount" - COALESCE(s."costPriceSnapshot", 0))) AS REAL) as avgProfit
+              FROM "Sale" s
+              JOIN "Inventory" i ON i."id" = s."inventoryId"
+              WHERE s."saleDate" >= ${rangeStartUtc}
+              GROUP BY i."category"
+              ORDER BY avgProfit DESC
+              LIMIT 1
+            `;
+
+            const [lowRow] = await prisma.$queryRaw<Array<{ category: string | null; avgProfit: number | null }>>`
+              SELECT i."category" as category,
+                     CAST(AVG(COALESCE(s."profit", s."netAmount" - COALESCE(s."costPriceSnapshot", 0))) AS REAL) as avgProfit
+              FROM "Sale" s
+              JOIN "Inventory" i ON i."id" = s."inventoryId"
+              WHERE s."saleDate" >= ${rangeStartUtc}
+              GROUP BY i."category"
+              ORDER BY avgProfit ASC
+              LIMIT 1
+            `;
+
+            return {
+                avgProfit: Number(avgRow?.avgProfit ?? 0),
+                highestCategory: highRow?.category || null,
+                lowestCategory: lowRow?.category || null,
+            };
+        } catch {
+            return { avgProfit: 0, highestCategory: null, lowestCategory: null };
+        }
+    })();
     if (!slowMoving || slowMoving.length === 0) {
         const oldest = await prisma.inventory.findMany({
             where: { status: "IN_STOCK" },
@@ -219,7 +262,7 @@ export default async function ReportsHubPage() {
                     <p className="text-sm text-muted-foreground">Analytics Command Center for operational and financial intelligence.</p>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full lg:w-auto">
-                    <Select defaultValue="30d"><SelectTrigger><SelectValue placeholder="Date Range" /></SelectTrigger><SelectContent><SelectItem value="7d">Last 7 Days</SelectItem><SelectItem value="30d">Last 30 Days</SelectItem><SelectItem value="90d">Last 90 Days</SelectItem></SelectContent></Select>
+                    <ReportsRangeSelect defaultDays={rangeDays} />
                     <Input placeholder="Category" />
                     <Input placeholder="Vendor" />
                     <Input placeholder="Platform" />
@@ -228,10 +271,10 @@ export default async function ReportsHubPage() {
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Inventory Health</CardTitle><Boxes className="h-4 w-4 text-blue-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Items in Stock: <span className="font-semibold">{(latestSnapshot?.inventoryCount ?? 0) || liveInventory.count}</span></div><div>Inventory Value: <span className="font-semibold">{formatCurrency((latestSnapshot?.inventoryValueSell ?? 0) || liveInventory.sellValue)}</span></div><div>Slow Moving: <span className="font-semibold">{slowMoving.length}</span></div></CardContent></Card>
-                <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Sales Performance</CardTitle><TrendingUp className="h-4 w-4 text-green-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Sales Today: <span className="font-semibold">{salesTodayCount}</span></div><div>Sales This Month: <span className="font-semibold">{salesMonthCount}</span></div><div>Avg Sale Price: <span className="font-semibold">{formatCurrency(avgSale._avg.netAmount || 0)}</span></div></CardContent></Card>
+                <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Sales Performance</CardTitle><TrendingUp className="h-4 w-4 text-green-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Sales Today: <span className="font-semibold">{salesTodayCount}</span></div><div>Sales Last {rangeDays} Days: <span className="font-semibold">{salesMonthCount}</span></div><div>Avg Sale Price: <span className="font-semibold">{formatCurrency(avgSale._avg.netAmount || 0)}</span></div></CardContent></Card>
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Payments Status</CardTitle><CircleDollarSign className="h-4 w-4 text-yellow-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Paid Invoices: <span className="font-semibold">{paidInvoices}</span></div><div>Pending Payments: <span className="font-semibold">{pendingInvoices}</span></div><div>Collection Rate: <span className="font-semibold">{collectionRate.toFixed(1)}%</span></div></CardContent></Card>
-                <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Profit Insights</CardTitle><Percent className="h-4 w-4 text-amber-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Avg Margin: <span className="font-semibold">{formatCurrency(avgMarginSnapshot._avg.profitAmount || 0)}</span></div><div>Highest Category: <span className="font-semibold">{marginCategory[0]?.category || "-"}</span></div><div>Lowest Category: <span className="font-semibold">{lowMarginCategory[0]?.category || "-"}</span></div></CardContent></Card>
-                <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Listings Overview</CardTitle><Activity className="h-4 w-4 text-purple-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Active Listings: <span className="font-semibold">{activeListings}</span></div>{listingBreakdown.slice(0, 3).map((row: { platform: string; _count: { id: number } }) => (<div key={row.platform}>{row.platform}: <span className="font-semibold">{row._count.id}</span></div>))}</CardContent></Card>
+                <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Profit Insights</CardTitle><Percent className="h-4 w-4 text-amber-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Avg Margin: <span className="font-semibold">{formatCurrency(profitStats.avgProfit)}</span></div><div>Highest Category: <span className="font-semibold">{profitStats.highestCategory || "-"}</span></div><div>Lowest Category: <span className="font-semibold">{profitStats.lowestCategory || "-"}</span></div></CardContent></Card>
+                <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Listings Overview</CardTitle><Activity className="h-4 w-4 text-purple-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Active Listings: <span className="font-semibold">{activeListings}</span></div>{listingBreakdown.slice(0, 3).map((row) => (<div key={row.platform}>{row.platform}: <span className="font-semibold">{row._count.id}</span></div>))}</CardContent></Card>
             </div>
 
             <Card>
@@ -258,7 +301,7 @@ export default async function ReportsHubPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-                <Card><CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>SKU</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>User</TableHead></TableRow></TableHeader><TableBody>{recentSales.map((sale: any) => (<TableRow key={sale.id}><TableCell>{sale.invoice?.invoiceNumber || "-"}</TableCell><TableCell>{sale.inventory.sku}</TableCell><TableCell className="text-right">{formatCurrency(sale.netAmount || 0)}</TableCell><TableCell>{sale.customerName || "-"}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
+                <Card><CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>SKU</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>User</TableHead></TableRow></TableHeader><TableBody>{recentSales.map((sale) => (<TableRow key={sale.id}><TableCell>{sale.invoice?.invoiceNumber || "-"}</TableCell><TableCell>{sale.inventory.sku}</TableCell><TableCell className="text-right">{formatCurrency(sale.netAmount || 0)}</TableCell><TableCell>{sale.customerName || "-"}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                 <Card><CardHeader><CardTitle>Slow Moving Inventory</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Item</TableHead><TableHead className="text-right">Days</TableHead></TableRow></TableHeader><TableBody>{slowMoving.map((item: { id: string; sku: string; itemName: string; daysInStock: number }) => (<TableRow key={item.id}><TableCell>{item.sku}</TableCell><TableCell>{item.itemName}</TableCell><TableCell className="text-right">{item.daysInStock}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                 <Card><CardHeader><CardTitle>Pending Payments</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>Customer</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{pendingPaymentsRows.map((row: { invoiceNumber: string; totalAmount: number; paidAmount: number | null; sales: Array<{ customerName: string | null }> }) => (<TableRow key={row.invoiceNumber}><TableCell>{row.invoiceNumber}</TableCell><TableCell>{row.sales[0]?.customerName || "-"}</TableCell><TableCell className="text-right">{formatCurrency(Math.max(0, row.totalAmount - (row.paidAmount || 0)))}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                 <Card><CardHeader><CardTitle>Recent Label Jobs</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Job</TableHead><TableHead>Printed By</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Labels</TableHead></TableRow></TableHeader><TableBody>{recentLabelJobs.map((job: { id: string; totalItems: number; status: string; user: { name: string | null } }) => (<TableRow key={job.id}><TableCell>{job.id.slice(0, 8)}</TableCell><TableCell>{job.user.name || "-"}</TableCell><TableCell><Badge variant="outline">{job.status}</Badge></TableCell><TableCell className="text-right">{job.totalItems}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>

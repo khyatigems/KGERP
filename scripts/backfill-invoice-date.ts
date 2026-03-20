@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { normalizeDateToUtcNoon } from "@/lib/date";
-const prismaAny = prisma as any;
 
 async function run() {
-  const invoices = await prismaAny.invoice.findMany({
+  const invoices = await prisma.invoice.findMany({
     where: { invoiceDate: null },
     select: { id: true, createdAt: true, sales: { select: { saleDate: true }, orderBy: { saleDate: "asc" } } }
   });
@@ -11,7 +10,7 @@ async function run() {
   for (const inv of invoices) {
     const firstSaleDate = inv.sales[0]?.saleDate;
     const sourceDate = firstSaleDate || inv.createdAt;
-    await prismaAny.invoice.update({
+    await prisma.invoice.update({
       where: { id: inv.id },
       data: { invoiceDate: normalizeDateToUtcNoon(sourceDate) }
     });

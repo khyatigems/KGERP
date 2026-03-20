@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { setInventoryAttentionVisibility } from "@/lib/attention-visibility";
-const prismaAny = prisma as any;
 
 function assert(condition: unknown, message: string) {
   if (!condition) {
@@ -11,7 +10,7 @@ function assert(condition: unknown, message: string) {
 async function run() {
   const actor = { userId: "integration-test-user", userName: "Integration Test" };
 
-  const existing = await prismaAny.inventory.findFirst({
+  const existing = await prisma.inventory.findFirst({
     where: { status: "IN_STOCK" },
     select: { id: true, sku: true, hideFromAttention: true }
   });
@@ -22,7 +21,7 @@ async function run() {
   let createdTemporary = false;
 
   if (!inventoryId || !sku) {
-    const created = await prismaAny.inventory.create({
+    const created = await prisma.inventory.create({
       data: {
         sku: `TESTATN${Date.now()}`,
         itemName: "Attention Visibility Test SKU",
@@ -43,7 +42,7 @@ async function run() {
   const hideResult = await setInventoryAttentionVisibility(inventoryId, true, actor);
   assert(hideResult.success, "Hiding SKU from attention should succeed");
 
-  const hiddenState = await prismaAny.inventory.findUnique({
+  const hiddenState = await prisma.inventory.findUnique({
     where: { id: inventoryId },
     select: { hideFromAttention: true }
   });
@@ -52,7 +51,7 @@ async function run() {
   const showResult = await setInventoryAttentionVisibility(inventoryId, false, actor);
   assert(showResult.success, "Showing SKU in attention should succeed");
 
-  const visibleState = await prismaAny.inventory.findUnique({
+  const visibleState = await prisma.inventory.findUnique({
     where: { id: inventoryId },
     select: { hideFromAttention: true }
   });
@@ -69,9 +68,9 @@ async function run() {
   assert(Boolean(latestLog), "Activity log should be created for attention visibility changes");
 
   if (createdTemporary) {
-    await prismaAny.inventory.delete({ where: { id: inventoryId } });
+    await prisma.inventory.delete({ where: { id: inventoryId } });
   } else {
-    await prismaAny.inventory.update({
+    await prisma.inventory.update({
       where: { id: inventoryId },
       data: { hideFromAttention: originalHideState }
     });

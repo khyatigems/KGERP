@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { normalizeDateToUtcNoon } from "@/lib/date";
 import { updateInvoiceBillingFromDisplayOptions } from "@/lib/invoice-billing";
-const prismaAny = prisma as any;
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -26,7 +25,7 @@ async function run() {
     select: { id: true }
   });
 
-  const invoice = await prismaAny.invoice.create({
+  const invoice = await prisma.invoice.create({
     data: {
       invoiceNumber: `INV-TEST-${Date.now()}`,
       token: `tok_${Date.now()}_${Math.random().toString(16).slice(2)}`,
@@ -82,7 +81,8 @@ async function run() {
       showSku: true,
     })
   });
-  assert((updateResult as any).success, "Invoice should be updated");
+  const success = (updateResult as unknown as { success?: unknown }).success;
+  assert(success === true, "Invoice should be updated");
 
   const updated = await prisma.invoice.findUnique({
     where: { id: invoiceId },
