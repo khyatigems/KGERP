@@ -17,6 +17,7 @@ type ExportJob = {
   status: string;
   requestedBy: string | null;
   createdAt: string;
+  updatedAt: string;
   downloadUrl: string | null;
   errorMessage: string | null;
 };
@@ -64,6 +65,17 @@ export function ExportJobCenter() {
   }, [jobs]);
 
   const canGenerate = useMemo(() => !!reportType && !!format, [reportType, format]);
+
+  const timeAgo = (iso: string) => {
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return "";
+    const diffMs = Date.now() - t;
+    const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes <= 0) return `${seconds}s`;
+    return `${minutes}m ${seconds}s`;
+  };
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
@@ -151,7 +163,14 @@ export function ExportJobCenter() {
           <TableBody>
             {jobs.map((job) => (
               <TableRow key={job.id}>
-                <TableCell>{new Date(job.createdAt).toLocaleString()}</TableCell>
+                <TableCell>
+                  <div className="text-sm">{new Date(job.createdAt).toLocaleString()}</div>
+                  {(job.status === "QUEUED" || job.status === "PROCESSING") && (
+                    <div className="text-xs text-muted-foreground">
+                      {job.status === "QUEUED" ? `Queued for ${timeAgo(job.createdAt)}` : `Processing for ${timeAgo(job.updatedAt || job.createdAt)}`}
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell>{job.reportType}</TableCell>
                 <TableCell>{job.format}</TableCell>
                 <TableCell>

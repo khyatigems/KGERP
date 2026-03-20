@@ -17,6 +17,15 @@ export async function GET(request: NextRequest) {
 
   await ensureReportExportJobSchema();
 
+  try {
+    const queuedCount = await prisma.reportExportJob.count({ where: { status: "QUEUED" } });
+    if (queuedCount > 0) {
+      await processQueuedExportJobs(Math.min(10, Math.max(1, queuedCount)));
+    }
+  } catch (error) {
+    console.error("Failed to process queued export jobs during refresh", error);
+  }
+
   const limit = Math.min(100, Math.max(5, Number(request.nextUrl.searchParams.get("limit") || 20)));
   const jobs = await prisma.reportExportJob.findMany({
     orderBy: { createdAt: "desc" },
@@ -68,10 +77,7 @@ async function postExportJob(request: NextRequest) {
   });
 
   try {
-    await Promise.race([
-      processQueuedExportJobs(1),
-      new Promise((resolve) => setTimeout(resolve, 1200))
-    ]);
+    await processQueuedExportJobs(3);
   } catch (error) {
     console.error("Failed to trigger export processor immediately", error);
   }
