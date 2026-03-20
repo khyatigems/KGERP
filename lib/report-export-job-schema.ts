@@ -1,10 +1,16 @@
 import { prisma } from "@/lib/prisma";
 
 let ensured = false;
+let ensuredWorkerLock = false;
 
 function isMissingTableError(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error);
   return msg.includes("no such table") && msg.toLowerCase().includes("reportexportjob");
+}
+
+function isMissingWorkerLockTableError(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.includes("no such table") && msg.toLowerCase().includes("workerlockheartbeat");
 }
 
 export async function ensureReportExportJobSchema() {
@@ -43,3 +49,29 @@ export async function ensureReportExportJobSchema() {
   ensured = true;
 }
 
+export async function ensureWorkerLockHeartbeatSchema() {
+  if (ensuredWorkerLock) return;
+  try {
+    await prisma.workerLockHeartbeat.count();
+    ensuredWorkerLock = true;
+    return;
+  } catch (error) {
+    if (!isMissingWorkerLockTableError(error)) throw error;
+  }
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "WorkerLockHeartbeat" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "ownerId" TEXT NOT NULL,
+      "leaseUntil" DATETIME NOT NULL,
+      "heartbeatAt" DATETIME NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL
+    );
+  `);
+
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "WorkerLockHeartbeat_leaseUntil_idx" ON "WorkerLockHeartbeat"("leaseUntil");`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "WorkerLockHeartbeat_ownerId_idx" ON "WorkerLockHeartbeat"("ownerId");`);
+
+  ensuredWorkerLock = true;
+}
