@@ -96,6 +96,16 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
     let pendingPaymentsRows: Array<{ invoiceNumber: string; customerName: string | null; pendingAmount: number }> = [];
     let recentLabelJobs: Array<{ id: string; totalItems: number; status: string; user: { name: string | null } }> = [];
 
+    const toNumber = (value: unknown) => {
+        if (typeof value === "number") return value;
+        if (typeof value === "bigint") return Number(value);
+        if (typeof value === "string") {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : 0;
+        }
+        return 0;
+    };
+
     try {
         const [paidCountRow, pendingCountRow] = await prisma.$queryRaw<
             Array<{ paidCount: unknown; pendingCount: unknown }>
@@ -121,8 +131,8 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
           FROM inv
         `;
 
-        paidInvoices = Number(paidCountRow?.paidCount ?? 0);
-        pendingInvoices = Number(pendingCountRow?.pendingCount ?? 0);
+        paidInvoices = toNumber(paidCountRow?.paidCount);
+        pendingInvoices = toNumber(pendingCountRow?.pendingCount);
 
         [salesTodayCount, salesMonthCount, avgSale, activeListings, listingBreakdown] = await Promise.all([
             prisma.sale.count({ where: { saleDate: { gte: todayUtc } } }),
@@ -149,7 +159,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                 orderBy: { daysInStock: "desc" },
                 take: 5
             }),
-            prisma.$queryRaw<Array<{ invoiceNumber: string; customerName: string | null; pendingAmount: number }>>`
+            prisma.$queryRaw<Array<{ invoiceNumber: string; customerName: string | null; pendingAmount: unknown }>>`
               WITH pay AS (
                 SELECT "invoiceId" as invoiceId, SUM("amount") as sumPaid
                 FROM "Payment"
@@ -188,6 +198,11 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                 }
             }),
         ]);
+
+        pendingPaymentsRows = pendingPaymentsRows.map((row) => ({
+            ...row,
+            pendingAmount: toNumber(row.pendingAmount),
+        }));
     } catch (error) {
         if (isMissingTableError(error)) {
             return renderSetup();
