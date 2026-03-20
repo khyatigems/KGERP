@@ -61,6 +61,40 @@ type PackagingPrismaClient = typeof prisma & {
 
 const packagingPrisma = prisma as unknown as PackagingPrismaClient;
 
+const SERIAL_SPACE_CHARS = /[\s\u00A0\u1680\u180E\u2000-\u200F\u2028\u2029\u202F\u205F\u3000\uFEFF]/g;
+const SERIAL_DASH_CHARS = /[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE63\uFF0D]/g;
+
+function normalizeSerialInput(input: unknown) {
+  const raw = typeof input === "string" ? input : String(input ?? "");
+  return raw
+    .normalize("NFKC")
+    .replace(SERIAL_DASH_CHARS, "-")
+    .replace(SERIAL_SPACE_CHARS, "")
+    .trim()
+    .toUpperCase();
+}
+
+async function findSerialByNumber(serialNumber: string) {
+  const normalized = normalizeSerialInput(serialNumber);
+  if (!normalized) return null;
+
+  const direct = await packagingPrisma.gpisSerial.findUnique({
+    where: { serialNumber: normalized }
+  });
+  if (direct) return direct;
+
+  const noDashes = normalized.replace(/-/g, "");
+  if (!noDashes) return null;
+
+  const rows = await prisma.$queryRaw<Array<PrismaRecord>>`
+    SELECT *
+    FROM "GpisSerial"
+    WHERE REPLACE(UPPER("serialNumber"), '-', '') = ${noDashes}
+    LIMIT 1
+  `;
+  return rows[0] || null;
+}
+
 type GpisSerialRow = {
   id: string;
   serialNumber: string;
@@ -788,7 +822,7 @@ export async function verifySerialPublic(serialNumber: string, ip: string, userA
   message?: string;
   data?: { serial: SerialPublicView; inventory: Inventory | null };
 }> {
-  const sn = typeof serialNumber === "string" ? serialNumber.trim() : "";
+  const sn = normalizeSerialInput(serialNumber);
   if (!sn) {
     return { success: false, message: "Invalid Serial" };
   }
@@ -804,9 +838,7 @@ export async function verifySerialPublic(serialNumber: string, ip: string, userA
     .catch(() => null);
 
   // 2. Find Serial
-  const serial = await packagingPrisma.gpisSerial.findUnique({
-    where: { serialNumber: sn }
-  });
+  const serial = await findSerialByNumber(sn);
 
   if (!serial) {
     return { success: false, message: "Invalid Serial" };
@@ -840,10 +872,11 @@ export async function verifySerialPublic(serialNumber: string, ip: string, userA
 // ---- PUBLIC LABEL DATA ----
 
 export async function getPublicLabelData(serialNumber: string) {
+  const sn = normalizeSerialInput(serialNumber);
+  if (!sn) return { success: false, message: "Serial not found" };
+
   // 1. Find Serial
-  const serial = await packagingPrisma.gpisSerial.findUnique({
-    where: { serialNumber }
-  });
+  const serial = await findSerialByNumber(sn);
   
   if (!serial) {
     return { success: false, message: "Serial not found" };
@@ -867,7 +900,7 @@ export async function getPublicLabelData(serialNumber: string) {
   // Let's find the latest print job item for this serial.
   
   const jobItem = await packagingPrisma.gpisPrintJobItem.findFirst({
-    where: { serialNumber },
+    where: { serialNumber: serialRow.serialNumber },
     orderBy: { createdAt: "desc" }
   });
 
