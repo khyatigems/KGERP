@@ -67,10 +67,11 @@ export default async function VerifyPage({
   if (inventory?.transparency) fields.push({ label: "Transparency", value: inventory.transparency });
   if (inventory?.treatment) fields.push({ label: "Treatment", value: inventory.treatment });
 
-  const certNumber = inventory?.certificateNo || null;
+  const certNumber = inventory?.certificateNo || inventory?.certificateNumber || null;
   const certAuthority = inventory?.certificateLab || inventory?.lab || null;
   const certUrl = normalizeCertificateUrl(inventory?.certificateComments || null);
   const mrp = inventory?.sellingPrice ? formatInrCurrency(inventory.sellingPrice) : null;
+  const imageUrl = (inventory as unknown as { media?: Array<{ mediaUrl?: string | null }> })?.media?.[0]?.mediaUrl || inventory?.imageUrl || null;
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] px-4 py-6">
@@ -89,7 +90,7 @@ export default async function VerifyPage({
           fields={fields}
         />
 
-        {inventory?.imageUrl && <ProductImage imageUrl={inventory.imageUrl} alt={itemName} />}
+        {imageUrl && <ProductImage imageUrl={imageUrl} alt={itemName} />}
 
         <CertificateCard
           number={certNumber}

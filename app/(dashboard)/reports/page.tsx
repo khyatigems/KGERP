@@ -115,13 +115,22 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
             FROM "Payment"
             GROUP BY "invoiceId"
           ),
+          saleAgg AS (
+            SELECT
+              "invoiceId" as invoiceId,
+              SUM(CASE WHEN "paymentStatus" = 'PAID' THEN "netAmount" ELSE 0 END) as sumSalePaid
+            FROM "Sale"
+            WHERE "invoiceId" IS NOT NULL
+            GROUP BY "invoiceId"
+          ),
           inv AS (
             SELECT
               i."id" as id,
               i."totalAmount" as totalAmount,
-              MAX(COALESCE(i."paidAmount", 0), COALESCE(pay.sumPaid, 0)) as paidAmount
+              MAX(COALESCE(i."paidAmount", 0), COALESCE(pay.sumPaid, 0), COALESCE(saleAgg.sumSalePaid, 0)) as paidAmount
             FROM "Invoice" i
             LEFT JOIN pay ON pay.invoiceId = i."id"
+            LEFT JOIN saleAgg ON saleAgg.invoiceId = i."id"
             WHERE i."isActive" = 1
             GROUP BY i."id"
           )
@@ -165,14 +174,23 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                 FROM "Payment"
                 GROUP BY "invoiceId"
               ),
+              saleAgg AS (
+                SELECT
+                  "invoiceId" as invoiceId,
+                  SUM(CASE WHEN "paymentStatus" = 'PAID' THEN "netAmount" ELSE 0 END) as sumSalePaid
+                FROM "Sale"
+                WHERE "invoiceId" IS NOT NULL
+                GROUP BY "invoiceId"
+              ),
               inv AS (
                 SELECT
                   i."id" as id,
                   i."invoiceNumber" as invoiceNumber,
                   i."totalAmount" as totalAmount,
-                  MAX(COALESCE(i."paidAmount", 0), COALESCE(pay.sumPaid, 0)) as paidAmount
+                  MAX(COALESCE(i."paidAmount", 0), COALESCE(pay.sumPaid, 0), COALESCE(saleAgg.sumSalePaid, 0)) as paidAmount
                 FROM "Invoice" i
                 LEFT JOIN pay ON pay.invoiceId = i."id"
+                LEFT JOIN saleAgg ON saleAgg.invoiceId = i."id"
                 WHERE i."isActive" = 1
                 GROUP BY i."id"
               )
@@ -205,6 +223,46 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
             ...row,
             pendingAmount: toNumber(row.pendingAmount),
         }));
+
+        try {
+            const mismatches = await prisma.$queryRaw<Array<{ invoiceNumber: string; totalAmount: unknown; paidAmount: unknown; paymentStatus: string }>>`
+              WITH pay AS (
+                SELECT "invoiceId" as invoiceId, SUM("amount") as sumPaid
+                FROM "Payment"
+                GROUP BY "invoiceId"
+              ),
+              saleAgg AS (
+                SELECT
+                  "invoiceId" as invoiceId,
+                  SUM(CASE WHEN "paymentStatus" = 'PAID' THEN "netAmount" ELSE 0 END) as sumSalePaid
+                FROM "Sale"
+                WHERE "invoiceId" IS NOT NULL
+                GROUP BY "invoiceId"
+              ),
+              inv AS (
+                SELECT
+                  i."id" as id,
+                  i."invoiceNumber" as invoiceNumber,
+                  i."paymentStatus" as paymentStatus,
+                  i."totalAmount" as totalAmount,
+                  MAX(COALESCE(i."paidAmount", 0), COALESCE(pay.sumPaid, 0), COALESCE(saleAgg.sumSalePaid, 0)) as computedPaid
+                FROM "Invoice" i
+                LEFT JOIN pay ON pay.invoiceId = i."id"
+                LEFT JOIN saleAgg ON saleAgg.invoiceId = i."id"
+                WHERE i."isActive" = 1
+                GROUP BY i."id"
+              )
+              SELECT invoiceNumber, totalAmount, computedPaid as paidAmount, paymentStatus
+              FROM inv
+              WHERE (paymentStatus = 'PAID' AND (totalAmount - computedPaid) > 0.009)
+                 OR (paymentStatus <> 'PAID' AND (totalAmount - computedPaid) <= 0.009 AND totalAmount > 0.009)
+              LIMIT 5
+            `;
+
+            if (mismatches.length > 0) {
+                console.warn("[Reports] Payment status mismatches detected (sample):", mismatches);
+            }
+        } catch {}
     } catch (error) {
         if (isMissingTableError(error)) {
             return renderSetup();

@@ -143,13 +143,15 @@ export async function selfHealInvoicePaymentOnLoad(params: {
   const paidAmount = params.paidAmount || 0;
   const computedTotalAmount = Math.max(0, params.computedTotalAmount || 0);
   const currentTotalAmount = Math.max(0, params.persistedTotalAmount || 0);
+  const nextPaidAmount = Math.min(computedTotalAmount, Math.max(0, paidAmount));
   const nextPaymentStatus = computeInvoicePaymentStatus(computedTotalAmount, paidAmount);
   const nextStatus = nextPaymentStatus === "PAID" ? "PAID" : "ISSUED";
 
   const requiresUpdate =
     Math.abs(currentTotalAmount - computedTotalAmount) > 0.009 ||
     params.currentPaymentStatus !== nextPaymentStatus ||
-    params.currentStatus !== nextStatus;
+    params.currentStatus !== nextStatus ||
+    Math.abs((params.paidAmount || 0) - nextPaidAmount) > 0.009;
 
   if (!requiresUpdate) {
     return {
@@ -168,6 +170,7 @@ export async function selfHealInvoicePaymentOnLoad(params: {
         totalAmount: computedTotalAmount,
         paymentStatus: nextPaymentStatus,
         status: nextStatus,
+        paidAmount: nextPaidAmount,
       }
     });
 
@@ -195,8 +198,8 @@ export async function selfHealInvoicePaymentOnLoad(params: {
       totalAmount: computedTotalAmount,
       paymentStatus: nextPaymentStatus,
       status: nextStatus,
-      paidAmount,
-      balanceDue: Math.max(0, computedTotalAmount - paidAmount)
+      paidAmount: nextPaidAmount,
+      balanceDue: Math.max(0, computedTotalAmount - nextPaidAmount)
     },
     details: "Auto-corrected invoice payment status/total on load"
   });
@@ -206,7 +209,7 @@ export async function selfHealInvoicePaymentOnLoad(params: {
     paymentStatus: nextPaymentStatus,
     status: nextStatus,
     totalAmount: computedTotalAmount,
-    balanceDue: Math.max(0, computedTotalAmount - paidAmount),
+    balanceDue: Math.max(0, computedTotalAmount - nextPaidAmount),
   };
 }
 

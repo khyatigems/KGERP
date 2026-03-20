@@ -896,7 +896,11 @@ export async function verifySerialPublic(serialNumber: string, ip: string, userA
   const inventory = await prisma.inventory.findUnique({
     where: { sku: serialPublic.sku },
     include: {
-        certificates: true
+        certificates: true,
+        media: {
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+          take: 1
+        }
     }
   });
 
