@@ -93,16 +93,42 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
     let listingBreakdown: Array<{ platform: string; _count: { id: number } }> = [];
     let recentSales: Array<{ id: string; netAmount: number | null; customerName: string | null; inventory: { sku: string }; invoice: { invoiceNumber: string } | null }> = [];
     let slowMoving: Array<{ id: string; sku: string; itemName: string; daysInStock: number }> = [];
-    let pendingPaymentsRows: Array<{ invoiceNumber: string; totalAmount: number; paidAmount: number | null; sales: Array<{ customerName: string | null }> }> = [];
+    let pendingPaymentsRows: Array<{ invoiceNumber: string; customerName: string | null; pendingAmount: number }> = [];
     let recentLabelJobs: Array<{ id: string; totalItems: number; status: string; user: { name: string | null } }> = [];
 
     try {
-        [salesTodayCount, salesMonthCount, avgSale, paidInvoices, pendingInvoices, activeListings, listingBreakdown] = await Promise.all([
+        const [paidCountRow, pendingCountRow] = await prisma.$queryRaw<
+            Array<{ paidCount: unknown; pendingCount: unknown }>
+        >`
+          WITH pay AS (
+            SELECT "invoiceId" as invoiceId, SUM("amount") as sumPaid
+            FROM "Payment"
+            GROUP BY "invoiceId"
+          ),
+          inv AS (
+            SELECT
+              i."id" as id,
+              i."totalAmount" as totalAmount,
+              MAX(COALESCE(i."paidAmount", 0), COALESCE(pay.sumPaid, 0)) as paidAmount
+            FROM "Invoice" i
+            LEFT JOIN pay ON pay.invoiceId = i."id"
+            WHERE i."isActive" = 1
+              AND COALESCE(i."invoiceDate", i."createdAt") >= ${rangeStartUtc}
+            GROUP BY i."id"
+          )
+          SELECT
+            CAST(SUM(CASE WHEN (inv.totalAmount - inv.paidAmount) <= 0.009 THEN 1 ELSE 0 END) AS INTEGER) as paidCount,
+            CAST(SUM(CASE WHEN (inv.totalAmount - inv.paidAmount) > 0.009 THEN 1 ELSE 0 END) AS INTEGER) as pendingCount
+          FROM inv
+        `;
+
+        paidInvoices = Number(paidCountRow?.paidCount ?? 0);
+        pendingInvoices = Number(pendingCountRow?.pendingCount ?? 0);
+
+        [salesTodayCount, salesMonthCount, avgSale, activeListings, listingBreakdown] = await Promise.all([
             prisma.sale.count({ where: { saleDate: { gte: todayUtc } } }),
             prisma.sale.count({ where: { saleDate: { gte: rangeStartUtc } } }),
             prisma.sale.aggregate({ _avg: { netAmount: true }, where: { saleDate: { gte: rangeStartUtc } } }),
-            prisma.invoice.count({ where: { paymentStatus: "PAID", isActive: true, invoiceDate: { gte: rangeStartUtc } } }),
-            prisma.$queryRaw<{ count: unknown }[]>`SELECT CAST(COUNT(*) AS INTEGER) as count FROM "Invoice" WHERE "isActive" = 1 AND "invoiceDate" >= ${rangeStartUtc} AND "totalAmount" > COALESCE("paidAmount", 0)`.then((r) => Number(r[0]?.count ?? 0)),
             prisma.listing.count({ where: { status: "ACTIVE" } }),
             prisma.listing.groupBy({ by: ["platform"], where: { status: "ACTIVE" }, _count: { id: true } }),
         ]);
@@ -124,17 +150,35 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                 orderBy: { daysInStock: "desc" },
                 take: 5
             }),
-            prisma.invoice.findMany({
-                where: { paymentStatus: { not: "PAID" }, isActive: true },
-                orderBy: { updatedAt: "desc" },
-                take: 5,
-                select: {
-                    invoiceNumber: true,
-                    totalAmount: true,
-                    paidAmount: true,
-                    sales: { take: 1, select: { customerName: true } }
-                }
-            }),
+            prisma.$queryRaw<Array<{ invoiceNumber: string; customerName: string | null; pendingAmount: number }>>`
+              WITH pay AS (
+                SELECT "invoiceId" as invoiceId, SUM("amount") as sumPaid
+                FROM "Payment"
+                GROUP BY "invoiceId"
+              ),
+              inv AS (
+                SELECT
+                  i."id" as id,
+                  i."invoiceNumber" as invoiceNumber,
+                  i."totalAmount" as totalAmount,
+                  MAX(COALESCE(i."paidAmount", 0), COALESCE(pay.sumPaid, 0)) as paidAmount
+                FROM "Invoice" i
+                LEFT JOIN pay ON pay.invoiceId = i."id"
+                WHERE i."isActive" = 1
+                  AND COALESCE(i."invoiceDate", i."createdAt") >= ${rangeStartUtc}
+                GROUP BY i."id"
+              )
+              SELECT
+                inv.invoiceNumber as invoiceNumber,
+                MIN(s."customerName") as customerName,
+                CAST(inv.totalAmount - inv.paidAmount AS REAL) as pendingAmount
+              FROM inv
+              LEFT JOIN "Sale" s ON s."invoiceId" = inv.id
+              WHERE (inv.totalAmount - inv.paidAmount) > 0.009
+              GROUP BY inv.id
+              ORDER BY pendingAmount DESC
+              LIMIT 5
+            `,
             prisma.labelPrintJob.findMany({
                 orderBy: { createdAt: "desc" },
                 take: 5,
@@ -152,8 +196,6 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         }
         throw error;
     }
-
-    pendingInvoices = Number(pendingInvoices);
 
     const profitStats = await (async () => {
         try {
@@ -303,7 +345,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
             <div className="grid gap-4 lg:grid-cols-2">
                 <Card><CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>SKU</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>User</TableHead></TableRow></TableHeader><TableBody>{recentSales.map((sale) => (<TableRow key={sale.id}><TableCell>{sale.invoice?.invoiceNumber || "-"}</TableCell><TableCell>{sale.inventory.sku}</TableCell><TableCell className="text-right">{formatCurrency(sale.netAmount || 0)}</TableCell><TableCell>{sale.customerName || "-"}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                 <Card><CardHeader><CardTitle>Slow Moving Inventory</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Item</TableHead><TableHead className="text-right">Days</TableHead></TableRow></TableHeader><TableBody>{slowMoving.map((item: { id: string; sku: string; itemName: string; daysInStock: number }) => (<TableRow key={item.id}><TableCell>{item.sku}</TableCell><TableCell>{item.itemName}</TableCell><TableCell className="text-right">{item.daysInStock}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
-                <Card><CardHeader><CardTitle>Pending Payments</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>Customer</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{pendingPaymentsRows.map((row: { invoiceNumber: string; totalAmount: number; paidAmount: number | null; sales: Array<{ customerName: string | null }> }) => (<TableRow key={row.invoiceNumber}><TableCell>{row.invoiceNumber}</TableCell><TableCell>{row.sales[0]?.customerName || "-"}</TableCell><TableCell className="text-right">{formatCurrency(Math.max(0, row.totalAmount - (row.paidAmount || 0)))}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
+                <Card><CardHeader><CardTitle>Pending Payments</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>Customer</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{pendingPaymentsRows.map((row) => (<TableRow key={row.invoiceNumber}><TableCell>{row.invoiceNumber}</TableCell><TableCell>{row.customerName || "-"}</TableCell><TableCell className="text-right">{formatCurrency(Math.max(0, row.pendingAmount))}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                 <Card><CardHeader><CardTitle>Recent Label Jobs</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Job</TableHead><TableHead>Printed By</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Labels</TableHead></TableRow></TableHeader><TableBody>{recentLabelJobs.map((job: { id: string; totalItems: number; status: string; user: { name: string | null } }) => (<TableRow key={job.id}><TableCell>{job.id.slice(0, 8)}</TableCell><TableCell>{job.user.name || "-"}</TableCell><TableCell><Badge variant="outline">{job.status}</Badge></TableCell><TableCell className="text-right">{job.totalItems}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
             </div>
 

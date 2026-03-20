@@ -57,23 +57,52 @@ async function handleRazorpayWebhook(req: NextRequest) {
           });
           
           if (invoice) {
-              const salesToUpdate = invoice.sales.length > 0 ? invoice.sales : (invoice.legacySale ? [invoice.legacySale] : []);
-              
-              for (const sale of salesToUpdate) {
-                  // Only update if not already paid to avoid duplicate logs/versions?
-                  // But createInvoiceVersion handles creating a new version regardless.
-                  // Maybe check if status is already PAID.
-                  if (sale.paymentStatus !== "PAID") {
-                      await prisma.sale.update({
-                          where: { id: sale.id },
-                          data: { 
-                              paymentStatus: "PAID",
-                              paymentMethod: "ONLINE",
-                              notes: (sale.notes ? sale.notes + "\n" : "") + `Paid via Razorpay: ${payment.id}`
-                          }
-                      });
+              const paymentCurrency = typeof payment.currency === "string" ? payment.currency : "INR";
+              const rawAmount = Number(payment.amount || 0);
+              const receivedAmount = paymentCurrency === "INR" ? rawAmount / 100 : rawAmount;
+              const paymentDate = typeof payment.created_at === "number" ? new Date(payment.created_at * 1000) : new Date();
+
+              await prisma.$transaction(async (tx) => {
+                const existing = await tx.payment.findFirst({
+                  where: { invoiceId: invoiceId, reference: String(payment.id) },
+                  select: { id: true }
+                });
+
+                if (!existing) {
+                  await tx.payment.create({
+                    data: {
+                      invoiceId,
+                      amount: receivedAmount,
+                      method: "ONLINE",
+                      date: paymentDate,
+                      reference: String(payment.id),
+                      notes: `Paid via Razorpay: ${payment.id}`,
+                      recordedBy: "SYSTEM_RAZORPAY"
+                    }
+                  });
+                }
+
+                const paymentsSumRow = await tx.payment.aggregate({
+                  where: { invoiceId },
+                  _sum: { amount: true }
+                });
+                const newPaidAmount = Math.min(invoice.totalAmount, Number(paymentsSumRow._sum.amount || 0));
+                const status = newPaidAmount >= invoice.totalAmount - 0.01 ? "PAID" : newPaidAmount > 0 ? "PARTIAL" : "UNPAID";
+
+                await tx.invoice.update({
+                  where: { id: invoiceId },
+                  data: {
+                    paidAmount: newPaidAmount,
+                    paymentStatus: status === "UNPAID" ? "UNPAID" : status,
+                    status: status === "PAID" ? "PAID" : "ISSUED"
                   }
-              }
+                });
+
+                await tx.sale.updateMany({
+                  where: { invoiceId },
+                  data: { paymentStatus: status === "UNPAID" ? "UNPAID" : status, paymentMethod: "ONLINE" }
+                });
+              });
               
               await logActivity({
                   entityType: "Invoice",
@@ -83,7 +112,7 @@ async function handleRazorpayWebhook(req: NextRequest) {
                   source: "SYSTEM",
                   userName: "Razorpay Webhook",
                   userId: "SYSTEM",
-                  newData: { paymentStatus: "PAID", paymentId: payment.id, amount: payment.amount }
+                  newData: { paymentStatus: "PAID", paymentId: payment.id, amount: receivedAmount }
               });
           } else {
               console.warn(`Invoice ${invoiceId} not found during payment webhook processing`);
