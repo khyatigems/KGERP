@@ -49,7 +49,12 @@ export default async function VerifyPage({
     if (!v) return null;
     const d = v instanceof Date ? v : new Date(v);
     if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    return new Intl.DateTimeFormat("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "Asia/Kolkata",
+    }).format(d);
   })();
   const sku = serialData.sku || null;
   const itemName = inventory?.itemName || "Product";
