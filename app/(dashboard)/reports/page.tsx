@@ -142,7 +142,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
             prisma.listing.groupBy({ by: ["platform"], where: { status: "ACTIVE" }, _count: { id: true } }),
         ]);
 
-        [recentSales, slowMoving, pendingPaymentsRows, recentLabelJobs] = await Promise.all([
+        const [recentSalesRes, slowMovingRes, pendingPaymentsRowsRaw, recentLabelJobsRes] = await Promise.all([
             prisma.sale.findMany({
                 orderBy: { saleDate: "desc" },
                 take: 5,
@@ -198,8 +198,10 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                 }
             }),
         ]);
-
-        pendingPaymentsRows = pendingPaymentsRows.map((row) => ({
+        recentSales = recentSalesRes;
+        slowMoving = slowMovingRes;
+        recentLabelJobs = recentLabelJobsRes;
+        pendingPaymentsRows = pendingPaymentsRowsRaw.map((row) => ({
             ...row,
             pendingAmount: toNumber(row.pendingAmount),
         }));
