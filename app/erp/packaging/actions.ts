@@ -788,18 +788,24 @@ export async function verifySerialPublic(serialNumber: string, ip: string, userA
   message?: string;
   data?: { serial: SerialPublicView; inventory: Inventory | null };
 }> {
-  // 1. Log the scan
-  await packagingPrisma.gpisVerificationLog.create({
-    data: {
-      serialNumber,
-      ipAddress: ip,
-      userAgent,
-    }
-  });
+  const sn = typeof serialNumber === "string" ? serialNumber.trim() : "";
+  if (!sn) {
+    return { success: false, message: "Invalid Serial" };
+  }
+
+  await packagingPrisma.gpisVerificationLog
+    .create({
+      data: {
+        serialNumber: sn,
+        ipAddress: ip,
+        userAgent,
+      },
+    })
+    .catch(() => null);
 
   // 2. Find Serial
   const serial = await packagingPrisma.gpisSerial.findUnique({
-    where: { serialNumber }
+    where: { serialNumber: sn }
   });
 
   if (!serial) {

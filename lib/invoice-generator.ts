@@ -264,13 +264,29 @@ export async function generateInvoicePDF(data: InvoiceData) {
     ? data.company.gstin.substring(2, 12)
     : "";
 
+  const logoBoxW = 30;
+  const logoBoxH = 20;
+  const logoRender = (() => {
+    if (!logoDataUrl) return null;
+    const scale = Math.min(logoBoxW / (logoW || logoBoxW), logoBoxH / (logoH || logoBoxH));
+    const w = (logoW || logoBoxW) * scale;
+    const h = (logoH || logoBoxH) * scale;
+    const x = pageWidth - margin - w;
+    const y = margin + 4;
+    return { x, y, w, h };
+  })();
+
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(...blue);
   doc.text("TAX INVOICE", margin, y);
   doc.setFontSize(7.2);
   doc.setTextColor(0);
-  doc.text("ORIGINAL FOR RECIPIENT", pageWidth - margin - 34, y, { align: "right" });
+  if (logoRender) {
+    doc.text("ORIGINAL FOR RECIPIENT", logoRender.x + logoRender.w / 2, logoRender.y - 2.4, { align: "center" });
+  } else {
+    doc.text("ORIGINAL FOR RECIPIENT", pageWidth - margin, y, { align: "right" });
+  }
   y += 5.5;
 
   doc.setFont(fontFamily, "bold");
@@ -278,13 +294,8 @@ export async function generateInvoicePDF(data: InvoiceData) {
   doc.setTextColor(0);
   doc.text(data.company.name, margin, y);
 
-  const logoBoxW = 30;
-  const logoBoxH = 20;
-  if (logoDataUrl) {
-    const scale = Math.min(logoBoxW / (logoW || logoBoxW), logoBoxH / (logoH || logoBoxH));
-    const w = (logoW || logoBoxW) * scale;
-    const h = (logoH || logoBoxH) * scale;
-    doc.addImage(logoDataUrl, "PNG", pageWidth - margin - w, margin + 4, w, h, undefined, "FAST");
+  if (logoRender && logoDataUrl) {
+    doc.addImage(logoDataUrl, "PNG", logoRender.x, logoRender.y, logoRender.w, logoRender.h, undefined, "FAST");
   }
 
   y += 3.5;
