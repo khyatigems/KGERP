@@ -116,7 +116,23 @@ async function findSerialByNumber(serialNumber: string) {
     ) = ${noDashes}
     LIMIT 1
   `;
-  return rows[0] || null;
+  if (rows[0]) return rows[0];
+
+  const suffix = normalized.split("-").filter(Boolean).pop() || "";
+  if (suffix.length >= 3) {
+    const candidates = await packagingPrisma.gpisSerial.findMany({
+      where: { serialNumber: { endsWith: suffix } },
+      take: 25
+    });
+
+    for (const c of candidates) {
+      const candidateNorm = normalizeSerialInput((c as unknown as { serialNumber?: unknown }).serialNumber);
+      if (candidateNorm === normalized) return c;
+      if (candidateNorm.replace(/-/g, "") === noDashes) return c;
+    }
+  }
+
+  return null;
 }
 
 type GpisSerialRow = {

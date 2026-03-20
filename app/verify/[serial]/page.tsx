@@ -14,9 +14,9 @@ import Footer from "@/components/qr-page/Footer";
 export default async function VerifyPage({
   params,
 }: {
-  params: { serial: string };
+  params: Promise<{ serial: string }>;
 }) {
-  const { serial } = params;
+  const { serial } = await params;
   const headersList = await headers();
   const ip = headersList.get("x-forwarded-for") || "unknown";
   const ua = headersList.get("user-agent") || "unknown";
