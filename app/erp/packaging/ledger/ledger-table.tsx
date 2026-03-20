@@ -45,11 +45,11 @@ export function SerialLedgerTable({
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    router.push(`?page=1&search=${search}`);
+    router.push(`?page=1&search=${encodeURIComponent(search)}`);
   };
 
   const handlePageChange = (newPage: number) => {
-    router.push(`?page=${newPage}&search=${search}`);
+    router.push(`?page=${newPage}&search=${encodeURIComponent(search)}`);
   };
 
   const handleReprint = async (serial: string, id: string) => {

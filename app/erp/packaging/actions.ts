@@ -89,7 +89,31 @@ async function findSerialByNumber(serialNumber: string) {
   const rows = await prisma.$queryRaw<Array<PrismaRecord>>`
     SELECT *
     FROM "GpisSerial"
-    WHERE REPLACE(UPPER("serialNumber"), '-', '') = ${noDashes}
+    WHERE REPLACE(
+      REPLACE(
+        REPLACE(
+          REPLACE(
+            REPLACE(
+              REPLACE(
+                REPLACE(
+                  REPLACE(
+                    UPPER("serialNumber"),
+                    '‐', '-'
+                  ),
+                  '‑', '-'
+                ),
+                '‒', '-'
+              ),
+              '–', '-'
+            ),
+            '—', '-'
+          ),
+          '−', '-'
+        ),
+        '-', ''
+      ),
+      ' ', ''
+    ) = ${noDashes}
     LIMIT 1
   `;
   return rows[0] || null;

@@ -4,10 +4,11 @@ import { SerialLedgerTable } from "./ledger-table";
 export default async function LedgerPage({
   searchParams,
 }: {
-  searchParams: { page?: string; search?: string };
+  searchParams: Promise<{ page?: string; search?: string }>;
 }) {
-  const page = parseInt(searchParams.page || "1");
-  const search = searchParams.search || "";
+  const sp = await searchParams;
+  const page = parseInt(sp.page || "1", 10);
+  const search = sp.search || "";
   
   const { data, pagination } = await getSerialHistory(page, 20, search);
 

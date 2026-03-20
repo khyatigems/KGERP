@@ -113,7 +113,6 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
             FROM "Invoice" i
             LEFT JOIN pay ON pay.invoiceId = i."id"
             WHERE i."isActive" = 1
-              AND COALESCE(i."invoiceDate", i."createdAt") >= ${rangeStartUtc}
             GROUP BY i."id"
           )
           SELECT
@@ -165,7 +164,6 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                 FROM "Invoice" i
                 LEFT JOIN pay ON pay.invoiceId = i."id"
                 WHERE i."isActive" = 1
-                  AND COALESCE(i."invoiceDate", i."createdAt") >= ${rangeStartUtc}
                 GROUP BY i."id"
               )
               SELECT
