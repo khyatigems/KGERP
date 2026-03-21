@@ -61,6 +61,7 @@ type InventoryWithExtras = Inventory & {
   // Add new fields to type if not in Inventory type yet (depends on if prisma generate ran successfully)
   braceletType?: string | null;
   beadSizeMm?: number | null;
+  beadSizeLabel?: string | null;
   beadCount?: number | null;
   holeSizeMm?: number | null;
   innerCircumferenceMm?: number | null;
@@ -120,7 +121,7 @@ const formSchema = z.object({
   standardSize: z.string().optional(),
 
   // Legacy/Other
-  beadSize: z.string().optional(),
+  beadSize: z.string().max(32).optional().transform(v => (v || "").trim() || undefined),
   braceletSize: z.string().optional(),
   // beadCount: z.string().optional(), // Replaced by typed version above if needed, or keep for legacy
   holeSize: z.string().optional(),
@@ -237,10 +238,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       collectionCodeId: initialData?.collectionCodeId || "",
       rashiCodeIds: initialData?.rashiCodes?.map((r: { id: string }) => r.id) || [],
       braceletType: initialData?.braceletType || "",
-      beadSizeMm: initialData?.beadSizeMm || 0,
-      beadCount: initialData?.beadCount || 0,
-      holeSizeMm: initialData?.holeSizeMm || 0,
-      innerCircumferenceMm: initialData?.innerCircumferenceMm || 0,
+      beadSizeMm: initialData?.beadSizeMm ?? undefined,
+      beadSize: initialData?.beadSizeLabel || (initialData?.beadSizeMm ? `${initialData.beadSizeMm}mm` : ""),
+      beadCount: initialData?.beadCount ?? undefined,
+      holeSizeMm: initialData?.holeSizeMm ?? undefined,
+      innerCircumferenceMm: initialData?.innerCircumferenceMm ?? undefined,
       standardSize: initialData?.standardSize || "",
       categoryCodeId:
         initialData?.categoryCodeId ||
@@ -267,6 +269,35 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const [isCreatingColor, setIsCreatingColor] = useState(false);
   const [shouldRedirectAfterSave, setShouldRedirectAfterSave] = useState(true);
   const [fileUploadResetKey, setFileUploadResetKey] = useState(0);
+  const [createdInfo, setCreatedInfo] = useState<{
+    inventoryId: string;
+    sku: string;
+    itemName: string;
+    quantityAdded: number;
+    totalStock: number;
+  } | null>(null);
+  const [createdDialogOpen, setCreatedDialogOpen] = useState(false);
+  const [createdRedirectPending, setCreatedRedirectPending] = useState(false);
+
+  type CreatedInventoryResult = {
+    inventoryId: string;
+    sku: string;
+    itemName: string;
+    quantityAdded: number;
+    totalStock: number;
+  };
+
+  const isCreatedInventoryResult = (value: unknown): value is CreatedInventoryResult => {
+    if (!value || typeof value !== "object") return false;
+    const v = value as Record<string, unknown>;
+    return (
+      typeof v.inventoryId === "string" &&
+      typeof v.sku === "string" &&
+      typeof v.itemName === "string" &&
+      typeof v.quantityAdded === "number" &&
+      typeof v.totalStock === "number"
+    );
+  };
 
   const handleCreateColor = async () => {
       if (!newColorName || !newColorCode) return;
@@ -304,6 +335,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const categoryName = form.watch("category");
   const gemName = form.watch("gemType");
   const colorName = form.watch("color");
+  const beadSize = form.watch("beadSize");
 
   const selectedCategory = categories.find((c) => c.name === categoryName);
   const selectedGemstone = gemstones.find((g) => g.name === gemName);
@@ -317,6 +349,20 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     
     setSkuPreview(`KG${catCode}${gemCode}${colCode}${wgt}####`);
   }, [selectedCategory, selectedGemstone, selectedColor, weightValue]);
+
+  useEffect(() => {
+    const v = (beadSize || "").trim();
+    if (!v) {
+      form.setValue("beadSizeMm", undefined);
+      return;
+    }
+    const m = v.match(/^(\d+(?:\.\d+)?)\s*mm?$/i);
+    if (!m) return;
+    const n = Number(m[1]);
+    if (Number.isFinite(n)) {
+      form.setValue("beadSizeMm", n);
+    }
+  }, [beadSize, form]);
 
   // Auto-calculate Ratti
   // 1 Carat = 1.09 Ratti
@@ -389,6 +435,13 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         if (result?.success) {
              const msg = result.message || (initialData ? "Inventory updated successfully!" : "Inventory created & added to label cart!");
              toast.success(msg);
+
+             const created = !initialData && isCreatedInventoryResult(result) ? result : null;
+             if (created) {
+                setCreatedInfo(created);
+                setCreatedDialogOpen(true);
+                setCreatedRedirectPending(Boolean(shouldRedirect));
+             }
              
              if (!initialData) {
                  form.reset();
@@ -401,9 +454,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
              }
              
              if (shouldRedirect) {
-                 setTimeout(() => {
-                     router.push("/inventory");
-                 }, 1000);
+                 if (!created) {
+                   setTimeout(() => {
+                       router.push("/inventory");
+                   }, 1000);
+                 }
              } else {
                  window.scrollTo({ top: 0, behavior: 'smooth' });
              }
@@ -517,13 +572,30 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                         />
                         <FormField
                             control={form.control}
-                            name="beadSizeMm"
+                            name="beadSize"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Bead Size (mm)</FormLabel>
+                                    <FormLabel>Bead Size</FormLabel>
                                     <FormControl>
-                                        <Input type="number" step="0.1" placeholder="e.g. 8.5" {...field} />
+                                        <Input type="text" placeholder="e.g. 4mm-6mm, XS-L, A-Grade" list="bead-size-options" {...field} />
                                     </FormControl>
+                                    <datalist id="bead-size-options">
+                                        <option value="4mm" />
+                                        <option value="6mm" />
+                                        <option value="8mm" />
+                                        <option value="10mm" />
+                                        <option value="4mm-6mm" />
+                                        <option value="6mm-8mm" />
+                                        <option value="XS" />
+                                        <option value="S" />
+                                        <option value="M" />
+                                        <option value="L" />
+                                        <option value="XL" />
+                                        <option value="XS-L" />
+                                        <option value="A-Grade" />
+                                        <option value="AA-Grade" />
+                                        <option value="AAA-Grade" />
+                                    </datalist>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -1597,6 +1669,69 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
             )}
         </div>
       </form>
+
+      <AlertDialog
+        open={createdDialogOpen}
+        onOpenChange={(open) => {
+          setCreatedDialogOpen(open);
+          if (!open) {
+            const shouldGo = createdRedirectPending;
+            setCreatedRedirectPending(false);
+            if (shouldGo) router.push("/inventory");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stock Added Successfully</AlertDialogTitle>
+            <AlertDialogDescription>
+              {createdInfo ? (
+                <div className="space-y-3 pt-2">
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <div className="text-xs text-muted-foreground">SKU</div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="font-mono text-sm font-semibold">{createdInfo.sku || "-"}</div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const sku = createdInfo.sku || "";
+                          if (!sku) return;
+                          try {
+                            await navigator.clipboard.writeText(sku);
+                            toast.success("SKU copied");
+                          } catch {
+                            toast.error("Failed to copy SKU");
+                          }
+                        }}
+                      >
+                        Copy SKU
+                      </Button>
+                    </div>
+                    <div className="mt-2 text-sm">{createdInfo.itemName || "-"}</div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                      <div>Quantity Added: <span className="font-semibold">{createdInfo.quantityAdded}</span></div>
+                      <div>Total Stock: <span className="font-semibold">{createdInfo.totalStock}</span></div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 md:flex-row">
+                    <Button type="button" variant="secondary" onClick={() => router.push(`/inventory/${createdInfo.inventoryId}`)}>
+                      View Item
+                    </Button>
+                    <Button type="button" variant="secondary" onClick={() => router.push(`/inventory/${createdInfo.inventoryId}/edit`)}>
+                      Edit Item
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCreatedDialogOpen(false)}>Close</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!duplicateWarning} onOpenChange={(open) => !open && setDuplicateWarning(null)}>
         <AlertDialogContent>

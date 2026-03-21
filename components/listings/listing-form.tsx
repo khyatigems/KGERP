@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createListing } from "@/app/(dashboard)/listings/actions";
+import { InventoryPicker } from "@/components/listings/inventory-picker";
 
 const formSchema = z.object({
   inventoryId: z.string().uuid("Select an inventory item"),
@@ -38,10 +39,11 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface ListingFormProps {
-  inventoryItems: { id: string; sku: string; itemName: string }[];
+  inventoryItems?: { id: string; sku: string; itemName: string }[];
 }
 
 export function ListingForm({ inventoryItems }: ListingFormProps) {
+  void inventoryItems;
   const [isPending, setIsPending] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
@@ -89,20 +91,7 @@ export function ListingForm({ inventoryItems }: ListingFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Inventory Item</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select item" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {inventoryItems.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.sku} - {item.itemName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <InventoryPicker value={field.value} onSelect={field.onChange} />
                   <FormMessage />
                 </FormItem>
               )}

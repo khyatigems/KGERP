@@ -14,10 +14,12 @@ import { QrCode, Link as LinkIcon, Eye, FileText, Package, User, Globe, Monitor 
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { QrScansControls } from "@/components/reports/qr-scans-controls";
+import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-export default async function QrScansReportPage() {
+export default async function QrScansReportPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -25,14 +27,50 @@ export default async function QrScansReportPage() {
     redirect("/");
   }
 
-  // Fetch logs (limit to last 500 for performance)
-  const logs = await prisma.activityLog.findMany({
-    where: {
-      entityType: { in: ["SKU_VIEW", "INVOICE_VIEW"] }
-    },
-    orderBy: { createdAt: "desc" },
-    take: 500
-  });
+  const sp = await searchParams;
+  const q = (Array.isArray(sp.q) ? sp.q[0] : sp.q || "").trim();
+  const from = (Array.isArray(sp.from) ? sp.from[0] : sp.from) || "";
+  const to = (Array.isArray(sp.to) ? sp.to[0] : sp.to) || "";
+  const sort = (Array.isArray(sp.sort) ? sp.sort[0] : sp.sort) || "createdAt_desc";
+  const page = Math.max(1, Number(Array.isArray(sp.page) ? sp.page[0] : sp.page) || 1);
+  const pageSizeRaw = Number(Array.isArray(sp.pageSize) ? sp.pageSize[0] : sp.pageSize) || 25;
+  const pageSize = [10, 25, 50, 100].includes(pageSizeRaw) ? pageSizeRaw : 25;
+
+  const startAt = from ? new Date(`${from}T00:00:00.000Z`) : undefined;
+  const endAt = to ? new Date(`${to}T23:59:59.999Z`) : undefined;
+
+  const baseWhere: Prisma.ActivityLogWhereInput = {
+    entityType: { in: ["SKU_VIEW", "INVOICE_VIEW"] },
+    ...(startAt || endAt ? { createdAt: { gte: startAt, lte: endAt } } : {}),
+  };
+
+  const where: Prisma.ActivityLogWhereInput = q
+    ? {
+        ...baseWhere,
+        OR: [
+          { entityIdentifier: { contains: q } },
+          { ipAddress: { contains: q } },
+          { userAgent: { contains: q } },
+          { details: { contains: q } },
+        ],
+      }
+    : baseWhere;
+
+  const orderBy = sort === "createdAt_asc" ? { createdAt: "asc" as const } : { createdAt: "desc" as const };
+
+  const [total, logs, totalViews, qrScans, skuViews, invoiceViews] = await Promise.all([
+    prisma.activityLog.count({ where }),
+    prisma.activityLog.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.activityLog.count({ where: baseWhere }),
+    prisma.activityLog.count({ where: { ...baseWhere, actionType: "QR_SCAN" } }),
+    prisma.activityLog.count({ where: { ...baseWhere, entityType: "SKU_VIEW" } }),
+    prisma.activityLog.count({ where: { ...baseWhere, entityType: "INVOICE_VIEW" } }),
+  ]);
 
   // Fetch entity names for better readability
   const skuIds = logs.filter(l => l.entityType === "SKU_VIEW" && l.entityId).map(l => l.entityId as string);
@@ -59,17 +97,25 @@ export default async function QrScansReportPage() {
     entityNameMap.set(inv.id, name);
   });
 
-  // Calculate Stats
-  const totalViews = logs.length;
-  const qrScans = logs.filter(l => l.actionType === "QR_SCAN").length;
-  const skuViews = logs.filter(l => l.entityType === "SKU_VIEW").length;
-  const invoiceViews = logs.filter(l => l.entityType === "INVOICE_VIEW").length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const buildPageUrl = (nextPage: number) => {
+    const params = new URLSearchParams();
+    Object.entries(sp).forEach(([k, v]) => {
+      const val = Array.isArray(v) ? v[0] : v;
+      if (val === undefined) return;
+      params.set(k, String(val));
+    });
+    params.set("page", String(nextPage));
+    return `/reports/qr-scans?${params.toString()}`;
+  };
 
   return (
     <div className="p-8 space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">QR Code & Link Analytics</h1>
       </div>
+
+      <QrScansControls />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -80,7 +126,7 @@ export default async function QrScansReportPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalViews}</div>
-            <p className="text-xs text-muted-foreground">All time tracked</p>
+            <p className="text-xs text-muted-foreground">Based on date range</p>
           </CardContent>
         </Card>
 
@@ -124,6 +170,7 @@ export default async function QrScansReportPage() {
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="w-full overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -208,6 +255,27 @@ export default async function QrScansReportPage() {
               )}
             </TableBody>
           </Table>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Page {page} / {totalPages} • {total} rows
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                className={`text-sm underline ${page <= 1 ? "pointer-events-none text-muted-foreground/50" : ""}`}
+                href={buildPageUrl(Math.max(1, page - 1))}
+              >
+                Previous
+              </a>
+              <a
+                className={`text-sm underline ${page >= totalPages ? "pointer-events-none text-muted-foreground/50" : ""}`}
+                href={buildPageUrl(Math.min(totalPages, page + 1))}
+              >
+                Next
+              </a>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
 import { ListingForm } from "@/components/listings/listing-form";
 
 export const metadata: Metadata = {
@@ -9,17 +8,6 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function NewListingPage() {
-  const inventoryItems = await prisma.inventory.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-    select: {
-      id: true,
-      sku: true,
-      itemName: true,
-    },
-  });
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -27,7 +15,7 @@ export default async function NewListingPage() {
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
-          <ListingForm inventoryItems={inventoryItems} />
+          <ListingForm />
         </div>
       </div>
     </div>

@@ -245,6 +245,7 @@ model Inventory {
   braceletType         String?
   standardSize         String?
   beadSizeMm           Float?
+  beadSizeLabel        String?             @map("bead_size_label")
   beadCount            Int?
   holeSizeMm           Float?
   innerCircumferenceMm Float?

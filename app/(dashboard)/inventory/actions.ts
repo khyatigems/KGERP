@@ -10,6 +10,7 @@ import { logActivity } from "@/lib/activity-logger";
 import { addToCart } from "@/app/(dashboard)/labels/actions";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { isValidBeadSizeLabel, normalizeBeadSizeLabel, parseBeadSizeMm } from "@/lib/bead-size";
 
 // --- Integrity Check Helpers ---
 
@@ -94,9 +95,11 @@ const inventorySchema = z.object({
   
   // Bracelet Attributes
   braceletType: z.string().optional(),
-  beadSizeMm: z.coerce.number().optional(),
+  beadSizeMm: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.coerce.number().optional()),
+  beadSize: z.string().max(32).optional(),
+  beadSizeLabel: z.string().max(32).optional(),
   beadCount: z.coerce.number().optional(),
-  holeSizeMm: z.coerce.number().optional(),
+  holeSizeMm: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.coerce.number().optional()),
   innerCircumferenceMm: z.coerce.number().optional(),
   standardSize: z.string().optional(),
   
@@ -231,6 +234,15 @@ export async function createInventory(prevState: unknown, formData: FormData) {
       ? (data.sellingRatePerCarat || 0) * (data.weightValue || 0)
       : (data.flatSellingPrice || 0);
 
+  const beadSizeLabelCandidate = data.beadSizeLabel || data.beadSize || (data.beadSizeMm != null ? `${data.beadSizeMm}mm` : "");
+  const beadSizeLabelNormalized = beadSizeLabelCandidate ? normalizeBeadSizeLabel(beadSizeLabelCandidate) : undefined;
+  if (beadSizeLabelNormalized && !isValidBeadSizeLabel(beadSizeLabelNormalized)) {
+      return { errors: { beadSize: ["Invalid bead size format"] } };
+  }
+  const beadSizeMm = (typeof data.beadSizeMm === "number" && Number.isFinite(data.beadSizeMm))
+      ? data.beadSizeMm
+      : (beadSizeLabelNormalized ? parseBeadSizeMm(beadSizeLabelNormalized) : undefined);
+
   // --- Integrity Checks ---
   // 1. Loss Sale Check
   const allowLoss = await isLossSaleAllowed();
@@ -289,57 +301,58 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               weightUnit: data.weightUnit,
           });
 
-          const inventory = await tx.inventory.create({
-              data: {
-                  sku,
-                  itemName: data.itemName,
-                  internalName: data.internalName,
-                  category: data.category,
-                  gemType: data.gemType || "Mixed",
-                  color: data.color,
-                  categoryCode: data.categoryCodeId ? { connect: { id: data.categoryCodeId } } : undefined,
-                  gemstoneCode: data.gemstoneCodeId ? { connect: { id: data.gemstoneCodeId } } : undefined,
-                  colorCode: data.colorCodeId ? { connect: { id: data.colorCodeId } } : undefined,
-                  cutCode: data.cutCodeId ? { connect: { id: data.cutCodeId } } : undefined,
-                  collectionCode: data.collectionCodeId ? { connect: { id: data.collectionCodeId } } : undefined,
-                  rashis: {
-                      connect: data.rashiCodeIds?.map(id => ({ id })) || []
-                  },
-                  certificates: {
-                      connect: data.certificateCodeIds?.map(id => ({ id })) || []
-                  },
-                  shape: data.shape,
-                  dimensionsMm: data.dimensionsMm,
-                  weightValue: data.weightValue,
-                  weightUnit: data.weightUnit,
-                  carats: data.weightValue || 0,
-                  weightRatti,
-                  treatment: data.treatment,
-                  origin: data.origin,
-                  fluorescence: data.fluorescence,
-                  transparency: data.transparency,
-                  vendor: data.vendorId ? { connect: { id: data.vendorId } } : undefined,
-                  pricingMode: data.pricingMode,
-                  purchaseRatePerCarat: data.purchaseRatePerCarat,
-                  sellingRatePerCarat: data.sellingRatePerCarat,
-                  flatPurchaseCost: data.flatPurchaseCost,
-                  flatSellingPrice: data.flatSellingPrice,
-                  costPrice,
-                  sellingPrice,
-                  // profit, // Commented out due to Prisma Client lock
-                  status: "IN_STOCK",
-                  stockLocation: data.stockLocation,
-                  notes: data.notes,
-                  certificateComments: data.certificateComments,
-                  
-                  // Bracelet Fields
-                  braceletType: data.braceletType,
-                  beadSizeMm: data.beadSizeMm,
-                  beadCount: data.beadCount,
-                  // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
-                  innerCircumferenceMm: data.innerCircumferenceMm,
-                  standardSize: data.standardSize,
-              }});
+          const createData = {
+              sku,
+              itemName: data.itemName,
+              internalName: data.internalName,
+              gemType: data.gemType || "Mixed",
+              color: data.color,
+              categoryCode: data.categoryCodeId ? { connect: { id: data.categoryCodeId } } : undefined,
+              gemstoneCode: data.gemstoneCodeId ? { connect: { id: data.gemstoneCodeId } } : undefined,
+              colorCode: data.colorCodeId ? { connect: { id: data.colorCodeId } } : undefined,
+              cutCode: data.cutCodeId ? { connect: { id: data.cutCodeId } } : undefined,
+              collectionCode: data.collectionCodeId ? { connect: { id: data.collectionCodeId } } : undefined,
+              rashis: {
+                  connect: data.rashiCodeIds?.map(id => ({ id })) || []
+              },
+              certificates: {
+                  connect: data.certificateCodeIds?.map(id => ({ id })) || []
+              },
+              shape: data.shape,
+              dimensionsMm: data.dimensionsMm,
+              weightValue: data.weightValue,
+              weightUnit: data.weightUnit,
+              carats: data.weightValue || 0,
+              weightRatti,
+              treatment: data.treatment,
+              origin: data.origin,
+              fluorescence: data.fluorescence,
+              transparency: data.transparency,
+              vendor: data.vendorId ? { connect: { id: data.vendorId } } : undefined,
+              pricingMode: data.pricingMode,
+              purchaseRatePerCarat: data.purchaseRatePerCarat,
+              sellingRatePerCarat: data.sellingRatePerCarat,
+              flatPurchaseCost: data.flatPurchaseCost,
+              flatSellingPrice: data.flatSellingPrice,
+              costPrice,
+              sellingPrice,
+              // profit, // Commented out due to Prisma Client lock
+              status: "IN_STOCK",
+              stockLocation: data.stockLocation,
+              notes: data.notes,
+              certificateComments: data.certificateComments,
+              
+              // Bracelet Fields
+              braceletType: data.braceletType,
+              beadSizeMm,
+              beadCount: data.beadCount,
+              // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
+              innerCircumferenceMm: data.innerCircumferenceMm,
+              standardSize: data.standardSize,
+          } as Prisma.InventoryCreateInput;
+          (createData as any).beadSizeLabel = beadSizeLabelNormalized;
+
+          const inventory = await tx.inventory.create({ data: createData });
 
           return {
             id: inventory.id,
@@ -414,7 +427,23 @@ export async function createInventory(prevState: unknown, formData: FormData) {
 
   revalidatePath("/inventory");
   // redirect("/inventory");
-  return { success: true, message: "Inventory created successfully" };
+  const stockAgg = await prisma.inventory.aggregate({
+    where: { sku: createdInventory.sku, status: "IN_STOCK" },
+    _sum: { pieces: true },
+    _count: { id: true },
+  });
+  const quantityAdded = (createdInventory.data as unknown as { pieces?: number | null }).pieces ?? 1;
+  const totalStock = stockAgg._sum.pieces ?? stockAgg._count.id;
+  const itemName = (createdInventory.data as unknown as { itemName?: string | null }).itemName ?? "";
+  return {
+    success: true,
+    message: "Inventory created successfully",
+    inventoryId: createdInventory.id,
+    sku: createdInventory.sku,
+    itemName,
+    quantityAdded,
+    totalStock,
+  };
 }
 
 export async function updateInventory(
@@ -461,6 +490,15 @@ export async function updateInventory(
   const sellingPrice = data.pricingMode === "PER_CARAT"
       ? (data.sellingRatePerCarat || 0) * (data.weightValue || 0)
       : (data.flatSellingPrice || 0);
+
+  const beadSizeLabelCandidate = data.beadSizeLabel || data.beadSize || (data.beadSizeMm != null ? `${data.beadSizeMm}mm` : "");
+  const beadSizeLabelNormalized = beadSizeLabelCandidate ? normalizeBeadSizeLabel(beadSizeLabelCandidate) : undefined;
+  if (beadSizeLabelNormalized && !isValidBeadSizeLabel(beadSizeLabelNormalized)) {
+      return { errors: { beadSize: ["Invalid bead size format"] } };
+  }
+  const beadSizeMm = (typeof data.beadSizeMm === "number" && Number.isFinite(data.beadSizeMm))
+      ? data.beadSizeMm
+      : (beadSizeLabelNormalized ? parseBeadSizeMm(beadSizeLabelNormalized) : undefined);
 
   // --- Integrity Checks ---
   // 1. Loss Sale Check
@@ -534,11 +572,12 @@ export async function updateInventory(
       notes: data.notes,
       certificateComments: data.certificateComments,
       braceletType: data.braceletType,
-      beadSizeMm: data.beadSizeMm,
+      beadSizeMm,
       beadCount: data.beadCount,
       innerCircumferenceMm: data.innerCircumferenceMm,
       standardSize: data.standardSize,
     };
+    (updateData as any).beadSizeLabel = beadSizeLabelNormalized;
 
     const updatedInventory = await prisma.inventory.update({
       where: { id },
