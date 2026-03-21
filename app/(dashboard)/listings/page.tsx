@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { ListingsView } from "@/components/listings/listings-view";
+import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function ListingsPage() {
   let errorObj: Error | unknown = null;
 
   const fetchData = async () => {
+    await ensureInventoryBraceletSchema();
     return Promise.all([
       prisma.listing.findMany({
         orderBy: { listedDate: "desc" },

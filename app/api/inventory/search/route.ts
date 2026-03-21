@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { Prisma } from "@prisma/client";
+import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,8 @@ export async function GET(request: NextRequest) {
   if (!hasPermission(session.user.role, PERMISSIONS.INVENTORY_VIEW)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  await ensureInventoryBraceletSchema();
 
   const sp = request.nextUrl.searchParams;
   const q = (sp.get("q") || "").trim();

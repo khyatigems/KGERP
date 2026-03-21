@@ -301,10 +301,11 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               weightUnit: data.weightUnit,
           });
 
-          const createData = {
+          const createData: Prisma.InventoryCreateInput & { beadSizeLabel?: string | null } = {
               sku,
               itemName: data.itemName,
               internalName: data.internalName,
+              category: data.category,
               gemType: data.gemType || "Mixed",
               color: data.color,
               categoryCode: data.categoryCodeId ? { connect: { id: data.categoryCodeId } } : undefined,
@@ -345,12 +346,12 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               // Bracelet Fields
               braceletType: data.braceletType,
               beadSizeMm,
+              beadSizeLabel: beadSizeLabelNormalized ?? null,
               beadCount: data.beadCount,
               // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
               innerCircumferenceMm: data.innerCircumferenceMm,
               standardSize: data.standardSize,
-          } as Prisma.InventoryCreateInput;
-          (createData as any).beadSizeLabel = beadSizeLabelNormalized;
+          };
 
           const inventory = await tx.inventory.create({ data: createData });
 
@@ -537,7 +538,7 @@ export async function updateInventory(
   try {
     const oldInventory = await prisma.inventory.findUnique({ where: { id } });
 
-    const updateData: Prisma.InventoryUpdateInput = {
+    const updateData: Prisma.InventoryUpdateInput & { beadSizeLabel?: string | null } = {
       itemName: data.itemName,
       internalName: data.internalName,
       category: data.category,
@@ -573,11 +574,11 @@ export async function updateInventory(
       certificateComments: data.certificateComments,
       braceletType: data.braceletType,
       beadSizeMm,
+      beadSizeLabel: beadSizeLabelNormalized ?? null,
       beadCount: data.beadCount,
       innerCircumferenceMm: data.innerCircumferenceMm,
       standardSize: data.standardSize,
     };
-    (updateData as any).beadSizeLabel = beadSizeLabelNormalized;
 
     const updatedInventory = await prisma.inventory.update({
       where: { id },

@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
@@ -50,6 +51,7 @@ export default async function InventoryPage({
     weightRange?: string;
   }>;
 }) {
+  await ensureInventoryBraceletSchema();
   const session = await auth();
   const userRole = session?.user?.role || "VIEWER";
   const canCreate = hasPermission(userRole, PERMISSIONS.INVENTORY_CREATE);

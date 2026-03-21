@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { InventoryForm } from "@/components/inventory/inventory-form";
+import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 
 export const metadata: Metadata = {
   title: "Edit Inventory | KhyatiGems™",
@@ -15,6 +16,7 @@ type EditInventoryPageProps = {
 
 async function getInventoryData(id: string) {
   try {
+    await ensureInventoryBraceletSchema();
     const data = await Promise.all([
       prisma.inventory.findUnique({
         where: { id },
