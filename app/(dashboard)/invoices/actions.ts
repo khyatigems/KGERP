@@ -131,7 +131,26 @@ export async function createOrUpdateInvoiceFromSale(
       });
 
       const created = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { token: true } });
-      return { success: true, message: "Invoice created successfully", invoiceId, token: created?.token };
+
+      const userName = session.user.name || session.user.email || "Unknown";
+      const billing = await updateInvoiceBillingFromDisplayOptions({
+        invoiceId,
+        displayOptions,
+        displayOptionsStr,
+        actor: { userId: session.user.id, userName }
+      });
+
+      if (!billing.success) return { success: false, message: billing.message };
+
+      return {
+        success: true,
+        message: "Invoice created successfully",
+        invoiceId,
+        token: created?.token,
+        paymentStatus: billing.paymentStatus,
+        outstandingDelta: billing.outstandingDelta,
+        balanceDue: billing.balanceDue,
+      };
     }
   } catch (error) {
     console.error("Failed to create/update invoice:", error);

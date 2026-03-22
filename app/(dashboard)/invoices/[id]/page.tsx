@@ -18,6 +18,7 @@ import { buildWhatsappUrl } from "@/lib/whatsapp";
 import { buildUpiUri } from "@/lib/upi";
 import { selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
 import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-breakdown";
+import { computeInvoiceGst } from "@/lib/invoice-gst";
 
 export const dynamic = "force-dynamic";
 
@@ -164,40 +165,14 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     } catch {}
   }
 
-  // Process Items (GST Calculation)
-  const processedItems = salesItems.map((item) => {
-    // Determine GST Rate
-    const category = item.inventory.category || "General";
-    let rateStr = "3";
-    if (gstRates && typeof gstRates === 'object') {
-        rateStr = gstRates[category] || gstRates[item.inventory.itemName] || "3";
-    }
-    const gstRate = parseFloat(rateStr) || 3;
-
-    // Calculate Base and GST (Inclusive)
-    const inclusivePrice = item.salePrice || item.netAmount || 0;
-    const basePrice = inclusivePrice / (1 + (gstRate / 100));
-    const gstAmount = inclusivePrice - basePrice;
-
-    return {
-      ...item,
-      basePrice,
-      gstRate,
-      calculatedGst: gstAmount,
-      finalTotal: item.netAmount || (item.salePrice - (item.discountAmount || 0)) || 0
-    };
+  const gstCalc = computeInvoiceGst({
+    items: salesItems,
+    gstRates,
+    displayOptions,
   });
-  
-  // Totals
-  const subtotalBase = processedItems.reduce((sum, item) => sum + item.basePrice, 0);
-  const totalGst = processedItems.reduce((sum, item) => sum + item.calculatedGst, 0);
-  const itemDiscount = processedItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-  const itemsTotal = processedItems.reduce((sum, item) => sum + item.finalTotal, 0);
-  const invoiceDiscountType = displayOptions.invoiceDiscountType === "PERCENT" ? "PERCENT" : "AMOUNT";
-  const invoiceDiscountValue = Number(displayOptions.invoiceDiscountValue || 0);
-  const invoiceDiscountAmount = invoiceDiscountType === "PERCENT"
-    ? (itemsTotal * invoiceDiscountValue) / 100
-    : invoiceDiscountValue;
+  const processedItems = gstCalc.processedItems;
+  const subtotalBase = gstCalc.taxableTotal;
+  const totalGst = gstCalc.gstTotal;
   const saleShippingCharge = (primarySale as { shippingCharge?: number | null }).shippingCharge || 0;
   const saleAdditionalCharge = (primarySale as { additionalCharge?: number | null }).additionalCharge || 0;
   const showShippingCharge = typeof displayOptions.showShippingCharge === "boolean"
@@ -208,9 +183,9 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     : saleAdditionalCharge > 0;
   const shippingCharge = showShippingCharge ? Number(displayOptions.shippingCharge || saleShippingCharge || 0) : 0;
   const additionalCharge = showAdditionalCharge ? Number(displayOptions.additionalCharge || saleAdditionalCharge || 0) : 0;
-  const totalBeforeExtras = Math.max(0, itemsTotal - invoiceDiscountAmount);
+  const totalBeforeExtras = gstCalc.finalTotal;
   const pdfTotal = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
-  const discount = itemDiscount + invoiceDiscountAmount;
+  const discount = gstCalc.discountTotal;
   const healResult = await selfHealInvoicePaymentOnLoad({
     invoiceId: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
@@ -284,6 +259,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
         total: item.finalTotal
       };
     }),
+    grossTotal: gstCalc.grossTotal,
     subtotal: subtotalBase,
     discount,
     tax: totalGst,
@@ -427,9 +403,29 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
                           </Link>
                       </div>
                   )}
+                  {discount > 0 && (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Gross Total</span>
+                        <span className="font-medium">{formatCurrency(gstCalc.grossTotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-red-600">
+                        <span>Discount</span>
+                        <span className="font-medium">-{formatCurrency(discount)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between">
+                      <span className="text-muted-foreground">Taxable Amount</span>
+                      <span className="font-medium">{formatCurrency(subtotalBase)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total GST</span>
+                      <span className="font-medium">{formatCurrency(totalGst)}</span>
+                  </div>
                   <div className="flex justify-between font-bold pt-2 border-t mt-2">
                       <span>Total Amount</span>
-                      <span>{formatCurrency(total)}</span>
+                      <span>{formatCurrency(pdfTotal)}</span>
                   </div>
               </CardContent>
           </Card>

@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
   const color = (sp.get("color") || "").trim();
   const status = (sp.get("status") || "").trim();
   const sort = (sp.get("sort") || "createdAt_desc").trim();
+  const includeListings = sp.get("includeListings") === "1";
 
   const minPrice = toNumber(sp.get("minPrice"));
   const maxPrice = toNumber(sp.get("maxPrice"));
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (q) {
-    where.OR = [
+    const or = [
       { sku: { contains: q } },
       { itemName: { contains: q } },
       { internalName: { contains: q } },
@@ -74,12 +75,14 @@ export async function GET(request: NextRequest) {
       { gemType: { contains: q } },
       { color: { contains: q } },
       { dimensionsMm: { contains: q } },
-      { beadSizeLabel: { contains: q } },
       { standardSize: { contains: q } },
       { certificateNo: { contains: q } },
       { certificateNumber: { contains: q } },
       { notes: { contains: q } },
-    ];
+      { beadSizeLabel: { contains: q } } as unknown as Prisma.InventoryWhereInput,
+    ] as Prisma.InventoryWhereInput[];
+
+    (where as unknown as { OR?: Prisma.InventoryWhereInput[] }).OR = or;
   }
 
   const orderBy: Prisma.InventoryOrderByWithRelationInput = (() => {
@@ -115,9 +118,20 @@ export async function GET(request: NextRequest) {
         category: true,
         gemType: true,
         color: true,
+        pricingMode: true,
+        sellingRatePerCarat: true,
+        weightValue: true,
+        flatSellingPrice: true,
         sellingPrice: true,
         status: true,
         createdAt: true,
+        ...(includeListings
+          ? {
+              listings: {
+                select: { platform: true },
+              },
+            }
+          : {}),
       },
     }),
   ]);

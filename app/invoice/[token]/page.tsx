@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
@@ -12,10 +11,10 @@ import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import { selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
 import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-breakdown";
+import { computeInvoiceGst } from "@/lib/invoice-gst";
 import type { Metadata } from "next";
 import { trackPublicView } from "@/lib/analytics";
 
-type SaleItem = Prisma.SaleGetPayload<{ include: { inventory: { include: { certificates: true, rashis: true } } } }>;
 type PrismaRecord = Record<string, unknown>;
 type PackagingSettingsRow = { categoryHsnJson?: string | null };
 type PackagingSettingsDelegate = {
@@ -152,45 +151,14 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     console.error("Failed to parse GST rates", e);
   }
 
-  // Process Items (GST Calculation)
-  const processedItems = salesItems.map((item: SaleItem) => {
-    // Determine GST Rate
-    // Default to 3% if not found, as per common jewelry standard or user implication
-    const category = item.inventory.category || "General";
-    let rateStr = "3";
-    if (gstRates && typeof gstRates === 'object') {
-        rateStr = gstRates[category] || gstRates[item.inventory.itemName] || "3";
-    }
-    const gstRate = parseFloat(rateStr) || 3;
-
-    // Calculate Base and GST (Inclusive)
-    // Formula: Inclusive = Base + (Base * Rate/100) => Base = Inclusive / (1 + Rate/100)
-    // Fallback to netAmount or 0 if salePrice/sellingPrice is missing
-    const inclusivePrice = item.salePrice || item.netAmount || 0;
-    const basePrice = inclusivePrice / (1 + (gstRate / 100));
-    const gstAmount = inclusivePrice - basePrice;
-
-    return {
-      ...item,
-      basePrice,
-      gstRate,
-      calculatedGst: gstAmount,
-      // Ensure netAmount is total (it should be salePrice - discountAmount)
-      finalTotal: item.netAmount || (inclusivePrice - (item.discountAmount || 0)) || 0,
-      discountAmount: item.discountAmount || 0
-    };
+  const gstCalc = computeInvoiceGst({
+    items: salesItems,
+    gstRates,
+    displayOptions,
   });
-
-  // Totals
-  const subtotalBase = processedItems.reduce((sum, item) => sum + item.basePrice, 0);
-  const totalGst = processedItems.reduce((sum, item) => sum + item.calculatedGst, 0);
-  const itemDiscount = processedItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-  const itemsTotal = processedItems.reduce((sum, item) => sum + item.finalTotal, 0);
-  const invoiceDiscountType = displayOptions.invoiceDiscountType === "PERCENT" ? "PERCENT" : "AMOUNT";
-  const invoiceDiscountValue = Number(displayOptions.invoiceDiscountValue || 0);
-  const invoiceDiscountAmount = invoiceDiscountType === "PERCENT"
-    ? (itemsTotal * invoiceDiscountValue) / 100
-    : invoiceDiscountValue;
+  const processedItems = gstCalc.processedItems;
+  const subtotalBase = gstCalc.taxableTotal;
+  const totalGst = gstCalc.gstTotal;
   const saleShippingCharge = (primarySale as { shippingCharge?: number | null }).shippingCharge || 0;
   const saleAdditionalCharge = (primarySale as { additionalCharge?: number | null }).additionalCharge || 0;
   const showShippingCharge = typeof displayOptions.showShippingCharge === "boolean"
@@ -201,9 +169,9 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     : saleAdditionalCharge > 0;
   const shippingCharge = showShippingCharge ? Number(displayOptions.shippingCharge || saleShippingCharge || 0) : 0;
   const additionalCharge = showAdditionalCharge ? Number(displayOptions.additionalCharge || saleAdditionalCharge || 0) : 0;
-  const totalBeforeExtras = Math.max(0, itemsTotal - invoiceDiscountAmount);
+  const totalBeforeExtras = gstCalc.finalTotal;
   const total = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
-  const discount = itemDiscount + invoiceDiscountAmount;
+  const discount = gstCalc.discountTotal;
   
   // Balance Due & Payment Status Calculation
   const amountPaidCalculated = salesItems.reduce((sum, item) => {
@@ -336,6 +304,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
         total: item.finalTotal // Show Final Total (Inclusive - Discount)
       };
     }),
+    grossTotal: gstCalc.grossTotal,
     subtotal: subtotalBase, // Show Base Subtotal
     discount,
     tax: totalGst,
@@ -541,16 +510,22 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                 {/* Totals */}
                 <div className="mt-8 flex justify-end">
                     <div className="w-64 space-y-3">
-                        <div className="flex justify-between text-sm text-gray-600">
-                            <span>Subtotal (Excl. Tax)</span>
-                            <span>{formatCurrency(subtotalBase)}</span>
-                        </div>
+                        {discount > 0 && (
+                            <div className="flex justify-between text-sm text-gray-600">
+                                <span>Gross Total</span>
+                                <span>{formatCurrency(gstCalc.grossTotal)}</span>
+                            </div>
+                        )}
                         {discount > 0 && (
                             <div className="flex justify-between text-sm text-red-600">
                                 <span>Discount</span>
                                 <span>-{formatCurrency(discount)}</span>
                             </div>
                         )}
+                        <div className="flex justify-between text-sm text-gray-600">
+                            <span>Taxable Amount</span>
+                            <span>{formatCurrency(subtotalBase)}</span>
+                        </div>
                         <div className="flex justify-between text-sm text-gray-600">
                             <span>Total GST</span>
                             <span>{formatCurrency(totalGst)}</span>

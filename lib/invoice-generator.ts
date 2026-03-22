@@ -35,6 +35,7 @@ export interface InvoiceData {
     gstAmount?: number;
     total: number;
   }[];
+  grossTotal?: number;
   subtotal: number;
   discount: number;
   tax: number;
@@ -482,6 +483,16 @@ export async function generateInvoicePDF(data: InvoiceData) {
   let totalsY = y;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(8);
+  if (typeof data.grossTotal === "number" && Number.isFinite(data.grossTotal) && data.discount > 0) {
+    doc.text("Gross Amount", totalsX, totalsY);
+    writeAmountRight(formatCurrencyPDF(data.grossTotal), pageWidth - margin, totalsY);
+    totalsY += 4;
+
+    doc.text("Discount", totalsX, totalsY);
+    writeAmountRight(`-${formatCurrencyPDF(data.discount)}`, pageWidth - margin, totalsY);
+    totalsY += 4;
+  }
+
   doc.text("Taxable Amount", totalsX, totalsY);
   writeAmountRight(formatCurrencyPDF(taxableTotal), pageWidth - margin, totalsY);
   totalsY += 4;
@@ -494,7 +505,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
   writeAmountRight(formatCurrencyPDF(sgst), pageWidth - margin, totalsY);
   totalsY += 4;
 
-  if (data.discount > 0) {
+  if (!(typeof data.grossTotal === "number" && Number.isFinite(data.grossTotal) && data.discount > 0) && data.discount > 0) {
     doc.text("Discount", totalsX, totalsY);
     writeAmountRight(`-${formatCurrencyPDF(data.discount)}`, pageWidth - margin, totalsY);
     totalsY += 4;

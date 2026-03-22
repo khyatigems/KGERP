@@ -4,14 +4,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ListingsTable } from "./listings-table";
 import { CreateListingsTable } from "./create-listings-table";
 import { ListingTemplates } from "./listing-templates";
-import { Inventory, Listing } from "@prisma/client";
+import { Listing } from "@prisma/client";
 
 interface ListingsViewProps {
   listings: (Listing & { inventory: { sku: string; itemName: string } })[];
-  inventory: (Inventory & { listings: { platform: string }[] })[];
 }
 
-export function ListingsView({ listings, inventory }: ListingsViewProps) {
+export function ListingsView({ listings }: ListingsViewProps) {
   return (
     <Tabs defaultValue="active" className="space-y-4">
       <TabsList>
@@ -23,7 +22,7 @@ export function ListingsView({ listings, inventory }: ListingsViewProps) {
         <ListingsTable data={listings} />
       </TabsContent>
       <TabsContent value="create">
-        <CreateListingsTable data={inventory} />
+        <CreateListingsTable />
       </TabsContent>
       <TabsContent value="templates">
         <ListingTemplates />

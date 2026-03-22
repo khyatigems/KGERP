@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -38,22 +38,32 @@ export function ExportJobCenter() {
   const [jobs, setJobs] = useState<ExportJob[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [historyScope, setHistoryScope] = useState<"mine" | "all">("mine");
+  const [historyRange, setHistoryRange] = useState<"7" | "30" | "all">("7");
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     setRefreshing(true);
     try {
-      const res = await fetch("/api/reports/export-jobs?limit=20", { cache: "no-store" });
+      const params = new URLSearchParams();
+      params.set("limit", "50");
+      params.set("scope", historyScope);
+      if (historyRange === "all") {
+        params.set("allTime", "1");
+      } else {
+        params.set("days", historyRange);
+      }
+      const res = await fetch(`/api/reports/export-jobs?${params.toString()}`, { cache: "no-store" });
       if (!res.ok) return;
       const json = (await res.json()) as { jobs: ExportJob[] };
       setJobs(json.jobs || []);
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [historyRange, historyScope]);
 
   useEffect(() => {
     fetchJobs();
-  }, []);
+  }, [fetchJobs]);
 
   useEffect(() => {
     const hasActive = jobs.some((job) => job.status === "QUEUED" || job.status === "PROCESSING");
@@ -62,7 +72,7 @@ export function ExportJobCenter() {
       fetchJobs();
     }, 8000);
     return () => clearInterval(timer);
-  }, [jobs]);
+  }, [fetchJobs, jobs]);
 
   const canGenerate = useMemo(() => !!reportType && !!format, [reportType, format]);
 
@@ -143,9 +153,26 @@ export function ExportJobCenter() {
 
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Recent Jobs</h3>
-          <Button variant="outline" size="sm" onClick={fetchJobs} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select value={historyScope} onValueChange={(v) => setHistoryScope(v as "mine" | "all")}>
+              <SelectTrigger className="w-[140px]"><SelectValue placeholder="Scope" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mine">My jobs</SelectItem>
+                <SelectItem value="all">All users</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={historyRange} onValueChange={(v) => setHistoryRange(v as "7" | "30" | "all")}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Range" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={fetchJobs} disabled={refreshing}>
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+          </div>
         </div>
         {submitError && <p className="text-sm text-destructive">{submitError}</p>}
 

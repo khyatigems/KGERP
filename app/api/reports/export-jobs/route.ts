@@ -26,8 +26,23 @@ export async function GET(request: NextRequest) {
     console.error("Failed to process queued export jobs during refresh", error);
   }
 
-  const limit = Math.min(100, Math.max(5, Number(request.nextUrl.searchParams.get("limit") || 20)));
+  const sp = request.nextUrl.searchParams;
+  const limit = Math.min(100, Math.max(5, Number(sp.get("limit") || 20)));
+  const scope = String(sp.get("scope") || "mine");
+  const daysRaw = sp.get("days");
+  const days = daysRaw ? Math.max(1, Math.min(365, Number(daysRaw))) : 7;
+
+  const createdAfter = sp.get("allTime") === "1"
+    ? undefined
+    : new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const where = {
+    ...(scope === "all" ? {} : { requestedById: session.user.id }),
+    ...(createdAfter ? { createdAt: { gte: createdAfter } } : {}),
+  } as const;
+
   const jobs = await prisma.reportExportJob.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     take: limit
   });
