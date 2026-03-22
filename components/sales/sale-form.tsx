@@ -3,7 +3,7 @@
 import { useForm, type Resolver, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Check, ChevronsUpDown, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -195,24 +195,21 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   const autoDelist = form.watch("autoDelistListings");
   const shippingAddressValue = form.watch("shippingAddress");
 
-  const computedInvoiceTotal = useMemo(() => {
-    const itemsTotal = selectedItems.reduce((sum, item) => {
+  const computedInvoiceTotal = (() => {
+    const itemsTotal = (selectedItems || []).reduce((sum, item) => {
       const price = Number(item.sellingPrice || 0);
       const discount = Number(item.discount || 0);
       return sum + Math.max(0, price - discount);
     }, 0);
     return itemsTotal + Number(shippingChargeValue || 0) + Number(additionalChargeValue || 0);
-  }, [selectedItems, shippingChargeValue, additionalChargeValue]);
+  })();
 
-  const allocatedPaymentTotal = useMemo(
-    () => (initialPaymentsValue || []).reduce((sum, p) => sum + Number(p.amount || 0), 0),
-    [initialPaymentsValue]
-  );
-  const computedPaymentStatus = useMemo(() => {
+  const allocatedPaymentTotal = (initialPaymentsValue || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const computedPaymentStatus = (() => {
     if (allocatedPaymentTotal >= computedInvoiceTotal - 0.01 && computedInvoiceTotal > 0) return "PAID";
     if (allocatedPaymentTotal > 0) return "PARTIAL";
     return "UNPAID";
-  }, [allocatedPaymentTotal, computedInvoiceTotal]);
+  })();
 
   useEffect(() => {
     if (billingSameAsShipping) {
