@@ -147,8 +147,8 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
             prisma.sale.count({ where: { saleDate: { gte: todayUtc } } }),
             prisma.sale.count({ where: { saleDate: { gte: rangeStartUtc } } }),
             prisma.sale.aggregate({ _avg: { netAmount: true }, where: { saleDate: { gte: rangeStartUtc } } }),
-            prisma.listing.count({ where: { status: "ACTIVE" } }),
-            prisma.listing.groupBy({ by: ["platform"], where: { status: "ACTIVE" }, _count: { id: true } }),
+            prisma.listing.count({ where: { status: { in: ["ACTIVE", "LISTED"] } } }),
+            prisma.listing.groupBy({ by: ["platform"], where: { status: { in: ["ACTIVE", "LISTED"] } }, _count: { id: true } }),
         ]);
 
         const [recentSalesRes, slowMovingRes, pendingPaymentsRowsRaw, recentLabelJobsRes] = await Promise.all([
