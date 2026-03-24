@@ -10,11 +10,13 @@ import { ExportButton } from "@/components/ui/export-button";
 type StatRow = { totalItems: number; totalCost: number; totalSell: number; lowStockCount: number; recentAddedCount: number };
 type ByCategoryRow = { category: string; items: number; costValue: number; sellValue: number };
 type ByGemTypeRow = { gemType: string; items: number; costValue: number; sellValue: number };
+type ByCategoryGemTypeRow = { category: string; gemType: string; items: number; costValue: number; sellValue: number };
 type ByStatusRow = { status: string; items: number };
 
 type InventoryStatsResponse = StatRow & {
   byCategory: ByCategoryRow[];
   byGemType: ByGemTypeRow[];
+  byCategoryGemType: ByCategoryGemTypeRow[];
   byStatus: ByStatusRow[];
 };
 
@@ -47,20 +49,38 @@ export function InventoryStats() {
   }, [data?.byCategory]);
 
   const gemTypeExport = useMemo(() => {
-    const rows = (data?.byGemType || []).map((r) => ({
-      "Gem Type": r.gemType,
-      Items: r.items,
-      "Cost Value": r.costValue,
-      "Sell Value": r.sellValue,
-    }));
+    const orderCategory = (c: string) => {
+      const v = (c || "").toLowerCase();
+      if (v.includes("loose")) return 0;
+      if (v.includes("bracelet")) return 1;
+      return 2;
+    };
+    const rows = (data?.byCategoryGemType || [])
+      .slice()
+      .sort((a, b) => {
+        const ao = orderCategory(a.category);
+        const bo = orderCategory(b.category);
+        if (ao !== bo) return ao - bo;
+        const c = a.category.localeCompare(b.category);
+        if (c !== 0) return c;
+        return a.gemType.localeCompare(b.gemType);
+      })
+      .map((r) => ({
+        Category: r.category,
+        "Gem Type": r.gemType,
+        Items: r.items,
+        "Cost Value": r.costValue,
+        "Sell Value": r.sellValue,
+      }));
     const columns = [
+      { header: "Category", key: "Category" },
       { header: "Gem Type", key: "Gem Type" },
       { header: "Items", key: "Items" },
       { header: "Cost Value", key: "Cost Value" },
       { header: "Sell Value", key: "Sell Value" },
     ];
     return { rows, columns };
-  }, [data?.byGemType]);
+  }, [data?.byCategoryGemType]);
 
   const statusSummary = useMemo(() => {
     const map = new Map<string, number>();

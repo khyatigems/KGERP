@@ -29,7 +29,7 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
     createdAt: { gte: fromDate, lte: toDate },
   } as const;
 
-  const [totals, byCategory, byGemType] = await Promise.all([
+  const [totals, byCategory, byCategoryGemType] = await Promise.all([
     prisma.inventory.aggregate({ where, _count: { id: true }, _sum: { costPrice: true, sellingPrice: true } }),
     prisma.inventory.groupBy({
       by: ["category"],
@@ -39,11 +39,10 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
       orderBy: { _count: { id: "desc" } },
     }),
     prisma.inventory.groupBy({
-      by: ["gemType"],
+      by: ["category", "gemType"],
       where,
       _count: { id: true },
       _sum: { costPrice: true, sellingPrice: true },
-      orderBy: { _count: { id: "desc" } },
     }),
   ]);
 
@@ -60,13 +59,31 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
     { header: "Sell Value", key: "Sell Value" },
   ];
 
-  const gemTypeExportRows = byGemType.map((r) => ({
-    "Gem Type": r.gemType || "Unknown",
-    Items: r._count.id || 0,
-    "Cost Value": r._sum.costPrice || 0,
-    "Sell Value": r._sum.sellingPrice || 0,
-  }));
+  const orderCategory = (c: string) => {
+    const v = (c || "").toLowerCase();
+    if (v.includes("loose")) return 0;
+    if (v.includes("bracelet")) return 1;
+    return 2;
+  };
+  const gemTypeExportRows = byCategoryGemType
+    .slice()
+    .sort((a, b) => {
+      const ao = orderCategory(a.category || "");
+      const bo = orderCategory(b.category || "");
+      if (ao !== bo) return ao - bo;
+      const c = (a.category || "").localeCompare(b.category || "");
+      if (c !== 0) return c;
+      return (a.gemType || "").localeCompare(b.gemType || "");
+    })
+    .map((r) => ({
+      Category: r.category || "Uncategorized",
+      "Gem Type": r.gemType || "Unknown",
+      Items: r._count.id || 0,
+      "Cost Value": r._sum.costPrice || 0,
+      "Sell Value": r._sum.sellingPrice || 0,
+    }));
   const gemTypeExportCols = [
+    { header: "Category", key: "Category" },
     { header: "Gem Type", key: "Gem Type" },
     { header: "Items", key: "Items" },
     { header: "Cost Value", key: "Cost Value" },
@@ -171,12 +188,13 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
 
       <Card>
         <CardHeader>
-          <CardTitle>Gem Type Summary</CardTitle>
+          <CardTitle>Category + Gem Type Summary</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Category</TableHead>
                 <TableHead>Gem Type</TableHead>
                 <TableHead className="text-right">Items</TableHead>
                 <TableHead className="text-right">Cost Value</TableHead>
@@ -184,13 +202,24 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
               </TableRow>
             </TableHeader>
             <TableBody>
-              {byGemType.length === 0 ? (
+              {byCategoryGemType.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">No data.</TableCell>
+                  <TableCell colSpan={5} className="h-24 text-center">No data.</TableCell>
                 </TableRow>
               ) : (
-                byGemType.map((r) => (
-                  <TableRow key={r.gemType || "Unknown"}>
+                byCategoryGemType
+                  .slice()
+                  .sort((a, b) => {
+                    const ao = orderCategory(a.category || "");
+                    const bo = orderCategory(b.category || "");
+                    if (ao !== bo) return ao - bo;
+                    const c = (a.category || "").localeCompare(b.category || "");
+                    if (c !== 0) return c;
+                    return (a.gemType || "").localeCompare(b.gemType || "");
+                  })
+                  .map((r) => (
+                  <TableRow key={`${r.category || "Uncategorized"}:${r.gemType || "Unknown"}`}>
+                    <TableCell>{r.category || "Uncategorized"}</TableCell>
                     <TableCell>{r.gemType || "Unknown"}</TableCell>
                     <TableCell className="text-right">{r._count.id || 0}</TableCell>
                     <TableCell className="text-right">{formatCurrency(r._sum.costPrice || 0)}</TableCell>
@@ -205,4 +234,3 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
     </div>
   );
 }
-

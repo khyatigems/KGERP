@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
   const recentFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const lowStockThreshold = 2;
 
-  const [totalItems, sums, byCategory, byGemType, byStatus, lowStockCount, recentAddedCount] = await Promise.all([
+  const [totalItems, sums, byCategory, byGemType, byCategoryGemType, byStatus, lowStockCount, recentAddedCount] = await Promise.all([
     prisma.inventory.count({ where }),
     prisma.inventory.aggregate({ where, _sum: { costPrice: true, sellingPrice: true } }),
     prisma.inventory.groupBy({
@@ -112,6 +112,12 @@ export async function GET(request: NextRequest) {
       _count: { id: true },
       _sum: { costPrice: true, sellingPrice: true },
       orderBy: { _count: { id: "desc" } },
+    }),
+    prisma.inventory.groupBy({
+      by: ["category", "gemType"],
+      where,
+      _count: { id: true },
+      _sum: { costPrice: true, sellingPrice: true },
     }),
     prisma.inventory.groupBy({
       by: ["status"],
@@ -148,6 +154,12 @@ export async function GET(request: NextRequest) {
       costValue: r._sum.costPrice || 0,
       sellValue: r._sum.sellingPrice || 0,
     })),
+    byCategoryGemType: byCategoryGemType.map((r) => ({
+      category: r.category || "Uncategorized",
+      gemType: r.gemType || "Unknown",
+      items: r._count.id || 0,
+      costValue: r._sum.costPrice || 0,
+      sellValue: r._sum.sellingPrice || 0,
+    })),
   });
 }
-
