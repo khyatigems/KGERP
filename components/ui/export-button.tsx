@@ -20,6 +20,7 @@ interface ExportButtonProps {
   data: Record<string, unknown>[];
   columns: ColumnConfig[]; // Used for both PDF headers and data mapping
   title?: string; // PDF Title
+  label?: string;
 }
 
 export function ExportButton({
@@ -27,6 +28,7 @@ export function ExportButton({
   data,
   columns,
   title = "Report",
+  label = "Export",
 }: ExportButtonProps) {
   
   const handleExportExcel = () => {
@@ -63,7 +65,7 @@ export function ExportButton({
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="ml-auto transition-all duration-200 hover:scale-105 active:scale-95">
           <Download className="mr-2 h-4 w-4" />
-          Export
+          {label}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

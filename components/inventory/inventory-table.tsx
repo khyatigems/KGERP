@@ -186,6 +186,13 @@ export function InventoryTable({
                             ? "secondary"
                             : "outline"
                         }
+                        className={
+                          item.status === "RESERVED"
+                            ? "border-amber-200 bg-amber-50 text-amber-800"
+                            : item.status === "MEMO"
+                            ? "border-blue-200 bg-blue-50 text-blue-800"
+                            : undefined
+                        }
                       >
                         {item.status.replace("_", " ")}
                       </Badge>

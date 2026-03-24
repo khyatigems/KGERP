@@ -102,7 +102,7 @@ export function InventorySearch({
       </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Select
-            defaultValue={searchParams.get("status")?.toString() || "ALL"}
+            value={searchParams.get("status")?.toString() || "ALL"}
             onValueChange={(val) => handleFilterChange("status", val)}
         >
             <SelectTrigger>
@@ -113,11 +113,12 @@ export function InventorySearch({
             <SelectItem value="IN_STOCK">In Stock</SelectItem>
             <SelectItem value="SOLD">Sold</SelectItem>
             <SelectItem value="RESERVED">Reserved</SelectItem>
+            <SelectItem value="MEMO">Memo</SelectItem>
             </SelectContent>
         </Select>
 
         <Select
-            defaultValue={searchParams.get("vendorId")?.toString() || "ALL"}
+            value={searchParams.get("vendorId")?.toString() || "ALL"}
             onValueChange={(val) => handleFilterChange("vendorId", val)}
         >
             <SelectTrigger>
@@ -132,7 +133,7 @@ export function InventorySearch({
         </Select>
 
         <Select
-            defaultValue={searchParams.get("category")?.toString() || "ALL"}
+            value={searchParams.get("category")?.toString() || "ALL"}
             onValueChange={(val) => handleFilterChange("category", val)}
         >
             <SelectTrigger>
@@ -147,7 +148,7 @@ export function InventorySearch({
         </Select>
 
          <Select
-            defaultValue={searchParams.get("gemType")?.toString() || "ALL"}
+            value={searchParams.get("gemType")?.toString() || "ALL"}
             onValueChange={(val) => handleFilterChange("gemType", val)}
         >
             <SelectTrigger>
@@ -162,7 +163,7 @@ export function InventorySearch({
         </Select>
 
          <Select
-            defaultValue={searchParams.get("color")?.toString() || "ALL"}
+            value={searchParams.get("color")?.toString() || "ALL"}
             onValueChange={(val) => handleFilterChange("color", val)}
         >
             <SelectTrigger>
@@ -177,7 +178,7 @@ export function InventorySearch({
         </Select>
 
          <Select
-            defaultValue={searchParams.get("collectionId")?.toString() || "ALL"}
+            value={searchParams.get("collectionId")?.toString() || "ALL"}
             onValueChange={(val) => handleFilterChange("collectionId", val)}
         >
             <SelectTrigger>
@@ -192,7 +193,7 @@ export function InventorySearch({
         </Select>
 
          <Select
-            defaultValue={searchParams.get("rashiId")?.toString() || "ALL"}
+            value={searchParams.get("rashiId")?.toString() || "ALL"}
             onValueChange={(val) => handleFilterChange("rashiId", val)}
         >
             <SelectTrigger>
@@ -207,7 +208,7 @@ export function InventorySearch({
         </Select>
 
         <Select
-            defaultValue={searchParams.get("weightRange")?.toString() || "ALL"}
+            value={searchParams.get("weightRange")?.toString() || "ALL"}
             onValueChange={(val) => handleFilterChange("weightRange", val)}
         >
             <SelectTrigger>

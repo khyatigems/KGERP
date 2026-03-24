@@ -457,6 +457,15 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
              
              if (shouldRedirect) {
                  // Immediately go back to inventory list after successful save
+                 try {
+                   if (created) {
+                     localStorage.setItem("inventory-last-saved", JSON.stringify({
+                       sku: created.sku,
+                       itemName: created.itemName
+                     }));
+                   }
+                 } catch {
+                 }
                  router.push("/inventory");
                  return;
              } else {

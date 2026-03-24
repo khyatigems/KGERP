@@ -9,6 +9,8 @@ import { LoadingLink } from "@/components/ui/loading-link";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { InventorySearch } from "@/components/inventory/inventory-search";
 import { InventoryCardList } from "@/components/inventory/inventory-card-list";
+import { InventoryStats } from "@/components/inventory/inventory-stats";
+import { InventorySavedToast } from "@/components/inventory/inventory-saved-toast";
 import type { Inventory, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -300,6 +302,7 @@ export default async function InventoryPage({
 
   return (
     <div className="space-y-6">
+      <InventorySavedToast />
       <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
             <ExportButton 
@@ -326,6 +329,8 @@ export default async function InventoryPage({
             )}
         </div>
       </div>
+
+      <InventoryStats />
 
       <div className="bg-card p-4 rounded-md border">
         <InventorySearch 

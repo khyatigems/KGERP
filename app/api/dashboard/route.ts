@@ -260,19 +260,77 @@ export async function GET() {
         }
     });
 
-    // 2. Trends (Placeholder for now, requires KpiSnapshot data)
-    // In a real implementation with KpiSnapshot, we would fetch:
-    // const yesterday = await prisma.kpiSnapshot.findUnique({ where: { date: yesterdayDate } });
-    // const lastWeek = ...
-    // And calculate % diff.
-    // For now, we return 0 trend.
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgoWindow = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const percentChange = (current: number, previous: number) => {
+      if (previous <= 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const [
+      inventoryAddedLast30,
+      inventoryAddedPrev30,
+      salesLast30,
+      salesPrev30,
+      listingsCreatedLast30,
+      listingsCreatedPrev30,
+      quotationsCreatedLast30,
+      quotationsCreatedPrev30,
+      invoicesCreatedLast30,
+      invoicesCreatedPrev30,
+      pendingPaymentsLast30,
+      pendingPaymentsPrev30,
+      labelsAddedLast30,
+      labelsAddedPrev30,
+    ] = await Promise.all([
+      prisma.inventory.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.inventory.count({ where: { createdAt: { gte: sixtyDaysAgoWindow, lt: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.sale.count({ where: { saleDate: { gte: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.sale.count({ where: { saleDate: { gte: sixtyDaysAgoWindow, lt: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.listing.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.listing.count({ where: { createdAt: { gte: sixtyDaysAgoWindow, lt: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.quotation.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.quotation.count({ where: { createdAt: { gte: sixtyDaysAgoWindow, lt: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.invoice.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.invoice.count({ where: { createdAt: { gte: sixtyDaysAgoWindow, lt: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.sale.count({ where: { paymentStatus: { not: "PAID" }, saleDate: { gte: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.sale.count({ where: { paymentStatus: { not: "PAID" }, saleDate: { gte: sixtyDaysAgoWindow, lt: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.labelCartItem.count({
+        where: { userId: userId ?? "00000000-0000-0000-0000-000000000000", addedAt: { gte: thirtyDaysAgo } }
+      }).catch(() => 0),
+      prisma.labelCartItem.count({
+        where: { userId: userId ?? "00000000-0000-0000-0000-000000000000", addedAt: { gte: sixtyDaysAgoWindow, lt: thirtyDaysAgo } }
+      }).catch(() => 0),
+    ]);
+
+    const prevInStockApprox = Math.max(0, totalInventory - inventoryAddedLast30 + salesLast30);
+    const netInventoryChange = inventoryAddedLast30 - salesLast30;
+
     const trends = {
-        inventory: 0,
-        listings: 0,
-        quotations: 0,
-        invoices: 0,
-        pendingPayments: 0,
-        labels: 0
+      inventory: percentChange(totalInventory, prevInStockApprox),
+      listings: percentChange(listingsCreatedLast30, listingsCreatedPrev30),
+      quotations: percentChange(quotationsCreatedLast30, quotationsCreatedPrev30),
+      invoices: percentChange(invoicesCreatedLast30, invoicesCreatedPrev30),
+      pendingPayments: percentChange(pendingPaymentsLast30, pendingPaymentsPrev30),
+      labels: percentChange(labelsAddedLast30, labelsAddedPrev30),
+    };
+
+    const trendBreakdown = {
+      inventory: {
+        currentTotal: totalInventory,
+        approxPrevTotal: prevInStockApprox,
+        addedLast30: inventoryAddedLast30,
+        addedPrev30: inventoryAddedPrev30,
+        soldLast30: salesLast30,
+        soldPrev30: salesPrev30,
+        netChangeLast30: netInventoryChange,
+      },
+      listings: { createdLast30: listingsCreatedLast30, createdPrev30: listingsCreatedPrev30 },
+      quotations: { createdLast30: quotationsCreatedLast30, createdPrev30: quotationsCreatedPrev30 },
+      invoices: { createdLast30: invoicesCreatedLast30, createdPrev30: invoicesCreatedPrev30 },
+      pendingPayments: { openLast30: pendingPaymentsLast30, openPrev30: pendingPaymentsPrev30 },
+      labels: { addedLast30: labelsAddedLast30, addedPrev30: labelsAddedPrev30 },
     };
 
     const normalizedMemo = (overdueMemoItems as Array<{ id: string; customerName: string; issueDate: Date; items: Array<{ inventory: { sku: string } | null }> }>).map((memo) => ({
@@ -285,27 +343,33 @@ export async function GET() {
         kpis: {
             inventory: {
                 total: totalInventory,
-                trend: trends.inventory
+                trend: trends.inventory,
+                breakdown: trendBreakdown.inventory
             },
             listings: {
                 ...activeListings,
-                trend: trends.listings
+                trend: trends.listings,
+                breakdown: trendBreakdown.listings
             },
             quotations: {
                 total: activeQuotations,
-                trend: trends.quotations
+                trend: trends.quotations,
+                breakdown: trendBreakdown.quotations
             },
             invoices: {
                 total: invoicesGenerated,
-                trend: trends.invoices
+                trend: trends.invoices,
+                breakdown: trendBreakdown.invoices
             },
             pendingPayments: {
                 count: pendingPaymentsCount,
-                trend: trends.pendingPayments
+                trend: trends.pendingPayments,
+                breakdown: trendBreakdown.pendingPayments
             },
             printLabels: {
                 count: labelCartCount,
                 trend: trends.labels,
+                breakdown: trendBreakdown.labels,
                 lastItem: lastLabelCartItem ? `${lastLabelCartItem.inventory.sku} - ${lastLabelCartItem.inventory.itemName}` : null
             },
             attention: {

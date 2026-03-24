@@ -7,9 +7,10 @@ interface AppLogoLoaderProps {
   className?: string;
   fullscreen?: boolean;
   label?: string | null;
+  progress?: number | null;
 }
 
-export function AppLogoLoader({ className, fullscreen = true, label }: AppLogoLoaderProps) {
+export function AppLogoLoader({ className, fullscreen = true, label, progress = null }: AppLogoLoaderProps) {
   const content = (
     <div className={cn("flex flex-col items-center justify-center gap-6", className)}>
       <div className="relative w-32 h-32">
@@ -18,6 +19,19 @@ export function AppLogoLoader({ className, fullscreen = true, label }: AppLogoLo
         
         <Logo className="animate-logo-pulse" />
       </div>
+      {typeof progress === "number" && (
+        <div className="w-72 max-w-[80vw] flex flex-col items-center gap-2">
+          <div className="w-full h-2 rounded-full bg-muted overflow-hidden border">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-primary via-blue-500 to-primary transition-all duration-300"
+              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            />
+          </div>
+          <div className="text-xs text-muted-foreground font-medium tabular-nums">
+            {Math.round(progress)}% loading
+          </div>
+        </div>
+      )}
       {label && (
         <div className="flex flex-col items-center gap-2">
           <p className="text-muted-foreground text-lg font-medium animate-pulse tracking-wide">

@@ -950,3 +950,60 @@ export async function bulkUpdateInventory(
     return { error: "Failed to update items" };
   }
 }
+
+const inventoryStatusSchema = z.object({
+  inventoryId: z.string().uuid(),
+  status: z.enum(["IN_STOCK", "RESERVED", "MEMO"]),
+  reason: z.string().optional(),
+});
+
+export async function updateInventoryStatus(
+  prevState: unknown,
+  formData: FormData
+) {
+  const perm = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
+  if (!perm.success) return { message: perm.message };
+
+  const session = await auth();
+  if (!session?.user) return { message: "Unauthorized" };
+
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = inventoryStatusSchema.safeParse({
+    inventoryId: raw.inventoryId,
+    status: raw.status,
+    reason: raw.reason,
+  });
+  if (!parsed.success) return { message: "Invalid request" };
+
+  const { inventoryId, status, reason } = parsed.data;
+
+  const current = await prisma.inventory.findUnique({
+    where: { id: inventoryId },
+    select: { id: true, sku: true, status: true },
+  });
+  if (!current) return { message: "Inventory not found" };
+  if (current.status === "SOLD") return { message: "Cannot change status of SOLD inventory" };
+
+  if (current.status === status) return { success: true };
+
+  await prisma.inventory.update({
+    where: { id: inventoryId },
+    data: { status },
+  });
+
+  await logActivity({
+    entityType: "Inventory",
+    entityId: inventoryId,
+    entityIdentifier: current.sku,
+    actionType: "STATUS_CHANGE",
+    oldData: { status: current.status },
+    newData: { status },
+    details: reason ? `Reason: ${reason}` : undefined,
+    userId: session.user.id,
+    userName: session.user.name || session.user.email || "Unknown",
+    source: "WEB",
+  });
+
+  revalidatePath("/inventory");
+  return { success: true };
+}

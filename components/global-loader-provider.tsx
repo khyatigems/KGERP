@@ -15,11 +15,14 @@ const GlobalLoaderContext = createContext<GlobalLoaderContextType | undefined>(u
 
 function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState<number>(0);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const startedAtRef = useRef<number | null>(null);
   const shownForUrlRef = useRef<string>("");
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const shouldCompleteRef = useRef(false);
   const minDurationMs = 1500;
 
   const currentUrl = (() => {
@@ -36,6 +39,7 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
     const remaining = Math.max(0, minDurationMs - elapsed);
 
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    shouldCompleteRef.current = true;
     hideTimerRef.current = setTimeout(() => {
       setIsLoading(false);
     }, remaining);
@@ -46,6 +50,27 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
     };
   }, [currentUrl, isLoading]);
 
+  useEffect(() => {
+    if (!isLoading) {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+      return;
+    }
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    progressTimerRef.current = setInterval(() => {
+      setProgress((p) => {
+        if (shouldCompleteRef.current) return 100;
+        if (p >= 90) return p;
+        const next = p + Math.max(1, Math.round((90 - p) * 0.08));
+        return Math.min(90, next);
+      });
+    }, 180);
+    return () => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    };
+  }, [isLoading]);
+
   const showLoader = () => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
@@ -53,6 +78,8 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
     }
     startedAtRef.current = Date.now();
     shownForUrlRef.current = currentUrl;
+    shouldCompleteRef.current = false;
+    setProgress(0);
     setIsLoading(true);
   };
   
@@ -61,6 +88,7 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
     const elapsed = Date.now() - startedAt;
     const remaining = Math.max(0, minDurationMs - elapsed);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    setProgress(100);
     hideTimerRef.current = setTimeout(() => {
       setIsLoading(false);
     }, remaining);
@@ -69,7 +97,7 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
   return (
     <GlobalLoaderContext.Provider value={{ isLoading, setIsLoading, showLoader, hideLoader }}>
       {children}
-      {isLoading && <AppLogoLoader label={null} />}
+      {isLoading && <AppLogoLoader label={null} progress={progress} />}
     </GlobalLoaderContext.Provider>
   );
 }

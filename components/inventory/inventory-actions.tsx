@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, MoreHorizontal, Pencil, IndianRupee, FileText, Globe, Printer, EyeOff, EyeIcon } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, IndianRupee, FileText, Globe, Printer, EyeOff, EyeIcon, Lock, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,6 +16,18 @@ import { InventoryQrDialog } from "./inventory-qr";
 import { ListingManager } from "./listing-manager";
 import { LabelPrintDialog } from "./label-print-dialog";
 import { toast } from "sonner";
+import { updateInventoryStatus } from "@/app/(dashboard)/inventory/actions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface InventoryActionsProps {
   item: {
@@ -43,6 +55,10 @@ interface InventoryActionsProps {
 export function InventoryActions({ item, canManageAttentionVisibility }: InventoryActionsProps) {
   const router = useRouter();
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<"IN_STOCK" | "RESERVED" | "MEMO">("RESERVED");
+  const [statusReason, setStatusReason] = useState("");
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const sellingPrice = item.pricingMode === "PER_CARAT"
     ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
     : item.flatSellingPrice || 0;
@@ -115,6 +131,24 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
                   <Pencil className="mr-2 h-4 w-4" /> Edit
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setStatusTarget("RESERVED");
+                  setStatusReason("");
+                  setStatusDialogOpen(true);
+                }}
+              >
+                <Lock className="mr-2 h-4 w-4" /> Mark as Reserved
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setStatusTarget("MEMO");
+                  setStatusReason("");
+                  setStatusDialogOpen(true);
+                }}
+              >
+                <Clock className="mr-2 h-4 w-4" /> Mark as Memo
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href={`/sales/new?inventoryId=${item.id}`}>
                   <IndianRupee className="mr-2 h-4 w-4" /> Mark as Sold
@@ -160,8 +194,88 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
               />
             </>
           )}
+          {(item.status === "RESERVED" || item.status === "MEMO") && (
+            <>
+              <DropdownMenuItem
+                onClick={() => {
+                  setStatusTarget("IN_STOCK");
+                  setStatusReason("");
+                  setStatusDialogOpen(true);
+                }}
+              >
+                <Eye className="mr-2 h-4 w-4" /> Move to In Stock
+              </DropdownMenuItem>
+              {item.status !== "RESERVED" && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setStatusTarget("RESERVED");
+                    setStatusReason("");
+                    setStatusDialogOpen(true);
+                  }}
+                >
+                  <Lock className="mr-2 h-4 w-4" /> Mark as Reserved
+                </DropdownMenuItem>
+              )}
+              {item.status !== "MEMO" && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setStatusTarget("MEMO");
+                    setStatusReason("");
+                    setStatusDialogOpen(true);
+                  }}
+                >
+                  <Clock className="mr-2 h-4 w-4" /> Mark as Memo
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              Update status for SKU <span className="font-mono">{item.sku}</span> to <span className="font-semibold">{statusTarget.replace("_", " ")}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Reason (optional)</div>
+            <Textarea value={statusReason} onChange={(e) => setStatusReason(e.target.value)} placeholder="Add a short reason for audit trail..." />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUpdatingStatus}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isUpdatingStatus}
+              onClick={async () => {
+                setIsUpdatingStatus(true);
+                try {
+                  const fd = new FormData();
+                  fd.append("inventoryId", item.id);
+                  fd.append("status", statusTarget);
+                  if (statusReason.trim()) fd.append("reason", statusReason.trim());
+                  const res = await updateInventoryStatus(null, fd);
+                  if (res && (res as unknown as { message?: string }).message && !(res as { success?: boolean }).success) {
+                    toast.error((res as { message: string }).message);
+                  } else {
+                    toast.success("Status updated");
+                    router.refresh();
+                  }
+                } catch (e) {
+                  console.error(e);
+                  toast.error("Failed to update status");
+                } finally {
+                  setIsUpdatingStatus(false);
+                  setStatusDialogOpen(false);
+                }
+              }}
+            >
+              {isUpdatingStatus ? "Updating..." : "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,0 +1,153 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { Prisma } from "@prisma/client";
+
+export const dynamic = "force-dynamic";
+
+const toNumber = (value: string | null) => {
+  if (!value) return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+const toDate = (value: string | null) => {
+  if (!value) return undefined;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+};
+
+export async function GET(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!hasPermission(session.user.role, PERMISSIONS.INVENTORY_VIEW)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const sp = request.nextUrl.searchParams;
+  const q = (sp.get("q") || "").trim();
+  const category = (sp.get("category") || "").trim();
+  const gemType = (sp.get("gemType") || "").trim();
+  const color = (sp.get("color") || "").trim();
+  const status = (sp.get("status") || "").trim();
+  const vendorId = (sp.get("vendorId") || "").trim();
+  const weightRange = (sp.get("weightRange") || "").trim();
+
+  const minPrice = toNumber(sp.get("minPrice"));
+  const maxPrice = toNumber(sp.get("maxPrice"));
+  const createdFrom = toDate(sp.get("createdFrom"));
+  const createdTo = toDate(sp.get("createdTo"));
+
+  const where: Prisma.InventoryWhereInput = {};
+
+  if (status) where.status = status;
+  if (category) where.category = category;
+  if (gemType) where.gemType = gemType;
+  if (color) where.color = color;
+  if (vendorId) where.vendorId = vendorId;
+
+  if (weightRange) {
+    const [min, max] = weightRange.split("-");
+    const minN = Number(min);
+    if (Number.isFinite(minN)) {
+      if (max === "plus") {
+        where.weightValue = { gte: minN };
+      } else {
+        const maxN = Number(max);
+        if (Number.isFinite(maxN)) where.weightValue = { gte: minN, lte: maxN };
+      }
+    }
+  }
+
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    where.sellingPrice = {
+      gte: minPrice,
+      lte: maxPrice,
+    };
+  }
+
+  if (createdFrom || createdTo) {
+    where.createdAt = {
+      gte: createdFrom,
+      lte: createdTo,
+    };
+  }
+
+  if (q) {
+    const or = [
+      { sku: { contains: q } },
+      { itemName: { contains: q } },
+      { internalName: { contains: q } },
+      { category: { contains: q } },
+      { gemType: { contains: q } },
+      { color: { contains: q } },
+      { dimensionsMm: { contains: q } },
+      { standardSize: { contains: q } },
+      { certificateNo: { contains: q } },
+      { certificateNumber: { contains: q } },
+      { notes: { contains: q } },
+      { beadSizeLabel: { contains: q } } as unknown as Prisma.InventoryWhereInput,
+    ] as Prisma.InventoryWhereInput[];
+    (where as unknown as { OR?: Prisma.InventoryWhereInput[] }).OR = or;
+  }
+
+  const now = new Date();
+  const recentFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const lowStockThreshold = 2;
+
+  const [totalItems, sums, byCategory, byGemType, byStatus, lowStockCount, recentAddedCount] = await Promise.all([
+    prisma.inventory.count({ where }),
+    prisma.inventory.aggregate({ where, _sum: { costPrice: true, sellingPrice: true } }),
+    prisma.inventory.groupBy({
+      by: ["category"],
+      where,
+      _count: { id: true },
+      _sum: { costPrice: true, sellingPrice: true },
+      orderBy: { _count: { id: "desc" } },
+    }),
+    prisma.inventory.groupBy({
+      by: ["gemType"],
+      where,
+      _count: { id: true },
+      _sum: { costPrice: true, sellingPrice: true },
+      orderBy: { _count: { id: "desc" } },
+    }),
+    prisma.inventory.groupBy({
+      by: ["status"],
+      where,
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+    }),
+    prisma.inventory.count({
+      where: {
+        ...where,
+        status: where.status || "IN_STOCK",
+        pieces: { lte: lowStockThreshold },
+      },
+    }),
+    prisma.inventory.count({ where: { ...where, createdAt: { gte: recentFrom } } }),
+  ]);
+
+  return NextResponse.json({
+    totalItems,
+    totalCost: sums._sum.costPrice || 0,
+    totalSell: sums._sum.sellingPrice || 0,
+    lowStockCount,
+    recentAddedCount,
+    byStatus: byStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
+    byCategory: byCategory.map((r) => ({
+      category: r.category || "Uncategorized",
+      items: r._count.id || 0,
+      costValue: r._sum.costPrice || 0,
+      sellValue: r._sum.sellingPrice || 0,
+    })),
+    byGemType: byGemType.map((r) => ({
+      gemType: r.gemType || "Unknown",
+      items: r._count.id || 0,
+      costValue: r._sum.costPrice || 0,
+      sellValue: r._sum.sellingPrice || 0,
+    })),
+  });
+}
+
