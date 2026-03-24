@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { useGlobalLoader } from "@/components/global-loader-provider";
 
 function useDebouncedCallback(callback: (value: string) => void, delay: number) {
   const timeoutRef = useRef<number | null>(null);
@@ -57,6 +58,7 @@ export function InventorySearch({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { replace } = useRouter();
+  const { showLoader } = useGlobalLoader();
   const [isApplying, setIsApplying] = useState(false);
   const applyTimerRef = useRef<number | null>(null);
 
@@ -81,6 +83,7 @@ export function InventorySearch({
     }
     params.delete("page");
     pulseApply();
+    showLoader();
     replace(`${pathname}?${params.toString()}`);
   }, 300);
 
@@ -93,11 +96,13 @@ export function InventorySearch({
     }
     params.delete("page");
     pulseApply();
+    showLoader();
     replace(`${pathname}?${params.toString()}`);
   };
 
   const handleClear = () => {
     pulseApply();
+    showLoader();
     replace(pathname);
   };
 

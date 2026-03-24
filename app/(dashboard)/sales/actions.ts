@@ -489,7 +489,20 @@ export async function deleteSale(id: string) {
              // Optional: check if other sales use this invoice
              const otherSales = await tx.sale.count({ where: { invoiceId: sale.invoiceId, id: { not: id } }});
              if (otherSales === 0) {
+                 const inv = await tx.invoice.findUnique({
+                   where: { id: sale.invoiceId },
+                   select: { id: true, quotationId: true }
+                 });
                  await tx.invoice.delete({ where: { id: sale.invoiceId } });
+                 if (inv?.quotationId) {
+                   const stillHasInvoice = await tx.invoice.count({ where: { quotationId: inv.quotationId } });
+                   if (stillHasInvoice === 0) {
+                     await tx.quotation.update({
+                       where: { id: inv.quotationId },
+                       data: { status: "ACTIVE" }
+                     });
+                   }
+                 }
              }
           }
       });

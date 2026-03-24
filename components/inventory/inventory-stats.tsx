@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
 
-type StatRow = { totalItems: number; totalSell: number; lowStockCount: number; recentAddedCount: number };
+type StatRow = { totalItems: number; totalSell: number };
 type ByCategoryRow = { category: string; items: number; sellValue: number };
 type ByGemTypeRow = { gemType: string; items: number; sellValue: number };
 type ByCategoryGemTypeRow = { category: string; gemType: string; items: number; sellValue: number };
@@ -119,7 +119,7 @@ export function InventoryStats() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Total Items</CardTitle>
@@ -127,7 +127,7 @@ export function InventoryStats() {
           <CardContent>
             <div className="text-2xl font-bold">{data?.totalItems ?? "—"}</div>
             <div className="text-xs text-muted-foreground mt-1">
-              IN_STOCK {statusSummary.inStock} • RESERVED {statusSummary.reserved} • MEMO {statusSummary.memo}
+              IN_STOCK {statusSummary.inStock} • SOLD {statusSummary.sold} • RESERVED {statusSummary.reserved} • MEMO {statusSummary.memo}
             </div>
             {(topCategory || topGemType) && (
               <div className="text-[10px] text-muted-foreground mt-2">
@@ -173,15 +173,6 @@ export function InventoryStats() {
           </CardContent>
         </Card>
 
-        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Alerts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data ? data.lowStockCount : "—"}</div>
-            <div className="text-xs text-muted-foreground mt-1">Low stock • Recent +{data ? data.recentAddedCount : "—"}</div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

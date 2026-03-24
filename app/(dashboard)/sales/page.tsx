@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { PaymentStatusSelect } from "@/components/invoices/payment-status-select";
 import { SalesActions } from "@/components/sales/sales-actions";
 import { SalesCardList } from "@/components/sales/sales-card-list";
+import { SalesSortToggle } from "@/components/sales/sales-sort-toggle";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
   title: "Sales History | KhyatiGems™",
 };
 
-export default async function SalesPage() {
+export default async function SalesPage({ searchParams }: { searchParams: Promise<{ sort?: string }> }) {
   const perm = await checkPermission(PERMISSIONS.SALES_VIEW);
   if (!perm.success) {
     return (
@@ -41,6 +42,8 @@ export default async function SalesPage() {
 
   const session = await auth();
   const canDelete = session ? hasPermission(session.user?.role || "STAFF", PERMISSIONS.SALES_DELETE) : false;
+  const sp = await searchParams;
+  const sortMode = sp.sort === "invoice" ? "invoice" : "date";
 
   const sales = await prisma.sale.findMany({
     orderBy: {
@@ -81,21 +84,23 @@ export default async function SalesPage() {
   const getInvoiceString = (sale: typeof sales[number]) =>
     sale.invoice?.invoiceNumber || sale.legacyInvoice?.invoiceNumber || null;
 
-  const sortedSales = sales
-    .slice()
-    .sort((a, b) => {
-      const ai = parseInvoiceNo(getInvoiceString(a));
-      const bi = parseInvoiceNo(getInvoiceString(b));
-      if (ai && bi) {
-        if (ai.year !== bi.year) return bi.year - ai.year;
-        if (ai.seq !== bi.seq) return bi.seq - ai.seq;
-      } else if (ai && !bi) {
-        return -1;
-      } else if (!ai && bi) {
-        return 1;
-      }
-      return b.saleDate.getTime() - a.saleDate.getTime();
-    });
+  const sortedSales = sortMode === "invoice"
+    ? sales
+        .slice()
+        .sort((a, b) => {
+          const ai = parseInvoiceNo(getInvoiceString(a));
+          const bi = parseInvoiceNo(getInvoiceString(b));
+          if (ai && bi) {
+            if (ai.year !== bi.year) return bi.year - ai.year;
+            if (ai.seq !== bi.seq) return bi.seq - ai.seq;
+          } else if (ai && !bi) {
+            return -1;
+          } else if (!ai && bi) {
+            return 1;
+          }
+          return b.saleDate.getTime() - a.saleDate.getTime();
+        })
+    : sales;
 
   const exportData = sortedSales.map(sale => ({
     date: formatDate(sale.saleDate),
@@ -124,6 +129,7 @@ export default async function SalesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Sales History</h1>
         <div className="flex items-center gap-2">
+            <SalesSortToggle />
             <Link href="/sales/new">
                 <Button>
                     <Plus className="mr-2 h-4 w-4" />
