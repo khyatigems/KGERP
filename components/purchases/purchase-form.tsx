@@ -74,6 +74,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 interface PurchaseFormProps {
   vendors: { id: string; name: string }[];
+  suggestedInvoiceNo?: string;
   initialData?: {
     id: string;
     vendorId: string;
@@ -412,7 +413,7 @@ function PurchaseItemRow({
 
 // --- Main Export ---
 
-export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
+export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: PurchaseFormProps) {
   const [isPending, setIsPending] = useState(false);
   const router = useRouter();
 
@@ -441,7 +442,7 @@ export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
     : {
     vendorId: "",
     purchaseDate: new Date().toISOString().split("T")[0],
-    invoiceNo: "",
+    invoiceNo: suggestedInvoiceNo || "",
     paymentMode: "BANK_TRANSFER",
     paymentStatus: "PENDING",
     remarks: "",
@@ -561,7 +562,7 @@ export function PurchaseForm({ vendors, initialData }: PurchaseFormProps) {
                     <FormItem>
                       <FormLabel>Invoice No</FormLabel>
                       <FormControl>
-                        <Input placeholder="INV-001" {...field} />
+                        <Input placeholder="KGP-001" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

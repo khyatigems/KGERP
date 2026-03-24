@@ -33,6 +33,7 @@ const saleSchema = z.object({
   items: z.array(saleItemSchema).min(1, "Select at least one item"),
   platform: z.string().min(1, "Platform is required"),
   saleDate: z.coerce.date(),
+  customerId: z.string().uuid().optional(),
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
@@ -275,19 +276,33 @@ export async function createSale(prevState: unknown, formData: FormData) {
           });
 
           // 2. Create Sales and Update Inventory
+          const customerProfile = data.customerId
+            ? await tx.customer.findUnique({ where: { id: data.customerId } })
+            : null;
+
           for (const itemData of computedItems) {
+              const customerNameFinal = customerProfile?.name || data.customerName;
+              const customerPhoneFinal = customerProfile?.phone || data.customerPhone;
+              const customerEmailFinal = customerProfile?.email || data.customerEmail;
+              const customerAddressFinal = customerProfile?.address || data.customerAddress || data.billingAddress;
+              const customerCityFinal = customerProfile?.city || data.customerCity;
+              const placeOfSupplyFinal = customerCityFinal || data.placeOfSupply;
+              const billingAddressFinal = customerAddressFinal || data.billingAddress;
+              const shippingAddressFinal = data.shippingAddress || customerAddressFinal;
+
               const saleData = {
                 inventoryId: itemData.inv.id,
                 platform: data.platform,
                 saleDate: data.saleDate,
-                customerName: data.customerName,
-                customerPhone: data.customerPhone,
-                customerEmail: data.customerEmail,
-                customerAddress: data.customerAddress || data.billingAddress,
-                billingAddress: data.billingAddress,
-                customerCity: data.customerCity,
-                placeOfSupply: data.placeOfSupply,
-                shippingAddress: data.shippingAddress,
+                customerId: customerProfile?.id || undefined,
+                customerName: customerNameFinal,
+                customerPhone: customerPhoneFinal,
+                customerEmail: customerEmailFinal,
+                customerAddress: customerAddressFinal,
+                billingAddress: billingAddressFinal,
+                customerCity: customerCityFinal,
+                placeOfSupply: placeOfSupplyFinal,
+                shippingAddress: shippingAddressFinal,
                 shippingCharge: shippingCharge,
                 additionalCharge: additionalCharge,
                 salePrice: itemData.sellingPrice,

@@ -98,26 +98,26 @@ export async function GET(request: NextRequest) {
 
   const [totalItems, sums, byCategory, byGemType, byCategoryGemType, byStatus, lowStockCount, recentAddedCount] = await Promise.all([
     prisma.inventory.count({ where }),
-    prisma.inventory.aggregate({ where, _sum: { costPrice: true, sellingPrice: true } }),
+    prisma.inventory.aggregate({ where, _sum: { sellingPrice: true } }),
     prisma.inventory.groupBy({
       by: ["category"],
       where,
       _count: { id: true },
-      _sum: { costPrice: true, sellingPrice: true },
+      _sum: { sellingPrice: true },
       orderBy: { _count: { id: "desc" } },
     }),
     prisma.inventory.groupBy({
       by: ["gemType"],
       where,
       _count: { id: true },
-      _sum: { costPrice: true, sellingPrice: true },
+      _sum: { sellingPrice: true },
       orderBy: { _count: { id: "desc" } },
     }),
     prisma.inventory.groupBy({
       by: ["category", "gemType"],
       where,
       _count: { id: true },
-      _sum: { costPrice: true, sellingPrice: true },
+      _sum: { sellingPrice: true },
     }),
     prisma.inventory.groupBy({
       by: ["status"],
@@ -137,7 +137,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     totalItems,
-    totalCost: sums._sum.costPrice || 0,
     totalSell: sums._sum.sellingPrice || 0,
     lowStockCount,
     recentAddedCount,
@@ -145,20 +144,17 @@ export async function GET(request: NextRequest) {
     byCategory: byCategory.map((r) => ({
       category: r.category || "Uncategorized",
       items: r._count.id || 0,
-      costValue: r._sum.costPrice || 0,
       sellValue: r._sum.sellingPrice || 0,
     })),
     byGemType: byGemType.map((r) => ({
       gemType: r.gemType || "Unknown",
       items: r._count.id || 0,
-      costValue: r._sum.costPrice || 0,
       sellValue: r._sum.sellingPrice || 0,
     })),
     byCategoryGemType: byCategoryGemType.map((r) => ({
       category: r.category || "Uncategorized",
       gemType: r.gemType || "Unknown",
       items: r._count.id || 0,
-      costValue: r._sum.costPrice || 0,
       sellValue: r._sum.sellingPrice || 0,
     })),
   });

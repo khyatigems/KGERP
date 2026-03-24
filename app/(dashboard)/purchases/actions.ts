@@ -70,11 +70,30 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
 
   try {
     const purchase = await prisma.$transaction(async (tx) => {
+        const prefix = "KGP-";
+        const inputInvoiceNo = (data.invoiceNo || "").trim();
+        let invoiceNo = inputInvoiceNo;
+        if (!invoiceNo) {
+          const existing = await tx.purchase.findMany({
+            where: { invoiceNo: { startsWith: prefix } },
+            select: { invoiceNo: true },
+          });
+          let max = 0;
+          for (const row of existing) {
+            const rawNo = (row.invoiceNo || "").trim();
+            if (!rawNo.startsWith(prefix)) continue;
+            const n = Number(rawNo.slice(prefix.length));
+            if (Number.isFinite(n) && n > max) max = n;
+          }
+          const next = max + 1;
+          invoiceNo = `${prefix}${String(next).padStart(3, "0")}`;
+        }
+
         const p = await tx.purchase.create({
             data: {
                 vendorId: data.vendorId,
                 purchaseDate: data.purchaseDate,
-                invoiceNo: data.invoiceNo,
+                invoiceNo,
                 paymentMode: data.paymentMode,
                 paymentStatus: data.paymentStatus || "PENDING",
                 notes: data.remarks,

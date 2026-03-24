@@ -10,6 +10,7 @@ export type EntityType =
   | "Quotation"
   | "Invoice"
   | "Vendor"
+  | "Customer"
   | "Listing"
   | "User"
   | "Code"

@@ -23,6 +23,11 @@ export const PERMISSIONS = {
   // Vendors
   VENDOR_VIEW: "vendor.view",
   VENDOR_MANAGE: "vendor.manage",
+
+  // Customers
+  CUSTOMER_VIEW: "customer.view",
+  CUSTOMER_MANAGE: "customer.manage",
+  CUSTOMER_EXPORT: "customer.export",
   
   // Reports
   REPORTS_VIEW: "reports.view", // General access (Labels, Ops)
@@ -68,6 +73,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.INVOICE_CREATE,
     PERMISSIONS.INVOICE_MANAGE,
     PERMISSIONS.VENDOR_VIEW,
+    PERMISSIONS.CUSTOMER_VIEW,
+    PERMISSIONS.CUSTOMER_MANAGE,
+    PERMISSIONS.CUSTOMER_EXPORT,
     PERMISSIONS.REPORTS_VIEW, // Can view basic reports like Labels
     PERMISSIONS.EXPENSE_VIEW,
     PERMISSIONS.PACKAGING_VIEW, // Can view logs
@@ -81,6 +89,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.SALES_VIEW,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.VENDOR_VIEW,
+    PERMISSIONS.CUSTOMER_VIEW,
+    PERMISSIONS.CUSTOMER_EXPORT,
     PERMISSIONS.INVOICE_MANAGE,
     
     // Expense Access
@@ -95,6 +105,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   VIEWER: [
     PERMISSIONS.INVENTORY_VIEW,
     PERMISSIONS.QUOTATION_VIEW,
+    PERMISSIONS.CUSTOMER_VIEW,
   ],
 };
 

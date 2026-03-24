@@ -10,9 +10,11 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 
 const quotationSchema = z.object({
+  customerId: z.string().uuid().optional(),
   customerName: z.string().min(1, "Customer name is required"),
   customerMobile: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
+  customerAddress: z.string().optional(),
   customerCity: z.string().optional(),
   expiryDate: z.coerce.date(),
   items: z.array(z.object({
@@ -94,13 +96,24 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
         .padStart(4, "0")}`;
       const token = generateQuotationToken();
 
+      const customerProfile = data.customerId
+        ? await tx.customer.findUnique({ where: { id: data.customerId } })
+        : null;
+      const customerNameFinal = customerProfile?.name || data.customerName;
+      const customerMobileFinal = customerProfile?.phone || data.customerMobile;
+      const customerEmailFinal = customerProfile?.email || data.customerEmail;
+      const customerCityFinal = customerProfile?.city || data.customerCity;
+      const customerAddressFinal = customerProfile?.address || data.customerAddress;
+
       return tx.quotation.create({
         data: {
           quotationNumber,
-          customerName: data.customerName,
-          customerMobile: data.customerMobile,
-          customerEmail: data.customerEmail || null,
-          customerCity: data.customerCity,
+          customerId: customerProfile?.id || undefined,
+          customerName: customerNameFinal,
+          customerMobile: customerMobileFinal,
+          customerEmail: customerEmailFinal || null,
+          customerAddress: customerAddressFinal || null,
+          customerCity: customerCityFinal,
           expiryDate: data.expiryDate,
           totalAmount,
           token,
@@ -204,13 +217,24 @@ export async function updateQuotation(
     await prisma.$transaction(async (tx) => {
       await tx.quotationItem.deleteMany({ where: { quotationId: id } });
 
+      const customerProfile = data.customerId
+        ? await tx.customer.findUnique({ where: { id: data.customerId } })
+        : null;
+      const customerNameFinal = customerProfile?.name || data.customerName;
+      const customerMobileFinal = customerProfile?.phone || data.customerMobile;
+      const customerEmailFinal = customerProfile?.email || data.customerEmail;
+      const customerCityFinal = customerProfile?.city || data.customerCity;
+      const customerAddressFinal = customerProfile?.address || data.customerAddress;
+
       await tx.quotation.update({
         where: { id },
         data: {
-          customerName: data.customerName,
-          customerMobile: data.customerMobile,
-          customerEmail: data.customerEmail,
-          customerCity: data.customerCity,
+          customerId: customerProfile?.id || null,
+          customerName: customerNameFinal,
+          customerMobile: customerMobileFinal,
+          customerEmail: customerEmailFinal,
+          customerAddress: customerAddressFinal || null,
+          customerCity: customerCityFinal,
           expiryDate: data.expiryDate,
           totalAmount,
           status: data.status || quote.status, // Preserve status if not provided, or update if provided (e.g. Save Draft vs Submit)

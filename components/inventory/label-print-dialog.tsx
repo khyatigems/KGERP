@@ -73,7 +73,12 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         const savedPresets = localStorage.getItem("label-print-presets");
         if (saved) {
             try {
-                setConfig(JSON.parse(saved));
+                const parsed = JSON.parse(saved) as Partial<LabelConfig>;
+                setConfig({
+                    ...DEFAULT_TAG_CONFIG,
+                    ...parsed,
+                    includeChecksumInR: parsed.includeChecksumInR ?? true,
+                });
             } catch (e) {
                 console.error("Failed to parse saved config", e);
             }
@@ -126,6 +131,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
         setConfig({ 
             ...defaults, 
             showPrice: config.showPrice,
+            includeChecksumInR: config.includeChecksumInR ?? true,
             selectedFields: config.selectedFields || DEFAULT_FIELDS // Preserve selection or use default
         });
     };
@@ -157,7 +163,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
     const loadPreset = (name: string) => {
         const found = presets.find(p => p.name === name);
         if (found) {
-            setConfig(found.config);
+            setConfig({ ...DEFAULT_TAG_CONFIG, ...found.config, includeChecksumInR: found.config.includeChecksumInR ?? true });
         }
     };
     
@@ -184,6 +190,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             fontSize: 7,
             qrSize: 6,
             showPrice: config.showPrice,
+            includeChecksumInR: config.includeChecksumInR ?? true,
             selectedFields: config.selectedFields || DEFAULT_FIELDS
         });
     };
@@ -200,6 +207,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             qrSize: 10,
             fontSize: 8,
             showPrice: config.showPrice,
+            includeChecksumInR: config.includeChecksumInR ?? true,
             selectedFields: config.selectedFields || DEFAULT_FIELDS
         });
     };
@@ -317,6 +325,16 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="includeChecksumInR"
+                                        checked={config.includeChecksumInR ?? true}
+                                        onCheckedChange={(v) => setConfig({ ...config, includeChecksumInR: Boolean(v) })}
+                                    />
+                                    <Label htmlFor="includeChecksumInR" className="cursor-pointer">
+                                        Include checksum in R price
+                                    </Label>
+                                </div>
                             </div>
                             
                             <div className="space-y-3 border rounded p-4 bg-muted/10">
@@ -390,7 +408,8 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                                     {(config.selectedFields || DEFAULT_FIELDS).includes("price") && (
                                                         <div className="font-bold text-[9px] leading-none">
                                                             {(() => {
-                                                                let p = `R ${targets[0].priceWithChecksum || targets[0].sellingPrice}`;
+                                                                const base = (config.includeChecksumInR ?? true) ? (targets[0].priceWithChecksum || targets[0].sellingPrice) : targets[0].sellingPrice;
+                                                                let p = `R ${base}`;
                                                                 if (targets[0].pricingMode === "PER_CARAT" && targets[0].sellingRatePerCarat) {
                                                                     p += ` (${Math.round(targets[0].sellingRatePerCarat).toLocaleString()})`;
                                                                 }

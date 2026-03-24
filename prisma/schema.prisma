@@ -180,6 +180,7 @@ model Customer {
   name       String
   email      String?
   phone      String?
+  phoneSecondary String?
   address    String?
   city       String?
   state      String?

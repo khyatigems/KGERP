@@ -31,80 +31,21 @@ export default async function NewSalePage() {
     },
   });
 
-  const salesCustomers = await prisma.sale.findMany({
+  const existingCustomers = await prisma.customer.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 200,
     select: {
-      customerName: true,
-      customerPhone: true,
-      customerEmail: true,
-      customerCity: true,
-      saleDate: true,
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+      address: true,
+      city: true,
+      state: true,
+      country: true,
+      pincode: true,
     },
-    where: {
-      customerName: {
-        not: null,
-      },
-    },
-    orderBy: {
-      saleDate: "desc",
-    },
-    take: 50,
   });
-
-  const quotedCustomers = await prisma.quotation.findMany({
-    select: {
-      customerName: true,
-      customerMobile: true,
-      customerEmail: true,
-      customerCity: true,
-      createdAt: true,
-    },
-    where: {},
-    orderBy: {
-      createdAt: "desc",
-    },
-    take: 50,
-  });
-
-  const customerMap = new Map<
-    string,
-    {
-      id: string;
-      name: string;
-      phone?: string | null;
-      email?: string | null;
-      city?: string | null;
-    }
-  >();
-
-  salesCustomers.forEach((c, index) => {
-    if (!c.customerName) return;
-    const key = `${c.customerName.trim()}|${(c.customerPhone || "").trim()}|${(c.customerEmail || "").trim()}`;
-    if (!customerMap.has(key)) {
-      customerMap.set(key, {
-        id: `sale-${index}-${key}`,
-        name: c.customerName,
-        phone: c.customerPhone,
-        email: c.customerEmail,
-        city: c.customerCity,
-      });
-    }
-  });
-
-  quotedCustomers.forEach((c, index) => {
-    if (!c.customerName) return;
-    const key = `${c.customerName.trim()}|${(c.customerMobile || "").trim()}|${(c.customerEmail || "").trim()}`;
-    if (!customerMap.has(key)) {
-      customerMap.set(key, {
-        id: `quote-${index}-${key}`,
-        name: c.customerName,
-        phone: c.customerMobile,
-        email: c.customerEmail,
-        city: c.customerCity,
-      });
-    }
-  });
-
-  const existingCustomers = Array.from(customerMap.values());
 
   return (
     <div className="space-y-6">

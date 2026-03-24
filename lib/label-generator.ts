@@ -99,6 +99,7 @@ export interface LabelConfig {
     labelHeight: number;
     showPrice: boolean;
     showEncodedPrice: boolean; // New toggle
+    includeChecksumInR: boolean;
     qrSize: number;
     fontSize: number;
     selectedFields: string[];
@@ -133,6 +134,7 @@ export const DEFAULT_TAG_CONFIG: LabelConfig = {
     labelHeight: 25,
     showPrice: false,
     showEncodedPrice: false,
+    includeChecksumInR: true,
     qrSize: 10,
     fontSize: 7,
     selectedFields: DEFAULT_FIELDS
@@ -150,6 +152,7 @@ export const DEFAULT_A4_CONFIG: LabelConfig = {
     labelHeight: 28,
     showPrice: false,
     showEncodedPrice: false,
+    includeChecksumInR: true,
     qrSize: 10,
     fontSize: 7,
     selectedFields: DEFAULT_FIELDS
@@ -167,6 +170,7 @@ export const DEFAULT_THERMAL_CONFIG: LabelConfig = {
     labelHeight: 27.5,
     showPrice: false,
     showEncodedPrice: false,
+    includeChecksumInR: true,
     qrSize: 10,
     fontSize: 8, // Slightly larger font for 50mm width
     selectedFields: DEFAULT_FIELDS
@@ -453,7 +457,7 @@ function renderLabel(doc: jsPDF, item: LabelItem, x: number, y: number, config: 
         doc.setFontSize(config.fontSize + 1);
         
         // Use server-provided checksum price (Total Price)
-        const basePrice = item.priceWithChecksum ?? item.sellingPrice;
+        const basePrice = config.includeChecksumInR ? (item.priceWithChecksum ?? item.sellingPrice) : item.sellingPrice;
         let priceText = `R ${formatInrValue(basePrice)}`;
 
         // Append mode indicator
@@ -578,7 +582,7 @@ function renderThermalLabel(doc: jsPDF, item: LabelItem, x: number, y: number, c
     // Line 5: Price (Bold)
     // This usually clears the QR code, so it gets full width if Y > qrBottom
     if (fields.includes("price")) {
-        const basePrice = item.priceWithChecksum ?? item.sellingPrice;
+        const basePrice = config.includeChecksumInR ? (item.priceWithChecksum ?? item.sellingPrice) : item.sellingPrice;
         let priceText = `R ${formatInrValue(basePrice)}`;
         if (item.pricingMode === "PER_CARAT" && item.sellingRatePerCarat) {
             priceText += ` (R ${formatInrNumber(Math.round(item.sellingRatePerCarat), 0)})`;

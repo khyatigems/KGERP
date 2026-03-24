@@ -7,10 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
 
-type StatRow = { totalItems: number; totalCost: number; totalSell: number; lowStockCount: number; recentAddedCount: number };
-type ByCategoryRow = { category: string; items: number; costValue: number; sellValue: number };
-type ByGemTypeRow = { gemType: string; items: number; costValue: number; sellValue: number };
-type ByCategoryGemTypeRow = { category: string; gemType: string; items: number; costValue: number; sellValue: number };
+type StatRow = { totalItems: number; totalSell: number; lowStockCount: number; recentAddedCount: number };
+type ByCategoryRow = { category: string; items: number; sellValue: number };
+type ByGemTypeRow = { gemType: string; items: number; sellValue: number };
+type ByCategoryGemTypeRow = { category: string; gemType: string; items: number; sellValue: number };
 type ByStatusRow = { status: string; items: number };
 
 type InventoryStatsResponse = StatRow & {
@@ -36,13 +36,11 @@ export function InventoryStats() {
     const rows = (data?.byCategory || []).map((r) => ({
       Category: r.category,
       Items: r.items,
-      "Cost Value": r.costValue,
       "Sell Value": r.sellValue,
     }));
     const columns = [
       { header: "Category", key: "Category" },
       { header: "Items", key: "Items" },
-      { header: "Cost Value", key: "Cost Value" },
       { header: "Sell Value", key: "Sell Value" },
     ];
     return { rows, columns };
@@ -69,14 +67,12 @@ export function InventoryStats() {
         Category: r.category,
         "Gem Type": r.gemType,
         Items: r.items,
-        "Cost Value": r.costValue,
         "Sell Value": r.sellValue,
       }));
     const columns = [
       { header: "Category", key: "Category" },
       { header: "Gem Type", key: "Gem Type" },
       { header: "Items", key: "Items" },
-      { header: "Cost Value", key: "Cost Value" },
       { header: "Sell Value", key: "Sell Value" },
     ];
     return { rows, columns };
@@ -121,7 +117,7 @@ export function InventoryStats() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Total Items</CardTitle>
@@ -138,16 +134,6 @@ export function InventoryStats() {
                 {topGemType ? `Top Gem Type: ${topGemType}` : null}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Cost Value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data ? formatCurrency(data.totalCost) : "—"}</div>
-            <div className="text-xs text-muted-foreground mt-1">Sum of Cost Price</div>
           </CardContent>
         </Card>
 

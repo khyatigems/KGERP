@@ -79,13 +79,28 @@ export async function GET(request: NextRequest) {
     prisma.inventory.findMany({ where: { id: { in: skuIds } }, select: { id: true, itemName: true } }),
     prisma.invoice.findMany({
       where: { id: { in: invoiceIds } },
-      select: { id: true, quotation: { select: { customer: { select: { name: true } } } } },
+      select: {
+        id: true,
+        quotation: { select: { customer: { select: { name: true } } } },
+        sales: {
+          take: 1,
+          orderBy: { saleDate: "desc" },
+          select: { customerName: true, customer: { select: { name: true } } },
+        },
+      },
     }),
   ]);
 
   const entityNameMap = new Map<string, string>();
   items.forEach(item => entityNameMap.set(item.id, item.itemName));
-  invoices.forEach(inv => entityNameMap.set(inv.id, inv.quotation?.customer?.name || "Unknown Customer"));
+  invoices.forEach((inv) => {
+    const name =
+      inv.quotation?.customer?.name ||
+      inv.sales?.[0]?.customer?.name ||
+      inv.sales?.[0]?.customerName ||
+      "Unknown Customer";
+    entityNameMap.set(inv.id, name);
+  });
 
   const header = [
     "Time",

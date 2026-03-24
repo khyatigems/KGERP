@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Command,
   CommandEmpty,
@@ -43,9 +44,11 @@ import {
 } from "@/components/ui/table";
 
 const formSchema = z.object({
+  customerId: z.string().uuid().optional().or(z.literal("")),
   customerName: z.string().min(1, "Customer name is required"),
   customerMobile: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
+  customerAddress: z.string().optional(),
   customerCity: z.string().optional(),
   expiryDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date",
@@ -62,8 +65,13 @@ interface ExistingCustomer {
   id: string;
   name: string;
   phone?: string | null;
+  phoneSecondary?: string | null;
   email?: string | null;
+  address?: string | null;
   city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  pincode?: string | null;
 }
 
 interface QuotationFormProps {
@@ -106,9 +114,11 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      customerId: "",
       customerName: initialData?.customerName || "",
       customerMobile: initialData?.customerMobile || "",
       customerEmail: initialData?.customerEmail || "",
+      customerAddress: "",
       customerCity: initialData?.customerCity || "",
       expiryDate: initialData?.expiryDate
         ? new Date(initialData.expiryDate).toISOString().split("T")[0]
@@ -150,9 +160,11 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
   async function onSubmit(data: FormValues, status: "DRAFT" | "ACTIVE") {
     setIsPending(true);
     const formData = new FormData();
+    if (data.customerId) formData.append("customerId", data.customerId);
     formData.append("customerName", data.customerName);
     if (data.customerMobile) formData.append("customerMobile", data.customerMobile);
     if (data.customerEmail) formData.append("customerEmail", data.customerEmail);
+    if (data.customerAddress) formData.append("customerAddress", data.customerAddress);
     if (data.customerCity) formData.append("customerCity", data.customerCity);
     formData.append("expiryDate", data.expiryDate);
     formData.append("items", JSON.stringify(data.items));
@@ -225,9 +237,16 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
                               key={customer.id}
                               value={`${customer.name} ${customer.phone || ""} ${customer.email || ""}`}
                               onSelect={() => {
+                                form.setValue("customerId", customer.id);
                                 form.setValue("customerName", customer.name);
                                 form.setValue("customerMobile", customer.phone || "");
                                 form.setValue("customerEmail", customer.email || "");
+                                const addressParts = [
+                                  customer.address,
+                                  [customer.city, customer.state, customer.country].filter(Boolean).join(", "),
+                                  customer.pincode ? `Pincode: ${customer.pincode}` : "",
+                                ].filter(Boolean).join("\n");
+                                form.setValue("customerAddress", addressParts);
                                 form.setValue("customerCity", customer.city || "");
                                 setCustomerOpen(false);
                               }}
@@ -256,7 +275,14 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
                 <FormItem>
                   <FormLabel>Customer Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} />
+                    <Input
+                      placeholder="Customer Name"
+                      {...field}
+                      onChange={(e) => {
+                        form.setValue("customerId", "");
+                        field.onChange(e);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -283,6 +309,19 @@ export function QuotationForm({ availableItems, existingCustomers = [], initialD
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input placeholder="john@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="customerAddress"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Postal Address</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="House, street, area" className="min-h-[80px]" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -64,6 +64,7 @@ const formSchema = z.object({
   saleDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date",
   }),
+  customerId: z.string().uuid().optional().or(z.literal("")),
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   customerEmail: z.string().email().optional().or(z.literal("")),
@@ -96,9 +97,13 @@ interface ExistingCustomer {
   id: string;
   name: string;
   phone?: string | null;
+  phoneSecondary?: string | null;
   email?: string | null;
   address?: string | null;
   city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  pincode?: string | null;
 }
 
 interface SaleFormProps {
@@ -166,6 +171,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
         : [],
       platform: "WHATSAPP",
       saleDate: new Date().toISOString().split("T")[0],
+      customerId: "",
       customerName: "",
       customerPhone: "",
       customerEmail: "",
@@ -273,6 +279,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     formData.append("items", JSON.stringify(data.items));
     formData.append("platform", data.platform);
     formData.append("saleDate", data.saleDate);
+    if (data.customerId) formData.append("customerId", data.customerId);
     if (data.customerName) formData.append("customerName", data.customerName);
     if (data.customerPhone) formData.append("customerPhone", data.customerPhone);
     if (data.customerEmail) formData.append("customerEmail", data.customerEmail);
@@ -791,14 +798,20 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                               key={customer.id}
                               value={`${customer.name} ${customer.phone || ""} ${customer.email || ""}`}
                               onSelect={() => {
+                                form.setValue("customerId", customer.id);
                                 form.setValue("customerName", customer.name);
                                 form.setValue("customerPhone", customer.phone || "");
                                 form.setValue("customerEmail", customer.email || "");
-                                form.setValue("customerAddress", customer.address || "");
-                                form.setValue("billingAddress", customer.address || "");
+                                const addressParts = [
+                                  customer.address,
+                                  [customer.city, customer.state, customer.country].filter(Boolean).join(", "),
+                                  customer.pincode ? `Pincode: ${customer.pincode}` : "",
+                                ].filter(Boolean).join("\n");
+                                form.setValue("customerAddress", addressParts);
+                                form.setValue("billingAddress", addressParts);
                                 form.setValue("customerCity", customer.city || "");
                                 form.setValue("placeOfSupply", customer.city || "");
-                                form.setValue("shippingAddress", customer.address || "");
+                                form.setValue("shippingAddress", addressParts);
                                 setCustomerOpen(false);
                               }}
                             >
@@ -826,7 +839,14 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                 <FormItem>
                   <FormLabel>Customer Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="John Doe" {...field} />
+                    <Input
+                      placeholder="John Doe"
+                      {...field}
+                      onChange={(e) => {
+                        form.setValue("customerId", "");
+                        field.onChange(e);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

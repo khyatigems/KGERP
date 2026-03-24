@@ -120,7 +120,8 @@ const FONTS: Record<string, { normal: string; bold: string; italic?: string; bol
   },
 };
 
-const loadedFonts = new Set<string>();
+type CachedFontData = { normal?: string; bold?: string; italic?: string; bolditalic?: string };
+const cachedFontData = new Map<string, CachedFontData>();
 
 function arrayBufferToBinaryString(buffer: ArrayBuffer) {
   let binary = "";
@@ -131,41 +132,44 @@ function arrayBufferToBinaryString(buffer: ArrayBuffer) {
 }
 
 async function loadFont(doc: jsPDF, family: string) {
-  if (loadedFonts.has(family)) return;
   const fontDef = FONTS[family];
   if (!fontDef) return;
 
-  const promises = [
-    fetch(fontDef.normal).then((r) => (r.ok ? r.arrayBuffer() : null)),
-    fetch(fontDef.bold).then((r) => (r.ok ? r.arrayBuffer() : null)),
-  ];
-  if (fontDef.italic) promises.push(fetch(fontDef.italic).then((r) => (r.ok ? r.arrayBuffer() : null)));
-  if (fontDef.bolditalic) promises.push(fetch(fontDef.bolditalic).then((r) => (r.ok ? r.arrayBuffer() : null)));
+  let cached = cachedFontData.get(family);
+  if (!cached) {
+    const promises = [
+      fetch(fontDef.normal).then((r) => (r.ok ? r.arrayBuffer() : null)),
+      fetch(fontDef.bold).then((r) => (r.ok ? r.arrayBuffer() : null)),
+    ];
+    if (fontDef.italic) promises.push(fetch(fontDef.italic).then((r) => (r.ok ? r.arrayBuffer() : null)));
+    if (fontDef.bolditalic) promises.push(fetch(fontDef.bolditalic).then((r) => (r.ok ? r.arrayBuffer() : null)));
 
-  const [normBuf, boldBuf, italicBuf, boldItalicBuf] = await Promise.all(promises);
+    const [normBuf, boldBuf, italicBuf, boldItalicBuf] = await Promise.all(promises);
+    cached = {
+      normal: normBuf ? arrayBufferToBinaryString(normBuf) : undefined,
+      bold: boldBuf ? arrayBufferToBinaryString(boldBuf) : undefined,
+      italic: italicBuf ? arrayBufferToBinaryString(italicBuf) : undefined,
+      bolditalic: boldItalicBuf ? arrayBufferToBinaryString(boldItalicBuf) : undefined,
+    };
+    cachedFontData.set(family, cached);
+  }
 
-  if (normBuf) {
-    const normStr = arrayBufferToBinaryString(normBuf);
-    doc.addFileToVFS(`${family}-Regular.ttf`, normStr);
+  if (cached.normal) {
+    doc.addFileToVFS(`${family}-Regular.ttf`, cached.normal);
     doc.addFont(`${family}-Regular.ttf`, family, "normal");
   }
-  if (boldBuf) {
-    const boldStr = arrayBufferToBinaryString(boldBuf);
-    doc.addFileToVFS(`${family}-Bold.ttf`, boldStr);
+  if (cached.bold) {
+    doc.addFileToVFS(`${family}-Bold.ttf`, cached.bold);
     doc.addFont(`${family}-Bold.ttf`, family, "bold");
   }
-  if (italicBuf && fontDef.italic) {
-    const italicStr = arrayBufferToBinaryString(italicBuf);
-    doc.addFileToVFS(`${family}-Italic.ttf`, italicStr);
+  if (cached.italic && fontDef.italic) {
+    doc.addFileToVFS(`${family}-Italic.ttf`, cached.italic);
     doc.addFont(`${family}-Italic.ttf`, family, "italic");
   }
-  if (boldItalicBuf && fontDef.bolditalic) {
-    const biStr = arrayBufferToBinaryString(boldItalicBuf);
-    doc.addFileToVFS(`${family}-BoldItalic.ttf`, biStr);
+  if (cached.bolditalic && fontDef.bolditalic) {
+    doc.addFileToVFS(`${family}-BoldItalic.ttf`, cached.bolditalic);
     doc.addFont(`${family}-BoldItalic.ttf`, family, "bolditalic");
   }
-
-  loadedFonts.add(family);
 }
 
 function convertNumberToWords(amount: number): string {
@@ -212,8 +216,8 @@ export async function generateInvoicePDF(data: InvoiceData) {
   });
   await loadFont(doc, "notosansdisplay");
   await loadFont(doc, "poppins");
-  const fontFamily = loadedFonts.has("poppins") ? "poppins" : (loadedFonts.has("notosansdisplay") ? "notosansdisplay" : "helvetica");
-  const numberFont = loadedFonts.has("notosansdisplay") ? "notosansdisplay" : fontFamily;
+  const fontFamily = "poppins";
+  const numberFont = "notosansdisplay";
   doc.setCharSpace(0);
 
   const writeAmountRight = (text: string, x: number, y: number, opts?: { bold?: boolean; fontSize?: number }) => {
