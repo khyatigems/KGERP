@@ -3,6 +3,8 @@ import { PrismaLibSQL } from "@prisma/adapter-libsql"
 import { createClient } from "@libsql/client"
 import { config } from "dotenv"
 
+const isProd = process.env.NODE_ENV === "production";
+
 function parseLibsqlCredentials(rawUrl: string) {
   const normalized = rawUrl.startsWith("https://") ? rawUrl.replace(/^https:\/\//, "libsql://") : rawUrl;
   const [base, query = ""] = normalized.split("?");
@@ -23,17 +25,18 @@ const databaseUrl = process.env.DATABASE_URL || "file:./dev.db";
 const tursoDatabaseUrl = process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || "";
 
 if (!process.env.DATABASE_URL) {
-  console.warn("⚠️  WARNING: DATABASE_URL is not set in environment. Falling back to local SQLite database.");
+  if (!isProd) console.warn("⚠️  WARNING: DATABASE_URL is not set in environment. Falling back to local SQLite database.");
 }
 
 if (!databaseUrl) {
-  console.error("Prisma: DATABASE_URL is not set");
+  if (!isProd) console.error("Prisma: DATABASE_URL is not set");
 } else {
-  // Log the connection string (masking auth tokens if present)
-  const logUrl = databaseUrl.includes("authToken")
-    ? databaseUrl.split("?")[0] + "?authToken=***"
-    : databaseUrl;
-  console.log("Prisma: Using connection string:", logUrl);
+  if (!isProd) {
+    const logUrl = databaseUrl.includes("authToken")
+      ? databaseUrl.split("?")[0] + "?authToken=***"
+      : databaseUrl;
+    console.log("Prisma: Using connection string:", logUrl);
+  }
 
 }
 
@@ -91,10 +94,9 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
 const prismaBase =
   globalForPrisma.prisma ??
   (() => {
-    console.log("Initializing NEW Prisma Client with URL:", databaseUrl);
     return new PrismaClient({
       adapter,
-      log: ['query', 'error', 'warn'],
+      log: isProd ? ['error', 'warn'] : ['query', 'error', 'warn'],
       datasources: isLibsql
         ? undefined
         : {

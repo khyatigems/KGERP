@@ -437,10 +437,12 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
              toast.success(msg);
 
              const created = !initialData && isCreatedInventoryResult(result) ? result : null;
-             if (created) {
-                setCreatedInfo(created);
-                setCreatedDialogOpen(true);
-                setCreatedRedirectPending(Boolean(shouldRedirect));
+             
+             // Save & Add New: keep on page and show details dialog (optional)
+             if (!shouldRedirect && created) {
+               setCreatedInfo(created);
+               setCreatedDialogOpen(true);
+               setCreatedRedirectPending(false);
              }
              
              if (!initialData) {
@@ -454,11 +456,9 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
              }
              
              if (shouldRedirect) {
-                 if (!created) {
-                   setTimeout(() => {
-                       router.push("/inventory");
-                   }, 1000);
-                 }
+                 // Immediately go back to inventory list after successful save
+                 router.push("/inventory");
+                 return;
              } else {
                  window.scrollTo({ top: 0, behavior: 'smooth' });
              }
@@ -1412,7 +1412,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Vendor</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select Vendor" />

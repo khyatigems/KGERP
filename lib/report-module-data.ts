@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
 
+type SalesCycleFilters = {
+  from?: Date;
+  to?: Date;
+};
+
 export async function getVendorInventoryData() {
   const items = await prisma.inventory.findMany({
     where: { status: "IN_STOCK" },
@@ -71,8 +76,18 @@ export async function getTopCategoriesData() {
   return rows.map((r) => ({ ...r, contributionPct: total > 0 ? (r.revenue / total) * 100 : 0 }));
 }
 
-export async function getSalesCycleData() {
+export async function getSalesCycleData(filters: SalesCycleFilters = {}) {
   const rows = await prisma.sale.findMany({
+    where: {
+      ...(filters.from || filters.to
+        ? {
+            saleDate: {
+              ...(filters.from ? { gte: filters.from } : {}),
+              ...(filters.to ? { lte: filters.to } : {}),
+            },
+          }
+        : {}),
+    },
     select: {
       id: true,
       saleDate: true,
@@ -80,12 +95,14 @@ export async function getSalesCycleData() {
       inventory: {
         select: {
           category: true,
+          sku: true,
+          gemType: true,
           createdAt: true,
           costPrice: true
         }
       }
     },
-    take: 400,
+    take: 2000,
     orderBy: { saleDate: "desc" }
   });
   const mapped = rows.map((r) => {
@@ -93,12 +110,15 @@ export async function getSalesCycleData() {
     return {
       id: r.id,
       category: r.inventory.category || "Uncategorized",
+      sku: r.inventory.sku,
+      gemType: r.inventory.gemType || "-",
+      soldAt: r.saleDate,
       cycleDays,
       margin: (r.salePrice || 0) - (r.inventory.costPrice || 0)
     };
   });
   const avgCycle = mapped.length ? mapped.reduce((sum, r) => sum + r.cycleDays, 0) / mapped.length : 0;
-  return { avgCycle, rows: mapped.slice(0, 100) };
+  return { avgCycle, rows: mapped };
 }
 
 export async function getVendorPurchasesData() {

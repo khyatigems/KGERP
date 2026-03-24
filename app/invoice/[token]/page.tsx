@@ -268,6 +268,15 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
       if (displayOptions.showRatti && item.inventory.weightRatti) {
         details.push(`Ratti: ${item.inventory.weightRatti}`);
       }
+      if (displayOptions.showCertificates) {
+        const provider = item.inventory.certificates && item.inventory.certificates.length > 0
+          ? item.inventory.certificates.map((c) => (c.remarks ? `${c.name} (${c.remarks})` : c.name)).join(", ")
+          : (item.inventory.certification || item.inventory.certificateLab || item.inventory.lab || "");
+        const certNoRaw = item.inventory.certificateNumber || item.inventory.certificateNo || "";
+        const certNo = typeof certNoRaw === "string" ? certNoRaw.trim() : "";
+        const text = provider && certNo ? `Cert: ${provider} #${certNo}` : certNo ? `Cert No: ${certNo}` : provider ? `Cert: ${provider}` : "";
+        if (text) details.push(text);
+      }
       if (displayOptions.showPrice) {
         const rateValue = item.inventory.pricingMode === "PER_CARAT"
           ? item.inventory.sellingRatePerCarat
@@ -469,13 +478,16 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                         <><span>•</span><span>Rashi: {item.inventory.rashis.map(r => r.name).join(", ")}</span></>
                                     )}
 
-                                    {displayOptions.showCertificates && ((item.inventory.certificates && item.inventory.certificates.length > 0) || item.inventory.certification) ? (
-                                        <span>• Cert: {
-                                            item.inventory.certificates && item.inventory.certificates.length > 0
-                                                ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ")
-                                                : item.inventory.certification
-                                        }</span>
-                                    ) : null}
+                                    {displayOptions.showCertificates && (() => {
+                                      const provider = item.inventory.certificates && item.inventory.certificates.length > 0
+                                        ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ")
+                                        : (item.inventory.certification || item.inventory.certificateLab || item.inventory.lab || "");
+                                      const certNoRaw = item.inventory.certificateNumber || item.inventory.certificateNo || "";
+                                      const certNo = typeof certNoRaw === "string" ? certNoRaw.trim() : "";
+                                      const text = provider && certNo ? `Cert: ${provider} #${certNo}` : certNo ? `Cert No: ${certNo}` : provider ? `Cert: ${provider}` : "";
+                                      if (!text) return null;
+                                      return <><span>•</span><span>{text}</span></>;
+                                    })()}
                                 </div>
                                 {/* Pricing Details */}
                                 {displayOptions.showPrice && (

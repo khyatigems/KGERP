@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, Suspense } from "react";
+import React, { createContext, useContext, useState, useEffect, Suspense, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { AppLogoLoader } from "@/components/ui/app-logo-loader";
 
@@ -17,63 +17,53 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [minTimePassed, setMinTimePassed] = useState(false);
-  const [shouldHide, setShouldHide] = useState(false);
+  const startedAtRef = useRef<number | null>(null);
+  const shownForUrlRef = useRef<string>("");
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const minDurationMs = 1500;
 
-  // When pathname changes, try to hide loader, but respect min duration
-  useEffect(() => {
-    // If we were loading, now we should try to hide
-    if (isLoading) {
-      const timer = setTimeout(() => {
-        if (minTimePassed) {
-          setIsLoading(false);
-          setShouldHide(false);
-        } else {
-          setShouldHide(true);
-        }
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [pathname, searchParams, isLoading, minTimePassed]);
+  const currentUrl = (() => {
+    const qs = searchParams.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  })();
 
-  // Handle minimum duration logic
   useEffect(() => {
-    if (isLoading) {
-      const resetTimer = setTimeout(() => {
-        setMinTimePassed(false);
-        setShouldHide(false);
-      }, 0);
-      const timer = setTimeout(() => {
-        setMinTimePassed(true);
-      }, 1500); // Minimum 1.5s display time
-      return () => {
-        clearTimeout(resetTimer);
-        clearTimeout(timer);
-      };
-    }
-  }, [isLoading]);
+    if (!isLoading) return;
+    if (currentUrl === shownForUrlRef.current) return;
 
-  // Effect to close loader once min time passes if we are ready to hide
-  useEffect(() => {
-    if (minTimePassed && shouldHide) {
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-        setShouldHide(false);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [minTimePassed, shouldHide]);
+    const startedAt = startedAtRef.current ?? Date.now();
+    const elapsed = Date.now() - startedAt;
+    const remaining = Math.max(0, minDurationMs - elapsed);
+
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      setIsLoading(false);
+    }, remaining);
+
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    };
+  }, [currentUrl, isLoading]);
 
   const showLoader = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    startedAtRef.current = Date.now();
+    shownForUrlRef.current = currentUrl;
     setIsLoading(true);
   };
   
   const hideLoader = () => {
-     if (minTimePassed) {
-       setIsLoading(false);
-     } else {
-       setShouldHide(true);
-     }
+    const startedAt = startedAtRef.current ?? Date.now();
+    const elapsed = Date.now() - startedAt;
+    const remaining = Math.max(0, minDurationMs - elapsed);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      setIsLoading(false);
+    }, remaining);
   };
 
   return (

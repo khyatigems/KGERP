@@ -7,8 +7,23 @@ function assert(condition: unknown, message: string) {
 }
 
 async function run() {
-  const inv = await prisma.inventory.findFirst({ where: { status: "IN_STOCK" }, select: { id: true } });
-  assert(inv, "Need at least one IN_STOCK inventory item for integration test");
+  let inv = await prisma.inventory.findFirst({ where: { status: "IN_STOCK" }, select: { id: true } });
+  let createdInventoryId: string | null = null;
+  if (!inv) {
+    const created = await prisma.inventory.create({
+      data: {
+        sku: `TESTSKU-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        itemName: "Test Item",
+        category: "Test Category",
+        costPrice: 10000,
+        sellingPrice: 16000,
+        status: "IN_STOCK",
+      },
+      select: { id: true }
+    });
+    createdInventoryId = created.id;
+    inv = created;
+  }
 
   const sale = await prisma.sale.create({
     data: {
@@ -49,7 +64,7 @@ async function run() {
     data: { invoiceId }
   });
 
-  await prisma.payment.create({
+  const payment = await prisma.payment.create({
     data: {
       invoiceId,
       amount: 16000,
@@ -57,7 +72,8 @@ async function run() {
       date: new Date("2026-03-11T00:00:00.000Z"),
       reference: "TESTPAY",
       notes: "Integration test payment"
-    }
+    },
+    select: { id: true }
   });
   await prisma.invoice.update({
     where: { id: invoiceId },
@@ -93,8 +109,12 @@ async function run() {
   assert(Math.abs((updated!.paidAmount || 0) - 16000) < 0.01, "Paid amount must remain unchanged");
   assert(updated!.paymentStatus === "PARTIAL", "Payment status must downgrade to PARTIAL when balance increases");
 
-  await prisma.invoice.delete({ where: { id: invoiceId } });
-  await prisma.sale.delete({ where: { id: sale.id } });
+  await prisma.payment.delete({ where: { id: payment.id } }).catch(() => null);
+  await prisma.sale.delete({ where: { id: sale.id } }).catch(() => null);
+  await prisma.invoice.delete({ where: { id: invoiceId } }).catch(() => null);
+  if (createdInventoryId) {
+    await prisma.inventory.delete({ where: { id: createdInventoryId } }).catch(() => null);
+  }
 
   console.log("invoice-postpayment-charge.integration.ts passed");
 }
