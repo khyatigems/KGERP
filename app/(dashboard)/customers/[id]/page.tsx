@@ -7,6 +7,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
+import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
 
 export const metadata: Metadata = {
   title: "Customer Details | KhyatiGems™",
@@ -18,6 +19,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
+
+  await ensureCustomerSecondaryPhoneSchema();
 
   const { id } = await params;
   const customer = await prisma.customer.findUnique({ where: { id } });

@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
+import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
 
 const normalizePhone = (input: unknown) => {
   if (typeof input !== "string") return "";
@@ -47,6 +48,8 @@ export async function createCustomer(prevState: unknown, formData: FormData) {
 
   const session = await auth();
   if (!session?.user) return { message: "Unauthorized" };
+
+  await ensureCustomerSecondaryPhoneSchema();
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = customerSchema.safeParse({
@@ -98,6 +101,8 @@ export async function updateCustomer(id: string, prevState: unknown, formData: F
 
   const session = await auth();
   if (!session?.user) return { message: "Unauthorized" };
+
+  await ensureCustomerSecondaryPhoneSchema();
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = customerSchema.safeParse({

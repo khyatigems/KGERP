@@ -4,6 +4,7 @@ import { Plus, Pencil, Eye } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { buildCustomerExport } from "@/lib/customer-export";
+import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
 import { Button } from "@/components/ui/button";
 import { LoadingLink } from "@/components/ui/loading-link";
 import { ExportButton } from "@/components/ui/export-button";
@@ -29,6 +30,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
+
+  await ensureCustomerSecondaryPhoneSchema();
 
   const sp = await searchParams;
   const q = (sp.q || "").trim();

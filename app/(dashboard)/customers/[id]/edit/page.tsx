@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { CustomerForm } from "@/components/customers/customer-form";
+import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
 
 export const metadata: Metadata = {
   title: "Edit Customer | KhyatiGems™",
@@ -13,6 +14,8 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_MANAGE)) redirect("/");
+
+  await ensureCustomerSecondaryPhoneSchema();
 
   const { id } = await params;
   const customer = await prisma.customer.findUnique({ where: { id } });
@@ -31,4 +34,3 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
     </div>
   );
 }
-
