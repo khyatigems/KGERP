@@ -71,7 +71,33 @@ export default async function SalesPage() {
     },
   });
 
-  const exportData = sales.map(sale => ({
+  const parseInvoiceNo = (value: string | null | undefined) => {
+    if (!value) return null;
+    const m = /^INV-(\d{4})-(\d{4})$/.exec(value.trim());
+    if (!m) return null;
+    return { year: Number(m[1]), seq: Number(m[2]) };
+  };
+
+  const getInvoiceString = (sale: typeof sales[number]) =>
+    sale.invoice?.invoiceNumber || sale.legacyInvoice?.invoiceNumber || null;
+
+  const sortedSales = sales
+    .slice()
+    .sort((a, b) => {
+      const ai = parseInvoiceNo(getInvoiceString(a));
+      const bi = parseInvoiceNo(getInvoiceString(b));
+      if (ai && bi) {
+        if (ai.year !== bi.year) return bi.year - ai.year;
+        if (ai.seq !== bi.seq) return bi.seq - ai.seq;
+      } else if (ai && !bi) {
+        return -1;
+      } else if (!ai && bi) {
+        return 1;
+      }
+      return b.saleDate.getTime() - a.saleDate.getTime();
+    });
+
+  const exportData = sortedSales.map(sale => ({
     date: formatDate(sale.saleDate),
     invoice: sale.invoice?.invoiceNumber || sale.legacyInvoice?.invoiceNumber || "-",
     customer: sale.customerName || "Walk-in",
@@ -114,7 +140,7 @@ export default async function SalesPage() {
       </div>
 
       <div className="md:hidden">
-         <SalesCardList data={sales} canDelete={canDelete} />
+         <SalesCardList data={sortedSales} canDelete={canDelete} />
       </div>
 
       <div className="rounded-md border hidden md:block">
@@ -133,14 +159,14 @@ export default async function SalesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sales.length === 0 ? (
+            {sortedSales.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="h-24 text-center">
                   No sales recorded yet.
                 </TableCell>
               </TableRow>
             ) : (
-              sales.map((sale) => (
+              sortedSales.map((sale) => (
                 <TableRow key={sale.id}>
                   <TableCell>{formatDate(sale.saleDate)}</TableCell>
                   <TableCell className="font-medium">

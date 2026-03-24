@@ -14,6 +14,8 @@ type ByCategoryGemTypeRow = { category: string; gemType: string; items: number; 
 type ByStatusRow = { status: string; items: number };
 
 type InventoryStatsResponse = StatRow & {
+  withImagesCount: number;
+  withCertificateCount: number;
   byCategory: ByCategoryRow[];
   byGemType: ByGemTypeRow[];
   byCategoryGemType: ByCategoryGemTypeRow[];
@@ -117,7 +119,7 @@ export function InventoryStats() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Total Items</CardTitle>
@@ -144,6 +146,30 @@ export function InventoryStats() {
           <CardContent>
             <div className="text-2xl font-bold">{data ? formatCurrency(data.totalSell) : "—"}</div>
             <div className="text-xs text-muted-foreground mt-1">Sum of Selling Price</div>
+          </CardContent>
+        </Card>
+
+        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">With Images</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {data ? `${data.withImagesCount}/${data.totalItems}` : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Items having image/media</div>
+          </CardContent>
+        </Card>
+
+        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">With Certificate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {data ? `${data.withCertificateCount}/${data.totalItems}` : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">Certificate number/details present</div>
           </CardContent>
         </Card>
 

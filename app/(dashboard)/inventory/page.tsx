@@ -60,6 +60,7 @@ export default async function InventoryPage({
   const canManageAttentionVisibility = hasPermission(userRole, PERMISSIONS.INVENTORY_EDIT);
 
   const { query, status, category, gemType, color, vendorId, collectionId, rashiId, weightRange } = await searchParams;
+  const filtersKey = JSON.stringify({ query, status, category, gemType, color, vendorId, collectionId, rashiId, weightRange });
 
   const existingTables = await (async () => {
     try {
@@ -343,19 +344,21 @@ export default async function InventoryPage({
         />
       </div>
 
-      <InventoryCardList data={inventory} canManageAttentionVisibility={canManageAttentionVisibility} />
+      <div key={filtersKey} className="animate-in fade-in duration-300">
+        <InventoryCardList data={inventory} canManageAttentionVisibility={canManageAttentionVisibility} />
 
-      <InventoryTable 
-        data={inventory}
-        vendors={vendors}
-        categories={categories}
-        gemstones={gemstones}
-        colors={colors}
-        rashis={rashis}
-        certificates={certificates}
-        collections={collections}
-        canManageAttentionVisibility={canManageAttentionVisibility}
-      />
+        <InventoryTable 
+          data={inventory}
+          vendors={vendors}
+          categories={categories}
+          gemstones={gemstones}
+          colors={colors}
+          rashis={rashis}
+          certificates={certificates}
+          collections={collections}
+          canManageAttentionVisibility={canManageAttentionVisibility}
+        />
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -57,6 +57,20 @@ export function InventorySearch({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { replace } = useRouter();
+  const [isApplying, setIsApplying] = useState(false);
+  const applyTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (applyTimerRef.current !== null) window.clearTimeout(applyTimerRef.current);
+    };
+  }, []);
+
+  const pulseApply = () => {
+    setIsApplying(true);
+    if (applyTimerRef.current !== null) window.clearTimeout(applyTimerRef.current);
+    applyTimerRef.current = window.setTimeout(() => setIsApplying(false), 450);
+  };
 
   const handleSearch = useDebouncedCallback((term: string) => {
     const params = new URLSearchParams(searchParams);
@@ -66,6 +80,7 @@ export function InventorySearch({
       params.delete("query");
     }
     params.delete("page");
+    pulseApply();
     replace(`${pathname}?${params.toString()}`);
   }, 300);
 
@@ -77,15 +92,22 @@ export function InventorySearch({
       params.delete(key);
     }
     params.delete("page");
+    pulseApply();
     replace(`${pathname}?${params.toString()}`);
   };
 
   const handleClear = () => {
+    pulseApply();
     replace(pathname);
   };
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 transition-all duration-300 ${isApplying ? "opacity-90" : "opacity-100"}`}>
+      {isApplying && (
+        <div className="h-1 w-full rounded-full bg-muted overflow-hidden border">
+          <div className="h-full w-2/3 bg-gradient-to-r from-primary via-blue-500 to-primary animate-in fade-in duration-300" />
+        </div>
+      )}
       <div className="flex flex-col gap-4 md:flex-row md:items-center">
         <Input
           placeholder="Search SKU, Name, or Category..."

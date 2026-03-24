@@ -96,7 +96,25 @@ export async function GET(request: NextRequest) {
   const recentFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const lowStockThreshold = 2;
 
-  const [totalItems, sums, byCategory, byGemType, byCategoryGemType, byStatus, lowStockCount, recentAddedCount] = await Promise.all([
+  const imagesWhere = {
+    ...where,
+    OR: [
+      { imageUrl: { not: null } },
+      { media: { some: {} } },
+    ],
+  } as unknown as Prisma.InventoryWhereInput;
+
+  const certificateWhere = {
+    ...where,
+    OR: [
+      { certificateNo: { not: null } },
+      { certificateNumber: { not: null } },
+      { certification: { not: null } },
+      { lab: { not: null } },
+    ],
+  } as unknown as Prisma.InventoryWhereInput;
+
+  const [totalItems, sums, byCategory, byGemType, byCategoryGemType, byStatus, lowStockCount, recentAddedCount, withImagesCount, withCertificateCount] = await Promise.all([
     prisma.inventory.count({ where }),
     prisma.inventory.aggregate({ where, _sum: { sellingPrice: true } }),
     prisma.inventory.groupBy({
@@ -133,6 +151,8 @@ export async function GET(request: NextRequest) {
       },
     }),
     prisma.inventory.count({ where: { ...where, createdAt: { gte: recentFrom } } }),
+    prisma.inventory.count({ where: imagesWhere }),
+    prisma.inventory.count({ where: certificateWhere }),
   ]);
 
   return NextResponse.json({
@@ -140,6 +160,8 @@ export async function GET(request: NextRequest) {
     totalSell: sums._sum.sellingPrice || 0,
     lowStockCount,
     recentAddedCount,
+    withImagesCount,
+    withCertificateCount,
     byStatus: byStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
     byCategory: byCategory.map((r) => ({
       category: r.category || "Uncategorized",
