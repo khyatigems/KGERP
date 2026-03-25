@@ -90,6 +90,11 @@ export async function POST(request: NextRequest) {
       );
 
       for (const it of items as Array<{ inventoryId: string; quantity: number; sellingPrice: number; resaleable: boolean }>) {
+        const invItem = await tx.inventory.findUnique({ where: { id: it.inventoryId }, select: { status: true, costPrice: true, sellingPrice: true, sku: true, itemName: true } });
+        if (!invItem) throw new Error("Inventory item not found");
+        if (invItem.status === "IN_STOCK") {
+          throw new Error(`Item ${invItem.sku} is already IN_STOCK; cannot return twice`);
+        }
         await tx.$executeRawUnsafe(
           `INSERT INTO SalesReturnItem (id, salesReturnId, inventoryId, quantity, sellingPrice, resaleable)
            VALUES (?, ?, ?, ?, ?, ?)`,
@@ -101,7 +106,24 @@ export async function POST(request: NextRequest) {
           it.resaleable ? 1 : 0
         );
         const placement = computeReturnStockPlacement({ daysSinceInvoice: days, resaleable: Boolean(it.resaleable) });
-        await tx.inventory.update({ where: { id: it.inventoryId }, data: placement });
+        // Restock at original cost valuation (costPrice unchanged)
+        await tx.inventory.update({
+          where: { id: it.inventoryId },
+          data: placement,
+        });
+        // Audit trail for price difference
+        await tx.activityLog.create({
+          data: {
+            entityType: "SalesReturnItem",
+            entityId: it.inventoryId,
+            entityIdentifier: invItem.sku,
+            actionType: "RETURN_VALUATION",
+            source: "WEB",
+            userId: session.user.id,
+            userName: session.user.name || session.user.email || "Unknown",
+            details: `Return valuation for ${invItem.itemName} (${invItem.sku}) — selling price: ${it.sellingPrice}, original cost: ${invItem.costPrice}, delta: ${round2(it.sellingPrice - invItem.costPrice)}`,
+          },
+        });
       }
 
       let creditNoteId: string | undefined;

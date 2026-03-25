@@ -107,17 +107,38 @@ export async function GET(request: NextRequest) {
     : [];
   const customerById = new Map(customers.map((c) => [c.id, c]));
 
+  let taxableSum = 0;
+  let gstSum = 0;
   const mappedInvoices: GstrInvoiceRow[] = invoices.map((inv) => {
     const sale0 = inv.sales[0];
     const customer = sale0?.customerId ? customerById.get(sale0.customerId) : undefined;
     const posState = normalizeState(customer?.state || sale0?.placeOfSupply || sale0?.customerCity || "");
     const interstate = Boolean(companyState && posState && companyState.toLowerCase() !== posState.toLowerCase());
     const customerGstin = (customer?.gstin || "").trim() || null;
+    const displayOptions = (() => {
+      try {
+        return inv.displayOptions ? (JSON.parse(inv.displayOptions) as Record<string, unknown>) : {};
+      } catch {
+        return {};
+      }
+    })();
+    const gst = computeInvoiceGst({
+      items: inv.sales.map((s) => ({
+        salePrice: s.salePrice,
+        netAmount: s.netAmount,
+        discountAmount: s.discountAmount,
+        inventory: { category: s.inventory.category, itemName: s.inventory.itemName },
+      })),
+      gstRates,
+      displayOptions,
+    });
+    taxableSum = round2(taxableSum + gst.taxableTotal);
+    gstSum = round2(gstSum + gst.gstTotal);
     return {
       invoiceNumber: inv.invoiceNumber,
       invoiceDate: inv.invoiceDate,
-      subtotal: inv.subtotal,
-      taxTotal: inv.taxTotal,
+      subtotal: gst.taxableTotal,
+      taxTotal: gst.gstTotal,
       totalAmount: inv.totalAmount,
       posState,
       interstate,
@@ -262,8 +283,8 @@ export async function GET(request: NextRequest) {
     cdnrCount: cdnr.length,
     cdnurCount: cdnur.length,
     totals: {
-      taxable: round2(mappedInvoices.reduce((s, i) => s + (i.subtotal || 0), 0)),
-      tax: round2(mappedInvoices.reduce((s, i) => s + (i.taxTotal || 0), 0)),
+      taxable: round2(taxableSum),
+      tax: round2(gstSum),
       total: round2(mappedInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0)),
     },
   };

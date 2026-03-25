@@ -81,7 +81,9 @@ export default async function SalesReturnsPage() {
                 ) : (
                   rows.map((r: { id: string; returnNumber: string; returnDate: string; disposition: string; invoiceNumber: string; customerName: string | null }) => (
                     <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.returnNumber}</TableCell>
+                      <TableCell className="font-medium">
+                        <Link href={`/sales-returns/${r.id}`} className="underline">{r.returnNumber}</Link>
+                      </TableCell>
                       <TableCell>{formatDate(r.returnDate)}</TableCell>
                       <TableCell>{r.invoiceNumber}</TableCell>
                       <TableCell>

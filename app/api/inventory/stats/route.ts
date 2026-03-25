@@ -21,9 +21,7 @@ const toDate = (value: string | null) => {
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.INVENTORY_VIEW)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  // Allow dashboard widgets to load stats for authenticated users
 
   const sp = request.nextUrl.searchParams;
   const q = (sp.get("q") || sp.get("query") || "").trim();

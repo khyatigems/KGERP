@@ -43,7 +43,7 @@ const updateCodeSchema = z.object({
 });
 
 const setStatusSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().trim().min(1, "Invalid ID"),
   status: z.enum(["ACTIVE", "INACTIVE"]),
 });
 
@@ -327,8 +327,8 @@ export async function setCodeStatus(group: CodeGroup, formData: FormData) {
   if (!session?.user) return { error: "Unauthorized" };
 
   const rawData = {
-    id: formData.get("id"),
-    status: formData.get("status"),
+    id: String(formData.get("id") ?? ""),
+    status: String(formData.get("status") ?? ""),
   };
   const parsed = setStatusSchema.safeParse(rawData);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
