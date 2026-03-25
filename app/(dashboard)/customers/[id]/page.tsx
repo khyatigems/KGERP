@@ -5,10 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CustomerReceivables } from "@/components/customers/customer-receivables";
 import { formatDate } from "@/lib/utils";
 import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
+import { CustomerDetailTabs } from "@/components/customers/customer-detail-tabs";
 
 export const metadata: Metadata = {
   title: "Customer Details | KhyatiGems™",
@@ -47,44 +46,25 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div><span className="text-muted-foreground">Email:</span> {customer.email || "-"}</div>
-            <div><span className="text-muted-foreground">Primary Phone:</span> {customer.phone || "-"}</div>
-            <div><span className="text-muted-foreground">Secondary Phone:</span> {phoneSecondary || "-"}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Address</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="whitespace-pre-wrap">{customer.address || "-"}</div>
-            <div>
-              {[customer.city, customer.state, customer.country].filter(Boolean).join(", ") || "-"}
-            </div>
-            <div><span className="text-muted-foreground">Pincode:</span> {customer.pincode || "-"}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Business (Optional)</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2 md:grid-cols-3 text-sm">
-          <div><span className="text-muted-foreground">PAN:</span> {customer.pan || "-"}</div>
-          <div><span className="text-muted-foreground">GSTIN:</span> {customer.gstin || "-"}</div>
-          <div><span className="text-muted-foreground">Updated:</span> {formatDate(customer.updatedAt)}</div>
-          <div className="md:col-span-3 whitespace-pre-wrap"><span className="text-muted-foreground">Notes:</span> {customer.notes || "-"}</div>
-        </CardContent>
-      </Card>
-
-      <CustomerReceivables customerId={customer.id} customerName={customer.name} />
+      <CustomerDetailTabs
+        customer={{
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          phoneSecondary,
+          address: customer.address,
+          city: customer.city,
+          state: customer.state,
+          country: customer.country,
+          pincode: customer.pincode,
+          pan: customer.pan,
+          gstin: customer.gstin,
+          notes: customer.notes,
+          createdAt: customer.createdAt,
+          updatedAt: customer.updatedAt,
+        }}
+      />
     </div>
   );
 }

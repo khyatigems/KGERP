@@ -10,7 +10,9 @@ export const dynamic = "force-dynamic";
 export default async function NewSalesReturnPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.SALES_MANAGE)) redirect("/");
+  if (!hasPermission(session.user.role, PERMISSIONS.SALES_CREATE)) redirect("/");
+
+  const company = await prisma.companySettings.findFirst({ select: { state: true } });
 
   const invoices = await prisma.invoice.findMany({
     where: { isActive: true },
@@ -28,6 +30,9 @@ export default async function NewSalesReturnPage() {
     id: inv.id,
     invoiceNumber: inv.invoiceNumber,
     invoiceDate: inv.invoiceDate,
+    subtotal: inv.subtotal,
+    taxTotal: inv.taxTotal,
+    placeOfSupply: inv.sales?.[0]?.placeOfSupply || inv.sales?.[0]?.customerCity || "",
     items: inv.sales.map((s) => ({
       inventoryId: s.inventoryId,
       sku: s.inventory.sku,
@@ -47,10 +52,9 @@ export default async function NewSalesReturnPage() {
           <CardTitle>Return Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <SalesReturnForm invoices={invoiceOptions} />
+          <SalesReturnForm invoices={invoiceOptions} companyState={company?.state || ""} />
         </CardContent>
       </Card>
     </div>
   );
 }
-

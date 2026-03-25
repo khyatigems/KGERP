@@ -7,11 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { formatCurrency } from "@/lib/utils";
 
 type InvoiceOption = {
   id: string;
   invoiceNumber: string;
   invoiceDate: string | Date | null;
+  subtotal: number;
+  taxTotal: number;
+  placeOfSupply: string;
   items: Array<{ inventoryId: string; sku: string; itemName: string; sellingPrice: number; quantity: number }>;
 };
 
@@ -22,7 +26,22 @@ type ReturnItemState = {
   resaleable: boolean;
 };
 
-export function SalesReturnForm({ invoices }: { invoices: InvoiceOption[] }) {
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+function computeGstSplit(input: { taxable: number; rate: number; companyState: string; placeOfSupply: string }) {
+  const totalTax = round2(input.taxable * input.rate);
+  const company = (input.companyState || "").trim().toLowerCase();
+  const pos = (input.placeOfSupply || "").trim().toLowerCase();
+  const interstate = Boolean(company && pos && company !== pos);
+  if (interstate) return { igst: totalTax, cgst: 0, sgst: 0, totalTax };
+  const half = round2(totalTax / 2);
+  const remainder = round2(totalTax - half - half);
+  return { igst: 0, cgst: half + remainder, sgst: half, totalTax };
+}
+
+export function SalesReturnForm({ invoices, companyState }: { invoices: InvoiceOption[]; companyState: string }) {
   const [invoiceId, setInvoiceId] = useState<string>("");
   const [disposition, setDisposition] = useState<"REFUND" | "REPLACEMENT">("REFUND");
   const [remarks, setRemarks] = useState("");
@@ -67,6 +86,19 @@ export function SalesReturnForm({ invoices }: { invoices: InvoiceOption[] }) {
         resaleable: itemsState[it.inventoryId].resaleable,
       }));
   }, [invoice, itemsState]);
+
+  const totals = useMemo(() => {
+    if (!invoice) return null;
+    const taxable = selectedItems.reduce((s, it) => s + Number(it.quantity || 1) * Number(it.sellingPrice || 0), 0);
+    const rate = invoice.subtotal > 0 ? invoice.taxTotal / invoice.subtotal : 0;
+    const split = computeGstSplit({ taxable, rate, companyState, placeOfSupply: invoice.placeOfSupply });
+    return {
+      taxable: round2(taxable),
+      rate,
+      ...split,
+      total: round2(taxable + split.totalTax),
+    };
+  }, [invoice, selectedItems, companyState]);
 
   const submit = async () => {
     if (!invoiceId) {
@@ -146,7 +178,7 @@ export function SalesReturnForm({ invoices }: { invoices: InvoiceOption[] }) {
                 <TableHead className="w-[60px]">Return</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>Item</TableHead>
-                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="text-right w-[160px]">Price</TableHead>
                 <TableHead className="text-right w-[140px]">Qty</TableHead>
                 <TableHead className="text-right w-[140px]">Resaleable</TableHead>
               </TableRow>
@@ -169,7 +201,20 @@ export function SalesReturnForm({ invoices }: { invoices: InvoiceOption[] }) {
                     </TableCell>
                     <TableCell className="font-medium">{it.sku}</TableCell>
                     <TableCell>{it.itemName}</TableCell>
-                    <TableCell className="text-right">{it.sellingPrice.toLocaleString("en-IN")}</TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        type="number"
+                        min={0}
+                        value={st?.sellingPrice ?? it.sellingPrice}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          setItemsState((prev) => ({
+                            ...prev,
+                            [it.inventoryId]: { ...prev[it.inventoryId], sellingPrice: Number.isFinite(n) && n >= 0 ? n : 0 },
+                          }));
+                        }}
+                      />
+                    </TableCell>
                     <TableCell className="text-right">
                       <Input
                         type="number"
@@ -203,6 +248,29 @@ export function SalesReturnForm({ invoices }: { invoices: InvoiceOption[] }) {
         </div>
       )}
 
+      {invoice && totals && (
+        <div className="rounded-md border p-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+          <div>
+            <div className="text-muted-foreground">Taxable</div>
+            <div className="font-medium">{formatCurrency(totals.taxable)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">GST</div>
+            <div className="font-medium">{formatCurrency(totals.totalTax)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">CGST / SGST / IGST</div>
+            <div className="font-medium">
+              {formatCurrency(totals.cgst)} / {formatCurrency(totals.sgst)} / {formatCurrency(totals.igst)}
+            </div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Total</div>
+            <div className="font-medium">{formatCurrency(totals.total)}</div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {selectedItems.length ? `${selectedItems.length} item(s) selected` : ""}
@@ -227,4 +295,3 @@ export function SalesReturnForm({ invoices }: { invoices: InvoiceOption[] }) {
     </div>
   );
 }
-

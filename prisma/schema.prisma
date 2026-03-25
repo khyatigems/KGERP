@@ -605,6 +605,12 @@ model SalesReturn {
   returnNumber String           @unique
   returnDate   DateTime         @default(now())
   disposition  String
+  taxableAmount Float           @default(0)
+  igst         Float           @default(0)
+  cgst         Float           @default(0)
+  sgst         Float           @default(0)
+  totalTax     Float           @default(0)
+  totalAmount  Float           @default(0)
   remarks      String?
   createdById  String?
   createdAt    DateTime         @default(now())
@@ -637,6 +643,11 @@ model CreditNote {
   creditNoteNumber String   @unique
   issueDate        DateTime @default(now())
   totalAmount      Float
+  taxableAmount    Float    @default(0)
+  igst             Float    @default(0)
+  cgst             Float    @default(0)
+  sgst             Float    @default(0)
+  totalTax         Float    @default(0)
   balanceAmount    Float
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())

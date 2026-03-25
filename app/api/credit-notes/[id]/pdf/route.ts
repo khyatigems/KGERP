@@ -14,43 +14,57 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const creditNote = await prisma.creditNote.findUnique({
-    where: { id },
-    include: {
-      customer: true,
-      invoice: {
-        select: {
-          id: true,
-          invoiceNumber: true,
-          salesReturns: {
-            take: 1,
-            orderBy: { returnDate: "desc" },
-            include: {
-              items: {
-                include: { inventory: { select: { sku: true, itemName: true } } },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-
+  const rows = await prisma.$queryRawUnsafe<
+    Array<{
+      id: string;
+      creditNoteNumber: string;
+      issueDate: string;
+      totalAmount: number;
+      invoiceId: string | null;
+      invoiceNumber: string | null;
+      customerName: string | null;
+    }>
+  >(
+    `SELECT cn.id,
+            cn.creditNoteNumber,
+            cn.issueDate,
+            cn.totalAmount,
+            cn.invoiceId,
+            i.invoiceNumber as invoiceNumber,
+            c.name as customerName
+     FROM CreditNote cn
+     LEFT JOIN Invoice i ON i.id = cn.invoiceId
+     LEFT JOIN Customer c ON c.id = cn.customerId
+     WHERE cn.id = ?
+     LIMIT 1`,
+    id
+  );
+  const creditNote = rows[0];
   if (!creditNote) return NextResponse.json({ error: "Not Found" }, { status: 404 });
 
   const company = await prisma.companySettings.findFirst();
-  const items = (creditNote.invoice?.salesReturns?.[0]?.items || []).map((it) => ({
-    description: `${it.inventory.sku} - ${it.inventory.itemName}`,
-    qty: it.quantity,
-    price: it.sellingPrice,
-  }));
+
+  const items = creditNote.invoiceId
+    ? await prisma.$queryRawUnsafe<Array<{ description: string; qty: number; price: number }>>(
+        `SELECT (inv.sku || ' - ' || inv.itemName) as description,
+                sri.quantity as qty,
+                sri.sellingPrice as price
+         FROM SalesReturn sr
+         JOIN SalesReturnItem sri ON sri.salesReturnId = sr.id
+         JOIN Inventory inv ON inv.id = sri.inventoryId
+         WHERE sr.invoiceId = ?
+         ORDER BY sr.returnDate DESC
+         LIMIT 50`,
+        creditNote.invoiceId
+      )
+    : [];
 
   const pdf = await generateCreditNotePDF({
     company: { name: company?.companyName || "Khyati Gems", gstin: company?.gstin || undefined },
-    customer: { name: creditNote.customer?.name || "Customer" },
+    customer: { name: creditNote.customerName || "Customer" },
     creditNoteNumber: creditNote.creditNoteNumber,
-    invoiceNumber: creditNote.invoice?.invoiceNumber || undefined,
-    issueDate: creditNote.issueDate,
+    invoiceNumber: creditNote.invoiceNumber || undefined,
+    issueDate: new Date(creditNote.issueDate),
     items: items.length ? items : [{ description: "Return Adjustment", qty: 1, price: creditNote.totalAmount }],
     totalAmount: creditNote.totalAmount,
   });

@@ -34,12 +34,31 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     orderBy: { invoiceDate: "desc" },
   });
 
+  const followUpByInvoiceId = new Map<string, { lastDate: string | null; count: number }>();
+  if (invoices.length) {
+    try {
+      const placeholders = invoices.map(() => "?").join(", ");
+      const ids = invoices.map((i) => i.id);
+      const rows = await prisma.$queryRawUnsafe<Array<{ invoiceId: string; lastDate: string | null; count: number }>>(
+        `SELECT invoiceId, MAX(date) as lastDate, COUNT(1) as count
+         FROM FollowUp
+         WHERE invoiceId IN (${placeholders})
+         GROUP BY invoiceId`,
+        ...ids
+      );
+      for (const r of rows) followUpByInvoiceId.set(r.invoiceId, { lastDate: r.lastDate, count: Number(r.count || 0) });
+    } catch {
+      // ignore missing table or other issues
+    }
+  }
+
   const rows = invoices.map((inv) => {
     const due = inv.dueDate || inv.invoiceDate || today;
     const days = Math.floor((today.getTime() - new Date(due).getTime()) / (1000 * 60 * 60 * 24));
     const amount = inv.totalAmount || 0;
     const paid = inv.paidAmount || 0;
     const balance = Math.max(0, amount - paid);
+    const fu = followUpByInvoiceId.get(inv.id);
     return {
       id: inv.id,
       invoice: inv.invoiceNumber,
@@ -50,6 +69,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       paid,
       balance,
       paymentStatus: inv.paymentStatus,
+      lastFollowUpDate: fu?.lastDate || null,
+      followUpCount: fu?.count || 0,
     };
   });
 

@@ -16,13 +16,15 @@ export default async function SalesReturnsPage() {
   if (!session?.user) redirect("/login");
   if (!hasPermission(session.user.role, PERMISSIONS.SALES_VIEW)) redirect("/");
 
-  const rows = await prisma.salesReturn.findMany({
-    orderBy: { returnDate: "desc" },
-    include: {
-      invoice: { select: { invoiceNumber: true } },
-    },
-    take: 200,
-  });
+  const rows = await prisma.$queryRawUnsafe<
+    Array<{ id: string; returnNumber: string; returnDate: string; disposition: string; invoiceNumber: string }>
+  >(
+    `SELECT sr.id, sr.returnNumber, sr.returnDate, sr.disposition, i.invoiceNumber
+     FROM SalesReturn sr
+     JOIN Invoice i ON i.id = sr.invoiceId
+     ORDER BY sr.returnDate DESC
+     LIMIT 200`
+  );
 
   return (
     <div className="space-y-6">
@@ -31,7 +33,7 @@ export default async function SalesReturnsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Sales Returns</h1>
           <p className="text-sm text-muted-foreground">Create returns and credit notes against invoices.</p>
         </div>
-        {hasPermission(session.user.role, PERMISSIONS.SALES_MANAGE) && (
+        {hasPermission(session.user.role, PERMISSIONS.SALES_CREATE) && (
           <Button asChild>
             <Link href="/sales-returns/new">
               <Plus className="mr-2 h-4 w-4" />
@@ -64,11 +66,11 @@ export default async function SalesReturnsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  rows.map((r) => (
+                  rows.map((r: { id: string; returnNumber: string; returnDate: string; disposition: string; invoiceNumber: string }) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.returnNumber}</TableCell>
                       <TableCell>{formatDate(r.returnDate)}</TableCell>
-                      <TableCell>{r.invoice.invoiceNumber}</TableCell>
+                      <TableCell>{r.invoiceNumber}</TableCell>
                       <TableCell>{r.disposition}</TableCell>
                     </TableRow>
                   ))
@@ -81,4 +83,3 @@ export default async function SalesReturnsPage() {
     </div>
   );
 }
-
