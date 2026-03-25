@@ -6,18 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export function InventoryCompletenessWidget() {
-  const { data } = useSWR<{ totalItems: number; withImagesCount: number; withCertificateCount: number; withHsnCount: number; completenessAllCount: number }>(
+  const { data } = useSWR<{ totalItems: number; overallTotalItems?: number; withImagesCount: number; withCertificateCount: number; withHsnCount: number; completenessAllCount: number }>(
     "/api/inventory/stats",
     fetcher
   );
 
   const total = data?.totalItems || 0;
+  const overall = data?.overallTotalItems || total;
   const images = data?.withImagesCount || 0;
   const certs = data?.withCertificateCount || 0;
   const hsn = data?.withHsnCount || 0;
   const all = data?.completenessAllCount || 0;
 
-  const pct = total > 0 ? Math.round((all / total) * 100) : 0;
+  const pct = overall > 0 ? Math.round((all / overall) * 100) : 0;
 
   return (
     <Card>
@@ -48,13 +49,12 @@ export function InventoryCompletenessWidget() {
           </svg>
         </div>
         <div className="text-sm space-y-1">
-          <div>With Images: <span className="font-medium">{images}/{total}</span></div>
-          <div>With Certificate: <span className="font-medium">{certs}/{total}</span></div>
-          <div>With HSN: <span className="font-medium">{hsn}/{total}</span></div>
-          <div className="text-xs text-muted-foreground">All three present: {all}/{total}</div>
+          <div>With Images: <span className="font-medium">{images}/{overall}</span></div>
+          <div>With Certificate: <span className="font-medium">{certs}/{overall}</span></div>
+          <div>With HSN: <span className="font-medium">{hsn}/{overall}</span></div>
+          <div className="text-xs text-muted-foreground">All three present: {all}/{overall}</div>
         </div>
       </CardContent>
     </Card>
   );
 }
-

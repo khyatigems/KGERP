@@ -202,20 +202,7 @@ export function SalesReturnForm({ invoices, companyState }: { invoices: InvoiceO
                     </TableCell>
                     <TableCell className="font-medium">{it.sku}</TableCell>
                     <TableCell>{it.itemName}</TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        type="number"
-                        min={0}
-                        value={st?.sellingPrice ?? it.sellingPrice}
-                        onChange={(e) => {
-                          const n = Number(e.target.value);
-                          setItemsState((prev) => ({
-                            ...prev,
-                            [it.inventoryId]: { ...prev[it.inventoryId], sellingPrice: Number.isFinite(n) && n >= 0 ? n : 0 },
-                          }));
-                        }}
-                      />
-                    </TableCell>
+                    <TableCell className="text-right">{(st?.sellingPrice ?? it.sellingPrice).toLocaleString("en-IN")}</TableCell>
                     <TableCell className="text-right">
                       <Input
                         type="number"

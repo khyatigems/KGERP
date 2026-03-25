@@ -84,7 +84,7 @@ export default async function SalesReturnDetailsPage({ params }: { params: Promi
     srRow.id
   );
 
-  const invIds = items.map((it: any) => it.inventoryId).filter(Boolean);
+  const invIds = items.map((it) => it.inventoryId).filter((x): x is string => Boolean(x));
   const logs = invIds.length
     ? await prisma.activityLog.findMany({
         where: { entityType: "SalesReturnItem", entityId: { in: invIds } },
@@ -164,7 +164,7 @@ export default async function SalesReturnDetailsPage({ params }: { params: Promi
                     </TableCell>
                   </TableRow>
                 ) : (
-                  items.map((it: any) => {
+                  items.map((it) => {
                     const delta = Math.round(((it.sellingPrice || 0) - (it.costPrice || 0)) * 100) / 100;
                     const log = it.inventoryId ? byInvId.get(it.inventoryId) : undefined;
                     return (

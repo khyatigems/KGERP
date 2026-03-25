@@ -37,7 +37,8 @@ export default async function NewSalesReturnPage() {
       inventoryId: s.inventoryId,
       sku: s.inventory.sku,
       itemName: s.inventory.itemName,
-      sellingPrice: s.salePrice || s.netAmount || 0,
+      // Use final invoice net (inclusive) for refund amount
+      sellingPrice: s.netAmount || s.salePrice || 0,
       quantity: 1,
     })),
   }));
