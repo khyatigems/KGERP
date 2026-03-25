@@ -10,6 +10,7 @@ import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -62,13 +63,16 @@ export function CustomerDeleteButton({ customerId }: { customerId: string }) {
   const hasLinked = useMemo(() => {
     if (!impact) return true;
     return (
-      impact.salesCount > 0 ||
-      impact.quotationCount > 0 ||
       impact.invoiceCount > 0 ||
       impact.paymentCount > 0 ||
       impact.creditNoteCount > 0 ||
       impact.creditBalance > 0.009
     );
+  }, [impact]);
+
+  const hasQuotations = useMemo(() => {
+    if (!impact) return false;
+    return impact.quotationCount > 0;
   }, [impact]);
 
   const canConfirm = useMemo(() => {
@@ -101,6 +105,9 @@ export function CustomerDeleteButton({ customerId }: { customerId: string }) {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. Delete is blocked when invoices/payments/credit notes exist. If only quotations exist, they will be deleted along with the customer.
+          </AlertDialogDescription>
         </AlertDialogHeader>
         {!impact ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
@@ -118,7 +125,11 @@ export function CustomerDeleteButton({ customerId }: { customerId: string }) {
               </div>
               {hasLinked ? (
                 <div className="text-sm text-destructive font-medium">
-                  Cannot delete: linked records exist. Remove/merge the linked records first.
+                  Cannot delete: invoices/payments/credit notes are linked. Remove/merge the linked records first.
+                </div>
+              ) : hasQuotations ? (
+                <div className="text-sm text-amber-600 font-medium">
+                  Warning: {impact.quotationCount} quotation(s) will also be deleted.
                 </div>
               ) : null}
             </div>

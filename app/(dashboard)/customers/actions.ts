@@ -270,24 +270,26 @@ export async function deleteCustomer(customerId: string) {
   if (!impactRes.success || !impactRes.impact) return { success: false, message: impactRes.message || "Unable to delete customer" };
 
   const impact = impactRes.impact;
-  const hasLinked =
+  const hasHardLinked =
     impact.salesCount > 0 ||
-    impact.quotationCount > 0 ||
     impact.invoiceCount > 0 ||
     impact.paymentCount > 0 ||
     impact.creditNoteCount > 0 ||
     impact.creditBalance > 0.009;
 
-  if (hasLinked) {
+  if (hasHardLinked) {
     return {
       success: false,
       message:
-        "Customer cannot be deleted because linked records exist (sales/quotations/invoices/payments/credit notes).",
+        "Customer cannot be deleted because linked records exist (sales/invoices/payments/credit notes).",
     };
   }
 
   await ensureReturnsSchema();
   await prisma.$transaction(async (tx) => {
+    if (impact.quotationCount > 0) {
+      await tx.quotation.deleteMany({ where: { customerId: customerId } });
+    }
     await tx.$executeRawUnsafe(`DELETE FROM CustomerCode WHERE customerId = ?`, customerId);
     await tx.customer.delete({ where: { id: customerId } });
   });
