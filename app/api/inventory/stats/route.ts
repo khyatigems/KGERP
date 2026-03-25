@@ -5,6 +5,32 @@ import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
+type PrismaRecord = Record<string, unknown>;
+type PackagingSettingsRow = { categoryHsnJson?: string | null };
+type PackagingSettingsDelegate = { findFirst: (args?: PrismaRecord) => Promise<PackagingSettingsRow | null> };
+type PackagingPrismaClient = typeof prisma & { gpisSettings: PackagingSettingsDelegate };
+const packagingPrisma = prisma as unknown as PackagingPrismaClient;
+
+function parseCategoryHsnJson(input: unknown): Record<string, string> {
+  if (typeof input !== "string" || !input.trim()) return {};
+  try {
+    const parsed = JSON.parse(input) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof k !== "string") continue;
+      if (typeof v !== "string") continue;
+      const key = k.trim();
+      const val = v.trim();
+      if (!key || !val) continue;
+      out[key] = val;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 const toNumber = (value: string | null) => {
   if (!value) return undefined;
   const n = Number(value);
@@ -112,7 +138,10 @@ export async function GET(request: NextRequest) {
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
-  const hsnWhere = {
+  const categoryHsnMap = parseCategoryHsnJson((await packagingPrisma.gpisSettings.findFirst())?.categoryHsnJson ?? null);
+  const mappedCategories = Object.keys(categoryHsnMap).filter(Boolean);
+
+  const hsnFieldWhere = {
     ...where,
     AND: [
       { hsnCode: { not: null } },
@@ -120,11 +149,22 @@ export async function GET(request: NextRequest) {
     ],
   } satisfies Prisma.InventoryWhereInput;
 
+  const hsnMappedWhere = mappedCategories.length
+    ? ({ ...where, category: { in: mappedCategories } } satisfies Prisma.InventoryWhereInput)
+    : ({ ...where, id: { equals: "__NO_MATCH__" } } satisfies Prisma.InventoryWhereInput);
+
+  const hsnReadyWhere = mappedCategories.length
+    ? ({
+        ...where,
+        OR: [hsnFieldWhere, hsnMappedWhere],
+      } as unknown as Prisma.InventoryWhereInput)
+    : hsnFieldWhere;
+
   const completenessWhere = {
     AND: [
       imagesWhere,
       certificateWhere,
-      hsnWhere,
+      hsnReadyWhere,
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
@@ -172,7 +212,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.inventory.count({ where: imagesWhere }),
     prisma.inventory.count({ where: certificateWhere }),
-    prisma.inventory.count({ where: hsnWhere }),
+    prisma.inventory.count({ where: hsnReadyWhere }),
     prisma.inventory.count({ where: completenessWhere }),
     prisma.inventory.count({ where: overallWhere }),
     prisma.inventory.groupBy({

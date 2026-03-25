@@ -184,39 +184,124 @@ export async function updateCustomer(id: string, prevState: unknown, formData: F
   }
 }
 
-export async function deleteCustomer(id: string) {
+export async function getCustomerDeleteImpact(customerId: string) {
   const perm = await checkPermission(PERMISSIONS.CUSTOMER_MANAGE);
-  if (!perm.success) return { message: perm.message };
+  if (!perm.success) return { success: false, message: perm.message, impact: null as null };
 
   const session = await auth();
-  if (!session?.user) return { message: "Unauthorized" };
+  if (!session?.user) return { success: false, message: "Unauthorized", impact: null as null };
 
-  const existing = await prisma.customer.findUnique({ where: { id } });
-  if (!existing) return { message: "Customer not found" };
+  await ensureReturnsSchema();
 
-  const linked = await prisma.sale.findFirst({ where: { customerId: id }, select: { id: true } });
-  const linkedQuote = await prisma.quotation.findFirst({ where: { customerId: id }, select: { id: true } });
-  if (linked || linkedQuote) {
-    return { message: "Cannot delete customer linked to sales/quotations" };
-  }
+  const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+  if (!customer) return { success: false, message: "Customer not found", impact: null as null };
 
-  try {
-    await prisma.customer.delete({ where: { id } });
+  const [salesCount, quotationCount, invoiceCount, paymentCount] = await Promise.all([
+    prisma.sale.count({ where: { customerId } }).catch(() => 0),
+    prisma.quotation.count({ where: { customerId } }).catch(() => 0),
+    prisma.invoice.count({
+      where: {
+        OR: [
+          { quotation: { customerId } },
+          { sales: { some: { customerId } } },
+        ],
+      },
+    }).catch(() => 0),
+    prisma.payment.count({
+      where: {
+        invoice: {
+          OR: [
+            { quotation: { customerId } },
+            { sales: { some: { customerId } } },
+          ],
+        },
+      },
+    }).catch(() => 0),
+  ]);
 
-    await logActivity({
-      entityType: "Customer",
-      entityId: id,
-      entityIdentifier: existing.name,
-      actionType: "DELETE",
-      source: "WEB",
-      userId: session.user.id,
-      userName: session.user.name || session.user.email || "Unknown",
-      oldData: existing as unknown as Record<string, unknown>,
-    });
+  const customerCode = await (async () => {
+    try {
+      const rows = await prisma.$queryRawUnsafe<Array<{ code: string }>>(
+        `SELECT code FROM CustomerCode WHERE customerId = ? LIMIT 1`,
+        customerId
+      );
+      return rows[0]?.code || null;
+    } catch {
+      return null;
+    }
+  })();
 
-    revalidatePath("/customers");
-    return { success: true };
-  } catch (e) {
-    return { message: e instanceof Error ? e.message : "Failed to delete customer" };
-  }
+  const creditNotes = await (async () => {
+    try {
+      const rows = await prisma.$queryRawUnsafe<Array<{ cnt: number; bal: number }>>(
+        `SELECT COUNT(*) as cnt, COALESCE(SUM(balanceAmount), 0) as bal FROM CreditNote WHERE customerId = ?`,
+        customerId
+      );
+      return { creditNoteCount: Number(rows[0]?.cnt || 0), creditBalance: Number(rows[0]?.bal || 0) };
+    } catch {
+      return { creditNoteCount: 0, creditBalance: 0 };
+    }
+  })();
+
+  return {
+    success: true,
+    impact: {
+      customerId,
+      customerName: customer.name,
+      customerCode,
+      salesCount,
+      quotationCount,
+      invoiceCount,
+      paymentCount,
+      creditNoteCount: creditNotes.creditNoteCount,
+      creditBalance: creditNotes.creditBalance,
+    },
+  };
 }
+
+export async function deleteCustomer(customerId: string) {
+  const perm = await checkPermission(PERMISSIONS.CUSTOMER_MANAGE);
+  if (!perm.success) return { success: false, message: perm.message };
+
+  const session = await auth();
+  if (!session?.user) return { success: false, message: "Unauthorized" };
+
+  const impactRes = await getCustomerDeleteImpact(customerId);
+  if (!impactRes.success || !impactRes.impact) return { success: false, message: impactRes.message || "Unable to delete customer" };
+
+  const impact = impactRes.impact;
+  const hasLinked =
+    impact.salesCount > 0 ||
+    impact.quotationCount > 0 ||
+    impact.invoiceCount > 0 ||
+    impact.paymentCount > 0 ||
+    impact.creditNoteCount > 0 ||
+    impact.creditBalance > 0.009;
+
+  if (hasLinked) {
+    return {
+      success: false,
+      message:
+        "Customer cannot be deleted because linked records exist (sales/quotations/invoices/payments/credit notes).",
+    };
+  }
+
+  await ensureReturnsSchema();
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`DELETE FROM CustomerCode WHERE customerId = ?`, customerId);
+    await tx.customer.delete({ where: { id: customerId } });
+  });
+
+  await logActivity({
+    entityType: "Customer",
+    entityId: customerId,
+    entityIdentifier: impact.customerCode || impact.customerName,
+    actionType: "DELETE",
+    details: `Deleted customer ${impact.customerName}`,
+  });
+
+  revalidatePath("/customers");
+  return { success: true };
+}
+
+ 

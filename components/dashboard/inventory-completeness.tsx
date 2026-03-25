@@ -58,7 +58,7 @@ export function InventoryCompletenessWidget() {
         <div className="text-sm space-y-1">
           <div>With Images: <span className="font-medium">{images}/{overall}</span></div>
           <div>With Certificate: <span className="font-medium">{certs}/{overall}</span></div>
-          <div>With HSN: <span className="font-medium">{hsn}/{overall}</span></div>
+          <div>With HSN (via settings): <span className="font-medium">{hsn}/{overall}</span></div>
           <div className="text-xs text-muted-foreground">All three present: {all}/{overall}</div>
         </div>
       </CardContent>

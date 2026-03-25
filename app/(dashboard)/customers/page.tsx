@@ -9,6 +9,7 @@ import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { Button } from "@/components/ui/button";
 import { LoadingLink } from "@/components/ui/loading-link";
 import { ExportButton } from "@/components/ui/export-button";
+import { CustomerDeleteButton } from "@/components/customers/customer-delete-button";
 import {
   Table,
   TableBody,
@@ -153,6 +154,9 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
                         Edit
                       </Link>
                     </Button>
+                    <span className="inline-flex ml-2">
+                      <CustomerDeleteButton customerId={c.id} />
+                    </span>
                   </TableCell>
                 </TableRow>
               ))

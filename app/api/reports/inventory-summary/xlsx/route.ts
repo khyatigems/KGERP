@@ -11,6 +11,7 @@ const ALL_COLS = new Set([
   "itemName",
   "category",
   "gemType",
+  "collection",
   "weightValue",
   "sellingPrice",
   "costPrice",
@@ -30,6 +31,7 @@ function headerMap(key: string) {
     itemName: "Item",
     category: "Category",
     gemType: "Gem Type",
+    collection: "Collection",
     weightValue: "Weight",
     sellingPrice: "Selling Price",
     costPrice: "Cost Price",
@@ -71,13 +73,14 @@ export async function GET(request: NextRequest) {
 
   const sp = request.nextUrl.searchParams;
   const colsRaw = (sp.get("cols") || "").split(",").map((s) => s.trim()).filter(Boolean);
-  const cols = colsRaw.length ? colsRaw.filter((c) => ALL_COLS.has(c)) : ["sku", "itemName", "category", "gemType", "weightValue", "sellingPrice"];
+  const cols = colsRaw.length ? colsRaw.filter((c) => ALL_COLS.has(c)) : ["sku", "itemName", "category", "gemType", "collection", "weightValue", "sellingPrice"];
 
   const select = {
     sku: true,
     itemName: true,
     category: true,
     gemType: true,
+    collectionCode: { select: { name: true } },
     weightValue: true,
     sellingPrice: true,
     costPrice: true,
@@ -96,6 +99,7 @@ export async function GET(request: NextRequest) {
     itemName: string;
     category: string | null;
     gemType: string | null;
+    collectionCode: { name: string } | null;
     weightValue: number | null;
     sellingPrice: number | null;
     costPrice: number | null;
@@ -109,6 +113,7 @@ export async function GET(request: NextRequest) {
     itemName: row.itemName,
     category: row.category || "Uncategorized",
     gemType: row.gemType || "",
+    collection: row.collectionCode?.name || "",
     weightValue: row.weightValue || 0,
     sellingPrice: row.sellingPrice || 0,
     costPrice: row.costPrice || 0,
@@ -133,17 +138,74 @@ export async function GET(request: NextRequest) {
     { Metric: "Total", Count: inStock.length + sold.length },
   ];
 
+  const allItems = [...inStock.map((r) => ({ ...normalize(r), status: "IN_STOCK" })), ...sold.map((r) => ({ ...normalize(r), status: "SOLD" }))];
+
+  function groupSummary(key: "category" | "gemType" | "collection") {
+    const map = new Map<string, { key: string; inStock: number; sold: number; total: number; inStockValue: number; soldValue: number }>();
+    for (const row of allItems) {
+      const k = String((row as Record<string, unknown>)[key] || "").trim() || "Unspecified";
+      const existing = map.get(k) || { key: k, inStock: 0, sold: 0, total: 0, inStockValue: 0, soldValue: 0 };
+      if (row.status === "IN_STOCK") {
+        existing.inStock += 1;
+        existing.inStockValue += Number(row.sellingPrice || 0);
+      } else {
+        existing.sold += 1;
+        existing.soldValue += Number(row.sellingPrice || 0);
+      }
+      existing.total += 1;
+      map.set(k, existing);
+    }
+    return Array.from(map.values())
+      .sort((a, b) => b.total - a.total)
+      .map((r) => ({
+        Name: r.key,
+        "In Stock": r.inStock,
+        "Sold": r.sold,
+        Total: r.total,
+        "In Stock Value": r.inStockValue,
+        "Sold Value": r.soldValue,
+      }));
+  }
+
+  const byCategorySummary = groupSummary("category");
+  const byGemTypeSummary = groupSummary("gemType");
+  const byCollectionSummary = groupSummary("collection");
+
+  const itemsCollectionRows = allItems
+    .map((r) => ({
+      SKU: r.sku,
+      Item: r.itemName,
+      Collection: r.collection || "",
+      Category: r.category,
+      "Gem Type": r.gemType,
+      Status: r.status,
+      "Selling Price": r.sellingPrice,
+    }))
+    .sort((a, b) => String(a.Collection).localeCompare(String(b.Collection)) || String(a.SKU).localeCompare(String(b.SKU)));
+
   const wb = XLSX.utils.book_new();
   const ws1 = XLSX.utils.json_to_sheet(sheetRows(inStock));
   const ws2 = XLSX.utils.json_to_sheet(sheetRows(sold));
   const ws3 = XLSX.utils.json_to_sheet(summary);
+  const ws4 = XLSX.utils.json_to_sheet(byCategorySummary);
+  const ws5 = XLSX.utils.json_to_sheet(byGemTypeSummary);
+  const ws6 = XLSX.utils.json_to_sheet(byCollectionSummary);
+  const ws7 = XLSX.utils.json_to_sheet(itemsCollectionRows);
 
   setCurrencyFormat(ws1, currencyHeaders);
   setCurrencyFormat(ws2, currencyHeaders);
+  setCurrencyFormat(ws4, ["In Stock Value", "Sold Value"]);
+  setCurrencyFormat(ws5, ["In Stock Value", "Sold Value"]);
+  setCurrencyFormat(ws6, ["In Stock Value", "Sold Value"]);
+  setCurrencyFormat(ws7, ["Selling Price"]);
 
   XLSX.utils.book_append_sheet(wb, ws1, "InStock");
   XLSX.utils.book_append_sheet(wb, ws2, "Sold");
   XLSX.utils.book_append_sheet(wb, ws3, "Summary");
+  XLSX.utils.book_append_sheet(wb, ws4, "ByCategory");
+  XLSX.utils.book_append_sheet(wb, ws5, "ByGemType");
+  XLSX.utils.book_append_sheet(wb, ws6, "ByCollection");
+  XLSX.utils.book_append_sheet(wb, ws7, "Items_Collection");
 
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" }) as unknown as Buffer;
   const filename = `Inventory_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`;

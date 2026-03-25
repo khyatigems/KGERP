@@ -48,7 +48,7 @@ export function InventorySummaryExport() {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)} title="Exports 3 sheets: InStock, Sold, Summary">
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)} title="Exports sheets: InStock, Sold, Summary, ByCategory, ByGemType, ByCollection, Items_Collection">
         Export Inventory Summary
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
