@@ -28,6 +28,8 @@ export const PERMISSIONS = {
   CUSTOMER_VIEW: "customer.view",
   CUSTOMER_MANAGE: "customer.manage",
   CUSTOMER_EXPORT: "customer.export",
+  RECEIVABLES_VIEW: "receivables.view",
+  RECEIVABLES_MANAGE: "receivables.manage",
   
   // Reports
   REPORTS_VIEW: "reports.view", // General access (Labels, Ops)

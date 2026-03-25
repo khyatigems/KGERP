@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CustomerReceivables } from "@/components/customers/customer-receivables";
 import { formatDate } from "@/lib/utils";
 import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
 
@@ -82,6 +83,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           <div className="md:col-span-3 whitespace-pre-wrap"><span className="text-muted-foreground">Notes:</span> {customer.notes || "-"}</div>
         </CardContent>
       </Card>
+
+      <CustomerReceivables customerId={customer.id} customerName={customer.name} />
     </div>
   );
 }

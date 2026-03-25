@@ -90,6 +90,21 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
 
   async function onSubmit(values: FormValues) {
     setIsPending(true);
+    // Client-side duplicate prevention by phone
+    try {
+      const phone = (values.phone || "").trim();
+      if (phone) {
+        const res = await fetch(`/api/customers/exists?phone=${encodeURIComponent(phone)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.exists) {
+            toast.error("A customer with this mobile already exists. Please search and edit the existing record.");
+            setIsPending(false);
+            return;
+          }
+        }
+      }
+    } catch {}
     const fd = new FormData();
     Object.entries(values).forEach(([k, v]) => {
       if (v === undefined || v === null) return;
@@ -316,4 +331,3 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
     </Form>
   );
 }
-

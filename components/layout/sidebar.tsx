@@ -16,6 +16,7 @@ import {
   UserCog,
   Globe,
   Printer,
+  WalletCards,
   Receipt,
   BookOpen,
   ShieldCheck
@@ -37,6 +38,7 @@ export const navItems = [
   { href: "/vendors", label: "Vendors", icon: Users },
   { href: "/customers", label: "Customers", icon: User },
   { href: "/reports", label: "Reports", icon: BarChart },
+  { href: "/reports/receivables", label: "Receivables", icon: WalletCards },
   { href: "/users", label: "Users", icon: UserCog },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

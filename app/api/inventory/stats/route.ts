@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     (where as unknown as { OR?: Prisma.InventoryWhereInput[] }).OR = or;
   }
 
-  const now = new Date();
+  // const now = new Date();
 
   const overallWhere: Prisma.InventoryWhereInput = { ...where };
   delete (overallWhere as unknown as { status?: string }).status;

@@ -81,16 +81,7 @@ export function InventoryStats() {
     return { rows, columns };
   }, [data?.byCategoryGemType]);
 
-  const statusSummary = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of data?.byStatus || []) map.set(r.status, r.items);
-    return {
-      inStock: map.get("IN_STOCK") || 0,
-      reserved: map.get("RESERVED") || 0,
-      memo: map.get("MEMO") || 0,
-      sold: map.get("SOLD") || 0,
-    };
-  }, [data?.byStatus]);
+  // Removed per user request (use overallStatusSummary instead)
 
   const overallStatusSummary = useMemo(() => {
     const map = new Map<string, number>();
