@@ -42,6 +42,11 @@ const updateCodeSchema = z.object({
   remarks: z.string().optional(), // Only for certificates
 });
 
+const setStatusSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["ACTIVE", "INACTIVE"]),
+});
+
 export async function createCode(group: CodeGroup, formData: FormData) {
   const perm = await checkPermission(PERMISSIONS.SETTINGS_MANAGE);
   if (!perm.success) return { error: perm.message };
@@ -75,18 +80,25 @@ export async function createCode(group: CodeGroup, formData: FormData) {
 
   // Check existence
   let existing;
+  let existingName;
   if (group === "categories") {
     existing = await prisma.categoryCode.findUnique({ where: { code: code! } });
+    existingName = await prisma.categoryCode.findUnique({ where: { name } });
   } else if (group === "gemstones") {
     existing = await prisma.gemstoneCode.findUnique({ where: { code: code! } });
+    existingName = await prisma.gemstoneCode.findUnique({ where: { name } });
   } else if (group === "colors") {
     existing = await prisma.colorCode.findUnique({ where: { code: code! } });
+    existingName = await prisma.colorCode.findUnique({ where: { name } });
   } else if (group === "cuts") {
     existing = await prisma.cutCode.findUnique({ where: { code: code! } });
+    existingName = await prisma.cutCode.findUnique({ where: { name } });
   } else if (group === "collections") {
     existing = await prisma.collectionCode.findUnique({ where: { code: code! } });
+    existingName = await prisma.collectionCode.findUnique({ where: { name } });
   } else if (group === "rashis") {
     existing = await prisma.rashiCode.findUnique({ where: { code: code! } });
+    existingName = await prisma.rashiCode.findUnique({ where: { name } });
   } else if (group === "expenseCategories") {
       // For expense categories, code is optional but must be unique if provided
       if (code) {
@@ -102,7 +114,7 @@ export async function createCode(group: CodeGroup, formData: FormData) {
       existing = await prisma.certificateCode.findUnique({ where: { name } });
   }
 
-  if (existing) {
+  if (existing || existingName) {
     return { error: "CODE_ALREADY_EXISTS", message: "This code/name already exists in the system. Duplicate entries are not allowed." };
   }
 
@@ -172,6 +184,10 @@ export async function createCode(group: CodeGroup, formData: FormData) {
     return { success: true, data: created };
   } catch (error) {
     console.error(error);
+    const code = (error as unknown as { code?: string }).code;
+    if (code === "P2002") {
+      return { error: "CODE_ALREADY_EXISTS", message: "This code/name already exists in the system. Duplicate entries are not allowed." };
+    }
     return { error: "Failed to create code" };
   }
 }
@@ -220,6 +236,32 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
   if (!existing) return { error: "Code not found" };
 
   try {
+    if (group === "categories") {
+      const dup = await prisma.categoryCode.findFirst({ where: { name, id: { not: id } } });
+      if (dup) return { error: "Name already exists" };
+    } else if (group === "gemstones") {
+      const dup = await prisma.gemstoneCode.findFirst({ where: { name, id: { not: id } } });
+      if (dup) return { error: "Name already exists" };
+    } else if (group === "colors") {
+      const dup = await prisma.colorCode.findFirst({ where: { name, id: { not: id } } });
+      if (dup) return { error: "Name already exists" };
+    } else if (group === "cuts") {
+      const dup = await prisma.cutCode.findFirst({ where: { name, id: { not: id } } });
+      if (dup) return { error: "Name already exists" };
+    } else if (group === "collections") {
+      const dup = await prisma.collectionCode.findFirst({ where: { name, id: { not: id } } });
+      if (dup) return { error: "Name already exists" };
+    } else if (group === "rashis") {
+      const dup = await prisma.rashiCode.findFirst({ where: { name, id: { not: id } } });
+      if (dup) return { error: "Name already exists" };
+    } else if (group === "expenseCategories") {
+      const dup = await prisma.expenseCategory.findFirst({ where: { name, id: { not: id } } });
+      if (dup) return { error: "Name already exists" };
+    } else if (group === "certificates") {
+      const dup = await prisma.certificateCode.findFirst({ where: { name, id: { not: id } } });
+      if (dup) return { error: "Name already exists" };
+    }
+
     let updated;
     if (group === "categories") {
       updated = await prisma.categoryCode.update({ where: { id }, data: { name, status } });
@@ -271,7 +313,82 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     return { success: true };
   } catch (error) {
     console.error(error);
+    const code = (error as unknown as { code?: string }).code;
+    if (code === "P2002") return { error: "Name already exists" };
     return { error: "Failed to update code" };
+  }
+}
+
+export async function setCodeStatus(group: CodeGroup, formData: FormData) {
+  const perm = await checkPermission(PERMISSIONS.SETTINGS_MANAGE);
+  if (!perm.success) return { error: perm.message };
+
+  const session = await auth();
+  if (!session?.user) return { error: "Unauthorized" };
+
+  const rawData = {
+    id: formData.get("id"),
+    status: formData.get("status"),
+  };
+  const parsed = setStatusSchema.safeParse(rawData);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const { id, status } = parsed.data;
+
+  try {
+    let existing:
+      | { id: string; name: string; code: string | null; status: string }
+      | null
+      | undefined;
+    let updated:
+      | { id: string; name: string; code: string | null; status: string }
+      | null
+      | undefined;
+
+    if (group === "categories") {
+      existing = await prisma.categoryCode.findUnique({ where: { id } });
+      updated = await prisma.categoryCode.update({ where: { id }, data: { status } });
+    } else if (group === "gemstones") {
+      existing = await prisma.gemstoneCode.findUnique({ where: { id } });
+      updated = await prisma.gemstoneCode.update({ where: { id }, data: { status } });
+    } else if (group === "colors") {
+      existing = await prisma.colorCode.findUnique({ where: { id } });
+      updated = await prisma.colorCode.update({ where: { id }, data: { status } });
+    } else if (group === "cuts") {
+      existing = await prisma.cutCode.findUnique({ where: { id } });
+      updated = await prisma.cutCode.update({ where: { id }, data: { status } });
+    } else if (group === "collections") {
+      existing = await prisma.collectionCode.findUnique({ where: { id } });
+      updated = await prisma.collectionCode.update({ where: { id }, data: { status } });
+    } else if (group === "rashis") {
+      existing = await prisma.rashiCode.findUnique({ where: { id } });
+      updated = await prisma.rashiCode.update({ where: { id }, data: { status } });
+    } else if (group === "expenseCategories") {
+      existing = await prisma.expenseCategory.findUnique({ where: { id } });
+      updated = await prisma.expenseCategory.update({ where: { id }, data: { status } });
+    } else if (group === "certificates") {
+      existing = await prisma.certificateCode.findUnique({ where: { id } });
+      updated = await prisma.certificateCode.update({ where: { id }, data: { status } });
+    }
+
+    if (!existing || !updated) return { error: "Code not found" };
+
+    await logActivity({
+      entityType: "Code",
+      entityId: updated.id,
+      entityIdentifier: `${group} ${updated.code || updated.name}`,
+      actionType: "STATUS_CHANGE",
+      oldData: existing,
+      newData: updated,
+      source: "WEB",
+      userId: session.user.id,
+      userName: session.user.name || undefined,
+    });
+
+    revalidatePath("/settings/codes");
+    return { success: true };
+  } catch (error) {
+    console.error(error);
+    return { error: "Failed to update status" };
   }
 }
 

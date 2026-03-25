@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import {
   createCode,
   updateCode,
+  setCodeStatus,
   importCodes,
   checkCodeDuplicate,
   type CsvRow,
@@ -209,6 +211,7 @@ function CodeRowItem({
   onCancel: () => void;
   onSave: () => void;
 }) {
+  const router = useRouter();
   const [name, setName] = useState(row.name);
   const [status, setStatus] = useState(row.status);
   const [gstAllowed, setGstAllowed] = useState(row.gstAllowed || false);
@@ -233,7 +236,23 @@ function CodeRowItem({
       if (res.error) {
         alert(res.error);
       } else {
+        router.refresh();
         onSave();
+      }
+    });
+  };
+
+  const handleToggleStatus = () => {
+    const next = row.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const formData = new FormData();
+    formData.append("id", row.id);
+    formData.append("status", next);
+    startTransition(async () => {
+      const res = await setCodeStatus(group, formData);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        router.refresh();
       }
     });
   };
@@ -329,12 +348,16 @@ function CodeRowItem({
         <Button size="sm" variant="ghost" onClick={onEdit}>
           Edit
         </Button>
+        <Button size="sm" variant="ghost" onClick={handleToggleStatus} disabled={isPending} title="Quick status toggle">
+          {row.status === "ACTIVE" ? "Deactivate" : "Activate"}
+        </Button>
       </TableCell>
     </TableRow>
   );
 }
 
 function AddCodeDialog({ group }: { group: CodeGroup }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -387,6 +410,7 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
         setRemarks("");
         setStatus("ACTIVE");
         setGstAllowed(false);
+        router.refresh();
       }
     });
   };
@@ -504,11 +528,14 @@ function ExportCodesButton({ group, data }: { group: CodeGroup; data: CodeRow[] 
 }
 
 function ImportCodesDialog({ group }: { group: CodeGroup }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   const handleImport = async (data: CsvRow[]) => {
     const res = await importCodes(group, data);
     if (res.success) {
+        router.refresh();
+        setOpen(false);
         return {
             success: true,
             message: `Import Successful. Imported: ${res.results.importedCount}, Skipped: ${res.results.skippedDuplicatesCount}, Invalid: ${res.results.invalidCount}`,
