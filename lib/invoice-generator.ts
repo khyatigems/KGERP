@@ -6,6 +6,20 @@ import { sanitizeNumberText } from "@/lib/number-formatting";
 export interface InvoiceData {
   invoiceNumber: string;
   date: Date;
+  documentTitle?: string;
+  documentRightTag?: string;
+  documentNumberLabel?: string;
+  documentDateLabel?: string;
+  documentSecondLine?: {
+    leftLabel: string;
+    leftValue: string;
+    rightLabel: string;
+    rightValue: string;
+  };
+  showPaymentSection?: boolean;
+  showBankDetailsSection?: boolean;
+  totalLabel?: string;
+  extraTotalRows?: Array<{ label: string; amount: number; emphasis?: "bold" | "normal" }>;
   company: {
     name: string;
     address: string;
@@ -285,13 +299,13 @@ export async function generateInvoicePDF(data: InvoiceData) {
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(...blue);
-  doc.text("TAX INVOICE", margin, y);
+  doc.text(data.documentTitle || "TAX INVOICE", margin, y);
   doc.setFontSize(7.2);
   doc.setTextColor(0);
   if (logoRender) {
-    doc.text("ORIGINAL FOR RECIPIENT", logoRender.x + logoRender.w / 2, logoRender.y - 2.4, { align: "center" });
+    doc.text(data.documentRightTag || "ORIGINAL FOR RECIPIENT", logoRender.x + logoRender.w / 2, logoRender.y - 2.4, { align: "center" });
   } else {
-    doc.text("ORIGINAL FOR RECIPIENT", pageWidth - margin, y, { align: "right" });
+    doc.text(data.documentRightTag || "ORIGINAL FOR RECIPIENT", pageWidth - margin, y, { align: "right" });
   }
   y += 5.5;
 
@@ -327,9 +341,18 @@ export async function generateInvoicePDF(data: InvoiceData) {
 
   const invoiceMetaY = y;
   doc.setFont(fontFamily, "bold");
-  doc.text(`Invoice #: ${data.invoiceNumber}`, margin, invoiceMetaY);
-  doc.text(`Invoice Date: ${formatDate(data.date)}`, margin + 73, invoiceMetaY);
+  doc.text(`${data.documentNumberLabel || "Invoice #"}: ${data.invoiceNumber}`, margin, invoiceMetaY);
+  doc.text(`${data.documentDateLabel || "Invoice Date"}: ${formatDate(data.date)}`, margin + 73, invoiceMetaY);
   y += 6.2;
+  if (data.documentSecondLine) {
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(7.8);
+    doc.text(`${data.documentSecondLine.leftLabel}: ${data.documentSecondLine.leftValue}`, margin, y - 1);
+    doc.text(`${data.documentSecondLine.rightLabel}: ${data.documentSecondLine.rightValue}`, margin + 73, y - 1);
+    doc.setFont(fontFamily, "bold");
+    doc.setFontSize(8);
+    y += 4.8;
+  }
 
   doc.setFont(fontFamily, "bold");
   doc.text("Customer Details:", margin, y);
@@ -529,19 +552,35 @@ export async function generateInvoicePDF(data: InvoiceData) {
 
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(10);
-  doc.text("Total", totalsX, totalsY);
+  doc.text(data.totalLabel || "Total", totalsX, totalsY);
   writeAmountRight(formatCurrencyPDF(data.total), pageWidth - margin, totalsY, { bold: true, fontSize: 10 });
   totalsY += 6;
 
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(8);
-  doc.text(`Total Discount`, totalsX, totalsY);
-  writeAmountRight(formatCurrencyPDF(data.discount), pageWidth - margin, totalsY);
-  totalsY += 5;
+  if (data.discount > 0) {
+    doc.text(`Total Discount`, totalsX, totalsY);
+    writeAmountRight(formatCurrencyPDF(data.discount), pageWidth - margin, totalsY);
+    totalsY += 5;
+  }
+
+  if (data.extraTotalRows && data.extraTotalRows.length > 0) {
+    for (const row of data.extraTotalRows) {
+      doc.setFont(fontFamily, row.emphasis === "bold" ? "bold" : "normal");
+      doc.setFontSize(8);
+      doc.text(row.label, totalsX, totalsY);
+      writeAmountRight(formatCurrencyPDF(row.amount), pageWidth - margin, totalsY, { bold: row.emphasis === "bold" });
+      totalsY += 4;
+    }
+    doc.setFont(fontFamily, "normal");
+  }
 
   y = Math.max(totalsY, wordsY + 4 + (wordsLines.length * 4)) + 2;
 
-  if (data.amountPaid > 0) {
+  const showPaymentSection = data.showPaymentSection !== false;
+  const showBankDetailsSection = data.showBankDetailsSection !== false;
+
+  if (showPaymentSection && data.amountPaid > 0) {
     doc.setFont(fontFamily, "bold");
     doc.setTextColor(22, 163, 74);
     doc.text("Amount Paid", pageWidth - margin - 40, y, { align: "right" });
@@ -569,7 +608,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
         doc.text(paidParts, pageWidth - margin, y - 1, { align: "right" });
       }
     }
-  } else if (data.balanceDue > 0) {
+  } else if (showPaymentSection && data.balanceDue > 0) {
     doc.setFont(fontFamily, "bold");
     doc.setTextColor(220, 38, 38);
     doc.text("Balance Due", pageWidth - margin - 40, y, { align: "right" });
@@ -578,20 +617,22 @@ export async function generateInvoicePDF(data: InvoiceData) {
     y += 6;
   }
 
-  y += 4;
-  doc.setFont(fontFamily, "bold");
-  doc.text("Bank Details:", margin, y);
-  doc.setFont(fontFamily, "normal");
-  if (data.bankDetails) {
-    doc.text(`Bank: ${data.bankDetails.bankName}`, margin, y + 4);
-    doc.text(`Account #: ${data.bankDetails.accountNumber}`, margin, y + 8);
-    doc.text(`IFSC code: ${data.bankDetails.ifsc}`, margin, y + 12);
-    doc.text(`Account Holder: ${data.bankDetails.holder}`, margin, y + 16);
-  } else {
-    doc.text("-", margin, y + 4);
+  let infoY = y + 4;
+  if (showBankDetailsSection) {
+    doc.setFont(fontFamily, "bold");
+    doc.text("Bank Details:", margin, infoY);
+    doc.setFont(fontFamily, "normal");
+    if (data.bankDetails) {
+      doc.text(`Bank: ${data.bankDetails.bankName}`, margin, infoY + 4);
+      doc.text(`Account #: ${data.bankDetails.accountNumber}`, margin, infoY + 8);
+      doc.text(`IFSC code: ${data.bankDetails.ifsc}`, margin, infoY + 12);
+      doc.text(`Account Holder: ${data.bankDetails.holder}`, margin, infoY + 16);
+      infoY += 24;
+    } else {
+      doc.text("-", margin, infoY + 4);
+      infoY += 24;
+    }
   }
-
-  let infoY = y + 24;
   const wrapWidth = pageWidth - margin * 2 - 60;
   if (data.terms) {
     doc.setFont(fontFamily, "bold");

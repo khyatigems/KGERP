@@ -255,6 +255,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     .join(", ");
 
   const isPaid = paymentStatus === "PAID";
+  const isReplacement = invoice.status === "REPLACEMENT" || paymentStatus === "REPLACEMENT";
   // const balanceDue = isPaid ? 0 : pdfTotal; // Already calculated above
 
   const customerCode = await (async () => {
@@ -274,6 +275,12 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
     date: getInvoiceDisplayDate(invoice),
+    documentTitle: isReplacement ? "REPLACEMENT INVOICE" : undefined,
+    documentRightTag: isReplacement ? "REPLACEMENT" : undefined,
+    documentNumberLabel: isReplacement ? "Replacement #" : undefined,
+    documentDateLabel: isReplacement ? "Date" : undefined,
+    showPaymentSection: isReplacement ? false : undefined,
+    showBankDetailsSection: isReplacement ? false : undefined,
     company: {
       name: companySettings?.companyName || "KhyatiGems",
       address: companySettings?.address || "",
@@ -330,24 +337,24 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     tax: totalGst,
     shippingCharge: Number.isFinite(shippingCharge) ? shippingCharge : 0,
     additionalCharge: Number.isFinite(additionalCharge) ? additionalCharge : 0,
-    total: pdfTotal,
-    amountPaid: amountPaid, 
-    balanceDue: balanceDue,
-    status: paymentStatus,
-    paymentStatus: creditNoteText ? `${paymentStatus} (CN Issued)` : paymentStatus,
-    paymentMethod: paymentBreakdownRows.length === 1 ? paymentBreakdownRows[0].method : (primarySale.paymentMethod || undefined),
-    paidAt: latestPaymentDate || primarySale.saleDate || undefined,
-    paymentBreakdown: paymentBreakdownRows,
+    total: isReplacement ? 0 : pdfTotal,
+    amountPaid: isReplacement ? 0 : amountPaid, 
+    balanceDue: isReplacement ? 0 : balanceDue,
+    status: isReplacement ? "REPLACEMENT" : paymentStatus,
+    paymentStatus: isReplacement ? "REPLACEMENT" : (creditNoteText ? `${paymentStatus} (CN Issued)` : paymentStatus),
+    paymentMethod: isReplacement ? undefined : (paymentBreakdownRows.length === 1 ? paymentBreakdownRows[0].method : (primarySale.paymentMethod || undefined)),
+    paidAt: isReplacement ? undefined : (latestPaymentDate || primarySale.saleDate || undefined),
+    paymentBreakdown: isReplacement ? [] : paymentBreakdownRows,
     terms: invoiceSettings?.terms || undefined,
-    notes: [invoiceSettings?.footerNotes, creditNoteText ? `Credit Note(s): ${creditNoteText}` : ""].filter(Boolean).join("\n") || undefined,
+    notes: [invoiceSettings?.footerNotes, invoice.notes || "", creditNoteText ? `Credit Note(s): ${creditNoteText}` : ""].filter(Boolean).join("\n") || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
-    bankDetails: paymentSettings?.bankEnabled ? {
+    bankDetails: isReplacement ? undefined : (paymentSettings?.bankEnabled ? {
       bankName: paymentSettings.bankName || "",
       accountNumber: paymentSettings.accountNumber || "",
       ifsc: paymentSettings.ifscCode || "",
       holder: paymentSettings.accountHolder || "",
-    } : undefined,
-    upiQrData: paymentSettings?.upiEnabled && paymentSettings.upiId 
+    } : undefined),
+    upiQrData: !isReplacement && paymentSettings?.upiEnabled && paymentSettings.upiId 
       ? `upi://pay?pa=${paymentSettings.upiId}&pn=${encodeURIComponent(paymentSettings.upiPayeeName || "")}&am=${pdfTotal.toFixed(2)}&cu=INR`
       : undefined
   };

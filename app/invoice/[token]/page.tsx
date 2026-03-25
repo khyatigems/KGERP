@@ -232,6 +232,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     .slice()
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
   const isPaid = paymentStatus === "PAID";
+  const isReplacement = invoice.status === "REPLACEMENT" || paymentStatus === "REPLACEMENT";
 
   const isOriginal = true; 
   const statusLabel = isOriginal ? "ORIGINAL INVOICE" : "DUPLICATE INVOICE";
@@ -301,6 +302,12 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
     date: getInvoiceDisplayDate(invoice),
+    documentTitle: isReplacement ? "REPLACEMENT INVOICE" : undefined,
+    documentRightTag: isReplacement ? "REPLACEMENT" : undefined,
+    documentNumberLabel: isReplacement ? "Replacement #" : undefined,
+    documentDateLabel: isReplacement ? "Date" : undefined,
+    showPaymentSection: isReplacement ? false : undefined,
+    showBankDetailsSection: isReplacement ? false : undefined,
     company: {
       name: companySettings?.companyName || "KhyatiGems",
       address: companySettings?.address || "",
@@ -384,25 +391,25 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     tax: totalGst,
     shippingCharge: Number.isFinite(shippingCharge) ? shippingCharge : 0,
     additionalCharge: Number.isFinite(additionalCharge) ? additionalCharge : 0,
-    total,
-    amountPaid: amountReceived,
-    balanceDue,
-    status: statusLabel,
-    paymentStatus: displayPaymentStatus,
-    paymentMethod: paymentBreakdownRows.length === 1 ? paymentBreakdownRows[0].method : (primarySale.paymentMethod || undefined),
-    paidAt: latestPaymentDate || primarySale.saleDate || undefined,
-    paymentBreakdown: paymentBreakdownRows,
+    total: isReplacement ? 0 : total,
+    amountPaid: isReplacement ? 0 : amountReceived,
+    balanceDue: isReplacement ? 0 : balanceDue,
+    status: isReplacement ? "REPLACEMENT" : statusLabel,
+    paymentStatus: isReplacement ? "REPLACEMENT" : displayPaymentStatus,
+    paymentMethod: isReplacement ? undefined : (paymentBreakdownRows.length === 1 ? paymentBreakdownRows[0].method : (primarySale.paymentMethod || undefined)),
+    paidAt: isReplacement ? undefined : (latestPaymentDate || primarySale.saleDate || undefined),
+    paymentBreakdown: isReplacement ? [] : paymentBreakdownRows,
     terms: invoiceSettings?.terms || undefined,
-    notes: [invoiceSettings?.footerNotes, creditNoteText ? `Credit Note(s): ${creditNoteText}` : ""].filter(Boolean).join("\n") || undefined,
+    notes: [invoiceSettings?.footerNotes, invoice.notes || "", creditNoteText ? `Credit Note(s): ${creditNoteText}` : ""].filter(Boolean).join("\n") || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
-    upiQrData: paymentSettings?.upiEnabled && paymentSettings?.upiId ? 
+    upiQrData: !isReplacement && paymentSettings?.upiEnabled && paymentSettings?.upiId ? 
       `upi://pay?pa=${paymentSettings.upiId}&pn=${encodeURIComponent(paymentSettings.upiPayeeName || "")}&am=${balanceDue.toFixed(2)}&cu=INR` : undefined,
-    bankDetails: paymentSettings?.bankEnabled ? {
+    bankDetails: isReplacement ? undefined : (paymentSettings?.bankEnabled ? {
       bankName: paymentSettings.bankName || "",
       accountNumber: paymentSettings.accountNumber || "",
       ifsc: paymentSettings.ifscCode || "",
       holder: paymentSettings.accountHolder || "",
-    } : undefined
+    } : undefined)
   };
 
   return (

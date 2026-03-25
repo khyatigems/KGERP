@@ -41,7 +41,11 @@ export function ReplacementDispatchClient({
         body: JSON.stringify({ items: arr, customerName }),
       });
       const data = await res.json();
-      alert(res.ok ? `Memo created: ${data.memoId}` : (data?.error || "Failed"));
+      if (!res.ok) {
+        alert(data?.error || "Failed");
+        return;
+      }
+      alert(`Replacement invoice created: ${data.invoiceNumber} (Memo: ${data.memoId})`);
     } finally {
       setIsSubmitting(false);
     }
@@ -94,4 +98,3 @@ export function ReplacementDispatchClient({
     </div>
   );
 }
-
