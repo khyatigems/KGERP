@@ -28,6 +28,7 @@
     "test:customers:unit": "tsx scripts/tests/customer-export.unit.ts",
     "test:customers:integration": "tsx scripts/tests/customer-crud.integration.ts",
     "test:customers": "npm run test:customers:unit && npm run test:customers:integration",
+    "test:sales-return:rules": "tsx scripts/tests/sales-return-rules.unit.ts",
     "test:payments:reconcile": "tsx scripts/tests/payments-reconciliation.integration.ts",
     "test:export:queue": "tsx scripts/tests/export-job-queue.integration.ts",
     "analytics:daily": "tsx scripts/generate-daily-analytics.ts",

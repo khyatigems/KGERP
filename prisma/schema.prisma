@@ -34,6 +34,7 @@ model User {
   expenses                   Expense[]
   vouchers                   Voucher[]
   journalEntries             JournalEntry[]
+  followUps                  FollowUp[]
 }
 
 model InventoryMetrics {
@@ -193,6 +194,7 @@ model Customer {
   updatedAt  DateTime    @updatedAt
   quotations Quotation[]
   sales      Sale[]
+  creditNotes CreditNote[]
 }
 
 model Inventory {
@@ -258,6 +260,7 @@ model Inventory {
   notes                String?
   certificateComments  String?
   stockLocation        String?
+  salesReturnItems     SalesReturnItem[]
   purchaseId           String?
   vendorId             String?
   batchId              String?
@@ -508,6 +511,9 @@ model Invoice {
   legacySale     Sale?            @relation("LegacyInvoice")
   versions       InvoiceVersion[]
   payments       Payment[]
+  followUps      FollowUp[]
+  salesReturns   SalesReturn[]
+  creditNotes    CreditNote[]
 
   @@index([quotationId])
   @@index([paymentStatus])
@@ -575,6 +581,71 @@ model CompanySettings {
   otherDocsLogoUrl   String?
   termsAndConditions String?
   updatedAt          DateTime @updatedAt
+}
+
+model FollowUp {
+  id          String   @id
+  invoiceId   String
+  date        DateTime @default(now())
+  action      String?
+  note        String?
+  promisedDate DateTime?
+  createdById String?  @map("createdBy")
+  createdAt   DateTime @default(now())
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+
+  @@index([invoiceId])
+}
+
+model SalesReturn {
+  id           String           @id
+  invoiceId    String
+  returnNumber String           @unique
+  returnDate   DateTime         @default(now())
+  disposition  String
+  remarks      String?
+  createdById  String?
+  createdAt    DateTime         @default(now())
+
+  invoice      Invoice          @relation(fields: [invoiceId], references: [id])
+  items        SalesReturnItem[]
+
+  @@index([invoiceId])
+}
+
+model SalesReturnItem {
+  id            String      @id
+  salesReturnId String
+  inventoryId   String
+  quantity      Int         @default(1)
+  sellingPrice  Float
+  resaleable    Boolean     @default(true)
+
+  salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+  inventory     Inventory   @relation(fields: [inventoryId], references: [id])
+
+  @@index([salesReturnId])
+  @@index([inventoryId])
+}
+
+model CreditNote {
+  id               String   @id
+  customerId       String?
+  invoiceId        String?
+  creditNoteNumber String   @unique
+  issueDate        DateTime @default(now())
+  totalAmount      Float
+  balanceAmount    Float
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  customer         Customer? @relation(fields: [customerId], references: [id])
+  invoice          Invoice?   @relation(fields: [invoiceId], references: [id])
+
+  @@index([customerId])
+  @@index([invoiceId])
 }
 
 model InvoiceSettings {

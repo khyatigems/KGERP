@@ -17,6 +17,7 @@ import {
   Globe,
   Printer,
   WalletCards,
+  Undo2,
   Receipt,
   BookOpen,
   ShieldCheck
@@ -32,6 +33,7 @@ export const navItems = [
   { href: "/packaging", label: "Packaging Identity", icon: ShieldCheck },
   { href: "/quotes", label: "Quotations", icon: FileText },
   { href: "/sales", label: "Sales", icon: ShoppingCart },
+  { href: "/sales-returns", label: "Sales Returns", icon: Undo2 },
   { href: "/purchases", label: "Purchases", icon: ShoppingBag },
   { href: "/expenses", label: "Expenses", icon: Receipt },
   { href: "/accounting/reports", label: "Accounting", icon: BookOpen },

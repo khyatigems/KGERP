@@ -12,13 +12,13 @@ function bucketDays(diff: number) {
   return "90+";
 }
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!hasPermission(session.user.role, PERMISSIONS.RECEIVABLES_VIEW)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const customerId = params.id;
+  const { id: customerId } = await params;
   const today = new Date();
   const invoices = await prisma.invoice.findMany({
     where: { isActive: true, sales: { some: { customerId } } },
@@ -56,4 +56,3 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   const totalReceivable = rows.reduce((s, r) => s + r.balance, 0);
   return NextResponse.json({ rows, totalReceivable });
 }
-

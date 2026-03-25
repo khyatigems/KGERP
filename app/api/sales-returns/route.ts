@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { computeReturnStockPlacement } from "@/lib/sales-return-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,6 @@ export async function POST(request: NextRequest) {
   const inv = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { invoiceDate: true, sales: { select: { customerId: true } } } });
   if (!inv) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   const days = Math.floor((Date.now() - new Date(inv.invoiceDate || Date.now()).getTime()) / (1000 * 60 * 60 * 24));
-  const resaleWindow = days <= 7;
 
   try {
     const res = await prisma.$transaction(async (tx) => {
@@ -55,19 +55,14 @@ export async function POST(request: NextRequest) {
             resaleable: it.resaleable ? 1 : 0,
           },
         });
-        const putToStock = resaleWindow && it.resaleable;
-        if (putToStock) {
-          await tx.inventory.update({
-            where: { id: it.inventoryId },
-            data: { status: "IN_STOCK", stockLocation: "SHOP" },
-          });
-        } else {
-          await tx.inventory.update({
-            where: { id: it.inventoryId },
-            data: { status: "IN_STOCK", stockLocation: "HOLD" },
-          });
-        }
+        const placement = computeReturnStockPlacement({ daysSinceInvoice: days, resaleable: Boolean(it.resaleable) });
+        await tx.inventory.update({
+          where: { id: it.inventoryId },
+          data: placement,
+        });
       }
+      let creditNoteId: string | undefined;
+      let creditNoteNumber: string | undefined;
       if (disposition === "REFUND") {
         const totalAmount = items.reduce((s: number, i: { sellingPrice: number; quantity: number }) => s + Number(i.sellingPrice || 0) * Number(i.quantity || 1), 0);
         const cnExisting = await tx.creditNote.findMany({ select: { creditNoteNumber: true } });
@@ -77,9 +72,10 @@ export async function POST(request: NextRequest) {
           if (Number.isFinite(n) && n > maxCN) maxCN = n;
         }
         const cnNumber = `CN-${String(maxCN + 1).padStart(4, "0")}`;
+        const cnId = crypto.randomUUID();
         await tx.creditNote.create({
           data: {
-            id: crypto.randomUUID(),
+            id: cnId,
             customerId: inv.sales?.[0]?.customerId || null,
             invoiceId,
             creditNoteNumber: cnNumber,
@@ -88,8 +84,10 @@ export async function POST(request: NextRequest) {
             isActive: 1,
           },
         });
+        creditNoteId = cnId;
+        creditNoteNumber = cnNumber;
       }
-      return { success: true, returnNumber: sr.returnNumber };
+      return { success: true, returnNumber: sr.returnNumber, creditNoteId, creditNoteNumber };
     });
     return NextResponse.json(res);
   } catch {
