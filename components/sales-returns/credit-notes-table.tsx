@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { Download } from "lucide-react";
 
 type Row = {
   id: string;
@@ -89,6 +90,14 @@ export function CreditNotesTable({ initialRows }: { initialRows: Row[] }) {
                       <div className="flex justify-end gap-2">
                         <Button
                           size="sm"
+                          variant="ghost"
+                          onClick={() => window.open(`/api/credit-notes/${r.id}/pdf`, "_blank")}
+                          title="Download Credit Note PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
                           variant="outline"
                           disabled={isPending}
                           onClick={() => startTransition(() => update(r.id, r.isActive ? "deactivate" : "activate"))}
@@ -116,4 +125,3 @@ export function CreditNotesTable({ initialRows }: { initialRows: Row[] }) {
     </div>
   );
 }
-

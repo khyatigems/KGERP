@@ -226,6 +226,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     try {
       return await prisma.$queryRawUnsafe<
         Array<{
+              id: string;
           creditNoteNumber: string;
           issueDate: string;
           activeUntil: string | null;
@@ -234,7 +235,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
           isActive: number;
         }>
       >(
-        `SELECT creditNoteNumber, issueDate, activeUntil, totalAmount, balanceAmount, isActive
+            `SELECT id, creditNoteNumber, issueDate, activeUntil, totalAmount, balanceAmount, isActive
          FROM CreditNote
          WHERE invoiceId = ?
          ORDER BY issueDate DESC
@@ -408,6 +409,17 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
           totalAmount={finalTotalAmount}
         />
         {creditNoteText ? <Badge variant="secondary">CN Issued</Badge> : null}
+        {creditNotes.length ? (
+          <div className="flex items-center gap-2">
+            {creditNotes.map((cn) => (
+              <Button key={cn.id} variant="outline" size="sm" asChild title={`Download ${cn.creditNoteNumber}`}>
+                <Link href={`/api/credit-notes/${cn.id}/pdf`} target="_blank" rel="noopener noreferrer">
+                  CN {cn.creditNoteNumber}
+                </Link>
+              </Button>
+            ))}
+          </div>
+        ) : null}
         
         <div className="ml-auto flex gap-2">
             <Button variant="outline" size="sm" asChild>

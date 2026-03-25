@@ -12,7 +12,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   await ensureReturnsSchema();
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.RECEIVABLES_VIEW)) {
+  if (!hasPermission(session.user.role, PERMISSIONS.RECEIVABLES_VIEW) && !hasPermission(session.user.role, PERMISSIONS.SALES_VIEW)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

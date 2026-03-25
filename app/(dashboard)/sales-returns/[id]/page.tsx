@@ -5,6 +5,8 @@ import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +86,14 @@ export default async function SalesReturnDetailsPage({ params }: { params: Promi
     srRow.id
   );
 
+  const creditNotes = srRow.invoiceId
+    ? await prisma.creditNote.findMany({
+        where: { invoiceId: srRow.invoiceId },
+        orderBy: { issueDate: "desc" },
+        take: 10,
+      })
+    : [];
+
   const invIds = items.map((it) => it.inventoryId).filter((x): x is string => Boolean(x));
   const logs = invIds.length
     ? await prisma.activityLog.findMany({
@@ -137,6 +147,46 @@ export default async function SalesReturnDetailsPage({ params }: { params: Promi
           </CardContent>
         </Card>
       </div>
+
+      {creditNotes.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Credit Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>CN #</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Balance</TableHead>
+                    <TableHead className="text-right">PDF</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {creditNotes.map((cn) => (
+                    <TableRow key={cn.id}>
+                      <TableCell className="font-medium">{cn.creditNoteNumber}</TableCell>
+                      <TableCell>{formatDate(cn.issueDate)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(cn.totalAmount || 0)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(cn.balanceAmount || 0)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/api/credit-notes/${cn.id}/pdf`} target="_blank" rel="noopener noreferrer">
+                            Download
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
