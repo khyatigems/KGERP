@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
   }
 
   const sp = request.nextUrl.searchParams;
+  const mode = (sp.get("mode") || "").trim().toLowerCase();
   const colsRaw = (sp.get("cols") || "").split(",").map((s) => s.trim()).filter(Boolean);
   const cols = colsRaw.length ? colsRaw.filter((c) => ALL_COLS.has(c)) : ["sku", "itemName", "category", "gemType", "collection", "weightValue", "sellingPrice"];
 
@@ -89,9 +90,10 @@ export async function GET(request: NextRequest) {
     certificateNo: true,
   } as const;
 
-  const [inStock, sold] = await Promise.all([
+  const [inStock, sold, allCollections] = await Promise.all([
     prisma.inventory.findMany({ where: { status: "IN_STOCK" }, select, orderBy: { category: "asc" } }),
     prisma.inventory.findMany({ where: { status: "SOLD" }, select, orderBy: { category: "asc" } }),
+    prisma.collectionCode.findMany({ where: { status: "ACTIVE" }, select: { name: true }, orderBy: { name: "asc" } }).catch(() => []),
   ]);
 
   type InvRow = {
@@ -113,7 +115,7 @@ export async function GET(request: NextRequest) {
     itemName: row.itemName,
     category: row.category || "Uncategorized",
     gemType: row.gemType || "",
-    collection: row.collectionCode?.name || "",
+    collection: row.collectionCode?.name || "No Collection",
     weightValue: row.weightValue || 0,
     sellingPrice: row.sellingPrice || 0,
     costPrice: row.costPrice || 0,
@@ -142,6 +144,14 @@ export async function GET(request: NextRequest) {
 
   function groupSummary(key: "category" | "gemType" | "collection") {
     const map = new Map<string, { key: string; inStock: number; sold: number; total: number; inStockValue: number; soldValue: number }>();
+    if (key === "collection") {
+      map.set("No Collection", { key: "No Collection", inStock: 0, sold: 0, total: 0, inStockValue: 0, soldValue: 0 });
+      for (const c of allCollections || []) {
+        const name = String(c.name || "").trim();
+        if (!name) continue;
+        map.set(name, { key: name, inStock: 0, sold: 0, total: 0, inStockValue: 0, soldValue: 0 });
+      }
+    }
     for (const row of allItems) {
       const k = String((row as Record<string, unknown>)[key] || "").trim() || "Unspecified";
       const existing = map.get(k) || { key: k, inStock: 0, sold: 0, total: 0, inStockValue: 0, soldValue: 0 };
@@ -199,16 +209,24 @@ export async function GET(request: NextRequest) {
   setCurrencyFormat(ws6, ["In Stock Value", "Sold Value"]);
   setCurrencyFormat(ws7, ["Selling Price"]);
 
-  XLSX.utils.book_append_sheet(wb, ws1, "InStock");
-  XLSX.utils.book_append_sheet(wb, ws2, "Sold");
-  XLSX.utils.book_append_sheet(wb, ws3, "Summary");
-  XLSX.utils.book_append_sheet(wb, ws4, "ByCategory");
-  XLSX.utils.book_append_sheet(wb, ws5, "ByGemType");
-  XLSX.utils.book_append_sheet(wb, ws6, "ByCollection");
-  XLSX.utils.book_append_sheet(wb, ws7, "Items_Collection");
+  if (mode === "collection") {
+    XLSX.utils.book_append_sheet(wb, ws6, "Collection_Summary");
+    XLSX.utils.book_append_sheet(wb, ws7, "Collection_Items");
+  } else {
+    XLSX.utils.book_append_sheet(wb, ws1, "InStock");
+    XLSX.utils.book_append_sheet(wb, ws2, "Sold");
+    XLSX.utils.book_append_sheet(wb, ws3, "Summary");
+    XLSX.utils.book_append_sheet(wb, ws4, "ByCategory");
+    XLSX.utils.book_append_sheet(wb, ws5, "ByGemType");
+    XLSX.utils.book_append_sheet(wb, ws6, "ByCollection");
+    XLSX.utils.book_append_sheet(wb, ws7, "Items_Collection");
+  }
 
   const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" }) as unknown as Buffer;
-  const filename = `Inventory_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const filename =
+    mode === "collection"
+      ? `Inventory_Collections_${new Date().toISOString().slice(0, 10)}.xlsx`
+      : `Inventory_Summary_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
   return new NextResponse(new Uint8Array(buf), {
     status: 200,

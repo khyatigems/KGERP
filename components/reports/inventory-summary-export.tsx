@@ -46,11 +46,21 @@ export function InventorySummaryExport() {
     setOpen(false);
   };
 
+  const downloadCollections = () => {
+    const url = `/api/reports/inventory-summary/xlsx?mode=collection&cols=${encodeURIComponent(["sku","itemName","collection","category","gemType","sellingPrice"].join(","))}`;
+    window.open(url, "_blank");
+  };
+
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)} title="Exports sheets: InStock, Sold, Summary, ByCategory, ByGemType, ByCollection, Items_Collection">
-        Export Inventory Summary
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)} title="Exports sheets: InStock, Sold, Summary, ByCategory, ByGemType, ByCollection, Items_Collection">
+          Export Inventory Summary
+        </Button>
+        <Button variant="outline" size="sm" onClick={downloadCollections} title="Exports collection-wise items + full collection summary (includes zero-stock collections)">
+          Export Collections
+        </Button>
+      </div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>

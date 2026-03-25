@@ -20,6 +20,7 @@ import { selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
 import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-breakdown";
 import { computeInvoiceGst } from "@/lib/invoice-gst";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
+import { sanitizeNumberText } from "@/lib/number-formatting";
 
 export const dynamic = "force-dynamic";
 
@@ -246,7 +247,11 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   })();
   const creditNoteText = (creditNotes || [])
     .filter((cn) => (cn.creditNoteNumber || "").trim())
-    .map((cn) => `${cn.creditNoteNumber} (Total ${formatCurrency(Number(cn.totalAmount || 0))}, Balance ${formatCurrency(Number(cn.balanceAmount || 0))})`)
+    .map((cn) => {
+      const total = sanitizeNumberText(formatCurrency(Number(cn.totalAmount || 0)).replace("₹", "Rs. "));
+      const bal = sanitizeNumberText(formatCurrency(Number(cn.balanceAmount || 0)).replace("₹", "Rs. "));
+      return `${cn.creditNoteNumber} (Total ${total}, Balance ${bal})`;
+    })
     .join(", ");
 
   const isPaid = paymentStatus === "PAID";
@@ -279,9 +284,8 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
       logoUrl: displayLogo || undefined,
     },
     customer: {
-      name: customerCode
-        ? `${primarySale.customerName || "Walk-in Customer"} [CODE: ${customerCode}]`
-        : (primarySale.customerName || "Walk-in Customer"),
+      name: primarySale.customerName || "Walk-in Customer",
+      customerCode: customerCode || undefined,
       address: primarySale.customerAddress || primarySale.customerCity || "",
       phone: primarySale.customerPhone || "",
       email: primarySale.customerEmail || "",

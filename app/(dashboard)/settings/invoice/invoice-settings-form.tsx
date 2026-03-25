@@ -22,13 +22,15 @@ import { InvoiceSettings, PaymentSettings } from "@prisma/client";
 
 import { SignatureUpload } from "@/components/invoice/signature-upload";
 
-interface InvoiceSettingsFormProps {
+export type InvoiceSettingsFormProps = {
   initialSettings: Partial<InvoiceSettings> | null;
   initialPaymentSettings: Partial<PaymentSettings> | null;
+  creditNoteTerms?: string;
   categories: { id: string; name: string }[];
-}
+  [key: string]: unknown;
+};
 
-export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, categories }: InvoiceSettingsFormProps) {
+export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, creditNoteTerms = "", categories }: InvoiceSettingsFormProps) {
   const [isPending, setIsPending] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState(initialSettings?.digitalSignatureUrl || "");
   
@@ -128,6 +130,17 @@ export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, c
                     name="terms" 
                     defaultValue={initialSettings?.terms || ""} 
                     placeholder="1. Goods once sold will not be taken back..." 
+                    rows={4}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="creditNoteTerms">Credit Note Terms & Conditions</Label>
+                <Textarea 
+                    id="creditNoteTerms" 
+                    name="creditNoteTerms" 
+                    defaultValue={creditNoteTerms || ""} 
+                    placeholder="Credit note is valid for 90 days from issue date..."
                     rows={4}
                 />
               </div>

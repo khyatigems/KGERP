@@ -8,7 +8,7 @@ import { logActivity } from "@/lib/activity-logger";
 import { applyCreditNotesOnInvoiceCreation } from "@/lib/invoice-payment";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
-import { randomBytes } from "crypto";
+import crypto, { randomBytes } from "crypto";
 import { InvoiceData } from "@/lib/invoice-generator";
 import { Prisma } from "@prisma/client";
 import { postJournalEntry, getOrCreateAccountByCode, ACCOUNTS, PrismaTx } from "@/lib/accounting";
@@ -59,6 +59,37 @@ const saleSchema = z.object({
 
 function generateInvoiceToken() {
   return randomBytes(16).toString("hex");
+}
+
+async function ensureCustomerCode(tx: PrismaTx, customerId: string) {
+  const rows = await tx.$queryRawUnsafe<Array<{ code: string }>>(
+    `SELECT code FROM CustomerCode WHERE customerId = ? LIMIT 1`,
+    customerId
+  );
+  if (rows.length) return rows[0].code;
+  const year2 = String(new Date().getFullYear()).slice(-2);
+  let code = "";
+  for (let i = 0; i < 30; i++) {
+    const rnd = crypto.randomInt(0, 1000000);
+    const candidate = `C${year2}-${String(rnd).padStart(6, "0")}`;
+    const collision = await tx.$queryRawUnsafe<Array<{ code: string }>>(
+      `SELECT code FROM CustomerCode WHERE code = ? LIMIT 1`,
+      candidate
+    );
+    if (!collision.length) {
+      code = candidate;
+      break;
+    }
+  }
+  if (code) {
+    await tx.$executeRawUnsafe(
+      `INSERT INTO CustomerCode (id, customerId, code, createdAt) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+      crypto.randomUUID(),
+      customerId,
+      code
+    );
+  }
+  return code || null;
 }
 
 export async function createSale(prevState: unknown, formData: FormData) {
@@ -288,9 +319,35 @@ export async function createSale(prevState: unknown, formData: FormData) {
           });
 
           // 2. Create Sales and Update Inventory
-          const customerProfile = data.customerId
+          const customerNameInput = String(data.customerName || "").trim();
+          const customerPhoneInput = String(data.customerPhone || "").trim();
+          const customerEmailInput = String(data.customerEmail || "").trim();
+
+          let customerProfile = data.customerId
             ? await tx.customer.findUnique({ where: { id: data.customerId } })
             : null;
+
+          if (!customerProfile && customerNameInput) {
+            const or: Array<Record<string, unknown>> = [];
+            if (customerPhoneInput) or.push({ phone: customerPhoneInput });
+            if (customerEmailInput) or.push({ email: customerEmailInput });
+            const existing = or.length
+              ? await tx.customer.findFirst({ where: { OR: or } as never })
+              : null;
+            customerProfile =
+              existing ||
+              (await tx.customer.create({
+                data: {
+                  name: customerNameInput,
+                  phone: customerPhoneInput || null,
+                  email: customerEmailInput || null,
+                  address: (data.customerAddress || data.billingAddress || null) as unknown as never,
+                  city: (data.customerCity || null) as unknown as never,
+                } as unknown as never,
+              }));
+
+            await ensureCustomerCode(tx, customerProfile.id);
+          }
 
           for (const itemData of computedItems) {
               const customerNameFinal = customerProfile?.name || data.customerName;
@@ -385,14 +442,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
               const cn = rows[0];
               if (!cn) throw new Error("Credit note not found");
               const invoiceCustomerId = customerProfile?.id || null;
-              const invoiceCustomerName = String(customerProfile?.name || data.customerName || "").trim().toLowerCase();
-              const cnCustomerName = String(cn.cnCustomerName || "").trim().toLowerCase();
-              if (cn.customerId && invoiceCustomerId && cn.customerId !== invoiceCustomerId) {
-                throw new Error("Credit note belongs to a different customer");
-              }
-              if (invoiceCustomerName && cnCustomerName && invoiceCustomerName !== cnCustomerName) {
-                throw new Error("Credit note belongs to a different customer");
-              }
+              const crossCustomer = Boolean(cn.customerId && invoiceCustomerId && cn.customerId !== invoiceCustomerId);
               if (Number(cn.isActive || 0) !== 1) throw new Error("Credit note is inactive");
               const valid = await tx.$queryRawUnsafe<Array<{ ok: number }>>(
                 `SELECT CASE WHEN COALESCE(activeUntil, datetime(issueDate, '+90 day')) >= CURRENT_TIMESTAMP THEN 1 ELSE 0 END as ok
@@ -414,7 +464,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   source: "WEB",
                   userId: session.user.id,
                   userName: session.user.name || session.user.email || "Unknown",
-                  details: `Applied ${Number(payment.amount || 0).toFixed(2)} on invoice ${invoiceNumber}`,
+                  details: `Applied ${Number(payment.amount || 0).toFixed(2)} on invoice ${invoiceNumber}${crossCustomer ? " (cross-customer)" : ""}`,
                 },
               });
             }
@@ -425,7 +475,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
                 method: payment.method,
                 date: payment.date,
                 reference: payment.reference,
-                notes: payment.notes,
+                notes: payment.method === "CREDIT_NOTE" ? [payment.notes, "CN applied by code"].filter(Boolean).join(" | ") : payment.notes,
                 recordedBy: session.user.id
               }
             });

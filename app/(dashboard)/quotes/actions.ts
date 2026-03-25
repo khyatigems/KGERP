@@ -8,6 +8,44 @@ import { logActivity } from "@/lib/activity-logger";
 import { generateQuotationToken, generateInvoiceToken } from "@/lib/tokens";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
+import crypto from "crypto";
+
+type SqlTx = {
+  $queryRawUnsafe: <T = unknown>(query: string, ...params: unknown[]) => Promise<T>;
+  $executeRawUnsafe: (query: string, ...params: unknown[]) => Promise<unknown>;
+};
+
+async function ensureCustomerCode(tx: SqlTx, customerId: string) {
+  const rows = await tx.$queryRawUnsafe<Array<{ code: string }>>(
+    `SELECT code FROM CustomerCode WHERE customerId = ? LIMIT 1`,
+    customerId
+  );
+  if (rows.length) return rows[0].code;
+  const year2 = String(new Date().getFullYear()).slice(-2);
+  let code = "";
+  for (let i = 0; i < 30; i++) {
+    const rnd = crypto.randomInt(0, 1000000);
+    const candidate = `C${year2}-${String(rnd).padStart(6, "0")}`;
+    const collision = await tx.$queryRawUnsafe<Array<{ code: string }>>(
+      `SELECT code FROM CustomerCode WHERE code = ? LIMIT 1`,
+      candidate
+    );
+    if (!collision.length) {
+      code = candidate;
+      break;
+    }
+  }
+  if (code) {
+    await tx.$executeRawUnsafe(
+      `INSERT INTO CustomerCode (id, customerId, code, createdAt) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+      crypto.randomUUID(),
+      customerId,
+      code
+    );
+  }
+  return code || null;
+}
 
 const quotationSchema = z.object({
   customerId: z.string().uuid().optional(),
@@ -30,6 +68,7 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
 
   const session = await auth();
   if (!session) return { message: "Unauthorized" };
+  await ensureReturnsSchema();
 
   const raw = Object.fromEntries(formData.entries());
 
@@ -96,9 +135,32 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
         .padStart(4, "0")}`;
       const token = generateQuotationToken();
 
-      const customerProfile = data.customerId
+      const customerNameInput = String(data.customerName || "").trim();
+      const customerPhoneInput = String(data.customerMobile || "").trim();
+      const customerEmailInput = String(data.customerEmail || "").trim();
+
+      let customerProfile = data.customerId
         ? await tx.customer.findUnique({ where: { id: data.customerId } })
         : null;
+
+      if (!customerProfile && customerNameInput) {
+        const or: Array<Record<string, unknown>> = [];
+        if (customerPhoneInput) or.push({ phone: customerPhoneInput });
+        if (customerEmailInput) or.push({ email: customerEmailInput });
+        const existing = or.length ? await tx.customer.findFirst({ where: { OR: or } as never }) : null;
+        customerProfile =
+          existing ||
+          (await tx.customer.create({
+            data: {
+              name: customerNameInput,
+              phone: customerPhoneInput || null,
+              email: customerEmailInput || null,
+              address: (data.customerAddress || null) as unknown as never,
+              city: (data.customerCity || null) as unknown as never,
+            } as unknown as never,
+          }));
+        await ensureCustomerCode(tx, customerProfile.id);
+      }
       const customerNameFinal = customerProfile?.name || data.customerName;
       const customerMobileFinal = customerProfile?.phone || data.customerMobile;
       const customerEmailFinal = customerProfile?.email || data.customerEmail;
@@ -159,6 +221,7 @@ export async function updateQuotation(
 ) {
   const session = await auth();
   if (!session) return { message: "Unauthorized" };
+  await ensureReturnsSchema();
 
   const raw = Object.fromEntries(formData.entries());
 
@@ -217,9 +280,32 @@ export async function updateQuotation(
     await prisma.$transaction(async (tx) => {
       await tx.quotationItem.deleteMany({ where: { quotationId: id } });
 
-      const customerProfile = data.customerId
+      const customerNameInput = String(data.customerName || "").trim();
+      const customerPhoneInput = String(data.customerMobile || "").trim();
+      const customerEmailInput = String(data.customerEmail || "").trim();
+
+      let customerProfile = data.customerId
         ? await tx.customer.findUnique({ where: { id: data.customerId } })
         : null;
+
+      if (!customerProfile && customerNameInput) {
+        const or: Array<Record<string, unknown>> = [];
+        if (customerPhoneInput) or.push({ phone: customerPhoneInput });
+        if (customerEmailInput) or.push({ email: customerEmailInput });
+        const existing = or.length ? await tx.customer.findFirst({ where: { OR: or } as never }) : null;
+        customerProfile =
+          existing ||
+          (await tx.customer.create({
+            data: {
+              name: customerNameInput,
+              phone: customerPhoneInput || null,
+              email: customerEmailInput || null,
+              address: (data.customerAddress || null) as unknown as never,
+              city: (data.customerCity || null) as unknown as never,
+            } as unknown as never,
+          }));
+        await ensureCustomerCode(tx, customerProfile.id);
+      }
       const customerNameFinal = customerProfile?.name || data.customerName;
       const customerMobileFinal = customerProfile?.phone || data.customerMobile;
       const customerEmailFinal = customerProfile?.email || data.customerEmail;
@@ -405,6 +491,7 @@ export async function convertQuotationToInvoice(id: string) {
             invoiceId: invoice.id,
             platform: "OFFLINE", // Default
             saleDate: new Date(),
+            customerId: quote.customerId || undefined,
             customerName: quote.customerName,
             customerPhone: quote.customerMobile,
             customerEmail: quote.customerEmail,

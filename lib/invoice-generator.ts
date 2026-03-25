@@ -17,6 +17,7 @@ export interface InvoiceData {
   };
   customer: {
     name: string;
+    customerCode?: string;
     address?: string;
     phone?: string;
     email?: string;
@@ -346,11 +347,10 @@ export async function generateInvoicePDF(data: InvoiceData) {
   const shippingW = pageWidth - margin - shippingX;
 
   const customerText = [
+    data.customer.customerCode ? `Cust ID : ${data.customer.customerCode}` : "",
     data.customer.name,
     data.customer.phone ? `Ph: ${data.customer.phone}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  ].filter(Boolean).join("\n");
 
   const billingText = normalizeAddressText(data.billingAddress || data.customer.address || "-");
   const shippingText = normalizeAddressText(data.shippingAddress || billingText);
@@ -606,8 +606,30 @@ export async function generateInvoicePDF(data: InvoiceData) {
     doc.setFont(fontFamily, "bold");
     doc.text("Notes:", margin, infoY + 2);
     doc.setFont(fontFamily, "normal");
-    const lines = doc.splitTextToSize(data.notes, wrapWidth);
-    doc.text(lines, margin, infoY + 6);
+    const raw = String(data.notes || "");
+    const blocks = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const cnBlocks = blocks.filter((l) => l.toLowerCase().startsWith("credit note(s):"));
+    const otherBlocks = blocks.filter((l) => !l.toLowerCase().startsWith("credit note(s):"));
+
+    let noteY = infoY + 6;
+    if (otherBlocks.length) {
+      const otherLines = doc.splitTextToSize(otherBlocks.join("\n"), wrapWidth);
+      doc.text(otherLines, margin, noteY);
+      noteY += otherLines.length * 4 + 2;
+    }
+
+    if (cnBlocks.length) {
+      const cnText = cnBlocks.join("\n");
+      doc.setFont(fontFamily, "bold");
+      const cnLines = doc.splitTextToSize(cnText, wrapWidth - 6);
+      const boxH = cnLines.length * 4 + 6;
+      doc.setFillColor(254, 249, 195);
+      doc.roundedRect(margin, noteY - 4, wrapWidth, boxH, 2, 2, "F");
+      doc.setTextColor(124, 45, 18);
+      doc.text(cnLines, margin + 3, noteY);
+      doc.setTextColor(0);
+      doc.setFont(fontFamily, "normal");
+    }
   }
 
   const signatureY = pageHeight - 55;

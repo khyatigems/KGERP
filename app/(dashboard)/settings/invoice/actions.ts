@@ -7,6 +7,8 @@ import { uploadToCloudinary } from "@/lib/cloudinary";
 export async function getInvoiceSettings() {
   const settings = await prisma.invoiceSettings.findFirst();
   let paymentSettings = await prisma.paymentSettings.findFirst();
+  const creditNoteTermsRow = await prisma.setting.findUnique({ where: { key: "credit_note_terms" } }).catch(() => null);
+  const creditNoteTerms = creditNoteTermsRow?.value || "";
   
   // Migration Logic: If payment settings are missing or incomplete, try to fetch from legacy settings
   if (!paymentSettings || (!paymentSettings.upiId && !paymentSettings.bankName)) {
@@ -44,7 +46,8 @@ export async function getInvoiceSettings() {
   
   return {
     settings,
-    paymentSettings
+    paymentSettings,
+    creditNoteTerms
   };
 }
 
@@ -57,6 +60,7 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
     const gstEnabled = formData.get("gstEnabled") === "on";
     const gstType = (formData.get("gstType") as string).trim();
     const categoryGstRates = (formData.get("categoryGstRates") as string).trim();
+    const creditNoteTerms = (formData.get("creditNoteTerms") as string | null)?.toString().trim() || "";
     
     // Payment Settings
     const upiEnabled = formData.get("upiEnabled") === "on";
@@ -163,6 +167,12 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
             }
         });
     }
+
+    await prisma.setting.upsert({
+      where: { key: "credit_note_terms" },
+      update: { value: creditNoteTerms },
+      create: { key: "credit_note_terms", value: creditNoteTerms, description: "Credit Note Terms & Conditions" },
+    });
 
     revalidatePath("/settings/invoice");
     revalidatePath("/invoice/[token]");

@@ -56,7 +56,6 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
         }
       });
       const customerId = invWithCustomer?.sales?.[0]?.customerId || invWithCustomer?.quotation?.customerId || null;
-      const customerName = String(invWithCustomer?.sales?.[0]?.customerName || invWithCustomer?.quotation?.customerName || "").trim().toLowerCase();
       let remainingToAllocate = amountToRecord;
       const ref = (input.reference || "").trim();
       if (!ref && !customerId) throw new Error("Credit note code is required");
@@ -96,11 +95,6 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
       const used: Array<{ id: string; num: string; used: number }> = [];
       for (const cn of openCNs) {
         if (remainingToAllocate <= 0) break;
-        if (customerId && cn.customerId && cn.customerId !== customerId) throw new Error("Credit note belongs to a different customer");
-        if (!customerId && customerName) {
-          const cnName = String((cn as { cnCustomerName?: string | null }).cnCustomerName || "").trim().toLowerCase();
-          if (cnName && cnName !== customerName) throw new Error("Credit note belongs to a different customer");
-        }
         const use = Math.min(remainingToAllocate, cn.balanceAmount);
         if (use <= 0) continue;
         await tx.$executeRawUnsafe(`UPDATE CreditNote SET balanceAmount = balanceAmount - ? WHERE id = ?`, use, cn.id);

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
+import { sanitizeNumberText } from "@/lib/number-formatting";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { buildInvoiceWhatsappLink } from "@/lib/whatsapp";
 import { Share2 } from "lucide-react";
@@ -266,7 +267,11 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   })();
   const creditNoteText = (creditNotes || [])
     .filter((cn) => (cn.creditNoteNumber || "").trim())
-    .map((cn) => `${cn.creditNoteNumber} (Total ${formatCurrency(Number(cn.totalAmount || 0))}, Balance ${formatCurrency(Number(cn.balanceAmount || 0))})`)
+    .map((cn) => {
+      const total = sanitizeNumberText(formatCurrency(Number(cn.totalAmount || 0)).replace("₹", "Rs. "));
+      const bal = sanitizeNumberText(formatCurrency(Number(cn.balanceAmount || 0)).replace("₹", "Rs. "));
+      return `${cn.creditNoteNumber} (Total ${total}, Balance ${bal})`;
+    })
     .join(", ");
   const displayPaymentStatus = creditNoteText ? `${paymentStatus} (CN Issued)` : paymentStatus;
 
@@ -306,7 +311,8 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
       logoUrl: displayLogo || undefined,
     },
     customer: {
-      name: customerCode ? `${customerName} [CODE: ${customerCode}]` : customerName,
+      name: customerName,
+      customerCode: customerCode || undefined,
       address: customerAddress,
       phone: customerPhone,
       email: customerEmail,
