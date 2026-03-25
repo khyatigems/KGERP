@@ -40,6 +40,10 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/api")) {
+    return NextResponse.next();
+  }
+
   // 2. Enforce Authentication for Protected Routes
   if (!isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.nextUrl));

@@ -26,6 +26,7 @@ type InvoiceWithRelations = Invoice & {
   sales: Sale[];
   legacySale: Sale | null;
   quotation: Quotation | null;
+  creditNotes: Array<{ id: string }>;
 };
 
 export default async function InvoicesPage() {
@@ -35,6 +36,7 @@ export default async function InvoicesPage() {
       sales: true,
       legacySale: true,
       quotation: true,
+      creditNotes: { select: { id: true } },
     },
   });
 
@@ -81,6 +83,8 @@ export default async function InvoicesPage() {
                 
                 if (allPaid && sales.length > 0) paymentStatus = "PAID";
                 else if (anyPaidOrPartial) paymentStatus = "PARTIAL";
+                const hasCreditNote = (invoice.creditNotes || []).length > 0;
+                const displayStatus = hasCreditNote ? `${paymentStatus} (CN)` : paymentStatus;
 
                 return (
                   <TableRow key={invoice.id}>
@@ -91,7 +95,7 @@ export default async function InvoicesPage() {
                     <TableCell>{formatCurrency(totalAmount)}</TableCell>
                     <TableCell>
                       <Badge variant={paymentStatus === "PAID" ? "default" : paymentStatus === "PARTIAL" ? "secondary" : "destructive"}>
-                        {paymentStatus}
+                        {displayStatus}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">

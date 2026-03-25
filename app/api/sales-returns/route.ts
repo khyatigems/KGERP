@@ -31,6 +31,14 @@ function computeGstSplit(input: { taxable: number; rate: number; companyState: s
   return { igst: 0, cgst: half + remainder, sgst: half, totalTax };
 }
 
+function lastTwoDigitsFromInvoiceNumber(invoiceNumber: string | null | undefined) {
+  const raw = String(invoiceNumber || "").trim();
+  const digits = (raw.match(/\d+/g) || []).join("");
+  if (digits.length >= 2) return digits.slice(-2);
+  const year2 = String(new Date().getFullYear()).slice(-2);
+  return year2;
+}
+
 export async function POST(request: NextRequest) {
   await ensureReturnsSchema();
   const session = await auth();
@@ -46,10 +54,12 @@ export async function POST(request: NextRequest) {
   const inv = await prisma.invoice.findUnique({
     where: { id: invoiceId },
     select: {
+      invoiceNumber: true,
       invoiceDate: true,
       subtotal: true,
       taxTotal: true,
       sales: { take: 1, select: { customerId: true, placeOfSupply: true, customerCity: true } },
+      quotation: { select: { customerId: true } },
     },
   });
   if (!inv) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
@@ -129,16 +139,28 @@ export async function POST(request: NextRequest) {
       let creditNoteId: string | undefined;
       let creditNoteNumber: string | undefined;
       if (disposition === "REFUND") {
-        const existingCN = await tx.$queryRawUnsafe<Array<{ n: string }>>(
-          `SELECT creditNoteNumber as n FROM CreditNote WHERE creditNoteNumber LIKE 'CN-%' ORDER BY creditNoteNumber DESC LIMIT 1000`
-        );
-        const cnNumber = nextPrefixedNumber("CN-", existingCN);
+        const invoiceSuffix = lastTwoDigitsFromInvoiceNumber(inv.invoiceNumber);
+        let cnNumber = "";
+        for (let i = 0; i < 20; i++) {
+          const rnd = Number(crypto.getRandomValues(new Uint32Array(1))[0] % 10000);
+          const candidate = `CN${invoiceSuffix}-${String(rnd).padStart(4, "0")}`;
+          const collision = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+            `SELECT id FROM CreditNote WHERE creditNoteNumber = ? LIMIT 1`,
+            candidate
+          );
+          if (!collision.length) {
+            cnNumber = candidate;
+            break;
+          }
+        }
+        if (!cnNumber) throw new Error("Failed to generate credit note number");
         const cnId = crypto.randomUUID();
+        const customerId = inv.sales?.[0]?.customerId || inv.quotation?.customerId || null;
         await tx.$executeRawUnsafe(
-          `INSERT INTO CreditNote (id, customerId, invoiceId, creditNoteNumber, issueDate, totalAmount, taxableAmount, igst, cgst, sgst, totalTax, balanceAmount, isActive, createdAt)
-           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
+          `INSERT INTO CreditNote (id, customerId, invoiceId, creditNoteNumber, issueDate, activeUntil, totalAmount, taxableAmount, igst, cgst, sgst, totalTax, balanceAmount, isActive, createdAt)
+           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+90 day'), ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
           cnId,
-          inv.sales?.[0]?.customerId || null,
+          customerId,
           invoiceId,
           cnNumber,
           totalAmount,

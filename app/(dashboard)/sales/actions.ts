@@ -46,6 +46,7 @@ const saleSchema = z.object({
   shippingCharge: z.coerce.number().min(0).optional(),
   additionalCharge: z.coerce.number().min(0).optional(),
   paymentMode: z.string().optional(),
+  singlePaymentReference: z.string().optional(),
   paymentStatus: z.string().optional(),
   shippingMethod: z.string().optional(),
   trackingId: z.string().optional(),
@@ -148,7 +149,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
       const additionalCharge = data.additionalCharge || 0;
       const totalNetAmount = computedItems.reduce((sum, i) => sum + i.netAmount, 0) + shippingCharge + additionalCharge;
       const totalDiscount = computedItems.reduce((sum, i) => sum + i.discount, 0);
-      const allowedPaymentMethods = new Set(["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER", "PAYPAL", "CC"]);
+      const allowedPaymentMethods = new Set(["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER", "PAYPAL", "CC", "CREDIT_NOTE"]);
 
       let normalizedPayments = (data.initialPayments || []).map((p) => ({
         amount: Number(p.amount),
@@ -159,12 +160,16 @@ export async function createSale(prevState: unknown, formData: FormData) {
       }));
 
       if (normalizedPayments.length === 0 && data.paymentStatus === "PAID" && data.autoFillSplitFromSingle) {
+        const singleRef = String(data.singlePaymentReference || "").trim();
+        if (data.paymentMode === "CREDIT_NOTE" && !singleRef) {
+          return { message: "Credit note code is required for Credit Note payment" };
+        }
         normalizedPayments = [
           {
             amount: totalNetAmount,
             method: data.paymentMode || "CASH",
             date: data.saleDate,
-            reference: undefined,
+            reference: data.paymentMode === "CREDIT_NOTE" ? singleRef : undefined,
             notes: "Auto-recorded at sale creation",
           }
         ];
@@ -173,6 +178,9 @@ export async function createSale(prevState: unknown, formData: FormData) {
       for (const payment of normalizedPayments) {
         if (!allowedPaymentMethods.has(payment.method)) {
           return { message: `Unsupported payment method: ${payment.method}` };
+        }
+        if (payment.method === "CREDIT_NOTE" && !String(payment.reference || "").trim()) {
+          return { message: "Credit note code is required" };
         }
         if (!(payment.date instanceof Date) || Number.isNaN(payment.date.getTime())) {
           return { message: "Invalid payment date in initial payments" };
@@ -339,6 +347,75 @@ export async function createSale(prevState: unknown, formData: FormData) {
           }
 
           for (const payment of normalizedPayments) {
+            if (payment.method === "CREDIT_NOTE") {
+              const cnCode = String(payment.reference || "").trim();
+              if (!cnCode) throw new Error("Credit note code is required");
+
+              const rows = await tx.$queryRawUnsafe<
+                Array<{
+                  id: string;
+                  customerId: string | null;
+                  balanceAmount: number;
+                  isActive: number;
+                  issueDate: string;
+                  activeUntil: string | null;
+                  cnCustomerName: string | null;
+                }>
+              >(
+                `SELECT cn.id,
+                        cn.customerId,
+                        cn.balanceAmount,
+                        cn.isActive,
+                        cn.issueDate,
+                        cn.activeUntil,
+                        (SELECT COALESCE(c.name, s.customerName, q.customerName)
+                         FROM Invoice i
+                         LEFT JOIN Customer c ON c.id = cn.customerId
+                         LEFT JOIN Sale s ON s.invoiceId = i.id
+                         LEFT JOIN Quotation q ON q.id = i.quotationId
+                         WHERE i.id = cn.invoiceId
+                         LIMIT 1) as cnCustomerName
+                 FROM CreditNote cn
+                 WHERE cn.creditNoteNumber = ?
+                 LIMIT 1`,
+                cnCode
+              );
+              const cn = rows[0];
+              if (!cn) throw new Error("Credit note not found");
+              const invoiceCustomerId = customerProfile?.id || null;
+              const invoiceCustomerName = String(customerProfile?.name || data.customerName || "").trim().toLowerCase();
+              const cnCustomerName = String(cn.cnCustomerName || "").trim().toLowerCase();
+              if (cn.customerId && invoiceCustomerId && cn.customerId !== invoiceCustomerId) {
+                throw new Error("Credit note belongs to a different customer");
+              }
+              if (invoiceCustomerName && cnCustomerName && invoiceCustomerName !== cnCustomerName) {
+                throw new Error("Credit note belongs to a different customer");
+              }
+              if (Number(cn.isActive || 0) !== 1) throw new Error("Credit note is inactive");
+              const valid = await tx.$queryRawUnsafe<Array<{ ok: number }>>(
+                `SELECT CASE WHEN COALESCE(activeUntil, datetime(issueDate, '+90 day')) >= CURRENT_TIMESTAMP THEN 1 ELSE 0 END as ok
+                 FROM CreditNote
+                 WHERE id = ?
+                 LIMIT 1`,
+                cn.id
+              );
+              if (!valid[0]?.ok) throw new Error("Credit note is expired");
+              if (Number(cn.balanceAmount || 0) + 0.009 < Number(payment.amount || 0)) throw new Error("Insufficient credit note balance");
+
+              await tx.$executeRawUnsafe(`UPDATE CreditNote SET balanceAmount = balanceAmount - ? WHERE id = ?`, payment.amount, cn.id);
+              await tx.activityLog.create({
+                data: {
+                  entityType: "CreditNote",
+                  entityId: cn.id,
+                  entityIdentifier: cnCode,
+                  actionType: "APPLY",
+                  source: "WEB",
+                  userId: session.user.id,
+                  userName: session.user.name || session.user.email || "Unknown",
+                  details: `Applied ${Number(payment.amount || 0).toFixed(2)} on invoice ${invoiceNumber}`,
+                },
+              });
+            }
             await tx.payment.create({
               data: {
                 invoiceId: newInvoice.id,

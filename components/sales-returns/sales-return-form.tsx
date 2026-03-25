@@ -14,10 +14,8 @@ type InvoiceOption = {
   id: string;
   invoiceNumber: string;
   invoiceDate: string | Date | null;
-  subtotal: number;
-  taxTotal: number;
   placeOfSupply: string;
-  items: Array<{ inventoryId: string; sku: string; itemName: string; sellingPrice: number; quantity: number }>;
+  items: Array<{ inventoryId: string; sku: string; itemName: string; sellingPrice: number; gstRate: number; quantity: number }>;
 };
 
 type ReturnItemState = {
@@ -90,16 +88,39 @@ export function SalesReturnForm({ invoices, companyState }: { invoices: InvoiceO
 
   const totals = useMemo(() => {
     if (!invoice) return null;
-    const taxable = selectedItems.reduce((s, it) => s + Number(it.quantity || 1) * Number(it.sellingPrice || 0), 0);
-    const rate = invoice.subtotal > 0 ? invoice.taxTotal / invoice.subtotal : 0;
-    const split = computeGstSplit({ taxable, rate, companyState, placeOfSupply: invoice.placeOfSupply });
+    const selected = invoice.items
+      .map((it) => {
+        const st = itemsState[it.inventoryId];
+        if (!st?.selected) return null;
+        const qty = Number(st.quantity || 1);
+        const inc = Number(st.sellingPrice ?? it.sellingPrice ?? 0);
+        const rate = Number(it.gstRate || 0) / 100;
+        const taxable = rate > 0 ? inc / (1 + rate) : inc;
+        const gst = inc - taxable;
+        return { qty, inc, taxable, gst };
+      })
+      .filter(Boolean) as Array<{ qty: number; inc: number; taxable: number; gst: number }>;
+
+    const taxable = selected.reduce((s, it) => s + it.taxable * it.qty, 0);
+    const totalTax = selected.reduce((s, it) => s + it.gst * it.qty, 0);
+    const total = selected.reduce((s, it) => s + it.inc * it.qty, 0);
+
+    const split = computeGstSplit({
+      taxable: round2(taxable),
+      rate: taxable > 0 ? totalTax / taxable : 0,
+      companyState,
+      placeOfSupply: invoice.placeOfSupply,
+    });
+
     return {
       taxable: round2(taxable),
-      rate,
-      ...split,
-      total: round2(taxable + split.totalTax),
+      totalTax: round2(totalTax),
+      igst: round2(split.igst),
+      cgst: round2(split.cgst),
+      sgst: round2(split.sgst),
+      total: round2(total),
     };
-  }, [invoice, selectedItems, companyState]);
+  }, [invoice, itemsState, companyState]);
 
   const submit = async () => {
     if (!invoiceId) {
@@ -237,14 +258,14 @@ export function SalesReturnForm({ invoices, companyState }: { invoices: InvoiceO
       )}
 
       {invoice && totals && (
-        <div className="rounded-md border p-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+          <div className="rounded-md border p-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
           <div>
             <div className="text-muted-foreground">Taxable</div>
             <div className="font-medium">{formatCurrency(totals.taxable)}</div>
           </div>
           <div>
             <div className="text-muted-foreground">GST</div>
-            <div className="font-medium">{formatCurrency(totals.totalTax)}</div>
+              <div className="font-medium">{formatCurrency(totals.totalTax)}</div>
           </div>
           <div>
             <div className="text-muted-foreground">CGST / SGST / IGST</div>

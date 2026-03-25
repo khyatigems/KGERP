@@ -46,14 +46,19 @@ export default async function SalesReturnsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Sales Returns</h1>
           <p className="text-sm text-muted-foreground">Create returns and credit notes against invoices.</p>
         </div>
-        {hasPermission(session.user.role, PERMISSIONS.SALES_CREATE) && (
-          <Button asChild>
-            <Link href="/sales-returns/new">
-              <Plus className="mr-2 h-4 w-4" />
-              New Return
-            </Link>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/sales-returns/credit-notes">Credit Notes</Link>
           </Button>
-        )}
+          {hasPermission(session.user.role, PERMISSIONS.SALES_CREATE) && (
+            <Button asChild>
+              <Link href="/sales-returns/new">
+                <Plus className="mr-2 h-4 w-4" />
+                New Return
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>

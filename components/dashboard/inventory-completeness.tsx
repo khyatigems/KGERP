@@ -3,7 +3,11 @@
 import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = async (url: string) => {
+  const r = await fetch(url, { credentials: "include", cache: "no-store" });
+  if (!r.ok) throw new Error(`Request failed: ${r.status}`);
+  return r.json();
+};
 
 export function InventoryCompletenessWidget() {
   const { data } = useSWR<{ totalItems: number; overallTotalItems?: number; withImagesCount: number; withCertificateCount: number; withHsnCount: number; completenessAllCount: number }>(

@@ -4,6 +4,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SalesReturnForm } from "@/components/sales-returns/sales-return-form";
+import { computeInvoiceGst } from "@/lib/invoice-gst";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,17 @@ export default async function NewSalesReturnPage() {
   if (!hasPermission(session.user.role, PERMISSIONS.SALES_CREATE)) redirect("/");
 
   const company = await prisma.companySettings.findFirst({ select: { state: true } });
+  const invoiceSettings = await prisma.invoiceSettings.findFirst({ select: { categoryGstRates: true } });
+  const gstRates = (() => {
+    try {
+      const raw = invoiceSettings?.categoryGstRates;
+      if (!raw) return undefined;
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      return parsed && typeof parsed === "object" ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
 
   const invoices = await prisma.invoice.findMany({
     where: { isActive: true },
@@ -21,27 +33,47 @@ export default async function NewSalesReturnPage() {
     include: {
       sales: {
         orderBy: { saleDate: "desc" },
-        include: { inventory: { select: { id: true, sku: true, itemName: true } } },
+        include: { inventory: { select: { id: true, sku: true, itemName: true, category: true } } },
       },
     },
   });
 
-  const invoiceOptions = invoices.map((inv) => ({
-    id: inv.id,
-    invoiceNumber: inv.invoiceNumber,
-    invoiceDate: inv.invoiceDate,
-    subtotal: inv.subtotal,
-    taxTotal: inv.taxTotal,
-    placeOfSupply: inv.sales?.[0]?.placeOfSupply || inv.sales?.[0]?.customerCity || "",
-    items: inv.sales.map((s) => ({
-      inventoryId: s.inventoryId,
-      sku: s.inventory.sku,
-      itemName: s.inventory.itemName,
-      // Use final invoice net (inclusive) for refund amount
-      sellingPrice: s.netAmount || s.salePrice || 0,
-      quantity: 1,
-    })),
-  }));
+  const invoiceOptions = invoices.map((inv) => {
+    const displayOptions = (() => {
+      try {
+        return inv.displayOptions ? (JSON.parse(inv.displayOptions) as Record<string, unknown>) : {};
+      } catch {
+        return {};
+      }
+    })();
+    const gst = computeInvoiceGst({
+      items: inv.sales.map((s) => ({
+        salePrice: s.salePrice,
+        netAmount: s.netAmount,
+        discountAmount: s.discountAmount,
+        inventory: { category: s.inventory.category, itemName: s.inventory.itemName },
+      })),
+      gstRates,
+      displayOptions,
+    });
+    return {
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      invoiceDate: inv.invoiceDate,
+      placeOfSupply: inv.sales?.[0]?.placeOfSupply || inv.sales?.[0]?.customerCity || "",
+      items: inv.sales.map((s, idx) => {
+        const line = (gst.processedItems || [])[idx] as unknown as { finalInclusive?: number; gstRate?: number };
+        return {
+          inventoryId: s.inventoryId,
+          sku: s.inventory.sku,
+          itemName: s.inventory.itemName,
+          sellingPrice: Number(line?.finalInclusive ?? s.netAmount ?? s.salePrice ?? 0),
+          gstRate: Number(line?.gstRate ?? 3),
+          quantity: 1,
+        };
+      }),
+    };
+  });
 
   return (
     <div className="space-y-6">

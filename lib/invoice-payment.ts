@@ -50,22 +50,72 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
       const invWithCustomer = await tx.invoice.findUnique({
         where: { id: input.invoiceId },
         select: {
-          sales: { take: 1, select: { customerId: true } }
+          invoiceNumber: true,
+          sales: { take: 1, select: { customerId: true, customerName: true } },
+          quotation: { select: { customerId: true, customerName: true } }
         }
       });
-      const customerId = invWithCustomer?.sales?.[0]?.customerId || null;
-      if (!customerId) throw new Error("Cannot use credit note without customer link");
+      const customerId = invWithCustomer?.sales?.[0]?.customerId || invWithCustomer?.quotation?.customerId || null;
+      const customerName = String(invWithCustomer?.sales?.[0]?.customerName || invWithCustomer?.quotation?.customerName || "").trim().toLowerCase();
       let remainingToAllocate = amountToRecord;
-      const openCNs = await tx.$queryRawUnsafe<Array<{ id: string; creditNoteNumber: string; balanceAmount: number }>>(
-        `SELECT id, creditNoteNumber, balanceAmount FROM CreditNote WHERE customerId = ? AND isActive = 1 AND balanceAmount > 0 ORDER BY issueDate ASC`,
-        customerId
-      );
+      const ref = (input.reference || "").trim();
+      if (!ref && !customerId) throw new Error("Credit note code is required");
+      const openCNs = ref
+        ? await tx.$queryRawUnsafe<
+            Array<{ id: string; creditNoteNumber: string; balanceAmount: number; customerId: string | null; cnCustomerName: string | null }>
+          >(
+            `SELECT cn.id,
+                    cn.creditNoteNumber,
+                    cn.balanceAmount,
+                    cn.customerId,
+                    (SELECT COALESCE(c.name, s.customerName, q.customerName)
+                     FROM Invoice i
+                     LEFT JOIN Customer c ON c.id = cn.customerId
+                     LEFT JOIN Sale s ON s.invoiceId = i.id
+                     LEFT JOIN Quotation q ON q.id = i.quotationId
+                     WHERE i.id = cn.invoiceId
+                     LIMIT 1) as cnCustomerName
+             FROM CreditNote cn
+             WHERE cn.creditNoteNumber = ?
+               AND cn.isActive = 1
+               AND cn.balanceAmount > 0
+               AND COALESCE(cn.activeUntil, datetime(cn.issueDate, '+90 day')) >= CURRENT_TIMESTAMP
+             LIMIT 1`,
+            ref
+          )
+        : await tx.$queryRawUnsafe<Array<{ id: string; creditNoteNumber: string; balanceAmount: number; customerId: string | null }>>(
+            `SELECT id, creditNoteNumber, balanceAmount, customerId
+             FROM CreditNote
+             WHERE customerId = ?
+               AND isActive = 1
+               AND balanceAmount > 0
+               AND COALESCE(activeUntil, datetime(issueDate, '+90 day')) >= CURRENT_TIMESTAMP
+             ORDER BY issueDate ASC`,
+            customerId
+          );
       const used: Array<{ id: string; num: string; used: number }> = [];
       for (const cn of openCNs) {
         if (remainingToAllocate <= 0) break;
+        if (customerId && cn.customerId && cn.customerId !== customerId) throw new Error("Credit note belongs to a different customer");
+        if (!customerId && customerName) {
+          const cnName = String((cn as { cnCustomerName?: string | null }).cnCustomerName || "").trim().toLowerCase();
+          if (cnName && cnName !== customerName) throw new Error("Credit note belongs to a different customer");
+        }
         const use = Math.min(remainingToAllocate, cn.balanceAmount);
         if (use <= 0) continue;
         await tx.$executeRawUnsafe(`UPDATE CreditNote SET balanceAmount = balanceAmount - ? WHERE id = ?`, use, cn.id);
+        await tx.activityLog.create({
+          data: {
+            entityType: "CreditNote",
+            entityId: cn.id,
+            entityIdentifier: cn.creditNoteNumber,
+            actionType: "APPLY",
+            source: "WEB",
+            userId: input.actor?.userId,
+            userName: input.actor?.userName,
+            details: `Applied ${use.toFixed(2)} on invoice ${invWithCustomer?.invoiceNumber || input.invoiceId}`,
+          },
+        });
         used.push({ id: cn.id, num: cn.creditNoteNumber, used: use });
         remainingToAllocate -= use;
       }
@@ -159,7 +209,13 @@ export async function applyCreditNotesOnInvoiceCreation(params: {
   let remaining = Math.max(0, (inv.totalAmount || 0) - (inv.paidAmount || 0));
   if (remaining <= 0.009) return { appliedAmount: 0 };
   const cnRows = await params.tx.$queryRawUnsafe<Array<{ id: string; creditNoteNumber: string; balanceAmount: number }>>(
-    `SELECT id, creditNoteNumber, balanceAmount FROM CreditNote WHERE customerId = ? AND isActive = 1 AND balanceAmount > 0 ORDER BY issueDate ASC`,
+    `SELECT id, creditNoteNumber, balanceAmount
+     FROM CreditNote
+     WHERE customerId = ?
+       AND isActive = 1
+       AND balanceAmount > 0
+       AND COALESCE(activeUntil, datetime(issueDate, '+90 day')) >= CURRENT_TIMESTAMP
+     ORDER BY issueDate ASC`,
     params.customerId
   );
   const used: Array<{ id: string; num: string; used: number }> = [];

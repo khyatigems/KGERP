@@ -207,9 +207,24 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   });
   paymentStatus = healResult.paymentStatus;
   balanceDue = healResult.balanceDue;
-  const paymentBreakdownRows = paymentSummary.rows
-    .filter((row) => Math.abs(row.amount) > 0.009)
-    .map((row) => ({ method: getPaymentMethodLabel(row.method), amount: row.amount }));
+  const paymentBreakdownRows = (() => {
+    const map = new Map<string, { method: string; amount: number }>();
+    for (const p of invoice.payments || []) {
+      const method = String(p.method || "OTHER");
+      const ref = String(p.reference || "").trim();
+      const label =
+        method === "CREDIT_NOTE" && ref
+          ? `${getPaymentMethodLabel(method)} ${ref}`
+          : getPaymentMethodLabel(method);
+      const key = method === "CREDIT_NOTE" && ref ? `${method}:${ref}` : method;
+      const existing = map.get(key) || { method: label, amount: 0 };
+      existing.amount += Number(p.amount || 0);
+      map.set(key, existing);
+    }
+    return Array.from(map.values())
+      .filter((row) => Math.abs(row.amount) > 0.009)
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  })();
   const latestPaymentDate = (invoice.payments || [])
     .slice()
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
@@ -223,6 +238,35 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
       invoiceUrl,
       invoiceNumber: invoice.invoiceNumber
   });
+
+  const creditNotes = await (async () => {
+    try {
+      return await prisma.$queryRawUnsafe<
+        Array<{
+          creditNoteNumber: string;
+          issueDate: string;
+          activeUntil: string | null;
+          totalAmount: number;
+          balanceAmount: number;
+          isActive: number;
+        }>
+      >(
+        `SELECT creditNoteNumber, issueDate, activeUntil, totalAmount, balanceAmount, isActive
+         FROM CreditNote
+         WHERE invoiceId = ?
+         ORDER BY issueDate DESC
+         LIMIT 50`,
+        invoice.id
+      );
+    } catch {
+      return [];
+    }
+  })();
+  const creditNoteText = (creditNotes || [])
+    .filter((cn) => (cn.creditNoteNumber || "").trim())
+    .map((cn) => `${cn.creditNoteNumber} (Total ${formatCurrency(Number(cn.totalAmount || 0))}, Balance ${formatCurrency(Number(cn.balanceAmount || 0))})`)
+    .join(", ");
+  const displayPaymentStatus = creditNoteText ? `${paymentStatus} (CN Issued)` : paymentStatus;
 
   // Customer Details (Fallback Logic)
   const customerName = primarySale.customerName || invoice.quotation?.customer?.name || "Walk-in Customer";
@@ -323,12 +367,12 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     amountPaid: amountReceived,
     balanceDue,
     status: statusLabel,
-    paymentStatus,
+    paymentStatus: displayPaymentStatus,
     paymentMethod: paymentBreakdownRows.length === 1 ? paymentBreakdownRows[0].method : (primarySale.paymentMethod || undefined),
     paidAt: latestPaymentDate || primarySale.saleDate || undefined,
     paymentBreakdown: paymentBreakdownRows,
     terms: invoiceSettings?.terms || undefined,
-    notes: invoiceSettings?.footerNotes || undefined,
+    notes: [invoiceSettings?.footerNotes, creditNoteText ? `Credit Note(s): ${creditNoteText}` : ""].filter(Boolean).join("\n") || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
     upiQrData: paymentSettings?.upiEnabled && paymentSettings?.upiId ? 
       `upi://pay?pa=${paymentSettings.upiId}&pn=${encodeURIComponent(paymentSettings.upiPayeeName || "")}&am=${balanceDue.toFixed(2)}&cu=INR` : undefined,
@@ -356,7 +400,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
             {/* Top Action Bar */}
             <div className="bg-gray-800 text-white px-8 py-4 flex justify-between items-center print:hidden relative z-10">
                 <div className="text-sm font-medium opacity-90">
-                    Status: <span className={isPaid ? "text-green-400 font-bold" : "text-amber-400 font-bold"}>{paymentStatus}</span>
+                    Status: <span className={isPaid ? "text-green-400 font-bold" : "text-amber-400 font-bold"}>{displayPaymentStatus}</span>
                 </div>
                 <div className="flex gap-3">
                     <a 

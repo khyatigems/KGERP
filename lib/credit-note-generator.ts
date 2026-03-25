@@ -3,8 +3,8 @@ import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 
 export async function generateCreditNotePDF(input: {
-  company: { name: string; gstin?: string };
-  customer: { name: string };
+  company: { name: string; address?: string; email?: string; phone?: string; website?: string; gstin?: string };
+  customer: { name: string; address?: string; phone?: string; email?: string };
   creditNoteNumber: string;
   invoiceNumber?: string;
   issueDate: Date;
@@ -13,16 +13,50 @@ export async function generateCreditNotePDF(input: {
   signatureUrl?: string;
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 14;
+  const gray = [100, 116, 139] as const;
+
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text(input.company.name, 15, 20);
-  doc.setFontSize(11);
-  doc.text(`Credit Note: ${input.creditNoteNumber}`, 150, 20, { align: "right" });
-  if (input.invoiceNumber) doc.text(`Ref Invoice: ${input.invoiceNumber}`, 150, 26, { align: "right" });
+  doc.setFontSize(18);
+  doc.text(input.company.name, margin, 18);
+
   doc.setFont("helvetica", "normal");
-  if (input.company.gstin) doc.text(`GSTIN: ${input.company.gstin}`, 15, 26);
-  doc.text(`Customer: ${input.customer.name}`, 15, 32);
-  doc.text(`Issue Date: ${formatDateStr(input.issueDate)}`, 15, 38);
+  doc.setFontSize(9);
+  doc.setTextColor(...gray);
+  const companyLines = [
+    input.company.address || "",
+    [input.company.email || "", input.company.phone || ""].filter(Boolean).join(" • "),
+    input.company.website || "",
+    input.company.gstin ? `GSTIN: ${input.company.gstin}` : "",
+  ].filter(Boolean);
+  if (companyLines.length) doc.text(companyLines, margin, 24);
+  doc.setTextColor(0);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(22);
+  doc.text("CREDIT NOTE", pageWidth - margin, 18, { align: "right" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`CN No: ${input.creditNoteNumber}`, pageWidth - margin, 26, { align: "right" });
+  doc.text(`Date: ${formatDateStr(input.issueDate)}`, pageWidth - margin, 32, { align: "right" });
+  if (input.invoiceNumber) doc.text(`Ref Invoice: ${input.invoiceNumber}`, pageWidth - margin, 38, { align: "right" });
+
+  doc.setDrawColor(226, 232, 240);
+  doc.line(margin, 42, pageWidth - margin, 42);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Bill To:", margin, 50);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const customerLines = [
+    input.customer.name,
+    input.customer.address || "",
+    [input.customer.phone || "", input.customer.email || ""].filter(Boolean).join(" • "),
+  ].filter(Boolean);
+  doc.text(customerLines, margin, 56);
 
   // QR code with CN number + customer + total
   try {
@@ -32,28 +66,43 @@ export async function generateCreditNotePDF(input: {
       total: input.totalAmount,
     });
     const qrDataUrl = await QRCode.toDataURL(qrPayload, { width: 128 });
-    doc.addImage(qrDataUrl, "PNG", 160, 18, 30, 30);
+    doc.addImage(qrDataUrl, "PNG", pageWidth - margin - 28, 44, 28, 28);
   } catch {}
 
-  const rows = input.items.map((i) => [i.description, i.qty, inr(i.price), inr(i.qty * i.price)]);
+  const rows = input.items.map((i) => [
+    String(i.description || ""),
+    String(i.qty || 0),
+    inr(i.price),
+    inr((i.qty || 0) * i.price),
+  ]);
   autoTable(doc, {
-    head: [["Description", "Qty", "Price", "Amount"]],
+    head: [["Description", "Qty", "Rate", "Amount"]],
     body: rows,
-    startY: 44,
-    styles: { fontSize: 9 },
-    headStyles: { fillColor: [30, 30, 30] },
+    startY: 78,
+    theme: "grid",
+    styles: { fontSize: 9, cellPadding: 2 },
+    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold" },
+    columnStyles: {
+      0: { cellWidth: pageWidth - margin * 2 - 55 },
+      1: { halign: "right", cellWidth: 12 },
+      2: { halign: "right", cellWidth: 18 },
+      3: { halign: "right", cellWidth: 25 },
+    },
   });
 
-  const lastY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 44;
+  const lastY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 78;
+  const totalsY = lastY + 10;
   doc.setFont("helvetica", "bold");
-  doc.text(`Total: ${inr(input.totalAmount)}`, 15, lastY + 10);
+  doc.setFontSize(11);
+  doc.text("Total", pageWidth - margin - 40, totalsY);
+  doc.text(inr(input.totalAmount), pageWidth - margin, totalsY, { align: "right" });
 
   if (input.signatureUrl) {
     try {
       const imgData = input.signatureUrl;
       doc.setFontSize(9);
-      doc.text("Authorized Signatory", 150, lastY + 8);
-      doc.addImage(imgData, "PNG", 150, lastY + 10, 40, 16);
+      doc.text("Authorized Signatory", pageWidth - margin, totalsY + 20, { align: "right" });
+      doc.addImage(imgData, "PNG", pageWidth - margin - 40, totalsY + 22, 40, 16);
     } catch {}
   }
 

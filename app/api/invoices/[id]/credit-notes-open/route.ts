@@ -27,11 +27,13 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   >(
     `SELECT id, creditNoteNumber, issueDate, totalAmount, balanceAmount
      FROM CreditNote
-     WHERE customerId = ? AND isActive = 1 AND balanceAmount > 0
+     WHERE customerId = ?
+       AND isActive = 1
+       AND balanceAmount > 0
+       AND COALESCE(activeUntil, datetime(issueDate, '+90 day')) >= CURRENT_TIMESTAMP
      ORDER BY issueDate ASC`,
     customerId
   );
 
   return NextResponse.json({ items: rows || [] });
 }
-

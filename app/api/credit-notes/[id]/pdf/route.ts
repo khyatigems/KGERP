@@ -45,6 +45,22 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (!creditNote) return NextResponse.json({ error: "Not Found" }, { status: 404 });
 
   const company = await prisma.companySettings.findFirst();
+  const primarySale = creditNote.invoiceId
+    ? await prisma.sale.findFirst({
+        where: { invoiceId: creditNote.invoiceId },
+        orderBy: { saleDate: "desc" },
+        select: {
+          customerName: true,
+          customerAddress: true,
+          billingAddress: true,
+          customerCity: true,
+          customerPhone: true,
+          customerEmail: true,
+        },
+      })
+    : null;
+  const customerName = creditNote.customerName || primarySale?.customerName || "Customer";
+  const customerAddress = primarySale?.billingAddress || primarySale?.customerAddress || primarySale?.customerCity || "";
 
   const items = creditNote.invoiceId
     ? await prisma.$queryRawUnsafe<Array<{ description: string; qty: number; price: number }>>(
@@ -62,8 +78,15 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     : [];
 
   const pdf = await generateCreditNotePDF({
-    company: { name: company?.companyName || "Khyati Gems", gstin: company?.gstin || undefined },
-    customer: { name: creditNote.customerName || "Customer" },
+    company: {
+      name: company?.companyName || "Khyati Gems",
+      address: company?.address || "",
+      email: company?.email || "",
+      phone: company?.phone || "",
+      website: company?.website || "",
+      gstin: company?.gstin || undefined,
+    },
+    customer: { name: customerName, address: customerAddress, phone: primarySale?.customerPhone || "", email: primarySale?.customerEmail || "" },
     creditNoteNumber: creditNote.creditNoteNumber,
     invoiceNumber: creditNote.invoiceNumber || undefined,
     issueDate: new Date(creditNote.issueDate),

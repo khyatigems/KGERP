@@ -76,6 +76,7 @@ const formSchema = z.object({
   shippingCharge: z.coerce.number().min(0).optional(),
   additionalCharge: z.coerce.number().min(0).optional(),
   paymentMode: z.string().optional(),
+  singlePaymentReference: z.string().optional(),
   paymentStatus: z.string().default("PENDING"),
   shippingMethod: z.string().optional(),
   trackingId: z.string().optional(),
@@ -291,6 +292,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     formData.append("shippingCharge", String(data.shippingCharge || 0));
     formData.append("additionalCharge", String(data.additionalCharge || 0));
     if (data.paymentMode) formData.append("paymentMode", data.paymentMode);
+    if (data.singlePaymentReference) formData.append("singlePaymentReference", data.singlePaymentReference);
     if (autoFillSplitFromSingle) {
       if (data.paymentStatus) formData.append("paymentStatus", data.paymentStatus);
     } else {
@@ -577,6 +579,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                             <SelectItem value="UPI">UPI</SelectItem>
                             <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
                             <SelectItem value="CASH">Cash</SelectItem>
+                            <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
                             <SelectItem value="PAYPAL">PayPal</SelectItem>
                             <SelectItem value="CC">Credit Card</SelectItem>
                           </SelectContent>
@@ -621,6 +624,22 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                   </div>
                 )}
             </div>
+
+            {autoFillSplitFromSingle && form.watch("paymentMode") === "CREDIT_NOTE" && (
+              <FormField
+                control={form.control}
+                name="singlePaymentReference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Credit Note Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="CN23-8492" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="rounded-md border p-3 space-y-3">
               <div className="flex items-center justify-between">
@@ -716,6 +735,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                                     <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
                                     <SelectItem value="CASH">Cash</SelectItem>
                                     <SelectItem value="CHEQUE">Cheque</SelectItem>
+                                    <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
                                     <SelectItem value="OTHER">Other</SelectItem>
                                   </SelectContent>
                                 </Select>
@@ -743,7 +763,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                             render={({ field }) => (
                               <FormItem>
                                 <FormControl>
-                                  <Input placeholder="Txn Ref" {...field} />
+                                  <Input placeholder="Txn Ref / CN Code" {...field} />
                                 </FormControl>
                               </FormItem>
                             )}

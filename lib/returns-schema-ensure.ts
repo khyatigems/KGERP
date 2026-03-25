@@ -50,6 +50,7 @@ export async function ensureReturnsSchema() {
           "invoiceId" TEXT,
           "creditNoteNumber" TEXT NOT NULL,
           "issueDate" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "activeUntil" DATETIME,
           "totalAmount" REAL NOT NULL,
           "taxableAmount" REAL NOT NULL DEFAULT 0,
           "igst" REAL NOT NULL DEFAULT 0,
@@ -62,6 +63,18 @@ export async function ensureReturnsSchema() {
         );
       `);
     }
+
+    try {
+      const cols = await prisma.$queryRawUnsafe<Array<{ name: string }>>(`PRAGMA table_info("CreditNote")`);
+      const colSet = new Set((cols || []).map((c) => c.name));
+      if (!colSet.has("activeUntil")) {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "CreditNote" ADD COLUMN "activeUntil" DATETIME`);
+      }
+      await prisma.$executeRawUnsafe(
+        `UPDATE "CreditNote" SET "activeUntil" = datetime("issueDate", '+90 day') WHERE "activeUntil" IS NULL`
+      );
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "CreditNote_creditNoteNumber_key" ON "CreditNote"("creditNoteNumber")`);
+    } catch {}
   } catch {
     // ignore
   }

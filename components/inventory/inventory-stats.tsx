@@ -23,7 +23,11 @@ type InventoryStatsResponse = StatRow & {
   overallByStatus: ByStatusRow[];
 };
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = async (url: string) => {
+  const r = await fetch(url, { credentials: "include", cache: "no-store" });
+  if (!r.ok) throw new Error(`Request failed: ${r.status}`);
+  return r.json();
+};
 
 export function InventoryStats() {
   const searchParams = useSearchParams();

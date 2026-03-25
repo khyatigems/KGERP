@@ -197,12 +197,55 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   });
   paymentStatus = healResult.paymentStatus;
   balanceDue = healResult.balanceDue;
-  const paymentBreakdownRows = paymentSummary.rows
-    .filter((row) => Math.abs(row.amount) > 0.009)
-    .map((row) => ({ method: getPaymentMethodLabel(row.method), amount: row.amount }));
+  const paymentBreakdownRows = (() => {
+    const map = new Map<string, { method: string; amount: number }>();
+    for (const p of invoice.payments || []) {
+      const method = String(p.method || "OTHER");
+      const ref = String(p.reference || "").trim();
+      const label =
+        method === "CREDIT_NOTE" && ref
+          ? `${getPaymentMethodLabel(method)} ${ref}`
+          : getPaymentMethodLabel(method);
+      const key = method === "CREDIT_NOTE" && ref ? `${method}:${ref}` : method;
+      const existing = map.get(key) || { method: label, amount: 0 };
+      existing.amount += Number(p.amount || 0);
+      map.set(key, existing);
+    }
+    return Array.from(map.values())
+      .filter((row) => Math.abs(row.amount) > 0.009)
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  })();
   const latestPaymentDate = (invoice.payments || [])
     .slice()
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
+
+  const creditNotes = await (async () => {
+    try {
+      return await prisma.$queryRawUnsafe<
+        Array<{
+          creditNoteNumber: string;
+          issueDate: string;
+          activeUntil: string | null;
+          totalAmount: number;
+          balanceAmount: number;
+          isActive: number;
+        }>
+      >(
+        `SELECT creditNoteNumber, issueDate, activeUntil, totalAmount, balanceAmount, isActive
+         FROM CreditNote
+         WHERE invoiceId = ?
+         ORDER BY issueDate DESC
+         LIMIT 50`,
+        invoice.id
+      );
+    } catch {
+      return [];
+    }
+  })();
+  const creditNoteText = (creditNotes || [])
+    .filter((cn) => (cn.creditNoteNumber || "").trim())
+    .map((cn) => `${cn.creditNoteNumber} (Total ${formatCurrency(Number(cn.totalAmount || 0))}, Balance ${formatCurrency(Number(cn.balanceAmount || 0))})`)
+    .join(", ");
 
   const isPaid = paymentStatus === "PAID";
   // const balanceDue = isPaid ? 0 : pdfTotal; // Already calculated above
@@ -269,12 +312,12 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     amountPaid: amountPaid, 
     balanceDue: balanceDue,
     status: paymentStatus,
-    paymentStatus,
+    paymentStatus: creditNoteText ? `${paymentStatus} (CN Issued)` : paymentStatus,
     paymentMethod: paymentBreakdownRows.length === 1 ? paymentBreakdownRows[0].method : (primarySale.paymentMethod || undefined),
     paidAt: latestPaymentDate || primarySale.saleDate || undefined,
     paymentBreakdown: paymentBreakdownRows,
     terms: invoiceSettings?.terms || undefined,
-    notes: invoiceSettings?.footerNotes || undefined,
+    notes: [invoiceSettings?.footerNotes, creditNoteText ? `Credit Note(s): ${creditNoteText}` : ""].filter(Boolean).join("\n") || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
     bankDetails: paymentSettings?.bankEnabled ? {
       bankName: paymentSettings.bankName || "",
@@ -335,6 +378,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
           amountDue={balanceDue}
           totalAmount={finalTotalAmount}
         />
+        {creditNoteText ? <Badge variant="secondary">CN Issued</Badge> : null}
         
         <div className="ml-auto flex gap-2">
             <Button variant="outline" size="sm" asChild>

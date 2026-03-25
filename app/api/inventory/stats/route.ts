@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -116,10 +115,9 @@ export async function GET(request: NextRequest) {
   const hsnWhere = {
     ...where,
     OR: [
-      { hsnCode: { not: null } } as unknown as Prisma.InventoryWhereInput,
-      { hsn_code: { not: null } } as unknown as Prisma.InventoryWhereInput,
+      { hsnCode: { not: null } },
     ],
-  } as unknown as Prisma.InventoryWhereInput;
+  } satisfies Prisma.InventoryWhereInput;
 
   const completenessWhere = {
     AND: [
