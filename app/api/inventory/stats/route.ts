@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   }
 
   const sp = request.nextUrl.searchParams;
-  const q = (sp.get("q") || "").trim();
+  const q = (sp.get("q") || sp.get("query") || "").trim();
   const category = (sp.get("category") || "").trim();
   const gemType = (sp.get("gemType") || "").trim();
   const color = (sp.get("color") || "").trim();
@@ -94,6 +94,9 @@ export async function GET(request: NextRequest) {
 
   const now = new Date();
 
+  const overallWhere: Prisma.InventoryWhereInput = { ...where };
+  delete (overallWhere as unknown as { status?: string }).status;
+
   const imagesWhere = {
     ...where,
     OR: [
@@ -112,7 +115,7 @@ export async function GET(request: NextRequest) {
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
-  const [totalItems, sums, byCategory, byGemType, byCategoryGemType, byStatus, withImagesCount, withCertificateCount] = await Promise.all([
+  const [totalItems, sums, byCategory, byGemType, byCategoryGemType, byStatus, withImagesCount, withCertificateCount, overallTotalItems, overallByStatus] = await Promise.all([
     prisma.inventory.count({ where }),
     prisma.inventory.aggregate({ where, _sum: { sellingPrice: true } }),
     prisma.inventory.groupBy({
@@ -143,14 +146,23 @@ export async function GET(request: NextRequest) {
     }),
     prisma.inventory.count({ where: imagesWhere }),
     prisma.inventory.count({ where: certificateWhere }),
+    prisma.inventory.count({ where: overallWhere }),
+    prisma.inventory.groupBy({
+      by: ["status"],
+      where: overallWhere,
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+    }),
   ]);
 
   return NextResponse.json({
     totalItems,
+    overallTotalItems,
     totalSell: sums._sum.sellingPrice || 0,
     withImagesCount,
     withCertificateCount,
     byStatus: byStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
+    overallByStatus: overallByStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
     byCategory: byCategory.map((r) => ({
       category: r.category || "Uncategorized",
       items: r._count.id || 0,

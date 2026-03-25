@@ -262,6 +262,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
               data: {
                   invoiceNumber,
                   token,
+                  quotationId: data.quotationId || null,
                   isActive: true,
                   invoiceDate: normalizeDateToUtcNoon(data.saleDate),
                   subtotal: totalNetAmount,
@@ -501,6 +502,31 @@ export async function deleteSale(id: string) {
                        where: { id: inv.quotationId },
                        data: { status: "ACTIVE" }
                      });
+                   }
+                 } else {
+                   const candidates = await tx.quotation.findMany({
+                     where: {
+                       status: "CONVERTED",
+                       items: { some: { inventoryId: sale.inventoryId } },
+                       ...(sale.customerId
+                         ? { customerId: sale.customerId }
+                         : sale.customerName
+                         ? { customerName: sale.customerName }
+                         : {}),
+                     },
+                     select: { id: true, items: { select: { inventoryId: true } } },
+                   });
+                   for (const q of candidates) {
+                     const ids = q.items.map((i) => i.inventoryId).filter(Boolean);
+                     if (!ids.length) continue;
+                     const invItems = await tx.inventory.findMany({
+                       where: { id: { in: ids } },
+                       select: { status: true },
+                     });
+                     const hasSold = invItems.some((it) => it.status === "SOLD");
+                     if (!hasSold) {
+                       await tx.quotation.update({ where: { id: q.id }, data: { status: "ACTIVE" } });
+                     }
                    }
                  }
              }

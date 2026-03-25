@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
 
-type StatRow = { totalItems: number; totalSell: number };
+type StatRow = { totalItems: number; overallTotalItems: number; totalSell: number };
 type ByCategoryRow = { category: string; items: number; sellValue: number };
 type ByGemTypeRow = { gemType: string; items: number; sellValue: number };
 type ByCategoryGemTypeRow = { category: string; gemType: string; items: number; sellValue: number };
@@ -20,6 +20,7 @@ type InventoryStatsResponse = StatRow & {
   byGemType: ByGemTypeRow[];
   byCategoryGemType: ByCategoryGemTypeRow[];
   byStatus: ByStatusRow[];
+  overallByStatus: ByStatusRow[];
 };
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -91,6 +92,17 @@ export function InventoryStats() {
     };
   }, [data?.byStatus]);
 
+  const overallStatusSummary = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of data?.overallByStatus || []) map.set(r.status, r.items);
+    return {
+      inStock: map.get("IN_STOCK") || 0,
+      reserved: map.get("RESERVED") || 0,
+      memo: map.get("MEMO") || 0,
+      sold: map.get("SOLD") || 0,
+    };
+  }, [data?.overallByStatus]);
+
   const topCategory = (data?.byCategory || [])[0]?.category;
   const topGemType = (data?.byGemType || [])[0]?.gemType;
 
@@ -125,10 +137,15 @@ export function InventoryStats() {
             <CardTitle className="text-sm text-muted-foreground">Total Items</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.totalItems ?? "—"}</div>
+            <div className="text-2xl font-bold">{data?.overallTotalItems ?? data?.totalItems ?? "—"}</div>
             <div className="text-xs text-muted-foreground mt-1">
-              IN_STOCK {statusSummary.inStock} • SOLD {statusSummary.sold} • RESERVED {statusSummary.reserved} • MEMO {statusSummary.memo}
+              IN_STOCK {overallStatusSummary.inStock} • SOLD {overallStatusSummary.sold} • RESERVED {overallStatusSummary.reserved} • MEMO {overallStatusSummary.memo}
             </div>
+            {data?.overallTotalItems !== undefined && data?.overallTotalItems !== data?.totalItems && (
+              <div className="text-[10px] text-muted-foreground mt-2">
+                Filtered: {data?.totalItems ?? 0}
+              </div>
+            )}
             {(topCategory || topGemType) && (
               <div className="text-[10px] text-muted-foreground mt-2">
                 {topCategory ? `Top Category: ${topCategory}` : null}
