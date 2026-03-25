@@ -20,9 +20,19 @@ export default async function SalesReturnsPage() {
   await ensureReturnsSchema();
 
   const rows = await prisma.$queryRawUnsafe<
-    Array<{ id: string; returnNumber: string; returnDate: string; disposition: string; invoiceNumber: string }>
+    Array<{ id: string; returnNumber: string; returnDate: string; disposition: string; invoiceNumber: string; customerName: string | null }>
   >(
-    `SELECT sr.id, sr.returnNumber, sr.returnDate, sr.disposition, i.invoiceNumber
+    `SELECT sr.id,
+            sr.returnNumber,
+            sr.returnDate,
+            sr.disposition,
+            i.invoiceNumber,
+            (SELECT COALESCE(s.customerName, c.name)
+             FROM Sale s
+             LEFT JOIN Customer c ON c.id = s.customerId
+             WHERE s.invoiceId = i.id
+             ORDER BY s.saleDate DESC
+             LIMIT 1) as customerName
      FROM SalesReturn sr
      JOIN Invoice i ON i.id = sr.invoiceId
      ORDER BY sr.returnDate DESC
@@ -69,12 +79,22 @@ export default async function SalesReturnsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  rows.map((r: { id: string; returnNumber: string; returnDate: string; disposition: string; invoiceNumber: string }) => (
+                  rows.map((r: { id: string; returnNumber: string; returnDate: string; disposition: string; invoiceNumber: string; customerName: string | null }) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.returnNumber}</TableCell>
                       <TableCell>{formatDate(r.returnDate)}</TableCell>
                       <TableCell>{r.invoiceNumber}</TableCell>
-                      <TableCell>{r.disposition}</TableCell>
+                      <TableCell>
+                        {r.disposition}{" "}
+                        {r.disposition === "REPLACEMENT" ? (
+                          <Link
+                            href={`/sales-returns/replace/${r.id}?customerName=${encodeURIComponent(r.customerName || "")}`}
+                            className="ml-2 text-xs text-primary underline"
+                          >
+                            Dispatch
+                          </Link>
+                        ) : null}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

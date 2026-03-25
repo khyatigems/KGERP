@@ -10,6 +10,7 @@ import { ExportButton } from "@/components/ui/export-button";
 import { ReportFilters } from "@/components/reports/report-filters";
 import { formatCurrency } from "@/lib/utils";
 import { endOfDay, parseISO, startOfDay, subDays, format } from "date-fns";
+import { InventorySummaryExport } from "@/components/reports/inventory-summary-export";
 
 type SearchMap = { [key: string]: string | string[] | undefined };
 
@@ -119,6 +120,7 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
             title="Inventory Summary (Gem Type)"
             label="Export by Gem Type"
           />
+          <InventorySummaryExport />
         </div>
       </div>
 

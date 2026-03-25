@@ -129,6 +129,11 @@ export async function GET(request: NextRequest) {
   const b2cl = mappedInvoices.filter((i) => !i.customerGstin && i.interstate && i.totalAmount > 250000);
   const b2cs = mappedInvoices.filter((i) => !i.customerGstin && !(i.interstate && i.totalAmount > 250000));
 
+  const invoiceItmsByInum = new Map<
+    string,
+    Array<{ num: number; itm_det: { rt: number; txval: number; iamt: number; camt: number; samt: number; csamt: number } }>
+  >();
+
   const hsnMap = new Map<string, HsnAgg>();
   for (const inv of invoices) {
     const sale0 = inv.sales[0];
@@ -156,6 +161,7 @@ export async function GET(request: NextRequest) {
       displayOptions,
     });
 
+    const bucket = new Map<number, { txval: number; tax: number }>();
     for (const line of gst.processedItems as unknown as ProcessedLine[]) {
       const hsn = (line._hsn || "NA") as string;
       const desc = (line._desc || "Item") as string;
@@ -166,6 +172,11 @@ export async function GET(request: NextRequest) {
       const iamt = interstate ? tax : 0;
       const camt = interstate ? 0 : round2(tax / 2);
       const samt = interstate ? 0 : round2(tax - camt);
+
+      const br = bucket.get(rate) || { txval: 0, tax: 0 };
+      br.txval = round2(br.txval + txval);
+      br.tax = round2(br.tax + tax);
+      bucket.set(rate, br);
       const key = `${hsn}__${rate}`;
       const current = hsnMap.get(key) || {
         hsn,
@@ -186,18 +197,63 @@ export async function GET(request: NextRequest) {
       current.samt = round2(current.samt + samt);
       hsnMap.set(key, current);
     }
+
+    const itms = Array.from(bucket.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([rt, bkt], idx) => {
+        const tax = bkt.tax;
+        const iamt2 = interstate ? tax : 0;
+        const camt2 = interstate ? 0 : round2(tax / 2);
+        const samt2 = interstate ? 0 : round2(tax - camt2);
+        return {
+          num: idx + 1,
+          itm_det: {
+            rt,
+            txval: bkt.txval,
+            iamt: iamt2,
+            camt: camt2,
+            samt: samt2,
+            csamt: 0,
+          },
+        };
+      });
+    invoiceItmsByInum.set(inv.invoiceNumber, itms);
   }
 
   const hsn = Array.from(hsnMap.values()).sort((a, b) => (a.hsn + a.rate).localeCompare(b.hsn + b.rate));
 
-  const creditNotes = await prisma.creditNote.findMany({
-    where: { isActive: true, ...(from || to ? { issueDate: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}) },
-    include: { customer: { select: { gstin: true, state: true } }, invoice: { select: { invoiceNumber: true, invoiceDate: true } } },
-    orderBy: { issueDate: "asc" },
-  });
+  const creditNotes = await prisma.$queryRawUnsafe<
+    Array<{ id: string; creditNoteNumber: string; issueDate: string; totalAmount: number; taxableAmount: number; igst: number; cgst: number; sgst: number; customerId: string | null; invoiceId: string | null }>
+  >(
+    `SELECT id, creditNoteNumber, issueDate, totalAmount, taxableAmount, igst, cgst, sgst, customerId, invoiceId
+     FROM CreditNote
+     WHERE isActive = 1
+       ${from ? `AND issueDate >= ?` : ``}
+       ${to ? `AND issueDate <= ?` : ``}
+     ORDER BY issueDate ASC`,
+    ...(from && to ? [from, to] : from ? [from] : to ? [to] : [])
+  );
 
-  const cdnr = creditNotes.filter((cn) => (cn.customer?.gstin || "").trim());
-  const cdnur = creditNotes.filter((cn) => !(cn.customer?.gstin || "").trim());
+  const customersMap = new Map<string, { gstin: string | null; state: string | null }>();
+  const customerIdsCN = Array.from(new Set(creditNotes.map(cn => cn.customerId).filter(Boolean))) as string[];
+  if (customerIdsCN.length) {
+    const cs = await prisma.customer.findMany({ where: { id: { in: customerIdsCN } }, select: { id: true, gstin: true, state: true } });
+    cs.forEach(c => customersMap.set(c.id, { gstin: c.gstin, state: c.state }));
+  }
+  const invoicesMap = new Map<string, { invoiceNumber: string | null; invoiceDate: Date | null }>();
+  const invIdsCN = Array.from(new Set(creditNotes.map(cn => cn.invoiceId).filter(Boolean))) as string[];
+  if (invIdsCN.length) {
+    const invs = await prisma.invoice.findMany({ where: { id: { in: invIdsCN } }, select: { id: true, invoiceNumber: true, invoiceDate: true } });
+    invs.forEach(i => invoicesMap.set(i.id, { invoiceNumber: i.invoiceNumber, invoiceDate: i.invoiceDate }));
+  }
+  const cdnr = creditNotes.filter((cn) => {
+    const c = cn.customerId ? customersMap.get(cn.customerId) : undefined;
+    return !!(c?.gstin || "").trim();
+  });
+  const cdnur = creditNotes.filter((cn) => {
+    const c = cn.customerId ? customersMap.get(cn.customerId) : undefined;
+    return !(c?.gstin || "").trim();
+  });
 
   const summary = {
     b2bCount: b2b.length,
@@ -215,7 +271,9 @@ export async function GET(request: NextRequest) {
   const v22 = (() => {
     const fpVal = fp || "";
     const formatDate = (d: Date | null) => (d ? d.toISOString().slice(0, 10).split("-").reverse().join("-") : "");
-    type V22B2BInv = { inum: string; idt: string; val: number; pos: string; rchrg: "N"; inv_typ: "R" };
+    const invItms = (inum: string) => invoiceItmsByInum.get(inum) || [];
+    type V22Item = { num: number; itm_det: { rt: number; txval: number; iamt: number; camt: number; samt: number; csamt: number } };
+    type V22B2BInv = { inum: string; idt: string; val: number; pos: string; rchrg: "N"; inv_typ: "R"; itms: V22Item[] };
     const b2bObj = b2b.reduce((acc, inv) => {
       const ctin = inv.customerGstin as string;
       acc[ctin] = acc[ctin] || [];
@@ -223,18 +281,19 @@ export async function GET(request: NextRequest) {
         inum: inv.invoiceNumber,
         idt: formatDate(inv.invoiceDate),
         val: inv.totalAmount,
-        pos: inv.posState,
+        pos: posCode(inv.posState || companyState || "NA"),
         rchrg: "N",
         inv_typ: "R",
+        itms: invItms(inv.invoiceNumber),
       });
       return acc;
     }, {} as Record<string, V22B2BInv[]>);
 
-    type V22B2CLInv = { inum: string; idt: string; val: number };
+    type V22B2CLInv = { inum: string; idt: string; val: number; itms: V22Item[] };
     const b2clObj = b2cl.reduce((acc, inv) => {
-      const pos = inv.posState || "NA";
+      const pos = posCode(inv.posState || companyState || "NA");
       acc[pos] = acc[pos] || [];
-      acc[pos].push({ inum: inv.invoiceNumber, idt: formatDate(inv.invoiceDate), val: inv.totalAmount });
+      acc[pos].push({ inum: inv.invoiceNumber, idt: formatDate(inv.invoiceDate), val: inv.totalAmount, itms: invItms(inv.invoiceNumber) });
       return acc;
     }, {} as Record<string, V22B2CLInv[]>);
 
@@ -272,35 +331,62 @@ export async function GET(request: NextRequest) {
       rt: r.rate,
     }));
 
-    type V22CDNRNt = { nt_num: string; nt_dt: string; val: number; pos: string; inv_num: string; inv_dt: string; nt_ty: "C" };
-    const cdnrObj = cdnr.reduce((acc, cn) => {
-      const ctin = (cn.customer?.gstin || "").trim();
+    const cnItms = (cn: { taxableAmount: number; igst: number; cgst: number; sgst: number }) => {
+      const txval = round2(Number(cn.taxableAmount || 0));
+      const tax = round2(Number(cn.igst || 0) + Number(cn.cgst || 0) + Number(cn.sgst || 0));
+      const rt = txval > 0 ? round2((tax / txval) * 100) : 0;
+      return [
+        {
+          num: 1,
+          itm_det: {
+            rt,
+            txval,
+            iamt: round2(Number(cn.igst || 0)),
+            camt: round2(Number(cn.cgst || 0)),
+            samt: round2(Number(cn.sgst || 0)),
+            csamt: 0,
+          },
+        },
+      ] as V22Item[];
+    };
+
+    type V22CDNRNt = { nt_num: string; nt_dt: string; val: number; pos: string; inv_num: string; inv_dt: string; nt_ty: "C"; itms: V22Item[] };
+    const cdnrObj = cdnr.reduce((acc: Record<string, V22CDNRNt[]>, cn) => {
+      const c = cn.customerId ? customersMap.get(cn.customerId) : undefined;
+      const ctin = ((c?.gstin || "") as string).trim();
       if (!ctin) return acc;
       acc[ctin] = acc[ctin] || [];
       acc[ctin].push({
         nt_num: cn.creditNoteNumber,
-        nt_dt: formatDate(cn.issueDate),
+        nt_dt: formatDate(toDate(cn.issueDate)),
         val: cn.totalAmount,
-        pos: posCode(normalizeState(cn.customer?.state) || "NA"),
-        inv_num: cn.invoice?.invoiceNumber || "",
-        inv_dt: cn.invoice?.invoiceDate ? formatDate(cn.invoice.invoiceDate) : "",
+        pos: posCode(normalizeState(c?.state || "NA")),
+        inv_num: (cn.invoiceId ? (invoicesMap.get(cn.invoiceId || "")?.invoiceNumber || "") : ""),
+        inv_dt: (cn.invoiceId ? (invoicesMap.get(cn.invoiceId || "")?.invoiceDate ? formatDate(invoicesMap.get(cn.invoiceId || "")!.invoiceDate!) : "") : ""),
         nt_ty: "C",
+        itms: cnItms(cn),
       });
       return acc;
     }, {} as Record<string, V22CDNRNt[]>);
 
-    const cdnurRows = cdnur.map((cn) => ({
+    const cdnurRows = cdnur.map((cn) => {
+      const c = cn.customerId ? customersMap.get(cn.customerId) : undefined;
+      return {
       nt_num: cn.creditNoteNumber,
-      nt_dt: formatDate(cn.issueDate),
+      nt_dt: formatDate(toDate(cn.issueDate)),
       val: cn.totalAmount,
-      pos: posCode(normalizeState(cn.customer?.state) || "NA"),
+      pos: posCode(normalizeState(c?.state || "NA")),
       nt_ty: "C",
-    }));
+        itms: cnItms(cn),
+      };
+    });
 
     return {
       gstin: (company?.gstin || "").trim(),
       fp: fpVal,
       version: "GST1V2.2",
+      gt: 0,
+      cur_gt: 0,
       b2b: Object.entries(b2bObj).map(([ctin, inv]) => ({ ctin, inv })),
       b2cl: Object.entries(b2clObj).map(([pos, inv]) => ({ pos, inv })),
       b2cs: b2csRows,

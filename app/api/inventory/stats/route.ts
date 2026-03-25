@@ -131,7 +131,20 @@ export async function GET(request: NextRequest) {
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
-  const [totalItems, sums, byCategory, byGemType, byCategoryGemType, byStatus, withImagesCount, withCertificateCount, overallTotalItems, overallByStatus] = await Promise.all([
+  const [
+    totalItems,
+    sums,
+    byCategory,
+    byGemType,
+    byCategoryGemType,
+    byStatus,
+    withImagesCount,
+    withCertificateCount,
+    withHsnCount,
+    completenessAllCount,
+    overallTotalItems,
+    overallByStatus
+  ] = await Promise.all([
     prisma.inventory.count({ where }),
     prisma.inventory.aggregate({ where, _sum: { sellingPrice: true } }),
     prisma.inventory.groupBy({
@@ -179,8 +192,8 @@ export async function GET(request: NextRequest) {
     totalSell: sums._sum.sellingPrice || 0,
     withImagesCount,
     withCertificateCount,
-    withHsnCount: await prisma.inventory.count({ where: hsnWhere }),
-    completenessAllCount: await prisma.inventory.count({ where: completenessWhere }),
+    withHsnCount,
+    completenessAllCount,
     byStatus: byStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
     overallByStatus: overallByStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
     byCategory: byCategory.map((r) => ({

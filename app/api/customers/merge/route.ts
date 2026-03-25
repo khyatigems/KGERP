@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     await prisma.$transaction(async (tx) => {
       await tx.sale.updateMany({ where: { customerId: sourceId }, data: { customerId: targetId } });
       await tx.quotation.updateMany({ where: { customerId: sourceId }, data: { customerId: targetId } });
-      await tx.creditNote.updateMany({ where: { customerId: sourceId }, data: { customerId: targetId } });
+      await tx.$executeRawUnsafe(`UPDATE CreditNote SET customerId = ? WHERE customerId = ?`, targetId, sourceId);
 
       await tx.activityLog.create({
         data: {
@@ -31,15 +31,12 @@ export async function POST(req: NextRequest) {
           userId: session.user.id,
           userName: session.user.name || session.user.email || "Unknown",
           details: `Merged customer ${sourceId} into ${targetId}`,
-          oldData: { sourceId },
-          newData: { targetId },
         },
       });
       await tx.customer.delete({ where: { id: sourceId } });
     });
     return NextResponse.json({ success: true });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Failed to merge" }, { status: 500 });
   }
 }
-

@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 type InvoiceOption = {
   id: string;
@@ -136,7 +137,7 @@ export function SalesReturnForm({ invoices, companyState }: { invoices: InvoiceO
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <div className="text-sm font-medium">Invoice</div>
+          <div className="text-sm font-medium" title="Select the original invoice for return">{t("invoice")}</div>
           <Select value={invoiceId} onValueChange={onInvoiceChange}>
             <SelectTrigger>
               <SelectValue placeholder="Select invoice" />
@@ -152,7 +153,7 @@ export function SalesReturnForm({ invoices, companyState }: { invoices: InvoiceO
         </div>
 
         <div className="space-y-2">
-          <div className="text-sm font-medium">Disposition</div>
+          <div className="text-sm font-medium" title="Refund creates credit note; Replacement creates dispatch">{t("disposition")}</div>
           <Select value={disposition} onValueChange={(v) => setDisposition(v as "REFUND" | "REPLACEMENT")}>
             <SelectTrigger>
               <SelectValue />
@@ -165,7 +166,7 @@ export function SalesReturnForm({ invoices, companyState }: { invoices: InvoiceO
         </div>
 
         <div className="space-y-2">
-          <div className="text-sm font-medium">Remarks</div>
+          <div className="text-sm font-medium" title="Optional internal note">{t("remarks")}</div>
           <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional note..." />
         </div>
       </div>
@@ -180,7 +181,7 @@ export function SalesReturnForm({ invoices, companyState }: { invoices: InvoiceO
                 <TableHead>Item</TableHead>
                 <TableHead className="text-right w-[160px]">Price</TableHead>
                 <TableHead className="text-right w-[140px]">Qty</TableHead>
-                <TableHead className="text-right w-[140px]">Resaleable</TableHead>
+                <TableHead className="text-right w-[140px]" title="If unchecked or return > 7 days, item goes to HOLD">Resaleable</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -275,8 +276,8 @@ export function SalesReturnForm({ invoices, companyState }: { invoices: InvoiceO
         <div className="text-sm text-muted-foreground">
           {selectedItems.length ? `${selectedItems.length} item(s) selected` : ""}
         </div>
-        <Button onClick={submit} disabled={isSubmitting}>
-          Create Sales Return
+        <Button onClick={submit} disabled={isSubmitting} title="Creates return record and credit note (if refund)">
+          {t("create_sales_return")}
         </Button>
       </div>
 

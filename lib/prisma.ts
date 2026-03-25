@@ -108,7 +108,7 @@ const prismaBase =
     // Attach slow query logger in development
     if (!isProd) {
       try {
-        client.$on('query', async (e: { query: string; params: string; duration: number; target: string }) => {
+        (client as unknown as { $on: (ev: string, cb: (e: { query: string; duration: number }) => void) => void }).$on('query', async (e: { query: string; duration: number }) => {
           const dur = Number(e.duration || 0);
           if (dur > 500) {
             console.warn(`[slow-query] ${dur}ms ${String(e.query || "").slice(0, 120)}...`);

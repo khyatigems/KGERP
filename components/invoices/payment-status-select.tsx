@@ -9,6 +9,7 @@ import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PaymentModal, PaymentDetails } from "./payment-modal";
+import { t } from "@/lib/i18n";
 
 interface PaymentStatusSelectProps {
   invoiceId: string;
@@ -69,7 +70,7 @@ export function PaymentStatusSelect({ invoiceId, currentStatus, amountDue, total
   if (currentStatus === "PAID") {
     return (
       <Badge variant="default" className="h-8 px-3 text-sm">
-        PAID
+        {t("paid")}
       </Badge>
     );
   }
@@ -106,6 +107,7 @@ export function PaymentStatusSelect({ invoiceId, currentStatus, amountDue, total
             variant="outline" 
             size="sm" 
             className="h-8"
+            title="Add another payment entry"
             onClick={() => {
               setTargetStatus("PARTIAL"); // Adding more partial payment
               setIsModalOpen(true);

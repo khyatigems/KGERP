@@ -69,7 +69,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     issueDate: new Date(creditNote.issueDate),
     items: items.length ? items : [{ description: "Return Adjustment", qty: 1, price: creditNote.totalAmount }],
     totalAmount: creditNote.totalAmount,
-    signatureUrl: company?.signatureImageUrl || undefined,
+    signatureUrl: undefined,
   });
 
   return new NextResponse(Buffer.from(new Uint8Array(pdf)), {

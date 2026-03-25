@@ -62,9 +62,8 @@ export async function ensureReturnsSchema() {
         );
       `);
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   ensured = true;
 }
-

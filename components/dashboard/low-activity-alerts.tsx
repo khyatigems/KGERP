@@ -21,10 +21,9 @@ export function LowActivityAlertsWidget({ saleDays = 14, invDays = 7 }: { saleDa
       <CardContent className="text-sm space-y-1">
         <div>Last Sale: <span className="font-medium">{data?.lastSaleDate ? formatDate(data.lastSaleDate) : "-"}</span></div>
         <div>Last Inventory Added: <span className="font-medium">{data?.lastInventoryDate ? formatDate(data.lastInventoryDate) : "-"}</span></div>
-        <div>Stale In-Stock SKUs (>{invDays} days): <span className="font-medium">{staleCount}</span></div>
+        <div>Stale In-Stock SKUs ({`>`}{invDays} days): <span className="font-medium">{staleCount}</span></div>
         {(nosale || noinv) ? <div className="text-xs text-red-600">Activity below threshold — review pipeline.</div> : null}
       </CardContent>
     </Card>
   );
 }
-

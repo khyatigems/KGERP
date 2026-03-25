@@ -11,9 +11,10 @@ import { formatCurrency } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { t } from "@/lib/i18n";
 
 interface PaymentModalProps {
-  invoiceId: string;
+  invoiceId?: string;
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (data: PaymentDetails) => Promise<void>;
@@ -68,7 +69,7 @@ export function PaymentModal({
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      if (!isOpen || method !== "CREDIT_NOTE") return;
+      if (!isOpen || method !== "CREDIT_NOTE" || !invoiceId) return;
       setIsLoadingCreditNotes(true);
       try {
         const res = await fetch(`/api/invoices/${invoiceId}/credit-notes-open`);
@@ -136,7 +137,9 @@ export function PaymentModal({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
+          <DialogTitle title={t("record_payment")}>
+            {targetStatus === "PAID" ? t("record_payment") : t("record_partial_payment")}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -148,7 +151,7 @@ export function PaymentModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount (Total Due: {formatCurrency(amountDue)})</Label>
+              <Label htmlFor="amount" title="Enter the amount received">Amount (Total Due: {formatCurrency(amountDue)})</Label>
               <Input
                 id="amount"
                 type="number"
@@ -174,7 +177,7 @@ export function PaymentModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="method">Payment Method</Label>
+            <Label htmlFor="method" title="Select how you received the payment">Payment Method</Label>
             <Select value={method} onValueChange={setMethod}>
               <SelectTrigger>
                 <SelectValue placeholder="Select method" />
@@ -228,7 +231,7 @@ export function PaymentModal({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="reference">Reference / Transaction ID</Label>
+            <Label htmlFor="reference" title="UPI txn id / bank ref / cheque no (optional)">Reference / Transaction ID</Label>
             <Input
               id="reference"
               value={reference}
@@ -238,7 +241,7 @@ export function PaymentModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes" title="Optional internal remark">Notes</Label>
             <Textarea
               id="notes"
               value={notes}

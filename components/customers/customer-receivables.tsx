@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { useMemo, useState } from "react";
 import { useSWRConfig } from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { t } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -73,10 +74,10 @@ export function CustomerReceivables({ customerId, customerName }: { customerId: 
 
   return (
     <Card className={isLoading ? "animate-pulse" : ""}>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Outstanding & Ageing</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle title={t("outstanding_ageing")}>{t("outstanding_ageing")}</CardTitle>
         <div className="flex items-center gap-2">
-          <Button onClick={printStatement}>Print Statement</Button>
+          <Button onClick={printStatement} title={t("print_statement")}>{t("print_statement")}</Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -145,16 +146,16 @@ export function CustomerReceivables({ customerId, customerName }: { customerId: 
               <div className="text-sm text-muted-foreground">{addForInvoice?.invoice}</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">Action</div>
+                <div className="text-sm font-medium" title="CALL / WHATSAPP / EMAIL">Action</div>
                   <Input value={action} onChange={(e) => setAction(e.target.value)} placeholder="CALL / WHATSAPP / EMAIL" />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">Promised Date</div>
+                <div className="text-sm font-medium" title="Date promised by customer">Promised Date</div>
                   <Input type="date" value={promisedDate} onChange={(e) => setPromisedDate(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium">Note</div>
+                <div className="text-sm font-medium" title="Brief follow-up note">Note</div>
                 <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Follow-up note..." />
               </div>
             </div>
