@@ -119,6 +119,7 @@ export function PaymentStatusSelect({ invoiceId, currentStatus, amountDue, total
       </div>
 
       <PaymentModal
+        invoiceId={invoiceId}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onConfirm={handlePaymentConfirm}

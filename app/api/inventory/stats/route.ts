@@ -115,6 +115,22 @@ export async function GET(request: NextRequest) {
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
+  const hsnWhere = {
+    ...where,
+    OR: [
+      { hsnCode: { not: null } } as unknown as Prisma.InventoryWhereInput,
+      { hsn_code: { not: null } } as unknown as Prisma.InventoryWhereInput,
+    ],
+  } as unknown as Prisma.InventoryWhereInput;
+
+  const completenessWhere = {
+    AND: [
+      imagesWhere,
+      certificateWhere,
+      hsnWhere,
+    ],
+  } as unknown as Prisma.InventoryWhereInput;
+
   const [totalItems, sums, byCategory, byGemType, byCategoryGemType, byStatus, withImagesCount, withCertificateCount, overallTotalItems, overallByStatus] = await Promise.all([
     prisma.inventory.count({ where }),
     prisma.inventory.aggregate({ where, _sum: { sellingPrice: true } }),
@@ -146,6 +162,8 @@ export async function GET(request: NextRequest) {
     }),
     prisma.inventory.count({ where: imagesWhere }),
     prisma.inventory.count({ where: certificateWhere }),
+    prisma.inventory.count({ where: hsnWhere }),
+    prisma.inventory.count({ where: completenessWhere }),
     prisma.inventory.count({ where: overallWhere }),
     prisma.inventory.groupBy({
       by: ["status"],
@@ -161,6 +179,8 @@ export async function GET(request: NextRequest) {
     totalSell: sums._sum.sellingPrice || 0,
     withImagesCount,
     withCertificateCount,
+    withHsnCount: await prisma.inventory.count({ where: hsnWhere }),
+    completenessAllCount: await prisma.inventory.count({ where: completenessWhere }),
     byStatus: byStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
     overallByStatus: overallByStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
     byCategory: byCategory.map((r) => ({

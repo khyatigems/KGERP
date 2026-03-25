@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
+import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,8 @@ export default async function SalesReturnsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!hasPermission(session.user.role, PERMISSIONS.SALES_VIEW)) redirect("/");
+
+  await ensureReturnsSchema();
 
   const rows = await prisma.$queryRawUnsafe<
     Array<{ id: string; returnNumber: string; returnDate: string; disposition: string; invoiceNumber: string }>

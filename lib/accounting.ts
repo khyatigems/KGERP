@@ -124,6 +124,7 @@ export const ACCOUNTS = {
     ACCOUNTS_PAYABLE: "2001",
     GST_PAYABLE: "2010",
     DUTIES_TAXES: "2020",
+    CREDIT_NOTES_APPLIED: "2025",
   },
   INCOME: {
     SALES: "4001",

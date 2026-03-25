@@ -351,6 +351,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         { title: "Profit & Margin", description: "Net profit, SKU margins, platform margins", icon: PieChart, href: "/reports/profit", allowed: canViewFinancials },
         { title: "Quotation Analytics", description: "Conversion rates, sent vs expired", icon: FileText, href: "/reports/quotations", allowed: true },
         { title: "Invoice Reports", description: "Paid/Unpaid status, outstanding aging", icon: FileCheck, href: "/reports/invoices", allowed: true },
+        { title: "GST Reports", description: "GSTR-1 exports, HSN summary, credit notes", icon: FileText, href: "/reports/gst", allowed: canViewFinancials },
         { title: "Inventory Aging", description: "Days-in-stock buckets and capital lock visibility", icon: Package, href: "/reports/inventory-aging", allowed: true },
         { title: "Capital Rotation", description: "Sell-cycle and money velocity intelligence", icon: TrendingUp, href: "/reports/capital-rotation", allowed: true },
         { title: "Certificate Checklist", description: "SKU-wise missing fields for certificate readiness", icon: ListChecks, href: "/reports/certificate-readiness", allowed: true },

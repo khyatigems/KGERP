@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import QRCode from "qrcode";
 
 export async function generateCreditNotePDF(input: {
   company: { name: string; gstin?: string };
@@ -9,6 +10,7 @@ export async function generateCreditNotePDF(input: {
   issueDate: Date;
   items: Array<{ description: string; qty: number; price: number }>;
   totalAmount: number;
+  signatureUrl?: string;
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   doc.setFont("helvetica", "bold");
@@ -22,6 +24,17 @@ export async function generateCreditNotePDF(input: {
   doc.text(`Customer: ${input.customer.name}`, 15, 32);
   doc.text(`Issue Date: ${formatDateStr(input.issueDate)}`, 15, 38);
 
+  // QR code with CN number + customer + total
+  try {
+    const qrPayload = JSON.stringify({
+      cn: input.creditNoteNumber,
+      cust: input.customer.name,
+      total: input.totalAmount,
+    });
+    const qrDataUrl = await QRCode.toDataURL(qrPayload, { width: 128 });
+    doc.addImage(qrDataUrl, "PNG", 160, 18, 30, 30);
+  } catch {}
+
   const rows = input.items.map((i) => [i.description, i.qty, inr(i.price), inr(i.qty * i.price)]);
   autoTable(doc, {
     head: [["Description", "Qty", "Price", "Amount"]],
@@ -34,6 +47,15 @@ export async function generateCreditNotePDF(input: {
   const lastY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 44;
   doc.setFont("helvetica", "bold");
   doc.text(`Total: ${inr(input.totalAmount)}`, 15, lastY + 10);
+
+  if (input.signatureUrl) {
+    try {
+      const imgData = input.signatureUrl;
+      doc.setFontSize(9);
+      doc.text("Authorized Signatory", 150, lastY + 8);
+      doc.addImage(imgData, "PNG", 150, lastY + 10, 40, 16);
+    } catch {}
+  }
 
   return doc.output("arraybuffer");
 }

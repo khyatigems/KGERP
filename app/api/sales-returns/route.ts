@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { computeReturnStockPlacement } from "@/lib/sales-return-rules";
+import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ function computeGstSplit(input: { taxable: number; rate: number; companyState: s
 }
 
 export async function POST(request: NextRequest) {
+  await ensureReturnsSchema();
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!hasPermission(session.user.role, PERMISSIONS.SALES_CREATE)) {

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
+import { applyCreditNotesOnInvoiceCreation } from "@/lib/invoice-payment";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 import { randomBytes } from "crypto";
@@ -324,6 +325,17 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   where: { id: itemData.inv.id },
                   data: { status: "SOLD" }
               });
+          }
+
+          // Apply existing credit notes of customer (auto-adjust receivable)
+          const customerIdForCN = customerProfile?.id || undefined;
+          if (customerIdForCN) {
+            await applyCreditNotesOnInvoiceCreation({
+              tx,
+              invoiceId: newInvoice.id,
+              customerId: customerIdForCN,
+              actorId: session.user.id
+            });
           }
 
           for (const payment of normalizedPayments) {

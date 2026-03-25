@@ -94,7 +94,7 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
 const prismaBase =
   globalForPrisma.prisma ??
   (() => {
-    return new PrismaClient({
+    const client = new PrismaClient({
       adapter,
       log: isProd ? ['error', 'warn'] : ['query', 'error', 'warn'],
       datasources: isLibsql
@@ -105,6 +105,18 @@ const prismaBase =
             }
           }
     });
+    // Attach slow query logger in development
+    if (!isProd) {
+      try {
+        client.$on('query', async (e: { query: string; params: string; duration: number; target: string }) => {
+          const dur = Number(e.duration || 0);
+          if (dur > 500) {
+            console.warn(`[slow-query] ${dur}ms ${String(e.query || "").slice(0, 120)}...`);
+          }
+        });
+      } catch {}
+    }
+    return client;
   })();
 
 // Debug: Log available models on initialization

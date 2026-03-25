@@ -3,11 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { generateCreditNotePDF } from "@/lib/credit-note-generator";
+import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await ensureReturnsSchema();
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!hasPermission(session.user.role, PERMISSIONS.RECEIVABLES_VIEW)) {
@@ -67,6 +69,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     issueDate: new Date(creditNote.issueDate),
     items: items.length ? items : [{ description: "Return Adjustment", qty: 1, price: creditNote.totalAmount }],
     totalAmount: creditNote.totalAmount,
+    signatureUrl: company?.signatureImageUrl || undefined,
   });
 
   return new NextResponse(Buffer.from(new Uint8Array(pdf)), {

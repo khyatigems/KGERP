@@ -13,6 +13,8 @@ import { AnalyticsWidgets } from "./analytics-widgets";
 
 import { AttentionWidget } from "./attention-widget";
 import { TodaysActionsWidget } from "./todays-actions-widget";
+import { InventoryCompletenessWidget } from "./inventory-completeness";
+import { LowActivityAlertsWidget } from "./low-activity-alerts";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -84,7 +86,9 @@ export function DashboardView() {
       </div>
 
       {/* 4. Widgets Row */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-4 md:grid-cols-2">
+         <InventoryCompletenessWidget />
+         <LowActivityAlertsWidget />
          <PrintLabelWidget count={data.kpis.printLabels.count} lastItem={data.kpis.printLabels.lastItem} />
          <QuickNotes />
       </div>
