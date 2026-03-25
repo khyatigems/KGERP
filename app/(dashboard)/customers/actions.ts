@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
@@ -8,6 +9,7 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
 import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
+import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 
 const normalizePhone = (input: unknown) => {
   if (typeof input !== "string") return "";
@@ -50,6 +52,7 @@ export async function createCustomer(prevState: unknown, formData: FormData) {
   if (!session?.user) return { message: "Unauthorized" };
 
   await ensureCustomerSecondaryPhoneSchema();
+  await ensureReturnsSchema();
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = customerSchema.safeParse({
@@ -60,21 +63,47 @@ export async function createCustomer(prevState: unknown, formData: FormData) {
   if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors };
 
   try {
-    const created = await prisma.customer.create({
-      data: {
-        name: parsed.data.name,
-        email: parsed.data.email || null,
-        phone: parsed.data.phone || null,
-        phoneSecondary: parsed.data.phoneSecondary || null,
-        address: parsed.data.address || null,
-        city: parsed.data.city || null,
-        state: parsed.data.state || null,
-        country: parsed.data.country || null,
-        pincode: parsed.data.pincode || null,
-        pan: parsed.data.pan || null,
-        gstin: parsed.data.gstin || null,
-        notes: parsed.data.notes || null,
-      } as unknown as never,
+    const created = await prisma.$transaction(async (tx) => {
+      const c = await tx.customer.create({
+        data: {
+          name: parsed.data.name,
+          email: parsed.data.email || null,
+          phone: parsed.data.phone || null,
+          phoneSecondary: parsed.data.phoneSecondary || null,
+          address: parsed.data.address || null,
+          city: parsed.data.city || null,
+          state: parsed.data.state || null,
+          country: parsed.data.country || null,
+          pincode: parsed.data.pincode || null,
+          pan: parsed.data.pan || null,
+          gstin: parsed.data.gstin || null,
+          notes: parsed.data.notes || null,
+        } as unknown as never,
+      });
+
+      const year2 = String(new Date().getFullYear()).slice(-2);
+      let code = "";
+      for (let i = 0; i < 20; i++) {
+        const rnd = crypto.randomInt(0, 1000000);
+        const candidate = `C${year2}-${String(rnd).padStart(6, "0")}`;
+        const collision = await tx.$queryRawUnsafe<Array<{ code: string }>>(
+          `SELECT code FROM CustomerCode WHERE code = ? LIMIT 1`,
+          candidate
+        );
+        if (!collision.length) {
+          code = candidate;
+          break;
+        }
+      }
+      if (code) {
+        await tx.$executeRawUnsafe(
+          `INSERT INTO CustomerCode (id, customerId, code, createdAt) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+          crypto.randomUUID(),
+          c.id,
+          code
+        );
+      }
+      return c;
     });
 
     await logActivity({
@@ -103,6 +132,7 @@ export async function updateCustomer(id: string, prevState: unknown, formData: F
   if (!session?.user) return { message: "Unauthorized" };
 
   await ensureCustomerSecondaryPhoneSchema();
+  await ensureReturnsSchema();
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = customerSchema.safeParse({

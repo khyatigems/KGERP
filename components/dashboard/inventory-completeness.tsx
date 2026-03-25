@@ -22,7 +22,10 @@ export function InventoryCompletenessWidget() {
   const hsn = data?.withHsnCount || 0;
   const all = data?.completenessAllCount || 0;
 
-  const pct = overall > 0 ? Math.round((all / overall) * 100) : 0;
+  const pctImages = overall > 0 ? images / overall : 0;
+  const pctCerts = overall > 0 ? certs / overall : 0;
+  const pctHsn = overall > 0 ? hsn / overall : 0;
+  const pct = Math.round(((pctImages + pctCerts + pctHsn) / 3) * 100);
 
   return (
     <Card>

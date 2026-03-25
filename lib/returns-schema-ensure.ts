@@ -75,6 +75,31 @@ export async function ensureReturnsSchema() {
       );
       await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "CreditNote_creditNoteNumber_key" ON "CreditNote"("creditNoteNumber")`);
     } catch {}
+
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CustomerCode" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "customerId" TEXT NOT NULL,
+          "code" TEXT NOT NULL,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "CustomerCode_code_key" ON "CustomerCode"("code")`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerCode_customerId_idx" ON "CustomerCode"("customerId")`);
+    } catch {}
+
+    try {
+      const idx = await prisma.$queryRawUnsafe<Array<{ name: string; unique: number }>>(`PRAGMA index_list("Sale")`);
+      for (const r of idx || []) {
+        if (!r?.name || Number(r.unique || 0) !== 1) continue;
+        const cols = await prisma.$queryRawUnsafe<Array<{ name: string }>>(`PRAGMA index_info("${r.name.replaceAll('"', '""')}")`);
+        const names = new Set((cols || []).map((c) => c.name));
+        if (names.has("inventoryId")) {
+          await prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "${r.name.replaceAll('"', '""')}"`);
+        }
+      }
+    } catch {}
   } catch {
     // ignore
   }

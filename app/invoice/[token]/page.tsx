@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { buildInvoiceWhatsappLink } from "@/lib/whatsapp";
 import { Share2 } from "lucide-react";
@@ -56,6 +57,7 @@ export const metadata: Metadata = {
 
 export default async function PublicInvoicePage({ params, searchParams }: { params: Promise<{ token: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const { token } = await params;
+  await ensureReturnsSchema();
   const sp = await searchParams;
 
   const invoice = await prisma.invoice.findUnique({
@@ -276,6 +278,19 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const placeOfSupply = (primarySale as { placeOfSupply?: string | null }).placeOfSupply || primarySale.customerCity || invoice.quotation?.customer?.city || billingAddress || "-";
   const customerPhone = primarySale.customerPhone || invoice.quotation?.customer?.phone || "";
   const customerEmail = primarySale.customerEmail || invoice.quotation?.customer?.email || "";
+  const customerId = primarySale.customerId || invoice.quotation?.customerId || null;
+  const customerCode = await (async () => {
+    try {
+      if (!customerId) return null;
+      const rows = await prisma.$queryRawUnsafe<Array<{ code: string }>>(
+        `SELECT code FROM CustomerCode WHERE customerId = ? LIMIT 1`,
+        customerId
+      );
+      return rows[0]?.code || null;
+    } catch {
+      return null;
+    }
+  })();
 
   // Construct InvoiceData for PDF
   const pdfData: InvoiceData = {
@@ -291,7 +306,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
       logoUrl: displayLogo || undefined,
     },
     customer: {
-      name: customerName,
+      name: customerCode ? `${customerName} [CODE: ${customerCode}]` : customerName,
       address: customerAddress,
       phone: customerPhone,
       email: customerEmail,

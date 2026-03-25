@@ -19,6 +19,7 @@ import { buildUpiUri } from "@/lib/upi";
 import { selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
 import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-breakdown";
 import { computeInvoiceGst } from "@/lib/invoice-gst";
+import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ type InvoicePageProps = {
 
 export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const { id } = await params;
+  await ensureReturnsSchema();
 
   const invoice = await prisma.invoice.findUnique({
     where: { id },
@@ -250,6 +252,20 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const isPaid = paymentStatus === "PAID";
   // const balanceDue = isPaid ? 0 : pdfTotal; // Already calculated above
 
+  const customerCode = await (async () => {
+    try {
+      const customerId = (primarySale as { customerId?: string | null }).customerId || invoice.quotation?.customerId || null;
+      if (!customerId) return null;
+      const rows = await prisma.$queryRawUnsafe<Array<{ code: string }>>(
+        `SELECT code FROM CustomerCode WHERE customerId = ? LIMIT 1`,
+        customerId
+      );
+      return rows[0]?.code || null;
+    } catch {
+      return null;
+    }
+  })();
+
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
     date: getInvoiceDisplayDate(invoice),
@@ -263,7 +279,9 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
       logoUrl: displayLogo || undefined,
     },
     customer: {
-      name: primarySale.customerName || "Walk-in Customer",
+      name: customerCode
+        ? `${primarySale.customerName || "Walk-in Customer"} [CODE: ${customerCode}]`
+        : (primarySale.customerName || "Walk-in Customer"),
       address: primarySale.customerAddress || primarySale.customerCity || "",
       phone: primarySale.customerPhone || "",
       email: primarySale.customerEmail || "",

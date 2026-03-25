@@ -195,14 +195,105 @@ export default async function InventoryDetailPage({
   let logs: ActivityLogEntry[] = [];
   try {
       logs = await prisma.activityLog.findMany({
-        where: { entityType: "Inventory", entityId: id },
+        where: { entityId: id },
         orderBy: { createdAt: "desc" },
       }) as unknown as ActivityLogEntry[];
   } catch (error) {
     console.error("Failed to fetch activity logs for inventory:", error);
   }
 
-  const lastEdit = logs.find((l) => l.actionType === "EDIT");
+  const [salesRows, quotationRows] = await Promise.all([
+    prisma.sale.findMany({
+      where: { inventoryId: id },
+      orderBy: { saleDate: "desc" },
+      select: {
+        id: true,
+        saleDate: true,
+        customerName: true,
+        invoice: { select: { id: true, invoiceNumber: true } },
+      },
+    }).catch(() => []),
+    prisma.quotationItem.findMany({
+      where: { inventoryId: id },
+      orderBy: { quotation: { createdAt: "desc" } },
+      include: { quotation: { select: { id: true, quotationNumber: true, status: true, createdAt: true } } },
+    }).catch(() => []),
+  ]);
+
+  const returnRows = await (async () => {
+    try {
+      const rows = await prisma.$queryRawUnsafe<
+        Array<{
+          id: string;
+          returnNumber: string | null;
+          returnDate: string | null;
+          createdAt: string | null;
+          invoiceNumber: string | null;
+        }>
+      >(
+        `SELECT sri.id as id,
+                sr.returnNumber as returnNumber,
+                sr.returnDate as returnDate,
+                sr.createdAt as createdAt,
+                i.invoiceNumber as invoiceNumber
+         FROM SalesReturnItem sri
+         JOIN SalesReturn sr ON sr.id = sri.salesReturnId
+         LEFT JOIN Invoice i ON i.id = sr.invoiceId
+         WHERE sri.inventoryId = ?
+         ORDER BY COALESCE(sr.returnDate, sr.createdAt) DESC
+         LIMIT 200`,
+        id
+      );
+      return rows || [];
+    } catch {
+      return [];
+    }
+  })();
+
+  const timeline = [
+    ...logs.map((l) => ({
+      id: l.id,
+      actionType: l.actionType,
+      userId: l.userId,
+      userName: l.userName,
+      details: l.details,
+      fieldChanges: l.fieldChanges,
+      source: l.source,
+      createdAt: l.createdAt,
+    })),
+    ...salesRows.map((s) => ({
+      id: `sale-${s.id}`,
+      actionType: "SALE",
+      userId: null,
+      userName: "System",
+      details: `Sold${s.invoice?.invoiceNumber ? ` on Invoice ${s.invoice.invoiceNumber}` : ""}${s.customerName ? ` to ${s.customerName}` : ""}`,
+      fieldChanges: null,
+      source: "SYSTEM",
+      createdAt: new Date(s.saleDate),
+    })),
+    ...returnRows.map((r) => ({
+      id: `return-${r.id}`,
+      actionType: "SALES_RETURN",
+      userId: null,
+      userName: "System",
+      details: `${r.returnNumber ? `Sales Return ${r.returnNumber}` : "Sales Return"}${r.invoiceNumber ? ` for Invoice ${r.invoiceNumber}` : ""}`,
+      fieldChanges: null,
+      source: "SYSTEM",
+      createdAt: new Date(r.returnDate || r.createdAt || new Date().toISOString()),
+    })),
+    ...quotationRows.map((q) => ({
+      id: `quote-${q.id}`,
+      actionType: "QUOTATION",
+      userId: null,
+      userName: "System",
+      details: `${q.quotation?.quotationNumber ? `Added to Quotation ${q.quotation.quotationNumber}` : "Added to Quotation"}${q.quotation?.status ? ` (${q.quotation.status})` : ""}`,
+      fieldChanges: null,
+      source: "SYSTEM",
+      createdAt: new Date(q.quotation?.createdAt || new Date().toISOString()),
+    })),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  const lastEdit = timeline.find((l) => l.actionType === "EDIT");
   
   // Calculate financials
   const weightVal = detailedItem.weightValue ?? 0;
@@ -563,10 +654,10 @@ export default async function InventoryDetailPage({
                   <h2 className="text-lg font-semibold">Activity Timeline</h2>
                 </div>
                 <div className="p-6 space-y-6">
-                    {logs.length === 0 ? (
+                    {timeline.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No activity recorded.</p>
                     ) : (
-                        logs.map((log) => (
+                        timeline.map((log) => (
                             <div key={log.id} className="flex gap-4 relative">
                                 {/* Line connecting dots */}
                                 <div className="absolute left-[9px] top-8 bottom-[-24px] w-0.5 bg-border last:hidden"></div>
@@ -574,17 +665,32 @@ export default async function InventoryDetailPage({
                                 <div className={`mt-1.5 h-5 w-5 rounded-full shrink-0 flex items-center justify-center z-10 ${
                                     log.actionType === 'CREATE' ? 'bg-green-100 text-green-600' :
                                     log.actionType === 'EDIT' ? 'bg-blue-100 text-blue-600' :
+                                    log.actionType === 'SALE' ? 'bg-purple-100 text-purple-600' :
+                                    log.actionType === 'SALES_RETURN' ? 'bg-amber-100 text-amber-700' :
+                                    log.actionType === 'QUOTATION' ? 'bg-indigo-100 text-indigo-600' :
                                     log.actionType === 'DELETE' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
                                 }`}>
                                     <div className={`h-2 w-2 rounded-full ${
                                         log.actionType === 'CREATE' ? 'bg-green-600' :
                                         log.actionType === 'EDIT' ? 'bg-blue-600' :
+                                        log.actionType === 'SALE' ? 'bg-purple-600' :
+                                        log.actionType === 'SALES_RETURN' ? 'bg-amber-700' :
+                                        log.actionType === 'QUOTATION' ? 'bg-indigo-600' :
                                         log.actionType === 'DELETE' ? 'bg-red-600' : 'bg-gray-600'
                                     }`} />
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-sm font-medium">
-                                        {log.userName || log.userId || "System"} <span className="font-normal text-muted-foreground">{log.actionType.toLowerCase()}d this item</span>
+                                        {log.userName || log.userId || "System"}{" "}
+                                        <span className="font-normal text-muted-foreground">
+                                          {log.actionType === "SALE"
+                                            ? "sold this item"
+                                            : log.actionType === "SALES_RETURN"
+                                            ? "sales return recorded"
+                                            : log.actionType === "QUOTATION"
+                                            ? "added to quotation"
+                                            : `${log.actionType.toLowerCase()}d this item`}
+                                        </span>
                                         {log.source !== 'WEB' && <Badge variant="outline" className="ml-2 text-[10px] h-5">{log.source}</Badge>}
                                     </p>
                                     <p className="text-xs text-muted-foreground">

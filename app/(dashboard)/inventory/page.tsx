@@ -5,6 +5,7 @@ import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
+import { InventorySummaryExport } from "@/components/reports/inventory-summary-export";
 import { LoadingLink } from "@/components/ui/loading-link";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { InventorySearch } from "@/components/inventory/inventory-search";
@@ -304,8 +305,12 @@ export default async function InventoryPage({
   return (
     <div className="space-y-6">
       <InventorySavedToast />
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <h1 className="text-2xl font-bold tracking-tight">Inventory Management</h1>
+        </div>
         <div className="flex items-center gap-2">
+            <InventorySummaryExport />
             <ExportButton 
                 filename="inventory_report" 
                 data={exportData} 

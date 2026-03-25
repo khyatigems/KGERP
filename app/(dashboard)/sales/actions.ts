@@ -15,6 +15,7 @@ import { postJournalEntry, getOrCreateAccountByCode, ACCOUNTS, PrismaTx } from "
 import { normalizeDateToUtcNoon } from "@/lib/date";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
+import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 
 const saleItemSchema = z.object({
   inventoryId: z.string().uuid("Please select an item"),
@@ -68,6 +69,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
   if (!session) {
     return { message: "Unauthorized" };
   }
+  await ensureReturnsSchema();
   try {
     await assertNotFrozen("Sale creation");
   } catch (error) {

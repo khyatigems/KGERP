@@ -7,6 +7,7 @@ import { CustomerReceivables } from "@/components/customers/customer-receivables
 
 type CustomerView = {
   id: string;
+  customerCode: string | null;
   name: string;
   email: string | null;
   phone: string | null;
@@ -32,6 +33,17 @@ export function CustomerDetailTabs({ customer }: { customer: CustomerView }) {
       </TabsList>
 
       <TabsContent value="profile">
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle>Customer Code</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Customer Code</span>
+              <span className="font-semibold font-mono">{customer.customerCode || "-"}</span>
+            </div>
+          </CardContent>
+        </Card>
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -77,4 +89,3 @@ export function CustomerDetailTabs({ customer }: { customer: CustomerView }) {
     </Tabs>
   );
 }
-

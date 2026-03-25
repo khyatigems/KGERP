@@ -132,9 +132,29 @@ const formSchema = z.object({
   figureWidth: z.string().optional(),
   chipSize: z.string().optional(),
   packingType: z.string().optional(),
+}).superRefine((values, ctx) => {
+  if (values.pricingMode === "PER_CARAT") {
+    if (!values.purchaseRatePerCarat || values.purchaseRatePerCarat <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["purchaseRatePerCarat"], message: "Purchase rate per carat is required" });
+    }
+    if (!values.sellingRatePerCarat || values.sellingRatePerCarat <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sellingRatePerCarat"], message: "Selling rate per carat is required" });
+    }
+  } else {
+    if (!values.flatPurchaseCost || values.flatPurchaseCost <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatPurchaseCost"], message: "Flat purchase cost is required" });
+    }
+    if (!values.flatSellingPrice || values.flatSellingPrice <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatSellingPrice"], message: "Flat selling price is required" });
+    }
+  }
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+const ORIGIN_PRESETS = ["Burma (Myanmar)", "Sri Lanka (Ceylon)", "Kashmir", "Madagascar", "Mozambique", "Thailand", "Colombia", "Zambia"];
+const FLUORESCENCE_PRESETS = ["None", "Faint", "Medium", "Strong", "Very Strong"];
+const TREATMENT_PRESETS = ["None", "Untreated", "Heat", "Oil", "Resin", "Irradiation", "Diffusion", "Glass-Filled"];
 
 function generateFallbackDescription(values: FormValues) {
   const {
@@ -225,6 +245,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       certification: initialData?.certification || "None",
       certificateCodeIds: initialData?.certificates?.map(c => c.id) || [],
       transparency: initialData?.transparency || "",
+      origin: initialData?.origin || "",
+      fluorescence: initialData?.fluorescence || "",
       vendorId: initialData?.vendorId || "",
       pricingMode: (initialData?.pricingMode as "PER_CARAT" | "FLAT") || "PER_CARAT",
       purchaseRatePerCarat: initialData?.purchaseRatePerCarat || 0,
@@ -278,6 +300,16 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   } | null>(null);
   const [createdDialogOpen, setCreatedDialogOpen] = useState(false);
   const [createdRedirectPending, setCreatedRedirectPending] = useState(false);
+
+  useEffect(() => {
+    if (!initialData) return;
+    const origin = String(initialData.origin || "").trim();
+    const fluorescence = String(initialData.fluorescence || "").trim();
+    const treatment = String(initialData.treatment || "").trim();
+    if (origin && !ORIGIN_PRESETS.includes(origin)) setUseCustomOrigin(true);
+    if (fluorescence && !FLUORESCENCE_PRESETS.includes(fluorescence)) setUseCustomFluorescence(true);
+    if (treatment && !TREATMENT_PRESETS.includes(treatment)) setUseCustomTreatment(true);
+  }, [initialData]);
 
   type CreatedInventoryResult = {
     inventoryId: string;
@@ -445,14 +477,61 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                setCreatedRedirectPending(false);
              }
              
-             if (!initialData) {
-                 form.reset();
+             if (!initialData && !shouldRedirect) {
+                 const preserved = form.getValues();
+                 form.reset({
+                   itemName: "",
+                   internalName: "",
+                   category: preserved.category,
+                   gemType: preserved.gemType,
+                   color: preserved.color,
+                   shape: preserved.shape,
+                   dimensionsMm: "",
+                   weightValue: 0,
+                   weightUnit: preserved.weightUnit,
+                   weightRatti: 0,
+                   treatment: preserved.treatment,
+                   origin: preserved.origin,
+                   fluorescence: preserved.fluorescence,
+                   certification: preserved.certification,
+                   certificateCodeIds: preserved.certificateCodeIds,
+                   transparency: preserved.transparency,
+                   vendorId: preserved.vendorId,
+                   pricingMode: preserved.pricingMode,
+                   purchaseRatePerCarat: preserved.purchaseRatePerCarat,
+                   sellingRatePerCarat: preserved.sellingRatePerCarat,
+                   flatPurchaseCost: preserved.flatPurchaseCost,
+                   flatSellingPrice: preserved.flatSellingPrice,
+                   notes: "",
+                   certificateComments: "",
+                   stockLocation: preserved.stockLocation,
+                   mediaUrl: "",
+                   mediaUrls: [],
+                   categoryCodeId: preserved.categoryCodeId,
+                   gemstoneCodeId: preserved.gemstoneCodeId,
+                   colorCodeId: preserved.colorCodeId,
+                   collectionCodeId: preserved.collectionCodeId,
+                   rashiCodeIds: preserved.rashiCodeIds,
+                   cutCodeId: preserved.cutCodeId,
+                   braceletType: preserved.braceletType,
+                   beadSizeMm: preserved.beadSizeMm,
+                   beadCount: preserved.beadCount,
+                   holeSizeMm: preserved.holeSizeMm,
+                   innerCircumferenceMm: preserved.innerCircumferenceMm,
+                   standardSize: preserved.standardSize,
+                   beadSize: preserved.beadSize,
+                   braceletSize: preserved.braceletSize,
+                   holeSize: preserved.holeSize,
+                   ringSize: preserved.ringSize,
+                   ringAdjustable: preserved.ringAdjustable,
+                   pendantLoop: preserved.pendantLoop,
+                   figureHeight: preserved.figureHeight,
+                   figureWidth: preserved.figureWidth,
+                   chipSize: preserved.chipSize,
+                   packingType: preserved.packingType,
+                 });
                  setSkuPreview("");
                  setFileUploadResetKey(prev => prev + 1);
-                 
-                 // Reset default values that might be cleared by reset()
-                 form.setValue("weightUnit", "cts");
-                 form.setValue("pricingMode", "PER_CARAT");
              }
              
              if (shouldRedirect) {

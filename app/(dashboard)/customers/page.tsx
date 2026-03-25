@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 import { buildCustomerExport } from "@/lib/customer-export";
 import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
+import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { Button } from "@/components/ui/button";
 import { LoadingLink } from "@/components/ui/loading-link";
 import { ExportButton } from "@/components/ui/export-button";
@@ -32,6 +33,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
 
   await ensureCustomerSecondaryPhoneSchema();
+  await ensureReturnsSchema();
 
   const sp = await searchParams;
   const q = (sp.q || "").trim();
@@ -52,6 +54,25 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     where: where as never,
     orderBy: { createdAt: "desc" },
   });
+
+  const customerCodes = await (async () => {
+    try {
+      const ids = customers.map((c) => c.id).filter(Boolean);
+      if (!ids.length) return new Map<string, string>();
+      const placeholders = ids.map(() => "?").join(",");
+      const rows = await prisma.$queryRawUnsafe<Array<{ customerId: string; code: string }>>(
+        `SELECT customerId, code FROM CustomerCode WHERE customerId IN (${placeholders})`,
+        ...ids
+      );
+      const map = new Map<string, string>();
+      for (const r of rows || []) {
+        if (r.customerId && r.code) map.set(r.customerId, r.code);
+      }
+      return map;
+    } catch {
+      return new Map<string, string>();
+    }
+  })();
 
   const canExport = hasPermission(session.user.role, PERMISSIONS.CUSTOMER_EXPORT);
 
@@ -98,7 +119,12 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             ) : (
               customers.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col">
+                      <span>{c.name}</span>
+                      <span className="text-xs text-muted-foreground">Customer Code: {customerCodes.get(c.id) || "-"}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
                       <span>{c.phone || "-"}</span>

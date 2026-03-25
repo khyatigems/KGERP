@@ -53,6 +53,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Inventory } from "@prisma/client";
 import { useSearchParams } from "next/navigation";
+import { Select as UISelect, SelectContent as UISelectContent, SelectItem as UISelectItem, SelectTrigger as UISelectTrigger, SelectValue as UISelectValue } from "@/components/ui/select";
 
 const formSchema = z.object({
   items: z.array(z.object({
@@ -626,19 +627,22 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
             </div>
 
             {autoFillSplitFromSingle && form.watch("paymentMode") === "CREDIT_NOTE" && (
-              <FormField
-                control={form.control}
-                name="singlePaymentReference"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Credit Note Code</FormLabel>
-                    <FormControl>
-                      <Input placeholder="CN23-8492" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <>
+                <FormField
+                  control={form.control}
+                  name="singlePaymentReference"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Credit Note Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="CN23-8492" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <CreditNoteSelector customerId={form.getValues("customerId")} onSelect={(code) => form.setValue("singlePaymentReference", code, { shouldDirty: true })} />
+              </>
             )}
 
             <div className="rounded-md border p-3 space-y-3">
@@ -1076,5 +1080,55 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
         </div>
       </form>
     </Form>
+  );
+}
+
+function CreditNoteSelector({ customerId, onSelect }: { customerId?: string | null; onSelect: (code: string) => void }) {
+  const [items, setItems] = useState<Array<{ id: string; creditNoteNumber: string; issueDate: string; totalAmount: number; balanceAmount: number }>>([]);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    let cancel = false;
+    const load = async () => {
+      if (!customerId) return;
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/customers/${customerId}/credit-notes`);
+        const data = await res.json();
+        if (!cancel) setItems(Array.isArray(data?.items) ? data.items : []);
+      } catch {
+        if (!cancel) setItems([]);
+      } finally {
+        if (!cancel) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancel = true; };
+  }, [customerId]);
+  if (!customerId) return null;
+  return (
+    <div className="grid grid-cols-2 gap-2 items-end">
+      <div>
+        <Label className="text-sm">Select Credit Note</Label>
+        <UISelect onValueChange={(v) => onSelect(v)}>
+          <UISelectTrigger className="w-full">
+            <UISelectValue placeholder={loading ? "Loading..." : "Choose CN"} />
+          </UISelectTrigger>
+          <UISelectContent>
+            {items.length === 0 ? (
+              <UISelectItem value="" disabled>No open notes</UISelectItem>
+            ) : (
+              items.map((cn) => (
+                <UISelectItem key={cn.id} value={cn.creditNoteNumber}>
+                  {cn.creditNoteNumber} — Bal {cn.balanceAmount.toFixed(2)}
+                </UISelectItem>
+              ))
+            )}
+          </UISelectContent>
+        </UISelect>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        {items.length > 0 ? "We will auto-validate balance and expiry during invoice creation." : ""}
+      </div>
+    </div>
   );
 }

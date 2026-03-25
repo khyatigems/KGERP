@@ -114,8 +114,9 @@ export async function GET(request: NextRequest) {
 
   const hsnWhere = {
     ...where,
-    OR: [
+    AND: [
       { hsnCode: { not: null } },
+      { hsnCode: { not: "" } },
     ],
   } satisfies Prisma.InventoryWhereInput;
 

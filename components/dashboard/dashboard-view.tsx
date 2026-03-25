@@ -70,11 +70,15 @@ export function DashboardView() {
         dbConnection={data.dbConnection} 
         onRefresh={handleRefresh} 
       />
-      
-      {/* 1. KPI Cards */}
+      <div className="grid gap-6 lg:grid-cols-4 md:grid-cols-2">
+         <InventoryCompletenessWidget />
+         <LowActivityAlertsWidget />
+         <PrintLabelWidget count={data.kpis.printLabels.count} lastItem={data.kpis.printLabels.lastItem} />
+         <QuickNotes />
+      </div>
+
       <KpiCards data={data} />
-      
-      {/* 2. Analytics (New) */}
+
       <AnalyticsWidgets 
         categories={data.analytics?.bestSellingCategories || []}
         types={data.analytics?.bestSellingTypes || []}
@@ -83,14 +87,6 @@ export function DashboardView() {
       {/* 3. Attention Required */}
       <div className="grid grid-cols-1">
           <AttentionWidget data={data.kpis.attention} />
-      </div>
-
-      {/* 4. Widgets Row */}
-      <div className="grid gap-6 lg:grid-cols-4 md:grid-cols-2">
-         <InventoryCompletenessWidget />
-         <LowActivityAlertsWidget />
-         <PrintLabelWidget count={data.kpis.printLabels.count} lastItem={data.kpis.printLabels.lastItem} />
-         <QuickNotes />
       </div>
 
       {/* 5. Today's Actions */}
