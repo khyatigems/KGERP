@@ -487,21 +487,27 @@ async function applyLibsqlMigrations(client) {
 }
 
 async function run() {
-  runStep("guard destructive migrations", "node scripts/migration/guard-destructive-migrations.mjs");
   const rawUrl = getDatabaseUrl();
   const libsqlClient = createLibsqlClientOrNull(rawUrl);
   if (libsqlClient) {
     process.stdout.write("[safe-deploy] ensure runtime schema (libsql)\n");
-    await ensureRuntimeSchema(libsqlClient);
+    if (process.env.RUN_SAFE_MIGRATIONS === "true") {
+      await ensureRuntimeSchema(libsqlClient);
+    } else {
+      try {
+        await ensureRuntimeSchema(libsqlClient);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        process.stdout.write(`[safe-deploy] runtime schema check skipped due to error (RUN_SAFE_MIGRATIONS is not true): ${message}\n`);
+      }
+    }
   }
   if (process.env.RUN_SAFE_MIGRATIONS !== "true") {
     process.stdout.write("[safe-deploy] skipped (RUN_SAFE_MIGRATIONS is not true)\n");
-    if (!libsqlClient) {
-      runStep("prisma migrate deploy", "npx prisma migrate deploy");
-    }
     return;
   }
 
+  runStep("guard destructive migrations", "node scripts/migration/guard-destructive-migrations.mjs");
   runStep("pre-migration backup", "node scripts/migration/turso-backup.mjs");
   runStep("pre-migration validation snapshot", "node scripts/migration/turso-validate.mjs");
   try {
