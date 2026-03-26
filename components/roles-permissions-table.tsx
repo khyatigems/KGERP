@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Shield, Info } from "lucide-react";
+import { Search, Shield, Info, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 type DBRole = {
   id: string;
@@ -40,6 +41,7 @@ export function RolesPermissionsTable() {
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [savingMode, setSavingMode] = useState<"save" | "create" | "duplicate" | null>(null);
   const [adminMode, setAdminMode] = useState(false);
 
   useEffect(() => {
@@ -146,18 +148,24 @@ export function RolesPermissionsTable() {
   const handleSave = async () => {
     if (!selectedRoleId) return;
     setSaving(true);
+    setSavingMode("save");
     try {
       const res = await fetch("/api/roles", {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ roleId: selectedRoleId, permissionKeys: Array.from(selectedKeys) }),
       });
-      if (!res.ok) throw new Error("save failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(typeof data?.error === "string" ? data.error : "Failed to save permissions");
+      }
       await fetchRoles();
+      toast.success("Role permissions saved");
     } catch (e) {
-      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Failed to save permissions");
     } finally {
       setSaving(false);
+      setSavingMode(null);
     }
   };
 
@@ -165,18 +173,24 @@ export function RolesPermissionsTable() {
     const name = window.prompt("New role name (e.g., MANAGER):");
     if (!name) return;
     setSaving(true);
+    setSavingMode("create");
     try {
       const res = await fetch("/api/roles", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      if (!res.ok) throw new Error("create failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(typeof data?.error === "string" ? data.error : "Failed to create role");
+      }
       await fetchRoles();
+      toast.success("Role created");
     } catch (e) {
-      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Failed to create role");
     } finally {
       setSaving(false);
+      setSavingMode(null);
     }
   };
 
@@ -186,18 +200,24 @@ export function RolesPermissionsTable() {
     const name = window.prompt("Duplicate role name:", `${baseRole?.name || "ROLE"}_COPY`);
     if (!name) return;
     setSaving(true);
+    setSavingMode("duplicate");
     try {
       const res = await fetch("/api/roles", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name, duplicateFromRoleId: selectedRoleId }),
       });
-      if (!res.ok) throw new Error("duplicate failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(typeof data?.error === "string" ? data.error : "Failed to duplicate role");
+      }
       await fetchRoles();
+      toast.success("Role duplicated");
     } catch (e) {
-      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Failed to duplicate role");
     } finally {
       setSaving(false);
+      setSavingMode(null);
     }
   };
 
@@ -208,14 +228,35 @@ export function RolesPermissionsTable() {
       <div className="flex items-center justify-between gap-3">
         <div className="font-semibold">Roles & Permissions</div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleCreateRole} disabled={!adminMode || saving} variant="secondary">
-            Create Role
+          <Button onClick={handleCreateRole} disabled={!adminMode || saving} variant="secondary" className="gap-2">
+            {saving && savingMode === "create" ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Role"
+            )}
           </Button>
-          <Button onClick={handleDuplicateRole} disabled={!adminMode || saving} variant="secondary">
-            Duplicate Role
+          <Button onClick={handleDuplicateRole} disabled={!adminMode || saving} variant="secondary" className="gap-2">
+            {saving && savingMode === "duplicate" ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Duplicating...
+              </>
+            ) : (
+              "Duplicate Role"
+            )}
           </Button>
-          <Button onClick={handleSave} disabled={!adminMode || saving || !selectedRoleId}>
-            Save Changes
+          <Button onClick={handleSave} disabled={!adminMode || saving || !selectedRoleId} className="gap-2">
+            {saving && savingMode === "save" ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Changes"
+            )}
           </Button>
         </div>
       </div>

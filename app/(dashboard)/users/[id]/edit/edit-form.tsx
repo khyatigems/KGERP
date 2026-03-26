@@ -6,6 +6,7 @@ import { updateUser } from "../../actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -17,19 +18,36 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PREDEFINED_AVATARS } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
 import type { User } from "@prisma/client";
+import { Loader2 } from "lucide-react";
 
 type EditableUser = Pick<User, "id" | "name" | "email" | "role" | "avatar">;
 
 export default function EditUserForm({ user, roles }: { user: EditableUser, roles?: Record<string, unknown>[] }) {
   const [error, setError] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(user.avatar || PREDEFINED_AVATARS[0]);
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
   async function clientAction(formData: FormData) {
+    setError("");
+    setSubmitting(true);
     formData.set("avatar", selectedAvatar);
-    const res = await updateUser(user.id, formData);
-    if (res?.message) {
-      setError(res.message);
+    try {
+      const res = await updateUser(user.id, formData);
+      if (res?.message) {
+        setError(res.message);
+        toast.error(res.message);
+        return;
+      }
+      toast.success("User updated");
+      router.push("/users");
+      router.refresh();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to update user";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -108,7 +126,10 @@ export default function EditUserForm({ user, roles }: { user: EditableUser, role
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button type="submit">Update User</Button>
+            <Button type="submit" disabled={submitting} className="gap-2">
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submitting ? "Updating..." : "Update User"}
+            </Button>
           </div>
         </form>
       </CardContent>

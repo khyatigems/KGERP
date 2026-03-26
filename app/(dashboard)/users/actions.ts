@@ -4,7 +4,6 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hash } from "bcryptjs";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 import { checkPermission } from "@/lib/permission-guard";
@@ -80,7 +79,7 @@ export async function createUser(formData: FormData) {
             });
             // If successful, we just return (user created without avatar)
             revalidatePath("/users");
-            redirect("/users");
+            return { success: true };
         } catch (retryError) {
              console.error("Retry failed:", retryError);
              return { message: "Failed to create user (retry failed)" };
@@ -94,7 +93,7 @@ export async function createUser(formData: FormData) {
   }
 
   revalidatePath("/users");
-  redirect("/users");
+  return { success: true };
 }
 
 export async function deleteUser(id: string) {
@@ -188,7 +187,7 @@ export async function updateUser(id: string, formData: FormData) {
                  }
                  
                  revalidatePath("/users");
-                 redirect("/users");
+                 return { success: true };
              } catch (retryError) {
                   console.error("Retry update failed:", retryError);
                   return { message: "Failed to update user (retry failed)" };
@@ -202,5 +201,5 @@ export async function updateUser(id: string, formData: FormData) {
     }
 
     revalidatePath("/users");
-    redirect("/users");
+    return { success: true };
 }

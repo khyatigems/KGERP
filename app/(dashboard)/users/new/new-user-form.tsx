@@ -6,6 +6,7 @@ import { createUser } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -16,17 +17,34 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PREDEFINED_AVATARS } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export default function NewUserForm({ roles }: { roles: Record<string, unknown>[] }) {
   const [error, setError] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(PREDEFINED_AVATARS[0]);
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
   async function clientAction(formData: FormData) {
+    setError("");
+    setSubmitting(true);
     formData.set("avatar", selectedAvatar);
-    const res = await createUser(formData);
-    if (res?.message) {
-      setError(res.message);
+    try {
+      const res = await createUser(formData);
+      if (res?.message) {
+        setError(res.message);
+        toast.error(res.message);
+        return;
+      }
+      toast.success("User created");
+      router.push("/users");
+      router.refresh();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to create user";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -105,7 +123,10 @@ export default function NewUserForm({ roles }: { roles: Record<string, unknown>[
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button type="submit">Create User</Button>
+            <Button type="submit" disabled={submitting} className="gap-2">
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submitting ? "Creating..." : "Create User"}
+            </Button>
           </div>
         </form>
       </CardContent>
