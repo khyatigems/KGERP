@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { ensureUserRoleIdColumn, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
 import { Permission } from "@/lib/permissions";
 
 export default async function ErpLayout({
@@ -16,34 +16,48 @@ export default async function ErpLayout({
   let allowedNavModules: string[] = [];
 
   if (session?.user?.id) {
-    const dbUser = (await (prisma.user as any).findUnique({
-      where: { id: session.user.id },
-      select: ({
-        name: true,
-        email: true,
-        avatar: true,
-        role: true,
-        lastLogin: true,
-        roleRelation: {
-          select: { name: true, permissions: { select: { permission: { select: { key: true } } } } }
-        },
-        userPermissions: { select: { allow: true, permission: { select: { key: true } } } }
-      } as any)
-    })) as any;
+    await ensureUserRoleIdColumn();
+    const supports = await hasUserRoleIdColumn();
+
+    const dbUser = supports
+      ? ((await (prisma.user as any).findUnique({
+          where: { id: session.user.id },
+          select: ({
+            name: true,
+            email: true,
+            avatar: true,
+            role: true,
+            lastLogin: true,
+            roleRelation: {
+              select: { name: true, permissions: { select: { permission: { select: { key: true } } } } }
+            },
+            userPermissions: { select: { allow: true, permission: { select: { key: true } } } }
+          } as any)
+        })) as any)
+      : ((await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            name: true,
+            email: true,
+            avatar: true,
+            role: true,
+            lastLogin: true,
+          }
+        })) as any);
     
     if (dbUser) {
       // Resolve permissions
       const resolvedPerms = new Set<string>();
       
       // Legacy static fallback for now
-      if (dbUser.role === "SUPER_ADMIN" || dbUser.roleRelation?.name === "SUPER_ADMIN") {
+      if (dbUser.role === "SUPER_ADMIN" || dbUser.roleRelation?.name === "SUPER_ADMIN" || (!supports && dbUser.role === "ADMIN")) {
         allowedNavModules = ["ALL"];
       } else {
         // From role
         dbUser.roleRelation?.permissions.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
         
         // Apply overrides
-        dbUser.userPermissions.forEach((up: any) => {
+        dbUser.userPermissions?.forEach((up: any) => {
           if (up.allow) resolvedPerms.add(up.permission.key);
           else resolvedPerms.delete(up.permission.key);
         });

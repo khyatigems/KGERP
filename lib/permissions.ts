@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { ensureUserRoleIdColumn, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
 
 export const PERMISSIONS = {
   // Inventory
@@ -81,41 +81,61 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
 
 // Check permission dynamically from DB
 export async function checkUserPermission(userId: string, permission: Permission): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      roleRelation: {
-        include: {
-          permissions: {
-            include: { permission: true }
+  await ensureUserRoleIdColumn();
+  const supports = await hasUserRoleIdColumn();
+
+  if (!supports) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+    if (!user) return false;
+    if (user.role === "SUPER_ADMIN") return true;
+    return getPermissionsForRole(user.role).includes(permission);
+  }
+
+  try {
+    const user = (await (prisma.user as any).findUnique({
+      where: { id: userId },
+      include: {
+        roleRelation: {
+          include: {
+            permissions: {
+              include: { permission: true }
+            }
           }
+        },
+        userPermissions: {
+          include: { permission: true }
         }
-      },
-      userPermissions: {
-        include: { permission: true }
       }
+    })) as any;
+
+    if (!user) return false;
+
+    const override = (user.userPermissions || []).find((up: any) => up.permission.key === permission);
+    if (override) return override.allow;
+
+    if (user.roleRelation) {
+      if (user.roleRelation.name === "SUPER_ADMIN") return true;
+      return (user.roleRelation.permissions || []).some((rp: any) => rp.permission.key === permission);
     }
-  });
 
-  if (!user) return false;
-
-  // 1. Check User overrides first
-  const override = user.userPermissions.find(up => up.permission.key === permission);
-  if (override) {
-    return override.allow;
+    if (user.role === "SUPER_ADMIN") return true;
+    return getPermissionsForRole(user.role).includes(permission);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes("no such column") && msg.includes("roleId")) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true }
+      });
+      if (!user) return false;
+      if (user.role === "SUPER_ADMIN") return true;
+      return getPermissionsForRole(user.role).includes(permission);
+    }
+    throw error;
   }
-
-  // 2. Fallback to Role permissions
-  if (user.roleRelation) {
-    // Super admin shortcut
-    if (user.roleRelation.name === "SUPER_ADMIN") return true;
-    
-    return user.roleRelation.permissions.some(rp => rp.permission.key === permission);
-  }
-
-  // 3. Fallback to old static role mapping for transition period
-  if (user.role === "SUPER_ADMIN") return true;
-  return getPermissionsForRole(user.role).includes(permission);
 }
 
 export function getPermissionsForRole(role: string): Permission[] {

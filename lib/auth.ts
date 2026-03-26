@@ -24,10 +24,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         console.log("Auth: Login attempt for", email);
 
         // Lazy-load Prisma so Edge Runtime (middleware) does not instantiate PrismaClient
-        const { prisma } = await import("./prisma");
+        const { prisma, ensureUserRoleIdColumn } = await import("./prisma");
+
+        await ensureUserRoleIdColumn();
 
         const user = await prisma.user.findUnique({
           where: { email },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            password: true,
+            role: true,
+            avatar: true,
+            lastLogin: true,
+            lastPasswordChange: true,
+            forceLogoutBefore: true,
+            createdAt: true,
+          }
         });
 
         if (!user) {

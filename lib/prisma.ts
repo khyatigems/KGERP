@@ -130,3 +130,53 @@ export const prisma = prismaBase;
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 export type { ActivityLog } from '@prisma/client'
+
+let checkedUserRoleIdColumn: boolean | null = null;
+let checkUserRoleIdColumnPromise: Promise<boolean> | null = null;
+
+export async function hasUserRoleIdColumn(): Promise<boolean> {
+  if (checkedUserRoleIdColumn !== null) return checkedUserRoleIdColumn;
+  if (checkUserRoleIdColumnPromise) return checkUserRoleIdColumnPromise;
+  checkUserRoleIdColumnPromise = (async () => {
+    try {
+      const cols = await prisma.$queryRawUnsafe<Array<{ name: string }>>(`PRAGMA table_info("User")`);
+      const set = new Set((cols || []).map((c) => c.name));
+      checkedUserRoleIdColumn = set.has("roleId");
+      return checkedUserRoleIdColumn;
+    } catch {
+      checkedUserRoleIdColumn = false;
+      return false;
+    } finally {
+      checkUserRoleIdColumnPromise = null;
+    }
+  })();
+  return checkUserRoleIdColumnPromise;
+}
+
+let ensuringUserRoleId = false;
+let ensuredUserRoleId = false;
+let ensureUserRoleIdPromise: Promise<void> | null = null;
+
+export async function ensureUserRoleIdColumn(): Promise<void> {
+  if (ensuredUserRoleId) return;
+  if (ensuringUserRoleId && ensureUserRoleIdPromise) return ensureUserRoleIdPromise;
+  ensuringUserRoleId = true;
+  ensureUserRoleIdPromise = (async () => {
+    try {
+      const has = await hasUserRoleIdColumn();
+      if (!has) {
+        try {
+          await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN "roleId" TEXT;`);
+        } catch {}
+      }
+      checkedUserRoleIdColumn = null;
+      await hasUserRoleIdColumn();
+    } catch {
+    } finally {
+      ensuredUserRoleId = true;
+      ensuringUserRoleId = false;
+      ensureUserRoleIdPromise = null;
+    }
+  })();
+  return ensureUserRoleIdPromise;
+}
