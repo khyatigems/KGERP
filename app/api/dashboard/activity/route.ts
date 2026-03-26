@@ -11,7 +11,10 @@ export async function GET() {
       if (!ok) return NextResponse.json([]);
 
       const logs = await prisma.activityLog.findMany({
-          take: 20,
+          take: 50,
+          where: {
+            actionType: { notIn: ["PUBLIC_VIEW", "QR_SCAN"] }
+          },
           orderBy: { createdAt: "desc" }
       });
       
