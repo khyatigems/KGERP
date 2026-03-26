@@ -13,7 +13,7 @@ export async function saveCustomerSettings(data: { platinumThreshold: number, go
     revalidatePath("/settings/customer");
     revalidatePath("/customers");
     return { success: true };
-  } catch (e) {
+  } catch {
     return { success: false, message: "Failed to save settings" };
   }
 }

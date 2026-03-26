@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Pencil, Eye, FileText, FileDown, Copy } from "lucide-react";
+import { Plus, Pencil, Eye, FileText, FileDown } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -61,11 +61,11 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const customerSettingsRow = await prisma.setting.findUnique({ where: { key: "customer_settings" } });
   const customerSettings = customerSettingsRow ? JSON.parse(customerSettingsRow.value) : { platinumThreshold: 100000, goldThreshold: 50000, highValueAov: 25000 };
 
-  const customerStatsRows = await prisma.$queryRawUnsafe<Array<{
+  const rawCustomerStatsRows = await prisma.$queryRawUnsafe<Array<{
     customerId: string;
-    totalRevenue: number;
-    orderCount: number;
-    highestOrder: number;
+    totalRevenue: unknown;
+    orderCount: unknown;
+    highestOrder: unknown;
     lastOrderDate: string;
   }>>(`
     SELECT 
@@ -79,6 +79,21 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     WHERE s.customerId IS NOT NULL AND s.platform != 'REPLACEMENT'
     GROUP BY s.customerId
   `).catch(() => []);
+
+  const toNumber = (val: unknown): number => {
+    if (typeof val === "bigint") return Number(val);
+    if (typeof val === "number") return val;
+    if (typeof val === "string") return Number(val) || 0;
+    return 0;
+  };
+
+  const customerStatsRows = rawCustomerStatsRows.map(r => ({
+    customerId: r.customerId,
+    totalRevenue: toNumber(r.totalRevenue),
+    orderCount: toNumber(r.orderCount),
+    highestOrder: toNumber(r.highestOrder),
+    lastOrderDate: r.lastOrderDate,
+  }));
 
   const statsMap = new Map<string, { totalRevenue: number; orderCount: number; highestOrder: number; lastOrderDate: string }>();
   let globalRevenue = 0;

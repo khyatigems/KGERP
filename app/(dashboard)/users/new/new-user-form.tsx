@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { updateUser } from "../../actions";
+import { createUser } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,18 +16,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PREDEFINED_AVATARS } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
-import type { User } from "@prisma/client";
 
-type EditableUser = Pick<User, "id" | "name" | "email" | "role" | "avatar">;
-
-export default function EditUserForm({ user, roles }: { user: EditableUser, roles?: Record<string, unknown>[] }) {
+export default function NewUserForm({ roles }: { roles: Record<string, unknown>[] }) {
   const [error, setError] = useState("");
-  const [selectedAvatar, setSelectedAvatar] = useState(user.avatar || PREDEFINED_AVATARS[0]);
+  const [selectedAvatar, setSelectedAvatar] = useState(PREDEFINED_AVATARS[0]);
   const router = useRouter();
 
   async function clientAction(formData: FormData) {
     formData.set("avatar", selectedAvatar);
-    const res = await updateUser(user.id, formData);
+    const res = await createUser(formData);
     if (res?.message) {
       setError(res.message);
     }
@@ -36,7 +33,7 @@ export default function EditUserForm({ user, roles }: { user: EditableUser, role
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Edit User</CardTitle>
+        <CardTitle>Add New User</CardTitle>
       </CardHeader>
       <CardContent>
         <form action={clientAction} className="space-y-4">
@@ -65,27 +62,27 @@ export default function EditUserForm({ user, roles }: { user: EditableUser, role
 
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" defaultValue={user.name} required />
+            <Input id="name" name="name" required />
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" defaultValue={user.email} required />
+            <Input id="email" name="email" type="email" required />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password (Leave blank to keep current)</Label>
-            <Input id="password" name="password" type="password" minLength={6} />
+            <Label htmlFor="password">Password</Label>
+            <Input id="password" name="password" type="password" required minLength={6} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Select name="role" defaultValue={user.role}>
+            <Select name="role" defaultValue={roles.length > 0 ? (roles[0].name as string) : "VIEWER"}>
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                {roles && roles.length > 0 ? (
+                {roles.length > 0 ? (
                   roles.map(r => (
                     <SelectItem key={r.id as string} value={r.name as string}>{(r.name as string).replace("_", " ")}</SelectItem>
                   ))
@@ -108,7 +105,7 @@ export default function EditUserForm({ user, roles }: { user: EditableUser, role
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel
             </Button>
-            <Button type="submit">Update User</Button>
+            <Button type="submit">Create User</Button>
           </div>
         </form>
       </CardContent>

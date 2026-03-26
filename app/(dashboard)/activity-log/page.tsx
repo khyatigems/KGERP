@@ -70,7 +70,7 @@ export default async function ActivityLogPage({
                             <TableHead>Identifier</TableHead>
                             <TableHead>User</TableHead>
                             <TableHead>Time</TableHead>
-                            <TableHead>Changes</TableHead>
+                            <TableHead>Description</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -83,8 +83,8 @@ export default async function ActivityLogPage({
                         ) : (
                             logs.map((log: {
                                 id: string;
-                                actionType: string;
-                                entityType: string;
+                                actionType: string | null;
+                                entityType: string | null;
                                 entityIdentifier: string | null;
                                 entityId: string | null;
                                 userName: string | null;
@@ -92,46 +92,55 @@ export default async function ActivityLogPage({
                                 source: string | null;
                                 createdAt: Date;
                                 fieldChanges: string | null;
-                            }) => (
-                                <TableRow key={log.id}>
-                                    <TableCell>
-                                        <Badge variant={
-                                            log.actionType === 'CREATE' ? 'default' : 
-                                            log.actionType === 'EDIT' ? 'secondary' : 
-                                            log.actionType === 'DELETE' ? 'destructive' : 'outline'
-                                        }>
-                                            {log.actionType}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{log.entityType}</TableCell>
-                                    <TableCell className="font-medium">
-                                        {log.entityIdentifier || log.entityId || "Unknown"}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-medium">{log.userName || log.userId || "System"}</span>
-                                            <span className="text-xs text-muted-foreground">{log.source}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm">
-                                                {formatDistanceToNow(log.createdAt, { addSuffix: true })}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {log.createdAt.toLocaleString()}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="max-w-[300px] truncate text-xs text-muted-foreground">
-                                        {log.fieldChanges ? (
-                                            <span title={log.fieldChanges}>
-                                                {Object.keys(JSON.parse(log.fieldChanges)).join(", ")}
-                                            </span>
-                                        ) : "-"}
-                                    </TableCell>
-                                </TableRow>
-                            ))
+                                module: string | null;
+                                action: string | null;
+                                 referenceId: string | null;
+                                 description: string | null;
+                                 metadata: string | null;
+                                 details?: string | null;
+                             }) => {
+                                 const metaStr = log.metadata || log.fieldChanges;
+                                 return (
+                                 <TableRow key={log.id}>
+                                     <TableCell>
+                                         <Badge variant={
+                                             (log.action || log.actionType) === 'CREATE' ? 'default' : 
+                                             (log.action || log.actionType) === 'EDIT' || (log.action || log.actionType) === 'UPDATE' ? 'secondary' : 
+                                             (log.action || log.actionType) === 'DELETE' ? 'destructive' : 'outline'
+                                         }>
+                                             {log.action || log.actionType || "UNKNOWN"}
+                                         </Badge>
+                                     </TableCell>
+                                     <TableCell>{log.module || log.entityType}</TableCell>
+                                     <TableCell className="font-medium">
+                                         {log.referenceId || log.entityIdentifier || log.entityId || "-"}
+                                     </TableCell>
+                                     <TableCell>
+                                         {log.userName || "System"}
+                                         {log.source && log.source !== 'WEB' && (
+                                             <span className="text-xs text-muted-foreground ml-1">({log.source})</span>
+                                         )}
+                                     </TableCell>
+                                     <TableCell className="text-muted-foreground">
+                                         {formatDistanceToNow(log.createdAt, { addSuffix: true })}
+                                     </TableCell>
+                                     <TableCell>
+                                         <div className="flex flex-col gap-1">
+                                             <div className="text-xs" title={log.description || log.details || "No details"}>
+                                                 {log.description || log.details || "-"}
+                                             </div>
+                                             {metaStr && (
+                                                 <details className="text-[10px] text-muted-foreground cursor-pointer">
+                                                     <summary>View Changes</summary>
+                                                     <pre className="mt-1 p-2 bg-muted rounded overflow-x-auto max-w-[400px]">
+                                                         {metaStr}
+                                                     </pre>
+                                                 </details>
+                                             )}
+                                         </div>
+                                     </TableCell>
+                                 </TableRow>
+                             )})
                         )}
                     </TableBody>
                 </Table>

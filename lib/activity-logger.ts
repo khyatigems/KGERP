@@ -20,16 +20,24 @@ export type EntityType =
   | "ExpenseCategory";
 
 interface LogActivityParams<T = Record<string, unknown>> {
-  entityType: EntityType;
-  entityId: string;
-  entityIdentifier: string;
-  actionType: ActionType;
+  entityType?: EntityType | string;
+  entityId?: string;
+  entityIdentifier?: string;
+  actionType?: ActionType | string;
+  
+  // New strict fields
+  module?: string;
+  action?: string;
+  referenceId?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+
   oldData?: T;
   newData?: T;
   fieldChanges?: string; // Allow explicit override
   userId?: string; // Optional override, otherwise uses session
   userName?: string; // Optional override
-  source?: "WEB" | "SYSTEM" | "CRON" | "CSV_IMPORT";
+  source?: "WEB" | "SYSTEM" | "CRON" | "CSV_IMPORT" | string;
   ipAddress?: string;
   userAgent?: string;
   details?: string;
@@ -40,6 +48,11 @@ export async function logActivity<T = Record<string, unknown>>({
   entityId,
   entityIdentifier,
   actionType,
+  module,
+  action,
+  referenceId,
+  description,
+  metadata,
   oldData,
   newData,
   fieldChanges: explicitFieldChanges,
@@ -98,14 +111,16 @@ export async function logActivity<T = Record<string, unknown>>({
     }
 
     // Calculate field changes if it's an EDIT
-    let fieldChanges = explicitFieldChanges || null;
-    if (!fieldChanges && actionType === "EDIT" && oldData && newData) {
+    let finalMetadata = explicitFieldChanges || null;
+    if (!finalMetadata && metadata) {
+      finalMetadata = JSON.stringify(metadata);
+    } else if (!finalMetadata && (oldData || newData)) {
       const changes: Record<string, { old: unknown; new: unknown }> = {};
       
       // Get all keys from both objects
       // We cast to Record<string, unknown> to access keys safely if T is not specific enough
-      const oldObj = oldData as Record<string, unknown>;
-      const newObj = newData as Record<string, unknown>;
+      const oldObj = (oldData || {}) as Record<string, unknown>;
+      const newObj = (newData || {}) as Record<string, unknown>;
 
       const allKeys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
       
@@ -129,7 +144,7 @@ export async function logActivity<T = Record<string, unknown>>({
       });
       
       if (Object.keys(changes).length > 0) {
-        fieldChanges = JSON.stringify(changes);
+        finalMetadata = JSON.stringify({ before: oldData, after: newData, changes });
       } else {
         // No meaningful changes detected
         // We might still want to log that an "Edit" happened even if nothing changed? 
@@ -139,20 +154,30 @@ export async function logActivity<T = Record<string, unknown>>({
       }
     }
 
+    const finalModule = module || entityType || "Unknown";
+    const finalAction = action || actionType || "UNKNOWN";
+    const finalReferenceId = referenceId || entityIdentifier || entityId;
+
     await prisma.activityLog.create({
       data: {
-        entityType,
-        entityId,
-        entityIdentifier,
-        actionType,
-        fieldChanges,
+        entityType: finalModule,
+        entityId: entityId || finalReferenceId,
+        entityIdentifier: finalReferenceId,
+        actionType: finalAction,
+        fieldChanges: finalMetadata,
         userId: finalUserId,
         userName: finalUserName,
         userEmail: finalUserEmail,
         ipAddress: finalIpAddress,
         userAgent: finalUserAgent,
         source,
-        details,
+        details: description || details,
+
+        module: finalModule,
+        action: finalAction,
+        referenceId: finalReferenceId,
+        description: description || details,
+        metadata: finalMetadata ? JSON.parse(finalMetadata) : undefined,
       },
     });
   } catch (error) {

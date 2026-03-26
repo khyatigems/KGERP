@@ -67,8 +67,8 @@ export default async function OpsReportPage() {
 
   const recentActivities = recentLogs.map(log => ({
     id: log.id,
-    action: log.actionType,
-    entityType: log.entityType,
+    action: log.actionType || "UNKNOWN",
+    entityType: log.entityType || "UNKNOWN",
     userName: log.userName || "Unknown",
     timestamp: log.createdAt.toISOString(),
   }));

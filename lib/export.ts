@@ -7,7 +7,7 @@ export const exportToExcel = (
   data: Record<string, unknown>[],
   columns: { header: string; key: string }[],
   filename: string,
-  title: string = "Report",
+  _title: string = "Report",
   multiTable?: { title: string; rows: Record<string, unknown>[]; columns: { header: string; key: string }[] }[]
 ) => {
   const wb = XLSX.utils.book_new();

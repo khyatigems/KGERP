@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { hasPermission, Permission } from "@/lib/permissions";
+import { checkUserPermission, Permission } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
 
 export type PermissionCheckResult = {
@@ -11,20 +11,26 @@ export const UNAUTHORIZED_MESSAGE = "Your credentials don't have permission to p
 
 export async function checkPermission(permission: Permission): Promise<PermissionCheckResult> {
   const session = await auth();
-  const role = session?.user?.role || "VIEWER";
+  const userId = session?.user?.id;
   
-  if (hasPermission(role, permission)) {
+  if (!userId) {
+    return { success: false, message: "Not authenticated" };
+  }
+
+  const hasPerm = await checkUserPermission(userId, permission);
+  
+  if (hasPerm) {
     return { success: true };
   }
   
   // Log denial
   await logActivity({
     entityType: "Security",
-    entityId: session?.user?.id || "unknown",
+    entityId: userId,
     entityIdentifier: session?.user?.email || "unknown",
     actionType: "ACCESS_DENIED",
     source: "WEB",
-    userId: session?.user?.id,
+    userId: userId,
     userName: session?.user?.name || undefined,
     fieldChanges: `Attempted action requiring permission: ${permission}`
   });

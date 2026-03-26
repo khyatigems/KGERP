@@ -1,126 +1,130 @@
+import { prisma } from "@/lib/prisma";
+
 export const PERMISSIONS = {
   // Inventory
-  INVENTORY_VIEW: "inventory.view",
-  INVENTORY_CREATE: "inventory.create",
-  INVENTORY_EDIT: "inventory.edit",
-  INVENTORY_DELETE: "inventory.delete",
-  INVENTORY_VIEW_COST: "inventory.view_cost",
+  INVENTORY_VIEW: "inventory:view",
+  INVENTORY_CREATE: "inventory:create",
+  INVENTORY_EDIT: "inventory:edit",
+  INVENTORY_DELETE: "inventory:delete",
+  INVENTORY_VIEW_COST: "inventory:view_cost",
   
   // Quotations
-  QUOTATION_VIEW: "quotation.view",
-  QUOTATION_CREATE: "quotation.create",
-  QUOTATION_EDIT: "quotation.edit",
-  QUOTATION_APPROVE: "quotation.approve",
+  QUOTATION_VIEW: "quotations:view",
+  QUOTATION_CREATE: "quotations:create",
+  QUOTATION_EDIT: "quotations:edit",
+  QUOTATION_APPROVE: "quotations:approve",
   
-  // Sales & Invoices
-  SALES_VIEW: "sales.view",
-  SALES_CREATE: "sales.create",
-  SALES_DELETE: "sales.delete",
-  INVOICE_CREATE: "invoice.create",
-  INVOICE_MANAGE: "invoice.manage", // Status updates, etc.
-  INVOICE_DELETE: "invoice.delete", // Super Admin only
+  // Sales
+  SALES_VIEW: "sales:view",
+  SALES_CREATE: "sales:create",
+  SALES_EDIT: "sales:edit",
+  SALES_DELETE: "sales:delete",
+  
+  // Invoices
+  INVOICE_CREATE: "invoices:create",
+  INVOICE_MANAGE: "invoices:manage",
+  INVOICE_DELETE: "invoices:delete",
   
   // Vendors
-  VENDOR_VIEW: "vendor.view",
-  VENDOR_MANAGE: "vendor.manage",
-
+  VENDOR_VIEW: "vendors:view",
+  VENDOR_MANAGE: "vendors:manage",
+  
   // Customers
-  CUSTOMER_VIEW: "customer.view",
-  CUSTOMER_MANAGE: "customer.manage",
-  CUSTOMER_EXPORT: "customer.export",
-  RECEIVABLES_VIEW: "receivables.view",
-  RECEIVABLES_MANAGE: "receivables.manage",
+  CUSTOMER_VIEW: "customers:view",
+  CUSTOMER_CREATE: "customers:create",
+  CUSTOMER_EDIT: "customers:edit",
+  CUSTOMER_DELETE: "customers:delete",
+  CUSTOMER_MANAGE: "customers:manage",
+  CUSTOMER_EXPORT: "customers:export",
+  
+  // Receivables
+  RECEIVABLES_VIEW: "receivables:view",
+  RECEIVABLES_MANAGE: "receivables:manage",
+  
+  // Settings
+  SETTINGS_MANAGE: "settings:manage",
+  USERS_MANAGE: "users:manage",
+  SETTINGS_LANDING_PAGE: "settings:landing_page",
   
   // Reports
-  REPORTS_VIEW: "reports.view", // General access (Labels, Ops)
-  REPORTS_FINANCIAL: "reports.financial", // Profit, Margin, Sales Value
-  REPORTS_VENDOR: "reports.vendor", // Vendor analytics
-  
-  // Settings & Users
-  SETTINGS_MANAGE: "settings.manage",
-  USERS_MANAGE: "users.manage",
-  LANDING_PAGE_MANAGE: "settings.landing_page",
+  REPORTS_VIEW: "reports:view",
+  REPORTS_FINANCIAL: "reports:financial",
+  REPORTS_VENDOR: "reports:vendor",
   
   // Expenses
-  EXPENSE_VIEW: "expense.view",
-  EXPENSE_CREATE: "expense.create",
-  EXPENSE_EDIT: "expense.edit",
-  EXPENSE_DELETE: "expense.delete", // SUPER_ADMIN only
-  EXPENSE_REPORT: "expense.report",
+  EXPENSE_VIEW: "expenses:view",
+  EXPENSE_CREATE: "expenses:create",
+  EXPENSE_EDIT: "expenses:edit",
+  EXPENSE_DELETE: "expenses:delete",
+  EXPENSE_REPORT: "expenses:report",
 
   // Packaging (GPIS)
-  PACKAGING_MANAGE: "packaging.manage", // Create serials, settings
-  PACKAGING_VIEW: "packaging.view", // Ledger, logs
-  PACKAGING_PRINT: "packaging.print", // Generate/print labels
+  PACKAGING_MANAGE: "packaging:manage",
+  PACKAGING_VIEW: "packaging:view",
+  PACKAGING_PRINT: "packaging:print",
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 
-export type Role = "SUPER_ADMIN" | "ADMIN" | "SALES" | "ACCOUNTS" | "VIEWER";
+// Keep Role type for backwards compatibility in UI until fully migrated
+export type Role = string;
 
-export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+// The static mapping is deprecated but kept temporarily so the build doesn't break
+// We will replace its usage with dynamic checks
+export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: Object.values(PERMISSIONS),
-  
-  ADMIN: Object.values(PERMISSIONS).filter(p => p !== PERMISSIONS.INVOICE_DELETE && p !== PERMISSIONS.EXPENSE_DELETE),
-  
-  SALES: [
-    PERMISSIONS.INVENTORY_VIEW,
-    PERMISSIONS.INVENTORY_CREATE,
-    PERMISSIONS.INVENTORY_EDIT,
-    PERMISSIONS.QUOTATION_VIEW,
-    PERMISSIONS.QUOTATION_CREATE,
-    PERMISSIONS.QUOTATION_EDIT,
-    PERMISSIONS.SALES_VIEW,
-    PERMISSIONS.SALES_CREATE,
-    PERMISSIONS.INVOICE_CREATE,
-    PERMISSIONS.INVOICE_MANAGE,
-    PERMISSIONS.VENDOR_VIEW,
-    PERMISSIONS.CUSTOMER_VIEW,
-    PERMISSIONS.CUSTOMER_MANAGE,
-    PERMISSIONS.CUSTOMER_EXPORT,
-    PERMISSIONS.RECEIVABLES_VIEW,
-    PERMISSIONS.RECEIVABLES_MANAGE,
-    PERMISSIONS.REPORTS_VIEW, // Can view basic reports like Labels
-    PERMISSIONS.EXPENSE_VIEW,
-    PERMISSIONS.PACKAGING_VIEW, // Can view logs
-    PERMISSIONS.PACKAGING_PRINT,
-  ],
-  
-  ACCOUNTS: [
-    PERMISSIONS.INVENTORY_VIEW,
-    PERMISSIONS.INVENTORY_VIEW_COST,
-    PERMISSIONS.QUOTATION_VIEW,
-    PERMISSIONS.SALES_VIEW,
-    PERMISSIONS.REPORTS_VIEW,
-    PERMISSIONS.VENDOR_VIEW,
-    PERMISSIONS.CUSTOMER_VIEW,
-    PERMISSIONS.CUSTOMER_EXPORT,
-    PERMISSIONS.RECEIVABLES_VIEW,
-    PERMISSIONS.RECEIVABLES_MANAGE,
-    PERMISSIONS.INVOICE_MANAGE,
-    
-    // Expense Access
-    PERMISSIONS.EXPENSE_VIEW,
-    PERMISSIONS.EXPENSE_CREATE,
-    PERMISSIONS.EXPENSE_EDIT,
-    PERMISSIONS.EXPENSE_REPORT,
-    PERMISSIONS.PACKAGING_VIEW,
-    PERMISSIONS.PACKAGING_PRINT,
-  ],
-  
-  VIEWER: [
-    PERMISSIONS.INVENTORY_VIEW,
-    PERMISSIONS.QUOTATION_VIEW,
-    PERMISSIONS.CUSTOMER_VIEW,
-  ],
+  ADMIN: Object.values(PERMISSIONS),
+  SALES: [],
+  ACCOUNTS: [],
+  VIEWER: [],
 };
 
-export function getPermissionsForRole(role: string): Permission[] {
-  // Default to empty if role doesn't exist or is invalid
-  return ROLE_PERMISSIONS[role as Role] || [];
+// Check permission dynamically from DB
+export async function checkUserPermission(userId: string, permission: Permission): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      roleRelation: {
+        include: {
+          permissions: {
+            include: { permission: true }
+          }
+        }
+      },
+      userPermissions: {
+        include: { permission: true }
+      }
+    }
+  });
+
+  if (!user) return false;
+
+  // 1. Check User overrides first
+  const override = user.userPermissions.find(up => up.permission.key === permission);
+  if (override) {
+    return override.allow;
+  }
+
+  // 2. Fallback to Role permissions
+  if (user.roleRelation) {
+    // Super admin shortcut
+    if (user.roleRelation.name === "SUPER_ADMIN") return true;
+    
+    return user.roleRelation.permissions.some(rp => rp.permission.key === permission);
+  }
+
+  // 3. Fallback to old static role mapping for transition period
+  if (user.role === "SUPER_ADMIN") return true;
+  return getPermissionsForRole(user.role).includes(permission);
 }
 
+export function getPermissionsForRole(role: string): Permission[] {
+  return ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] || [];
+}
+
+// Deprecated: Only used in UI where async is not possible yet.
+// Replaced by session.user.permissions array (which we will inject)
 export function hasPermission(role: string, permission: Permission): boolean {
-  const perms = getPermissionsForRole(role);
-  return perms.includes(permission);
+  if (role === "SUPER_ADMIN") return true;
+  return getPermissionsForRole(role).includes(permission);
 }

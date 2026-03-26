@@ -15,11 +15,16 @@ model User {
   email                      String                 @unique
   password                   String
   role                       String
+  roleId                     String?
   avatar                     String?
   lastLogin                  DateTime?
   lastPasswordChange         DateTime?
   forceLogoutBefore          DateTime?
   createdAt                  DateTime               @default(now())
+
+  roleRelation               Role?                  @relation(fields: [roleId], references: [id])
+  userPermissions            UserPermission[]
+
   labelCartItems             LabelCartItem[]
   packagingCartItems         PackagingCartItem[]
   labelPrintJobs             LabelPrintJob[]
@@ -35,6 +40,58 @@ model User {
   vouchers                   Voucher[]
   journalEntries             JournalEntry[]
   followUps                  FollowUp[]
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  module      String
+  action      String
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  isSystem    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model UserPermission {
+  id           String  @id @default(uuid())
+  userId       String
+  permissionId String
+  allow        Boolean
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
 }
 
 model InventoryMetrics {
@@ -698,10 +755,10 @@ model PaymentSettings {
 
 model ActivityLog {
   id               String   @id @default(uuid())
-  entityType       String
+  entityType       String?
   entityId         String?
   entityIdentifier String?
-  actionType       String
+  actionType       String?
   userId           String?
   userName         String?
   userEmail        String?
@@ -710,7 +767,18 @@ model ActivityLog {
   source           String?
   fieldChanges     String?
   details          String?
+
+  module           String?
+  action           String?
+  referenceId      String?
+  description      String?
+  metadata         String?
+
   createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@index([module])
+  @@index([createdAt])
 }
 
 model LabelPrintJob {

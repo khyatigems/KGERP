@@ -66,10 +66,10 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
     }
   })();
 
-  const statsRow = await prisma.$queryRawUnsafe<Array<{
-    totalRevenue: number;
-    orderCount: number;
-    highestOrder: number;
+  const rawStatsRow = await prisma.$queryRawUnsafe<Array<{
+    totalRevenue: unknown;
+    orderCount: unknown;
+    highestOrder: unknown;
   }>>(`
     SELECT 
       SUM(s.netAmount) as totalRevenue,
@@ -80,7 +80,20 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
     WHERE s.customerId = ? AND s.platform != 'REPLACEMENT'
   `, id).catch(() => []);
 
-  const stat = statsRow[0] || { totalRevenue: 0, orderCount: 0, highestOrder: 0 };
+  const toNumber = (val: unknown): number => {
+    if (typeof val === "bigint") return Number(val);
+    if (typeof val === "number") return val;
+    if (typeof val === "string") return Number(val) || 0;
+    return 0;
+  };
+
+  const rawStat = rawStatsRow[0] || { totalRevenue: 0, orderCount: 0, highestOrder: 0 };
+  const stat = {
+    totalRevenue: toNumber(rawStat.totalRevenue),
+    orderCount: toNumber(rawStat.orderCount),
+    highestOrder: toNumber(rawStat.highestOrder),
+  };
+  
   const aov = stat.orderCount > 0 ? stat.totalRevenue / stat.orderCount : 0;
 
   const customerSettingsRow = await prisma.setting.findUnique({ where: { key: "customer_settings" } });

@@ -44,6 +44,11 @@ export async function createUser(formData: FormData) {
     return { message: "Invalid input data" };
   }
 
+  // Try to find matching Role ID in the new DB table
+  const roleRecord = await prisma.role.findUnique({
+    where: { name: result.data.role }
+  });
+
   try {
     const hashedPassword = await hash(result.data.password, 12);
     
@@ -52,7 +57,8 @@ export async function createUser(formData: FormData) {
         name: result.data.name,
         email: result.data.email,
         password: hashedPassword,
-        role: result.data.role,
+        role: result.data.role, // Legacy field fallback
+        roleId: roleRecord?.id,
         avatar: result.data.avatar,
       },
     });
@@ -128,10 +134,16 @@ export async function updateUser(id: string, formData: FormData) {
     if (!result.success) return { message: "Invalid input data" };
 
     try {
+        // Try to find matching Role ID
+        const roleRecord = await prisma.role.findUnique({
+          where: { name: result.data.role }
+        });
+
         const updateData: Prisma.UserUpdateInput = {
             name: result.data.name,
             email: result.data.email,
-            role: result.data.role,
+            role: result.data.role, // Legacy fallback
+            roleRelation: roleRecord ? { connect: { id: roleRecord.id } } : undefined,
             avatar: result.data.avatar,
         };
 

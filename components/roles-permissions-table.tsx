@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -11,16 +11,41 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { ROLE_PERMISSIONS, Role } from "@/lib/permissions";
 import { Search, Shield, Info } from "lucide-react";
+
+type DBRole = {
+  id: string;
+  name: string;
+  isSystem: boolean;
+  isActive: boolean;
+  permissions: { permission: { key: string } }[];
+};
 
 export function RolesPermissionsTable() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [roles, setRoles] = useState<DBRole[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const roles: Role[] = ["SUPER_ADMIN", "ADMIN", "SALES", "ACCOUNTS", "VIEWER"];
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  const fetchRoles = async () => {
+    try {
+      const res = await fetch("/api/roles");
+      if (res.ok) {
+        const data = await res.json();
+        setRoles(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatPermission = (perm: string) => {
-    return perm.split(".").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+    return perm.split(":").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
   };
 
   const getPermissionDescription = (perm: string) => {
@@ -35,8 +60,8 @@ export function RolesPermissionsTable() {
   };
 
   const filteredRoles = roles.filter((role) => {
-    const roleName = role.toLowerCase();
-    const permissions = ROLE_PERMISSIONS[role].map(p => p.toLowerCase());
+    const roleName = role.name.toLowerCase();
+    const permissions = role.permissions.map(p => p.permission.key.toLowerCase());
     const query = searchQuery.toLowerCase();
 
     return (
@@ -44,6 +69,8 @@ export function RolesPermissionsTable() {
       permissions.some(p => p.includes(query))
     );
   });
+
+  if (loading) return <div>Loading roles...</div>;
 
   return (
     <div className="space-y-4">
@@ -71,15 +98,15 @@ export function RolesPermissionsTable() {
           </TableHeader>
           <TableBody>
             {filteredRoles.map((role) => {
-              const permissions = ROLE_PERMISSIONS[role];
-              const isSuperAdmin = role === "SUPER_ADMIN";
+              const permissions = role.permissions.map(p => p.permission.key);
+              const isSuperAdmin = role.name === "SUPER_ADMIN";
 
               return (
-                <TableRow key={role}>
+                <TableRow key={role.id}>
                   <TableCell className="font-medium align-top">
                     <div className="flex items-center space-x-2">
                       <Shield className="h-4 w-4 text-primary" />
-                      <span>{role.replace("_", " ")}</span>
+                      <span>{role.name.replace("_", " ")}</span>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -104,12 +131,12 @@ export function RolesPermissionsTable() {
                     </div>
                   </TableCell>
                   <TableCell className="align-top">
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      Active
+                    <Badge variant="outline" className={role.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-slate-50 text-slate-700 border-slate-200"}>
+                      {role.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm align-top">
-                    System Default
+                    {role.isSystem ? "System Default" : "Custom"}
                   </TableCell>
                 </TableRow>
               );

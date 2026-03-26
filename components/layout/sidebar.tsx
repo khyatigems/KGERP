@@ -3,53 +3,36 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Package,
-  FileText,
-  ShoppingCart,
-  ShoppingBag,
-  Users,
-  User,
-  BarChart,
-  Settings,
-  UserCog,
-  Globe,
-  Printer,
-  WalletCards,
-  Undo2,
-  Receipt,
-  BookOpen,
-  ShieldCheck
-} from "lucide-react";
+import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, RotateCcw, ShoppingBag, ReceiptText, Landmark, Truck, Users, BarChart3, CreditCard, UserCog, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 
 export const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/listings", label: "Listings", icon: Globe },
-  { href: "/labels", label: "Labels", icon: Printer },
-  { href: "/packaging", label: "Packaging Identity", icon: ShieldCheck },
-  { href: "/quotes", label: "Quotations", icon: FileText },
-  { href: "/sales", label: "Sales", icon: ShoppingCart },
-  { href: "/sales-returns", label: "Sales Returns", icon: Undo2 },
-  { href: "/purchases", label: "Purchases", icon: ShoppingBag },
-  { href: "/expenses", label: "Expenses", icon: Receipt },
-  { href: "/accounting/reports", label: "Accounting", icon: BookOpen },
-  { href: "/vendors", label: "Vendors", icon: Users },
-  { href: "/customers", label: "Customers", icon: User },
-  { href: "/reports", label: "Reports", icon: BarChart },
-  { href: "/reports/receivables", label: "Receivables", icon: WalletCards },
-  { href: "/users", label: "Users", icon: UserCog },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/", label: "Dashboard", icon: Home, module: "dashboard" },
+  { href: "/inventory", label: "Inventory", icon: Diamond, module: "inventory:view" },
+  { href: "/listings", label: "Listings", icon: Globe, module: "inventory:view" },
+  { href: "/labels", label: "Labels", icon: Tag, module: "reports:view" },
+  { href: "/erp/packaging", label: "Packaging Identity", icon: PackageCheck, module: "packaging:view" },
+  { href: "/quotes", label: "Quotations", icon: FileText, module: "quotations:view" },
+  { href: "/sales", label: "Sales", icon: ShoppingCart, module: "sales:view" },
+  { href: "/sales-returns", label: "Sales Returns", icon: RotateCcw, module: "sales:view" },
+  { href: "/purchases", label: "Purchases", icon: ShoppingBag, module: "inventory:view_cost" },
+  { href: "/expenses", label: "Expenses", icon: ReceiptText, module: "expenses:view" },
+  { href: "/accounting", label: "Accounting", icon: Landmark, module: "reports:financial" },
+  { href: "/vendors", label: "Vendors", icon: Truck, module: "vendors:view" },
+  { href: "/customers", label: "Customers", icon: Users, module: "customers:view" },
+  { href: "/reports", label: "Reports", icon: BarChart3, module: "reports:view" },
+  { href: "/receivables", label: "Receivables", icon: CreditCard, module: "receivables:view" },
+  { href: "/users", label: "Users", icon: UserCog, module: "users:manage" },
+  { href: "/settings", label: "Settings", icon: Settings, module: "settings:manage" },
 ];
 
 interface SidebarContentProps {
   onNavigate?: () => void;
+  allowedModules?: string[];
 }
 
-export function SidebarContent({ onNavigate }: SidebarContentProps) {
+export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: SidebarContentProps) {
   const pathname = usePathname();
   const { showLoader } = useGlobalLoader();
 
@@ -72,6 +55,10 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
       <div className="flex-1 overflow-auto py-4">
         <nav className="grid items-start px-2 text-sm font-medium gap-1">
           {navItems.map((item) => {
+            if (!allowedModules.includes("ALL") && item.module !== "dashboard" && !allowedModules.includes(item.module)) {
+              return null;
+            }
+
             const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
             return (
               <Link
@@ -96,6 +83,6 @@ export function SidebarContent({ onNavigate }: SidebarContentProps) {
   );
 }
 
-export function Sidebar() {
-  return <SidebarContent />;
+export function Sidebar({ allowedModules = ["ALL"] }: { allowedModules?: string[] }) {
+  return <SidebarContent allowedModules={allowedModules} />;
 }

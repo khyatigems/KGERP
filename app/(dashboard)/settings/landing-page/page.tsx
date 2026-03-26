@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { LandingPageForm } from "@/components/settings/landing-page-form";
 import { getLandingPageSettings } from "./actions";
 
@@ -12,7 +12,7 @@ export default async function LandingPageSettingsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   
-  if (!hasPermission(session.user.role, PERMISSIONS.LANDING_PAGE_MANAGE)) {
+  if (!session?.user?.id || !(await checkUserPermission(session.user.id, PERMISSIONS.SETTINGS_LANDING_PAGE))) {
     redirect("/dashboard");
   }
 

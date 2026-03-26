@@ -22,19 +22,20 @@ import { deleteUser } from "./actions";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { RolesPermissionsTable } from "@/components/roles-permissions-table";
 
 export default async function UsersPage() {
   const session = await auth();
-  const role = session?.user?.role || "VIEWER";
+  const userId = session?.user?.id;
   
-  if (!hasPermission(role, PERMISSIONS.USERS_MANAGE)) {
+  if (!userId || !(await checkUserPermission(userId, PERMISSIONS.USERS_MANAGE))) {
     redirect("/");
   }
 
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
+    include: { roleRelation: true }
   });
 
   return (
@@ -87,8 +88,8 @@ export default async function UsersPage() {
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={user.role === "SUPER_ADMIN" || user.role === "ADMIN" ? "default" : "secondary"}>
-                        {user.role}
+                      <Badge variant={(user.roleRelation?.name || user.role) === "SUPER_ADMIN" || (user.roleRelation?.name || user.role) === "ADMIN" ? "default" : "secondary"}>
+                        {user.roleRelation?.name || user.role}
                       </Badge>
                     </TableCell>
                     <TableCell>
