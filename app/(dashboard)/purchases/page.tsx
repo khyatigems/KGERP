@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { PurchaseSearch } from "@/components/purchases/purchase-search";
@@ -110,9 +110,9 @@ export default async function PurchasesPage({
   searchParams: Promise<{ query?: string }>;
 }) {
   const session = await auth();
-  const userRole = session?.user?.role || "VIEWER";
-  
-  if (!hasPermission(userRole, PERMISSIONS.INVENTORY_VIEW)) {
+  const userId = session?.user?.id;
+  if (!userId) redirect("/login");
+  if (!(await checkUserPermission(userId, PERMISSIONS.INVENTORY_VIEW_COST))) {
     redirect("/");
   }
 

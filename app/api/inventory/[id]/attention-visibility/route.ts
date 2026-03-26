@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getInventoryAttentionVisibility, setInventoryAttentionVisibility } from "@/lib/attention-visibility";
 import { withFreezeGuard } from "@/lib/governance";
 
@@ -23,8 +23,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const role = session.user.role || "VIEWER";
-    if (!hasPermission(role, PERMISSIONS.INVENTORY_VIEW)) {
+    if (!(await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_VIEW))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -60,8 +59,7 @@ async function patchAttentionVisibility(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const role = session.user.role || "VIEWER";
-    if (!hasPermission(role, PERMISSIONS.INVENTORY_EDIT)) {
+    if (!(await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_EDIT))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

@@ -10,7 +10,7 @@ import { useGlobalLoader } from "@/components/global-loader-provider";
 export const navItems = [
   { href: "/", label: "Dashboard", icon: Home, module: "dashboard" },
   { href: "/inventory", label: "Inventory", icon: Diamond, module: "inventory:view" },
-  { href: "/listings", label: "Listings", icon: Globe, module: "inventory:view" },
+  { href: "/listings", label: "Listings", icon: Globe, module: "listings:view" },
   { href: "/labels", label: "Labels", icon: Tag, module: "reports:view" },
   { href: "/erp/packaging", label: "Packaging Identity", icon: PackageCheck, module: "packaging:view" },
   { href: "/quotes", label: "Quotations", icon: FileText, module: "quotations:view" },

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { Prisma } from "@prisma/client";
 import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 
@@ -22,7 +22,7 @@ const toDate = (value: string | null) => {
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.INVENTORY_VIEW)) {
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_VIEW))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

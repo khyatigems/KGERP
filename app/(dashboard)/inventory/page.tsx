@@ -37,7 +37,7 @@ export const metadata: Metadata = {
 import { removeDuplicates } from "@/lib/dedup";
 
 import { auth } from "@/lib/auth";
-import { PERMISSIONS, hasPermission } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 
 export default async function InventoryPage({
   searchParams,
@@ -57,8 +57,20 @@ export default async function InventoryPage({
   await ensureInventoryBraceletSchema();
   const session = await auth();
   const userRole = session?.user?.role || "VIEWER";
-  const canCreate = hasPermission(userRole, PERMISSIONS.INVENTORY_CREATE);
-  const canManageAttentionVisibility = hasPermission(userRole, PERMISSIONS.INVENTORY_EDIT);
+  const userId = session?.user?.id;
+  const canView = userId ? await checkUserPermission(userId, PERMISSIONS.INVENTORY_VIEW) : false;
+  if (!canView) {
+    return (
+      <div className="p-6">
+        <div className="bg-destructive/15 text-destructive border-destructive/20 border px-4 py-3 rounded-md relative">
+          <strong className="font-bold">Access Denied!</strong>
+          <span className="block sm:inline"> You don't have permission to view inventory.</span>
+        </div>
+      </div>
+    );
+  }
+  const canCreate = userId ? await checkUserPermission(userId, PERMISSIONS.INVENTORY_CREATE) : false;
+  const canManageAttentionVisibility = userId ? await checkUserPermission(userId, PERMISSIONS.INVENTORY_EDIT) : false;
 
   const { query, status, category, gemType, color, vendorId, collectionId, rashiId, weightRange } = await searchParams;
   const filtersKey = JSON.stringify({ query, status, category, gemType, color, vendorId, collectionId, rashiId, weightRange });

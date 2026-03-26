@@ -45,14 +45,14 @@ export async function createUser(formData: FormData) {
   }
 
   // Try to find matching Role ID in the new DB table
-  const roleRecord = await prisma.role.findUnique({
+  const roleRecord = await (prisma as any).role.findUnique({
     where: { name: result.data.role }
   });
 
   try {
     const hashedPassword = await hash(result.data.password, 12);
     
-    await prisma.user.create({
+    await (prisma.user as any).create({
       data: {
         name: result.data.name,
         email: result.data.email,
@@ -70,7 +70,7 @@ export async function createUser(formData: FormData) {
     if (message.includes("Unknown argument") && result.data.avatar) {
         try {
             const hashedPassword = await hash(result.data.password, 12);
-            await prisma.user.create({
+            await (prisma.user as any).create({
                 data: {
                     name: result.data.name,
                     email: result.data.email,
@@ -133,13 +133,17 @@ export async function updateUser(id: string, formData: FormData) {
     const result = updateUserSchema.safeParse(data);
     if (!result.success) return { message: "Invalid input data" };
 
+    if (typeof data.password === "string" && data.password.length > 0 && data.password.length < 6) {
+      return { message: "Password must be at least 6 characters" };
+    }
+
     try {
         // Try to find matching Role ID
-        const roleRecord = await prisma.role.findUnique({
+        const roleRecord = await (prisma as any).role.findUnique({
           where: { name: result.data.role }
         });
 
-        const updateData: Prisma.UserUpdateInput = {
+        const updateData: any = {
             name: result.data.name,
             email: result.data.email,
             role: result.data.role, // Legacy fallback
@@ -151,7 +155,7 @@ export async function updateUser(id: string, formData: FormData) {
             updateData.password = await hash(result.data.password, 12);
         }
 
-        await prisma.user.update({
+        await (prisma.user as any).update({
             where: { id },
             data: updateData,
         });
@@ -172,12 +176,12 @@ export async function updateUser(id: string, formData: FormData) {
                      // Ideally we lift updateData out of try block but 'const' block scope issues.
                      // Simpler to just re-construct.
                      const hashedPassword = await hash(result.data.password, 12);
-                     await prisma.user.update({
+                     await (prisma.user as any).update({
                          where: { id },
                          data: { ...baseData, password: hashedPassword },
                      });
                  } else {
-                     await prisma.user.update({
+                     await (prisma.user as any).update({
                          where: { id },
                          data: baseData,
                      });

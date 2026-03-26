@@ -7,6 +7,9 @@ export const PERMISSIONS = {
   INVENTORY_EDIT: "inventory:edit",
   INVENTORY_DELETE: "inventory:delete",
   INVENTORY_VIEW_COST: "inventory:view_cost",
+
+  // Listings
+  LISTINGS_VIEW: "listings:view",
   
   // Quotations
   QUOTATION_VIEW: "quotations:view",
@@ -139,6 +142,16 @@ export async function checkUserPermission(userId: string, permission: Permission
     }
 
     if (user.role === "SUPER_ADMIN") return true;
+
+    try {
+      const role = await (prisma as any).role.findUnique({
+        where: { name: user.role },
+        include: { permissions: { include: { permission: true } } }
+      });
+      if (role?.name === "SUPER_ADMIN") return true;
+      if (role?.permissions?.some((rp: any) => rp.permission?.key === permission)) return true;
+    } catch {}
+
     return getPermissionsForRole(user.role).includes(permission);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

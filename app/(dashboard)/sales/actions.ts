@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { hasTable, prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
@@ -601,6 +601,15 @@ export async function deleteSale(id: string) {
   const perm = await checkPermission(PERMISSIONS.SALES_DELETE);
   if (!perm.success) return { message: perm.message };
 
+  const [hasFollowUp, hasPayment, hasInvoiceVersion, hasCreditNote, hasSalesReturn, hasSalesReturnItem] = await Promise.all([
+    hasTable("FollowUp"),
+    hasTable("Payment"),
+    hasTable("InvoiceVersion"),
+    hasTable("CreditNote"),
+    hasTable("SalesReturn"),
+    hasTable("SalesReturnItem"),
+  ]);
+
   const sale = await prisma.sale.findUnique({
       where: { id },
       include: {
@@ -637,22 +646,28 @@ export async function deleteSale(id: string) {
                 select: { id: true, quotationId: true }
               });
 
-              await tx.creditNote.deleteMany({ where: { invoiceId: sale.invoiceId } });
-
-              const returns = await tx.salesReturn.findMany({
-                where: { invoiceId: sale.invoiceId },
-                select: { id: true }
-              });
-              if (returns.length) {
-                await tx.salesReturnItem.deleteMany({
-                  where: { salesReturnId: { in: returns.map((r) => r.id) } }
-                });
-                await tx.salesReturn.deleteMany({ where: { invoiceId: sale.invoiceId } });
+              if (hasCreditNote) {
+                await tx.creditNote.deleteMany({ where: { invoiceId: sale.invoiceId } });
               }
 
-              await tx.followUp.deleteMany({ where: { invoiceId: sale.invoiceId } });
-              await tx.payment.deleteMany({ where: { invoiceId: sale.invoiceId } });
-              await tx.invoiceVersion.deleteMany({ where: { invoiceId: sale.invoiceId } });
+              if (hasSalesReturn) {
+                const returns = await tx.salesReturn.findMany({
+                  where: { invoiceId: sale.invoiceId },
+                  select: { id: true }
+                });
+                if (returns.length) {
+                  if (hasSalesReturnItem) {
+                    await tx.salesReturnItem.deleteMany({
+                      where: { salesReturnId: { in: returns.map((r) => r.id) } }
+                    });
+                  }
+                  await tx.salesReturn.deleteMany({ where: { invoiceId: sale.invoiceId } });
+                }
+              }
+
+              if (hasFollowUp) await tx.followUp.deleteMany({ where: { invoiceId: sale.invoiceId } });
+              if (hasPayment) await tx.payment.deleteMany({ where: { invoiceId: sale.invoiceId } });
+              if (hasInvoiceVersion) await tx.invoiceVersion.deleteMany({ where: { invoiceId: sale.invoiceId } });
 
               await tx.invoice.delete({ where: { id: sale.invoiceId } });
 

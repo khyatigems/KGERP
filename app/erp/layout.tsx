@@ -57,6 +57,16 @@ export default async function ErpLayout({
       } else {
         // From role
         dbUser.roleRelation?.permissions.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
+
+        if (!dbUser.roleRelation?.permissions?.length && dbUser.role) {
+          try {
+            const role = await (prisma as any).role.findUnique({
+              where: { name: dbUser.role },
+              include: { permissions: { include: { permission: true } } }
+            });
+            role?.permissions?.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
+          } catch {}
+        }
         
         // Apply overrides
         dbUser.userPermissions?.forEach((up: any) => {
