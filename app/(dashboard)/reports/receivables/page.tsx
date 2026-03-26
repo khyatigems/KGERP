@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,8 +20,17 @@ export const metadata: Metadata = {
 
 export default async function ReceivablesPage() {
   const session = await auth();
-  if (!session?.user) return null;
-  if (!hasPermission(session.user.role, PERMISSIONS.RECEIVABLES_VIEW)) return null;
+  if (!session?.user?.id) return null;
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.RECEIVABLES_VIEW))) {
+    return (
+      <div className="p-6">
+        <div className="bg-destructive/15 text-destructive border-destructive/20 border px-4 py-3 rounded-md relative">
+          <strong className="font-bold">Access Denied!</strong>
+          <span className="block sm:inline"> You don&apos;t have permission to view receivables.</span>
+        </div>
+      </div>
+    );
+  }
 
   const today = new Date();
   const invoices = await prisma.invoice.findMany({

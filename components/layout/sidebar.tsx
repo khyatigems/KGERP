@@ -22,7 +22,7 @@ export const navItems = [
   { href: "/vendors", label: "Vendors", icon: Truck, module: "vendors:view" },
   { href: "/customers", label: "Customers", icon: Users, module: "customers:view" },
   { href: "/reports", label: "Reports", icon: BarChart3, module: "reports:view" },
-  { href: "/receivables", label: "Receivables", icon: CreditCard, module: "receivables:view" },
+  { href: "/reports/receivables", label: "Receivables", icon: CreditCard, module: "receivables:view" },
   { href: "/users", label: "Users", icon: UserCog, module: "users:manage" },
   { href: "/settings", label: "Settings", icon: Settings, module: "settings:manage" },
 ];
