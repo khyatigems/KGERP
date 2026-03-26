@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { ensureActivityLogSchema, hasTable, prisma } from "@/lib/prisma";
 import type { ActivityLog } from "@prisma/client";
 
 export const revalidate = 60;
 
 export async function GET() {
   try {
+      await ensureActivityLogSchema();
+      const ok = await hasTable("ActivityLog");
+      if (!ok) return NextResponse.json([]);
+
       const logs = await prisma.activityLog.findMany({
           take: 20,
           orderBy: { createdAt: "desc" }
@@ -24,7 +28,7 @@ export async function GET() {
       return NextResponse.json(mappedLogs);
   } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("no such table") || msg.includes("SQLITE_UNKNOWN")) {
+      if (msg.includes("no such table") || msg.includes("no such column") || msg.includes("SQLITE_UNKNOWN") || msg.includes("SQL_INPUT_ERROR")) {
         return NextResponse.json([]);
       }
       console.error("Activity fetch error:", error);

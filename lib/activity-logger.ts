@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { ensureActivityLogSchema, prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
@@ -64,6 +64,8 @@ export async function logActivity<T = Record<string, unknown>>({
   details,
 }: LogActivityParams<T>) {
   try {
+    await ensureActivityLogSchema();
+
     let finalUserId = userId;
     let finalUserName = userName;
     let finalUserEmail = "";
@@ -158,7 +160,7 @@ export async function logActivity<T = Record<string, unknown>>({
     const finalAction = action || actionType || "UNKNOWN";
     const finalReferenceId = referenceId || entityIdentifier || entityId;
 
-    await prisma.activityLog.create({
+    await (prisma.activityLog as any).create({
       data: {
         entityType: finalModule,
         entityId: entityId || finalReferenceId,
@@ -177,7 +179,7 @@ export async function logActivity<T = Record<string, unknown>>({
         action: finalAction,
         referenceId: finalReferenceId,
         description: description || details,
-        metadata: finalMetadata ? JSON.parse(finalMetadata) : undefined,
+        metadata: finalMetadata,
       },
     });
   } catch (error) {

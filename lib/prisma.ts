@@ -285,3 +285,73 @@ export async function ensureRbacSchema(): Promise<void> {
   })();
   return ensureRbacPromise;
 }
+
+let ensuringActivityLog = false;
+let ensuredActivityLog = false;
+let ensureActivityLogPromise: Promise<void> | null = null;
+
+export async function ensureActivityLogSchema(): Promise<void> {
+  if (ensuredActivityLog) return;
+  if (ensuringActivityLog && ensureActivityLogPromise) return ensureActivityLogPromise;
+  ensuringActivityLog = true;
+  ensureActivityLogPromise = (async () => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ActivityLog" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "entityType" TEXT,
+          "entityId" TEXT,
+          "entityIdentifier" TEXT,
+          "actionType" TEXT,
+          "userId" TEXT,
+          "userName" TEXT,
+          "userEmail" TEXT,
+          "ipAddress" TEXT,
+          "userAgent" TEXT,
+          "source" TEXT,
+          "fieldChanges" TEXT,
+          "details" TEXT,
+          "module" TEXT,
+          "action" TEXT,
+          "referenceId" TEXT,
+          "description" TEXT,
+          "metadata" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      try {
+        const cols = await prisma.$queryRawUnsafe<Array<{ name: string }>>(`PRAGMA table_info("ActivityLog")`);
+        const set = new Set((cols || []).map((c) => c.name));
+        const add = async (name: string, type: string) => {
+          if (set.has(name)) return;
+          try {
+            await prisma.$executeRawUnsafe(`ALTER TABLE "ActivityLog" ADD COLUMN "${name}" ${type};`);
+          } catch {}
+        };
+        await add("module", "TEXT");
+        await add("action", "TEXT");
+        await add("referenceId", "TEXT");
+        await add("description", "TEXT");
+        await add("metadata", "TEXT");
+        await add("userEmail", "TEXT");
+        await add("ipAddress", "TEXT");
+        await add("userAgent", "TEXT");
+        await add("source", "TEXT");
+        await add("fieldChanges", "TEXT");
+        await add("details", "TEXT");
+      } catch {}
+
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_userId_idx" ON "ActivityLog"("userId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_module_idx" ON "ActivityLog"("module");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_createdAt_idx" ON "ActivityLog"("createdAt");`);
+    } catch {
+    } finally {
+      checkedTables = null;
+      ensuredActivityLog = true;
+      ensuringActivityLog = false;
+      ensureActivityLogPromise = null;
+    }
+  })();
+  return ensureActivityLogPromise;
+}
