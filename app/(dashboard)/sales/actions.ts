@@ -623,63 +623,74 @@ export async function deleteSale(id: string) {
           }
 
           await tx.inventory.update({
-              where: { id: sale.inventoryId },
-              data: { status: "IN_STOCK" }
+            where: { id: sale.inventoryId },
+            data: { status: "IN_STOCK" }
           });
 
-          await tx.sale.delete({
-              where: { id }
-          });
+          await tx.sale.delete({ where: { id } });
 
-          // Delete related invoice?
-          // Sale has invoiceId, Invoice has sales (relation "NewInvoice")
-          // If this was the only sale on that invoice, maybe delete invoice?
-          // For now, let's skip deleting invoice automatically unless we implement strict rules.
-          // Or if we know the invoiceId:
           if (sale.invoiceId) {
-             // Optional: check if other sales use this invoice
-             const otherSales = await tx.sale.count({ where: { invoiceId: sale.invoiceId, id: { not: id } }});
-             if (otherSales === 0) {
-                 const inv = await tx.invoice.findUnique({
-                   where: { id: sale.invoiceId },
-                   select: { id: true, quotationId: true }
-                 });
-                 await tx.invoice.delete({ where: { id: sale.invoiceId } });
-                 if (inv?.quotationId) {
-                   const stillHasInvoice = await tx.invoice.count({ where: { quotationId: inv.quotationId } });
-                   if (stillHasInvoice === 0) {
-                     await tx.quotation.update({
-                       where: { id: inv.quotationId },
-                       data: { status: "ACTIVE" }
-                     });
-                   }
-                 } else {
-                   const candidates = await tx.quotation.findMany({
-                     where: {
-                       status: "CONVERTED",
-                       items: { some: { inventoryId: sale.inventoryId } },
-                       ...(sale.customerId
-                         ? { customerId: sale.customerId }
-                         : sale.customerName
-                         ? { customerName: sale.customerName }
-                         : {}),
-                     },
-                     select: { id: true, items: { select: { inventoryId: true } } },
-                   });
-                   for (const q of candidates) {
-                     const ids = q.items.map((i) => i.inventoryId).filter(Boolean);
-                     if (!ids.length) continue;
-                     const invItems = await tx.inventory.findMany({
-                       where: { id: { in: ids } },
-                       select: { status: true },
-                     });
-                     const hasSold = invItems.some((it) => it.status === "SOLD");
-                     if (!hasSold) {
-                       await tx.quotation.update({ where: { id: q.id }, data: { status: "ACTIVE" } });
-                     }
-                   }
-                 }
-             }
+            const otherSales = await tx.sale.count({ where: { invoiceId: sale.invoiceId, id: { not: id } } });
+            if (otherSales === 0) {
+              const inv = await tx.invoice.findUnique({
+                where: { id: sale.invoiceId },
+                select: { id: true, quotationId: true }
+              });
+
+              await tx.creditNote.deleteMany({ where: { invoiceId: sale.invoiceId } });
+
+              const returns = await tx.salesReturn.findMany({
+                where: { invoiceId: sale.invoiceId },
+                select: { id: true }
+              });
+              if (returns.length) {
+                await tx.salesReturnItem.deleteMany({
+                  where: { salesReturnId: { in: returns.map((r) => r.id) } }
+                });
+                await tx.salesReturn.deleteMany({ where: { invoiceId: sale.invoiceId } });
+              }
+
+              await tx.followUp.deleteMany({ where: { invoiceId: sale.invoiceId } });
+              await tx.payment.deleteMany({ where: { invoiceId: sale.invoiceId } });
+              await tx.invoiceVersion.deleteMany({ where: { invoiceId: sale.invoiceId } });
+
+              await tx.invoice.delete({ where: { id: sale.invoiceId } });
+
+              if (inv?.quotationId) {
+                const stillHasInvoice = await tx.invoice.count({ where: { quotationId: inv.quotationId } });
+                if (stillHasInvoice === 0) {
+                  await tx.quotation.update({
+                    where: { id: inv.quotationId },
+                    data: { status: "ACTIVE" }
+                  });
+                }
+              } else {
+                const candidates = await tx.quotation.findMany({
+                  where: {
+                    status: "CONVERTED",
+                    items: { some: { inventoryId: sale.inventoryId } },
+                    ...(sale.customerId
+                      ? { customerId: sale.customerId }
+                      : sale.customerName
+                      ? { customerName: sale.customerName }
+                      : {}),
+                  },
+                  select: { id: true, items: { select: { inventoryId: true } } },
+                });
+                for (const q of candidates) {
+                  const ids = q.items.map((i) => i.inventoryId).filter(Boolean);
+                  if (!ids.length) continue;
+                  const invItems = await tx.inventory.findMany({
+                    where: { id: { in: ids } },
+                    select: { status: true },
+                  });
+                  const hasSold = invItems.some((it) => it.status === "SOLD");
+                  if (!hasSold) {
+                    await tx.quotation.update({ where: { id: q.id }, data: { status: "ACTIVE" } });
+                  }
+                }
+              }
+            }
           }
       });
 
@@ -694,8 +705,9 @@ export async function deleteSale(id: string) {
       });
 
   } catch (e: unknown) {
-      console.error("deleteSale error:", e instanceof Error ? e.message : e);
-      return { message: "Failed to delete sale" };
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("deleteSale error:", msg);
+      return { message: msg.includes("FOREIGN KEY constraint failed") ? "Failed to delete sale due to linked records. Please remove linked payments/credit notes/returns first." : msg || "Failed to delete sale" };
   }
 
   revalidatePath("/sales");

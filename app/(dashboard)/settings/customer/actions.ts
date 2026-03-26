@@ -3,7 +3,16 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function saveCustomerSettings(data: { platinumThreshold: number, goldThreshold: number, highValueAov: number }) {
+export async function saveCustomerSettings(data: {
+  platinumThreshold: number;
+  goldThreshold: number;
+  highValueAov: number;
+  repeatBuyerOrders: number;
+  newCustomerDays: number;
+  platinumColor: string;
+  goldColor: string;
+  silverColor: string;
+}) {
   try {
     await prisma.setting.upsert({
       where: { key: "customer_settings" },
