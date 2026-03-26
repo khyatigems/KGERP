@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { auth } from "@/lib/auth";
-import { ensureUserRoleIdColumn, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
+import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
 import { Permission } from "@/lib/permissions";
 
 export default async function ErpLayout({
@@ -18,8 +18,10 @@ export default async function ErpLayout({
   if (session?.user?.id) {
     await ensureUserRoleIdColumn();
     const supports = await hasUserRoleIdColumn();
+    await ensureRbacSchema();
+    const hasRbacTables = (await hasTable("UserPermission")) && (await hasTable("Role")) && (await hasTable("Permission")) && (await hasTable("RolePermission"));
 
-    const dbUser = supports
+    const dbUser = supports && hasRbacTables
       ? ((await (prisma.user as any).findUnique({
           where: { id: session.user.id },
           select: ({
@@ -50,7 +52,7 @@ export default async function ErpLayout({
       const resolvedPerms = new Set<string>();
       
       // Legacy static fallback for now
-      if (dbUser.role === "SUPER_ADMIN" || dbUser.roleRelation?.name === "SUPER_ADMIN" || (!supports && dbUser.role === "ADMIN")) {
+      if (dbUser.role === "SUPER_ADMIN" || dbUser.roleRelation?.name === "SUPER_ADMIN") {
         allowedNavModules = ["ALL"];
       } else {
         // From role

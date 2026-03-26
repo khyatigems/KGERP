@@ -1,4 +1,4 @@
-import { ensureUserRoleIdColumn, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
+import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
 
 export const PERMISSIONS = {
   // Inventory
@@ -83,6 +83,23 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
 export async function checkUserPermission(userId: string, permission: Permission): Promise<boolean> {
   await ensureUserRoleIdColumn();
   const supports = await hasUserRoleIdColumn();
+
+  await ensureRbacSchema();
+  const hasUserPermissionTable = await hasTable("UserPermission");
+  const hasRolePermissionTable = await hasTable("RolePermission");
+  const hasRoleTable = await hasTable("Role");
+  const hasPermissionTable = await hasTable("Permission");
+  const hasRbacTables = hasUserPermissionTable && hasRolePermissionTable && hasRoleTable && hasPermissionTable;
+
+  if (!hasRbacTables) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+    if (!user) return false;
+    if (user.role === "SUPER_ADMIN") return true;
+    return getPermissionsForRole(user.role).includes(permission);
+  }
 
   if (!supports) {
     const user = await prisma.user.findUnique({

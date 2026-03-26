@@ -134,6 +134,44 @@ export type { ActivityLog } from '@prisma/client'
 let checkedUserRoleIdColumn: boolean | null = null;
 let checkUserRoleIdColumnPromise: Promise<boolean> | null = null;
 
+let checkedTables: Map<string, boolean> | null = null;
+let checkTablesPromise: Promise<Map<string, boolean>> | null = null;
+
+export async function hasTable(table: string): Promise<boolean> {
+  if (checkedTables?.has(table)) return Boolean(checkedTables.get(table));
+  if (!checkTablesPromise) {
+    checkTablesPromise = (async () => {
+      try {
+        const rows = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`
+        );
+        const set = new Map<string, boolean>();
+        for (const r of rows || []) {
+          if (!r?.name) continue;
+          set.set(String(r.name), true);
+        }
+        checkedTables = set;
+        return set;
+      } catch {
+        checkedTables = new Map();
+        return checkedTables;
+      } finally {
+        checkTablesPromise = null;
+      }
+    })();
+  }
+  const tables = await checkTablesPromise;
+  return Boolean(tables.get(table));
+}
+
+export async function hasTables(tables: string[]): Promise<boolean> {
+  for (const t of tables) {
+    const ok = await hasTable(t);
+    if (!ok) return false;
+  }
+  return true;
+}
+
 export async function hasUserRoleIdColumn(): Promise<boolean> {
   if (checkedUserRoleIdColumn !== null) return checkedUserRoleIdColumn;
   if (checkUserRoleIdColumnPromise) return checkUserRoleIdColumnPromise;
@@ -179,4 +217,71 @@ export async function ensureUserRoleIdColumn(): Promise<void> {
     }
   })();
   return ensureUserRoleIdPromise;
+}
+
+let ensuringRbac = false;
+let ensuredRbac = false;
+let ensureRbacPromise: Promise<void> | null = null;
+
+export async function ensureRbacSchema(): Promise<void> {
+  if (ensuredRbac) return;
+  if (ensuringRbac && ensureRbacPromise) return ensureRbacPromise;
+  ensuringRbac = true;
+  ensureRbacPromise = (async () => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Role" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL UNIQUE,
+          "isSystem" INTEGER NOT NULL DEFAULT 0,
+          "isActive" INTEGER NOT NULL DEFAULT 1,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        );
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Permission" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "module" TEXT NOT NULL,
+          "action" TEXT NOT NULL,
+          "key" TEXT NOT NULL UNIQUE,
+          "description" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        );
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "RolePermission" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "roleId" TEXT NOT NULL,
+          "permissionId" TEXT NOT NULL
+        );
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "UserPermission" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT NOT NULL,
+          "permissionId" TEXT NOT NULL,
+          "allow" INTEGER NOT NULL
+        );
+      `);
+
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId","permissionId");`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "UserPermission_userId_permissionId_key" ON "UserPermission"("userId","permissionId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserPermission_userId_idx" ON "UserPermission"("userId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserPermission_permissionId_idx" ON "UserPermission"("permissionId");`);
+    } catch {
+    } finally {
+      checkedTables = null;
+      ensuredRbac = true;
+      ensuringRbac = false;
+      ensureRbacPromise = null;
+    }
+  })();
+  return ensureRbacPromise;
 }
