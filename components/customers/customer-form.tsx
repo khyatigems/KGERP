@@ -111,9 +111,11 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
     setIsPending(true);
     // Client-side duplicate prevention by phone
     try {
-      const phone = (values.phone || "").trim();
+      const phone = (values.phone || "").trim().replace(/[^\d+]/g, "");
       if (phone) {
-        const res = await fetch(`/api/customers/exists?phone=${encodeURIComponent(phone)}`);
+        const qs = new URLSearchParams({ phone });
+        if (customer?.id) qs.set("excludeId", customer.id);
+        const res = await fetch(`/api/customers/exists?${qs.toString()}`);
         if (res.ok) {
           const data = await res.json();
           if (data.exists) {

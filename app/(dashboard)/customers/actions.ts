@@ -16,6 +16,36 @@ const normalizePhone = (input: unknown) => {
   return input.replace(/[^\d+]/g, "");
 };
 
+async function linkLegacyCustomerRecords(
+  tx: any,
+  input: { customerId: string; phone: string | null; email: string | null }
+) {
+  const phone = input.phone ? input.phone.replace(/[^\d+]/g, "") : null;
+  const email = input.email ? input.email.trim().toLowerCase() : null;
+
+  if (phone) {
+    await tx.sale.updateMany({
+      where: { customerId: null, customerPhone: phone },
+      data: { customerId: input.customerId },
+    });
+    await tx.quotation.updateMany({
+      where: { customerId: null, customerMobile: phone },
+      data: { customerId: input.customerId },
+    });
+  }
+
+  if (email) {
+    await tx.sale.updateMany({
+      where: { customerId: null, customerEmail: email },
+      data: { customerId: input.customerId },
+    });
+    await tx.quotation.updateMany({
+      where: { customerId: null, customerEmail: email },
+      data: { customerId: input.customerId },
+    });
+  }
+}
+
 const phoneSchema = z
   .string()
   .optional()
@@ -70,6 +100,16 @@ export async function createCustomer(prevState: unknown, formData: FormData) {
 
   try {
     const created = await prisma.$transaction(async (tx) => {
+      if (parsed.data.phone) {
+        const dup = await tx.customer.findFirst({
+          where: { phone: parsed.data.phone },
+          select: { id: true },
+        });
+        if (dup) {
+          throw new Error("A customer with this mobile already exists. Please search and edit the existing record.");
+        }
+      }
+
       const c = await tx.customer.create({
         data: {
           name: parsed.data.name,
@@ -115,6 +155,12 @@ export async function createCustomer(prevState: unknown, formData: FormData) {
           code
         );
       }
+
+      await linkLegacyCustomerRecords(tx, {
+        customerId: c.id,
+        phone: parsed.data.phone || null,
+        email: parsed.data.email ? parsed.data.email.trim().toLowerCase() : null,
+      });
       return c;
     });
 
@@ -158,28 +204,46 @@ export async function updateCustomer(id: string, prevState: unknown, formData: F
   if (!existing) return { message: "Customer not found" };
 
   try {
-    await prisma.customer.update({
-      where: { id },
-      data: {
-        name: parsed.data.name,
-        email: parsed.data.email || null,
+    await prisma.$transaction(async (tx) => {
+      if (parsed.data.phone) {
+        const dup = await tx.customer.findFirst({
+          where: { phone: parsed.data.phone, id: { not: id } },
+          select: { id: true },
+        });
+        if (dup) {
+          throw new Error("A customer with this mobile already exists. Please search and edit the existing record.");
+        }
+      }
+
+      await tx.customer.update({
+        where: { id },
+        data: {
+          name: parsed.data.name,
+          email: parsed.data.email || null,
+          phone: parsed.data.phone || null,
+          phoneSecondary: parsed.data.phoneSecondary || null,
+          address: parsed.data.address || null,
+          city: parsed.data.city || null,
+          state: parsed.data.state || null,
+          country: parsed.data.country || null,
+          pincode: parsed.data.pincode || null,
+          pan: parsed.data.pan || null,
+          gstin: parsed.data.gstin || null,
+          notes: parsed.data.notes || null,
+          customerType: parsed.data.customerType || "Retail",
+          assignedSalesperson: parsed.data.assignedSalesperson || null,
+          interestedIn: parsed.data.interestedIn || null,
+          budgetRange: parsed.data.budgetRange || null,
+          whatsappNumber: parsed.data.whatsappNumber || null,
+          preferredContact: parsed.data.preferredContact || null,
+        } as unknown as never,
+      });
+
+      await linkLegacyCustomerRecords(tx, {
+        customerId: id,
         phone: parsed.data.phone || null,
-        phoneSecondary: parsed.data.phoneSecondary || null,
-        address: parsed.data.address || null,
-        city: parsed.data.city || null,
-        state: parsed.data.state || null,
-        country: parsed.data.country || null,
-        pincode: parsed.data.pincode || null,
-        pan: parsed.data.pan || null,
-        gstin: parsed.data.gstin || null,
-        notes: parsed.data.notes || null,
-        customerType: parsed.data.customerType || "Retail",
-        assignedSalesperson: parsed.data.assignedSalesperson || null,
-        interestedIn: parsed.data.interestedIn || null,
-        budgetRange: parsed.data.budgetRange || null,
-        whatsappNumber: parsed.data.whatsappNumber || null,
-        preferredContact: parsed.data.preferredContact || null,
-      } as unknown as never,
+        email: parsed.data.email ? parsed.data.email.trim().toLowerCase() : null,
+      });
     });
 
     await logActivity({
