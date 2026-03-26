@@ -5,19 +5,22 @@ import { sanitizeNumberText } from "@/lib/number-formatting";
 import { Buffer } from "buffer";
 
 const FONTS = {
-  notoSansDisplay: {
-    family: "NotoSansDisplay",
-    regular: "https://fonts.gstatic.com/s/notosans/v35/o-0IIpQlx3QUlC5A4PNr4ARC.woff2",
-    bold: "https://fonts.gstatic.com/s/notosans/v35/o-0NIpQlx3QUlC5A4PNjXhFV.woff2",
+  notosansdisplay: {
+    normal: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLplK4fy6r6tOBEJg0IAKzqdFZVZxokvfn_BDLxR.ttf",
+    bold: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLplK4fy6r6tOBEJg0IAKzqdFZVZxokvfn_BDLxR.ttf",
+    italic: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLpjK4fy6r6tOBEJg0IAKzqdFZVZxrktdHvjCaxRgew.ttf",
+    bolditalic: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLpjK4fy6r6tOBEJg0IAKzqdFZVZxrktdHvjCaxRgew.ttf",
   },
   poppins: {
-    family: "Poppins",
-    regular: "https://fonts.gstatic.com/s/poppins/v21/pxiEyp8kv8JHgFVrJJfedw.woff2",
-    bold: "https://fonts.gstatic.com/s/poppins/v21/pxiByp8kv8JHgFVrLCz7Z1xlFQ.woff2",
+    normal: "https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.ttf",
+    bold: "https://fonts.gstatic.com/s/poppins/v20/pxiByp8kv8JHgFVrLCz7Z1xlFQ.ttf",
+    italic: "https://fonts.gstatic.com/s/poppins/v20/pxiGyp8kv8JHgFVrJJLucHtF.ttf",
+    bolditalic: "https://fonts.gstatic.com/s/poppins/v20/pxiDyp8kv8JHgFVrJJLmy1zlFPE.ttf",
   },
 };
 
-let fontsLoaded = false;
+type CachedFontData = { normal?: string; bold?: string; italic?: string; bolditalic?: string };
+const cachedFontData = new Map<string, CachedFontData>();
 
 function arrayBufferToBinaryString(buffer: ArrayBuffer) {
   const bytes = new Uint8Array(buffer);
@@ -26,23 +29,45 @@ function arrayBufferToBinaryString(buffer: ArrayBuffer) {
   return result;
 }
 
-async function loadFont(doc: jsPDF, url: string, vfsName: string, fontName: string, fontStyle: "normal" | "bold") {
-  const res = await fetch(url);
-  if (!res.ok) return;
-  const buffer = await res.arrayBuffer();
-  doc.addFileToVFS(vfsName, arrayBufferToBinaryString(buffer));
-  doc.addFont(vfsName, fontName, fontStyle);
-}
+async function loadFont(doc: jsPDF, family: "notosansdisplay" | "poppins") {
+  const fontDef = FONTS[family];
+  if (!fontDef) return;
 
-async function ensureFonts(doc: jsPDF) {
-  if (fontsLoaded) return;
-  await Promise.all([
-    loadFont(doc, FONTS.notoSansDisplay.regular, "NotoSansDisplay-Regular.woff2", FONTS.notoSansDisplay.family, "normal"),
-    loadFont(doc, FONTS.notoSansDisplay.bold, "NotoSansDisplay-Bold.woff2", FONTS.notoSansDisplay.family, "bold"),
-    loadFont(doc, FONTS.poppins.regular, "Poppins-Regular.woff2", FONTS.poppins.family, "normal"),
-    loadFont(doc, FONTS.poppins.bold, "Poppins-Bold.woff2", FONTS.poppins.family, "bold"),
-  ]);
-  fontsLoaded = true;
+  let cached = cachedFontData.get(family);
+  if (!cached) {
+    const promises = [
+      fetch(fontDef.normal).then((r) => (r.ok ? r.arrayBuffer() : null)),
+      fetch(fontDef.bold).then((r) => (r.ok ? r.arrayBuffer() : null)),
+    ];
+    if (fontDef.italic) promises.push(fetch(fontDef.italic).then((r) => (r.ok ? r.arrayBuffer() : null)));
+    if (fontDef.bolditalic) promises.push(fetch(fontDef.bolditalic).then((r) => (r.ok ? r.arrayBuffer() : null)));
+
+    const [normBuf, boldBuf, italicBuf, boldItalicBuf] = await Promise.all(promises);
+    cached = {
+      normal: normBuf ? arrayBufferToBinaryString(normBuf) : undefined,
+      bold: boldBuf ? arrayBufferToBinaryString(boldBuf) : undefined,
+      italic: italicBuf ? arrayBufferToBinaryString(italicBuf) : undefined,
+      bolditalic: boldItalicBuf ? arrayBufferToBinaryString(boldItalicBuf) : undefined,
+    };
+    cachedFontData.set(family, cached);
+  }
+
+  if (cached.normal) {
+    doc.addFileToVFS(`${family}-Regular.ttf`, cached.normal);
+    doc.addFont(`${family}-Regular.ttf`, family, "normal");
+  }
+  if (cached.bold) {
+    doc.addFileToVFS(`${family}-Bold.ttf`, cached.bold);
+    doc.addFont(`${family}-Bold.ttf`, family, "bold");
+  }
+  if (cached.italic && fontDef.italic) {
+    doc.addFileToVFS(`${family}-Italic.ttf`, cached.italic);
+    doc.addFont(`${family}-Italic.ttf`, family, "italic");
+  }
+  if (cached.bolditalic && fontDef.bolditalic) {
+    doc.addFileToVFS(`${family}-BoldItalic.ttf`, cached.bolditalic);
+    doc.addFont(`${family}-BoldItalic.ttf`, family, "bolditalic");
+  }
 }
 
 export async function generateCreditNotePDF(input: {
@@ -64,7 +89,8 @@ export async function generateCreditNotePDF(input: {
   terms?: string;
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  await ensureFonts(doc);
+  await loadFont(doc, "notosansdisplay");
+  await loadFont(doc, "poppins");
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 11;
@@ -76,8 +102,8 @@ export async function generateCreditNotePDF(input: {
   const logo = await fetchImageAsDataUrl(input.company.logoUrl);
   const signature = await fetchImageAsDataUrl(input.signatureUrl);
 
-  const fontFamily = FONTS.poppins.family;
-  const numberFont = FONTS.notoSansDisplay.family;
+  const fontFamily = "poppins";
+  const numberFont = "notosansdisplay";
   doc.setFont(fontFamily, "normal");
 
   const formatCurrencyPDF = (amount: number | undefined | null) => {
@@ -271,8 +297,8 @@ export async function generateCreditNotePDF(input: {
     startY: y,
     head: [["#", "Item", "Rate / Item", "Taxable Value", "Tax Amount", "Amount"]],
     body: rows,
-    styles: { fontSize: 8, cellPadding: 2, font: fontFamily },
-    headStyles: { fillColor: blue, textColor: [255, 255, 255], fontStyle: "bold" },
+    styles: { fontSize: 8, cellPadding: 2, font: numberFont },
+    headStyles: { fillColor: blue, textColor: [255, 255, 255], fontStyle: "bold", font: fontFamily },
     columnStyles: {
       0: { cellWidth: 8, halign: "center" },
       2: { cellWidth: 26, halign: "right" },

@@ -81,24 +81,8 @@ export default async function ActivityLogPage({
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            logs.map((log: {
-                                id: string;
-                                actionType: string | null;
-                                entityType: string | null;
-                                entityIdentifier: string | null;
-                                entityId: string | null;
-                                userName: string | null;
-                                userId: string | null;
-                                source: string | null;
-                                createdAt: Date;
-                                fieldChanges: string | null;
-                                module: string | null;
-                                action: string | null;
-                                 referenceId: string | null;
-                                 description: string | null;
-                                 metadata: string | null;
-                                 details?: string | null;
-                             }) => {
+                            logs.map((logItem) => {
+                                 const log = logItem as any;
                                  const metaStr = log.metadata || log.fieldChanges;
                                  return (
                                  <TableRow key={log.id}>

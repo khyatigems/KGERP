@@ -3,6 +3,54 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+const FONTS = {
+  notosansdisplay: {
+    normal: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLplK4fy6r6tOBEJg0IAKzqdFZVZxokvfn_BDLxR.ttf",
+    bold: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLplK4fy6r6tOBEJg0IAKzqdFZVZxokvfn_BDLxR.ttf",
+    italic: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLpjK4fy6r6tOBEJg0IAKzqdFZVZxrktdHvjCaxRgew.ttf",
+    bolditalic: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLpjK4fy6r6tOBEJg0IAKzqdFZVZxrktdHvjCaxRgew.ttf",
+  }
+};
+
+type CachedFontData = { normal?: string; bold?: string; italic?: string; bolditalic?: string };
+const cachedFontData = new Map<string, CachedFontData>();
+
+function arrayBufferToBinaryString(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  let result = "";
+  for (let i = 0; i < bytes.length; i++) result += String.fromCharCode(bytes[i]);
+  return result;
+}
+
+async function loadFont(doc: jsPDF, family: "notosansdisplay") {
+  const fontDef = FONTS[family];
+  if (!fontDef) return;
+
+  let cached = cachedFontData.get(family);
+  if (!cached) {
+    const promises = [
+      fetch(fontDef.normal).then((r) => (r.ok ? r.arrayBuffer() : null)),
+      fetch(fontDef.bold).then((r) => (r.ok ? r.arrayBuffer() : null)),
+    ];
+
+    const [normBuf, boldBuf] = await Promise.all(promises);
+    cached = {
+      normal: normBuf ? arrayBufferToBinaryString(normBuf) : undefined,
+      bold: boldBuf ? arrayBufferToBinaryString(boldBuf) : undefined,
+    };
+    cachedFontData.set(family, cached);
+  }
+
+  if (cached.normal) {
+    doc.addFileToVFS(`${family}-Regular.ttf`, cached.normal);
+    doc.addFont(`${family}-Regular.ttf`, family, "normal");
+  }
+  if (cached.bold) {
+    doc.addFileToVFS(`${family}-Bold.ttf`, cached.bold);
+    doc.addFont(`${family}-Bold.ttf`, family, "bold");
+  }
+}
+
 export const exportToExcel = (
   data: Record<string, unknown>[],
   columns: { header: string; key: string }[],
@@ -64,7 +112,7 @@ export function exportToCSV(data: Record<string, unknown>[], fileName: string) {
   saveAs(blob, `${fileName}_${new Date().toISOString().split("T")[0]}.csv`);
 }
 
-export const exportToPDF = (
+export const exportToPDF = async (
   data: Record<string, unknown>[],
   columns: { header: string; key: string }[],
   filename: string,
@@ -72,6 +120,7 @@ export const exportToPDF = (
   multiTable?: { title: string; rows: Record<string, unknown>[]; columns: { header: string; key: string }[] }[]
 ) => {
   const doc = new jsPDF("p", "pt", "a4");
+  await loadFont(doc, "notosansdisplay");
 
   doc.setFontSize(16);
   doc.text(title, 40, 40);
@@ -100,8 +149,8 @@ export const exportToPDF = (
         head: [headers],
         body: rows as string[][],
         startY: currentY,
-        styles: { fontSize: 8, cellPadding: 3 },
-        headStyles: { fillColor: [66, 66, 66] },
+        styles: { fontSize: 8, cellPadding: 3, font: "notosansdisplay" },
+        headStyles: { fillColor: [66, 66, 66], font: "notosansdisplay", fontStyle: "bold" },
         theme: "grid",
         margin: { top: 40 },
         didDrawPage: (data: unknown) => {
@@ -125,8 +174,8 @@ export const exportToPDF = (
       head: [headers],
       body: rows as string[][],
       startY: 70,
-      styles: { fontSize: 8, cellPadding: 3 },
-      headStyles: { fillColor: [66, 66, 66] },
+      styles: { fontSize: 8, cellPadding: 3, font: "notosansdisplay" },
+      headStyles: { fillColor: [66, 66, 66], font: "notosansdisplay", fontStyle: "bold" },
       theme: "grid",
       margin: { top: 40 },
       didDrawPage: (data: unknown) => {

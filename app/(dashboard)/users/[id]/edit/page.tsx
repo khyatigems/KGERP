@@ -13,9 +13,7 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
     notFound();
   }
 
-  const roles = await prisma.role.findMany({
-    orderBy: { name: 'asc' }
-  });
+  const roles = await (prisma as any).role.findMany({ orderBy: { name: 'asc' } });
 
   // Pass user data needed for the form
   const userData = {

@@ -598,9 +598,8 @@ export async function deleteSale(id: string) {
   const session = await auth();
   if (!session) return { message: "Unauthorized" };
 
-  if (!hasPermission(session.user.role || "STAFF", PERMISSIONS.SALES_DELETE)) {
-      return { message: "Insufficient permissions" };
-  }
+  const perm = await checkPermission(PERMISSIONS.SALES_DELETE);
+  if (!perm.success) return { message: perm.message };
 
   const sale = await prisma.sale.findUnique({
       where: { id },

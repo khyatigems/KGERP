@@ -88,13 +88,13 @@ export function ExportButton({
     exportToCSV(csvData, filename);
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (multiTable) {
-      exportToPDF([], [], filename, title, multiTable);
+      await exportToPDF([], [], filename, title, multiTable);
       return;
     }
     if (!data || !columns) return;
-    exportToPDF(data, columns, filename, title);
+    await exportToPDF(data, columns, filename, title);
   };
 
   return (

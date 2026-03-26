@@ -16,7 +16,7 @@ export default async function DashboardLayout({
   let allowedNavModules: string[] = [];
 
   if (session?.user?.id) {
-    const dbUser = await prisma.user.findUnique({
+    const dbUser = (await (prisma.user as any).findUnique({
       where: { id: session.user.id },
       select: {
         name: true,
@@ -29,7 +29,7 @@ export default async function DashboardLayout({
         },
         userPermissions: { select: { allow: true, permission: { select: { key: true } } } }
       }
-    });
+    })) as any;
     
     if (dbUser) {
       // Resolve permissions
@@ -40,10 +40,10 @@ export default async function DashboardLayout({
         allowedNavModules = ["ALL"];
       } else {
         // From role
-        dbUser.roleRelation?.permissions.forEach(rp => resolvedPerms.add(rp.permission.key));
+        dbUser.roleRelation?.permissions.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
         
         // Apply overrides
-        dbUser.userPermissions.forEach(up => {
+        dbUser.userPermissions.forEach((up: any) => {
           if (up.allow) resolvedPerms.add(up.permission.key);
           else resolvedPerms.delete(up.permission.key);
         });
