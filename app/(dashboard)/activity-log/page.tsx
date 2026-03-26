@@ -32,7 +32,7 @@ export default async function ActivityLogPage({
     if (actionType && actionType !== "ALL") where.actionType = actionType;
     
     // Fetch logs
-    let logs: ActivityLog[] = [];
+    let logs: any[] = [];
     let totalCount = 0;
     
     try {

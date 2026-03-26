@@ -8,5 +8,5 @@ const envForGenerate = {
 };
 
 execSync("npx prisma generate", { stdio: "inherit", env: envForGenerate });
-execSync("node scripts/migration/turso-safe-deploy.mjs", { stdio: "inherit", env: process.env });
+execSync("node scripts/migration/turso-safe-deploy.mjs", { stdio: "inherit", env: { ...process.env, ALLOW_BASELINE_ON_NON_EMPTY_DB: "true" } });
 execSync("next build", { stdio: "inherit", env: process.env });

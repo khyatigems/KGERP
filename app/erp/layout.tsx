@@ -18,7 +18,7 @@ export default async function ErpLayout({
   if (session?.user?.id) {
     const dbUser = (await (prisma.user as any).findUnique({
       where: { id: session.user.id },
-      select: {
+      select: ({
         name: true,
         email: true,
         avatar: true,
@@ -28,7 +28,7 @@ export default async function ErpLayout({
           select: { name: true, permissions: { select: { permission: { select: { key: true } } } } }
         },
         userPermissions: { select: { allow: true, permission: { select: { key: true } } } }
-      }
+      } as any)
     })) as any;
     
     if (dbUser) {
