@@ -355,3 +355,142 @@ export async function ensureActivityLogSchema(): Promise<void> {
   })();
   return ensureActivityLogPromise;
 }
+
+let ensuringFollowUp = false;
+let ensuredFollowUp = false;
+let ensureFollowUpPromise: Promise<void> | null = null;
+
+export async function ensureFollowUpSchema(): Promise<void> {
+  if (ensuredFollowUp) return;
+  if (ensuringFollowUp && ensureFollowUpPromise) return ensureFollowUpPromise;
+  ensuringFollowUp = true;
+  ensureFollowUpPromise = (async () => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "FollowUp" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "invoiceId" TEXT NOT NULL,
+          "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "action" TEXT,
+          "note" TEXT,
+          "promisedDate" DATETIME,
+          "createdBy" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FollowUp_invoiceId_idx" ON "FollowUp"("invoiceId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FollowUp_createdBy_idx" ON "FollowUp"("createdBy");`);
+    } catch {
+    } finally {
+      checkedTables = null;
+      ensuredFollowUp = true;
+      ensuringFollowUp = false;
+      ensureFollowUpPromise = null;
+    }
+  })();
+  return ensureFollowUpPromise;
+}
+
+let ensuringInvoiceSupport = false;
+let ensuredInvoiceSupport = false;
+let ensureInvoiceSupportPromise: Promise<void> | null = null;
+
+export async function ensureInvoiceSupportSchema(): Promise<void> {
+  if (ensuredInvoiceSupport) return;
+  if (ensuringInvoiceSupport && ensureInvoiceSupportPromise) return ensureInvoiceSupportPromise;
+  ensuringInvoiceSupport = true;
+  ensureInvoiceSupportPromise = (async () => {
+    try {
+      await ensureFollowUpSchema();
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Payment" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "invoiceId" TEXT NOT NULL,
+          "amount" REAL NOT NULL,
+          "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "method" TEXT NOT NULL,
+          "reference" TEXT,
+          "notes" TEXT,
+          "recordedBy" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Payment_invoiceId_idx" ON "Payment"("invoiceId");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "InvoiceVersion" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "invoiceId" TEXT NOT NULL,
+          "versionNumber" INTEGER NOT NULL,
+          "reason" TEXT,
+          "snapshot" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "InvoiceVersion_invoiceId_idx" ON "InvoiceVersion"("invoiceId");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "SalesReturn" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "invoiceId" TEXT NOT NULL,
+          "returnNumber" TEXT NOT NULL UNIQUE,
+          "returnDate" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "disposition" TEXT NOT NULL,
+          "taxableAmount" REAL NOT NULL DEFAULT 0,
+          "igst" REAL NOT NULL DEFAULT 0,
+          "cgst" REAL NOT NULL DEFAULT 0,
+          "sgst" REAL NOT NULL DEFAULT 0,
+          "totalTax" REAL NOT NULL DEFAULT 0,
+          "totalAmount" REAL NOT NULL DEFAULT 0,
+          "remarks" TEXT,
+          "createdById" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SalesReturn_invoiceId_idx" ON "SalesReturn"("invoiceId");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "SalesReturnItem" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "salesReturnId" TEXT NOT NULL,
+          "inventoryId" TEXT NOT NULL,
+          "quantity" INTEGER NOT NULL DEFAULT 1,
+          "sellingPrice" REAL NOT NULL,
+          "resaleable" INTEGER NOT NULL DEFAULT 1
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SalesReturnItem_salesReturnId_idx" ON "SalesReturnItem"("salesReturnId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SalesReturnItem_inventoryId_idx" ON "SalesReturnItem"("inventoryId");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CreditNote" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "customerId" TEXT,
+          "invoiceId" TEXT,
+          "creditNoteNumber" TEXT NOT NULL UNIQUE,
+          "issueDate" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "totalAmount" REAL NOT NULL,
+          "taxableAmount" REAL NOT NULL DEFAULT 0,
+          "igst" REAL NOT NULL DEFAULT 0,
+          "cgst" REAL NOT NULL DEFAULT 0,
+          "sgst" REAL NOT NULL DEFAULT 0,
+          "totalTax" REAL NOT NULL DEFAULT 0,
+          "balanceAmount" REAL NOT NULL,
+          "isActive" INTEGER NOT NULL DEFAULT 1,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CreditNote_customerId_idx" ON "CreditNote"("customerId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CreditNote_invoiceId_idx" ON "CreditNote"("invoiceId");`);
+    } catch {
+    } finally {
+      checkedTables = null;
+      ensuredInvoiceSupport = true;
+      ensuringInvoiceSupport = false;
+      ensureInvoiceSupportPromise = null;
+    }
+  })();
+  return ensureInvoiceSupportPromise;
+}

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { hasTable, prisma } from "@/lib/prisma";
+import { ensureInvoiceSupportSchema, hasTable, prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
@@ -600,6 +600,8 @@ export async function deleteSale(id: string) {
 
   const perm = await checkPermission(PERMISSIONS.SALES_DELETE);
   if (!perm.success) return { message: perm.message };
+
+  await ensureInvoiceSupportSchema();
 
   const [hasFollowUp, hasPayment, hasInvoiceVersion, hasCreditNote, hasSalesReturn, hasSalesReturnItem] = await Promise.all([
     hasTable("FollowUp"),
