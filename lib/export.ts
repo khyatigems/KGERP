@@ -3,16 +3,47 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export function exportToExcel(data: Record<string, unknown>[], fileName: string) {
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+export const exportToExcel = (
+  data: Record<string, unknown>[],
+  columns: { header: string; key: string }[],
+  filename: string,
+  title: string = "Report",
+  multiTable?: { title: string; rows: Record<string, unknown>[]; columns: { header: string; key: string }[] }[]
+) => {
+  const wb = XLSX.utils.book_new();
+
+  if (multiTable) {
+    for (let i = 0; i < multiTable.length; i++) {
+      const t = multiTable[i];
+      const excelData = t.rows.map((row) => {
+        const newRow: Record<string, unknown> = {};
+        t.columns.forEach((col) => {
+          newRow[col.header] = row[col.key];
+        });
+        return newRow;
+      });
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const safeSheetName = t.title.substring(0, 31).replace(/[\\/*?:\[\]]/g, "");
+      XLSX.utils.book_append_sheet(wb, ws, safeSheetName || `Sheet${i + 1}`);
+    }
+  } else {
+    const excelData = data.map((item) => {
+      const row: Record<string, unknown> = {};
+      columns.forEach((col) => {
+        row[col.header] = item[col.key];
+      });
+      return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    XLSX.utils.book_append_sheet(wb, ws, "Data");
+  }
+
+  const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   const blob = new Blob([excelBuffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
   });
-  saveAs(blob, `${fileName}_${new Date().toISOString().split("T")[0]}.xlsx`);
-}
+  saveAs(blob, `${filename}.xlsx`);
+};
 
 export function exportToCSV(data: Record<string, unknown>[], fileName: string) {
   if (!data.length) {
@@ -33,98 +64,80 @@ export function exportToCSV(data: Record<string, unknown>[], fileName: string) {
   saveAs(blob, `${fileName}_${new Date().toISOString().split("T")[0]}.csv`);
 }
 
-export function exportToPDF(
-  columns: string[],
-  data: (string | number)[][],
-  fileName: string,
-  title: string
-) {
-  const orientation = columns.length > 8 ? "landscape" : "portrait";
-  const doc = new jsPDF({ orientation, unit: "pt", format: "a4" });
-  doc.setFont("helvetica", "normal");
+export const exportToPDF = (
+  data: Record<string, unknown>[],
+  columns: { header: string; key: string }[],
+  filename: string,
+  title: string = "Report",
+  multiTable?: { title: string; rows: Record<string, unknown>[]; columns: { header: string; key: string }[] }[]
+) => {
+  const doc = new jsPDF("p", "pt", "a4");
 
-  // Add Title
-  const marginLeft = 30;
-  const marginRight = 30;
-  const marginTop = 26;
-  const titleY = marginTop + 10;
-  const subtitleY = titleY + 16;
-  const tableStartY = subtitleY + 18;
+  doc.setFontSize(16);
+  doc.text(title, 40, 40);
+  
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 40, 55);
 
-  doc.setTextColor(20);
-  doc.setFontSize(18);
-  doc.text(title, marginLeft, titleY);
-  doc.setFontSize(11);
-  doc.setTextColor(110);
-  doc.text(`Generated on: ${new Date().toLocaleDateString()}`, marginLeft, subtitleY);
+  if (multiTable) {
+    let currentY = 70;
+    for (let i = 0; i < multiTable.length; i++) {
+      const t = multiTable[i];
+      if (i > 0 && currentY > 700) {
+        doc.addPage();
+        currentY = 40;
+      }
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text(t.title, 40, currentY);
+      currentY += 10;
+      
+      const headers = t.columns.map((c) => c.header);
+      const rows = t.rows.map((r) => t.columns.map((c) => r[c.key]));
 
-  const availableWidth = doc.internal.pageSize.getWidth() - marginLeft - marginRight;
-  const headerText = (header: string) => {
-    if (orientation !== "landscape") return header;
-    if (header.length <= 12) return header;
-    return header.replace(/\s+/g, "\n");
-  };
-  const head = columns.map(headerText);
-  const headerWeights = columns.map((c) => {
-    const normalized = c.toLowerCase();
-    if (normalized === "sku") return 1.2;
-    if (normalized.includes("item")) return 1.6;
-    if (normalized.includes("missing fields")) return 2.2;
-    if (normalized.includes("missing count")) return 1.2;
-    if (normalized.includes("certificate")) return 1.3;
-    return 1;
-  });
-  const minWidths = columns.map((c) => {
-    const normalized = c.toLowerCase();
-    if (normalized === "sku") return 90;
-    if (normalized.includes("item")) return 130;
-    if (normalized.includes("missing fields")) return 160;
-    return orientation === "landscape" ? 55 : 70;
-  });
-  const weightSum = headerWeights.reduce((a, b) => a + b, 0);
-  let widths = headerWeights.map((w, idx) => Math.max(minWidths[idx], (availableWidth * w) / weightSum));
-  const totalWidth = widths.reduce((a, b) => a + b, 0);
-  if (totalWidth > availableWidth) {
-    const scale = availableWidth / totalWidth;
-    widths = widths.map((w) => Math.max(38, w * scale));
+      autoTable(doc, {
+        head: [headers],
+        body: rows as string[][],
+        startY: currentY,
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [66, 66, 66] },
+        theme: "grid",
+        margin: { top: 40 },
+        didDrawPage: (data) => {
+          // Footer
+          const str = "Page " + (doc.internal as any).getNumberOfPages();
+          doc.setFontSize(8);
+          const pageSize = doc.internal.pageSize;
+          const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+          doc.text(str, data.settings.margin.left, pageHeight - 20);
+        },
+      });
+      
+      currentY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 30;
+    }
+  } else {
+    const headers = columns.map((c) => c.header);
+    const rows = data.map((r) => columns.map((c) => r[c.key]));
+
+    autoTable(doc, {
+      head: [headers],
+      body: rows as string[][],
+      startY: 70,
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [66, 66, 66] },
+      theme: "grid",
+      margin: { top: 40 },
+      didDrawPage: (data) => {
+        // Footer
+        const str = "Page " + (doc.internal as any).getNumberOfPages();
+        doc.setFontSize(8);
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+        doc.text(str, data.settings.margin.left, pageHeight - 20);
+      },
+    });
   }
-  const columnStyles = widths.reduce<Record<number, { cellWidth: number }>>((acc, w, idx) => {
-    acc[idx] = { cellWidth: w };
-    return acc;
-  }, {});
 
-  // Add Table
-  const baseFontSize = orientation === "landscape" ? (columns.length >= 14 ? 7 : 8) : 10;
-  autoTable(doc, {
-    head: [head],
-    body: data,
-    startY: tableStartY,
-    margin: { left: marginLeft, right: marginRight },
-    theme: "grid",
-    tableWidth: "auto",
-    styles: {
-      font: "helvetica",
-      fontSize: baseFontSize,
-      cellPadding: columns.length >= 14 ? 3 : 4,
-      valign: "middle",
-      overflow: "linebreak",
-    },
-    headStyles: {
-      fillColor: [55, 65, 81],
-      textColor: 255,
-      fontStyle: "bold",
-      halign: "center",
-      valign: "middle",
-    },
-    bodyStyles: {
-      textColor: 20,
-      valign: "middle",
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    columnStyles,
-  });
-
-  doc.save(`${fileName}_${new Date().toISOString().split("T")[0]}.pdf`);
-}
+  doc.save(`${filename}.pdf`);
+};

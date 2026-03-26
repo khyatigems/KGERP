@@ -8,9 +8,9 @@ import { formatCurrency } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
 
 type StatRow = { totalItems: number; overallTotalItems: number; totalSell: number };
-type ByCategoryRow = { category: string; items: number; sellValue: number };
-type ByGemTypeRow = { gemType: string; items: number; sellValue: number };
-type ByCategoryGemTypeRow = { category: string; gemType: string; items: number; sellValue: number };
+type ByCategoryRow = { category: string; status: string; items: number; sellValue: number };
+type ByGemTypeRow = { gemType: string; status: string; items: number; sellValue: number };
+type ByCategoryGemTypeRow = { category: string; gemType: string; status: string; items: number; sellValue: number };
 type ByStatusRow = { status: string; items: number };
 
 type InventoryStatsResponse = StatRow & {
@@ -39,54 +39,6 @@ export function InventoryStats() {
     keepPreviousData: true,
   });
 
-  const categoryExport = useMemo(() => {
-    const rows = (data?.byCategory || []).map((r) => ({
-      Category: r.category,
-      Items: r.items,
-      "Sell Value": r.sellValue,
-    }));
-    const columns = [
-      { header: "Category", key: "Category" },
-      { header: "Items", key: "Items" },
-      { header: "Sell Value", key: "Sell Value" },
-    ];
-    return { rows, columns };
-  }, [data?.byCategory]);
-
-  const gemTypeExport = useMemo(() => {
-    const orderCategory = (c: string) => {
-      const v = (c || "").toLowerCase();
-      if (v.includes("loose")) return 0;
-      if (v.includes("bracelet")) return 1;
-      return 2;
-    };
-    const rows = (data?.byCategoryGemType || [])
-      .slice()
-      .sort((a, b) => {
-        const ao = orderCategory(a.category);
-        const bo = orderCategory(b.category);
-        if (ao !== bo) return ao - bo;
-        const c = a.category.localeCompare(b.category);
-        if (c !== 0) return c;
-        return a.gemType.localeCompare(b.gemType);
-      })
-      .map((r) => ({
-        Category: r.category,
-        "Gem Type": r.gemType,
-        Items: r.items,
-        "Sell Value": r.sellValue,
-      }));
-    const columns = [
-      { header: "Category", key: "Category" },
-      { header: "Gem Type", key: "Gem Type" },
-      { header: "Items", key: "Items" },
-      { header: "Sell Value", key: "Sell Value" },
-    ];
-    return { rows, columns };
-  }, [data?.byCategoryGemType]);
-
-  // Removed per user request (use overallStatusSummary instead)
-
   const overallStatusSummary = useMemo(() => {
     const map = new Map<string, number>();
     for (const r of data?.overallByStatus || []) map.set(r.status, r.items);
@@ -97,6 +49,139 @@ export function InventoryStats() {
       sold: map.get("SOLD") || 0,
     };
   }, [data?.overallByStatus]);
+
+  const categoryExport = useMemo(() => {
+    const table1Rows = (data?.byCategory || []).filter(r => r.status === "IN_STOCK" || r.status === "RESERVED").map((r) => ({
+      Category: r.category,
+      Status: r.status,
+      Items: r.items,
+      "Sell Value": r.sellValue,
+    }));
+    const table2Rows = (data?.byCategory || []).filter(r => r.status === "SOLD" || r.status === "MEMO").map((r) => ({
+      Category: r.category,
+      Status: r.status,
+      Items: r.items,
+      "Sell Value": r.sellValue,
+    }));
+    const summaryRows = [
+      { Metric: "In Stock", Items: overallStatusSummary.inStock },
+      { Metric: "Reserved", Items: overallStatusSummary.reserved },
+      { Metric: "Memo", Items: overallStatusSummary.memo },
+      { Metric: "Sold", Items: overallStatusSummary.sold },
+    ];
+    
+    return {
+      multiTable: [
+        {
+          title: "In Stock & Reserved Items",
+          rows: table1Rows,
+          columns: [
+            { header: "Category", key: "Category" },
+            { header: "Status", key: "Status" },
+            { header: "Items", key: "Items" },
+            { header: "Sell Value", key: "Sell Value" },
+          ],
+        },
+        {
+          title: "Sold & Memo Items",
+          rows: table2Rows,
+          columns: [
+            { header: "Category", key: "Category" },
+            { header: "Status", key: "Status" },
+            { header: "Items", key: "Items" },
+            { header: "Sell Value", key: "Sell Value" },
+          ],
+        },
+        {
+          title: "Overall Summary",
+          rows: summaryRows,
+          columns: [
+            { header: "Metric", key: "Metric" },
+            { header: "Items", key: "Items" },
+          ],
+        }
+      ]
+    };
+  }, [data?.byCategory, overallStatusSummary]);
+
+  const gemTypeExport = useMemo(() => {
+    const orderCategory = (c: string) => {
+      const v = (c || "").toLowerCase();
+      if (v.includes("loose")) return 0;
+      if (v.includes("bracelet")) return 1;
+      return 2;
+    };
+    const sortedData = (data?.byCategoryGemType || [])
+      .slice()
+      .sort((a, b) => {
+        const ao = orderCategory(a.category);
+        const bo = orderCategory(b.category);
+        if (ao !== bo) return ao - bo;
+        const c = a.category.localeCompare(b.category);
+        if (c !== 0) return c;
+        return a.gemType.localeCompare(b.gemType);
+      });
+
+    const table1Rows = sortedData.filter(r => r.status === "IN_STOCK" || r.status === "RESERVED").map((r) => ({
+      Category: r.category,
+      "Gem Type": r.gemType,
+      Status: r.status,
+      Items: r.items,
+      "Sell Value": r.sellValue,
+    }));
+    
+    const table2Rows = sortedData.filter(r => r.status === "SOLD" || r.status === "MEMO").map((r) => ({
+      Category: r.category,
+      "Gem Type": r.gemType,
+      Status: r.status,
+      Items: r.items,
+      "Sell Value": r.sellValue,
+    }));
+
+    const summaryRows = [
+      { Metric: "In Stock", Items: overallStatusSummary.inStock },
+      { Metric: "Reserved", Items: overallStatusSummary.reserved },
+      { Metric: "Memo", Items: overallStatusSummary.memo },
+      { Metric: "Sold", Items: overallStatusSummary.sold },
+    ];
+
+    return {
+      multiTable: [
+        {
+          title: "In Stock & Reserved Items",
+          rows: table1Rows,
+          columns: [
+            { header: "Category", key: "Category" },
+            { header: "Gem Type", key: "Gem Type" },
+            { header: "Status", key: "Status" },
+            { header: "Items", key: "Items" },
+            { header: "Sell Value", key: "Sell Value" },
+          ],
+        },
+        {
+          title: "Sold & Memo Items",
+          rows: table2Rows,
+          columns: [
+            { header: "Category", key: "Category" },
+            { header: "Gem Type", key: "Gem Type" },
+            { header: "Status", key: "Status" },
+            { header: "Items", key: "Items" },
+            { header: "Sell Value", key: "Sell Value" },
+          ],
+        },
+        {
+          title: "Overall Summary",
+          rows: summaryRows,
+          columns: [
+            { header: "Metric", key: "Metric" },
+            { header: "Items", key: "Items" },
+          ],
+        }
+      ]
+    };
+  }, [data?.byCategoryGemType, overallStatusSummary]);
+
+  // Removed per user request
 
   const topCategory = (data?.byCategory || [])[0]?.category;
   const topGemType = (data?.byGemType || [])[0]?.gemType;
@@ -111,15 +196,13 @@ export function InventoryStats() {
         <div className="flex flex-wrap gap-2">
           <ExportButton
             filename="inventory_by_category"
-            data={categoryExport.rows}
-            columns={categoryExport.columns}
+            multiTable={categoryExport.multiTable}
             title="Inventory Summary (Category)"
             label="Export by Category"
           />
           <ExportButton
             filename="inventory_by_gem_type"
-            data={gemTypeExport.rows}
-            columns={gemTypeExport.columns}
+            multiTable={gemTypeExport.multiTable}
             title="Inventory Summary (Gem Type)"
             label="Export by Gem Type"
           />
