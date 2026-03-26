@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CustomerDetailPage(props: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
@@ -25,7 +25,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   await ensureCustomerSecondaryPhoneSchema();
   await ensureReturnsSchema();
 
-  const { id } = await params;
+  const { id } = await props.params;
   const customer = await prisma.customer.findUnique({ where: { id } });
   if (!customer) notFound();
   const phoneSecondary = (customer as unknown as { phoneSecondary?: string | null }).phoneSecondary || null;
@@ -66,6 +66,37 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     }
   })();
 
+  const statsRow = await prisma.$queryRawUnsafe<Array<{
+    totalRevenue: number;
+    orderCount: number;
+    highestOrder: number;
+  }>>(`
+    SELECT 
+      SUM(s.netAmount) as totalRevenue,
+      COUNT(DISTINCT s.invoiceId) as orderCount,
+      MAX(i.totalAmount) as highestOrder
+    FROM "Sale" s
+    JOIN "Invoice" i ON s.invoiceId = i.id
+    WHERE s.customerId = ? AND s.platform != 'REPLACEMENT'
+  `, id).catch(() => []);
+
+  const stat = statsRow[0] || { totalRevenue: 0, orderCount: 0, highestOrder: 0 };
+  const aov = stat.orderCount > 0 ? stat.totalRevenue / stat.orderCount : 0;
+
+  const customerSettingsRow = await prisma.setting.findUnique({ where: { key: "customer_settings" } });
+  const customerSettings = customerSettingsRow ? JSON.parse(customerSettingsRow.value) : { platinumThreshold: 100000, goldThreshold: 50000 };
+
+  let tier = "Silver";
+  if (stat.totalRevenue >= customerSettings.platinumThreshold) tier = "Platinum";
+  else if (stat.totalRevenue >= customerSettings.goldThreshold) tier = "Gold";
+
+  const recentInvoices = await prisma.invoice.findMany({
+    where: { sales: { some: { customerId: id } }, status: { not: "DRAFT" } },
+    orderBy: { invoiceDate: "desc" },
+    take: 10,
+    include: { sales: { include: { inventory: { select: { itemName: true } } } } },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -105,9 +136,23 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           pan: customer.pan,
           gstin: customer.gstin,
           notes: customer.notes,
+          customerType: (customer as Record<string, unknown>).customerType as string | null,
+          assignedSalesperson: (customer as Record<string, unknown>).assignedSalesperson as string | null,
+          whatsappNumber: (customer as Record<string, unknown>).whatsappNumber as string | null,
+          preferredContact: (customer as Record<string, unknown>).preferredContact as string | null,
+          budgetRange: (customer as Record<string, unknown>).budgetRange as string | null,
+          interestedIn: (customer as Record<string, unknown>).interestedIn as string | null,
           createdAt: customer.createdAt,
           updatedAt: customer.updatedAt,
         }}
+        stats={{
+          totalRevenue: stat.totalRevenue,
+          orderCount: stat.orderCount,
+          aov,
+          highestOrder: stat.highestOrder,
+          tier,
+        }}
+        recentInvoices={recentInvoices}
       />
     </div>
   );

@@ -94,8 +94,6 @@ export function ExportButton({
       return;
     }
     if (!data || !columns) return;
-    const headers = columns.map(c => c.header);
-    const rows = data.map(item => columns.map(col => item[col.key] as string | number));
     exportToPDF(data, columns, filename, title);
   };
 

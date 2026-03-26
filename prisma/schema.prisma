@@ -190,6 +190,12 @@ model Customer {
   pan        String?
   gstin      String?
   notes      String?
+  customerType        String?  @default("Retail")
+  assignedSalesperson String?
+  interestedIn        String?
+  budgetRange         String?
+  whatsappNumber      String?
+  preferredContact    String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   quotations Quotation[]

@@ -104,13 +104,14 @@ export const exportToPDF = (
         headStyles: { fillColor: [66, 66, 66] },
         theme: "grid",
         margin: { top: 40 },
-        didDrawPage: (data) => {
+        didDrawPage: (data: unknown) => {
           // Footer
-          const str = "Page " + (doc.internal as any).getNumberOfPages();
+          const settings = (data as { settings: { margin: { left: number } } }).settings;
+          const str = "Page " + (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages();
           doc.setFontSize(8);
           const pageSize = doc.internal.pageSize;
-          const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-          doc.text(str, data.settings.margin.left, pageHeight - 20);
+          const pageHeight = pageSize.height ? pageSize.height : (pageSize as { getHeight: () => number }).getHeight();
+          doc.text(str, settings.margin.left, pageHeight - 20);
         },
       });
       
@@ -128,13 +129,14 @@ export const exportToPDF = (
       headStyles: { fillColor: [66, 66, 66] },
       theme: "grid",
       margin: { top: 40 },
-      didDrawPage: (data) => {
+      didDrawPage: (data: unknown) => {
         // Footer
-        const str = "Page " + (doc.internal as any).getNumberOfPages();
+        const settings = (data as { settings: { margin: { left: number } } }).settings;
+        const str = "Page " + (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages();
         doc.setFontSize(8);
         const pageSize = doc.internal.pageSize;
-        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-        doc.text(str, data.settings.margin.left, pageHeight - 20);
+        const pageHeight = pageSize.height ? pageSize.height : (pageSize as { getHeight: () => number }).getHeight();
+        doc.text(str, settings.margin.left, pageHeight - 20);
       },
     });
   }

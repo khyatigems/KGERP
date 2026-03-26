@@ -613,6 +613,16 @@ export async function deleteSale(id: string) {
 
   try {
       await prisma.$transaction(async (tx) => {
+          if (sale.platform === "REPLACEMENT") {
+              // Delete any MemoItem for this inventory that is WITH_CLIENT (from the replacement dispatch)
+              await tx.memoItem.deleteMany({
+                  where: {
+                      inventoryId: sale.inventoryId,
+                      status: "WITH_CLIENT"
+                  }
+              });
+          }
+
           await tx.inventory.update({
               where: { id: sale.inventoryId },
               data: { status: "IN_STOCK" }
@@ -684,8 +694,8 @@ export async function deleteSale(id: string) {
           userName: session.user?.name || "Unknown",
       });
 
-  } catch (e) {
-      console.error(e);
+  } catch (e: unknown) {
+      console.error("deleteSale error:", e instanceof Error ? e.message : e);
       return { message: "Failed to delete sale" };
   }
 

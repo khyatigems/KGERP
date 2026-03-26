@@ -89,6 +89,16 @@ export default async function SettingsPage() {
                 </CardHeader>
               </Card>
             </LoadingLink>
+
+            <LoadingLink href="/settings/customer">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <Settings2 className="h-8 w-8 mb-2 text-primary" />
+                  <CardTitle>Customer Settings</CardTitle>
+                  <CardDescription>Configure customer tiers and auto-tagging rules.</CardDescription>
+                </CardHeader>
+              </Card>
+            </LoadingLink>
           </div>
         </TabsContent>
 

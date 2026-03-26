@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -46,6 +47,12 @@ const formSchema = z.object({
   pan: z.string().optional(),
   gstin: z.string().optional(),
   notes: z.string().optional(),
+  customerType: z.string().optional(),
+  assignedSalesperson: z.string().optional(),
+  interestedIn: z.string().optional(),
+  budgetRange: z.string().optional(),
+  whatsappNumber: z.string().optional(),
+  preferredContact: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -64,6 +71,12 @@ type CustomerModel = {
   pan?: string | null;
   gstin?: string | null;
   notes?: string | null;
+  customerType?: string | null;
+  assignedSalesperson?: string | null;
+  interestedIn?: string | null;
+  budgetRange?: string | null;
+  whatsappNumber?: string | null;
+  preferredContact?: string | null;
 };
 
 export function CustomerForm({ customer }: { customer?: CustomerModel }) {
@@ -85,6 +98,12 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
       pan: customer?.pan || "",
       gstin: customer?.gstin || "",
       notes: customer?.notes || "",
+      customerType: customer?.customerType || "Retail",
+      assignedSalesperson: customer?.assignedSalesperson || "",
+      interestedIn: customer?.interestedIn || "",
+      budgetRange: customer?.budgetRange || "",
+      whatsappNumber: customer?.whatsappNumber || "",
+      preferredContact: customer?.preferredContact || "",
     },
   });
 
@@ -279,6 +298,41 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
+                name="customerType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customer Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || "Retail"}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Retail">Retail</SelectItem>
+                        <SelectItem value="Dealer">Dealer</SelectItem>
+                        <SelectItem value="Export">Export</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="assignedSalesperson"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assigned Salesperson</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Salesperson Name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="pan"
                 render={({ field }) => (
                   <FormItem>
@@ -298,6 +352,79 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
                     <FormLabel>GSTIN</FormLabel>
                     <FormControl>
                       <Input placeholder="09AAJCK8115C1ZL" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <h3 className="text-lg font-medium mt-6">Intelligence & Comms</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="whatsappNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+91 9876543210" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="preferredContact"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preferred Contact</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select method" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                        <SelectItem value="Call">Call</SelectItem>
+                        <SelectItem value="Email">Email</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="budgetRange"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Budget Range</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select budget" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Low">Low (&lt; ₹50k)</SelectItem>
+                        <SelectItem value="Medium">Medium (₹50k - ₹2L)</SelectItem>
+                        <SelectItem value="High">High (&gt; ₹2L)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="interestedIn"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Interested In</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Ruby, Emerald, Diamond" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -42,6 +42,12 @@ const customerSchema = z.object({
   pan: z.string().optional(),
   gstin: z.string().optional(),
   notes: z.string().optional(),
+  customerType: z.string().optional(),
+  assignedSalesperson: z.string().optional(),
+  interestedIn: z.string().optional(),
+  budgetRange: z.string().optional(),
+  whatsappNumber: z.string().optional(),
+  preferredContact: z.string().optional(),
 });
 
 export async function createCustomer(prevState: unknown, formData: FormData) {
@@ -78,6 +84,12 @@ export async function createCustomer(prevState: unknown, formData: FormData) {
           pan: parsed.data.pan || null,
           gstin: parsed.data.gstin || null,
           notes: parsed.data.notes || null,
+          customerType: parsed.data.customerType || "Retail",
+          assignedSalesperson: parsed.data.assignedSalesperson || null,
+          interestedIn: parsed.data.interestedIn || null,
+          budgetRange: parsed.data.budgetRange || null,
+          whatsappNumber: parsed.data.whatsappNumber || null,
+          preferredContact: parsed.data.preferredContact || null,
         } as unknown as never,
       });
 
@@ -161,6 +173,12 @@ export async function updateCustomer(id: string, prevState: unknown, formData: F
         pan: parsed.data.pan || null,
         gstin: parsed.data.gstin || null,
         notes: parsed.data.notes || null,
+        customerType: parsed.data.customerType || "Retail",
+        assignedSalesperson: parsed.data.assignedSalesperson || null,
+        interestedIn: parsed.data.interestedIn || null,
+        budgetRange: parsed.data.budgetRange || null,
+        whatsappNumber: parsed.data.whatsappNumber || null,
+        preferredContact: parsed.data.preferredContact || null,
       } as unknown as never,
     });
 
