@@ -23,6 +23,10 @@ export async function GET() {
 
       return NextResponse.json(mappedLogs);
   } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("no such table") || msg.includes("SQLITE_UNKNOWN")) {
+        return NextResponse.json([]);
+      }
       console.error("Activity fetch error:", error);
       return NextResponse.json({ error: "Failed to fetch activity" }, { status: 500 });
   }

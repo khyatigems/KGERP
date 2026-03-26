@@ -112,7 +112,7 @@ export default async function PurchasesPage({
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) redirect("/login");
-  if (!(await checkUserPermission(userId, PERMISSIONS.INVENTORY_VIEW_COST))) {
+  if (!(await checkUserPermission(userId, PERMISSIONS.PURCHASES_VIEW))) {
     redirect("/");
   }
 

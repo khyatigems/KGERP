@@ -15,12 +15,17 @@ interface ActivityLog {
     userName: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to load activity feed");
+  const data = await res.json().catch(() => []);
+  return Array.isArray(data) ? data : [];
+};
 
 export function ActivityFeed() {
     const { data: activities, error, isLoading } = useSWR<ActivityLog[]>("/api/dashboard/activity", fetcher);
 
-    if (error) return <div className="text-red-500">Failed to load activity</div>;
+    if (error) return <div className="text-red-500 text-xs">Failed to load activity feed.</div>;
 
     return (
         <Card className="h-full flex flex-col max-h-[800px]">

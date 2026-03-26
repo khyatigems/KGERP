@@ -16,7 +16,7 @@ export const navItems = [
   { href: "/quotes", label: "Quotations", icon: FileText, module: "quotations:view" },
   { href: "/sales", label: "Sales", icon: ShoppingCart, module: "sales:view" },
   { href: "/sales-returns", label: "Sales Returns", icon: RotateCcw, module: "sales:view" },
-  { href: "/purchases", label: "Purchases", icon: ShoppingBag, module: "inventory:view_cost" },
+  { href: "/purchases", label: "Purchases", icon: ShoppingBag, module: "purchases:view" },
   { href: "/expenses", label: "Expenses", icon: ReceiptText, module: "expenses:view" },
   { href: "/accounting", label: "Accounting", icon: Landmark, module: "reports:financial" },
   { href: "/vendors", label: "Vendors", icon: Truck, module: "vendors:view" },

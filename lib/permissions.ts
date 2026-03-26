@@ -8,6 +8,9 @@ export const PERMISSIONS = {
   INVENTORY_DELETE: "inventory:delete",
   INVENTORY_VIEW_COST: "inventory:view_cost",
 
+  // Purchases
+  PURCHASES_VIEW: "purchases:view",
+
   // Listings
   LISTINGS_VIEW: "listings:view",
   

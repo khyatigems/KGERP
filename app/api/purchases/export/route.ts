@@ -4,11 +4,15 @@ import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { format } from "date-fns";
 import type { Prisma } from "@prisma/client";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 
 export async function GET(req: Request) {
   const session = await auth();
   if (!session) {
     return new NextResponse("Unauthorized", { status: 401 });
+  }
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.PURCHASES_VIEW))) {
+    return new NextResponse("Forbidden", { status: 403 });
   }
 
   const { searchParams } = new URL(req.url);
