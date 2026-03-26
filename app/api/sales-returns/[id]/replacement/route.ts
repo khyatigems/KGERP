@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       const replacementInvs = await tx.inventory.findMany({
         where: { id: { in: (items as Array<{ inventoryId: string }>).map((i) => i.inventoryId) } },
-        select: { id: true, sku: true, itemName: true },
+        select: { id: true, sku: true, itemName: true, sellingPrice: true },
       });
 
       const year = new Date().getFullYear();
@@ -65,6 +65,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ...replacementInvs.map((it) => `- ${it.sku} ${it.itemName}`.trim()),
       ].filter(Boolean);
 
+      const totalSellingPrice = replacementInvs.reduce((acc, it) => acc + (it.sellingPrice || 0), 0);
+
       const replacementInvoice = await tx.invoice.create({
         data: {
           invoiceNumber,
@@ -72,10 +74,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           status: "REPLACEMENT",
           paymentStatus: "REPLACEMENT",
           invoiceDate: new Date(),
-          subtotal: 0,
+          subtotal: totalSellingPrice,
           taxTotal: 0,
           discountTotal: 0,
-          totalAmount: 0,
+          totalAmount: totalSellingPrice,
           notes: notesLines.join("\n"),
         },
       });
@@ -87,6 +89,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         },
       });
       for (const item of items as Array<{ inventoryId: string }>) {
+        const invItem = replacementInvs.find((it) => it.id === item.inventoryId);
+        const itemSellingPrice = invItem?.sellingPrice || 0;
+
         await tx.memoItem.create({
           data: {
             memoId: memo.id,
@@ -109,8 +114,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             billingAddress: (primarySale as { billingAddress?: string | null })?.billingAddress || primarySale?.customerAddress || salesReturn.invoice.quotation?.customerAddress || null,
             shippingAddress: (primarySale as { shippingAddress?: string | null })?.shippingAddress || (primarySale as { billingAddress?: string | null })?.billingAddress || primarySale?.customerAddress || salesReturn.invoice.quotation?.customerAddress || null,
             placeOfSupply: (primarySale as { placeOfSupply?: string | null })?.placeOfSupply || primarySale?.customerCity || salesReturn.invoice.quotation?.customerCity || null,
-            salePrice: 0,
-            netAmount: 0,
+            salePrice: itemSellingPrice,
+            netAmount: itemSellingPrice,
             discountAmount: 0,
             taxAmount: 0,
             paymentStatus: "REPLACEMENT",
@@ -118,7 +123,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             notes: `Replacement dispatch for ${salesReturn.returnNumber} (${salesReturn.invoice.invoiceNumber})`,
           } as unknown as never,
         });
-        await tx.inventory.update({ where: { id: item.inventoryId }, data: { status: "MEMO" } });
+        await tx.inventory.update({ where: { id: item.inventoryId }, data: { status: "SOLD" } });
       }
       await tx.activityLog.create({
         data: {
