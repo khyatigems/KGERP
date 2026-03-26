@@ -320,8 +320,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
           // 2. Create Sales and Update Inventory
           const customerNameInput = String(data.customerName || "").trim();
-          const customerPhoneInput = String(data.customerPhone || "").trim();
-          const customerEmailInput = String(data.customerEmail || "").trim();
+          const customerPhoneInput = String(data.customerPhone || "").trim().replace(/[^\d+]/g, "");
+          const customerEmailInput = String(data.customerEmail || "").trim().toLowerCase();
 
           let customerProfile = data.customerId
             ? await tx.customer.findUnique({ where: { id: data.customerId } })

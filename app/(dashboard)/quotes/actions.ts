@@ -136,8 +136,8 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
       const token = generateQuotationToken();
 
       const customerNameInput = String(data.customerName || "").trim();
-      const customerPhoneInput = String(data.customerMobile || "").trim();
-      const customerEmailInput = String(data.customerEmail || "").trim();
+      const customerPhoneInput = String(data.customerMobile || "").trim().replace(/[^\d+]/g, "");
+      const customerEmailInput = String(data.customerEmail || "").trim().toLowerCase();
 
       let customerProfile = data.customerId
         ? await tx.customer.findUnique({ where: { id: data.customerId } })

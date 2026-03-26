@@ -24,14 +24,27 @@ async function linkLegacyCustomerRecords(
   const email = input.email ? input.email.trim().toLowerCase() : null;
 
   if (phone) {
-    await tx.sale.updateMany({
-      where: { customerId: null, customerPhone: phone },
-      data: { customerId: input.customerId },
-    });
-    await tx.quotation.updateMany({
-      where: { customerId: null, customerMobile: phone },
-      data: { customerId: input.customerId },
-    });
+    const phoneDigits = phone.replace(/[^\d]/g, "");
+    await tx.$executeRawUnsafe(
+      `
+      UPDATE "Sale"
+      SET "customerId" = ?
+      WHERE "customerId" IS NULL
+        AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE("customerPhone", ''), char(96), ''), ' ', ''), '+', ''), '-', ''), '(', ''), ')', '') = ?
+      `,
+      input.customerId,
+      phoneDigits
+    );
+    await tx.$executeRawUnsafe(
+      `
+      UPDATE "Quotation"
+      SET "customerId" = ?
+      WHERE "customerId" IS NULL
+        AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE("customerMobile", ''), char(96), ''), ' ', ''), '+', ''), '-', ''), '(', ''), ')', '') = ?
+      `,
+      input.customerId,
+      phoneDigits
+    );
   }
 
   if (email) {
