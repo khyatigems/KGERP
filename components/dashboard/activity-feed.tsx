@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface ActivityLog {
     id: string;
@@ -45,10 +46,19 @@ export function ActivityFeed() {
                         {Array.isArray(activities) ? activities.map((activity) => (
                             <div key={activity.id} className="flex items-start gap-3 border-b pb-3 last:border-0 last:pb-0">
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium truncate">
-                                        <span className="capitalize text-muted-foreground">{activity.actionType.toLowerCase().replace('_', ' ')}</span>{" "}
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant={
+                                        activity.actionType === "CREATE" ? "default" :
+                                        activity.actionType === "EDIT" || activity.actionType === "UPDATE" ? "secondary" :
+                                        activity.actionType === "DELETE" ? "destructive" :
+                                        "outline"
+                                      }>
+                                        {(activity.actionType || "UNKNOWN").toUpperCase().replaceAll("_", " ")}
+                                      </Badge>
+                                      <p className="text-sm font-medium truncate">
                                         <span className="text-foreground">{activity.entityType}</span>
-                                    </p>
+                                      </p>
+                                    </div>
                                     <p className="text-xs text-muted-foreground truncate">
                                         {activity.entityIdentifier}
                                     </p>

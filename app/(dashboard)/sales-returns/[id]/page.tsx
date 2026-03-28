@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function SalesReturnDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.SALES_VIEW)) redirect("/");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.SALES_VIEW))) redirect("/");
   const { id } = await params;
 
   const srRows = await prisma.$queryRawUnsafe<

@@ -2,22 +2,24 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
+import { ensureSalesReturnReplacementSchema } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function SalesReturnsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.SALES_VIEW)) redirect("/");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.SALES_VIEW))) redirect("/");
 
   await ensureReturnsSchema();
+  await ensureSalesReturnReplacementSchema();
 
   const rows = await prisma.$queryRawUnsafe<
     Array<{ id: string; returnNumber: string; returnDate: string; disposition: string; invoiceNumber: string; customerName: string | null }>
@@ -39,6 +41,20 @@ export default async function SalesReturnsPage() {
      LIMIT 200`
   );
 
+  const replacementIds = rows.filter((r) => r.disposition === "REPLACEMENT").map((r) => r.id);
+  const replacementMap = replacementIds.length
+    ? await prisma.$queryRawUnsafe<Array<{ salesReturnId: string; invoiceId: string }>>(
+        `SELECT salesReturnId, invoiceId FROM "SalesReturnReplacement" WHERE salesReturnId IN (${replacementIds.map(() => "?").join(",")})`,
+        ...(replacementIds as unknown as string[])
+      )
+    : [];
+  const replBySrId = new Map(replacementMap.map((r) => [r.salesReturnId, r.invoiceId]));
+  const invoiceIds = Array.from(new Set(replacementMap.map((r) => r.invoiceId)));
+  const invoicesById = invoiceIds.length
+    ? await prisma.invoice.findMany({ where: { id: { in: invoiceIds } }, select: { id: true, invoiceNumber: true } })
+    : [];
+  const invNoById = new Map(invoicesById.map((i) => [i.id, i.invoiceNumber]));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -50,7 +66,7 @@ export default async function SalesReturnsPage() {
           <Button asChild variant="outline">
             <Link href="/sales-returns/credit-notes">Credit Notes</Link>
           </Button>
-          {hasPermission(session.user.role, PERMISSIONS.SALES_CREATE) && (
+          {(await checkUserPermission(session.user.id, PERMISSIONS.SALES_CREATE)) && (
             <Button asChild>
               <Link href="/sales-returns/new">
                 <Plus className="mr-2 h-4 w-4" />
@@ -94,12 +110,21 @@ export default async function SalesReturnsPage() {
                       <TableCell>
                         {r.disposition}{" "}
                         {r.disposition === "REPLACEMENT" ? (
-                          <Link
-                            href={`/sales-returns/replace/${r.id}?customerName=${encodeURIComponent(r.customerName || "")}`}
-                            className="ml-2 text-xs text-primary underline"
-                          >
-                            Dispatch
-                          </Link>
+                          replBySrId.has(r.id) ? (
+                            <Link
+                              href={`/invoices/${encodeURIComponent(replBySrId.get(r.id) || "")}`}
+                              className="ml-2 text-xs text-muted-foreground underline"
+                            >
+                              Dispatched ({invNoById.get(replBySrId.get(r.id) || "") || "REPLACEMENT"})
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/sales-returns/replace/${r.id}?customerName=${encodeURIComponent(r.customerName || "")}`}
+                              className="ml-2 text-xs text-primary underline"
+                            >
+                              Dispatch
+                            </Link>
+                          )
                         ) : null}
                       </TableCell>
                     </TableRow>

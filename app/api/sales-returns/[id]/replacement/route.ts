@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { ensureSalesReturnReplacementSchema, prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -10,14 +10,30 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.SALES_CREATE)) {
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.SALES_CREATE))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { items, customerName } = await req.json().catch(() => ({}));
   if (!Array.isArray(items) || !items.length) return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
 
   try {
+    await ensureSalesReturnReplacementSchema();
     const result = await prisma.$transaction(async (tx) => {
+      const existingMap = await tx.$queryRawUnsafe<Array<{ salesReturnId: string; invoiceId: string; memoId: string | null }>>(
+        `SELECT salesReturnId, invoiceId, memoId FROM "SalesReturnReplacement" WHERE salesReturnId = ? LIMIT 1`,
+        id
+      );
+      const existing = existingMap?.[0];
+      if (existing?.invoiceId) {
+        const inv = await tx.invoice.findUnique({ where: { id: existing.invoiceId }, select: { id: true, invoiceNumber: true } });
+        return {
+          alreadyExists: true,
+          invoiceId: inv?.id || existing.invoiceId,
+          invoiceNumber: inv?.invoiceNumber || "REPLACEMENT",
+          memoId: existing.memoId,
+        };
+      }
+
       const salesReturn = await tx.salesReturn.findUnique({
         where: { id },
         include: {
@@ -34,6 +50,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         },
       });
       if (!salesReturn) throw new Error("Sales return not found");
+
+      const legacyExisting = await tx.invoice.findFirst({
+        where: {
+          status: "REPLACEMENT",
+          paymentStatus: "REPLACEMENT",
+          notes: { contains: salesReturn.returnNumber },
+        },
+        select: { id: true, invoiceNumber: true },
+        orderBy: { createdAt: "desc" },
+      });
+      if (legacyExisting?.id) {
+        return { alreadyExists: true, invoiceId: legacyExisting.id, invoiceNumber: legacyExisting.invoiceNumber, memoId: null };
+      }
 
       const primarySale = salesReturn.invoice.sales?.[0] || null;
       const resolvedCustomerName =
@@ -137,8 +166,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           details: `Replacement dispatch for SalesReturn ${id} (Invoice ${replacementInvoice.invoiceNumber})`,
         },
       });
+
+      await tx.$executeRawUnsafe(
+        `INSERT OR REPLACE INTO "SalesReturnReplacement" (salesReturnId, invoiceId, memoId, createdBy, createdAt) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        id,
+        replacementInvoice.id,
+        memo.id,
+        session.user.id
+      );
       return { memoId: memo.id, invoiceId: replacementInvoice.id, invoiceNumber: replacementInvoice.invoiceNumber, token: replacementInvoice.token };
     });
+    if ((result as any)?.alreadyExists) {
+      return NextResponse.json(
+        { error: "Replacement already created", invoiceId: (result as any).invoiceId, invoiceNumber: (result as any).invoiceNumber, memoId: (result as any).memoId },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ success: true, ...result });
   } catch {
     return NextResponse.json({ error: "Failed to create replacement memo" }, { status: 500 });

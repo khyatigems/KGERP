@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { prisma, type ActivityLog } from "@/lib/prisma";
+import { ensureActivityLogSchema, prisma, type ActivityLog } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { 
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Filter } from "lucide-react";
+import { ExportButton } from "@/components/ui/export-button";
+import { auth } from "@/lib/auth";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 
 export const metadata: Metadata = {
   title: "Activity Log | KhyatiGems™",
@@ -18,18 +21,56 @@ export default async function ActivityLogPage({
 }: {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+    await ensureActivityLogSchema();
+
+    const session = await auth();
+    if (!session?.user?.id) return null;
+
+    const isSuperAdmin = (session.user.role || "") === "SUPER_ADMIN";
+    if (!isSuperAdmin) {
+      const canView = await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW);
+      if (!canView) return null;
+    }
+
     const params = await searchParams;
     const page = Number(params.page) || 1;
     const limit = 50;
     const skip = (page - 1) * limit;
     
     // Filters
-    const entityType = typeof params.entityType === 'string' ? params.entityType : undefined;
-    const actionType = typeof params.actionType === 'string' ? params.actionType : undefined;
+    const module = typeof params.module === "string" ? params.module : undefined;
+    const actionType = typeof params.actionType === "string" ? params.actionType : undefined;
+    const userId = typeof params.userId === "string" ? params.userId : undefined;
+    const source = typeof params.source === "string" ? params.source : undefined;
+    const q = typeof params.q === "string" ? params.q.trim() : "";
+    const from = typeof params.from === "string" ? params.from : undefined;
+    const to = typeof params.to === "string" ? params.to : undefined;
     
-    const where: { entityType?: string; actionType?: string; userId?: string } = {};
-    if (entityType && entityType !== "ALL") where.entityType = entityType;
+    const where: any = {};
+    if (module && module !== "ALL") where.module = module;
     if (actionType && actionType !== "ALL") where.actionType = actionType;
+    if (source && source !== "ALL") where.source = source;
+    if (isSuperAdmin) {
+      if (userId && userId !== "ALL") where.userId = userId;
+    } else {
+      where.userId = session.user.id;
+    }
+    if (q) {
+      where.OR = [
+        { referenceId: { contains: q, mode: "insensitive" } },
+        { entityIdentifier: { contains: q, mode: "insensitive" } },
+        { details: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+        { userName: { contains: q, mode: "insensitive" } },
+        { module: { contains: q, mode: "insensitive" } },
+        { actionType: { contains: q, mode: "insensitive" } },
+      ];
+    }
+    if (from || to) {
+      const gte = from ? new Date(`${from}T00:00:00.000Z`) : undefined;
+      const lte = to ? new Date(`${to}T23:59:59.999Z`) : undefined;
+      where.createdAt = { ...(gte ? { gte } : {}), ...(lte ? { lte } : {}) };
+    }
     
     // Fetch logs
     let logs: any[] = [];
@@ -49,16 +90,109 @@ export default async function ActivityLogPage({
     
     const totalPages = Math.ceil(totalCount / limit);
 
+    const userOptions = isSuperAdmin
+      ? await prisma.$queryRawUnsafe<Array<{ userId: string | null; userName: string | null }>>(
+          `SELECT DISTINCT userId, userName FROM "ActivityLog" WHERE userId IS NOT NULL ORDER BY userName LIMIT 200`
+        ).catch(() => [])
+      : [];
+    const moduleOptions = await prisma.$queryRawUnsafe<Array<{ module: string | null }>>(
+      `SELECT DISTINCT module FROM "ActivityLog" WHERE module IS NOT NULL ORDER BY module LIMIT 200`
+    ).catch(() => []);
+    const sourceOptions = await prisma.$queryRawUnsafe<Array<{ source: string | null }>>(
+      `SELECT DISTINCT source FROM "ActivityLog" WHERE source IS NOT NULL ORDER BY source LIMIT 50`
+    ).catch(() => []);
+
+    const exportRows = logs.map((logItem) => {
+      const log = logItem as any;
+      return {
+        Time: String(log.createdAt),
+        User: log.userName || log.userId || "System",
+        Action: log.actionType || log.action || "UNKNOWN",
+        Module: log.module || log.entityType || "",
+        Reference: log.referenceId || log.entityIdentifier || log.entityId || "",
+        Source: log.source || "",
+        Description: log.description || log.details || "",
+      };
+    });
+    const exportColumns = [
+      { header: "Time", key: "Time" },
+      { header: "User", key: "User" },
+      { header: "Action", key: "Action" },
+      { header: "Module", key: "Module" },
+      { header: "Reference", key: "Reference" },
+      { header: "Source", key: "Source" },
+      { header: "Description", key: "Description" },
+    ];
+
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-end">
-                <div className="flex gap-2">
-                    {/* Placeholder for more advanced filters */}
-                    <Button variant="outline" size="sm">
-                        <Filter className="mr-2 h-4 w-4" />
-                        Filter
-                    </Button>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <form className="flex flex-wrap items-end gap-3" action="/activity-log" method="get">
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs text-muted-foreground">Module</div>
+                  <select name="module" defaultValue={module || "ALL"} className="h-9 rounded-md border bg-background px-3 text-sm">
+                    <option value="ALL">All</option>
+                    {moduleOptions.map((m) => (
+                      <option key={String(m.module)} value={String(m.module)}>{String(m.module)}</option>
+                    ))}
+                  </select>
                 </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs text-muted-foreground">Action</div>
+                  <select name="actionType" defaultValue={actionType || "ALL"} className="h-9 rounded-md border bg-background px-3 text-sm">
+                    <option value="ALL">All</option>
+                    {["CREATE","EDIT","UPDATE","DELETE","LOGIN","LOGOUT","PUBLIC_VIEW","QR_SCAN"].map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {isSuperAdmin ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="text-xs text-muted-foreground">User</div>
+                    <select name="userId" defaultValue={userId || "ALL"} className="h-9 rounded-md border bg-background px-3 text-sm">
+                      <option value="ALL">All</option>
+                      {userOptions.map((u) => (
+                        <option key={String(u.userId)} value={String(u.userId)}>
+                          {String(u.userName || u.userId)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs text-muted-foreground">Source</div>
+                  <select name="source" defaultValue={source || "ALL"} className="h-9 rounded-md border bg-background px-3 text-sm">
+                    <option value="ALL">All</option>
+                    {sourceOptions.map((s) => (
+                      <option key={String(s.source)} value={String(s.source)}>{String(s.source)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs text-muted-foreground">From</div>
+                  <input name="from" defaultValue={from || ""} type="date" className="h-9 rounded-md border bg-background px-3 text-sm" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs text-muted-foreground">To</div>
+                  <input name="to" defaultValue={to || ""} type="date" className="h-9 rounded-md border bg-background px-3 text-sm" />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs text-muted-foreground">Search</div>
+                  <input name="q" defaultValue={q} placeholder="Invoice #, SKU, user..." className="h-9 rounded-md border bg-background px-3 text-sm w-[240px]" />
+                </div>
+
+                <Button variant="outline" size="sm" className="h-9">
+                  <Filter className="mr-2 h-4 w-4" />
+                  Apply
+                </Button>
+              </form>
+
+              <ExportButton filename="activity-log" data={exportRows} columns={exportColumns} title="Activity Log" label="Export CSV/Excel/PDF" />
             </div>
 
             <div className="rounded-md border bg-card">
@@ -100,7 +234,7 @@ export default async function ActivityLogPage({
                                          {log.referenceId || log.entityIdentifier || log.entityId || "-"}
                                      </TableCell>
                                      <TableCell>
-                                         {log.userName || "System"}
+                                     {log.userName || log.userId || "System"}
                                          {log.source && log.source !== 'WEB' && (
                                              <span className="text-xs text-muted-foreground ml-1">({log.source})</span>
                                          )}

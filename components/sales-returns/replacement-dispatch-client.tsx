@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "sonner";
 
 export function ReplacementDispatchClient({
   salesReturnId,
@@ -42,10 +43,14 @@ export function ReplacementDispatchClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data?.error || "Failed");
+        if (res.status === 409) {
+          toast.error(`Replacement already created: ${data?.invoiceNumber || "REPLACEMENT"}`);
+        } else {
+          toast.error(data?.error || "Failed to create replacement");
+        }
         return;
       }
-      alert(`Replacement invoice created: ${data.invoiceNumber} (Memo: ${data.memoId})`);
+      toast.success(`Replacement created: ${data.invoiceNumber}`);
     } finally {
       setIsSubmitting(false);
     }

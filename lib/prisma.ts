@@ -494,3 +494,34 @@ export async function ensureInvoiceSupportSchema(): Promise<void> {
   })();
   return ensureInvoiceSupportPromise;
 }
+
+let ensuringSalesReturnReplacement = false;
+let ensuredSalesReturnReplacement = false;
+let ensureSalesReturnReplacementPromise: Promise<void> | null = null;
+
+export async function ensureSalesReturnReplacementSchema(): Promise<void> {
+  if (ensuredSalesReturnReplacement) return;
+  if (ensuringSalesReturnReplacement && ensureSalesReturnReplacementPromise) return ensureSalesReturnReplacementPromise;
+  ensuringSalesReturnReplacement = true;
+  ensureSalesReturnReplacementPromise = (async () => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "SalesReturnReplacement" (
+          "salesReturnId" TEXT NOT NULL PRIMARY KEY,
+          "invoiceId" TEXT NOT NULL,
+          "memoId" TEXT,
+          "createdBy" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SalesReturnReplacement_invoiceId_idx" ON "SalesReturnReplacement"("invoiceId");`);
+    } catch {
+    } finally {
+      checkedTables = null;
+      ensuredSalesReturnReplacement = true;
+      ensuringSalesReturnReplacement = false;
+      ensureSalesReturnReplacementPromise = null;
+    }
+  })();
+  return ensureSalesReturnReplacementPromise;
+}
