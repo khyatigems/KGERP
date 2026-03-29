@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createMessageTemplate, toggleMessageTemplate, type MessageTemplateRow } from "./actions";
 
 export function MessageTemplatesForm({ initial }: { initial: MessageTemplateRow[] }) {
@@ -42,12 +44,28 @@ export function MessageTemplatesForm({ initial }: { initial: MessageTemplateRow[
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border p-5 space-y-4">
-        <h3 className="text-base font-semibold">Create Message Template</h3>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Create Message Template</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Input placeholder="Template key (birthday_wish)" value={form.key} onChange={(e) => setForm((p) => ({ ...p, key: e.target.value }))} />
+          <Select value={form.key} onValueChange={(v) => setForm((p) => ({ ...p, key: v }))}>
+            <SelectTrigger><SelectValue placeholder="Template Key" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="birthday_wish">Birthday Wish</SelectItem>
+              <SelectItem value="anniversary_wish">Anniversary Wish</SelectItem>
+              <SelectItem value="general_wish">General Wish</SelectItem>
+              <SelectItem value="loyalty_reminder">Loyalty Reminder</SelectItem>
+            </SelectContent>
+          </Select>
           <Input placeholder="Title" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
-          <Input placeholder="Channel" value={form.channel} onChange={(e) => setForm((p) => ({ ...p, channel: e.target.value }))} />
+          <Select value={form.channel} onValueChange={(v) => setForm((p) => ({ ...p, channel: v }))}>
+            <SelectTrigger><SelectValue placeholder="Channel" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="WHATSAPP_WEB">WhatsApp Web</SelectItem>
+            </SelectContent>
+          </Select>
           <div />
           <Textarea
             className="md:col-span-2 min-h-[130px]"
@@ -56,11 +74,16 @@ export function MessageTemplatesForm({ initial }: { initial: MessageTemplateRow[
             onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))}
           />
         </div>
+        <div className="text-xs text-muted-foreground">Supported placeholders: {"{name}"}, {"{points}"}, {"{coupon}"}</div>
         <Button onClick={submit} disabled={isPending}>Create Template</Button>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-lg border p-5 space-y-3">
-        <h3 className="text-base font-semibold">Templates</h3>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Templates</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
         {rows.map((r) => (
           <div key={r.id} className="rounded-md border p-3 flex items-start justify-between gap-3">
             <div className="space-y-1 text-sm">
@@ -73,8 +96,8 @@ export function MessageTemplatesForm({ initial }: { initial: MessageTemplateRow[
             </Button>
           </div>
         ))}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

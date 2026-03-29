@@ -57,39 +57,36 @@ export async function POST(
   );
 
   const settings = await prisma.$queryRawUnsafe<Array<{
-    dobRewardAmount: number;
-    anniversaryRewardAmount: number;
+    dobProfilePoints: number;
+    anniversaryProfilePoints: number;
+    redeemRupeePerPoint: number;
   }>>(
-    `SELECT dobRewardAmount, anniversaryRewardAmount FROM "InvoicePromotionSettings" WHERE id = 'default' LIMIT 1`
+    `SELECT dobProfilePoints, anniversaryProfilePoints, redeemRupeePerPoint
+     FROM "LoyaltySettings" WHERE id = 'default' LIMIT 1`
   ).catch(() => []);
-  const cfg = settings?.[0] || { dobRewardAmount: 0, anniversaryRewardAmount: 0 };
+  const cfg = settings?.[0] || { dobProfilePoints: 0, anniversaryProfilePoints: 0, redeemRupeePerPoint: 1 };
 
   const dobJustAdded = !old?.dateOfBirth && !!dateOfBirth;
   const annJustAdded = !old?.anniversaryDate && !!anniversaryDate;
-  const couponAmount =
-    (dobJustAdded ? Number(cfg.dobRewardAmount || 0) : 0) +
-    (annJustAdded ? Number(cfg.anniversaryRewardAmount || 0) : 0);
+  const awardedPoints =
+    (dobJustAdded ? Number(cfg.dobProfilePoints || 0) : 0) +
+    (annJustAdded ? Number(cfg.anniversaryProfilePoints || 0) : 0);
 
-  if (couponAmount <= 0) {
-    return NextResponse.json({ success: true, couponCode: null, couponAmount: 0 });
+  if (awardedPoints <= 0) {
+    return NextResponse.json({ success: true, awardedPoints: 0 });
   }
 
-  const code = `PROFILE${String(Date.now()).slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
-  const couponId = crypto.randomUUID();
-  const now = new Date();
-  const validTo = new Date(now);
-  validTo.setDate(validTo.getDate() + 90);
-
+  const rupeePerPoint = Math.max(0.0001, Number(cfg.redeemRupeePerPoint || 1));
+  const rupeeValue = awardedPoints * rupeePerPoint;
   await prisma.$executeRawUnsafe(
-    `INSERT INTO "Coupon"
-      (id, code, type, value, maxDiscount, minInvoiceAmount, validFrom, validTo, usageLimitTotal, usageLimitPerCustomer, applicableScope, isActive, createdAt, updatedAt)
-     VALUES (?, ?, 'FLAT', ?, NULL, NULL, ?, ?, 1, 1, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-    couponId,
-    code,
-    couponAmount,
-    now.toISOString(),
-    validTo.toISOString(),
-    `customer:${customerId}`
+    `INSERT INTO "LoyaltyLedger" (id, customerId, invoiceId, type, points, rupeeValue, remarks, createdAt)
+     VALUES (?, ?, ?, 'EARN', ?, ?, ?, CURRENT_TIMESTAMP)`,
+    crypto.randomUUID(),
+    customerId,
+    invoice.id,
+    awardedPoints,
+    rupeeValue,
+    "Profile completion reward points"
   );
 
   await prisma.$executeRawUnsafe(
@@ -99,11 +96,10 @@ export async function POST(
     customerId,
     "PROFILE_COMPLETION_REWARD",
     "INVOICE_WEB",
-    "profile_reward_coupon",
-    JSON.stringify({ couponCode: code, couponAmount }),
-    "COUPON_GENERATED"
+    "profile_reward_points",
+    JSON.stringify({ awardedPoints, rupeeValue }),
+    "LOYALTY_POINTS_AWARDED"
   );
 
-  return NextResponse.json({ success: true, couponCode: code, couponAmount });
+  return NextResponse.json({ success: true, awardedPoints, rupeeValue });
 }
-

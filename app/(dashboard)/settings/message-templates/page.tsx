@@ -20,7 +20,7 @@ export default async function MessageTemplatesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Message Templates</h1>
-        <p className="text-muted-foreground">Manage WhatsApp/Web campaign templates for birthdays, anniversaries and loyalty nudges.</p>
+        <p className="text-muted-foreground">Manage WhatsApp templates with placeholders for customer name, loyalty points and coupon references.</p>
       </div>
       <MessageTemplatesForm initial={rows} />
     </div>

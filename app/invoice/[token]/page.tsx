@@ -365,6 +365,13 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const appliedCoupon = couponApplied?.[0]
     ? { code: String(couponApplied[0].code), discountAmount: Number(couponApplied[0].discountAmount || 0) }
     : null;
+  const loyaltySettingsRows = await prisma.$queryRawUnsafe<Array<{ dobProfilePoints: number; anniversaryProfilePoints: number }>>(
+    `SELECT dobProfilePoints, anniversaryProfilePoints FROM "LoyaltySettings" WHERE id = 'default' LIMIT 1`
+  ).catch(() => []);
+  const ls = loyaltySettingsRows?.[0] || { dobProfilePoints: 0, anniversaryProfilePoints: 0 };
+  const profileRewardPoints =
+    (missingDob ? Number(ls.dobProfilePoints || 0) : 0) +
+    (missingAnniversary ? Number(ls.anniversaryProfilePoints || 0) : 0);
 
   // Construct InvoiceData for PDF
   const pdfData: InvoiceData = {
@@ -523,6 +530,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
               canCaptureProfile={Boolean(customerId)}
               missingDob={missingDob}
               missingAnniversary={missingAnniversary}
+              profileRewardPoints={profileRewardPoints}
             />
 
             {/* Header */}

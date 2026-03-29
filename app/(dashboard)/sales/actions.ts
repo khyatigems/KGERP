@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { ensureInvoiceSupportSchema, hasTable, prisma } from "@/lib/prisma";
+import { ensureBillfreePhase1Schema, ensureInvoiceSupportSchema, hasTable, prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
@@ -55,6 +55,8 @@ const saleSchema = z.object({
   quotationId: z.string().optional(),
   autoFillSplitFromSingle: z.coerce.boolean().optional().default(true),
   initialPayments: z.array(initialPaymentSchema).optional().default([]),
+  couponCode: z.string().optional(),
+  loyaltyRedeemAmount: z.coerce.number().min(0).optional().default(0),
 });
 
 function generateInvoiceToken() {
@@ -101,6 +103,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
     return { message: "Unauthorized" };
   }
   await ensureReturnsSchema();
+  await ensureBillfreePhase1Schema();
   try {
     await assertNotFrozen("Sale creation");
   } catch (error) {
@@ -182,7 +185,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
       const additionalCharge = data.additionalCharge || 0;
       const totalNetAmount = computedItems.reduce((sum, i) => sum + i.netAmount, 0) + shippingCharge + additionalCharge;
       const totalDiscount = computedItems.reduce((sum, i) => sum + i.discount, 0);
-      const allowedPaymentMethods = new Set(["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER", "PAYPAL", "CC", "CREDIT_NOTE"]);
+      const allowedPaymentMethods = new Set(["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER", "PAYPAL", "CC", "CREDIT_NOTE", "LOYALTY_REDEEM"]);
 
       let normalizedPayments = (data.initialPayments || []).map((p) => ({
         amount: Number(p.amount),
@@ -220,10 +223,6 @@ export async function createSale(prevState: unknown, formData: FormData) {
         }
       }
 
-      const paidAmount = normalizedPayments.reduce((sum, p) => sum + p.amount, 0);
-      if (paidAmount > totalNetAmount + 0.009) {
-        return { message: `Initial payments exceed invoice total by ${(paidAmount - totalNetAmount).toFixed(2)}` };
-      }
       if (data.autoFillSplitFromSingle && (data.paymentStatus || "").toUpperCase() === "PARTIAL" && normalizedPayments.length === 0) {
         return { message: "Add at least one payment entry for PARTIAL status" };
       }
@@ -231,18 +230,137 @@ export async function createSale(prevState: unknown, formData: FormData) {
         return { message: "Add at least one payment entry or enable auto-fill split for PAID status" };
       }
 
-      const invoicePaymentStatus =
-        paidAmount >= totalNetAmount - 0.01
-          ? "PAID"
-          : paidAmount > 0
-          ? "PARTIAL"
-          : data.paymentStatus === "UNPAID" || data.paymentStatus === "PENDING"
-          ? "UNPAID"
-          : data.paymentStatus === "PARTIAL"
-          ? "PARTIAL"
-          : "UNPAID";
-
       await prisma.$transaction(async (tx) => {
+          const customerNameInput = String(data.customerName || "").trim();
+          const customerPhoneInput = String(data.customerPhone || "").trim().replace(/[^\d+]/g, "");
+          const customerEmailInput = String(data.customerEmail || "").trim().toLowerCase();
+
+          let customerProfile = data.customerId
+            ? await tx.customer.findUnique({ where: { id: data.customerId } })
+            : null;
+
+          if (!customerProfile && customerNameInput) {
+            const or: Array<Record<string, unknown>> = [];
+            if (customerPhoneInput) or.push({ phone: customerPhoneInput });
+            if (customerEmailInput) or.push({ email: customerEmailInput });
+            const existing = or.length
+              ? await tx.customer.findFirst({ where: { OR: or } as never })
+              : null;
+            customerProfile =
+              existing ||
+              (await tx.customer.create({
+                data: {
+                  name: customerNameInput,
+                  phone: customerPhoneInput || null,
+                  email: customerEmailInput || null,
+                  address: (data.customerAddress || data.billingAddress || null) as unknown as never,
+                  city: (data.customerCity || null) as unknown as never,
+                } as unknown as never,
+              }));
+
+            await ensureCustomerCode(tx, customerProfile.id);
+          }
+
+          let couponDiscount = 0;
+          let couponToRedeemId: string | null = null;
+          const inputCouponCode = String(data.couponCode || "").trim().toUpperCase();
+          if (inputCouponCode) {
+            const couponRows = await tx.$queryRawUnsafe<Array<{
+              id: string;
+              type: string;
+              value: number;
+              maxDiscount: number | null;
+              minInvoiceAmount: number | null;
+              validFrom: string | null;
+              validTo: string | null;
+              usageLimitTotal: number | null;
+              usageLimitPerCustomer: number | null;
+              applicableScope: string;
+              isActive: number;
+            }>>(
+              `SELECT id, type, value, maxDiscount, minInvoiceAmount, validFrom, validTo, usageLimitTotal, usageLimitPerCustomer, applicableScope, isActive
+               FROM "Coupon" WHERE code = ? LIMIT 1`,
+              inputCouponCode
+            );
+            const c = couponRows?.[0];
+            if (!c || Number(c.isActive || 0) !== 1) throw new Error("Invalid or inactive coupon code");
+            const nowTs = Date.now();
+            if (c.validFrom && new Date(c.validFrom).getTime() > nowTs) throw new Error("Coupon is not active yet");
+            if (c.validTo && new Date(c.validTo).getTime() < nowTs) throw new Error("Coupon expired");
+            if (c.minInvoiceAmount != null && totalNetAmount + 0.009 < Number(c.minInvoiceAmount || 0)) throw new Error("Invoice amount below coupon minimum");
+            const scope = String(c.applicableScope || "all");
+            if (scope.startsWith("customer:")) {
+              const targetCustomerId = scope.split(":")[1] || "";
+              if (!customerProfile?.id || customerProfile.id !== targetCustomerId) throw new Error("Coupon not allowed for selected customer");
+            }
+            const totalUseRows = await tx.$queryRawUnsafe<Array<{ cnt: number }>>(
+              `SELECT COUNT(1) as cnt FROM "CouponRedemption" WHERE couponId = ?`,
+              c.id
+            );
+            if (c.usageLimitTotal != null && Number(totalUseRows?.[0]?.cnt || 0) >= Number(c.usageLimitTotal || 0)) throw new Error("Coupon usage limit reached");
+            if (customerProfile?.id && c.usageLimitPerCustomer != null) {
+              const custUseRows = await tx.$queryRawUnsafe<Array<{ cnt: number }>>(
+                `SELECT COUNT(1) as cnt FROM "CouponRedemption" WHERE couponId = ? AND customerId = ?`,
+                c.id,
+                customerProfile.id
+              );
+              if (Number(custUseRows?.[0]?.cnt || 0) >= Number(c.usageLimitPerCustomer || 0)) throw new Error("Coupon per-customer usage limit reached");
+            }
+            const raw = c.type === "PERCENT" ? (totalNetAmount * Number(c.value || 0)) / 100 : Number(c.value || 0);
+            couponDiscount = Math.max(0, Math.min(raw, c.maxDiscount != null ? Number(c.maxDiscount) : raw, totalNetAmount));
+            couponToRedeemId = c.id;
+          }
+
+          const adjustedInvoiceTotal = Math.max(0, totalNetAmount - couponDiscount);
+          const inputLoyaltyRedeem = Math.max(0, Number(data.loyaltyRedeemAmount || 0));
+          let loyaltyRedeemAmount = 0;
+          let loyaltyPointsUsed = 0;
+          if (inputLoyaltyRedeem > 0) {
+            if (!customerProfile?.id) throw new Error("Customer is required for loyalty redemption");
+            const lsRows = await tx.$queryRawUnsafe<Array<{ redeemRupeePerPoint: number; minRedeemPoints: number; maxRedeemPercent: number }>>(
+              `SELECT redeemRupeePerPoint, minRedeemPoints, maxRedeemPercent FROM "LoyaltySettings" WHERE id = 'default' LIMIT 1`
+            );
+            const ls = lsRows?.[0] || { redeemRupeePerPoint: 1, minRedeemPoints: 0, maxRedeemPercent: 30 };
+            const redeemRupeePerPoint = Math.max(0.0001, Number(ls.redeemRupeePerPoint || 1));
+            const minRedeemPoints = Math.max(0, Number(ls.minRedeemPoints || 0));
+            const maxRedeemPercent = Math.max(0, Math.min(100, Number(ls.maxRedeemPercent || 30)));
+            const balRows = await tx.$queryRawUnsafe<Array<{ points: number }>>(
+              `SELECT COALESCE(SUM(points),0) as points FROM "LoyaltyLedger" WHERE customerId = ?`,
+              customerProfile.id
+            );
+            const availablePoints = Number(balRows?.[0]?.points || 0);
+            const maxByPercent = (adjustedInvoiceTotal * maxRedeemPercent) / 100;
+            const maxByPoints = availablePoints * redeemRupeePerPoint;
+            const maxAllowed = Math.max(0, Math.min(adjustedInvoiceTotal, maxByPercent, maxByPoints));
+            if (inputLoyaltyRedeem > maxAllowed + 0.009) throw new Error(`Loyalty redemption exceeds allowed limit (${maxAllowed.toFixed(2)})`);
+            const neededPoints = inputLoyaltyRedeem / redeemRupeePerPoint;
+            if (neededPoints + 0.0001 < minRedeemPoints) throw new Error(`Minimum redeem points is ${minRedeemPoints}`);
+            if (neededPoints > availablePoints + 0.0001) throw new Error("Insufficient loyalty points");
+            loyaltyRedeemAmount = inputLoyaltyRedeem;
+            loyaltyPointsUsed = neededPoints;
+          }
+
+          const allPayments = [...normalizedPayments];
+          if (loyaltyRedeemAmount > 0) {
+            allPayments.push({
+              amount: loyaltyRedeemAmount,
+              method: "LOYALTY_REDEEM",
+              date: new Date(data.saleDate),
+              reference: undefined,
+              notes: `Loyalty redemption (${loyaltyPointsUsed.toFixed(2)} pts)`,
+            });
+          }
+          const paidAmount = allPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+          if (paidAmount > adjustedInvoiceTotal + 0.009) throw new Error(`Initial payments exceed invoice total by ${(paidAmount - adjustedInvoiceTotal).toFixed(2)}`);
+          const invoicePaymentStatus =
+            paidAmount >= adjustedInvoiceTotal - 0.01
+              ? "PAID"
+              : paidAmount > 0
+              ? "PARTIAL"
+              : data.paymentStatus === "PARTIAL"
+              ? "PARTIAL"
+              : "UNPAID";
+
           // 1. Generate Invoice
           // Invoice Number: INV-YYYY-SEQUENCE
           const year = new Date().getFullYear();
@@ -309,46 +427,41 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   invoiceDate: normalizeDateToUtcNoon(data.saleDate),
                   subtotal: totalNetAmount,
                   taxTotal: 0, 
-                  discountTotal: totalDiscount,
-                  totalAmount: totalNetAmount,
+                  discountTotal: totalDiscount + couponDiscount,
+                  totalAmount: adjustedInvoiceTotal,
                   displayOptions: invoiceDisplayOptions,
                   paymentStatus: invoicePaymentStatus,
-                  paidAmount: paidAmount >= totalNetAmount - 0.01 ? totalNetAmount : paidAmount,
+                  paidAmount: paidAmount >= adjustedInvoiceTotal - 0.01 ? adjustedInvoiceTotal : paidAmount,
                   status: invoicePaymentStatus === "PAID" ? "PAID" : "ISSUED"
               }
           });
 
-          // 2. Create Sales and Update Inventory
-          const customerNameInput = String(data.customerName || "").trim();
-          const customerPhoneInput = String(data.customerPhone || "").trim().replace(/[^\d+]/g, "");
-          const customerEmailInput = String(data.customerEmail || "").trim().toLowerCase();
-
-          let customerProfile = data.customerId
-            ? await tx.customer.findUnique({ where: { id: data.customerId } })
-            : null;
-
-          if (!customerProfile && customerNameInput) {
-            const or: Array<Record<string, unknown>> = [];
-            if (customerPhoneInput) or.push({ phone: customerPhoneInput });
-            if (customerEmailInput) or.push({ email: customerEmailInput });
-            const existing = or.length
-              ? await tx.customer.findFirst({ where: { OR: or } as never })
-              : null;
-            customerProfile =
-              existing ||
-              (await tx.customer.create({
-                data: {
-                  name: customerNameInput,
-                  phone: customerPhoneInput || null,
-                  email: customerEmailInput || null,
-                  address: (data.customerAddress || data.billingAddress || null) as unknown as never,
-                  city: (data.customerCity || null) as unknown as never,
-                } as unknown as never,
-              }));
-
-            await ensureCustomerCode(tx, customerProfile.id);
+          if (couponToRedeemId) {
+            await tx.$executeRawUnsafe(
+              `INSERT INTO "CouponRedemption" (id, couponId, invoiceId, customerId, discountAmount, redeemedAt)
+               VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+              crypto.randomUUID(),
+              couponToRedeemId,
+              newInvoice.id,
+              customerProfile?.id || null,
+              couponDiscount
+            );
           }
 
+          if (loyaltyRedeemAmount > 0 && customerProfile?.id) {
+            await tx.$executeRawUnsafe(
+              `INSERT INTO "LoyaltyLedger" (id, customerId, invoiceId, type, points, rupeeValue, remarks, createdAt)
+               VALUES (?, ?, ?, 'REDEEM', ?, ?, ?, CURRENT_TIMESTAMP)`,
+              crypto.randomUUID(),
+              customerProfile.id,
+              newInvoice.id,
+              -loyaltyPointsUsed,
+              -loyaltyRedeemAmount,
+              "Redeemed at sale creation"
+            );
+          }
+
+          // 2. Create Sales and Update Inventory
           for (const itemData of computedItems) {
               const customerNameFinal = customerProfile?.name || data.customerName;
               const customerPhoneFinal = customerProfile?.phone || data.customerPhone;
@@ -405,7 +518,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
             });
           }
 
-          for (const payment of normalizedPayments) {
+          for (const payment of allPayments) {
             if (payment.method === "CREDIT_NOTE") {
               const cnCode = String(payment.reference || "").trim();
               if (!cnCode) throw new Error("Credit note code is required");
@@ -559,8 +672,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   referenceId: newInvoice.id,
                   userId: session.user.id,
                   lines: [
-                      { accountId: acAR.id, debit: totalNetAmount },
-                      { accountId: acSales.id, credit: totalNetAmount }
+                      { accountId: acAR.id, debit: adjustedInvoiceTotal },
+                      { accountId: acSales.id, credit: adjustedInvoiceTotal }
                   ]
               }, prismaTx);
           } catch (accError) {

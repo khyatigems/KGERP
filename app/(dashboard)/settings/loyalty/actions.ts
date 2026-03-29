@@ -12,6 +12,8 @@ export type LoyaltySettingsDto = {
   redeemRupeePerPoint: number;
   minRedeemPoints: number;
   maxRedeemPercent: number;
+  dobProfilePoints: number;
+  anniversaryProfilePoints: number;
   expiryDays: number | null;
 };
 
@@ -22,9 +24,11 @@ export async function getLoyaltySettings(): Promise<LoyaltySettingsDto> {
     redeemRupeePerPoint: number;
     minRedeemPoints: number;
     maxRedeemPercent: number;
+    dobProfilePoints: number;
+    anniversaryProfilePoints: number;
     expiryDays: number | null;
   }>>(
-    `SELECT pointsPerRupee, redeemRupeePerPoint, minRedeemPoints, maxRedeemPercent, expiryDays
+    `SELECT pointsPerRupee, redeemRupeePerPoint, minRedeemPoints, maxRedeemPercent, dobProfilePoints, anniversaryProfilePoints, expiryDays
      FROM "LoyaltySettings" WHERE id = 'default' LIMIT 1`
   ).catch(() => []);
   const row = rows?.[0];
@@ -34,6 +38,8 @@ export async function getLoyaltySettings(): Promise<LoyaltySettingsDto> {
       redeemRupeePerPoint: 1,
       minRedeemPoints: 0,
       maxRedeemPercent: 30,
+      dobProfilePoints: 0,
+      anniversaryProfilePoints: 0,
       expiryDays: null,
     };
   }
@@ -42,6 +48,8 @@ export async function getLoyaltySettings(): Promise<LoyaltySettingsDto> {
     redeemRupeePerPoint: Number(row.redeemRupeePerPoint || 1),
     minRedeemPoints: Number(row.minRedeemPoints || 0),
     maxRedeemPercent: Number(row.maxRedeemPercent || 30),
+    dobProfilePoints: Number(row.dobProfilePoints || 0),
+    anniversaryProfilePoints: Number(row.anniversaryProfilePoints || 0),
     expiryDays: row.expiryDays == null ? null : Number(row.expiryDays),
   };
 }
@@ -59,17 +67,21 @@ export async function saveLoyaltySettings(payload: LoyaltySettingsDto) {
     redeemRupeePerPoint: Math.max(0.0001, Number(payload.redeemRupeePerPoint || 1)),
     minRedeemPoints: Math.max(0, Number(payload.minRedeemPoints || 0)),
     maxRedeemPercent: Math.min(100, Math.max(0, Number(payload.maxRedeemPercent || 0))),
+    dobProfilePoints: Math.max(0, Number(payload.dobProfilePoints || 0)),
+    anniversaryProfilePoints: Math.max(0, Number(payload.anniversaryProfilePoints || 0)),
     expiryDays: payload.expiryDays == null ? null : Math.max(0, Number(payload.expiryDays)),
   };
 
   await prisma.$executeRawUnsafe(
     `INSERT OR REPLACE INTO "LoyaltySettings"
-      (id, pointsPerRupee, redeemRupeePerPoint, minRedeemPoints, maxRedeemPercent, expiryDays, updatedAt)
-     VALUES ('default', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      (id, pointsPerRupee, redeemRupeePerPoint, minRedeemPoints, maxRedeemPercent, dobProfilePoints, anniversaryProfilePoints, expiryDays, updatedAt)
+     VALUES ('default', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
     clean.pointsPerRupee,
     clean.redeemRupeePerPoint,
     clean.minRedeemPoints,
     clean.maxRedeemPercent,
+    clean.dobProfilePoints,
+    clean.anniversaryProfilePoints,
     clean.expiryDays
   );
 
@@ -87,4 +99,3 @@ export async function saveLoyaltySettings(payload: LoyaltySettingsDto) {
   revalidatePath("/settings/loyalty");
   return { success: true };
 }
-

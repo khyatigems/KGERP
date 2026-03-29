@@ -20,7 +20,7 @@ export default async function CouponsSettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Coupons</h1>
-        <p className="text-muted-foreground">Create and manage discount coupons for invoice engagement campaigns.</p>
+        <p className="text-muted-foreground">Create one-time or reusable coupon rules. Only one coupon is allowed per invoice.</p>
       </div>
       <CouponsForm initial={rows} />
     </div>

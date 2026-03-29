@@ -25,6 +25,7 @@ export function InvoiceEngagementCard({
   canCaptureProfile,
   missingDob,
   missingAnniversary,
+  profileRewardPoints,
 }: {
   token: string;
   customerName: string;
@@ -34,11 +35,12 @@ export function InvoiceEngagementCard({
   canCaptureProfile: boolean;
   missingDob: boolean;
   missingAnniversary: boolean;
+  profileRewardPoints: number;
 }) {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [anniversaryDate, setAnniversaryDate] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [generatedCoupon, setGeneratedCoupon] = useState<{ code: string; amount: number } | null>(null);
+  const [earnedPoints, setEarnedPoints] = useState<number | null>(null);
 
   const submit = async () => {
     if (!dateOfBirth && !anniversaryDate) {
@@ -57,9 +59,9 @@ export function InvoiceEngagementCard({
         toast.error(data?.error || "Failed to save details");
         return;
       }
-      if (data?.couponCode) {
-        setGeneratedCoupon({ code: data.couponCode, amount: Number(data.couponAmount || 0) });
-        toast.success(`Coupon generated: ${data.couponCode}`);
+      if (data?.awardedPoints != null) {
+        setEarnedPoints(Number(data.awardedPoints || 0));
+        toast.success(`Loyalty points added: ${Number(data.awardedPoints || 0).toFixed(2)}`);
       } else {
         toast.success("Details saved successfully");
       }
@@ -69,8 +71,8 @@ export function InvoiceEngagementCard({
   };
 
   return (
-    <div className="mx-10 mt-2 mb-4 rounded-md border bg-emerald-50/40 border-emerald-100 p-4 print:hidden">
-      <div className="text-sm font-semibold text-emerald-800">Customer Benefits</div>
+    <div className="mx-10 mt-2 mb-4 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 print:hidden">
+      <div className="text-base font-semibold text-emerald-900">Customer Benefits</div>
 
       {banners.length > 0 ? (
         <div className="mt-3 space-y-2">
@@ -91,18 +93,18 @@ export function InvoiceEngagementCard({
       ) : null}
 
       <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="rounded-md border bg-white p-3">
+        <div className="rounded-lg border border-emerald-200 bg-white p-3">
           <div className="text-xs text-gray-500">Loyalty Balance</div>
-          <div className="text-sm font-semibold">{formatInrNumber(loyalty.balancePoints, 2)} pts</div>
-          <div className="text-xs text-gray-600">{formatCurrency(loyalty.balanceValue)}</div>
+          <div className="text-sm font-semibold text-slate-900">{formatInrNumber(loyalty.balancePoints, 2)} pts</div>
+          <div className="text-xs text-slate-600">{formatCurrency(loyalty.balanceValue)}</div>
         </div>
-        <div className="rounded-md border bg-white p-3">
+        <div className="rounded-lg border border-emerald-200 bg-white p-3">
           <div className="text-xs text-gray-500">Earned on this Invoice</div>
-          <div className="text-sm font-semibold">{formatInrNumber(loyalty.earnedPointsThisInvoice, 2)} pts</div>
+          <div className="text-sm font-semibold text-slate-900">{formatInrNumber(loyalty.earnedPointsThisInvoice, 2)} pts</div>
         </div>
-        <div className="rounded-md border bg-white p-3">
+        <div className="rounded-lg border border-emerald-200 bg-white p-3">
           <div className="text-xs text-gray-500">Redeemed on this Invoice</div>
-          <div className="text-sm font-semibold">{formatCurrency(loyalty.redeemedValueThisInvoice)}</div>
+          <div className="text-sm font-semibold text-slate-900">{formatCurrency(loyalty.redeemedValueThisInvoice)}</div>
         </div>
       </div>
 
@@ -112,16 +114,18 @@ export function InvoiceEngagementCard({
         </div>
       ) : null}
 
-      {generatedCoupon ? (
-        <div className="mt-3 rounded-md border border-green-300 bg-green-50 p-3 text-sm">
-          Hi {customerName}, your reward coupon is <span className="font-semibold">{generatedCoupon.code}</span> for{" "}
-          <span className="font-semibold">{formatCurrency(generatedCoupon.amount)}</span> on next purchase.
+      {earnedPoints != null ? (
+        <div className="mt-3 rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-900">
+          Hi {customerName}, you earned <span className="font-semibold">{formatInrNumber(earnedPoints, 2)} loyalty points</span>.
+          You can redeem them on your next purchase from KhyatiGems.
         </div>
       ) : null}
 
       {canCaptureProfile && (missingDob || missingAnniversary) ? (
-        <div className="mt-3 rounded-md border bg-white p-3">
-          <div className="text-sm font-medium">Complete your profile and get reward coupon for next purchase</div>
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-white p-4">
+          <div className="text-sm font-semibold text-slate-900">
+            Complete your profile and get {formatInrNumber(profileRewardPoints, 2)} loyalty points and that can be redeemed in your next purchase from KhyatiGems
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
             {missingDob ? (
               <div>
@@ -137,7 +141,7 @@ export function InvoiceEngagementCard({
             ) : null}
             <div className="flex items-end">
               <Button onClick={submit} disabled={isSaving}>
-                Save & Get Coupon
+                Save & Get Loyalty Points
               </Button>
             </div>
           </div>
@@ -146,4 +150,3 @@ export function InvoiceEngagementCard({
     </div>
   );
 }
-

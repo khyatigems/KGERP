@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createCoupon, toggleCoupon, type CouponRow } from "./actions";
 
 export function CouponsForm({ initial }: { initial: CouponRow[] }) {
@@ -47,11 +49,20 @@ export function CouponsForm({ initial }: { initial: CouponRow[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border p-5 space-y-4">
-        <h3 className="text-base font-semibold">Create Coupon</h3>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Create Coupon</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <Input placeholder="Code" value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value.toUpperCase() }))} />
-          <Input placeholder="Type: PERCENT/FLAT" value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value === "FLAT" ? "FLAT" : "PERCENT" }))} />
+          <Select value={form.type} onValueChange={(v) => setForm((p) => ({ ...p, type: v === "FLAT" ? "FLAT" : "PERCENT" }))}>
+            <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="PERCENT">Percent %</SelectItem>
+              <SelectItem value="FLAT">Flat ₹</SelectItem>
+            </SelectContent>
+          </Select>
           <Input type="number" step="0.01" placeholder="Value" value={form.value} onChange={(e) => setForm((p) => ({ ...p, value: Number(e.target.value || 0) }))} />
           <Input type="number" step="0.01" placeholder="Max Discount" value={form.maxDiscount} onChange={(e) => setForm((p) => ({ ...p, maxDiscount: Number(e.target.value || 0) }))} />
           <Input type="number" step="0.01" placeholder="Min Invoice Amount" value={form.minInvoiceAmount} onChange={(e) => setForm((p) => ({ ...p, minInvoiceAmount: Number(e.target.value || 0) }))} />
@@ -59,13 +70,25 @@ export function CouponsForm({ initial }: { initial: CouponRow[] }) {
           <Input type="date" value={form.validTo} onChange={(e) => setForm((p) => ({ ...p, validTo: e.target.value }))} />
           <Input type="number" step="1" placeholder="Usage Limit Total" value={form.usageLimitTotal} onChange={(e) => setForm((p) => ({ ...p, usageLimitTotal: Number(e.target.value || 0) }))} />
           <Input type="number" step="1" placeholder="Usage Limit Per Customer" value={form.usageLimitPerCustomer} onChange={(e) => setForm((p) => ({ ...p, usageLimitPerCustomer: Number(e.target.value || 0) }))} />
-          <Input placeholder="Scope (all/category/tier)" value={form.applicableScope} onChange={(e) => setForm((p) => ({ ...p, applicableScope: e.target.value || "all" }))} />
+          <Select value={form.applicableScope} onValueChange={(v) => setForm((p) => ({ ...p, applicableScope: v }))}>
+            <SelectTrigger><SelectValue placeholder="Scope" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Customers</SelectItem>
+              <SelectItem value="tier:gold">Gold Tier</SelectItem>
+              <SelectItem value="tier:silver">Silver Tier</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        <div className="text-xs text-muted-foreground">Only one coupon can be applied per invoice.</div>
         <Button onClick={submit} disabled={isPending}>Create Coupon</Button>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-lg border p-5 space-y-3">
-        <h3 className="text-base font-semibold">Coupons</h3>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Coupons</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
         <div className="space-y-2">
           {rows.map((r) => (
             <div key={r.id} className="flex items-center justify-between rounded-md border p-3">
@@ -81,8 +104,8 @@ export function CouponsForm({ initial }: { initial: CouponRow[] }) {
             </div>
           ))}
         </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

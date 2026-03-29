@@ -20,7 +20,7 @@ export default async function InvoicePromotionsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Invoice Promotions</h1>
-        <p className="text-muted-foreground">Manage banners, review/referral CTA toggles, and DOB/anniversary reward amounts.</p>
+        <p className="text-muted-foreground">Manage public invoice banners and review/referral CTA visibility.</p>
       </div>
       <InvoicePromotionsForm initialSettings={data.settings} initialBanners={data.banners} />
     </div>

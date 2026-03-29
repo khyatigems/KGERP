@@ -665,6 +665,8 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
           "redeemRupeePerPoint" REAL NOT NULL DEFAULT 1,
           "minRedeemPoints" REAL NOT NULL DEFAULT 0,
           "maxRedeemPercent" REAL NOT NULL DEFAULT 30,
+          "dobProfilePoints" REAL NOT NULL DEFAULT 0,
+          "anniversaryProfilePoints" REAL NOT NULL DEFAULT 0,
           "expiryDays" INTEGER,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -675,6 +677,8 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
       await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "anniversaryDate" DATETIME;`).catch(() => {});
       await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "communicationOptIn" INTEGER NOT NULL DEFAULT 1;`).catch(() => {});
       await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "preferredLanguage" TEXT;`).catch(() => {});
+      await prisma.$executeRawUnsafe(`ALTER TABLE "LoyaltySettings" ADD COLUMN "dobProfilePoints" REAL NOT NULL DEFAULT 0;`).catch(() => {});
+      await prisma.$executeRawUnsafe(`ALTER TABLE "LoyaltySettings" ADD COLUMN "anniversaryProfilePoints" REAL NOT NULL DEFAULT 0;`).catch(() => {});
     } catch {
     } finally {
       checkedTables = null;

@@ -84,6 +84,8 @@ const formSchema = z.object({
   remarks: z.string().optional(),
   autoDelistListings: z.boolean().default(true),
   autoFillSplitFromSingle: z.boolean().default(true),
+  couponCode: z.string().optional(),
+  loyaltyRedeemAmount: z.coerce.number().min(0).default(0),
   initialPayments: z.array(z.object({
     amount: z.coerce.number().positive("Amount must be greater than zero"),
     method: z.string().min(1, "Method is required"),
@@ -191,6 +193,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
       remarks: "",
       autoDelistListings: true,
       autoFillSplitFromSingle: true,
+      couponCode: "",
+      loyaltyRedeemAmount: 0,
       initialPayments: [],
     },
   });
@@ -202,6 +206,16 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   const initialPaymentsValue = form.watch("initialPayments");
   const autoDelist = form.watch("autoDelistListings");
   const shippingAddressValue = form.watch("shippingAddress");
+  const customerIdValue = form.watch("customerId");
+  const loyaltyRedeemAmountValue = Number(form.watch("loyaltyRedeemAmount") || 0);
+
+  const [loyaltyContext, setLoyaltyContext] = useState<{
+    availablePoints: number;
+    redeemRupeePerPoint: number;
+    minRedeemPoints: number;
+    maxRedeemPercent: number;
+    maxRedeemAmount: number;
+  } | null>(null);
 
   const computedInvoiceTotal = (() => {
     const itemsTotal = (selectedItems || []).reduce((sum, item) => {
@@ -213,8 +227,9 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   })();
 
   const allocatedPaymentTotal = (initialPaymentsValue || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const effectiveInvoiceTotal = Math.max(0, computedInvoiceTotal - loyaltyRedeemAmountValue);
   const computedPaymentStatus = (() => {
-    if (allocatedPaymentTotal >= computedInvoiceTotal - 0.01 && computedInvoiceTotal > 0) return "PAID";
+    if (allocatedPaymentTotal >= effectiveInvoiceTotal - 0.01 && effectiveInvoiceTotal > 0) return "PAID";
     if (allocatedPaymentTotal > 0) return "PARTIAL";
     return "UNPAID";
   })();
@@ -224,6 +239,28 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
       form.setValue("billingAddress", shippingAddressValue || "");
     }
   }, [billingSameAsShipping, shippingAddressValue, form]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!customerIdValue) {
+        setLoyaltyContext(null);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/customers/${encodeURIComponent(customerIdValue)}/loyalty-context?invoiceTotal=${encodeURIComponent(String(computedInvoiceTotal))}`);
+        const data = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (res.ok && data) setLoyaltyContext(data);
+      } catch {
+        if (!cancelled) setLoyaltyContext(null);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [customerIdValue, computedInvoiceTotal]);
   
   const [activeListings, setActiveListings] = useState<
     { inventoryId: string; listings: { id: string; platform: string; listingUrl: string | null }[] }[]
@@ -276,6 +313,15 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   }, [autoFillSplitFromSingle, paymentFields.length, replacePayments]);
 
   async function onSubmit(data: FormValues) {
+    const redeem = Number(data.loyaltyRedeemAmount || 0);
+    if (redeem > 0 && !data.customerId) {
+      toast.error("Select an existing customer to redeem loyalty points");
+      return;
+    }
+    if (redeem > 0 && loyaltyContext && redeem > Number(loyaltyContext.maxRedeemAmount || 0) + 0.009) {
+      toast.error(`Loyalty redemption exceeds allowed amount (${Number(loyaltyContext.maxRedeemAmount || 0).toFixed(2)})`);
+      return;
+    }
     setIsPending(true);
     const formData = new FormData();
     formData.append("items", JSON.stringify(data.items));
@@ -304,6 +350,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     if (data.remarks) formData.append("remarks", data.remarks);
     formData.append("autoDelistListings", data.autoDelistListings ? "true" : "false");
     formData.append("autoFillSplitFromSingle", data.autoFillSplitFromSingle ? "true" : "false");
+    if (data.couponCode) formData.append("couponCode", data.couponCode);
+    formData.append("loyaltyRedeemAmount", String(data.loyaltyRedeemAmount || 0));
     formData.append("initialPayments", JSON.stringify(data.initialPayments || []));
     
     if (quoteId) {
@@ -646,11 +694,53 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
             )}
 
             <div className="rounded-md border p-3 space-y-3">
+              <div>
+                <p className="font-medium text-sm">Invoice Benefits</p>
+                <p className="text-xs text-muted-foreground">
+                  Apply only one coupon per invoice. Loyalty redemption can be used on the same invoice within configured limits.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="couponCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Discount Coupon Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. KPGEMS10" {...field} value={field.value || ""} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="loyaltyRedeemAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Loyalty Redeem Amount</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" min="0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
+                <div className="rounded border px-3 py-2">Invoice Total: {computedInvoiceTotal.toFixed(2)}</div>
+                <div className="rounded border px-3 py-2">Loyalty Max: {(loyaltyContext?.maxRedeemAmount || 0).toFixed(2)}</div>
+                <div className="rounded border px-3 py-2">Available Points: {(loyaltyContext?.availablePoints || 0).toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div className="rounded-md border p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">Initial Payments (Multi-payment)</p>
                   <p className="text-xs text-muted-foreground">
-                    Total: {computedInvoiceTotal.toFixed(2)} | Allocated: {allocatedPaymentTotal.toFixed(2)} | Pending: {Math.max(0, computedInvoiceTotal - allocatedPaymentTotal).toFixed(2)}
+                    Total: {effectiveInvoiceTotal.toFixed(2)} | Allocated: {allocatedPaymentTotal.toFixed(2)} | Pending: {Math.max(0, effectiveInvoiceTotal - allocatedPaymentTotal).toFixed(2)}
                   </p>
                 </div>
                 <Button

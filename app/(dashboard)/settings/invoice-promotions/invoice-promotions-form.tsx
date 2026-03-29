@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   createOfferBanner,
   saveInvoicePromotionSettings,
@@ -71,48 +73,72 @@ export function InvoicePromotionsForm({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border p-5 space-y-4">
-        <h3 className="text-base font-semibold">Invoice Promotion Rules</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Invoice Promotion Rules</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <div className="text-sm mb-1">DOB Reward Amount</div>
-            <Input type="number" value={settings.dobRewardAmount} onChange={(e) => setSettings((p) => ({ ...p, dobRewardAmount: Number(e.target.value || 0) }))} />
+            <div className="text-sm mb-1">Enable Review CTA</div>
+            <Select value={settings.enableReviewCta ? "1" : "0"} onValueChange={(v) => setSettings((p) => ({ ...p, enableReviewCta: v === "1" }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="1">Enabled</SelectItem><SelectItem value="0">Disabled</SelectItem></SelectContent>
+            </Select>
           </div>
           <div>
-            <div className="text-sm mb-1">Anniversary Reward Amount</div>
-            <Input type="number" value={settings.anniversaryRewardAmount} onChange={(e) => setSettings((p) => ({ ...p, anniversaryRewardAmount: Number(e.target.value || 0) }))} />
-          </div>
-          <div>
-            <div className="text-sm mb-1">Enable Review CTA (1/0)</div>
-            <Input value={settings.enableReviewCta ? "1" : "0"} onChange={(e) => setSettings((p) => ({ ...p, enableReviewCta: e.target.value === "1" }))} />
-          </div>
-          <div>
-            <div className="text-sm mb-1">Enable Referral CTA (1/0)</div>
-            <Input value={settings.enableReferralCta ? "1" : "0"} onChange={(e) => setSettings((p) => ({ ...p, enableReferralCta: e.target.value === "1" }))} />
+            <div className="text-sm mb-1">Enable Referral CTA</div>
+            <Select value={settings.enableReferralCta ? "1" : "0"} onValueChange={(v) => setSettings((p) => ({ ...p, enableReferralCta: v === "1" }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="1">Enabled</SelectItem><SelectItem value="0">Disabled</SelectItem></SelectContent>
+            </Select>
           </div>
         </div>
+        <div className="text-xs text-muted-foreground">DOB/Anniversary reward points are now controlled from Loyalty Settings.</div>
         <Button onClick={saveSettings} disabled={isPending}>Save Promotion Settings</Button>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-lg border p-5 space-y-4">
-        <h3 className="text-base font-semibold">Create Offer Banner</h3>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Create Offer Banner</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Input placeholder="Title" value={bannerForm.title} onChange={(e) => setBannerForm((p) => ({ ...p, title: e.target.value }))} />
           <Input placeholder="Subtitle" value={bannerForm.subtitle} onChange={(e) => setBannerForm((p) => ({ ...p, subtitle: e.target.value }))} />
           <Input placeholder="Image URL" value={bannerForm.imageUrl} onChange={(e) => setBannerForm((p) => ({ ...p, imageUrl: e.target.value }))} />
           <Input placeholder="CTA Text" value={bannerForm.ctaText} onChange={(e) => setBannerForm((p) => ({ ...p, ctaText: e.target.value }))} />
           <Input placeholder="CTA Link" value={bannerForm.ctaLink} onChange={(e) => setBannerForm((p) => ({ ...p, ctaLink: e.target.value }))} />
-          <Input placeholder="Display On" value={bannerForm.displayOn} onChange={(e) => setBannerForm((p) => ({ ...p, displayOn: e.target.value }))} />
-          <Input placeholder="Audience Filter" value={bannerForm.audienceFilter} onChange={(e) => setBannerForm((p) => ({ ...p, audienceFilter: e.target.value }))} />
+          <Select value={bannerForm.displayOn} onValueChange={(v) => setBannerForm((p) => ({ ...p, displayOn: v }))}>
+            <SelectTrigger><SelectValue placeholder="Display On" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="invoice">Invoice Page</SelectItem>
+              <SelectItem value="public">Public Pages</SelectItem>
+              <SelectItem value="customer">Customer Pages</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={bannerForm.audienceFilter} onValueChange={(v) => setBannerForm((p) => ({ ...p, audienceFilter: v }))}>
+            <SelectTrigger><SelectValue placeholder="Audience" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="tier:gold">Gold Tier</SelectItem>
+              <SelectItem value="tier:silver">Silver Tier</SelectItem>
+            </SelectContent>
+          </Select>
           <Input type="number" placeholder="Priority" value={bannerForm.priority} onChange={(e) => setBannerForm((p) => ({ ...p, priority: Number(e.target.value || 0) }))} />
           <Input type="date" value={bannerForm.startDate} onChange={(e) => setBannerForm((p) => ({ ...p, startDate: e.target.value }))} />
           <Input type="date" value={bannerForm.endDate} onChange={(e) => setBannerForm((p) => ({ ...p, endDate: e.target.value }))} />
         </div>
         <Button onClick={createBanner} disabled={isPending}>Create Banner</Button>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="rounded-lg border p-5 space-y-3">
-        <h3 className="text-base font-semibold">Offer Banners</h3>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Offer Banners</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
         {banners.map((b) => (
           <div key={b.id} className="flex items-center justify-between rounded-md border p-3">
             <div className="text-sm">
@@ -126,8 +152,8 @@ export function InvoicePromotionsForm({
             </Button>
           </div>
         ))}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

@@ -20,7 +20,7 @@ export default async function LoyaltySettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Loyalty Settings</h1>
-        <p className="text-muted-foreground">Configure earn/redeem and expiry rules for customer loyalty.</p>
+        <p className="text-muted-foreground">Configure earn/redeem rules and profile-completion reward points (DOB/Anniversary).</p>
       </div>
       <LoyaltySettingsForm initial={initial} />
     </div>
