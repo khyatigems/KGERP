@@ -175,7 +175,13 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const shippingCharge = showShippingCharge ? Number(displayOptions.shippingCharge || saleShippingCharge || 0) : 0;
   const additionalCharge = showAdditionalCharge ? Number(displayOptions.additionalCharge || saleAdditionalCharge || 0) : 0;
   const totalBeforeExtras = gstCalc.finalTotal;
-  const total = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
+  const couponDiscountRows = await prisma.$queryRawUnsafe<Array<{ amt: number }>>(
+    `SELECT COALESCE(SUM(discountAmount),0) as amt FROM "CouponRedemption" WHERE invoiceId = ?`,
+    invoice.id
+  ).catch(() => []);
+  const couponDiscountTotal = Number(couponDiscountRows?.[0]?.amt || 0);
+  const totalWithoutCoupon = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
+  const total = Math.max(0, totalWithoutCoupon - couponDiscountTotal);
   const discount = gstCalc.discountTotal;
   
   // Balance Due & Payment Status Calculation
@@ -449,7 +455,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     }),
     grossTotal: gstCalc.grossTotal,
     subtotal: subtotalBase, // Show Base Subtotal
-    discount,
+    discount: discount + couponDiscountTotal,
     tax: totalGst,
     shippingCharge: Number.isFinite(shippingCharge) ? shippingCharge : 0,
     additionalCharge: Number.isFinite(additionalCharge) ? additionalCharge : 0,
@@ -687,6 +693,12 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                             <span>Total GST</span>
                             <span>{formatCurrency(totalGst)}</span>
                         </div>
+                        {couponDiscountTotal > 0 ? (
+                          <div className="flex justify-between text-sm text-indigo-600">
+                            <span>Coupon Discount</span>
+                            <span>-{formatCurrency(couponDiscountTotal)}</span>
+                          </div>
+                        ) : null}
                         <div className="border-t border-gray-900 pt-3 flex justify-between items-end">
                             <span className="text-sm font-bold text-gray-900 uppercase">Total</span>
                             <span className="text-2xl font-bold text-gray-900">{formatCurrency(total)}</span>

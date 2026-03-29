@@ -252,7 +252,13 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const shippingCharge = showShippingCharge ? Number(displayOptions.shippingCharge || saleShippingCharge || 0) : 0;
   const additionalCharge = showAdditionalCharge ? Number(displayOptions.additionalCharge || saleAdditionalCharge || 0) : 0;
   const totalBeforeExtras = gstCalc.finalTotal;
-  const pdfTotal = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
+  const couponDiscountRows = await prisma.$queryRawUnsafe<Array<{ amt: number }>>(
+    `SELECT COALESCE(SUM(discountAmount),0) as amt FROM "CouponRedemption" WHERE invoiceId = ?`,
+    invoice.id
+  ).catch(() => []);
+  const couponDiscountTotal = Number(couponDiscountRows?.[0]?.amt || 0);
+  const pdfTotalWithoutCoupon = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
+  const pdfTotal = Math.max(0, pdfTotalWithoutCoupon - couponDiscountTotal);
   const discount = gstCalc.discountTotal;
   const healResult = await selfHealInvoicePaymentOnLoad({
     invoiceId: invoice.id,
@@ -399,7 +405,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     }),
     grossTotal: gstCalc.grossTotal,
     subtotal: subtotalBase,
-    discount,
+    discount: discount + couponDiscountTotal,
     tax: totalGst,
     shippingCharge: Number.isFinite(shippingCharge) ? shippingCharge : 0,
     additionalCharge: Number.isFinite(additionalCharge) ? additionalCharge : 0,
@@ -573,6 +579,12 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
                       <span className="text-muted-foreground">Total GST</span>
                       <span className="font-medium">{formatCurrency(totalGst)}</span>
                   </div>
+                  {couponDiscountTotal > 0 ? (
+                    <div className="flex justify-between text-indigo-600">
+                        <span>Coupon Discount</span>
+                        <span className="font-medium">-{formatCurrency(couponDiscountTotal)}</span>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between font-bold pt-2 border-t mt-2">
                       <span>Total Amount</span>
                       <span>{formatCurrency(pdfTotal)}</span>

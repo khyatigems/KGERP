@@ -1,5 +1,6 @@
 "use server";
 
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -191,6 +192,8 @@ interface PaymentDetails {
   date: string;
   reference?: string;
   notes?: string;
+  couponCode?: string;
+  useLoyaltyRedeem?: boolean;
 }
 
 export async function updateInvoicePaymentStatus(
@@ -213,21 +216,50 @@ export async function updateInvoicePaymentStatus(
     if (status === "UNPAID") {
       // Reset logic
       // CAUTION: This deletes payment history for this invoice.
-      await prisma.$transaction([
-        prisma.payment.deleteMany({ where: { invoiceId } }),
-        prisma.invoice.update({
+      await prisma.$transaction(async (tx) => {
+        const loyaltyRows = await tx.$queryRawUnsafe<Array<{ points: number; rupeeValue: number }>>(
+          `SELECT COALESCE(SUM(points),0) as points, COALESCE(SUM(rupeeValue),0) as rupeeValue
+           FROM "LoyaltyLedger" WHERE invoiceId = ? AND type = 'REDEEM'`,
+          invoiceId
+        );
+        const redeemedPoints = Math.abs(Number(loyaltyRows?.[0]?.points || 0));
+        const redeemedValue = Math.abs(Number(loyaltyRows?.[0]?.rupeeValue || 0));
+        const customerIdRows = await tx.$queryRawUnsafe<Array<{ customerId: string | null }>>(
+          `SELECT COALESCE(
+              (SELECT customerId FROM "Sale" WHERE invoiceId = ? LIMIT 1),
+              (SELECT customerId FROM "Quotation" q JOIN "Invoice" i ON q.id = i.quotationId WHERE i.id = ? LIMIT 1)
+            ) as customerId`,
+          invoiceId,
+          invoiceId
+        );
+        const customerId = customerIdRows?.[0]?.customerId || null;
+        if (customerId && redeemedValue > 0.009) {
+          await tx.$executeRawUnsafe(
+            `INSERT INTO "LoyaltyLedger" (id, customerId, invoiceId, type, points, rupeeValue, remarks, createdAt)
+             VALUES (?, ?, ?, 'ADJUST', ?, ?, ?, CURRENT_TIMESTAMP)`,
+            crypto.randomUUID(),
+            customerId,
+            invoiceId,
+            redeemedPoints,
+            redeemedValue,
+            `Loyalty restored on payment reset for invoice ${invoice.invoiceNumber}`
+          );
+        }
+        await tx.$executeRawUnsafe(`DELETE FROM "LoyaltyLedger" WHERE invoiceId = ? AND type = 'REDEEM'`, invoiceId);
+        await tx.payment.deleteMany({ where: { invoiceId } });
+        await tx.invoice.update({
           where: { id: invoiceId },
-          data: { 
+          data: {
             paymentStatus: "UNPAID",
             paidAmount: 0,
-            status: "ISSUED" // Revert to ISSUED
+            status: "ISSUED"
           }
-        }),
-        prisma.sale.updateMany({
+        });
+        await tx.sale.updateMany({
           where: { invoiceId },
           data: { paymentStatus: "UNPAID" }
-        })
-      ]);
+        });
+      });
 
       await logActivity({
         entityType: "Invoice",
@@ -265,6 +297,8 @@ export async function updateInvoicePaymentStatus(
       date: paymentDetails.date,
       reference: paymentDetails.reference,
       notes: paymentDetails.notes,
+      couponCode: paymentDetails.couponCode,
+      useLoyaltyRedeem: paymentDetails.useLoyaltyRedeem,
       actor: { userId: session.user.id, userName: session.user.name || session.user.email || "Unknown" }
     });
     if (!recordResult.success) return recordResult;

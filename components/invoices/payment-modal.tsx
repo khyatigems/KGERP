@@ -29,6 +29,8 @@ export interface PaymentDetails {
   date: string;
   reference?: string;
   notes?: string;
+  couponCode?: string;
+  useLoyaltyRedeem?: boolean;
 }
 
 export function PaymentModal({
@@ -47,6 +49,16 @@ export function PaymentModal({
   const [notes, setNotes] = useState("");
   const [openCreditNotes, setOpenCreditNotes] = useState<Array<{ id: string; creditNoteNumber: string; issueDate: string; balanceAmount: number }>>([]);
   const [isLoadingCreditNotes, setIsLoadingCreditNotes] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [hasAppliedCoupon, setHasAppliedCoupon] = useState(false);
+  const [couponAppliedInfo, setCouponAppliedInfo] = useState<{ code: string; discountAmount: number } | null>(null);
+  const [loyaltyInfo, setLoyaltyInfo] = useState<{
+    availablePoints: number;
+    redeemRupeePerPoint: number;
+    minRedeemPoints: number;
+    maxRedeemPercent: number;
+    loyaltyMaxRedeemAmount: number;
+  } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -61,10 +73,36 @@ export function PaymentModal({
         setReference("");
         setNotes("");
         setOpenCreditNotes([]);
+        setCouponCode("");
+        setHasAppliedCoupon(false);
+        setCouponAppliedInfo(null);
+        setLoyaltyInfo(null);
       }, 0);
       return () => clearTimeout(timer);
     }
   }, [isOpen, targetStatus, amountDue]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!isOpen || !invoiceId) return;
+      try {
+        const res = await fetch(`/api/invoices/${invoiceId}/payment-context`);
+        const data = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (res.ok && data) {
+          setCouponAppliedInfo(data.coupon || null);
+          setHasAppliedCoupon(Boolean(data.coupon));
+          setLoyaltyInfo(data.loyalty || null);
+          if (data.coupon?.code) setCouponCode(String(data.coupon.code));
+        }
+      } catch {}
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [invoiceId, isOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,13 +161,30 @@ export function PaymentModal({
       toast.error("Insufficient credit note balance for this payment amount");
       return;
     }
+    if (method === "LOYALTY_REDEEM" && loyaltyInfo) {
+      if (numAmount > loyaltyInfo.loyaltyMaxRedeemAmount + 0.009) {
+        toast.error(`Loyalty redeem max allowed is ${formatCurrency(loyaltyInfo.loyaltyMaxRedeemAmount)}`);
+        return;
+      }
+      const needPoints = numAmount / Math.max(0.0001, Number(loyaltyInfo.redeemRupeePerPoint || 1));
+      if (needPoints + 0.0001 < Number(loyaltyInfo.minRedeemPoints || 0)) {
+        toast.error(`Minimum redeem points is ${loyaltyInfo.minRedeemPoints}`);
+        return;
+      }
+      if (needPoints > Number(loyaltyInfo.availablePoints || 0) + 0.0001) {
+        toast.error("Insufficient loyalty points");
+        return;
+      }
+    }
 
     await onConfirm({
       amount: numAmount,
       method,
       date,
       reference,
-      notes
+      notes,
+      couponCode: !hasAppliedCoupon ? couponCode.trim().toUpperCase() : undefined,
+      useLoyaltyRedeem: method === "LOYALTY_REDEEM",
     });
   };
 
@@ -187,11 +242,36 @@ export function PaymentModal({
                 <SelectItem value="UPI">UPI</SelectItem>
                 <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
                 <SelectItem value="CHEQUE">Cheque</SelectItem>
+                <SelectItem value="LOYALTY_REDEEM">Loyalty Redeem</SelectItem>
                 <SelectItem value="CREDIT_NOTE">Credit-Note Adjustment</SelectItem>
                 <SelectItem value="OTHER">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="couponCode">Coupon Code (optional)</Label>
+            <Input
+              id="couponCode"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              placeholder={hasAppliedCoupon ? "Coupon already applied" : "Enter coupon code"}
+              disabled={hasAppliedCoupon}
+            />
+            {couponAppliedInfo ? (
+              <div className="text-xs text-muted-foreground">
+                Applied: {couponAppliedInfo.code} ({formatCurrency(Number(couponAppliedInfo.discountAmount || 0))})
+              </div>
+            ) : null}
+          </div>
+
+          {method === "LOYALTY_REDEEM" && loyaltyInfo ? (
+            <div className="rounded-md border p-3 text-xs space-y-1">
+              <div>Available Points: {loyaltyInfo.availablePoints.toFixed(2)}</div>
+              <div>Redeem Value/Point: {formatCurrency(Number(loyaltyInfo.redeemRupeePerPoint || 1))}</div>
+              <div>Max Redeem For This Invoice: {formatCurrency(Number(loyaltyInfo.loyaltyMaxRedeemAmount || 0))}</div>
+            </div>
+          ) : null}
 
           {method === "CREDIT_NOTE" && (
             <div className="space-y-2">

@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
+import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { ACCOUNTS, getOrCreateAccountByCode, postJournalEntry, PrismaTx } from "@/lib/accounting";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -10,22 +11,159 @@ export type InvoicePaymentInput = {
   date: string;
   reference?: string;
   notes?: string;
+  couponCode?: string;
+  useLoyaltyRedeem?: boolean;
   actor?: { userId?: string; userName?: string };
 };
 
 export async function recordInvoicePayment(input: InvoicePaymentInput) {
+  await ensureBillfreePhase1Schema();
   const invoice = await prisma.invoice.findUnique({ where: { id: input.invoiceId } });
   if (!invoice) return { success: false as const, message: "Invoice not found" };
 
-  const currentPaid = invoice.paidAmount || 0;
-  const total = invoice.totalAmount;
-  const remaining = total - currentPaid;
-  if (remaining <= 0.009) return { success: false as const, message: "Invoice is already fully paid" };
+  const invoiceCtx = await prisma.invoice.findUnique({
+    where: { id: input.invoiceId },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      paidAmount: true,
+      totalAmount: true,
+      paymentStatus: true,
+      sales: { take: 1, select: { customerId: true } },
+      legacySale: { select: { customerId: true } },
+      quotation: { select: { customerId: true } },
+    },
+  });
+  if (!invoiceCtx) return { success: false as const, message: "Invoice not found" };
 
-  const allowedMethods = new Set(["CASH", "UPI", "BANK_TRANSFER", "CHEQUE", "OTHER", "CREDIT_NOTE"]);
+  const customerId =
+    invoiceCtx.sales?.[0]?.customerId ||
+    invoiceCtx.legacySale?.customerId ||
+    invoiceCtx.quotation?.customerId ||
+    null;
+
+  const allowedMethods = new Set(["CASH", "UPI", "BANK_TRANSFER", "CHEQUE", "OTHER", "CREDIT_NOTE", "LOYALTY_REDEEM"]);
   if (!allowedMethods.has(input.method)) return { success: false as const, message: "Invalid payment method" };
   const paymentDate = new Date(input.date);
   if (Number.isNaN(paymentDate.getTime())) return { success: false as const, message: "Invalid payment date" };
+
+  let total = Number(invoiceCtx.totalAmount || 0);
+  let currentPaid = Number(invoiceCtx.paidAmount || 0);
+
+  if (input.couponCode && String(input.couponCode).trim()) {
+    const existing = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+      `SELECT id FROM "CouponRedemption" WHERE invoiceId = ? LIMIT 1`,
+      input.invoiceId
+    );
+    if (existing.length > 0) return { success: false as const, message: "Coupon already applied on this invoice" };
+
+    const code = String(input.couponCode).trim().toUpperCase();
+    const coupons = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      code: string;
+      type: string;
+      value: number;
+      maxDiscount: number | null;
+      minInvoiceAmount: number | null;
+      validFrom: string | null;
+      validTo: string | null;
+      usageLimitTotal: number | null;
+      usageLimitPerCustomer: number | null;
+      applicableScope: string;
+      isActive: number;
+    }>>(
+      `SELECT id, code, type, value, maxDiscount, minInvoiceAmount, validFrom, validTo,
+              usageLimitTotal, usageLimitPerCustomer, applicableScope, isActive
+       FROM "Coupon" WHERE code = ? LIMIT 1`,
+      code
+    );
+    const coupon = coupons?.[0];
+    if (!coupon || Number(coupon.isActive || 0) !== 1) return { success: false as const, message: "Invalid or inactive coupon" };
+
+    const now = Date.now();
+    if (coupon.validFrom && new Date(coupon.validFrom).getTime() > now) {
+      return { success: false as const, message: "Coupon is not active yet" };
+    }
+    if (coupon.validTo && new Date(coupon.validTo).getTime() < now) {
+      return { success: false as const, message: "Coupon expired" };
+    }
+    if (coupon.minInvoiceAmount != null && total + 0.009 < Number(coupon.minInvoiceAmount || 0)) {
+      return { success: false as const, message: "Invoice amount does not meet coupon minimum value" };
+    }
+    const scope = String(coupon.applicableScope || "all");
+    if (scope.startsWith("customer:")) {
+      const targetCustomerId = scope.split(":")[1] || "";
+      if (!customerId || targetCustomerId !== customerId) {
+        return { success: false as const, message: "Coupon is not assigned to this customer" };
+      }
+    }
+
+    const usageTotalRows = await prisma.$queryRawUnsafe<Array<{ cnt: number }>>(
+      `SELECT COUNT(1) as cnt FROM "CouponRedemption" WHERE couponId = ?`,
+      coupon.id
+    );
+    const usageTotal = Number(usageTotalRows?.[0]?.cnt || 0);
+    if (coupon.usageLimitTotal != null && usageTotal >= Number(coupon.usageLimitTotal || 0)) {
+      return { success: false as const, message: "Coupon usage limit reached" };
+    }
+
+    if (customerId) {
+      const usageCustomerRows = await prisma.$queryRawUnsafe<Array<{ cnt: number }>>(
+        `SELECT COUNT(1) as cnt FROM "CouponRedemption" WHERE couponId = ? AND customerId = ?`,
+        coupon.id,
+        customerId
+      );
+      const usageCustomer = Number(usageCustomerRows?.[0]?.cnt || 0);
+      if (coupon.usageLimitPerCustomer != null && usageCustomer >= Number(coupon.usageLimitPerCustomer || 0)) {
+        return { success: false as const, message: "Coupon per-customer limit reached" };
+      }
+    }
+
+    let couponDiscount = coupon.type === "PERCENT"
+      ? (total * Number(coupon.value || 0)) / 100
+      : Number(coupon.value || 0);
+    if (coupon.maxDiscount != null) couponDiscount = Math.min(couponDiscount, Number(coupon.maxDiscount || 0));
+    couponDiscount = Math.max(0, Math.min(couponDiscount, total));
+    if (couponDiscount <= 0.009) return { success: false as const, message: "Coupon discount is zero for this invoice" };
+
+    if (currentPaid > total - couponDiscount + 0.009) {
+      return { success: false as const, message: "Cannot apply coupon after this level of payment" };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "CouponRedemption" (id, couponId, invoiceId, customerId, discountAmount, redeemedAt)
+         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        crypto.randomUUID(),
+        coupon.id,
+        input.invoiceId,
+        customerId,
+        couponDiscount
+      );
+
+      const newTotal = Math.max(0, total - couponDiscount);
+      const nextPaymentStatus =
+        currentPaid >= newTotal - 0.01 ? "PAID" : currentPaid > 0 ? "PARTIAL" : "UNPAID";
+      await tx.invoice.update({
+        where: { id: input.invoiceId },
+        data: {
+          totalAmount: newTotal,
+          discountTotal: (invoice.discountTotal || 0) + couponDiscount,
+          paymentStatus: nextPaymentStatus,
+          status: nextPaymentStatus === "PAID" ? "PAID" : "ISSUED",
+        },
+      });
+      await tx.sale.updateMany({
+        where: { invoiceId: input.invoiceId },
+        data: { paymentStatus: nextPaymentStatus },
+      });
+    });
+
+    total = total - couponDiscount;
+  }
+
+  const remaining = total - currentPaid;
+  if (remaining <= 0.009) return { success: false as const, message: "Invoice is already fully paid" };
 
   let amountToRecord = input.amount;
   if (input.targetStatus === "PAID" && amountToRecord < remaining) {
@@ -44,6 +182,7 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
   }
 
   let createdPaymentId = "";
+  let loyaltyPointsDelta = 0;
   await prisma.$transaction(async (tx) => {
     let paymentNotes = input.notes;
     if (input.method === "CREDIT_NOTE") {
@@ -120,6 +259,54 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
       paymentNotes = paymentNotes ? `${paymentNotes} | CN ${summary}` : `CN ${summary}`;
     }
 
+    if (input.method === "LOYALTY_REDEEM") {
+      if (!customerId) throw new Error("Customer is required for loyalty redemption");
+      const lRows = await tx.$queryRawUnsafe<Array<{
+        redeemRupeePerPoint: number;
+        minRedeemPoints: number;
+        maxRedeemPercent: number;
+      }>>(
+        `SELECT redeemRupeePerPoint, minRedeemPoints, maxRedeemPercent FROM "LoyaltySettings" WHERE id = 'default' LIMIT 1`
+      );
+      const ls = lRows?.[0] || { redeemRupeePerPoint: 1, minRedeemPoints: 0, maxRedeemPercent: 30 };
+      const redeemRupeePerPoint = Math.max(0.0001, Number(ls.redeemRupeePerPoint || 1));
+      const minRedeemPoints = Math.max(0, Number(ls.minRedeemPoints || 0));
+      const maxRedeemPercent = Math.max(0, Math.min(100, Number(ls.maxRedeemPercent || 30)));
+
+      const maxAllowedByPercent = (total * maxRedeemPercent) / 100;
+      if (amountToRecord > maxAllowedByPercent + 0.009) {
+        throw new Error(`Loyalty redemption exceeds ${maxRedeemPercent}% cap`);
+      }
+
+      const balRows = await tx.$queryRawUnsafe<Array<{ points: number }>>(
+        `SELECT COALESCE(SUM(points),0) as points FROM "LoyaltyLedger" WHERE customerId = ?`,
+        customerId
+      );
+      const availablePoints = Number(balRows?.[0]?.points || 0);
+      const needPoints = amountToRecord / redeemRupeePerPoint;
+      if (needPoints + 0.0001 < minRedeemPoints) {
+        throw new Error(`Minimum redeem points is ${minRedeemPoints}`);
+      }
+      if (needPoints > availablePoints + 0.0001) {
+        throw new Error("Insufficient loyalty points");
+      }
+
+      loyaltyPointsDelta = -needPoints;
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "LoyaltyLedger" (id, customerId, invoiceId, type, points, rupeeValue, remarks, createdAt)
+         VALUES (?, ?, ?, 'REDEEM', ?, ?, ?, CURRENT_TIMESTAMP)`,
+        crypto.randomUUID(),
+        customerId,
+        input.invoiceId,
+        loyaltyPointsDelta,
+        -amountToRecord,
+        `Redeemed on invoice ${invoiceCtx.invoiceNumber}`
+      );
+      paymentNotes = paymentNotes
+        ? `${paymentNotes} | Loyalty points used: ${Math.abs(needPoints).toFixed(2)}`
+        : `Loyalty points used: ${Math.abs(needPoints).toFixed(2)}`;
+    }
+
     const payment = await tx.payment.create({
       data: {
         invoiceId: input.invoiceId,
@@ -152,13 +339,13 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
     await logActivity({
       entityType: "Invoice",
       entityId: input.invoiceId,
-      entityIdentifier: invoice.invoiceNumber,
+      entityIdentifier: invoiceCtx.invoiceNumber,
       actionType: "EDIT",
       source: "WEB",
       userId: input.actor.userId,
       userName: input.actor.userName,
       oldData: {
-        paymentStatus: invoice.paymentStatus,
+        paymentStatus: invoiceCtx.paymentStatus,
         paidAmount: currentPaid,
         balanceDue: Math.max(0, total - currentPaid)
       },
@@ -171,7 +358,9 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
           amount: amountToRecord,
           method: input.method,
           reference: input.reference || null,
-          date: paymentDate
+          date: paymentDate,
+          loyaltyPointsDelta: loyaltyPointsDelta || 0,
+          couponCode: input.couponCode || null,
         }
       },
       details: "Payment transaction recorded"
