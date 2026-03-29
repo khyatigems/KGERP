@@ -79,7 +79,7 @@ export default function CustomerEventsClientPage({
 
       <div className={`grid grid-cols-1 gap-3 transition-opacity duration-300 ${isPending ? "opacity-50" : "opacity-100"}`}>
         {initialEvents.map((e) => (
-          <Card key={`${e.customerId}-${e.eventType}-${e.eventDate.toISOString()}`}>
+          <Card key={`${e.customerId}-${e.eventType}-${new Date(e.eventDate).toISOString()}`}>
             <CardContent className="p-4 flex items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
