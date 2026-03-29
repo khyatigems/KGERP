@@ -97,6 +97,30 @@ export default async function SalesReturnsPage() {
     }
   }
 
+  const replacementSales = replacementReturnNumbers.length
+    ? await prisma.sale.findMany({
+        where: {
+          platform: "REPLACEMENT",
+          OR: replacementReturnNumbers.map((rn) => ({ notes: { contains: rn } })),
+        },
+        select: {
+          notes: true,
+          invoice: { select: { id: true, token: true, invoiceNumber: true } },
+          legacyInvoice: { select: { id: true, token: true, invoiceNumber: true } },
+        },
+        orderBy: { saleDate: "desc" },
+        take: 400,
+      }).catch(() => [])
+    : [];
+  const replacementInvoiceByReturnNumberFromSales = new Map<string, { id: string; token: string; invoiceNumber: string }>();
+  for (const rn of replacementReturnNumbers) {
+    const match = replacementSales.find((s) => String(s.notes || "").includes(rn));
+    const inv = (match?.invoice || match?.legacyInvoice) as { id: string; token: string; invoiceNumber: string } | null;
+    if (inv?.id && inv?.token) {
+      replacementInvoiceByReturnNumberFromSales.set(rn, { id: inv.id, token: inv.token, invoiceNumber: inv.invoiceNumber });
+    }
+  }
+
   if (replacementIds.length) {
     const updates: Array<{ salesReturnId: string; invoiceId: string }> = [];
     for (const r of rows.filter((x) => x.disposition === "REPLACEMENT")) {
@@ -104,7 +128,7 @@ export default async function SalesReturnsPage() {
       const hasToken = current ? !!invTokenById.get(current) : false;
       const viaSale = current ? saleInvoiceById.get(current) : null;
       if (hasToken || viaSale?.token) continue;
-      const legacy = legacyInvoiceByReturnNumber.get(r.returnNumber);
+      const legacy = legacyInvoiceByReturnNumber.get(r.returnNumber) || replacementInvoiceByReturnNumberFromSales.get(r.returnNumber);
       if (legacy?.id) {
         updates.push({ salesReturnId: r.id, invoiceId: legacy.id });
       }
@@ -183,7 +207,8 @@ export default async function SalesReturnsPage() {
                             const invoiceId = replBySrId.get(r.id) || "";
                             const directToken = invTokenById.get(invoiceId);
                             const viaSale = saleInvoiceById.get(invoiceId) || null;
-                            const legacy = legacyInvoiceByReturnNumber.get(r.returnNumber);
+                            const legacy =
+                              legacyInvoiceByReturnNumber.get(r.returnNumber) || replacementInvoiceByReturnNumberFromSales.get(r.returnNumber);
                             const resolvedToken = directToken || viaSale?.token || legacy?.token || "";
                             const resolvedInvoiceNo =
                               invNoById.get(invoiceId) || viaSale?.invoiceNumber || legacy?.invoiceNumber || "REPLACEMENT";
@@ -191,10 +216,7 @@ export default async function SalesReturnsPage() {
                               ? `/invoice/${encodeURIComponent(resolvedToken)}`
                               : `/invoices/${encodeURIComponent(invoiceId)}`;
                             return (
-                              <Link
-                                href={href}
-                                className="ml-2 text-xs text-muted-foreground underline"
-                              >
+                              <Link href={href} className="ml-2 text-xs text-muted-foreground underline">
                                 Dispatched ({resolvedInvoiceNo})
                               </Link>
                             );

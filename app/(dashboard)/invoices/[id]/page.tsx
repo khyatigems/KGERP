@@ -95,6 +95,28 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     const nextId = sale?.invoiceId || sale?.legacyInvoiceId;
     if (nextId) redirect(`/invoices/${nextId}`);
 
+    const salesReturn = await prisma.salesReturn.findUnique({
+      where: { id },
+      select: { id: true, invoiceId: true, disposition: true, returnNumber: true },
+    });
+    if (salesReturn?.invoiceId) {
+      if (salesReturn.disposition === "REPLACEMENT") {
+        const rep = await prisma
+          .$queryRawUnsafe<Array<{ invoiceId: string }>>(
+            `SELECT invoiceId FROM "SalesReturnReplacement" WHERE salesReturnId = ? LIMIT 1`,
+            salesReturn.id
+          )
+          .catch(() => []);
+        const repId = rep?.[0]?.invoiceId;
+        if (repId) {
+          const inv = await prisma.invoice.findUnique({ where: { id: repId }, select: { id: true, token: true } });
+          if (inv?.token) redirect(`/invoice/${inv.token}`);
+          if (inv?.id) redirect(`/invoices/${inv.id}`);
+        }
+      }
+      redirect(`/invoices/${salesReturn.invoiceId}`);
+    }
+
     const replacementLink = await prisma.$queryRawUnsafe<Array<{ invoiceId: string; salesReturnId: string }>>(
       `SELECT invoiceId, salesReturnId FROM "SalesReturnReplacement"
        WHERE invoiceId = ? OR memoId = ? OR salesReturnId = ?
