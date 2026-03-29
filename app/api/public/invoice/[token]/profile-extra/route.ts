@@ -99,7 +99,26 @@ export async function POST(
     "profile_reward_points",
     JSON.stringify({ awardedPoints, rupeeValue }),
     "LOYALTY_POINTS_AWARDED"
-  );
+   );
 
-  return NextResponse.json({ success: true, awardedPoints, rupeeValue });
+   await prisma.activityLog.create({
+     data: {
+       entityType: 'CUSTOMER',
+       actionType: 'LOYALTY_POINTS_CREDIT_DOB_ANNIVERSARY',
+       entityIdentifier: customerId,
+       userId: null,
+       userName: 'System',
+       details: JSON.stringify({
+         awardedPoints,
+         rupeeValue,
+         dobAdded: dobJustAdded,
+         anniversaryAdded: annJustAdded,
+         dateOfBirth: dobJustAdded ? dateOfBirth : undefined,
+         anniversaryDate: annJustAdded ? anniversaryDate : undefined,
+         remarks: "Profile completion reward points",
+       }),
+     },
+   }).catch(() => {});
+
+   return NextResponse.json({ success: true, awardedPoints, rupeeValue });
 }

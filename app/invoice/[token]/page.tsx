@@ -491,15 +491,6 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-white py-8 px-4 print:py-0 print:px-0 print:bg-white">
         <div className="max-w-5xl mx-auto bg-white shadow-2xl rounded-2xl border border-slate-200/70 overflow-hidden print:shadow-none print:rounded-none print:border-0 relative print:w-full">
             
-            {/* Watermark for Paid */}
-            {isPaid && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-10">
-                 <div className="border-10 border-green-600 text-green-600 text-[10rem] font-black -rotate-45 px-12 py-4 rounded-xl">
-                    PAID
-                 </div>
-              </div>
-            )}
-
             {/* Top Action Bar */}
             <div className="bg-slate-900 text-white px-8 py-4 flex justify-between items-center print:hidden relative z-10">
                 <div className="text-sm font-medium opacity-90 inline-flex items-center gap-2">

@@ -157,6 +157,13 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   
   const preSelectedInventoryId = searchParams.get("inventoryId");
   const quoteId = searchParams.get("quoteId");
+  const [couponValidation, setCouponValidation] = useState<{
+    valid: boolean;
+    discountAmount: number;
+    finalPayable: number;
+    message: string;
+  } | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
   const getItemPrice = (inventoryId: string) => {
     const item = inventoryItems.find(i => i.id === inventoryId);
@@ -227,7 +234,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   })();
 
   const allocatedPaymentTotal = (initialPaymentsValue || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-  const effectiveInvoiceTotal = Math.max(0, computedInvoiceTotal - loyaltyRedeemAmountValue);
+  const couponDiscountPreview = Math.max(0, Number(couponValidation?.valid ? couponValidation.discountAmount : 0));
+  const effectiveInvoiceTotal = Math.max(0, computedInvoiceTotal - couponDiscountPreview - loyaltyRedeemAmountValue);
   const computedPaymentStatus = (() => {
     if (allocatedPaymentTotal >= effectiveInvoiceTotal - 0.01 && effectiveInvoiceTotal > 0) return "PAID";
     if (allocatedPaymentTotal > 0) return "PARTIAL";
@@ -260,6 +268,10 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     return () => {
       cancelled = true;
     };
+  }, [customerIdValue, computedInvoiceTotal]);
+
+  useEffect(() => {
+    setCouponValidation(null);
   }, [customerIdValue, computedInvoiceTotal]);
   
   const [activeListings, setActiveListings] = useState<
@@ -312,7 +324,49 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     }
   }, [autoFillSplitFromSingle, paymentFields.length, replacePayments]);
 
+  const validateCoupon = async () => {
+    const code = String(form.getValues("couponCode") || "").trim().toUpperCase();
+    if (!code) {
+      setCouponValidation(null);
+      toast.error("Enter coupon code first");
+      return;
+    }
+    setIsValidatingCoupon(true);
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          customerId: form.getValues("customerId") || null,
+          invoiceTotal: computedInvoiceTotal,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        setCouponValidation(null);
+        toast.error(data?.error || "Unable to validate coupon");
+        return;
+      }
+      setCouponValidation({
+        valid: Boolean(data.valid),
+        discountAmount: Number(data.discountAmount || 0),
+        finalPayable: Number(data.finalPayable || computedInvoiceTotal),
+        message: String(data.message || ""),
+      });
+      if (!data.valid) toast.error(String(data.message || "Coupon is not valid"));
+      else toast.success(`Coupon validated: discount ₹${Number(data.discountAmount || 0).toFixed(2)}`);
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
   async function onSubmit(data: FormValues) {
+    const couponCode = String(data.couponCode || "").trim().toUpperCase();
+    if (couponCode && !couponValidation?.valid) {
+      toast.error("Validate coupon code before saving invoice");
+      return;
+    }
     const redeem = Number(data.loyaltyRedeemAmount || 0);
     if (redeem > 0 && !data.customerId) {
       toast.error("Select an existing customer to redeem loyalty points");
@@ -707,9 +761,27 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Discount Coupon Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. KPGEMS10" {...field} value={field.value || ""} onChange={(e) => field.onChange(e.target.value.toUpperCase())} />
-                      </FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input
+                            placeholder="e.g. KPGEMS10"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              field.onChange(e.target.value.toUpperCase());
+                              setCouponValidation(null);
+                            }}
+                          />
+                        </FormControl>
+                        <Button type="button" variant="outline" onClick={validateCoupon} disabled={isValidatingCoupon}>
+                          {isValidatingCoupon ? "Validating..." : "Apply"}
+                        </Button>
+                      </div>
+                      {couponValidation ? (
+                        <div className={`text-xs ${couponValidation.valid ? "text-green-600" : "text-red-600"}`}>
+                          {couponValidation.message} {couponValidation.valid ? `• Discount ₹${couponValidation.discountAmount.toFixed(2)}` : ""}
+                        </div>
+                      ) : null}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -730,8 +802,10 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
                 <div className="rounded border px-3 py-2">Invoice Total: {computedInvoiceTotal.toFixed(2)}</div>
+                <div className="rounded border px-3 py-2">Coupon Discount: {couponDiscountPreview.toFixed(2)}</div>
                 <div className="rounded border px-3 py-2">Loyalty Max: {(loyaltyContext?.maxRedeemAmount || 0).toFixed(2)}</div>
                 <div className="rounded border px-3 py-2">Available Points: {(loyaltyContext?.availablePoints || 0).toFixed(2)}</div>
+                <div className="rounded border px-3 py-2 md:col-span-2">Payable After Coupon + Loyalty: {effectiveInvoiceTotal.toFixed(2)}</div>
               </div>
             </div>
 

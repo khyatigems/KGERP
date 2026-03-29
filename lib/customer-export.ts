@@ -13,6 +13,7 @@ type CustomerLike = {
   pan?: string | null;
   gstin?: string | null;
   notes?: string | null;
+  loyaltyPoints?: number | null;
   createdAt: Date;
 };
 
@@ -30,10 +31,10 @@ export function buildCustomerExport(customers: CustomerLike[]) {
     PAN: c.pan || "",
     GSTIN: c.gstin || "",
     Notes: c.notes || "",
+    "Loyalty Points": Number(c.loyaltyPoints || 0).toFixed(2),
     "Created At": formatDate(c.createdAt),
   }));
 
   const columns = Object.keys(rows[0] || {}).map((k) => ({ header: k, key: k }));
   return { rows, columns };
 }
-

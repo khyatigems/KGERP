@@ -78,6 +78,22 @@ export async function GET(req: NextRequest) {
     JSON.stringify({ message: body, phone })
   ).catch(() => {});
 
+  await prisma.activityLog.create({
+    data: {
+      entityType: 'CUSTOMER',
+      actionType: 'WHATSAPP_SENT',
+      entityIdentifier: customer.id,
+      userId: session.user.id,
+      userName: session.user.name,
+      details: JSON.stringify({
+        eventType,
+        templateKey,
+        messageBody: body,
+        phone,
+      }),
+    },
+  }).catch(() => {});
+
   const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(body)}`;
   return NextResponse.redirect(waUrl);
 }

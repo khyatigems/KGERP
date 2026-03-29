@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import CustomerEventsClientPage from "./customer-events-client-page";
 import { CalendarDays, MessageCircle } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
@@ -127,71 +128,12 @@ export default async function CustomerEventsPage({
     .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Customer Events</h1>
-          <p className="text-sm text-muted-foreground">Birthdays and anniversaries with WhatsApp Web quick actions.</p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/customers">Back to Customers</Link>
-        </Button>
-      </div>
-
-      <div className="inline-flex rounded-md border bg-muted/20 p-1">
-        {[
-          { key: "today", label: "Today" },
-          { key: "7", label: "Upcoming 7" },
-          { key: "30", label: "Upcoming 30" },
-          { key: "missed", label: "Missed" },
-        ].map((t) => (
-          <Link
-            key={t.key}
-            href={`/customers/events?range=${t.key}`}
-            className={`px-3 py-1.5 text-sm rounded ${range === t.key ? "bg-background border shadow-sm" : "text-muted-foreground"}`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-3">
-        {filtered.map((e) => (
-          <Card key={`${e.customerId}-${e.eventType}-${e.eventDate.toISOString()}`}>
-            <CardContent className="p-4 flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="font-semibold">{e.customerName}</div>
-                  <Badge variant="outline">{e.eventType}</Badge>
-                </div>
-                <div className="text-sm text-muted-foreground flex items-center gap-3">
-                  <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{formatDate(e.eventDate)}</span>
-                  <span>Phone: {e.phone || "-"}</span>
-                  <span>Loyalty: {e.loyaltyPoints.toFixed(2)} pts</span>
-                  <span>Last Purchase: {e.lastPurchaseDate ? formatDate(e.lastPurchaseDate) : "-"}</span>
-                </div>
-              </div>
-              <Button asChild>
-                <a
-                  href={`/api/customers/events/whatsapp-launch?customerId=${encodeURIComponent(e.customerId)}&eventType=${encodeURIComponent(e.eventType)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <MessageCircle className="mr-2 h-4 w-4" />
-                  Send WhatsApp
-                </a>
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-        {filtered.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-sm text-muted-foreground text-center">
-              No events found for selected range.
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
-    </div>
+    <CustomerEventsClientPage
+      initialEvents={filtered.map((e) => ({
+        ...e,
+        eventDate: e.eventDate.toISOString(),
+      }))}
+      initialRange={range}
+    />
   );
 }

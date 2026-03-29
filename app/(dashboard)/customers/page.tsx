@@ -153,9 +153,23 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     }
   })();
 
+  const loyaltyRows = await prisma.$queryRawUnsafe<Array<{ customerId: string; points: number }>>(
+    `SELECT customerId, COALESCE(SUM(points),0) as points
+     FROM "LoyaltyLedger"
+     GROUP BY customerId`
+  ).catch(() => []);
+  const loyaltyMap = new Map<string, number>();
+  for (const r of loyaltyRows || []) {
+    loyaltyMap.set(r.customerId, Number(r.points || 0));
+  }
+
   const canExport = hasPermission(session.user.role, PERMISSIONS.CUSTOMER_EXPORT);
 
-  const { rows: exportData, columns: exportColumns } = buildCustomerExport(customers);
+  const exportCustomers = customers.map((c) => ({
+    ...c,
+    loyaltyPoints: Number(loyaltyMap.get(c.id) || 0),
+  }));
+  const { rows: exportData, columns: exportColumns } = buildCustomerExport(exportCustomers as any);
 
   return (
     <div className="space-y-6">
@@ -222,13 +236,14 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
               <TableHead>Type & Tier</TableHead>
               <TableHead>Purchases</TableHead>
               <TableHead>Last Order</TableHead>
+              <TableHead>Loyalty</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {customers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   No customers found.
                 </TableCell>
               </TableRow>
@@ -290,6 +305,11 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
                       <div className="flex flex-col gap-1">
                         <span className="text-sm">{stat.lastOrderDate ? formatDate(new Date(stat.lastOrderDate)) : "-"}</span>
                         <span className="text-xs text-muted-foreground">Since: {formatDate(c.createdAt)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">{Number(loyaltyMap.get(c.id) || 0).toFixed(2)} pts</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">

@@ -78,9 +78,18 @@ export function InvoiceEngagementCard({
         <div className="mt-3 space-y-2">
           {banners.slice(0, 2).map((b) => (
             <div key={b.id} className="rounded-md border bg-white p-3 flex items-start justify-between gap-3">
-              <div>
+              <div className="flex items-start gap-3">
+                {b.imageUrl ? (
+                  <img
+                    src={b.imageUrl}
+                    alt={b.title}
+                    className="h-12 w-16 rounded object-cover border"
+                  />
+                ) : null}
+                <div>
                 <div className="font-medium text-sm text-gray-900">{b.title}</div>
                 {b.subtitle ? <div className="text-xs text-gray-600 mt-1">{b.subtitle}</div> : null}
+                </div>
               </div>
               {b.ctaLink ? (
                 <a href={b.ctaLink} target="_blank" rel="noreferrer" className="text-xs underline text-primary">

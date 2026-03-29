@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import crypto from "crypto";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
@@ -122,6 +123,11 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
     include: { sales: { include: { inventory: { select: { itemName: true } } } } },
   });
 
+  const loyaltyRows = await prisma.$queryRaw<Array<{ points: number }>>(
+    Prisma.sql`SELECT COALESCE(SUM(points),0) as points FROM "LoyaltyLedger" WHERE customerId = ${id}`
+  ).catch(() => []);
+  const loyaltyPoints = Number(loyaltyRows?.[0]?.points || 0);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -180,6 +186,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
           aov,
           highestOrder: stat.highestOrder,
           tier,
+          loyaltyPoints,
         }}
         recentInvoices={recentInvoices}
       />

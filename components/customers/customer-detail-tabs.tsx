@@ -52,7 +52,7 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
 
       <TabsContent value="profile">
         {stats && (
-          <div className="grid gap-4 md:grid-cols-5 mb-4">
+          <div className="grid gap-4 md:grid-cols-6 mb-4">
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground font-medium">Customer Tier</p>
@@ -81,6 +81,12 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground font-medium">Highest Order</p>
                 <p className="text-lg font-bold">{formatCurrency(stats.highestOrder as number)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground font-medium">Loyalty Points</p>
+                <p className="text-lg font-bold">{Number(stats.loyaltyPoints as number || 0).toFixed(2)} pts</p>
               </CardContent>
             </Card>
           </div>
@@ -135,6 +141,7 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
               <div><span className="text-muted-foreground">Anniversary:</span> {customer.anniversaryDate ? formatDate(customer.anniversaryDate) : "-"}</div>
               <div><span className="text-muted-foreground">Opt-In:</span> {customer.communicationOptIn === false ? "No" : "Yes"}</div>
               <div><span className="text-muted-foreground">Language:</span> {customer.preferredLanguage || "-"}</div>
+              <div><span className="text-muted-foreground">Loyalty Points:</span> {Number((stats?.loyaltyPoints as number) || 0).toFixed(2)} pts</div>
             </CardContent>
           </Card>
         </div>

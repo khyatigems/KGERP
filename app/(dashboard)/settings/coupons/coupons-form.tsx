@@ -55,29 +55,16 @@ export function CouponsForm({ initial }: { initial: CouponRow[] }) {
         </CardHeader>
         <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <Input placeholder="Code" value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value.toUpperCase() }))} />
-          <Select value={form.type} onValueChange={(v) => setForm((p) => ({ ...p, type: v === "FLAT" ? "FLAT" : "PERCENT" }))}>
-            <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PERCENT">Percent %</SelectItem>
-              <SelectItem value="FLAT">Flat ₹</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input type="number" step="0.01" placeholder="Value" value={form.value} onChange={(e) => setForm((p) => ({ ...p, value: Number(e.target.value || 0) }))} />
-          <Input type="number" step="0.01" placeholder="Max Discount" value={form.maxDiscount} onChange={(e) => setForm((p) => ({ ...p, maxDiscount: Number(e.target.value || 0) }))} />
-          <Input type="number" step="0.01" placeholder="Min Invoice Amount" value={form.minInvoiceAmount} onChange={(e) => setForm((p) => ({ ...p, minInvoiceAmount: Number(e.target.value || 0) }))} />
-          <Input type="date" value={form.validFrom} onChange={(e) => setForm((p) => ({ ...p, validFrom: e.target.value }))} />
-          <Input type="date" value={form.validTo} onChange={(e) => setForm((p) => ({ ...p, validTo: e.target.value }))} />
-          <Input type="number" step="1" placeholder="Usage Limit Total" value={form.usageLimitTotal} onChange={(e) => setForm((p) => ({ ...p, usageLimitTotal: Number(e.target.value || 0) }))} />
-          <Input type="number" step="1" placeholder="Usage Limit Per Customer" value={form.usageLimitPerCustomer} onChange={(e) => setForm((p) => ({ ...p, usageLimitPerCustomer: Number(e.target.value || 0) }))} />
-          <Select value={form.applicableScope} onValueChange={(v) => setForm((p) => ({ ...p, applicableScope: v }))}>
-            <SelectTrigger><SelectValue placeholder="Scope" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Customers</SelectItem>
-              <SelectItem value="tier:gold">Gold Tier</SelectItem>
-              <SelectItem value="tier:silver">Silver Tier</SelectItem>
-            </SelectContent>
-          </Select>
+          <div><div className="text-sm mb-1">Coupon Code</div><Input placeholder="e.g. KPGEMS10" value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value.toUpperCase() }))} /></div>
+          <div><div className="text-sm mb-1">Discount Type</div><Select value={form.type} onValueChange={(v) => setForm((p) => ({ ...p, type: v === "FLAT" ? "FLAT" : "PERCENT" }))}><SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger><SelectContent><SelectItem value="PERCENT">Percent %</SelectItem><SelectItem value="FLAT">Flat ₹</SelectItem></SelectContent></Select></div>
+          <div><div className="text-sm mb-1">Discount Value</div><Input type="number" step="0.01" value={form.value} onChange={(e) => setForm((p) => ({ ...p, value: Number(e.target.value || 0) }))} /></div>
+          <div><div className="text-sm mb-1">Max Discount Amount</div><Input type="number" step="0.01" value={form.maxDiscount} onChange={(e) => setForm((p) => ({ ...p, maxDiscount: Number(e.target.value || 0) }))} /></div>
+          <div><div className="text-sm mb-1">Minimum Invoice Amount</div><Input type="number" step="0.01" value={form.minInvoiceAmount} onChange={(e) => setForm((p) => ({ ...p, minInvoiceAmount: Number(e.target.value || 0) }))} /></div>
+          <div><div className="text-sm mb-1">Valid From</div><Input type="date" value={form.validFrom} onChange={(e) => setForm((p) => ({ ...p, validFrom: e.target.value }))} /></div>
+          <div><div className="text-sm mb-1">Valid To</div><Input type="date" value={form.validTo} onChange={(e) => setForm((p) => ({ ...p, validTo: e.target.value }))} /></div>
+          <div><div className="text-sm mb-1">Total Usage Limit</div><Input type="number" step="1" value={form.usageLimitTotal} onChange={(e) => setForm((p) => ({ ...p, usageLimitTotal: Number(e.target.value || 0) }))} /></div>
+          <div><div className="text-sm mb-1">Per Customer Usage Limit</div><Input type="number" step="1" value={form.usageLimitPerCustomer} onChange={(e) => setForm((p) => ({ ...p, usageLimitPerCustomer: Number(e.target.value || 0) }))} /></div>
+          <div><div className="text-sm mb-1">Applicable Scope</div><Select value={form.applicableScope} onValueChange={(v) => setForm((p) => ({ ...p, applicableScope: v }))}><SelectTrigger><SelectValue placeholder="Scope" /></SelectTrigger><SelectContent><SelectItem value="all">All Customers</SelectItem><SelectItem value="tier:gold">Gold Tier</SelectItem><SelectItem value="tier:silver">Silver Tier</SelectItem></SelectContent></Select></div>
         </div>
         <div className="text-xs text-muted-foreground">Only one coupon can be applied per invoice.</div>
         <Button onClick={submit} disabled={isPending}>Create Coupon</Button>
