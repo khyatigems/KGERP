@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { formatInrCurrency } from "@/lib/number-formatting";
 
 export interface InvoiceLabelData {
     invoiceNumber: string;
@@ -80,7 +81,7 @@ export async function generateInvoiceLabelPDF(data: InvoiceLabelData) {
     // 6. Total Amount
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    const amountStr = formatCurrency(data.totalAmount);
+    const amountStr = formatInrCurrency(data.totalAmount);
     doc.text(amountStr, margin, currentY);
 
     return doc.output("bloburl");

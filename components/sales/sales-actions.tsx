@@ -29,9 +29,10 @@ interface SalesActionsProps {
   saleId: string;
   invoiceToken?: string | null;
   canDelete: boolean;
+  allowConfigureInvoice?: boolean;
 }
 
-export function SalesActions({ saleId, invoiceToken, canDelete }: SalesActionsProps) {
+export function SalesActions({ saleId, invoiceToken, canDelete, allowConfigureInvoice = true }: SalesActionsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -74,15 +75,17 @@ export function SalesActions({ saleId, invoiceToken, canDelete }: SalesActionsPr
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
+          {allowConfigureInvoice ? (
+            <DropdownMenuItem asChild>
               <Link href={`/sales/${saleId}/create-invoice`}>
-                  <FileText className="mr-2 h-4 w-4" /> {invoiceToken ? "Configure Invoice" : "Create Invoice"}
+                <FileText className="mr-2 h-4 w-4" /> {invoiceToken ? "Configure Invoice" : "Create Invoice"}
               </Link>
-          </DropdownMenuItem>
+            </DropdownMenuItem>
+          ) : null}
           {invoiceToken && (
               <>
                   <DropdownMenuItem asChild>
-                      <Link href={`/invoice/${invoiceToken}`} target="_blank">
+                      <Link href={`/invoices/public/${invoiceToken}`} target="_blank">
                           <ExternalLink className="mr-2 h-4 w-4" /> View Invoice
                       </Link>
                   </DropdownMenuItem>

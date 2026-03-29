@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatInrCurrency } from "@/lib/number-formatting";
 
 export async function generateCustomerStatementPDF(input: {
   company: { name: string; address?: string; gstin?: string };
@@ -67,5 +68,5 @@ function formatDateStr(d: Date | string) {
 }
 
 function inr(n: number) {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
+  return formatInrCurrency(n);
 }

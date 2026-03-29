@@ -53,6 +53,27 @@ export async function createOrUpdateInvoiceFromSale(
       const userName = session.user.name || session.user.email || "Unknown";
       const ensuredInvoiceDate = existingInvoice.invoiceDate || normalizeDateToUtcNoon(sale.saleDate);
 
+      const isReplacement =
+        sale.platform === "REPLACEMENT" ||
+        existingInvoice.paymentStatus === "REPLACEMENT" ||
+        existingInvoice.status === "REPLACEMENT";
+
+      if (isReplacement) {
+        await prisma.invoice.update({
+          where: { id: existingInvoice.id },
+          data: { invoiceDate: ensuredInvoiceDate, displayOptions: displayOptionsStr }
+        });
+        return {
+          success: true,
+          message: `Replacement invoice already created: ${existingInvoice.invoiceNumber}`,
+          invoiceId: existingInvoice.id,
+          token: existingInvoice.token,
+          paymentStatus: existingInvoice.paymentStatus || "REPLACEMENT",
+          outstandingDelta: 0,
+          balanceDue: 0,
+        };
+      }
+
       await prisma.invoice.update({
         where: { id: existingInvoice.id },
         data: { invoiceDate: ensuredInvoiceDate }
@@ -78,6 +99,10 @@ export async function createOrUpdateInvoiceFromSale(
       };
     } else {
       // Create new invoice
+      if (sale.platform === "REPLACEMENT") {
+        return { success: false, message: "Cannot create a normal invoice for a replacement dispatch. Use the replacement flow." };
+      }
+
       const invoiceId = await prisma.$transaction(async (tx) => {
         const year = new Date().getFullYear();
         

@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { formatCurrency } from "@/lib/utils";
+import { formatInrCurrency } from "@/lib/number-formatting";
 import { format } from "date-fns";
 
 export interface RegisterEntry {
@@ -56,7 +56,7 @@ export async function generateMonthlyRegisterPDF(data: VoucherRegisterData) {
       e.category,
       e.vendor,
       e.narration,
-      formatCurrency(e.amount)
+      formatInrCurrency(e.amount)
     ]),
     headStyles: {
         fillColor: [40, 40, 40],
@@ -85,7 +85,7 @@ export async function generateMonthlyRegisterPDF(data: VoucherRegisterData) {
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text(`Total Vouchers: ${data.totalCount}`, margin, y);
-  doc.text(`Total Amount: ${formatCurrency(data.totalAmount)}`, margin + 60, y);
+  doc.text(`Total Amount: ${formatInrCurrency(data.totalAmount)}`, margin + 60, y);
 
   // System Footer
   const footerY = doc.internal.pageSize.height - 10;

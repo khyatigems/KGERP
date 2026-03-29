@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { formatInrCurrency, formatInrNumber } from "@/lib/number-formatting";
 
 const FONTS = {
   notosansdisplay: {
@@ -49,6 +50,43 @@ async function loadFont(doc: jsPDF, family: "notosansdisplay") {
     doc.addFileToVFS(`${family}-Bold.ttf`, cached.bold);
     doc.addFont(`${family}-Bold.ttf`, family, "bold");
   }
+}
+
+function normalizePdfText(input: string) {
+  return input
+    .replace(/\u00A0/g, " ")
+    .replace(/₹\s+(?=[\d.])/g, "₹")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isMoneyField(header: string, key: string) {
+  const s = `${header} ${key}`.toLowerCase();
+  return /(amount|total|paid|balance|gst|tax|price|rate|value|net|gross|due)/.test(s);
+}
+
+function formatPdfCell(value: unknown, header: string, key: string) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number") {
+    if (isMoneyField(header, key)) return formatInrCurrency(value);
+    const isInt = Number.isInteger(value);
+    return formatInrNumber(value, isInt ? 0 : 2);
+  }
+  if (typeof value === "string") {
+    const s = value.trim();
+    if (!s) return "";
+    const numeric = s.replace(/[,\s\u00A0]/g, "");
+    if (/^-?\d+(\.\d+)?$/.test(numeric)) {
+      const n = Number(numeric);
+      if (!Number.isNaN(n)) {
+        if (isMoneyField(header, key) || s.includes("₹")) return formatInrCurrency(n);
+        const isInt = Number.isInteger(n);
+        return formatInrNumber(n, isInt ? 0 : 2);
+      }
+    }
+    return normalizePdfText(s);
+  }
+  return normalizePdfText(String(value));
 }
 
 export const exportToExcel = (
@@ -143,7 +181,7 @@ export const exportToPDF = async (
       currentY += 10;
       
       const headers = t.columns.map((c) => c.header);
-      const rows = t.rows.map((r) => t.columns.map((c) => r[c.key]));
+      const rows = t.rows.map((r) => t.columns.map((c) => formatPdfCell(r[c.key], c.header, c.key)));
 
       autoTable(doc, {
         head: [headers],
@@ -168,7 +206,7 @@ export const exportToPDF = async (
     }
   } else {
     const headers = columns.map((c) => c.header);
-    const rows = data.map((r) => columns.map((c) => r[c.key]));
+    const rows = data.map((r) => columns.map((c) => formatPdfCell(r[c.key], c.header, c.key)));
 
     autoTable(doc, {
       head: [headers],

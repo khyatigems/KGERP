@@ -298,24 +298,14 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                       <TableCell>{sale.platform}</TableCell>
                       <TableCell>{formatCurrency(sale.netAmount)}</TableCell>
                       <TableCell>
-                        {sale.invoice?.id ? (
-                          <PaymentStatusSelect 
-                            invoiceId={sale.invoice.id} 
-                            currentStatus={sale.paymentStatus || "REPLACEMENT"} 
-                            totalAmount={sale.invoice.totalAmount}
-                            amountDue={Math.max(0, sale.invoice.totalAmount - (sale.invoice.paidAmount || 0))}
-                          />
-                        ) : (
-                          <Badge variant="outline">
-                            {sale.paymentStatus || "REPLACEMENT"}
-                          </Badge>
-                        )}
+                        <Badge variant="outline">REPLACEMENT</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <SalesActions 
                             saleId={sale.id} 
                             invoiceToken={sale.invoice?.token} 
                             canDelete={canDelete} 
+                            allowConfigureInvoice={false}
                         />
                       </TableCell>
                     </TableRow>
