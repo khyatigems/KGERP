@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
@@ -16,6 +16,7 @@ import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-b
 import { computeInvoiceGst } from "@/lib/invoice-gst";
 import type { Metadata } from "next";
 import { trackPublicView } from "@/lib/analytics";
+import { InvoiceEngagementCard } from "@/components/invoice/invoice-engagement-card";
 
 type PrismaRecord = Record<string, unknown>;
 type PackagingSettingsRow = { categoryHsnJson?: string | null };
@@ -59,6 +60,7 @@ export const metadata: Metadata = {
 export default async function PublicInvoicePage({ params, searchParams }: { params: Promise<{ token: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const { token } = await params;
   await ensureReturnsSchema();
+  await ensureBillfreePhase1Schema();
   const sp = await searchParams;
 
   const invoice = await prisma.invoice.findUnique({
@@ -298,6 +300,66 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     }
   })();
 
+  const nowIso = new Date().toISOString();
+  const activeBanners = await prisma.$queryRawUnsafe<
+    Array<{ id: string; title: string; subtitle: string | null; imageUrl: string | null; ctaText: string | null; ctaLink: string | null }>
+  >(
+    `SELECT id, title, subtitle, imageUrl, ctaText, ctaLink
+     FROM "OfferBanner"
+     WHERE isActive = 1
+       AND displayOn IN ('invoice', 'public')
+       AND (startDate IS NULL OR startDate <= ?)
+       AND (endDate IS NULL OR endDate >= ?)
+     ORDER BY priority DESC, createdAt DESC
+     LIMIT 5`,
+    nowIso,
+    nowIso
+  ).catch(() => []);
+
+  const profileExtra = customerId
+    ? await prisma.$queryRawUnsafe<Array<{ dateOfBirth: string | null; anniversaryDate: string | null }>>(
+        `SELECT dateOfBirth, anniversaryDate FROM "CustomerProfileExtra" WHERE customerId = ? LIMIT 1`,
+        customerId
+      ).catch(() => [])
+    : [];
+  const extra = profileExtra?.[0];
+  const missingDob = customerId ? !extra?.dateOfBirth : false;
+  const missingAnniversary = customerId ? !extra?.anniversaryDate : false;
+
+  const loyaltySnapshot = customerId
+    ? await prisma.$queryRawUnsafe<Array<{ points: number; rupeeValue: number }>>(
+        `SELECT COALESCE(SUM(points),0) as points, COALESCE(SUM(rupeeValue),0) as rupeeValue
+         FROM "LoyaltyLedger" WHERE customerId = ?`,
+        customerId
+      ).catch(() => [])
+    : [];
+  const loyaltyThisInvoice = await prisma.$queryRawUnsafe<Array<{ earnedPoints: number; redeemedValue: number }>>(
+    `SELECT
+      COALESCE(SUM(CASE WHEN type='EARN' THEN points ELSE 0 END),0) as earnedPoints,
+      COALESCE(SUM(CASE WHEN type='REDEEM' THEN rupeeValue ELSE 0 END),0) as redeemedValue
+     FROM "LoyaltyLedger" WHERE invoiceId = ?`,
+    invoice.id
+  ).catch(() => []);
+  const loyalty = {
+    balancePoints: Number(loyaltySnapshot?.[0]?.points || 0),
+    balanceValue: Number(loyaltySnapshot?.[0]?.rupeeValue || 0),
+    earnedPointsThisInvoice: Number(loyaltyThisInvoice?.[0]?.earnedPoints || 0),
+    redeemedValueThisInvoice: Number(loyaltyThisInvoice?.[0]?.redeemedValue || 0),
+  };
+
+  const couponApplied = await prisma.$queryRawUnsafe<Array<{ code: string; discountAmount: number }>>(
+    `SELECT c.code as code, COALESCE(r.discountAmount,0) as discountAmount
+     FROM "CouponRedemption" r
+     JOIN "Coupon" c ON c.id = r.couponId
+     WHERE r.invoiceId = ?
+     ORDER BY r.redeemedAt DESC
+     LIMIT 1`,
+    invoice.id
+  ).catch(() => []);
+  const appliedCoupon = couponApplied?.[0]
+    ? { code: String(couponApplied[0].code), discountAmount: Number(couponApplied[0].discountAmount || 0) }
+    : null;
+
   // Construct InvoiceData for PDF
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
@@ -444,6 +506,17 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                     <PrintButton />
                 </div>
             </div>
+
+            <InvoiceEngagementCard
+              token={token}
+              customerName={customerName}
+              banners={activeBanners || []}
+              loyalty={loyalty}
+              coupon={appliedCoupon}
+              canCaptureProfile={Boolean(customerId)}
+              missingDob={missingDob}
+              missingAnniversary={missingAnniversary}
+            />
 
             {/* Header */}
             <div className="p-10 pb-8 flex justify-between items-start relative z-10">
