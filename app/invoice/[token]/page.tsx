@@ -481,8 +481,8 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4 print:py-0 print:px-0 print:bg-white">
-        <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg overflow-hidden print:shadow-none print:rounded-none relative print:w-full">
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-white py-8 px-4 print:py-0 print:px-0 print:bg-white">
+        <div className="max-w-5xl mx-auto bg-white shadow-2xl rounded-2xl border border-slate-200/70 overflow-hidden print:shadow-none print:rounded-none print:border-0 relative print:w-full">
             
             {/* Watermark for Paid */}
             {isPaid && (
@@ -494,9 +494,10 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
             )}
 
             {/* Top Action Bar */}
-            <div className="bg-gray-800 text-white px-8 py-4 flex justify-between items-center print:hidden relative z-10">
-                <div className="text-sm font-medium opacity-90">
-                    Status: <span className={isPaid ? "text-green-400 font-bold" : "text-amber-400 font-bold"}>{displayPaymentStatus}</span>
+            <div className="bg-slate-900 text-white px-8 py-4 flex justify-between items-center print:hidden relative z-10">
+                <div className="text-sm font-medium opacity-90 inline-flex items-center gap-2">
+                    <span className="text-slate-300">Status</span>
+                    <span className={isPaid ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>{displayPaymentStatus}</span>
                 </div>
                 <div className="flex gap-3">
                     <a 
@@ -525,7 +526,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
             />
 
             {/* Header */}
-            <div className="p-10 pb-8 flex justify-between items-start relative z-10">
+            <div className="p-10 pb-8 flex justify-between items-start relative z-10 border-b border-slate-100">
                 <div className="space-y-2">
                     {displayLogo && (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -535,20 +536,20 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                             className="h-16 w-auto object-contain mb-4"
                         />
                     )}
-                    <h2 className="font-bold text-2xl text-gray-900 leading-none">{companySettings?.companyName}</h2>
+                    <h2 className="font-bold text-2xl text-slate-900 leading-none">{companySettings?.companyName}</h2>
                     <div className="text-sm text-gray-600 space-y-1">
                         <p>{companySettings?.address}</p>
                         <p>{companySettings?.email} • {companySettings?.phone}</p>
                         {companySettings?.gstin && <p className="font-medium text-gray-800">GSTIN: {companySettings.gstin}</p>}
                     </div>
                 </div>
-                <div className="text-right">
-                    <h1 className="text-4xl font-light text-gray-300 tracking-tight">INVOICE</h1>
-                    <div className="mt-4 space-y-1">
-                        <p className="text-lg font-bold text-gray-900">#{invoice.invoiceNumber}</p>
-                        <p className="text-sm text-gray-500">{formatDate(getInvoiceDisplayDate(invoice))}</p>
+                <div className="text-right rounded-xl border border-slate-200 bg-slate-50 px-6 py-4 min-w-[220px]">
+                    <h1 className="text-3xl font-light text-slate-300 tracking-tight">INVOICE</h1>
+                    <div className="mt-3 space-y-1">
+                        <p className="text-lg font-bold text-slate-900">#{invoice.invoiceNumber}</p>
+                        <p className="text-sm text-slate-500">{formatDate(getInvoiceDisplayDate(invoice))}</p>
                         <div className="pt-2">
-                             <span className="px-2 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-wider rounded border border-gray-200">
+                             <span className="px-2 py-1 bg-white text-slate-700 text-[10px] font-bold uppercase tracking-wider rounded border border-slate-200">
                                 {statusLabel}
                             </span>
                         </div>
@@ -557,8 +558,8 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
             </div>
 
             {/* Bill To */}
-            <div className="px-10 py-6 bg-gray-50 border-y border-gray-100 flex justify-between relative z-10">
-                <div>
+            <div className="px-10 py-6 bg-slate-50/70 border-y border-slate-100 grid md:grid-cols-2 gap-6 relative z-10">
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Bill To</h3>
                     <div className="text-gray-900 font-medium text-lg">{customerName}</div>
                     <div className="text-sm text-gray-600 mt-1 space-y-0.5">
@@ -567,7 +568,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                         {customerEmail && <p>{customerEmail}</p>}
                     </div>
                 </div>
-                <div className="text-right">
+                <div className="rounded-lg border border-slate-200 bg-white p-4 text-right">
                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Reference</h3>
                      <p className="text-sm font-mono text-gray-600">{primarySale.id.substring(0, 8).toUpperCase()}</p>
                 </div>
@@ -575,19 +576,19 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
 
             {/* Items */}
             <div className="p-10 relative z-10">
-                <table className="w-full text-left">
+                <table className="w-full text-left rounded-xl overflow-hidden">
                     <thead>
-                        <tr className="border-b-2 border-gray-900">
-                            <th className="py-3 text-xs font-bold text-gray-900 uppercase tracking-widest w-1/2">Item</th>
-                            <th className="py-3 text-xs font-bold text-gray-900 uppercase tracking-widest text-right">Base Price</th>
-                            <th className="py-3 text-xs font-bold text-gray-900 uppercase tracking-widest text-right">GST</th>
-                            <th className="py-3 text-xs font-bold text-gray-900 uppercase tracking-widest text-right">Total</th>
+                        <tr className="border-b border-slate-200 bg-slate-50">
+                            <th className="py-3 px-3 text-xs font-bold text-slate-900 uppercase tracking-widest w-1/2">Item</th>
+                            <th className="py-3 px-3 text-xs font-bold text-slate-900 uppercase tracking-widest text-right">Base Price</th>
+                            <th className="py-3 px-3 text-xs font-bold text-slate-900 uppercase tracking-widest text-right">GST</th>
+                            <th className="py-3 px-3 text-xs font-bold text-slate-900 uppercase tracking-widest text-right">Total</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-slate-100">
                         {processedItems.map((item) => (
                           <tr key={item.id}>
-                            <td className="py-4">
+                            <td className="py-4 px-3">
                                 <p className="font-bold text-gray-900">{item.inventory.itemName}</p>
                                 <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-1">
                                     {displayOptions.showSku && (
@@ -653,16 +654,16 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                 </div>
                                 )}
                             </td>
-                            <td className="py-4 text-right text-gray-600 align-top">
+                            <td className="py-4 px-3 text-right text-gray-600 align-top">
                                 {formatCurrency(item.basePrice)}
                             </td>
-                            <td className="py-4 text-right text-gray-600 align-top">
+                            <td className="py-4 px-3 text-right text-gray-600 align-top">
                                 <div className="flex flex-col items-end">
                                     <span>{formatCurrency(item.calculatedGst)}</span>
                                     <span className="text-[10px] text-gray-400">({item.gstRate}%)</span>
                                 </div>
                             </td>
-                            <td className="py-4 text-right font-medium text-gray-900 align-top">
+                            <td className="py-4 px-3 text-right font-semibold text-gray-900 align-top">
                                 {formatCurrency(item.finalTotal)}
                             </td>
                           </tr>
@@ -672,7 +673,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
 
                 {/* Totals */}
                 <div className="mt-8 flex justify-end">
-                    <div className="w-64 space-y-3">
+                    <div className="w-72 space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
                         {discount > 0 && (
                             <div className="flex justify-between text-sm text-gray-600">
                                 <span>Gross Total</span>
@@ -699,7 +700,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                             <span>-{formatCurrency(couponDiscountTotal)}</span>
                           </div>
                         ) : null}
-                        <div className="border-t border-gray-900 pt-3 flex justify-between items-end">
+                        <div className="border-t border-slate-900 pt-3 flex justify-between items-end">
                             <span className="text-sm font-bold text-gray-900 uppercase">Total</span>
                             <span className="text-2xl font-bold text-gray-900">{formatCurrency(total)}</span>
                         </div>
@@ -730,7 +731,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                 </div>
 
                 {/* Terms and Signature */}
-                <div className="mt-12 grid grid-cols-2 gap-8 border-t border-gray-100 pt-8">
+                <div className="mt-12 grid grid-cols-2 gap-8 border-t border-slate-100 pt-8">
                     <div>
                         {invoiceSettings?.terms && (
                             <div className="mb-6">
@@ -761,14 +762,14 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                 </div>
 
                 {/* Footer */}
-                <div className="mt-8 pt-8 border-t border-gray-100 text-center">
+                <div className="mt-8 pt-8 border-t border-slate-100 text-center">
                     <p className="text-xs text-gray-400">Thank you for your business</p>
                 </div>
             </div>
             
              {/* Payment Details Footer (Print/PDF only mostly, but visible here too) */}
              {(paymentSettings?.upiEnabled || paymentSettings?.bankEnabled || (paymentSettings?.razorpayEnabled && paymentSettings?.razorpayButtonId && !isPaid)) && (
-                <div className="bg-gray-50 px-10 py-6 border-t border-gray-200 flex gap-8">
+                <div className="bg-slate-50 px-10 py-6 border-t border-slate-200 flex gap-8">
                      {paymentSettings?.upiEnabled && paymentSettings.upiId && (
                          <div className="flex items-center gap-4">
                              <div className="bg-white p-2 rounded shadow-sm">

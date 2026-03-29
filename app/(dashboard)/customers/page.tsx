@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Pencil, Eye, FileText, FileDown } from "lucide-react";
+import { Plus, Pencil, Eye, FileText, FileDown, CalendarDays } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -165,6 +165,12 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           <p className="text-sm text-muted-foreground">Central customer profile repository for invoices and quotations.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <LoadingLink href="/customers/events">
+              <CalendarDays className="mr-2 h-4 w-4" />
+              Events
+            </LoadingLink>
+          </Button>
           {canExport && (
             <ExportButton filename="customers" data={exportData} columns={exportColumns} title="Customers" label="Export Customers" />
           )}
