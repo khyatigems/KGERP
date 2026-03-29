@@ -212,9 +212,7 @@ export default async function SalesReturnsPage() {
                             const resolvedToken = directToken || viaSale?.token || legacy?.token || "";
                             const resolvedInvoiceNo =
                               invNoById.get(invoiceId) || viaSale?.invoiceNumber || legacy?.invoiceNumber || "REPLACEMENT";
-                            const href = resolvedToken
-                              ? `/invoice/${encodeURIComponent(resolvedToken)}`
-                              : `/invoices/${encodeURIComponent(invoiceId)}`;
+                            const href = `/sales-returns/${encodeURIComponent(r.id)}/replacement-invoice`;
                             return (
                               <Link href={href} className="ml-2 text-xs text-muted-foreground underline">
                                 Dispatched ({resolvedInvoiceNo})
