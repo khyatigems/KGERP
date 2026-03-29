@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,23 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
 
   await ensureCustomerSecondaryPhoneSchema();
   await ensureReturnsSchema();
+  await ensureBillfreePhase1Schema();
 
   const { id } = await props.params;
   const customer = await prisma.customer.findUnique({ where: { id } });
   if (!customer) notFound();
   const phoneSecondary = (customer as unknown as { phoneSecondary?: string | null }).phoneSecondary || null;
+  const extra = await prisma.$queryRawUnsafe<Array<{
+    dateOfBirth: string | null;
+    anniversaryDate: string | null;
+    communicationOptIn: number | null;
+    preferredLanguage: string | null;
+  }>>(
+    `SELECT dateOfBirth, anniversaryDate, communicationOptIn, preferredLanguage
+     FROM "CustomerProfileExtra" WHERE customerId = ? LIMIT 1`,
+    id
+  ).catch(() => []);
+  const customerExtra = extra?.[0] || null;
 
   const customerCode = await (async () => {
     try {
@@ -155,6 +167,10 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
           preferredContact: (customer as Record<string, unknown>).preferredContact as string | null,
           budgetRange: (customer as Record<string, unknown>).budgetRange as string | null,
           interestedIn: (customer as Record<string, unknown>).interestedIn as string | null,
+          dateOfBirth: customerExtra?.dateOfBirth || null,
+          anniversaryDate: customerExtra?.anniversaryDate || null,
+          communicationOptIn: customerExtra?.communicationOptIn == null ? true : Boolean(customerExtra.communicationOptIn),
+          preferredLanguage: customerExtra?.preferredLanguage || null,
           createdAt: customer.createdAt,
           updatedAt: customer.updatedAt,
         }}

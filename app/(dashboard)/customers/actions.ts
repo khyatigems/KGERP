@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { checkPermission } from "@/lib/permission-guard";
@@ -91,6 +91,10 @@ const customerSchema = z.object({
   budgetRange: z.string().optional(),
   whatsappNumber: z.string().optional(),
   preferredContact: z.string().optional(),
+  dateOfBirth: z.string().optional().or(z.literal("")),
+  anniversaryDate: z.string().optional().or(z.literal("")),
+  communicationOptIn: z.string().optional().or(z.literal("")),
+  preferredLanguage: z.string().optional().or(z.literal("")),
 });
 
 export async function createCustomer(prevState: unknown, formData: FormData) {
@@ -102,6 +106,7 @@ export async function createCustomer(prevState: unknown, formData: FormData) {
 
   await ensureCustomerSecondaryPhoneSchema();
   await ensureReturnsSchema();
+  await ensureBillfreePhase1Schema();
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = customerSchema.safeParse({
@@ -174,6 +179,17 @@ export async function createCustomer(prevState: unknown, formData: FormData) {
         phone: parsed.data.phone || null,
         email: parsed.data.email ? parsed.data.email.trim().toLowerCase() : null,
       });
+
+      await tx.$executeRawUnsafe(
+        `INSERT OR REPLACE INTO "CustomerProfileExtra"
+          (customerId, dateOfBirth, anniversaryDate, communicationOptIn, preferredLanguage, updatedAt)
+         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        c.id,
+        parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth).toISOString() : null,
+        parsed.data.anniversaryDate ? new Date(parsed.data.anniversaryDate).toISOString() : null,
+        parsed.data.communicationOptIn === "0" ? 0 : 1,
+        parsed.data.preferredLanguage || null
+      );
       return c;
     });
 
@@ -204,6 +220,7 @@ export async function updateCustomer(id: string, prevState: unknown, formData: F
 
   await ensureCustomerSecondaryPhoneSchema();
   await ensureReturnsSchema();
+  await ensureBillfreePhase1Schema();
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = customerSchema.safeParse({
@@ -257,6 +274,17 @@ export async function updateCustomer(id: string, prevState: unknown, formData: F
         phone: parsed.data.phone || null,
         email: parsed.data.email ? parsed.data.email.trim().toLowerCase() : null,
       });
+
+      await tx.$executeRawUnsafe(
+        `INSERT OR REPLACE INTO "CustomerProfileExtra"
+          (customerId, dateOfBirth, anniversaryDate, communicationOptIn, preferredLanguage, updatedAt)
+         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        id,
+        parsed.data.dateOfBirth ? new Date(parsed.data.dateOfBirth).toISOString() : null,
+        parsed.data.anniversaryDate ? new Date(parsed.data.anniversaryDate).toISOString() : null,
+        parsed.data.communicationOptIn === "0" ? 0 : 1,
+        parsed.data.preferredLanguage || null
+      );
     });
 
     await logActivity({

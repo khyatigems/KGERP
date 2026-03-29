@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { CustomerForm } from "@/components/customers/customer-form";
@@ -16,10 +16,30 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
   if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_MANAGE)) redirect("/");
 
   await ensureCustomerSecondaryPhoneSchema();
+  await ensureBillfreePhase1Schema();
 
   const { id } = await params;
   const customer = await prisma.customer.findUnique({ where: { id } });
   if (!customer) notFound();
+
+  const extra = await prisma.$queryRawUnsafe<Array<{
+    dateOfBirth: string | null;
+    anniversaryDate: string | null;
+    communicationOptIn: number | null;
+    preferredLanguage: string | null;
+  }>>(
+    `SELECT dateOfBirth, anniversaryDate, communicationOptIn, preferredLanguage
+     FROM "CustomerProfileExtra" WHERE customerId = ? LIMIT 1`,
+    id
+  ).catch(() => []);
+  const e = extra?.[0];
+  const merged = {
+    ...customer,
+    dateOfBirth: e?.dateOfBirth || null,
+    anniversaryDate: e?.anniversaryDate || null,
+    communicationOptIn: e?.communicationOptIn == null ? true : Boolean(e.communicationOptIn),
+    preferredLanguage: e?.preferredLanguage || null,
+  };
 
   return (
     <div className="space-y-6">
@@ -28,7 +48,7 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
-          <CustomerForm customer={customer} />
+          <CustomerForm customer={merged} />
         </div>
       </div>
     </div>

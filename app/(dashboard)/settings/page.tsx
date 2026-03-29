@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "./settings-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Settings2, Search, FileText } from "lucide-react";
+import { Database, Settings2, Search, FileText, TicketPercent, MessageSquare, Gift } from "lucide-react";
 import { removeDuplicates } from "@/lib/dedup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LandingPageForm } from "@/components/settings/landing-page-form";
@@ -96,6 +96,46 @@ export default async function SettingsPage() {
                   <Settings2 className="h-8 w-8 mb-2 text-primary" />
                   <CardTitle>Customer Settings</CardTitle>
                   <CardDescription>Configure customer tiers and auto-tagging rules.</CardDescription>
+                </CardHeader>
+              </Card>
+            </LoadingLink>
+
+            <LoadingLink href="/settings/loyalty">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <Gift className="h-8 w-8 mb-2 text-primary" />
+                  <CardTitle>Loyalty Settings</CardTitle>
+                  <CardDescription>Configure loyalty earn, redeem and expiry rules.</CardDescription>
+                </CardHeader>
+              </Card>
+            </LoadingLink>
+
+            <LoadingLink href="/settings/coupons">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <TicketPercent className="h-8 w-8 mb-2 text-primary" />
+                  <CardTitle>Coupons</CardTitle>
+                  <CardDescription>Create and manage discount coupons for campaigns.</CardDescription>
+                </CardHeader>
+              </Card>
+            </LoadingLink>
+
+            <LoadingLink href="/settings/invoice-promotions">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <FileText className="h-8 w-8 mb-2 text-primary" />
+                  <CardTitle>Invoice Promotions</CardTitle>
+                  <CardDescription>Manage invoice banners and DOB/anniversary reward rules.</CardDescription>
+                </CardHeader>
+              </Card>
+            </LoadingLink>
+
+            <LoadingLink href="/settings/message-templates">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <MessageSquare className="h-8 w-8 mb-2 text-primary" />
+                  <CardTitle>Message Templates</CardTitle>
+                  <CardDescription>Manage WhatsApp/Web templates for CRM campaigns.</CardDescription>
                 </CardHeader>
               </Card>
             </LoadingLink>

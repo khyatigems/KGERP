@@ -525,3 +525,163 @@ export async function ensureSalesReturnReplacementSchema(): Promise<void> {
   })();
   return ensureSalesReturnReplacementPromise;
 }
+
+let ensuringBillfreePhase1 = false;
+let ensuredBillfreePhase1 = false;
+let ensureBillfreePhase1Promise: Promise<void> | null = null;
+
+export async function ensureBillfreePhase1Schema(): Promise<void> {
+  if (ensuredBillfreePhase1) return;
+  if (ensuringBillfreePhase1 && ensureBillfreePhase1Promise) return ensureBillfreePhase1Promise;
+  ensuringBillfreePhase1 = true;
+  ensureBillfreePhase1Promise = (async () => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "OfferBanner" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "title" TEXT NOT NULL,
+          "subtitle" TEXT,
+          "imageUrl" TEXT,
+          "ctaText" TEXT,
+          "ctaLink" TEXT,
+          "displayOn" TEXT NOT NULL DEFAULT 'invoice',
+          "audienceFilter" TEXT NOT NULL DEFAULT 'all',
+          "priority" INTEGER NOT NULL DEFAULT 0,
+          "isActive" INTEGER NOT NULL DEFAULT 1,
+          "startDate" DATETIME,
+          "endDate" DATETIME,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "OfferBanner_displayOn_idx" ON "OfferBanner"("displayOn");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "OfferBanner_isActive_idx" ON "OfferBanner"("isActive");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Coupon" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "code" TEXT NOT NULL UNIQUE,
+          "type" TEXT NOT NULL,
+          "value" REAL NOT NULL,
+          "maxDiscount" REAL,
+          "minInvoiceAmount" REAL,
+          "validFrom" DATETIME,
+          "validTo" DATETIME,
+          "usageLimitTotal" INTEGER,
+          "usageLimitPerCustomer" INTEGER,
+          "applicableScope" TEXT NOT NULL DEFAULT 'all',
+          "isActive" INTEGER NOT NULL DEFAULT 1,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Coupon_code_idx" ON "Coupon"("code");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Coupon_isActive_idx" ON "Coupon"("isActive");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CouponRedemption" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "couponId" TEXT NOT NULL,
+          "invoiceId" TEXT,
+          "customerId" TEXT,
+          "discountAmount" REAL NOT NULL DEFAULT 0,
+          "redeemedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CouponRedemption_couponId_idx" ON "CouponRedemption"("couponId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CouponRedemption_invoiceId_idx" ON "CouponRedemption"("invoiceId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CouponRedemption_customerId_idx" ON "CouponRedemption"("customerId");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "LoyaltyLedger" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "customerId" TEXT NOT NULL,
+          "invoiceId" TEXT,
+          "type" TEXT NOT NULL,
+          "points" REAL NOT NULL DEFAULT 0,
+          "rupeeValue" REAL NOT NULL DEFAULT 0,
+          "remarks" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "LoyaltyLedger_customerId_idx" ON "LoyaltyLedger"("customerId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "LoyaltyLedger_invoiceId_idx" ON "LoyaltyLedger"("invoiceId");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "MessageTemplate" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "key" TEXT NOT NULL UNIQUE,
+          "title" TEXT NOT NULL,
+          "body" TEXT NOT NULL,
+          "channel" TEXT NOT NULL DEFAULT 'WHATSAPP_WEB',
+          "isActive" INTEGER NOT NULL DEFAULT 1,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CustomerCampaignLog" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "customerId" TEXT NOT NULL,
+          "eventType" TEXT NOT NULL,
+          "channel" TEXT NOT NULL,
+          "templateKey" TEXT,
+          "payload" TEXT,
+          "status" TEXT NOT NULL,
+          "openedAt" DATETIME,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerCampaignLog_customerId_idx" ON "CustomerCampaignLog"("customerId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerCampaignLog_eventType_idx" ON "CustomerCampaignLog"("eventType");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CustomerProfileExtra" (
+          "customerId" TEXT NOT NULL PRIMARY KEY,
+          "dateOfBirth" DATETIME,
+          "anniversaryDate" DATETIME,
+          "communicationOptIn" INTEGER NOT NULL DEFAULT 1,
+          "preferredLanguage" TEXT,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "InvoicePromotionSettings" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "dobRewardAmount" REAL NOT NULL DEFAULT 0,
+          "anniversaryRewardAmount" REAL NOT NULL DEFAULT 0,
+          "enableReviewCta" INTEGER NOT NULL DEFAULT 1,
+          "enableReferralCta" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "LoyaltySettings" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "pointsPerRupee" REAL NOT NULL DEFAULT 0.01,
+          "redeemRupeePerPoint" REAL NOT NULL DEFAULT 1,
+          "minRedeemPoints" REAL NOT NULL DEFAULT 0,
+          "maxRedeemPercent" REAL NOT NULL DEFAULT 30,
+          "expiryDays" INTEGER,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "dateOfBirth" DATETIME;`).catch(() => {});
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "anniversaryDate" DATETIME;`).catch(() => {});
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "communicationOptIn" INTEGER NOT NULL DEFAULT 1;`).catch(() => {});
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "preferredLanguage" TEXT;`).catch(() => {});
+    } catch {
+    } finally {
+      checkedTables = null;
+      ensuredBillfreePhase1 = true;
+      ensuringBillfreePhase1 = false;
+      ensureBillfreePhase1Promise = null;
+    }
+  })();
+  return ensureBillfreePhase1Promise;
+}

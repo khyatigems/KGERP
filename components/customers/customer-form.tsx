@@ -53,6 +53,10 @@ const formSchema = z.object({
   budgetRange: z.string().optional(),
   whatsappNumber: z.string().optional(),
   preferredContact: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  anniversaryDate: z.string().optional(),
+  communicationOptIn: z.string().optional(),
+  preferredLanguage: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -77,6 +81,10 @@ type CustomerModel = {
   budgetRange?: string | null;
   whatsappNumber?: string | null;
   preferredContact?: string | null;
+  dateOfBirth?: string | null;
+  anniversaryDate?: string | null;
+  communicationOptIn?: boolean | null;
+  preferredLanguage?: string | null;
 };
 
 export function CustomerForm({ customer }: { customer?: CustomerModel }) {
@@ -104,6 +112,10 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
       budgetRange: customer?.budgetRange || "",
       whatsappNumber: customer?.whatsappNumber || "",
       preferredContact: customer?.preferredContact || "",
+      dateOfBirth: customer?.dateOfBirth ? String(customer.dateOfBirth).slice(0, 10) : "",
+      anniversaryDate: customer?.anniversaryDate ? String(customer.anniversaryDate).slice(0, 10) : "",
+      communicationOptIn: customer?.communicationOptIn === false ? "0" : "1",
+      preferredLanguage: customer?.preferredLanguage || "en",
     },
   });
 
@@ -428,6 +440,75 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
                     <FormControl>
                       <Input placeholder="e.g. Ruby, Emerald, Diamond" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="dateOfBirth"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date of Birth</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="anniversaryDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Anniversary Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="communicationOptIn"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Communication Opt-In</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || "1"}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select option" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="1">Yes</SelectItem>
+                        <SelectItem value="0">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="preferredLanguage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preferred Language</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || "en"}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="hi">Hindi</SelectItem>
+                        <SelectItem value="gu">Gujarati</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

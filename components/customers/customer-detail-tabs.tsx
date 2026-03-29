@@ -29,6 +29,10 @@ type CustomerView = {
   preferredContact?: string | null;
   budgetRange?: string | null;
   interestedIn?: string | null;
+  dateOfBirth?: string | null;
+  anniversaryDate?: string | null;
+  communicationOptIn?: boolean | null;
+  preferredLanguage?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 };
@@ -127,6 +131,10 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
               <div><span className="text-muted-foreground">Pref. Contact:</span> {customer.preferredContact || "-"}</div>
               <div><span className="text-muted-foreground">Budget:</span> {customer.budgetRange || "-"}</div>
               <div><span className="text-muted-foreground">Interested In:</span> {customer.interestedIn || "-"}</div>
+              <div><span className="text-muted-foreground">DOB:</span> {customer.dateOfBirth ? formatDate(customer.dateOfBirth) : "-"}</div>
+              <div><span className="text-muted-foreground">Anniversary:</span> {customer.anniversaryDate ? formatDate(customer.anniversaryDate) : "-"}</div>
+              <div><span className="text-muted-foreground">Opt-In:</span> {customer.communicationOptIn === false ? "No" : "Yes"}</div>
+              <div><span className="text-muted-foreground">Language:</span> {customer.preferredLanguage || "-"}</div>
             </CardContent>
           </Card>
         </div>

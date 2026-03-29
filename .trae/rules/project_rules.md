@@ -5,8 +5,7 @@
 After completing any coding task, run this review command before final handoff:
 
 ```powershell
-git diff --stat; git diff --name-status; npm run build
-```
+codex will review changes and work done by trae
 
 If there are failures, fix them first, then re-run the same command until clean.
 
