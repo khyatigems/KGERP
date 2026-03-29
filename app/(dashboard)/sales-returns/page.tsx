@@ -43,8 +43,8 @@ export default async function SalesReturnsPage() {
 
   const replacementIds = rows.filter((r) => r.disposition === "REPLACEMENT").map((r) => r.id);
   const replacementMap = replacementIds.length
-    ? await prisma.$queryRawUnsafe<Array<{ salesReturnId: string; invoiceId: string }>>(
-        `SELECT salesReturnId, invoiceId FROM "SalesReturnReplacement" WHERE salesReturnId IN (${replacementIds.map(() => "?").join(",")})`,
+    ? await prisma.$queryRawUnsafe<Array<{ salesReturnId: string; invoiceId: string; memoId: string | null }>>(
+        `SELECT salesReturnId, invoiceId, memoId FROM "SalesReturnReplacement" WHERE salesReturnId IN (${replacementIds.map(() => "?").join(",")})`,
         ...(replacementIds as unknown as string[])
       )
     : [];
@@ -55,6 +55,24 @@ export default async function SalesReturnsPage() {
     : [];
   const invNoById = new Map(invoicesById.map((i) => [i.id, i.invoiceNumber]));
   const invTokenById = new Map(invoicesById.map((i) => [i.id, i.token]));
+
+  const unresolvedIds = invoiceIds.filter((x) => !invTokenById.get(x));
+  const saleLinkRows = unresolvedIds.length
+    ? await prisma.sale.findMany({
+        where: { id: { in: unresolvedIds } },
+        select: {
+          id: true,
+          invoice: { select: { id: true, invoiceNumber: true, token: true } },
+          legacyInvoice: { select: { id: true, invoiceNumber: true, token: true } },
+        },
+      })
+    : [];
+  const saleInvoiceById = new Map(
+    saleLinkRows.map((s) => [
+      s.id,
+      (s.invoice || s.legacyInvoice) as { id: string; invoiceNumber: string; token: string } | null,
+    ])
+  );
 
   return (
     <div className="space-y-6">
@@ -113,14 +131,19 @@ export default async function SalesReturnsPage() {
                         {r.disposition === "REPLACEMENT" ? (
                           replBySrId.has(r.id) ? (() => {
                             const invoiceId = replBySrId.get(r.id) || "";
-                            const token = invTokenById.get(invoiceId);
-                            const href = token ? `/invoice/${encodeURIComponent(token)}` : `/invoices/${encodeURIComponent(invoiceId)}`;
+                            const directToken = invTokenById.get(invoiceId);
+                            const viaSale = saleInvoiceById.get(invoiceId) || null;
+                            const resolvedToken = directToken || viaSale?.token || "";
+                            const resolvedInvoiceNo = invNoById.get(invoiceId) || viaSale?.invoiceNumber || "REPLACEMENT";
+                            const href = resolvedToken
+                              ? `/invoice/${encodeURIComponent(resolvedToken)}`
+                              : `/invoices/${encodeURIComponent(invoiceId)}`;
                             return (
                               <Link
                                 href={href}
                                 className="ml-2 text-xs text-muted-foreground underline"
                               >
-                                Dispatched ({invNoById.get(invoiceId) || "REPLACEMENT"})
+                                Dispatched ({resolvedInvoiceNo})
                               </Link>
                             );
                           })() : (

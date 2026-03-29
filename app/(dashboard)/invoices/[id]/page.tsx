@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { ensureSalesReturnReplacementSchema, prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ type InvoicePageProps = {
 export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const { id } = await params;
   await ensureReturnsSchema();
+  await ensureSalesReturnReplacementSchema();
 
   const invoice = await prisma.invoice.findUnique({
     where: { id },
@@ -93,6 +94,36 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     });
     const nextId = sale?.invoiceId || sale?.legacyInvoiceId;
     if (nextId) redirect(`/invoices/${nextId}`);
+
+    const replacementLink = await prisma.$queryRawUnsafe<Array<{ invoiceId: string; salesReturnId: string }>>(
+      `SELECT invoiceId, salesReturnId FROM "SalesReturnReplacement"
+       WHERE invoiceId = ? OR memoId = ? OR salesReturnId = ?
+       LIMIT 1`,
+      id,
+      id,
+      id
+    ).catch(() => []);
+    const mappedInvoiceId = replacementLink?.[0]?.invoiceId;
+    const mappedSalesReturnId = replacementLink?.[0]?.salesReturnId;
+    if (mappedInvoiceId) {
+      const inv = await prisma.invoice.findUnique({ where: { id: mappedInvoiceId }, select: { id: true, token: true } });
+      if (inv?.token) redirect(`/invoice/${inv.token}`);
+      if (inv?.id) redirect(`/invoices/${inv.id}`);
+
+      if (mappedSalesReturnId) {
+        const sr = await prisma.salesReturn.findUnique({ where: { id: mappedSalesReturnId }, select: { returnNumber: true } });
+        const rn = String(sr?.returnNumber || "").trim();
+        if (rn) {
+          const legacy = await prisma.invoice.findFirst({
+            where: { status: "REPLACEMENT", notes: { contains: rn } },
+            select: { id: true, token: true },
+            orderBy: { createdAt: "desc" },
+          });
+          if (legacy?.token) redirect(`/invoice/${legacy.token}`);
+          if (legacy?.id) redirect(`/invoices/${legacy.id}`);
+        }
+      }
+    }
 
     notFound();
   }
