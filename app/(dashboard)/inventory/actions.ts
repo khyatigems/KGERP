@@ -162,6 +162,16 @@ async function renameCloudinaryImageToSku(originalUrl: string, sku: string) {
       return originalUrl;
     }
 
+    const currentName = publicId.split("/").pop() || "";
+    if (currentName === sku || publicId === sku) {
+      return originalUrl;
+    }
+
+    const isVideo =
+      urlObj.pathname.includes("/video/upload/") ||
+      originalUrl.match(/\.(mp4|mov|webm)$/i) != null;
+    const resourceType = isVideo ? "video" : "image";
+
     const authHeader = Buffer.from(`${apiKey}:${apiSecret}`).toString("base64");
 
     const body = new URLSearchParams({
@@ -171,7 +181,7 @@ async function renameCloudinaryImageToSku(originalUrl: string, sku: string) {
     });
 
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/resources/image/upload`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/resources/${resourceType}/upload`,
       {
         method: "POST",
         headers: {

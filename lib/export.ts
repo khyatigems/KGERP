@@ -157,7 +157,14 @@ export const exportToPDF = async (
   title: string = "Report",
   multiTable?: { title: string; rows: Record<string, unknown>[]; columns: { header: string; key: string }[] }[]
 ) => {
-  const doc = new jsPDF("p", "pt", "a4");
+  const pickOrientation = () => {
+    const colCount = multiTable
+      ? Math.max(...multiTable.map((t) => t.columns.length), 0)
+      : columns.length;
+    return colCount >= 7 ? "landscape" : "portrait";
+  };
+
+  const doc = new jsPDF({ orientation: pickOrientation(), unit: "pt", format: "a4" });
   await loadFont(doc, "notosansdisplay");
 
   doc.setFontSize(16);
@@ -166,6 +173,30 @@ export const exportToPDF = async (
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 40, 55);
+
+  const buildColumnStyles = (cols: { header: string; key: string }[]) => {
+    const styles: Record<number, { cellWidth?: number }> = {};
+    const lower = cols.map((c) => c.header.toLowerCase());
+    const idx = (needle: RegExp) => lower.findIndex((h) => needle.test(h));
+
+    const time = idx(/time|date/);
+    const user = idx(/user/);
+    const action = idx(/action/);
+    const module = idx(/module/);
+    const reference = idx(/reference/);
+    const source = idx(/source/);
+    const description = idx(/description|details/);
+
+    if (time >= 0) styles[time] = { cellWidth: 95 };
+    if (user >= 0) styles[user] = { cellWidth: 95 };
+    if (action >= 0) styles[action] = { cellWidth: 70 };
+    if (module >= 0) styles[module] = { cellWidth: 85 };
+    if (reference >= 0) styles[reference] = { cellWidth: 140 };
+    if (source >= 0) styles[source] = { cellWidth: 70 };
+    if (description >= 0) styles[description] = { cellWidth: 260 };
+
+    return Object.keys(styles).length ? styles : undefined;
+  };
 
   if (multiTable) {
     let currentY = 70;
@@ -187,10 +218,11 @@ export const exportToPDF = async (
         head: [headers],
         body: rows as string[][],
         startY: currentY,
-        styles: { fontSize: 8, cellPadding: 3, font: "notosansdisplay" },
+        styles: { fontSize: 8, cellPadding: 3, font: "notosansdisplay", overflow: "linebreak", valign: "top" },
         headStyles: { fillColor: [66, 66, 66], font: "notosansdisplay", fontStyle: "bold" },
         theme: "grid",
-        margin: { top: 40 },
+        margin: { top: 40, left: 40, right: 40 },
+        columnStyles: buildColumnStyles(t.columns) as any,
         didDrawPage: (data: unknown) => {
           // Footer
           const settings = (data as { settings: { margin: { left: number } } }).settings;
@@ -212,10 +244,11 @@ export const exportToPDF = async (
       head: [headers],
       body: rows as string[][],
       startY: 70,
-      styles: { fontSize: 8, cellPadding: 3, font: "notosansdisplay" },
+      styles: { fontSize: 8, cellPadding: 3, font: "notosansdisplay", overflow: "linebreak", valign: "top" },
       headStyles: { fillColor: [66, 66, 66], font: "notosansdisplay", fontStyle: "bold" },
       theme: "grid",
-      margin: { top: 40 },
+      margin: { top: 40, left: 40, right: 40 },
+      columnStyles: buildColumnStyles(columns) as any,
       didDrawPage: (data: unknown) => {
         // Footer
         const settings = (data as { settings: { margin: { left: number } } }).settings;

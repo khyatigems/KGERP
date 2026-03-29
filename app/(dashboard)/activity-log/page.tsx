@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { ensureActivityLogSchema, prisma, type ActivityLog } from "@/lib/prisma";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { 
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
@@ -104,8 +104,9 @@ export default async function ActivityLogPage({
 
     const exportRows = logs.map((logItem) => {
       const log = logItem as any;
+      const dt = log?.createdAt ? new Date(log.createdAt) : null;
       return {
-        Time: String(log.createdAt),
+        Time: dt && !Number.isNaN(dt.getTime()) ? format(dt, "dd-MMM-yyyy HH:mm") : String(log.createdAt || ""),
         User: log.userName || log.userId || "System",
         Action: log.actionType || log.action || "UNKNOWN",
         Module: log.module || log.entityType || "",

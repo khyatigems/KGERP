@@ -209,11 +209,35 @@ export function InventoryTable({
                       {item.weightValue} {item.weightUnit}
                     </TableCell>
                     <TableCell className="text-xs">
-                        {item.certificates?.length
-                          ? `${item.certificates[0].name} ✓`
-                          : item.certification
-                          ? `${item.certification} ✓`
-                          : "— ⚠"}
+                      {(() => {
+                        const rawCert = String(item.certification || "").trim();
+                        const certUrl = /^https?:\/\//i.test(rawCert) ? rawCert : null;
+                        const providerFromCodes = item.certificates?.[0]?.name ? String(item.certificates[0].name) : "";
+                        const providerFromField =
+                          certUrl
+                            ? String((item as any).certificateLab || (item as any).lab || "GCI")
+                            : rawCert;
+                        const provider = (providerFromCodes || providerFromField || "").trim();
+                        const hasProvider = !!provider && provider.toLowerCase() !== "none";
+
+                        if (!hasProvider && !certUrl) return <span>— ⚠</span>;
+
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <div className="text-foreground">{provider} ✓</div>
+                            {certUrl ? (
+                              <a
+                                href={certUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[11px] text-primary underline"
+                              >
+                                View certificate
+                              </a>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       {item.weightRatti ? item.weightRatti.toFixed(2) : "-"}

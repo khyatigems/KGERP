@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -83,7 +83,19 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     },
   });
 
-  if (!invoice) notFound();
+  if (!invoice) {
+    const byToken = await prisma.invoice.findUnique({ where: { token: id }, select: { token: true } });
+    if (byToken?.token) redirect(`/invoice/${byToken.token}`);
+
+    const sale = await prisma.sale.findUnique({
+      where: { id },
+      select: { invoiceId: true, legacyInvoiceId: true },
+    });
+    const nextId = sale?.invoiceId || sale?.legacyInvoiceId;
+    if (nextId) redirect(`/invoices/${nextId}`);
+
+    notFound();
+  }
 
   // Normalize sales data
   const salesItems = invoice.sales.length > 0 ? invoice.sales : (invoice.legacySale ? [invoice.legacySale] : []);
