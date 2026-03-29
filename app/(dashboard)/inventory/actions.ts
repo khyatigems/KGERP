@@ -368,59 +368,41 @@ export async function createInventory(prevState: unknown, formData: FormData) {
 
   if (createdInventory) {
       try {
-          // Log Activity
-          await logActivity({
+          const urls: string[] =
+            data.mediaUrls && data.mediaUrls.length > 0
+              ? data.mediaUrls
+              : data.mediaUrl
+              ? [data.mediaUrl]
+              : [];
+
+          await Promise.all([
+            logActivity({
               entityType: "Inventory",
               entityId: createdInventory.id,
               entityIdentifier: createdInventory.sku,
               actionType: "CREATE",
               newData: createdInventory.data,
-          });
-
-          // Add to Label Cart
-          await addToCart(createdInventory.id);
-
-          if (data.mediaUrls && data.mediaUrls.length > 0) {
-            for (let i = 0; i < data.mediaUrls.length; i++) {
-                const url = data.mediaUrls[i];
-                // Determine file type based on extension or metadata?
-                // For now assume IMAGE unless mp4/mov
-                const isVideo = url.match(/\.(mp4|mov|webm)$/i);
-                const type = isVideo ? "VIDEO" : "IMAGE";
-                
-                // Only rename images on Cloudinary? Or videos too?
-                // renameCloudinaryImageToSku handles logic based on public_id.
-                // Suffix for multiple files
-                const suffix = data.mediaUrls.length > 1 ? `_${i + 1}` : "";
-                const finalUrl = await renameCloudinaryImageToSku(
-                  url,
-                  createdInventory.sku + suffix
-                );
-    
-                await prisma.inventoryMedia.create({
-                  data: {
+            }),
+            addToCart(createdInventory.id),
+            (async () => {
+              if (!urls.length) return;
+              const mapped = await Promise.all(
+                urls.map(async (url, i) => {
+                  const isVideo = url.match(/\.(mp4|mov|webm)$/i);
+                  const type = isVideo ? "VIDEO" : "IMAGE";
+                  const suffix = urls.length > 1 ? `_${i + 1}` : "";
+                  const finalUrl = await renameCloudinaryImageToSku(url, createdInventory.sku + suffix);
+                  return {
                     inventoryId: createdInventory.id,
-                    type: type,
+                    type,
                     mediaUrl: finalUrl,
-                    isPrimary: i === 0 // First image is primary
-                  },
-                });
-            }
-          } else if (data.mediaUrl && data.mediaUrl !== "") {
-            const finalUrl = await renameCloudinaryImageToSku(
-              data.mediaUrl,
-              createdInventory.sku
-            );
-
-            await prisma.inventoryMedia.create({
-              data: {
-                inventoryId: createdInventory.id,
-                type: "IMAGE",
-                mediaUrl: finalUrl,
-                isPrimary: true // Single image is always primary
-              },
-            });
-          }
+                    isPrimary: i === 0,
+                  };
+                })
+              );
+              await prisma.inventoryMedia.createMany({ data: mapped as any });
+            })(),
+          ]);
       } catch (e) {
           console.error("Post-creation error:", e);
       }

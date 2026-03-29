@@ -14,8 +14,11 @@ type ByCategoryGemTypeRow = { category: string; gemType: string; status: string;
 type ByStatusRow = { status: string; items: number };
 
 type InventoryStatsResponse = StatRow & {
+  avgSell: number;
+  maxSell: number;
   withImagesCount: number;
   withCertificateCount: number;
+  aging: { fresh: number; slow: number; dead: number };
   byCategory: ByCategoryRow[];
   byGemType: ByGemTypeRow[];
   byCategoryGemType: ByCategoryGemTypeRow[];
@@ -185,6 +188,10 @@ export function InventoryStats() {
 
   const topCategory = (data?.byCategory || [])[0]?.category;
   const topGemType = (data?.byGemType || [])[0]?.gemType;
+  const missingImages = data ? Math.max(0, (data.totalItems || 0) - (data.withImagesCount || 0)) : 0;
+  const missingCertificates = data ? Math.max(0, (data.totalItems || 0) - (data.withCertificateCount || 0)) : 0;
+  const imagesPct = data && data.totalItems ? Math.round((data.withImagesCount / data.totalItems) * 100) : 0;
+  const certPct = data && data.totalItems ? Math.round((data.withCertificateCount / data.totalItems) * 100) : 0;
 
   return (
     <div className="space-y-4">
@@ -209,15 +216,18 @@ export function InventoryStats() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Total Items</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data?.overallTotalItems ?? data?.totalItems ?? "—"}</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              IN_STOCK {overallStatusSummary.inStock} • SOLD {overallStatusSummary.sold} • RESERVED {overallStatusSummary.reserved} • MEMO {overallStatusSummary.memo}
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <span className="text-emerald-600 dark:text-emerald-300">In Stock: {overallStatusSummary.inStock}</span>
+              <span className="text-blue-600 dark:text-blue-300">Sold: {overallStatusSummary.sold}</span>
+              <span className="text-amber-600 dark:text-amber-300">Reserved: {overallStatusSummary.reserved}</span>
+              <span className="text-violet-600 dark:text-violet-300">Memo: {overallStatusSummary.memo}</span>
             </div>
             {data?.overallTotalItems !== undefined && data?.overallTotalItems !== data?.totalItems && (
               <div className="text-[10px] text-muted-foreground mt-2">
@@ -240,7 +250,10 @@ export function InventoryStats() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data ? formatCurrency(data.totalSell) : "—"}</div>
-            <div className="text-xs text-muted-foreground mt-1">Sum of Selling Price</div>
+            <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+              <div>Avg Item Value: {data ? formatCurrency(data.avgSell) : "—"}</div>
+              <div>Highest Item Price: {data ? formatCurrency(data.maxSell) : "—"}</div>
+            </div>
           </CardContent>
         </Card>
 
@@ -252,7 +265,9 @@ export function InventoryStats() {
             <div className="text-2xl font-bold">
               {data ? `${data.withImagesCount}/${data.totalItems}` : "—"}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">Items having image/media</div>
+            <div className="text-xs text-muted-foreground mt-2">
+              {data ? `${imagesPct}% • Missing ${missingImages}` : "Items having image/media"}
+            </div>
           </CardContent>
         </Card>
 
@@ -264,7 +279,23 @@ export function InventoryStats() {
             <div className="text-2xl font-bold">
               {data ? `${data.withCertificateCount}/${data.totalItems}` : "—"}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">Certificate number/details present</div>
+            <div className="text-xs text-muted-foreground mt-2">
+              {data ? `${certPct}% • Missing ${missingCertificates}` : "Certificate number/details present"}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Inventory Aging</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xs text-muted-foreground">In Stock only</div>
+            <div className="mt-2 flex flex-col gap-1 text-xs">
+              <span className="text-emerald-600 dark:text-emerald-300">Fresh (0–30): {data?.aging?.fresh ?? 0}</span>
+              <span className="text-amber-600 dark:text-amber-300">Slow (31–90): {data?.aging?.slow ?? 0}</span>
+              <span className="text-red-600 dark:text-red-300">Dead (90+): {data?.aging?.dead ?? 0}</span>
+            </div>
           </CardContent>
         </Card>
 

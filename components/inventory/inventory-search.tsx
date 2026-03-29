@@ -106,6 +106,35 @@ export function InventorySearch({
     replace(pathname);
   };
 
+  const removeParam = (key: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete(key);
+    params.delete("page");
+    pulseApply();
+    showLoader();
+    replace(params.toString() ? `${pathname}?${params.toString()}` : pathname);
+  };
+
+  const activeChips = (() => {
+    const chips: Array<{ key: string; label: string }> = [];
+    const q = (searchParams.get("query") || "").trim();
+    const status = searchParams.get("status");
+    const vendorId = searchParams.get("vendorId");
+    const category = searchParams.get("category");
+    const gemType = searchParams.get("gemType");
+    const color = searchParams.get("color");
+    const collectionId = searchParams.get("collectionId");
+
+    if (q) chips.push({ key: "query", label: `Search: ${q}` });
+    if (status) chips.push({ key: "status", label: `Status: ${status.replaceAll("_", " ")}` });
+    if (vendorId) chips.push({ key: "vendorId", label: `Vendor: ${vendors.find((v) => v.id === vendorId)?.name || vendorId}` });
+    if (category) chips.push({ key: "category", label: `Category: ${category}` });
+    if (gemType) chips.push({ key: "gemType", label: `Gem: ${gemType}` });
+    if (color) chips.push({ key: "color", label: `Color: ${color}` });
+    if (collectionId) chips.push({ key: "collectionId", label: `Collection: ${collections.find((c) => c.id === collectionId)?.name || collectionId}` });
+    return chips;
+  })();
+
   return (
     <div className={`space-y-4 transition-all duration-300 ${isApplying ? "opacity-90" : "opacity-100"}`}>
       {isApplying && (
@@ -123,7 +152,7 @@ export function InventorySearch({
         {(searchParams.toString().length > 0) && (
           <Button variant="ghost" onClick={handleClear} className="px-2 lg:px-3">
             <X className="mr-2 h-4 w-4" />
-            Reset
+            Clear All Filters
           </Button>
         )}
       </div>
@@ -250,7 +279,24 @@ export function InventorySearch({
             <SelectItem value="10-plus">10+ cts</SelectItem>
             </SelectContent>
         </Select>
+
       </div>
+
+      {activeChips.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {activeChips.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground hover:bg-muted/30"
+              onClick={() => removeParam(c.key)}
+            >
+              <span className="text-foreground">{c.label}</span>
+              <X className="h-3 w-3" />
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

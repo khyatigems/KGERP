@@ -85,7 +85,7 @@ export function SalesActions({ saleId, invoiceToken, canDelete, allowConfigureIn
           {invoiceToken && (
               <>
                   <DropdownMenuItem asChild>
-                      <Link href={`/invoices/public/${invoiceToken}`} target="_blank">
+                      <Link href={`/invoice/${invoiceToken}`} target="_blank">
                           <ExternalLink className="mr-2 h-4 w-4" /> View Invoice
                       </Link>
                   </DropdownMenuItem>

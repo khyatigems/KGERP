@@ -26,7 +26,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/inventory/file-upload";
 import { createInventory, updateInventory } from "@/app/(dashboard)/inventory/actions";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCode } from "@/app/(dashboard)/settings/codes/actions";
 import { Loader2, ChevronDown, ChevronUp, Sparkles, Plus, X, Check } from "lucide-react";
@@ -300,6 +300,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   } | null>(null);
   const [createdDialogOpen, setCreatedDialogOpen] = useState(false);
   const [createdRedirectPending, setCreatedRedirectPending] = useState(false);
+  const itemNameInputRef = useRef<HTMLInputElement | null>(null);
+  const createDefaultsRef = useRef<FormValues | null>(null);
 
   useEffect(() => {
     if (!initialData) return;
@@ -310,6 +312,13 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     if (fluorescence && !FLUORESCENCE_PRESETS.includes(fluorescence)) setUseCustomFluorescence(true);
     if (treatment && !TREATMENT_PRESETS.includes(treatment)) setUseCustomTreatment(true);
   }, [initialData]);
+
+  useEffect(() => {
+    if (initialData) return;
+    if (!createDefaultsRef.current) {
+      createDefaultsRef.current = form.getValues();
+    }
+  }, [initialData, form]);
 
   type CreatedInventoryResult = {
     inventoryId: string;
@@ -431,8 +440,47 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   }, [selectedCategory, selectedGemstone, selectedColor, calculatedRatti, form]);
 
   async function submitInventory(data: FormValues, ignoreDuplicates = false, shouldRedirect = true) {
+    const fastErrors: Array<{ field: keyof FormValues; message: string }> = [];
+    if (!String(data.itemName || "").trim()) fastErrors.push({ field: "itemName", message: "Item Name is required" });
+    if (!String(data.category || "").trim()) fastErrors.push({ field: "category", message: "Category is required" });
+
+    const mode = String((data as any).pricingMode || "");
+    if (mode === "PER_CARAT") {
+      const w = Number((data as any).weightValue || 0);
+      const pr = Number((data as any).purchaseRatePerCarat || 0);
+      const sr = Number((data as any).sellingRatePerCarat || 0);
+      if (!(w > 0)) fastErrors.push({ field: "weightValue", message: "Weight is required for per-carat pricing" });
+      if (!(pr > 0)) fastErrors.push({ field: "purchaseRatePerCarat", message: "Purchase Rate is required" });
+      if (!(sr > 0)) fastErrors.push({ field: "sellingRatePerCarat", message: "Selling Rate is required" });
+    } else if (mode === "FLAT") {
+      const pc = Number((data as any).flatPurchaseCost || 0);
+      const sp = Number((data as any).flatSellingPrice || 0);
+      if (!(pc > 0)) fastErrors.push({ field: "flatPurchaseCost", message: "Total Cost is required" });
+      if (!(sp > 0)) fastErrors.push({ field: "flatSellingPrice", message: "Total Selling Price is required" });
+    }
+
+    if (fastErrors.length) {
+      for (const e of fastErrors) {
+        form.setError(e.field as any, { type: "manual", message: e.message });
+      }
+      const first = fastErrors[0]?.field;
+      if (first) {
+        try {
+          form.setFocus(first as any);
+          const el = document.querySelector(`[name="${String(first)}"]`) as HTMLElement | null;
+          el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        } catch {}
+      }
+      return;
+    }
+
     setIsPending(true);
     setDuplicateWarning(null); // Clear previous warnings
+
+    const optimisticToastId =
+      !initialData && !ignoreDuplicates
+        ? toast.success("Inventory Item Created Successfully", { duration: 2500 })
+        : null;
     
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
@@ -465,8 +513,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         }
         
         if (result?.success) {
-             const msg = result.message || (initialData ? "Inventory updated successfully!" : "Inventory created & added to label cart!");
-             toast.success(msg);
+             if (optimisticToastId == null) {
+               const msg = result.message || (initialData ? "Inventory updated successfully!" : "Inventory created & added to label cart!");
+               toast.success(msg, { duration: 2500 });
+             }
 
              const created = !initialData && isCreatedInventoryResult(result) ? result : null;
              
@@ -478,60 +528,23 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
              }
              
              if (!initialData && !shouldRedirect) {
-                 const preserved = form.getValues();
+                 const preservedCategory = form.getValues("category");
+                 const preservedVendor = form.getValues("vendorId");
+                 const base = createDefaultsRef.current || form.getValues();
                  form.reset({
+                   ...(base as any),
+                   category: preservedCategory,
+                   vendorId: preservedVendor,
                    itemName: "",
                    internalName: "",
-                   category: preserved.category,
-                   gemType: preserved.gemType,
-                   color: preserved.color,
-                   shape: preserved.shape,
-                   dimensionsMm: "",
-                   weightValue: 0,
-                   weightUnit: preserved.weightUnit,
-                   weightRatti: 0,
-                   treatment: preserved.treatment,
-                   origin: preserved.origin,
-                   fluorescence: preserved.fluorescence,
-                   certification: preserved.certification,
-                   certificateCodeIds: preserved.certificateCodeIds,
-                   transparency: preserved.transparency,
-                   vendorId: preserved.vendorId,
-                   pricingMode: preserved.pricingMode,
-                   purchaseRatePerCarat: preserved.purchaseRatePerCarat,
-                   sellingRatePerCarat: preserved.sellingRatePerCarat,
-                   flatPurchaseCost: preserved.flatPurchaseCost,
-                   flatSellingPrice: preserved.flatSellingPrice,
-                   notes: "",
-                   certificateComments: "",
-                   stockLocation: preserved.stockLocation,
                    mediaUrl: "",
                    mediaUrls: [],
-                   categoryCodeId: preserved.categoryCodeId,
-                   gemstoneCodeId: preserved.gemstoneCodeId,
-                   colorCodeId: preserved.colorCodeId,
-                   collectionCodeId: preserved.collectionCodeId,
-                   rashiCodeIds: preserved.rashiCodeIds,
-                   cutCodeId: preserved.cutCodeId,
-                   braceletType: preserved.braceletType,
-                   beadSizeMm: preserved.beadSizeMm,
-                   beadCount: preserved.beadCount,
-                   holeSizeMm: preserved.holeSizeMm,
-                   innerCircumferenceMm: preserved.innerCircumferenceMm,
-                   standardSize: preserved.standardSize,
-                   beadSize: preserved.beadSize,
-                   braceletSize: preserved.braceletSize,
-                   holeSize: preserved.holeSize,
-                   ringSize: preserved.ringSize,
-                   ringAdjustable: preserved.ringAdjustable,
-                   pendantLoop: preserved.pendantLoop,
-                   figureHeight: preserved.figureHeight,
-                   figureWidth: preserved.figureWidth,
-                   chipSize: preserved.chipSize,
-                   packingType: preserved.packingType,
+                   notes: "",
+                   certificateComments: "",
                  });
                  setSkuPreview("");
-                 setFileUploadResetKey(prev => prev + 1);
+                 setFileUploadResetKey((prev) => prev + 1);
+                 setTimeout(() => itemNameInputRef.current?.focus(), 0);
              }
              
              if (shouldRedirect) {
@@ -578,6 +591,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         }
 
     } catch (error) {
+        if (optimisticToastId != null) {
+          try {
+            toast.dismiss(optimisticToastId);
+          } catch {}
+        }
         console.error(error);
         toast.error("An unexpected error occurred.");
     } finally {
@@ -606,10 +624,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Basic Info */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Basic Information</h3>
+          <div className="space-y-6">
+            <div className="rounded-lg border bg-card/50 p-5 space-y-4">
+              <h3 className="text-base font-semibold">Basic Information</h3>
             
             {/* Bracelet Attributes Section */}
             {(categoryName === "Bracelets" || categoryName === "Bracelet") && (
@@ -757,7 +776,14 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 <FormItem>
                   <FormLabel>Item Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Blue Sapphire 2ct" {...field} />
+                    <Input
+                      placeholder="e.g. Blue Sapphire 2ct"
+                      {...field}
+                      ref={(el) => {
+                        field.ref(el);
+                        itemNameInputRef.current = el;
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -802,6 +828,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 </FormItem>
               )}
             />
+            </div>
+
+            <div className="rounded-lg border bg-card/50 p-5 space-y-4">
+              <h3 className="text-base font-semibold">Gem Details</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
@@ -1125,6 +1155,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 )}
               />
 
+            </div>
+
+            <div className="rounded-lg border bg-card/50 p-5 space-y-4">
+              <h3 className="text-base font-semibold">Classification</h3>
+
               <FormField
                 control={form.control}
                 name="certificateCodeIds"
@@ -1246,6 +1281,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 </FormItem>
               )}
             />
+
+            </div>
+
+            <div className="rounded-lg border bg-card/50 p-5 space-y-4">
+              <h3 className="text-base font-semibold">Measurements</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                <FormField
@@ -1488,11 +1528,13 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                     </div>
                 </div>
             )}
+            </div>
           </div>
 
           {/* Pricing & Vendor */}
-          <div className="space-y-4">
-             <h3 className="text-lg font-medium">Pricing & Source</h3>
+          <div className="space-y-6">
+             <div className="rounded-lg border bg-card/50 p-5 space-y-4">
+             <h3 className="text-base font-semibold">Pricing & Source</h3>
 
              <FormField
                 control={form.control}
@@ -1627,6 +1669,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 </FormItem>
               )}
             />
+            </div>
+
+            <div className="rounded-lg border bg-card/50 p-5 space-y-4">
+              <h3 className="text-base font-semibold">Media Upload</h3>
 
             <FormField
               control={form.control}
@@ -1654,6 +1700,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 </FormItem>
               )}
             />
+            </div>
+
+            <div className="rounded-lg border bg-card/50 p-5 space-y-4">
+              <h3 className="text-base font-semibold">Notes</h3>
 
             <FormField
               control={form.control}
@@ -1666,7 +1716,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs gap-1.5 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                      className="h-7 text-xs gap-1.5 text-muted-foreground"
                       disabled={isGeneratingDescription}
                       onClick={async () => {
                         const values = form.getValues();
@@ -1734,6 +1784,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                   </FormItem>
                 )}
               />
+            </div>
           </div>
         </div>
 

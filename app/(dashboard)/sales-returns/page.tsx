@@ -51,9 +51,10 @@ export default async function SalesReturnsPage() {
   const replBySrId = new Map(replacementMap.map((r) => [r.salesReturnId, r.invoiceId]));
   const invoiceIds = Array.from(new Set(replacementMap.map((r) => r.invoiceId)));
   const invoicesById = invoiceIds.length
-    ? await prisma.invoice.findMany({ where: { id: { in: invoiceIds } }, select: { id: true, invoiceNumber: true } })
+    ? await prisma.invoice.findMany({ where: { id: { in: invoiceIds } }, select: { id: true, invoiceNumber: true, token: true } })
     : [];
   const invNoById = new Map(invoicesById.map((i) => [i.id, i.invoiceNumber]));
+  const invTokenById = new Map(invoicesById.map((i) => [i.id, i.token]));
 
   return (
     <div className="space-y-6">
@@ -110,14 +111,19 @@ export default async function SalesReturnsPage() {
                       <TableCell>
                         {r.disposition}{" "}
                         {r.disposition === "REPLACEMENT" ? (
-                          replBySrId.has(r.id) ? (
-                            <Link
-                              href={`/invoices/${encodeURIComponent(replBySrId.get(r.id) || "")}`}
-                              className="ml-2 text-xs text-muted-foreground underline"
-                            >
-                              Dispatched ({invNoById.get(replBySrId.get(r.id) || "") || "REPLACEMENT"})
-                            </Link>
-                          ) : (
+                          replBySrId.has(r.id) ? (() => {
+                            const invoiceId = replBySrId.get(r.id) || "";
+                            const token = invTokenById.get(invoiceId);
+                            const href = token ? `/invoice/${encodeURIComponent(token)}` : `/invoices/${encodeURIComponent(invoiceId)}`;
+                            return (
+                              <Link
+                                href={href}
+                                className="ml-2 text-xs text-muted-foreground underline"
+                              >
+                                Dispatched ({invNoById.get(invoiceId) || "REPLACEMENT"})
+                              </Link>
+                            );
+                          })() : (
                             <Link
                               href={`/sales-returns/replace/${r.id}?customerName=${encodeURIComponent(r.customerName || "")}`}
                               className="ml-2 text-xs text-primary underline"

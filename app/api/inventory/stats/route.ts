@@ -180,10 +180,13 @@ export async function GET(request: NextRequest) {
     withHsnCount,
     completenessAllCount,
     overallTotalItems,
-    overallByStatus
+    overallByStatus,
+    agingFresh,
+    agingSlow,
+    agingDead
   ] = await Promise.all([
     prisma.inventory.count({ where }),
-    prisma.inventory.aggregate({ where, _sum: { sellingPrice: true } }),
+    prisma.inventory.aggregate({ where, _sum: { sellingPrice: true }, _avg: { sellingPrice: true }, _max: { sellingPrice: true } }),
     prisma.inventory.groupBy({
       by: ["category", "status"],
       where,
@@ -221,16 +224,47 @@ export async function GET(request: NextRequest) {
       _count: { id: true },
       orderBy: { _count: { id: "desc" } },
     }),
+    prisma.inventory.count({
+      where: {
+        ...where,
+        status: "IN_STOCK",
+        createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      },
+    }),
+    prisma.inventory.count({
+      where: {
+        ...where,
+        status: "IN_STOCK",
+        createdAt: {
+          lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        },
+      },
+    }),
+    prisma.inventory.count({
+      where: {
+        ...where,
+        status: "IN_STOCK",
+        createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+      },
+    }),
   ]);
 
   return NextResponse.json({
     totalItems,
     overallTotalItems,
     totalSell: sums._sum.sellingPrice || 0,
+    avgSell: sums._avg.sellingPrice || 0,
+    maxSell: sums._max.sellingPrice || 0,
     withImagesCount,
     withCertificateCount,
     withHsnCount,
     completenessAllCount,
+    aging: {
+      fresh: agingFresh,
+      slow: agingSlow,
+      dead: agingDead,
+    },
     byStatus: byStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
     overallByStatus: overallByStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
     byCategory: byCategory.map((r) => ({

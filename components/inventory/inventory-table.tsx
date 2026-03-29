@@ -2,17 +2,18 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InventoryActions } from "@/components/inventory/inventory-actions";
 import { InventoryCardMedia } from "@/components/inventory/inventory-card-media";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { formatInrNumber } from "@/lib/number-formatting";
 import { BulkEditDialog } from "./bulk-edit-dialog";
 import { BulkCertificateDialog } from "./bulk-certificate-dialog";
 import { Edit, ShieldCheck } from "lucide-react";
+import { InventoryDetailDrawer } from "@/components/inventory/inventory-detail-drawer";
 
 interface InventoryTableProps {
   data: any[];
@@ -40,6 +41,9 @@ export function InventoryTable({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
   const [isBulkCertificateDialogOpen, setIsBulkCertificateDialogOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [drawerCache] = useState(() => new Map<string, any>());
 
   const vendorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -63,11 +67,37 @@ export function InventoryTable({
     }
   };
 
+  const selectedSummary = useMemo(() => {
+    if (selectedIds.length === 0) return null;
+    const selected = data.filter((d) => selectedIds.includes(d.id));
+    const total = selected.reduce((acc, item) => {
+      const price =
+        item.pricingMode === "PER_CARAT"
+          ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
+          : item.flatSellingPrice || 0;
+      return acc + Number(price || 0);
+    }, 0);
+    const avg = selected.length ? total / selected.length : 0;
+    return { count: selected.length, total, avg };
+  }, [data, selectedIds]);
+
+  const openDrawer = (id: string) => {
+    setDrawerId(id);
+    setDrawerOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       {selectedIds.length > 0 && (
-        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-          <span className="text-sm font-medium ml-2">{selectedIds.length} items selected</span>
+        <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-md">
+          <span className="text-sm font-medium ml-2">
+            {selectedIds.length} selected
+            {selectedSummary ? (
+              <span className="ml-2 text-xs text-muted-foreground">
+                | ₹{formatInrNumber(selectedSummary.total, 0)} total | Avg ₹{formatInrNumber(selectedSummary.avg, 0)}
+              </span>
+            ) : null}
+          </span>
           <Button size="sm" onClick={() => setIsBulkEditDialogOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Bulk Edit
@@ -126,7 +156,11 @@ export function InventoryTable({
                     : item.flatSellingPrice || 0;
                 
                 return (
-                    <TableRow key={item.id} data-state={selectedIds.includes(item.id) ? "selected" : undefined}>
+                    <TableRow
+                      key={item.id}
+                      data-state={selectedIds.includes(item.id) ? "selected" : undefined}
+                      className="h-14 hover:bg-muted/20"
+                    >
                     <TableCell>
                       <Checkbox
                         checked={selectedIds.includes(item.id)}
@@ -137,12 +171,16 @@ export function InventoryTable({
                     <TableCell>
                       <InventoryCardMedia item={item} className="h-12 w-12" />
                     </TableCell>
-                    <TableCell className="font-medium font-mono text-xs">{item.sku}</TableCell>
+                    <TableCell className="font-medium font-mono text-xs">
+                      <button type="button" className="cursor-pointer hover:underline" onClick={() => openDrawer(item.id)}>
+                        {item.sku}
+                      </button>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <Link href={`/inventory/${item.id}`} className="hover:underline font-medium">
-                            {item.itemName}
-                        </Link>
+                        <button type="button" className="text-left hover:underline font-medium" onClick={() => openDrawer(item.id)}>
+                          {item.itemName}
+                        </button>
                         {item.internalName && (
                           <span className="text-xs text-muted-foreground">
                             {item.internalName}
@@ -171,12 +209,16 @@ export function InventoryTable({
                       {item.weightValue} {item.weightUnit}
                     </TableCell>
                     <TableCell className="text-xs">
-                        {item.certificates?.map((c: any) => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification || "-"}
+                        {item.certificates?.length
+                          ? `${item.certificates[0].name} ✓`
+                          : item.certification
+                          ? `${item.certification} ✓`
+                          : "— ⚠"}
                     </TableCell>
                     <TableCell>
                       {item.weightRatti ? item.weightRatti.toFixed(2) : "-"}
                     </TableCell>
-                    <TableCell>{formatCurrency(price)}</TableCell>
+                    <TableCell className="font-semibold">₹{formatInrNumber(Number(price || 0), 0)}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -188,9 +230,11 @@ export function InventoryTable({
                         }
                         className={
                           item.status === "RESERVED"
-                            ? "border-amber-200 bg-amber-50 text-amber-800"
+                            ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200"
                             : item.status === "MEMO"
-                            ? "border-blue-200 bg-blue-50 text-blue-800"
+                            ? "border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-200"
+                            : item.status === "IN_STOCK"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
                             : undefined
                         }
                       >
@@ -210,6 +254,14 @@ export function InventoryTable({
           </TableBody>
         </Table>
       </div>
+
+      <InventoryDetailDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        inventoryId={drawerId}
+        getCached={(id) => drawerCache.get(id)}
+        setCached={(id, value) => drawerCache.set(id, value)}
+      />
 
       <BulkEditDialog 
         selectedIds={selectedIds}

@@ -12,6 +12,7 @@ import { InventorySearch } from "@/components/inventory/inventory-search";
 import { InventoryCardList } from "@/components/inventory/inventory-card-list";
 import { InventoryStats } from "@/components/inventory/inventory-stats";
 import { InventorySavedToast } from "@/components/inventory/inventory-saved-toast";
+import { InventoryInsightBar } from "@/components/inventory/inventory-insight-bar";
 import type { Inventory, Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -360,6 +361,8 @@ export default async function InventoryPage({
             rashis={rashis}
         />
       </div>
+
+      <InventoryInsightBar />
 
       <div key={filtersKey} className="animate-in fade-in duration-300">
         <InventoryCardList data={inventory} canManageAttentionVisibility={canManageAttentionVisibility} />
