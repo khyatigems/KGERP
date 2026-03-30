@@ -467,6 +467,12 @@ export async function createSale(prevState: unknown, formData: FormData) {
                 credit: newInvoice.taxTotal,
                 description: `GST Payable for Invoice ${newInvoice.invoiceNumber}`,
               },
+              {
+                accountId: salesAccount.id,
+                debit: 0,
+                credit: newInvoice.discountTotal || 0,
+                description: `Discount Allowed for Invoice ${newInvoice.invoiceNumber}`,
+              },
             ],
           };
           await postJournalEntry(journalEntryInput, tx);
