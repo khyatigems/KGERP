@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateJournalVoucherPDF } from '@/lib/journal-voucher-pdf';
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const { id } = params;
+    const { id } = await context.params;
 
     if (!id) {
       return new NextResponse('Journal Entry ID is required', { status: 400 });
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       lines: journalEntry.lines.map(line => ({
         accountName: line.account.name,
         accountCode: line.account.code,
-        description: line.description,
+        description: line.description ?? undefined,
         debit: line.debit,
         credit: line.credit,
       })),
