@@ -530,6 +530,24 @@ let ensuringBillfreePhase1 = false;
 let ensuredBillfreePhase1 = false;
 let ensureBillfreePhase1Promise: Promise<void> | null = null;
 
+async function ensureColumnIfMissing(
+  tableName: string,
+  columnName: string,
+  columnDefinition: string
+) {
+  try {
+    const columns = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
+      `PRAGMA table_info("${tableName}")`
+    );
+    const hasColumn = Array.isArray(columns) && columns.some((col) => col.name === columnName);
+    if (!hasColumn) {
+      await prisma.$executeRawUnsafe(`ALTER TABLE "${tableName}" ADD COLUMN ${columnDefinition};`);
+    }
+  } catch {
+    // Swallow to preserve idempotent behaviour during safe deploys.
+  }
+}
+
 export async function ensureBillfreePhase1Schema(): Promise<void> {
   if (ensuredBillfreePhase1) return;
   if (ensuringBillfreePhase1 && ensureBillfreePhase1Promise) return ensureBillfreePhase1Promise;
@@ -673,12 +691,34 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
         );
       `);
 
-      await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "dateOfBirth" DATETIME;`).catch(() => {});
-      await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "anniversaryDate" DATETIME;`).catch(() => {});
-      await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "communicationOptIn" INTEGER NOT NULL DEFAULT 1;`).catch(() => {});
-      await prisma.$executeRawUnsafe(`ALTER TABLE "Customer" ADD COLUMN "preferredLanguage" TEXT;`).catch(() => {});
-      await prisma.$executeRawUnsafe(`ALTER TABLE "LoyaltySettings" ADD COLUMN "dobProfilePoints" REAL NOT NULL DEFAULT 0;`).catch(() => {});
-      await prisma.$executeRawUnsafe(`ALTER TABLE "LoyaltySettings" ADD COLUMN "anniversaryProfilePoints" REAL NOT NULL DEFAULT 0;`).catch(() => {});
+      await ensureColumnIfMissing("Customer", "dateOfBirth", '"dateOfBirth" DATETIME');
+      await ensureColumnIfMissing("Customer", "anniversaryDate", '"anniversaryDate" DATETIME');
+      await ensureColumnIfMissing(
+        "Customer",
+        "communicationOptIn",
+        '"communicationOptIn" INTEGER NOT NULL DEFAULT 1'
+      );
+      await ensureColumnIfMissing("Customer", "preferredLanguage", '"preferredLanguage" TEXT');
+      await ensureColumnIfMissing(
+        "LoyaltySettings",
+        "dobProfilePoints",
+        '"dobProfilePoints" REAL NOT NULL DEFAULT 0'
+      );
+      await ensureColumnIfMissing(
+        "LoyaltySettings",
+        "anniversaryProfilePoints",
+        '"anniversaryProfilePoints" REAL NOT NULL DEFAULT 0'
+      );
+      await ensureColumnIfMissing(
+        "CouponRedemption",
+        "discountAmount",
+        '"discountAmount" REAL NOT NULL DEFAULT 0'
+      );
+      await ensureColumnIfMissing(
+        "CouponRedemption",
+        "redeemedAt",
+        '"redeemedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP'
+      );
     } catch {
     } finally {
       checkedTables = null;
