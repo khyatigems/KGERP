@@ -86,7 +86,7 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
             <Card>
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground font-medium">Loyalty Points</p>
-                <p className="text-lg font-bold">{Number(stats.loyaltyPoints as number || 0).toFixed(2)} pts</p>
+                <p className="text-lg font-bold">{Math.round(Number(stats.loyaltyPoints as number || 0))} pts</p>
               </CardContent>
             </Card>
           </div>

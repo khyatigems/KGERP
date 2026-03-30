@@ -334,7 +334,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
             const maxByPoints = availablePoints * redeemRupeePerPoint;
             const maxAllowed = Math.max(0, Math.min(adjustedInvoiceTotal, maxByPercent, maxByPoints));
             if (inputLoyaltyRedeem > maxAllowed + 0.009) throw new Error(`Loyalty redemption exceeds allowed limit (${maxAllowed.toFixed(2)})`);
-            const neededPoints = inputLoyaltyRedeem / redeemRupeePerPoint;
+            const neededPoints = Math.round(inputLoyaltyRedeem / redeemRupeePerPoint); // Standard rounding (0.5+ rounds up, <0.5 rounds down)
             if (neededPoints + 0.0001 < minRedeemPoints) throw new Error(`Minimum redeem points is ${minRedeemPoints}`);
             if (neededPoints > availablePoints + 0.0001) throw new Error("Insufficient loyalty points");
             loyaltyRedeemAmount = inputLoyaltyRedeem;
@@ -348,7 +348,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
               method: "LOYALTY_REDEEM",
               date: new Date(data.saleDate),
               reference: undefined,
-              notes: `Loyalty redemption (${loyaltyPointsUsed.toFixed(2)} pts)`,
+              notes: `Loyalty redemption (${loyaltyPointsUsed} pts)`, // No decimal display
             });
           }
           const paidAmount = allPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);

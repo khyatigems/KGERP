@@ -133,6 +133,41 @@ const releaseCanvas = (canvas: HTMLCanvasElement): void => {
   }
 };
 
+// URL validation helper for security
+const isValidImageUrl = (url: string): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  
+  try {
+    const parsedUrl = new URL(url, window.location.origin);
+    // Only allow http and https protocols
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return false;
+    }
+    
+    // Prevent data URLs and blob URLs for security
+    if (url.startsWith('data:') || url.startsWith('blob:')) {
+      return false;
+    }
+    
+    // Basic domain validation - allow same origin and common image domains
+    const allowedDomains = [
+      window.location.hostname,
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0'
+    ];
+    
+    // Allow same origin or explicitly trusted domains
+    const hostname = parsedUrl.hostname.toLowerCase();
+    return allowedDomains.includes(hostname) || 
+           hostname.endsWith('.localhost') ||
+           hostname.endsWith('.127.0.0.1') ||
+           hostname.endsWith('.0.0.0.0');
+  } catch {
+    return false;
+  }
+};
+
 const loadImage = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     // Skip validation for data URLs and blob URLs (common for logos)
@@ -282,41 +317,6 @@ const formatAmount = (amount: number) => {
   }).format(amount);
 };
 
-// Helper to convert numbers to words (simplified version)
-const convertNumberToWords = (num: number): string => {
-  if (num === 0) return "Zero";
-  
-  const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
-  const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
-  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-  
-  const convertLessThanThousand = (n: number): string => {
-    if (n === 0) return "";
-    if (n < 10) return units[n];
-    if (n < 20) return teens[n - 10];
-    if (n < 100) {
-      const ten = Math.floor(n / 10);
-      const unit = n % 10;
-      return tens[ten] + (unit ? " " + units[unit] : "");
-    }
-    const hundred = Math.floor(n / 100);
-    const remainder = n % 100;
-    return units[hundred] + " Hundred" + (remainder ? " " + convertLessThanThousand(remainder) : "");
-  };
-  
-  if (num < 1000) return convertLessThanThousand(num);
-  
-  const thousand = Math.floor(num / 1000);
-  const remainder = num % 1000;
-  
-  if (num < 100000) {
-    return convertLessThanThousand(thousand) + " Thousand" + (remainder ? " " + convertLessThanThousand(remainder) : "");
-  }
-  
-  // For larger numbers, return a simplified version
-  return num.toLocaleString('en-IN');
-};
-
 export async function generateVoucherPDF(data: VoucherPDFData) {
   // Comprehensive input validation using validation function
   const validation = validateVoucherPDFData(data);
@@ -370,6 +370,7 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
   }
 
   // Company Details (Centered alignment) - Improved positioning
+  const headerTextX = margin + (logoHeight > 0 ? 45 : 5);
   const maxNameWidth = pageWidth - margin - 80;
   
   doc.setFont("helvetica", "bold");
@@ -380,7 +381,7 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
   const nameY = y + 15; // Better vertical positioning
   
   // Draw company name with proper spacing
-  splitName.forEach((line: string, index: number) => {
+  splitName.forEach((line, index) => {
     doc.text(line, pageWidth / 2, nameY + (index * 8), { align: "center" });
   });
   
@@ -399,10 +400,8 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
   
   if (addressLines.length > 0) {
     const addressY = nameY + nameHeight + 5;
-    addressLines.forEach((line: string | undefined, index: number) => {
-      if (line) {
-        doc.text(line, pageWidth / 2, addressY + (index * 6), { align: "center" });
-      }
+    addressLines.forEach((line, index) => {
+      doc.text(line, pageWidth / 2, addressY + (index * 6), { align: "center" });
     });
   }
   
@@ -499,6 +498,7 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
         data.type === "RECEIPT" ? formatAmount(data.amount) : ""
       ]
     ],
+    theme: "grid",
     headStyles: {
       fillColor: [40, 40, 40],
       textColor: 255,
@@ -534,7 +534,7 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
   doc.setFont("helvetica", "bold");
   doc.text("Amount (in words):", margin + 5, y + 5);
   doc.setFont("helvetica", "normal");
-  const words = `${convertNumberToWords(data.amount)} Rupees Only`;
+  const words = `${convertNumberToWords(data.amount)}`;
   const splitWords = doc.splitTextToSize(words, contentWidth - 45);
   doc.text(splitWords, margin + 40, y + 5);
 
@@ -559,20 +559,68 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
   doc.text(data.createdBy, margin + 5, footerY + 5);
   doc.line(margin + 5, sigY, margin + 5 + sigBoxWidth, sigY);
 
-  // Checked By (middle)
+  // Verified By
   doc.setFont("helvetica", "normal");
-  doc.text("Checked By", margin + 5 + sigBoxWidth + 10, footerY);
-  doc.line(margin + 5 + sigBoxWidth + 10, sigY, margin + 5 + (sigBoxWidth * 2) + 10, sigY);
+  doc.text("Verified By", margin + 10 + sigBoxWidth, footerY);
+  doc.line(margin + 10 + sigBoxWidth, sigY, margin + 10 + (sigBoxWidth * 2), sigY);
 
-  // Approved By (right)
+  // Receiver
   doc.setFont("helvetica", "normal");
-  doc.text("Approved By", pageWidth - margin - sigBoxWidth - 5, footerY);
-  doc.line(pageWidth - margin - sigBoxWidth - 5, sigY, pageWidth - margin - 5, sigY);
+  doc.text("Receiver's Signature", margin + 15 + (sigBoxWidth * 2), footerY);
+  doc.line(margin + 15 + (sigBoxWidth * 2), sigY, pageWidth - margin - 5, sigY);
 
-  // --- 7. FOOTER ---
+  // --- 7. SYSTEM FOOTER ---
+  const systemFooterY = pageHeight - margin - 5;
   doc.setFontSize(8);
   doc.setTextColor(150);
-  doc.text("This is a computer-generated document and does not require a signature.", pageWidth / 2, pageHeight - 10, { align: "center" });
+  doc.text("Generated by KhyatiGems™ ERP", pageWidth / 2, systemFooterY, { align: "center" });
 
-  return doc;
+  // --- WATERMARK ---
+  if (data.type === "REVERSAL" || data.type === "CANCELLED") {
+      doc.setTextColor(255, 200, 200);
+      doc.setFontSize(50);
+      doc.setFont("helvetica", "bold");
+      doc.saveGraphicsState();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      doc.setGState(new (doc as any).GState({ opacity: 0.3 }));
+      doc.text("CANCELLED", pageWidth / 2, pageHeight / 2, { align: "center", angle: 45 });
+      doc.restoreGraphicsState();
+  }
+
+  return doc.output("blob");
+}
+
+function convertNumberToWords(amount: number): string {
+  const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+  const convertToWords = (n: number): string => {
+    if (n === 0) return "";
+    if (n < 10) return units[n];
+    if (n < 20) return teens[n - 10];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + units[n % 10] : "");
+    if (n < 1000) return units[Math.floor(n / 100)] + " Hundred" + (n % 100 !== 0 ? " " + convertToWords(n % 100) : "");
+    if (n < 100000) return convertToWords(Math.floor(n / 1000)) + " Thousand" + (n % 1000 !== 0 ? " " + convertToWords(n % 1000) : "");
+    if (n < 10000000) return convertToWords(Math.floor(n / 100000)) + " Lakh" + (n % 100000 !== 0 ? " " + convertToWords(n % 100000) : "");
+    return convertToWords(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 !== 0 ? " " + convertToWords(n % 10000000) : "");
+  };
+
+  const [rupees, paise] = amount.toFixed(2).split(".");
+  
+  let words = "";
+  const rupeesInt = parseInt(rupees);
+  
+  if (rupeesInt === 0) {
+    words = "Zero Rupees";
+  } else {
+    words = convertToWords(rupeesInt) + " Rupees";
+  }
+
+  const paiseInt = parseInt(paise);
+  if (paiseInt > 0) {
+    words += " and " + convertToWords(paiseInt) + " Paise";
+  }
+
+  return words + " Only";
 }

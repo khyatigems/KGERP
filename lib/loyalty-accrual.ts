@@ -63,8 +63,8 @@ export async function accrueLoyaltyPoints(input: LoyaltyAccrualInput) {
     const excludedAmount = Number(excludedPayments?.[0]?.total || 0);
     const accrualBase = Math.max(0, input.invoiceTotal - excludedAmount);
     
-    const earnedPoints = Math.floor(accrualBase * pointsPerRupee * 100) / 100; // 2 decimal precision
-    if (earnedPoints <= 0.009) {
+    const earnedPoints = Math.round(accrualBase * pointsPerRupee * 100) / 100; // Standard rounding (0.5+ rounds up, <0.5 rounds down)
+    if (earnedPoints <= 0) {
       console.info(`No loyalty points earned: accrualBase=${accrualBase}, earnedPoints=${earnedPoints} for invoice ${input.invoiceNumber}`);
       return; // No points to award
     }

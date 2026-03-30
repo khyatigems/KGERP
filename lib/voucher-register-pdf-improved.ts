@@ -34,58 +34,108 @@ export async function generateMonthlyRegisterPDF(data: VoucherRegisterData) {
   });
 
   const pageWidth = doc.internal.pageSize.width;
-  const margin = 15;
+  const margin = 12; // Reduced margin for more space
   let y = margin;
 
-  // Header
+  // Header with better spacing
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(20); // Increased font size
   doc.text(data.companyName, pageWidth / 2, y, { align: "center" });
   
-  y += 8;
-  doc.setFontSize(14);
+  y += 10;
+  doc.setFontSize(16); // Increased font size
   doc.text(`Voucher Register – ${data.month} ${data.year}`, pageWidth / 2, y, { align: "center" });
 
-  y += 10;
+  y += 12;
 
-  // Enhanced table with Debit/Credit columns
+    // Helper function to calculate font size based on content length
+    const calculateFontSize = (text: string, maxCellWidth: number, baseFontSize: number = 9): number => {
+      if (!text || text.length <= 10) return baseFontSize;
+      
+      let fontSize = baseFontSize;
+      
+      // Simple approximation for font width calculation
+      const avgCharWidth = fontSize * 0.6; // Approximate average character width
+      while (fontSize > 6 && (text.length * avgCharWidth) > maxCellWidth) {
+        fontSize -= 0.5;
+      }
+      
+      return Math.max(fontSize, 6);
+    };
+
+  // Helper function to clean and format text
+  const cleanText = (text: string): string => {
+    if (!text || text === "-") return "-";
+    return text.trim().replace(/\s+/g, ' ');
+  };
+
+  // Enhanced table with dynamic font sizing and better spacing
   autoTable(doc, {
     startY: y,
+    margin: { left: margin, right: margin },
     head: [["Date", "Voucher No", "Type", "Category", "Party/Vendor", "Narration", "Debit (₹)", "Credit (₹)"]],
-    body: data.entries.map(e => [
-      format(ensureDate(e.date), "dd-MMM-yyyy"),
-      e.voucherNo,
-      e.type,
-      e.category,
-      e.vendor || "-",
-      e.narration || "-",
-      e.debit ? formatInrCurrency(e.debit) : "-",
-      e.credit ? formatInrCurrency(e.credit) : "-"
-    ]),
+    body: data.entries.map(e => {
+      const voucherNo = cleanText(e.voucherNo);
+      const narration = cleanText(e.narration || "-");
+      const vendor = cleanText(e.vendor || "-");
+      
+      return [
+        format(ensureDate(e.date), "dd-MMM-yyyy"),
+        voucherNo,
+        e.type,
+        e.category,
+        vendor,
+        narration,
+        e.debit ? formatInrCurrency(e.debit) : "-",
+        e.credit ? formatInrCurrency(e.credit) : "-"
+      ];
+    }),
     headStyles: {
       fillColor: [40, 40, 40],
       textColor: 255,
       fontStyle: "bold",
-      halign: "center"
+      halign: "center",
+      fontSize: 10,
+      cellPadding: 4
     },
     columnStyles: {
-      0: { cellWidth: 25, halign: "center" },
-      1: { cellWidth: 30, halign: "center" },
-      2: { cellWidth: 20, halign: "center" },
-      3: { cellWidth: 25, halign: "center" },
-      4: { cellWidth: 30, halign: "left" },
-      5: { cellWidth: "auto", halign: "left" },
-      6: { cellWidth: 30, halign: "right", fontStyle: "bold" },
-      7: { cellWidth: 30, halign: "right", fontStyle: "bold" }
+      0: { cellWidth: 25, halign: "center", fontSize: 9, cellPadding: 3 },
+      1: { 
+        cellWidth: 35, 
+        halign: "center", 
+        fontSize: 9, 
+        cellPadding: 3
+      },
+      2: { cellWidth: 20, halign: "center", fontSize: 9, cellPadding: 3 },
+      3: { cellWidth: 25, halign: "center", fontSize: 9, cellPadding: 3 },
+      4: { cellWidth: 30, halign: "left", fontSize: 9, cellPadding: 3 },
+      5: { cellWidth: "auto", halign: "left", fontSize: 9, cellPadding: 3 },
+      6: { cellWidth: 30, halign: "right", fontStyle: "bold", fontSize: 9, cellPadding: 3 },
+      7: { cellWidth: 30, halign: "right", fontStyle: "bold", fontSize: 9, cellPadding: 3 }
     },
     styles: {
       fontSize: 9,
-      cellPadding: 3,
+      cellPadding: 3, // Reduced padding to save space
       lineColor: [200, 200, 200],
-      lineWidth: 0.1
+      lineWidth: 0.1,
+      overflow: 'linebreak' // Ensure text wraps properly
     },
     alternateRowStyles: {
       fillColor: [250, 250, 250]
+    },
+    // Custom hook for dynamic font sizing
+    didDrawCell: (data) => {
+      if (data.column.index === 1 && data.cell.raw) { // Voucher No column
+        const text = String(data.cell.raw);
+        const cellWidth = data.column.width;
+        
+        // Simple approximation for text width
+        const avgCharWidth = 9 * 0.6; // Base font size * average character width
+        if ((text.length * avgCharWidth) > cellWidth - 6) {
+          const fontSize = calculateFontSize(text, cellWidth - 6, 9);
+          doc.setFontSize(fontSize);
+        }
+      }
     }
   });
 

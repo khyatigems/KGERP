@@ -21,17 +21,17 @@ export function buildCustomerExport(customers: CustomerLike[]) {
   const rows = customers.map((c) => ({
     Name: c.name,
     Email: c.email || "",
-    "Primary Phone": c.phone ? c.phone.replace(/\D/g, '') : "",
-    "Secondary Phone": c.phoneSecondary ? c.phoneSecondary.replace(/\D/g, '') : "",
+    "Primary Phone": c.phone ? c.phone.replace(/[^\d+]/g, '') : "", // Fixed: remove all non-digits except +
+    "Secondary Phone": c.phoneSecondary ? c.phoneSecondary.replace(/[^\d+]/g, '') : "", // Fixed: remove all non-digits except +
     Address: c.address || "",
     City: c.city || "",
     State: c.state || "",
     Country: c.country || "",
-    Pincode: c.pincode ? c.pincode.replace(/,/g, '') : "",
+    Pincode: c.pincode ? c.pincode.replace(/[^\w\-]/g, '') : "", // Fixed: remove all non-alphanumeric except hyphen
     PAN: c.pan || "",
     GSTIN: c.gstin || "",
     Notes: c.notes || "",
-    "Loyalty Points": Number(c.loyaltyPoints || 0).toFixed(2),
+    "Loyalty Points": Math.round(Number(c.loyaltyPoints || 0)), // Round to whole number
     "Created At": formatDate(c.createdAt),
   }));
 
