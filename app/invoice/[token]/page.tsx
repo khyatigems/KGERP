@@ -9,6 +9,7 @@ import { Share2 } from "lucide-react";
 import { PrintButton } from "@/components/invoice/print-button";
 import { RazorpayButton } from "@/components/invoice/razorpay-button";
 import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
+import { Button } from "@/components/ui/button";
 import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import { selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
@@ -46,6 +47,16 @@ function parseCategoryHsnJson(input: unknown): Record<string, string> {
   } catch {
     return {};
   }
+}
+
+function isValidHttpUrl(string: string) {
+  let url;
+  try {
+    url = new URL(string);
+  } catch (_) {
+    return false;
+  }
+  return url.protocol === "http:" || url.protocol === "https:";
 }
 
 export const dynamic = "force-dynamic";
@@ -565,6 +576,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                         {customerAddress && <p className="whitespace-pre-wrap break-words">{customerAddress}</p>}
                         {customerPhone && <p>{customerPhone}</p>}
                         {customerEmail && <p>{customerEmail}</p>}
+                        {customerCode && <p>Customer Code: {customerCode}</p>}
                     </div>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-4 text-right">
@@ -628,18 +640,47 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                     {displayOptions.showRashi && item.inventory.rashis && item.inventory.rashis.length > 0 && (
                                         <><span>•</span><span>Rashi: {item.inventory.rashis.map(r => r.name).join(", ")}</span></>
                                     )}
-
-                                    {displayOptions.showCertificates && (() => {
+                                    {(() => {
+                                      if (!displayOptions.showCertificates) {
+                                        return null;
+                                      }
                                       const provider = item.inventory.certificates && item.inventory.certificates.length > 0
                                         ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ")
                                         : (item.inventory.certification || item.inventory.certificateLab || item.inventory.lab || "");
                                       const certNoRaw = item.inventory.certificateNumber || item.inventory.certificateNo || "";
                                       const certNo = typeof certNoRaw === "string" ? certNoRaw.trim() : "";
-                                      const text = provider && certNo ? `Cert: ${provider} #${certNo}` : certNo ? `Cert No: ${certNo}` : provider ? `Cert: ${provider}` : "";
-                                      if (!text) return null;
-                                      return <><span>•</span><span>{text}</span></>;
+
+                                      let certificateUrl: string | undefined;
+
+                                        // Check if certNo is a valid URL
+                                        if (isValidHttpUrl(certNo)) {
+                                          certificateUrl = certNo;
+                                        } else if (item.inventory.certificates && item.inventory.certificates.length > 0) {
+                                          const foundUrl = item.inventory.certificates
+                                                                              .map(c => (c as { url?: string }).url)
+                                                                              .find(url => typeof url === 'string' && isValidHttpUrl(url));
+                                          if (foundUrl) {
+                                            certificateUrl = foundUrl;
+                                          }
+                                        }
+
+                                      if (certificateUrl) {
+                                        return (
+                                          <>
+                                            <span>•</span>
+                                            <a href={certificateUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                                              <Button variant="link" className="h-auto p-0 text-xs">View Certificate</Button>
+                                            </a>
+                                          </>
+                                        );
+                                      } else {
+                                        const text = provider && certNo ? `Cert: ${provider} #${certNo}` : certNo ? `Cert No: ${certNo}` : provider ? `Cert: ${provider}` : "";
+                                        if (!text) return null;
+                                        return <><span>•</span><span>{text}</span></>;
+                                      }
                                     })()}
                                 </div>
+
                                 {/* Pricing Details */}
                                 {displayOptions.showPrice && (
                                 <div className="text-xs text-gray-500 mt-0.5">

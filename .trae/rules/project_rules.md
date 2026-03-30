@@ -1,3 +1,6 @@
+---
+alwaysApply: false
+---
 # Project Rules
 
 ## Mandatory Completion Review

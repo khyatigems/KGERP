@@ -1079,6 +1079,7 @@ model JournalEntry {
   referenceId   String?
   createdById   String
   createdAt     DateTime      @default(now())
+  isReversed    Boolean       @default(false)
   lines         JournalLine[]
   createdBy     User          @relation(fields: [createdById], references: [id])
 

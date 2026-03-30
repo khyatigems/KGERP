@@ -1,5 +1,0 @@
--- AlterTable
-ALTER TABLE "Sale" ADD COLUMN "billingAddress" TEXT;
-ALTER TABLE "Sale" ADD COLUMN "placeOfSupply" TEXT;
-ALTER TABLE "Sale" ADD COLUMN "shippingCharge" REAL NOT NULL DEFAULT 0;
-ALTER TABLE "Sale" ADD COLUMN "additionalCharge" REAL NOT NULL DEFAULT 0;

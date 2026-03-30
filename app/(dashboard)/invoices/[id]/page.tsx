@@ -21,6 +21,7 @@ import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-b
 import { computeInvoiceGst } from "@/lib/invoice-gst";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { sanitizeNumberText } from "@/lib/number-formatting";
+import { resolveInventoryCertificateUrl } from "@/lib/certificate-url";
 
 export const dynamic = "force-dynamic";
 
@@ -69,10 +70,10 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     where: { id },
     include: {
       sales: {
-        include: { inventory: true }
+        include: { inventory: { include: { certificates: true } } }
       },
       legacySale: {
-        include: { inventory: true }
+        include: { inventory: { include: { certificates: true } } }
       },
       quotation: true,
       versions: {
@@ -608,14 +609,52 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
                       </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {salesItems.map((item) => (
-                          <TableRow key={item.id}>
-                              <TableCell>{item.inventory.sku}</TableCell>
-                              <TableCell>{item.inventory.itemName}</TableCell>
-                              <TableCell>{formatCurrency(item.salePrice)}</TableCell>
-                              <TableCell>{formatCurrency(item.netAmount)}</TableCell>
-                          </TableRow>
-                      ))}
+                      {salesItems.map((item) => {
+                          const inventory = item.inventory;
+                          const certificateUrl = resolveInventoryCertificateUrl(inventory);
+
+                          const details: string[] = [];
+                          if (inventory.weightValue && inventory.weightUnit) {
+                              details.push(`${inventory.weightValue} ${inventory.weightUnit}`);
+                          }
+                          if (inventory.weightRatti) {
+                              details.push(`${inventory.weightRatti} Ratti`);
+                          }
+                          if (inventory.gemType) {
+                              details.push(String(inventory.gemType));
+                          }
+                          if (inventory.category) {
+                              details.push(String(inventory.category));
+                          }
+
+                          return (
+                              <TableRow key={item.id}>
+                                  <TableCell className="align-top">{inventory.sku}</TableCell>
+                                  <TableCell className="space-y-2 align-top">
+                                      <div>
+                                          <p className="font-medium text-foreground">{inventory.itemName}</p>
+                                          {details.length > 0 ? (
+                                              <p className="text-xs text-muted-foreground">{details.join(" • ")}</p>
+                                          ) : null}
+                                      </div>
+                                      {certificateUrl ? (
+                                          <Button
+                                              variant="outline"
+                                              size="sm"
+                                              asChild
+                                              className="text-xs"
+                                          >
+                                              <Link href={certificateUrl} target="_blank" rel="noreferrer">
+                                                  View Certificate
+                                              </Link>
+                                          </Button>
+                                      ) : null}
+                                  </TableCell>
+                                  <TableCell className="align-top">{formatCurrency(item.salePrice)}</TableCell>
+                                  <TableCell className="align-top">{formatCurrency(item.netAmount)}</TableCell>
+                              </TableRow>
+                          );
+                      })}
                   </TableBody>
               </Table>
           </CardContent>

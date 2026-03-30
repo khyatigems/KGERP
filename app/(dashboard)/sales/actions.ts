@@ -436,6 +436,40 @@ export async function createSale(prevState: unknown, formData: FormData) {
               }
           });
 
+          // Create Journal Entry for Sale
+          const arAccount = await getOrCreateAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE.code, tx);
+          const salesAccount = await getOrCreateAccountByCode(ACCOUNTS.INCOME.SALES.code, tx);
+          const gstPayableAccount = await getOrCreateAccountByCode(ACCOUNTS.LIABILITIES.GST_PAYABLE.code, tx);
+
+          const journalEntryInput = {
+            referenceType: "INVOICE",
+            referenceId: newInvoice.id,
+            description: `Sale Invoice ${newInvoice.invoiceNumber}`,
+            date: newInvoice.invoiceDate,
+            userId: session.user.id,
+            lines: [
+              {
+                accountId: arAccount.id,
+                debit: newInvoice.totalAmount,
+                credit: 0,
+                description: `Accounts Receivable for Invoice ${newInvoice.invoiceNumber}`,
+              },
+              {
+                accountId: salesAccount.id,
+                debit: 0,
+                credit: newInvoice.subtotal,
+                description: `Sales Revenue for Invoice ${newInvoice.invoiceNumber}`,
+              },
+              {
+                accountId: gstPayableAccount.id,
+                debit: 0,
+                credit: newInvoice.taxTotal,
+                description: `GST Payable for Invoice ${newInvoice.invoiceNumber}`,
+              },
+            ],
+          };
+          await postJournalEntry(journalEntryInput, tx);
+
           if (couponToRedeemId) {
             await tx.$executeRawUnsafe(
               `INSERT INTO "CouponRedemption" (id, couponId, invoiceId, customerId, discountAmount, redeemedAt)

@@ -1,1 +1,0 @@
-ALTER TABLE "Invoice" ADD COLUMN "invoiceDate" DATETIME;

@@ -1,7 +1,6 @@
 import { LoginForm } from "@/components/auth/login-form";
 import { getLandingPageSettings } from "@/app/(dashboard)/settings/landing-page/actions";
 import { Check } from "lucide-react";
-import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -13,16 +12,18 @@ export default async function LoginPage() {
     <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
-        <Image
-          src="/images/login-bg.png"
-          alt="Background"
-          fill
-          className="object-cover"
-          quality={100}
-          priority
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800" />
+        <div
+          className="absolute inset-0 opacity-60 mix-blend-screen"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 15% 20%, rgba(148, 163, 184, 0.35) 0%, transparent 55%), " +
+              "radial-gradient(circle at 85% 15%, rgba(59, 130, 246, 0.28) 0%, transparent 60%), " +
+              "radial-gradient(circle at 50% 80%, rgba(45, 212, 191, 0.22) 0%, transparent 55%)",
+          }}
         />
         {/* Overlay for better text contrast/glass effect base */}
-        <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]" />
+        <div className="absolute inset-0 bg-black/15 backdrop-blur-[2px]" />
       </div>
 
       {/* Glass Card */}

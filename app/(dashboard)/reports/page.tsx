@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { TrendingUp, Boxes, CircleDollarSign, Percent, Activity, Package, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ReceiptIndianRupee, QrCode, ListChecks } from "lucide-react";
+import { TrendingUp, Boxes, CircleDollarSign, Percent, Activity, Package, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ReceiptIndianRupee, QrCode, ListChecks, Gift } from "lucide-react";
 import Link from "next/link";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { formatCurrency } from "@/lib/utils";
@@ -356,6 +356,8 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         { title: "Capital Rotation", description: "Sell-cycle and money velocity intelligence", icon: TrendingUp, href: "/reports/capital-rotation", allowed: true },
         { title: "Certificate Checklist", description: "SKU-wise missing fields for certificate readiness", icon: ListChecks, href: "/reports/certificate-readiness", allowed: true },
         { title: "Customer Intelligence", description: "Repeat customer behavior and ticket-size analytics", icon: TrendingUp, href: "/reports/customer-intelligence", allowed: ["ADMIN", "SUPER_ADMIN"].includes(session.user.role) },
+        { title: "Loyalty Points Report", description: "Detailed breakdown of loyalty points earned and redeemed.", icon: Gift, href: "/reports/loyalty-points", allowed: true },
+        { title: "Discount Usage Report", description: "Analysis of discount coupons and their impact on sales.", icon: Percent, href: "/reports/discount-usage", allowed: true },
         { title: "Payment Reports", description: "Payment trends, method distribution, recent transactions", icon: CreditCard, href: "/reports/payments", allowed: true },
         { title: "Expense Reports", description: "Category-wise, Vendor-wise, GST breakdown", icon: ReceiptIndianRupee, href: "/reports/expenses", allowed: canViewExpenses },
         { title: "Label & Ops", description: "Printing activity, user logs", icon: Printer, href: "/reports/ops", allowed: true },
@@ -368,6 +370,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         { title: "Vendor Intelligence", color: "text-purple-600", description: "Track supplier performance.", links: [{ label: "Vendor Purchases", href: "/reports/vendor-purchases" }, { label: "Vendor Inventory", href: "/reports/vendor-inventory" }, { label: "Vendor Dependency", href: "/reports/vendor-dependency" }] },
         { title: "Operations Reports", color: "text-orange-600", description: "Operational insights.", links: [{ label: "Label Printing", href: "/reports/label-printing" }, { label: "User Activity", href: "/reports/user-activity" }, { label: "System Logs", href: "/reports/system-logs" }] },
         { title: "Customer Intelligence", color: "text-rose-600", description: "Lifecycle and repeat-customer insights.", links: [{ label: "Customer Intelligence", href: "/reports/customer-intelligence" }, { label: "Top Customers", href: "/reports/top-customers" }, { label: "Purchase Timeline", href: "/reports/purchase-timeline" }] },
+        { title: "Loyalty & Discounts", color: "text-indigo-600", description: "Analyze loyalty points and discount usage.", links: [{ label: "Loyalty Points Report", href: "/reports/loyalty-points" }, { label: "Discount Usage Report", href: "/reports/discount-usage" }] },
     ];
 
     return (

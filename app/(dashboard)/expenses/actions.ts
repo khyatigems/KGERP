@@ -138,14 +138,19 @@ export async function updateExpense(id: string, data: Partial<ExpenseFormValues>
 
   try {
     const expense = await prisma.$transaction(async (tx) => {
-      // 1. Reverse old voucher if exists
+      // 1. Reverse old voucher and its journal entry if exists
       if (existing.voucherId) {
         await tx.voucher.update({
           where: { id: existing.voucherId },
-          data: { 
-            isReversed: true, 
-            reversalReason: `Edited by ${session.user.name} on ${new Date().toISOString()}` 
+          data: {
+            isReversed: true,
+            reversalReason: `Edited by ${session.user.name} on ${new Date().toISOString()}`
           }
+        });
+        // Find and reverse the associated JournalEntry
+        await tx.journalEntry.updateMany({
+            where: { referenceType: "EXPENSE", referenceId: existing.id, isReversed: false },
+            data: { isReversed: true, reversalReason: `Expense updated. Old entry reversed by ${session.user.name}` }
         });
       }
 
@@ -173,6 +178,49 @@ export async function updateExpense(id: string, data: Partial<ExpenseFormValues>
         where: { id: voucher.id },
         data: { referenceId: updated.id }
       });
+
+      // 5. Create new accounting entry for the updated expense
+      try {
+          // Debit: Expense Category
+          let debitAccountId = "";
+          // Try to match category code to account code
+          if (updated.category?.code) {
+              const acc = await tx.account.findUnique({ where: { code: updated.category.code } });
+              if (acc) debitAccountId = acc.id;
+          }
+          // Fallback to Office Expenses
+          if (!debitAccountId) {
+              const defaultExp = await getAccountByCode(ACCOUNTS.EXPENSES.OFFICE, tx);
+              debitAccountId = defaultExp.id;
+          }
+
+          // Credit: Payment Mode
+          let creditAccountId = "";
+          const mode = (data.paymentMode || existing.paymentMode)?.toUpperCase() || "CASH";
+          if (mode === "CASH") {
+              const acc = await getAccountByCode(ACCOUNTS.ASSETS.CASH, tx);
+              creditAccountId = acc.id;
+          } else {
+              // Assume Bank for UPI/Card/Bank (Default to HDFC)
+              const acc = await getAccountByCode(ACCOUNTS.ASSETS.BANK_HDFC, tx);
+              creditAccountId = acc.id;
+          }
+
+          await postJournalEntry({
+              date: data.expenseDate || existing.expenseDate,
+              description: `Expense (Update): ${data.description || existing.description} (${updated.category?.name})`,
+              referenceType: "EXPENSE",
+              referenceId: updated.id,
+              userId: session.user.id,
+              lines: [
+                  { accountId: debitAccountId, debit: data.totalAmount ?? existing.totalAmount },
+                  { accountId: creditAccountId, credit: data.totalAmount ?? existing.totalAmount }
+              ]
+          }, tx);
+      } catch (e) {
+          console.error("Accounting Error during expense update:", e);
+          // Don't re-throw, just log, similar to createExpense
+      }
 
       return updated;
     });
@@ -203,14 +251,19 @@ export async function deleteExpense(id: string) {
   if (!expense) throw new Error("Expense not found");
 
   await prisma.$transaction(async (tx) => {
-    // 1. Reverse Voucher
+    // 1. Reverse Voucher and its Journal Entry
     if (expense.voucherId) {
       await tx.voucher.update({
         where: { id: expense.voucherId },
-        data: { 
-          isReversed: true, 
-          reversalReason: `Expense Deleted by ${session.user.name}` 
+        data: {
+          isReversed: true,
+          reversalReason: `Expense Deleted by ${session.user.name}`
         }
+      });
+      // Find and reverse the associated JournalEntry
+      await tx.journalEntry.updateMany({
+          where: { referenceType: "EXPENSE", referenceId: expense.id, isReversed: false },
+          data: { isReversed: true, reversalReason: `Expense deleted by ${session.user.name}` }
       });
     }
 

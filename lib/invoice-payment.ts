@@ -1,6 +1,14 @@
 import crypto from "crypto";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
-import { ACCOUNTS, getOrCreateAccountByCode, postJournalEntry, PrismaTx } from "@/lib/accounting";
+import {
+  ACCOUNTS,
+  getOrCreateAccountByCode,
+  postJournalEntry,
+  PrismaTx,
+  resolvePaymentAccountCode,
+  type JournalLineInput,
+} from "@/lib/accounting";
+import { getPaymentMethodLabel } from "@/lib/payment-breakdown";
 import { logActivity } from "@/lib/activity-logger";
 
 export type InvoicePaymentInput = {
@@ -29,9 +37,27 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
       paidAmount: true,
       totalAmount: true,
       paymentStatus: true,
-      sales: { take: 1, select: { customerId: true } },
-      legacySale: { select: { customerId: true } },
-      quotation: { select: { customerId: true } },
+      sales: {
+        take: 1,
+        select: {
+          customerId: true,
+          customerName: true,
+          customer: { select: { name: true } },
+        },
+      },
+      legacySale: {
+        select: {
+          customerId: true,
+          customerName: true,
+        },
+      },
+      quotation: {
+        select: {
+          customerId: true,
+          customerName: true,
+          customer: { select: { name: true } },
+        },
+      },
     },
   });
   if (!invoiceCtx) return { success: false as const, message: "Invoice not found" };
@@ -40,6 +66,14 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
     invoiceCtx.sales?.[0]?.customerId ||
     invoiceCtx.legacySale?.customerId ||
     invoiceCtx.quotation?.customerId ||
+    null;
+
+  const partyName =
+    invoiceCtx.sales?.[0]?.customer?.name ||
+    invoiceCtx.sales?.[0]?.customerName ||
+    invoiceCtx.legacySale?.customerName ||
+    invoiceCtx.quotation?.customer?.name ||
+    invoiceCtx.quotation?.customerName ||
     null;
 
   const allowedMethods = new Set(["CASH", "UPI", "BANK_TRANSFER", "CHEQUE", "OTHER", "CREDIT_NOTE", "LOYALTY_REDEEM"]);
@@ -332,6 +366,83 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
     await tx.sale.updateMany({
       where: { invoiceId: input.invoiceId },
       data: { paymentStatus: finalStatus }
+    });
+
+    const methodLabel = getPaymentMethodLabel(input.method);
+    const narrationParts = [
+      `Payment received for Invoice ${invoiceCtx.invoiceNumber}`,
+      partyName ? `From Party: ${partyName}` : undefined,
+      `Payment Method: ${methodLabel}`,
+      input.reference ? `Reference: ${input.reference}` : undefined,
+      input.notes ? `Notes: ${input.notes}` : undefined,
+    ];
+    const narration = narrationParts.filter(Boolean).join(" | ");
+
+    const arAccount = await getOrCreateAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, tx);
+    const lines: JournalLineInput[] = [];
+
+    if (input.method === "LOYALTY_REDEEM") {
+      const loyaltyAccount = await getOrCreateAccountByCode(ACCOUNTS.EXPENSES.LOYALTY_REDEMPTION, tx);
+      lines.push(
+        {
+          accountId: loyaltyAccount.id,
+          debit: amountToRecord,
+          description: narration || `Loyalty redemption applied to Invoice ${invoiceCtx.invoiceNumber}`,
+        },
+        {
+          accountId: arAccount.id,
+          credit: amountToRecord,
+          description: narration || `Accounts Receivable settled via Loyalty redeem for Invoice ${invoiceCtx.invoiceNumber}`,
+        }
+      );
+    } else if (input.method === "CREDIT_NOTE") {
+      const creditNoteAccount = await getOrCreateAccountByCode(ACCOUNTS.LIABILITIES.CREDIT_NOTES_APPLIED, tx);
+      lines.push(
+        {
+          accountId: creditNoteAccount.id,
+          debit: amountToRecord,
+          description: narration || `Credit note applied to Invoice ${invoiceCtx.invoiceNumber}`,
+        },
+        {
+          accountId: arAccount.id,
+          credit: amountToRecord,
+          description: narration || `Accounts Receivable settled via Credit Note for Invoice ${invoiceCtx.invoiceNumber}`,
+        }
+      );
+    } else {
+      const debitAccountCode = resolvePaymentAccountCode(input.method);
+      const debitAccount = await getOrCreateAccountByCode(debitAccountCode, tx);
+      lines.push(
+        {
+          accountId: debitAccount.id,
+          debit: amountToRecord,
+          description: narration || `Payment by ${methodLabel} for Invoice ${invoiceCtx.invoiceNumber}`,
+        },
+        {
+          accountId: arAccount.id,
+          credit: amountToRecord,
+          description: narration || `Accounts Receivable settled for Invoice ${invoiceCtx.invoiceNumber}`,
+        }
+      );
+    }
+
+    if (lines.length === 0) {
+      throw new Error(`No accounting lines generated for payment method ${input.method}`);
+    }
+
+    await postJournalEntry(
+      {
+        date: paymentDate,
+        description: narration,
+        referenceType: "INVOICE_PAYMENT",
+        referenceId: createdPaymentId,
+        userId: input.actor?.userId || "system",
+        lines,
+      },
+      tx
+    ).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to create accounting entry for payment ${createdPaymentId}: ${message}`);
     });
   });
 

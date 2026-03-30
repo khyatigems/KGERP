@@ -1,25 +1,32 @@
+import type { ReactNode } from "react";
+
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { auth } from "@/lib/auth";
 import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
-import { Permission } from "@/lib/permissions";
+
+type SessionType = Awaited<ReturnType<typeof auth>>;
+type SessionUser = SessionType extends { user: infer U } ? U | null | undefined : undefined;
 
 export default async function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const session = await auth();
-  
-  // Fetch fresh user data to ensure avatar is up-to-date
-  let user = session?.user;
+
+  let user: SessionUser = session?.user ?? null;
   let allowedNavModules: string[] = [];
 
   if (session?.user?.id) {
     await ensureUserRoleIdColumn();
     const supports = await hasUserRoleIdColumn();
     await ensureRbacSchema();
-    const hasRbacTables = (await hasTable("UserPermission")) && (await hasTable("Role")) && (await hasTable("Permission")) && (await hasTable("RolePermission"));
+    const hasRbacTables =
+      (await hasTable("UserPermission")) &&
+      (await hasTable("Role")) &&
+      (await hasTable("Permission")) &&
+      (await hasTable("RolePermission"));
 
     const dbUser = supports && hasRbacTables
       ? ((await (prisma.user as any).findUnique({
@@ -31,10 +38,10 @@ export default async function DashboardLayout({
             role: true,
             lastLogin: true,
             roleRelation: {
-              select: { name: true, permissions: { select: { permission: { select: { key: true } } } } }
+              select: { name: true, permissions: { select: { permission: { select: { key: true } } } } },
             },
-            userPermissions: { select: { allow: true, permission: { select: { key: true } } } }
-          } as any)
+            userPermissions: { select: { allow: true, permission: { select: { key: true } } } },
+          } as any),
         })) as any)
       : ((await prisma.user.findUnique({
           where: { id: session.user.id },
@@ -44,48 +51,56 @@ export default async function DashboardLayout({
             avatar: true,
             role: true,
             lastLogin: true,
-          }
+          },
         })) as any);
-    
+
     if (dbUser) {
-      // Resolve permissions
       const resolvedPerms = new Set<string>();
-      
-      // Legacy static fallback for now
-      if (dbUser.role === "SUPER_ADMIN" || dbUser.roleRelation?.name === "SUPER_ADMIN") {
+
+      const normalizeRole = (value: string | null | undefined) => value?.toUpperCase().replace(/\s+/g, "").replace(/_/g, "") ?? "";
+
+      const isSuperAdmin = [
+        normalizeRole(dbUser.role),
+        normalizeRole(dbUser.roleRelation?.name),
+        normalizeRole(session?.user?.role)
+      ].some((role) => role === "SUPERADMIN");
+
+      if (isSuperAdmin) {
         allowedNavModules = ["ALL"];
       } else {
-        // From role
-        dbUser.roleRelation?.permissions.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
+        dbUser.roleRelation?.permissions?.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
 
-        if (!dbUser.roleRelation?.permissions?.length && dbUser.role) {
+        if (!resolvedPerms.size && dbUser.role) {
           try {
             const role = await (prisma as any).role.findUnique({
               where: { name: dbUser.role },
-              include: { permissions: { include: { permission: true } } }
+              include: { permissions: { include: { permission: true } } },
             });
             role?.permissions?.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
           } catch {}
         }
-        
-        // Apply overrides
+
         dbUser.userPermissions?.forEach((up: any) => {
           if (up.allow) resolvedPerms.add(up.permission.key);
           else resolvedPerms.delete(up.permission.key);
         });
 
         allowedNavModules = Array.from(resolvedPerms);
+
+        if (!allowedNavModules.length) {
+          allowedNavModules = ["DASHBOARD_BASIC"];
+        }
       }
 
       user = {
-        ...session.user,
-        name: dbUser.name,
-        email: dbUser.email,
-        image: dbUser.avatar, // Map avatar field to image
-        role: dbUser.roleRelation?.name || dbUser.role,
-        lastLogin: dbUser.lastLogin,
-        permissions: allowedNavModules as Permission[]
-      };
+        ...(session?.user ?? {}),
+        name: dbUser.name ?? session?.user?.name,
+        email: dbUser.email ?? session?.user?.email,
+        avatar: dbUser.avatar ?? (session?.user as any)?.avatar,
+        image: dbUser.avatar ?? (session?.user as any)?.image,
+        role: dbUser.role ?? session?.user?.role,
+        lastLogin: dbUser.lastLogin ?? (session?.user as any)?.lastLogin,
+      } as SessionUser;
     }
   }
 

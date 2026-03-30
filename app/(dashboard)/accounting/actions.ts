@@ -77,12 +77,21 @@ export async function getVoucherReport(filters: VoucherFilter) {
   return { vouchers, stats: { totalDebits, totalCredits, totalReversals, count: vouchers.length } };
 }
 
+export type ReceiptCustomerOption = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+};
+
 export async function createReceipt(data: {
   date: Date;
   amount: number;
   fromName: string; // Payer
   description: string;
   paymentMode: string;
+  customerId?: string | null;
 }) {
   await checkPermission(PERMISSIONS.EXPENSE_CREATE); // Reuse permission or create new one
   const session = await auth();
@@ -95,7 +104,10 @@ export async function createReceipt(data: {
         type: "RECEIPT",
         date: data.date,
         amount: data.amount,
-        narration: `Received from ${data.fromName}: ${data.description}`,
+        narration: data.description
+          ? `Received from ${data.fromName}: ${data.description}`
+          : `Received from ${data.fromName}`,
+        referenceId: data.customerId || undefined,
         createdById: session.user.id
       }, tx);
 
@@ -111,6 +123,24 @@ export async function createReceipt(data: {
     console.error("Failed to create receipt", error);
     return { success: false, error: "Failed to create receipt" };
   }
+}
+
+export async function getReceiptCustomerOptions(): Promise<ReceiptCustomerOption[]> {
+  await checkPermission(PERMISSIONS.CUSTOMER_VIEW);
+
+  const customers = await prisma.customer.findMany({
+    orderBy: { updatedAt: "desc" },
+    take: 200,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      city: true,
+    },
+  });
+
+  return customers;
 }
 
 export async function getCompanyDetailsForVoucher() {

@@ -31,18 +31,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            password: true,
-            role: true,
-            avatar: true,
-            lastLogin: true,
-            lastPasswordChange: true,
-            forceLogoutBefore: true,
-            createdAt: true,
-          }
+          include: {
+            roleRelation: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
         });
 
         if (!user) {
@@ -53,6 +52,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await compare(password, user.password);
         console.log("Auth: Password valid?", valid);
         if (!valid) return null;
+
+        const permissions = user.roleRelation?.permissions.map(p => p.permission.key) || [];
 
         // Update last login
         try {
@@ -95,6 +96,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           role: user.role,
+          permissions: permissions, // Add permissions here
           lastLogin: new Date(),
         };
       },

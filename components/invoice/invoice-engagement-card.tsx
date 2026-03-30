@@ -118,8 +118,8 @@ export function InvoiceEngagementCard({
       </div>
 
       {coupon ? (
-        <div className="mt-3 rounded-md border bg-white p-3 text-sm">
-          Coupon Applied: <span className="font-semibold">{coupon.code}</span> ({formatCurrency(coupon.discountAmount)})
+        <div className="mt-3 rounded-md border bg-white p-3 text-base text-slate-700">
+          Coupon Applied: <span className="font-semibold text-slate-900">{coupon.code}</span> ({formatCurrency(coupon.discountAmount)})
         </div>
       ) : null}
 

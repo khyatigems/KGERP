@@ -20,8 +20,8 @@ export interface JournalLineInput {
 export interface JournalEntryInput {
   date: Date;
   description: string;
-  referenceType: string;
-  referenceId: string;
+  referenceType?: string;
+  referenceId?: string;
   lines: JournalLineInput[];
   userId: string;
 }
@@ -78,6 +78,7 @@ const DEFAULT_ACCOUNTS: Array<{ code: string; name: string; type: string; subtyp
   { code: "2001", name: "Accounts Payable", type: "LIABILITY", subtype: "AP" },
   { code: "2010", name: "GST Payable", type: "LIABILITY", subtype: "TAX" },
   { code: "2020", name: "Duties & Taxes", type: "LIABILITY", subtype: "TAX" },
+  { code: "2025", name: "Credit Notes Applied", type: "LIABILITY", subtype: "OTHER" },
   { code: "3001", name: "Capital Account", type: "EQUITY", subtype: "CAPITAL" },
   { code: "3002", name: "Retained Earnings", type: "EQUITY", subtype: "RETAINED_EARNINGS" },
   { code: "4001", name: "Sales Revenue", type: "INCOME", subtype: "REVENUE" },
@@ -86,7 +87,8 @@ const DEFAULT_ACCOUNTS: Array<{ code: string; name: string; type: string; subtyp
   { code: "5002", name: "Salary Expense", type: "EXPENSE", subtype: "OPERATING" },
   { code: "5003", name: "Rent Expense", type: "EXPENSE", subtype: "OPERATING" },
   { code: "5004", name: "Electricity Expense", type: "EXPENSE", subtype: "OPERATING" },
-  { code: "5005", name: "Office Expenses", type: "EXPENSE", subtype: "OPERATING" }
+  { code: "5005", name: "Office Expenses", type: "EXPENSE", subtype: "OPERATING" },
+    { code: "5006", name: "Loyalty Redemption Expense", type: "EXPENSE", subtype: "MARKETING" }
 ];
 
 export async function getOrCreateAccountByCode(code: string, tx: PrismaTx = prisma) {
@@ -136,5 +138,23 @@ export const ACCOUNTS = {
     RENT: "5003",
     ELECTRICITY: "5004",
     OFFICE: "5005",
+    LOYALTY_REDEMPTION: "5006",
   }
 };
+
+export function resolvePaymentAccountCode(method: string): string {
+  const normalized = String(method || "").toUpperCase();
+  switch (normalized) {
+    case "CASH":
+      return ACCOUNTS.ASSETS.CASH;
+    case "UPI":
+    case "BANK_TRANSFER":
+    case "CHEQUE":
+    case "CARD":
+      return ACCOUNTS.ASSETS.BANK_HDFC;
+    case "BANK_SBI":
+      return ACCOUNTS.ASSETS.BANK_SBI;
+    default:
+      return ACCOUNTS.ASSETS.CASH;
+  }
+}

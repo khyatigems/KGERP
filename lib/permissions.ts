@@ -85,6 +85,19 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   VIEWER: [],
 };
 
+function normalizeRoleKey(role?: string | null): string {
+  if (!role) return "";
+  const cleaned = role.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  if (cleaned === "SUPERADMIN") return "SUPER_ADMIN";
+  if (cleaned === "SUPER-ADMIN") return "SUPER_ADMIN";
+  return cleaned;
+}
+
+function isSuperAdminRole(role?: string | null): boolean {
+  const normalized = normalizeRoleKey(role);
+  return normalized === "SUPER_ADMIN" || normalized === "ADMINISTRATOR";
+}
+
 // Check permission dynamically from DB
 export async function checkUserPermission(userId: string, permission: Permission): Promise<boolean> {
   await ensureUserRoleIdColumn();
@@ -103,7 +116,7 @@ export async function checkUserPermission(userId: string, permission: Permission
       select: { role: true }
     });
     if (!user) return false;
-    if (user.role === "SUPER_ADMIN") return true;
+    if (isSuperAdminRole(user.role)) return true;
     return getPermissionsForRole(user.role).includes(permission);
   }
 
@@ -113,7 +126,7 @@ export async function checkUserPermission(userId: string, permission: Permission
       select: { role: true }
     });
     if (!user) return false;
-    if (user.role === "SUPER_ADMIN") return true;
+    if (isSuperAdminRole(user.role)) return true;
     return getPermissionsForRole(user.role).includes(permission);
   }
 
@@ -134,24 +147,25 @@ export async function checkUserPermission(userId: string, permission: Permission
       }
     })) as any;
 
+
     if (!user) return false;
 
     const override = (user.userPermissions || []).find((up: any) => up.permission.key === permission);
     if (override) return override.allow;
 
     if (user.roleRelation) {
-      if (user.roleRelation.name === "SUPER_ADMIN") return true;
+      if (isSuperAdminRole(user.roleRelation.name)) return true;
       return (user.roleRelation.permissions || []).some((rp: any) => rp.permission.key === permission);
     }
 
-    if (user.role === "SUPER_ADMIN") return true;
+    if (isSuperAdminRole(user.role)) return true;
 
     try {
       const role = await (prisma as any).role.findUnique({
         where: { name: user.role },
         include: { permissions: { include: { permission: true } } }
       });
-      if (role?.name === "SUPER_ADMIN") return true;
+      if (isSuperAdminRole(role?.name)) return true;
       if (role?.permissions?.some((rp: any) => rp.permission?.key === permission)) return true;
     } catch {}
 
@@ -164,7 +178,7 @@ export async function checkUserPermission(userId: string, permission: Permission
         select: { role: true }
       });
       if (!user) return false;
-      if (user.role === "SUPER_ADMIN") return true;
+      if (isSuperAdminRole(user.role)) return true;
       return getPermissionsForRole(user.role).includes(permission);
     }
     throw error;
@@ -172,12 +186,13 @@ export async function checkUserPermission(userId: string, permission: Permission
 }
 
 export function getPermissionsForRole(role: string): Permission[] {
-  return ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] || [];
+  const key = normalizeRoleKey(role);
+  return ROLE_PERMISSIONS[key as keyof typeof ROLE_PERMISSIONS] || [];
 }
 
 // Deprecated: Only used in UI where async is not possible yet.
 // Replaced by session.user.permissions array (which we will inject)
 export function hasPermission(role: string, permission: Permission): boolean {
-  if (role === "SUPER_ADMIN") return true;
+  if (isSuperAdminRole(role)) return true;
   return getPermissionsForRole(role).includes(permission);
 }

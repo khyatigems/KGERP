@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getVoucherReport, createReceipt, getCompanyDetailsForVoucher } from "@/app/(dashboard)/accounting/actions";
+import {
+  getVoucherReport,
+  createReceipt,
+  getCompanyDetailsForVoucher,
+  getReceiptCustomerOptions,
+  type ReceiptCustomerOption,
+} from "@/app/(dashboard)/accounting/actions";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +15,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Search, Printer, Plus, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import {
+  FileText,
+  Download,
+  Search,
+  Printer,
+  Plus,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  ChevronsUpDown,
+} from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
@@ -24,6 +39,15 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
@@ -63,6 +87,9 @@ export function VoucherReport() {
   const [data, setData] = useState<VoucherReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
+  const [receiptCustomers, setReceiptCustomers] = useState<ReceiptCustomerOption[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
 
   // Receipt Form State
   const [receiptData, setReceiptData] = useState({
@@ -70,24 +97,41 @@ export function VoucherReport() {
       fromName: "",
       description: "",
       paymentMode: "CASH",
-      date: new Date()
+      date: new Date(),
+      customerId: "",
   });
 
+  const selectedReceiptCustomer = receiptData.customerId
+    ? receiptCustomers.find((customer) => customer.id === receiptData.customerId)
+    : undefined;
+
   const handleCreateReceipt = async () => {
-      if (!receiptData.amount || !receiptData.fromName) {
-          toast.error("Please fill required fields");
+      const amountValue = Number(receiptData.amount);
+      const effectiveName = receiptData.fromName.trim() || selectedReceiptCustomer?.name?.trim() || "";
+
+      if (!amountValue || !effectiveName) {
+          toast.error("Please select a customer or enter payer name and amount");
           return;
       }
       try {
           const res = await createReceipt({
               ...receiptData,
-              amount: Number(receiptData.amount),
-              date: receiptData.date
+              fromName: effectiveName,
+              amount: amountValue,
+              date: receiptData.date,
+              customerId: receiptData.customerId || null,
           });
           if (res.success) {
               toast.success("Receipt Voucher Created");
               setReceiptOpen(false);
-              setReceiptData({ amount: "", fromName: "", description: "", paymentMode: "CASH", date: new Date() });
+              setReceiptData({
+                amount: "",
+                fromName: "",
+                description: "",
+                paymentMode: "CASH",
+                date: new Date(),
+                customerId: "",
+              });
               fetchData();
           } else {
               toast.error("Failed to create receipt");
@@ -220,6 +264,29 @@ export function VoucherReport() {
     fetchData();
   }, [dateRange, type]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        setCustomersLoading(true);
+        const options = await getReceiptCustomerOptions();
+        if (active) {
+          setReceiptCustomers(options);
+        }
+      } catch (error) {
+        console.error("Failed to load customers for receipt", error);
+        if (active) {
+          setReceiptCustomers([]);
+        }
+      } finally {
+        if (active) setCustomersLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -235,14 +302,85 @@ export function VoucherReport() {
                       <DialogDescription>Record money received into the company.</DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                              <Label>Received From</Label>
-                              <Input 
-                                  placeholder="Payer Name" 
-                                  value={receiptData.fromName}
-                                  onChange={(e) => setReceiptData({...receiptData, fromName: e.target.value})}
-                              />
+                              <Label>Customer (optional)</Label>
+                              <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
+                                  <PopoverTrigger asChild>
+                                      <Button
+                                          type="button"
+                                          variant="outline"
+                                          className="w-full justify-between"
+                                      >
+                                          {selectedReceiptCustomer ? (
+                                              <span className="truncate flex-1 text-left">
+                                                  {selectedReceiptCustomer.name || "Unnamed Customer"}
+                                                  {selectedReceiptCustomer.phone ? ` · ${selectedReceiptCustomer.phone}` : ""}
+                                              </span>
+                                          ) : (
+                                              <span>Select existing customer</span>
+                                          )}
+                                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                      </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[360px] p-0" align="start">
+                                      <Command>
+                                          <CommandInput placeholder="Search customers..." />
+                                          <CommandList>
+                                              <CommandEmpty>
+                                                  {customersLoading ? "Loading customers..." : "No customers found."}
+                                              </CommandEmpty>
+                                              <CommandGroup className="max-h-[300px] overflow-auto">
+                                                  {receiptCustomers.map((customer) => (
+                                                      <CommandItem
+                                                          key={customer.id}
+                                                          value={`${customer.name ?? ""} ${customer.phone ?? ""} ${customer.email ?? ""}`.trim()}
+                                                          onSelect={() => {
+                                                              setReceiptData((prev) => ({
+                                                                  ...prev,
+                                                                  customerId: customer.id,
+                                                                  fromName: prev.fromName || customer.name || "",
+                                                              }));
+                                                              setCustomerPopoverOpen(false);
+                                                          }}
+                                                      >
+                                                          <div className="flex flex-col text-left">
+                                                              <span className="font-medium">{customer.name || "Unnamed Customer"}</span>
+                                                              <span className="text-xs text-muted-foreground">
+                                                                  {[customer.phone, customer.email, customer.city]
+                                                                    .filter(Boolean)
+                                                                    .join(" • ") || "No extra details"}
+                                                              </span>
+                                                          </div>
+                                                      </CommandItem>
+                                                  ))}
+                                              </CommandGroup>
+                                          </CommandList>
+                                      </Command>
+                                  </PopoverContent>
+                              </Popover>
+                              {selectedReceiptCustomer ? (
+                                  <div className="text-xs text-muted-foreground flex items-center justify-between">
+                                      <span>
+                                          Assigned to receipts as reference ID.
+                                      </span>
+                                      <Button
+                                          type="button"
+                                          variant="link"
+                                          className="px-0 text-xs"
+                                          onClick={() =>
+                                              setReceiptData((prev) => ({
+                                                  ...prev,
+                                                  customerId: "",
+                                              }))
+                                          }
+                                      >
+                                          Clear
+                                      </Button>
+                                  </div>
+                              ) : (
+                                  <div className="text-xs text-muted-foreground">Linking a customer helps centralize ledgers.</div>
+                              )}
                           </div>
                           <div className="space-y-2">
                               <Label>Amount</Label>
@@ -253,6 +391,14 @@ export function VoucherReport() {
                                   onChange={(e) => setReceiptData({...receiptData, amount: e.target.value})}
                               />
                           </div>
+                      </div>
+                      <div className="space-y-2">
+                          <Label>Received From</Label>
+                          <Input 
+                              placeholder="Payer Name" 
+                              value={receiptData.fromName}
+                              onChange={(e) => setReceiptData({...receiptData, fromName: e.target.value})}
+                          />
                       </div>
                       <div className="space-y-2">
                           <Label>Narration / Description</Label>
