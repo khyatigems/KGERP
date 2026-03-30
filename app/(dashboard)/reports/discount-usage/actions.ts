@@ -83,25 +83,30 @@ export async function getDiscountUsageReport(startDate: Date, endDate: Date) {
   }
 
   const processedReportData = reportData.map(entry => {
-    let profitAfterDiscount = entry.totalProfitOnInvoice;
+    const discountAmount = Number(entry.discountAmount ?? 0);
+    const invoiceTotalAmount = Number(entry.invoiceTotalAmount ?? 0);
+    const invoiceSubtotal = Number(entry.invoiceSubtotal ?? 0);
+    const invoiceTaxTotal = Number(entry.invoiceTaxTotal ?? 0);
+    const totalProfitOnInvoice = entry.totalProfitOnInvoice !== null ? Number(entry.totalProfitOnInvoice) : null;
 
+    let profitAfterDiscount = totalProfitOnInvoice;
     if (profitAfterDiscount !== null) {
-      profitAfterDiscount -= entry.discountAmount; // Subtract coupon-specific discount
+      profitAfterDiscount -= discountAmount;
     }
 
     return {
       ...entry,
-      discountAmount: parseFloat(entry.discountAmount.toFixed(2)),
-      invoiceTotalAmount: parseFloat(entry.invoiceTotalAmount.toFixed(2)),
-      invoiceSubtotal: parseFloat(entry.invoiceSubtotal.toFixed(2)),
-      invoiceTaxTotal: parseFloat(entry.invoiceTaxTotal.toFixed(2)),
-      totalProfitOnInvoice: entry.totalProfitOnInvoice !== null ? parseFloat(entry.totalProfitOnInvoice.toFixed(2)) : null,
-      profitAfterDiscount: profitAfterDiscount !== null ? parseFloat(profitAfterDiscount.toFixed(2)) : null,
+      discountAmount: Number(discountAmount.toFixed(2)),
+      invoiceTotalAmount: Number(invoiceTotalAmount.toFixed(2)),
+      invoiceSubtotal: Number(invoiceSubtotal.toFixed(2)),
+      invoiceTaxTotal: Number(invoiceTaxTotal.toFixed(2)),
+      totalProfitOnInvoice: totalProfitOnInvoice !== null ? Number(totalProfitOnInvoice.toFixed(2)) : null,
+      profitAfterDiscount: profitAfterDiscount !== null ? Number(profitAfterDiscount.toFixed(2)) : null,
     };
   });
 
   // Aggregate summary
-  const totalDiscountAmount = processedReportData.reduce((sum, entry) => sum + entry.discountAmount, 0);
+  const totalDiscountAmount = processedReportData.reduce((sum, entry) => sum + Number(entry.discountAmount ?? 0), 0);
   const totalInvoicesWithDiscount = new Set(processedReportData.map(entry => entry.invoiceId)).size;
 
   const summary = {
