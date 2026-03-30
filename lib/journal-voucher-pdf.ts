@@ -243,12 +243,23 @@ export async function generateJournalVoucherPDF(data: JournalVoucherPDFData) {
     },
     didDrawPage: function (hookData) {
       // Add totals row
-      if (hookData.pageNumber === doc.internal.getNumberOfPages()) {
+      if (hookData.pageNumber === doc.getNumberOfPages()) {
         const totalDebit = data.lines.reduce((sum, line) => sum + line.debit, 0);
         const totalCredit = data.lines.reduce((sum, line) => sum + line.credit, 0);
 
+        const tableApi = hookData.table as unknown as {
+          width?: number;
+          columns?: Array<{ width?: number }>;
+        };
+        const descriptionWidth = Number(tableApi?.columns?.[1]?.width ?? 40);
+        const combinedAccountWidth = 40 + descriptionWidth;
+        const tableWidth = tableApi?.width;
+
+        const lastAutoTable = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable;
+        const totalsStartY = hookData.cursor?.y ?? lastAutoTable?.finalY ?? hookData.cursor?.y ?? margin;
+
         autoTable(doc, {
-          startY: hookData.cursor?.y,
+          startY: totalsStartY,
           margin: { left: margin, right: margin },
           body: [
             [
@@ -266,15 +277,16 @@ export async function generateJournalVoucherPDF(data: JournalVoucherPDFData) {
             textColor: [0, 0, 0],
           },
           columnStyles: {
-            0: { cellWidth: 40 + hookData.table.columns[1].width, valign: "top" }, // Account + Description
+            0: { cellWidth: combinedAccountWidth, valign: "top" }, // Account + Description
             1: { cellWidth: 25, halign: "right", valign: "top" }, // Debit
             2: { cellWidth: 25, halign: "right", valign: "top" }, // Credit
           },
-          tableWidth: hookData.table.width,
+          tableWidth: tableWidth,
         });
 
         // Amount in words
-        let currentY = doc.lastAutoTable.finalY + 5;
+        const totalsAutoTable = (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable;
+        let currentY = (totalsAutoTable?.finalY ?? totalsStartY) + 5;
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
         doc.text("Amount (in words):", margin + 5, currentY);

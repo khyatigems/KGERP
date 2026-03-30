@@ -437,15 +437,15 @@ export async function createSale(prevState: unknown, formData: FormData) {
           });
 
           // Create Journal Entry for Sale
-          const arAccount = await getOrCreateAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE.code, tx);
-          const salesAccount = await getOrCreateAccountByCode(ACCOUNTS.INCOME.SALES.code, tx);
-          const gstPayableAccount = await getOrCreateAccountByCode(ACCOUNTS.LIABILITIES.GST_PAYABLE.code, tx);
+          const arAccount = await getOrCreateAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, tx);
+          const salesAccount = await getOrCreateAccountByCode(ACCOUNTS.INCOME.SALES, tx);
+          const gstPayableAccount = await getOrCreateAccountByCode(ACCOUNTS.LIABILITIES.GST_PAYABLE, tx);
 
           const journalEntryInput = {
             referenceType: "INVOICE",
             referenceId: newInvoice.id,
             description: `Sale Invoice ${newInvoice.invoiceNumber}`,
-            date: newInvoice.invoiceDate,
+            date: newInvoice.invoiceDate ?? new Date(),
             userId: session.user.id,
             lines: [
               {
