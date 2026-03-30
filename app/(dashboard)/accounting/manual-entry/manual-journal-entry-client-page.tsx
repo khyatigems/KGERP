@@ -32,10 +32,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 
+const monetaryAmountSchema = z.number().min(0, { message: 'Amount cannot be negative.' });
+
 const journalLineSchema = z.object({
   accountId: z.string().min(1, { message: 'Account is required.' }),
-  debit: z.union([z.string(), z.number()]).pipe(z.coerce.number().min(0).default(0)),
-  credit: z.union([z.string(), z.number()]).pipe(z.coerce.number().min(0).default(0)),
+  debit: monetaryAmountSchema,
+  credit: monetaryAmountSchema,
   description: z.string().optional(),
 }).refine(
   (data) => {
@@ -52,7 +54,7 @@ const journalLineSchema = z.object({
 );
 
 const formSchema = z.object({
-  date: z.date({ required_error: 'A date is required.' }),
+  date: z.date(),
   description: z.string().min(1, { message: 'Description is required.' }),
   referenceType: z.string().optional(),
   referenceId: z.string().optional(),
@@ -111,9 +113,9 @@ export function ManualJournalEntryClientPage({ accounts }: ManualJournalEntryCli
         lines: values.lines.map(line => ({ ...line, accountId: line.accountId })),
       });
 
-      if (result.success && result.id) {
+      if (result.success && result.entryId) {
         toast.success(result.message);
-        setJournalEntryId(result.id);
+        setJournalEntryId(result.entryId);
         form.reset({
           date: new Date(),
           description: '',

@@ -20,7 +20,7 @@ interface ManualJournalEntryInput {
 export async function createManualJournalEntry(input: ManualJournalEntryInput) {
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, message: "Unauthorized" };
+    return { success: false, message: "Unauthorized", entryId: null };
   }
 
   try {
@@ -42,7 +42,7 @@ export async function createManualJournalEntry(input: ManualJournalEntryInput) {
       });
     }
 
-    await postJournalEntry({
+    const entry = await postJournalEntry({
       date: new Date(input.date),
       description: input.description,
       referenceType: input.referenceType || "MANUAL",
@@ -51,9 +51,9 @@ export async function createManualJournalEntry(input: ManualJournalEntryInput) {
       userId: session.user.id,
     });
 
-    return { success: true, message: "Manual journal entry created successfully." };
+    return { success: true, message: "Manual journal entry created successfully.", entryId: entry.id };
   } catch (error: any) {
     console.error("Failed to create manual journal entry:", error);
-    return { success: false, message: error.message || "Failed to create manual journal entry." };
+    return { success: false, message: error.message || "Failed to create manual journal entry.", entryId: null };
   }
 }
