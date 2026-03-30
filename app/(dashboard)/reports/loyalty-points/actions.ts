@@ -4,8 +4,16 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
 export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
-  // Fetch loyalty settings to use in calculations if needed, though most ledger entries store rupeeValue directly.
-  const loyaltySettings = await prisma.loyaltySettings.findUnique({ where: { id: "default" } });
+  // Fetch loyalty settings via raw SQL (table exists but not modeled in Prisma schema)
+  const loyaltyRows = await prisma.$queryRawUnsafe<Array<{
+    id: string;
+    redeemRupeePerPoint: number | null;
+    minRedeemPoints: number | null;
+    maxRedeemPercent: number | null;
+    dobProfilePoints?: number | null;
+    anniversaryProfilePoints?: number | null;
+  }>>(`SELECT * FROM "LoyaltySettings" WHERE id = 'default' LIMIT 1`).catch(() => []);
+  const loyaltySettings = loyaltyRows?.[0] || null;
 
   // This query will fetch loyalty ledger entries along with related invoice and customer details.
   // We need to join LoyaltyLedger with Invoice and Sale to get the required details.
