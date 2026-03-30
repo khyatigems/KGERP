@@ -7,7 +7,7 @@ import { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DateRangePicker } from "@/components/date-range-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Loader2 } from "lucide-react";
 import {
   Table,
@@ -17,7 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency, formatInrNumber } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
+import { formatInrNumber } from "@/lib/number-formatting";
 import { getDiscountUsageReport } from "./actions";
 
 interface DiscountUsageClientPageProps {
@@ -32,8 +33,8 @@ export default function DiscountUsageClientPage({ initialReport }: DiscountUsage
   });
   const [isPending, startTransition] = useTransition();
 
-  const handleDateRangeChange = (range: DateRange | undefined) => {
-    setDateRange(range);
+  const handleDateChange = (date: DateRange | undefined) => {
+    setDateRange(date);
   };
 
   const fetchReport = () => {
@@ -55,7 +56,7 @@ export default function DiscountUsageClientPage({ initialReport }: DiscountUsage
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-2xl font-bold">Discount Usage Report</CardTitle>
           <div className="flex items-center space-x-2">
-            <DateRangePicker dateRange={dateRange} onDateRangeChange={handleDateRangeChange} />
+            <DateRangePicker date={dateRange} setDate={handleDateChange} />
             <Button onClick={fetchReport} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Generate Report
@@ -71,7 +72,7 @@ export default function DiscountUsageClientPage({ initialReport }: DiscountUsage
               </Card>
               <Card className="p-4">
                 <p className="text-sm text-muted-foreground">Total Invoices with Discount</p>
-                <p className="text-2xl font-bold">{formatInrNumber(report.summary.totalInvoicesWithDiscount)}</p>
+                <p className="text-2xl font-bold">{formatInrNumber(report.summary.totalInvoicesWithDiscount, 0)}</p>
               </Card>
             </div>
           ) : (
