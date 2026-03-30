@@ -312,7 +312,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
             couponToRedeemId = c.id;
           }
 
-          const adjustedInvoiceTotal = Math.max(0, totalNetAmount - couponDiscount);
+          const adjustedInvoiceTotal = Math.max(0, totalNetAmount - totalDiscount - couponDiscount);
           const inputLoyaltyRedeem = Math.max(0, Number(data.loyaltyRedeemAmount || 0));
           let loyaltyRedeemAmount = 0;
           let loyaltyPointsUsed = 0;
@@ -429,7 +429,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   subtotal: totalNetAmount,
                   taxTotal: 0, 
                   discountTotal: totalDiscount + couponDiscount,
-                  totalAmount: adjustedInvoiceTotal,
+                  totalAmount: Math.max(0, (totalNetAmount - totalDiscount - couponDiscount)),
                   displayOptions: invoiceDisplayOptions,
                   paymentStatus: invoicePaymentStatus,
                   paidAmount: paidAmount >= adjustedInvoiceTotal - 0.01 ? adjustedInvoiceTotal : paidAmount,

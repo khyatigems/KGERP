@@ -120,10 +120,10 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
   `;
 
   try {
-    const rawReportData = await prisma.$queryRawUnsafe<LoyaltyReportRow[]>(loyaltyQuery, startDate, endDate);
+    const rawReportData = await prisma.$queryRawUnsafe(loyaltyQuery, startDate, endDate);
     
     // Convert all potential BigInt values to regular numbers before processing
-    reportData = rawReportData.map(row => ({
+    reportData = (rawReportData as any[]).map((row: any) => ({
       id: String(row.id),
       customerId: String(row.customerId),
       customerName: String(row.customerName),
@@ -140,10 +140,43 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
       totalProfitOnInvoice: row.totalProfitOnInvoice !== null ? Number(row.totalProfitOnInvoice) : null,
     }));
   } catch (error) {
+    console.error('Query error:', error);
     if (isMissingTableError(error)) {
       return buildEmptyReport(startDate, endDate, loyaltySettings);
     }
-    throw error;
+    
+    // If it's a BigInt error, try a simpler query without profit calculation
+    if (error instanceof RangeError && error.message.includes('BigInt')) {
+      console.log('BigInt error detected, using simplified query');
+      const simplifiedQuery = `
+        SELECT
+          ${selectParts.slice(0, -1).join(",\n      ")}
+        ${fromClause}
+        WHERE ll.createdAt >= ? AND ll.createdAt <= ?
+        ORDER BY ll.createdAt DESC
+      `;
+      
+      const simplifiedData = await prisma.$queryRawUnsafe(simplifiedQuery, startDate, endDate);
+      
+      reportData = (simplifiedData as any[]).map((row: any) => ({
+        id: String(row.id),
+        customerId: String(row.customerId),
+        customerName: String(row.customerName),
+        invoiceId: row.invoiceId ? String(row.invoiceId) : null,
+        invoiceNumber: row.invoiceNumber ? String(row.invoiceNumber) : null,
+        invoiceDate: row.invoiceDate ? new Date(row.invoiceDate) : null,
+        type: String(row.type),
+        points: Number(row.points ?? 0),
+        rupeeValue: Number(row.rupeeValue ?? 0),
+        remarks: row.remarks ? String(row.remarks) : null,
+        createdAt: new Date(row.createdAt),
+        invoiceTotalAmount: row.invoiceTotalAmount !== null ? Number(row.invoiceTotalAmount) : null,
+        invoiceDiscountTotal: row.invoiceDiscountTotal !== null ? Number(row.invoiceDiscountTotal) : null,
+        totalProfitOnInvoice: null, // Skip profit calculation to avoid BigInt error
+      }));
+    } else {
+      throw error;
+    }
   }
 
   // Calculate "Profit on the Invoice minus Loyalty Points and Discount" for each entry
