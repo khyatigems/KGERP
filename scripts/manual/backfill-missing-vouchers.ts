@@ -35,7 +35,7 @@ async function main() {
       (SELECT s.customerId FROM Sale s WHERE s.invoiceId = p.invoiceId LIMIT 1) as customerId
     FROM Payment p
     JOIN Invoice i ON p.invoiceId = i.id
-    LEFT JOIN Voucher v ON v.referenceType = 'INVOICE_PAYMENT' AND v.referenceId = p.id
+    LEFT JOIN Voucher v ON v.referenceId = p.id AND v.voucherType = 'RECEIPT'
     WHERE v.id IS NULL
     ORDER BY p.date ASC
   `);

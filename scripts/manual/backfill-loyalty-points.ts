@@ -30,8 +30,8 @@ async function main() {
     WHERE i.paymentStatus = 'PAID'
       AND i.totalAmount > 0
       AND NOT EXISTS (
-        SELECT 1 FROM "LoyaltyLedger" ll 
-        WHERE ll.invoiceId = i.id AND ll.type = 'EARN'
+        SELECT 1 FROM "LoyaltyLedger" 
+        WHERE "invoiceId" = i.id AND "type" = 'EARN'
       )
     ORDER BY i.invoiceDate ASC
   `);
