@@ -150,7 +150,7 @@ export async function updateExpense(id: string, data: Partial<ExpenseFormValues>
         // Find and reverse the associated JournalEntry
         await tx.journalEntry.updateMany({
             where: { referenceType: "EXPENSE", referenceId: existing.id, isReversed: false },
-            data: { isReversed: true, reversalReason: `Expense updated. Old entry reversed by ${session.user.name}` }
+            data: { isReversed: true }
         });
       }
 
@@ -263,7 +263,7 @@ export async function deleteExpense(id: string) {
       // Find and reverse the associated JournalEntry
       await tx.journalEntry.updateMany({
           where: { referenceType: "EXPENSE", referenceId: expense.id, isReversed: false },
-          data: { isReversed: true, reversalReason: `Expense deleted by ${session.user.name}` }
+          data: { isReversed: true }
       });
     }
 
