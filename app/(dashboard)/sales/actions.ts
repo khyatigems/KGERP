@@ -16,6 +16,7 @@ import { normalizeDateToUtcNoon } from "@/lib/date";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
+import { accrueLoyaltyPoints } from "@/lib/loyalty-accrual";
 
 const saleItemSchema = z.object({
   inventoryId: z.string().uuid("Please select an item"),
@@ -713,6 +714,23 @@ export async function createSale(prevState: unknown, formData: FormData) {
           } catch (accError) {
               console.error("Accounting Entry Failed:", accError);
               throw accError; // Ensure data consistency
+          }
+
+          // Accrue loyalty points if customer exists and invoice is paid
+          if (customerProfile?.id && invoicePaymentStatus === "PAID") {
+            try {
+              await accrueLoyaltyPoints({
+                tx: tx as PrismaTx,
+                customerId: customerProfile.id,
+                invoiceId: newInvoice.id,
+                invoiceNumber: newInvoice.invoiceNumber,
+                invoiceTotal: adjustedInvoiceTotal,
+                invoiceDate: newInvoice.invoiceDate ?? new Date()
+              });
+            } catch (loyaltyError) {
+              console.error("Loyalty accrual failed:", loyaltyError);
+              // Don't fail the sale, just log the error
+            }
           }
       });
 

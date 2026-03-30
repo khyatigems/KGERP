@@ -15,6 +15,7 @@ import { InvoiceData } from "@/lib/invoice-generator";
 import { selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
 import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-breakdown";
 import { computeInvoiceGst } from "@/lib/invoice-gst";
+import { resolveInventoryCertificateUrl } from "@/lib/certificate-url";
 import type { Metadata } from "next";
 import { trackPublicView } from "@/lib/analytics";
 import { InvoiceEngagementCard } from "@/components/invoice/invoice-engagement-card";
@@ -644,26 +645,8 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                       if (!displayOptions.showCertificates) {
                                         return null;
                                       }
-                                      const provider = item.inventory.certificates && item.inventory.certificates.length > 0
-                                        ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ")
-                                        : (item.inventory.certification || item.inventory.certificateLab || item.inventory.lab || "");
-                                      const certNoRaw = item.inventory.certificateNumber || item.inventory.certificateNo || "";
-                                      const certNo = typeof certNoRaw === "string" ? certNoRaw.trim() : "";
-
-                                      let certificateUrl: string | undefined;
-
-                                        // Check if certNo is a valid URL
-                                        if (isValidHttpUrl(certNo)) {
-                                          certificateUrl = certNo;
-                                        } else if (item.inventory.certificates && item.inventory.certificates.length > 0) {
-                                          const foundUrl = item.inventory.certificates
-                                                                              .map(c => (c as { url?: string }).url)
-                                                                              .find(url => typeof url === 'string' && isValidHttpUrl(url));
-                                          if (foundUrl) {
-                                            certificateUrl = foundUrl;
-                                          }
-                                        }
-
+                                      const certificateUrl = resolveInventoryCertificateUrl(item.inventory);
+                                      
                                       if (certificateUrl) {
                                         return (
                                           <>
@@ -673,11 +656,16 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                             </a>
                                           </>
                                         );
-                                      } else {
-                                        const text = provider && certNo ? `Cert: ${provider} #${certNo}` : certNo ? `Cert No: ${certNo}` : provider ? `Cert: ${provider}` : "";
-                                        if (!text) return null;
-                                        return <><span>•</span><span>{text}</span></>;
                                       }
+                                      
+                                      const provider = item.inventory.certificates && item.inventory.certificates.length > 0
+                                        ? item.inventory.certificates.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ")
+                                        : (item.inventory.certification || item.inventory.certificateLab || item.inventory.lab || "");
+                                      const certNoRaw = item.inventory.certificateNumber || item.inventory.certificateNo || "";
+                                      const certNo = typeof certNoRaw === "string" ? certNoRaw.trim() : "";
+                                      const text = provider && certNo ? `Cert: ${provider} #${certNo}` : certNo ? `Cert No: ${certNo}` : provider ? `Cert: ${provider}` : "";
+                                      if (!text) return null;
+                                      return <><span>•</span><span>{text}</span></>;
                                     })()}
                                 </div>
 

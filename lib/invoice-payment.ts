@@ -1,15 +1,16 @@
 import crypto from "crypto";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
-import {
-  ACCOUNTS,
-  getOrCreateAccountByCode,
-  postJournalEntry,
-  PrismaTx,
-  resolvePaymentAccountCode,
-  type JournalLineInput,
-} from "@/lib/accounting";
-import { getPaymentMethodLabel } from "@/lib/payment-breakdown";
 import { logActivity } from "@/lib/activity-logger";
+import { 
+  postJournalEntry, 
+  getOrCreateAccountByCode, 
+  ACCOUNTS, 
+  type PrismaTx, 
+  type JournalLineInput,
+  resolvePaymentAccountCode 
+} from "@/lib/accounting";
+import { createVoucher } from "@/lib/voucher-service";
+import { getPaymentMethodLabel } from "@/lib/payment-breakdown";
 
 export type InvoicePaymentInput = {
   invoiceId: string;
@@ -443,6 +444,19 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
     ).catch((error) => {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to create accounting entry for payment ${createdPaymentId}: ${message}`);
+    });
+
+    // Create voucher for receipt
+    await createVoucher({
+      type: "RECEIPT",
+      date: paymentDate,
+      amount: amountToRecord,
+      narration: narration || `Payment received for Invoice ${invoiceCtx.invoiceNumber}`,
+      referenceId: customerId || undefined,
+      createdById: input.actor?.userId || "system"
+    }, tx).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to create voucher for payment ${createdPaymentId}: ${message}`);
     });
   });
 
