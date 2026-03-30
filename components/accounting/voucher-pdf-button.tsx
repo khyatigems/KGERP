@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
-import { generateVoucherPDF } from "@/lib/voucher-pdf";
+import { generateVoucherPDF, getSafeErrorMessage } from "@/lib/voucher-pdf-improved";
 import { getCompanyDetailsForVoucher } from "@/app/(dashboard)/accounting/actions";
 import { toast } from "sonner";
 
@@ -16,6 +16,8 @@ interface VoucherData {
     category?: { name: string };
     vendorName?: string | null;
     paymentMode?: string | null;
+    invoiceNumber?: string | null;
+    customerName?: string | null;
   } | null;
   createdBy?: { name: string } | null;
 }
@@ -27,7 +29,7 @@ export function VoucherPDFButton({ voucher }: { voucher: VoucherData }) {
             
             const pdfBlob = await generateVoucherPDF({
               voucherNumber: voucher.voucherNumber,
-              date: voucher.voucherDate,
+              date: voucher.voucherDate instanceof Date ? voucher.voucherDate : new Date(voucher.voucherDate),
               type: voucher.voucherType,
               amount: voucher.amount,
               narration: voucher.narration,
@@ -39,7 +41,10 @@ export function VoucherPDFButton({ voucher }: { voucher: VoucherData }) {
               companyAddress: company.address,
               companyPhone: company.phone || undefined,
               companyEmail: company.email || undefined,
-              logoUrl: company.logoUrl || undefined
+              logoUrl: company.logoUrl || undefined,
+              // Additional fields for better audit trail
+              invoiceNumber: voucher.expense?.invoiceNumber || null,
+              customerName: voucher.expense?.customerName || null
             });
             
             if (!(pdfBlob instanceof Blob)) {
@@ -58,7 +63,7 @@ export function VoucherPDFButton({ voucher }: { voucher: VoucherData }) {
             setTimeout(() => URL.revokeObjectURL(url), 100);
         } catch (e) {
             console.error(e);
-            toast.error("Failed to generate PDF");
+            toast.error(getSafeErrorMessage(e));
         }
     };
 

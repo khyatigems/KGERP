@@ -33,6 +33,8 @@
     "test:gst:v22": "tsx scripts/tests/gst-v22.unit.ts",
     "test:payments:reconcile": "tsx scripts/tests/payments-reconciliation.integration.ts",
     "test:export:queue": "tsx scripts/tests/export-job-queue.integration.ts",
+    "test:pdf-generation": "tsx scripts/tests/pdf-generation-and-loyalty.test.ts",
+    "test:all": "npm run test:attention && npm run test:invoice && npm run test:reports && npm run test:customers && npm run test:pdf-generation",
     "analytics:daily": "tsx scripts/generate-daily-analytics.ts",
     "postinstall": "node scripts/prisma-generate.mjs"
   },

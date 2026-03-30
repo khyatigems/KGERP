@@ -28,8 +28,8 @@ import {
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import { DateRange } from "react-day-picker";
-import { generateVoucherPDF } from "../../lib/voucher-pdf";
-import { generateMonthlyRegisterPDF } from "../../lib/voucher-register-pdf";
+import { generateVoucherPDF, getSafeErrorMessage } from "../../lib/voucher-pdf-improved";
+import { generateMonthlyRegisterPDF } from "../../lib/voucher-register-pdf-improved";
 import {
     Dialog,
     DialogContent,
@@ -63,6 +63,8 @@ interface Voucher {
       vendorName?: string | null;
       category?: { name: string };
       paymentMode?: string;
+      invoiceNumber?: string | null;
+      customerName?: string | null;
   } | null;
   createdBy?: { name: string } | null;
 }
@@ -147,19 +149,22 @@ export function VoucherReport() {
         
         const pdfBlob = await generateVoucherPDF({
           voucherNumber: voucher.voucherNumber,
-          date: new Date(voucher.voucherDate),
+          date: voucher.voucherDate instanceof Date ? voucher.voucherDate : new Date(voucher.voucherDate),
           type: voucher.voucherType,
           amount: voucher.amount,
           narration: voucher.narration,
           category: voucher.expense?.category?.name || "General",
           vendorName: voucher.expense?.vendorName,
           paymentMode: voucher.expense?.paymentMode || "CASH",
-          createdBy: "Admin", 
+          createdBy: voucher.createdBy?.name || "Admin", 
           companyName: company.name,
           companyAddress: company.address,
           companyPhone: company.phone || undefined,
           companyEmail: company.email || undefined,
-          logoUrl: company.logoUrl || undefined
+          logoUrl: company.logoUrl || undefined,
+          // Additional fields for better audit trail
+          invoiceNumber: voucher.expense?.invoiceNumber || null,
+          customerName: voucher.expense?.customerName || null
         });
         
         if (!(pdfBlob instanceof Blob)) {
@@ -178,7 +183,7 @@ export function VoucherReport() {
         setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (e) {
         console.error(e);
-        toast.error("Failed to generate PDF");
+        toast.error(getSafeErrorMessage(e));
     }
   };
 
@@ -206,24 +211,43 @@ export function VoucherReport() {
         year: year,
         companyName: company.name,
         generatedBy: "Admin", // TODO: Replace with actual user name if available
-        entries: data.vouchers.map(v => ({
-            date: new Date(v.voucherDate),
+        entries: data.vouchers.map(v => {
+          // Enhanced debit/credit logic with proper handling of reversals
+          let debit = 0;
+          let credit = 0;
+          
+          if (!v.isReversed) {
+            if (v.voucherType === "EXPENSE" || v.voucherType === "PAYMENT") {
+              debit = v.amount;
+            } else if (v.voucherType === "RECEIPT") {
+              credit = v.amount;
+            }
+            // JOURNAL vouchers typically don't have debit/credit in this context
+          }
+          
+          return {
+            date: v.voucherDate instanceof Date ? v.voucherDate : new Date(v.voucherDate),
             voucherNo: v.voucherNumber,
             type: v.isReversed ? `${v.voucherType} (CXL)` : v.voucherType,
             category: v.expense?.category?.name || "General",
             vendor: v.expense?.vendorName || "-",
             narration: v.narration || "-",
-            amount: v.amount
-        })),
+            amount: v.amount,
+            debit,
+            credit
+          };
+        }),
         totalCount: data.stats.count,
-        totalAmount: data.vouchers.filter(v => !v.isReversed).reduce((sum, v) => sum + v.amount, 0)
+        totalAmount: data.vouchers.filter(v => !v.isReversed).reduce((sum, v) => sum + v.amount, 0),
+        totalDebits: data.stats.totalDebits,
+        totalCredits: data.stats.totalCredits
       };
 
       const pdfBlob = await generateMonthlyRegisterPDF(registerData);
        
       if (!(pdfBlob instanceof Blob)) {
-          throw new Error("PDF generation failed to return a Blob");
-      }
+            throw new Error("PDF generation failed to return a Blob");
+        }
 
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement("a");
@@ -238,7 +262,7 @@ export function VoucherReport() {
 
     } catch (e) {
       console.error(e);
-      toast.error("Failed to generate Register PDF");
+      toast.error(getSafeErrorMessage(e));
     }
   };
 
