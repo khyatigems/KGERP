@@ -5,8 +5,13 @@ import { Topbar } from "@/components/layout/topbar";
 import { auth } from "@/lib/auth";
 import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
 
-type SessionType = Awaited<ReturnType<typeof auth>>;
-type SessionUser = SessionType extends { user: infer U } ? U | null | undefined : undefined;
+type DashboardUser = {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role?: string;
+  lastLogin?: Date | string | null;
+};
 
 export default async function DashboardLayout({
   children,
@@ -15,7 +20,15 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
 
-  let user: SessionUser = session?.user ?? null;
+  let user: DashboardUser | undefined = session?.user
+    ? {
+        name: session.user.name ?? null,
+        email: session.user.email ?? null,
+        image: (session.user as any)?.image ?? (session.user as any)?.avatar ?? null,
+        role: session.user.role ?? undefined,
+        lastLogin: session.user.lastLogin ?? null,
+      }
+    : undefined;
   let allowedNavModules: string[] = [];
 
   if (session?.user?.id) {
@@ -93,14 +106,12 @@ export default async function DashboardLayout({
       }
 
       user = {
-        ...(session?.user ?? {}),
-        name: dbUser.name ?? session?.user?.name,
-        email: dbUser.email ?? session?.user?.email,
-        avatar: dbUser.avatar ?? (session?.user as any)?.avatar,
-        image: dbUser.avatar ?? (session?.user as any)?.image,
-        role: dbUser.role ?? session?.user?.role,
-        lastLogin: dbUser.lastLogin ?? (session?.user as any)?.lastLogin,
-      } as SessionUser;
+        name: dbUser.name ?? session?.user?.name ?? null,
+        email: dbUser.email ?? session?.user?.email ?? null,
+        image: dbUser.avatar ?? (session?.user as any)?.image ?? (session?.user as any)?.avatar ?? null,
+        role: (dbUser.role ?? session?.user?.role) ?? undefined,
+        lastLogin: dbUser.lastLogin ?? (session?.user as any)?.lastLogin ?? null,
+      };
     }
   }
 
@@ -110,7 +121,8 @@ export default async function DashboardLayout({
         <Sidebar allowedModules={allowedNavModules} />
       </div>
       <div className="flex flex-col">
-        <Topbar user={user} />
+        <Topbar user={user}
+        />
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background">
           {children}
         </main>
