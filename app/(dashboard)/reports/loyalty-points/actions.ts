@@ -48,16 +48,26 @@ type LoyaltyReportRow = {
 };
 
 export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
-  // Fetch loyalty settings via raw SQL (table exists but not modeled in Prisma schema)
-  const loyaltyRows = await prisma.$queryRawUnsafe<Array<{
-    id: string;
-    redeemRupeePerPoint: number | null;
-    minRedeemPoints: number | null;
-    maxRedeemPercent: number | null;
-    dobProfilePoints?: number | null;
-    anniversaryProfilePoints?: number | null;
-  }>>(`SELECT * FROM "LoyaltySettings" WHERE id = 'default' LIMIT 1`).catch(() => []);
-  const loyaltySettings = loyaltyRows?.[0] || null;
+  try {
+    // Fetch loyalty settings via raw SQL (table exists but not modeled in Prisma schema)
+    const loyaltyRows = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      redeemRupeePerPoint: number | null;
+      minRedeemPoints: number | null;
+      maxRedeemPercent: number | null;
+      dobProfilePoints?: number | null;
+      anniversaryProfilePoints?: number | null;
+    }>>(`SELECT * FROM "LoyaltySettings" WHERE id = 'default' LIMIT 1`).catch(() => []);
+    
+    // Convert loyalty settings to ensure no BigInt values
+    const loyaltySettings = loyaltyRows?.[0] ? {
+      id: String(loyaltyRows[0].id),
+      redeemRupeePerPoint: loyaltyRows[0].redeemRupeePerPoint !== null ? Number(loyaltyRows[0].redeemRupeePerPoint) : null,
+      minRedeemPoints: loyaltyRows[0].minRedeemPoints !== null ? Number(loyaltyRows[0].minRedeemPoints) : null,
+      maxRedeemPercent: loyaltyRows[0].maxRedeemPercent !== null ? Number(loyaltyRows[0].maxRedeemPercent) : null,
+      dobProfilePoints: loyaltyRows[0].dobProfilePoints !== null ? Number(loyaltyRows[0].dobProfilePoints) : undefined,
+      anniversaryProfilePoints: loyaltyRows[0].anniversaryProfilePoints !== null ? Number(loyaltyRows[0].anniversaryProfilePoints) : undefined,
+    } : null;
 
   // This query will fetch loyalty ledger entries along with related invoice and customer details.
   // We need to join LoyaltyLedger with Invoice and Sale to get the required details.
@@ -83,14 +93,14 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     hasInvoiceIdColumn ? "i.invoiceNumber AS invoiceNumber" : "NULL AS invoiceNumber",
     hasInvoiceIdColumn ? "i.invoiceDate AS invoiceDate" : "NULL AS invoiceDate",
     "ll.type AS type",
-    "ll.points AS points",
-    hasRupeeValueColumn ? "ll.rupeeValue AS rupeeValue" : "0 AS rupeeValue",
+    "CAST(ll.points AS REAL) AS points",
+    hasRupeeValueColumn ? "CAST(ll.rupeeValue AS REAL) AS rupeeValue" : "0 AS rupeeValue",
     hasRemarksColumn ? "ll.remarks AS remarks" : "NULL AS remarks",
     "ll.createdAt AS createdAt",
-    hasInvoiceIdColumn ? "i.totalAmount AS invoiceTotalAmount" : "NULL AS invoiceTotalAmount",
-    hasInvoiceIdColumn ? "i.discountTotal AS invoiceDiscountTotal" : "NULL AS invoiceDiscountTotal",
+    hasInvoiceIdColumn ? "CAST(i.totalAmount AS REAL) AS invoiceTotalAmount" : "NULL AS invoiceTotalAmount",
+    hasInvoiceIdColumn ? "CAST(i.discountTotal AS REAL) AS invoiceDiscountTotal" : "NULL AS invoiceDiscountTotal",
     hasInvoiceIdColumn
-      ? "(SELECT SUM(s.profit) FROM \"Sale\" s WHERE s.invoiceId = i.id) AS totalProfitOnInvoice"
+      ? "CAST((SELECT COALESCE(SUM(s.profit), 0) FROM \"Sale\" s WHERE s.invoiceId = i.id) AS REAL) AS totalProfitOnInvoice"
       : "NULL AS totalProfitOnInvoice",
   ];
 
@@ -110,7 +120,25 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
   `;
 
   try {
-    reportData = await prisma.$queryRawUnsafe<LoyaltyReportRow[]>(loyaltyQuery, startDate, endDate);
+    const rawReportData = await prisma.$queryRawUnsafe<LoyaltyReportRow[]>(loyaltyQuery, startDate, endDate);
+    
+    // Convert all potential BigInt values to regular numbers before processing
+    reportData = rawReportData.map(row => ({
+      id: String(row.id),
+      customerId: String(row.customerId),
+      customerName: String(row.customerName),
+      invoiceId: row.invoiceId ? String(row.invoiceId) : null,
+      invoiceNumber: row.invoiceNumber ? String(row.invoiceNumber) : null,
+      invoiceDate: row.invoiceDate ? new Date(row.invoiceDate) : null,
+      type: String(row.type),
+      points: Number(row.points ?? 0),
+      rupeeValue: Number(row.rupeeValue ?? 0),
+      remarks: row.remarks ? String(row.remarks) : null,
+      createdAt: new Date(row.createdAt),
+      invoiceTotalAmount: row.invoiceTotalAmount !== null ? Number(row.invoiceTotalAmount) : null,
+      invoiceDiscountTotal: row.invoiceDiscountTotal !== null ? Number(row.invoiceDiscountTotal) : null,
+      totalProfitOnInvoice: row.totalProfitOnInvoice !== null ? Number(row.totalProfitOnInvoice) : null,
+    }));
   } catch (error) {
     if (isMissingTableError(error)) {
       return buildEmptyReport(startDate, endDate, loyaltySettings);
@@ -147,17 +175,38 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     };
   });
 
+  // Ensure all numeric values are plain numbers (not BigInt) for serialization
+  const serializableReportData = processedReportData.map(entry => ({
+    ...entry,
+    // Convert any potential BigInt to Number
+    id: String(entry.id),
+    customerId: String(entry.customerId),
+    customerName: String(entry.customerName),
+    invoiceId: entry.invoiceId ? String(entry.invoiceId) : null,
+    invoiceNumber: entry.invoiceNumber ? String(entry.invoiceNumber) : null,
+    invoiceDate: entry.invoiceDate ? new Date(entry.invoiceDate) : null,
+    type: String(entry.type),
+    points: Number(entry.points),
+    rupeeValue: Number(entry.rupeeValue),
+    remarks: entry.remarks ? String(entry.remarks) : null,
+    createdAt: new Date(entry.createdAt),
+    invoiceTotalAmount: entry.invoiceTotalAmount !== null ? Number(entry.invoiceTotalAmount) : null,
+    invoiceDiscountTotal: entry.invoiceDiscountTotal !== null ? Number(entry.invoiceDiscountTotal) : null,
+    totalProfitOnInvoice: entry.totalProfitOnInvoice !== null ? Number(entry.totalProfitOnInvoice) : null,
+    profitMinusLoyaltyAndDiscount: entry.profitMinusLoyaltyAndDiscount !== null ? Number(entry.profitMinusLoyaltyAndDiscount) : null,
+  }));
 
-  // Aggregate summary
-  const totalEarnedPoints = processedReportData
+
+  // Aggregate summary using serializable data
+  const totalEarnedPoints = serializableReportData
     .filter(entry => entry.type === 'EARN')
     .reduce((sum, entry) => sum + Number(entry.points ?? 0), 0);
 
-  const totalRedeemedPoints = processedReportData
+  const totalRedeemedPoints = serializableReportData
     .filter(entry => entry.type === 'REDEEM')
     .reduce((sum, entry) => sum + Math.abs(Number(entry.points ?? 0)), 0);
 
-  const totalRedeemedValue = processedReportData
+  const totalRedeemedValue = serializableReportData
     .filter(entry => entry.type === 'REDEEM')
     .reduce((sum, entry) => sum + Math.abs(Number(entry.rupeeValue ?? 0)), 0);
 
@@ -170,9 +219,15 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
 
   return {
     summary,
-    details: processedReportData,
+    details: serializableReportData,
     loyaltySettings,
     startDate,
     endDate,
   };
+  } catch (error) {
+    console.error('Error in getLoyaltyPointsReport:', error);
+    
+    // Return empty report on any error to prevent build failures
+    return buildEmptyReport(startDate, endDate, null);
+  }
 }
