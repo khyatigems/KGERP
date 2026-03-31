@@ -15,7 +15,8 @@ export default auth((req) => {
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/api/serials/verify") ||
     pathname.startsWith("/api/skus") ||
-    pathname.startsWith("/api/auth"); // Removed root "/" from public, as it's dashboard
+    pathname.startsWith("/api/auth") || // Removed root "/" from public, as it's dashboard
+    pathname.startsWith("/invoice"); // Make invoice pages public
 
   // 1. Handle Public Routes
   if (isPublicRoute) {
