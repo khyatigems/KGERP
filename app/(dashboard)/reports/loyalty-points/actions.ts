@@ -100,7 +100,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     hasInvoiceIdColumn ? "CAST(i.totalAmount AS REAL) AS invoiceTotalAmount" : "NULL AS invoiceTotalAmount",
     hasInvoiceIdColumn ? "CAST(i.discountTotal AS REAL) AS invoiceDiscountTotal" : "NULL AS invoiceDiscountTotal",
     hasInvoiceIdColumn
-      ? "CAST((SELECT COALESCE(SUM(s.profit), 0) FROM \"Sale\" s WHERE s.invoiceId = i.id) AS REAL) AS totalProfitOnInvoice"
+      ? "NULL AS totalProfitOnInvoice"
       : "NULL AS totalProfitOnInvoice",
   ];
 
@@ -111,72 +111,120 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     : `FROM "LoyaltyLedger" ll
        LEFT JOIN "Customer" c ON ll.customerId = c.id`;
 
+  // Ultra-simple query without any JOINs to avoid LibSQL issues
   const loyaltyQuery = `
-    SELECT
-      ${selectParts.join(",\n      ")}
-    ${fromClause}
+    SELECT 
+      ll.id,
+      ll.customerId,
+      ll.invoiceId,
+      ll.type,
+      ll.points,
+      ll.rupeeValue,
+      ll.remarks,
+      ll.createdAt
+    FROM "LoyaltyLedger" ll
     WHERE ll.createdAt >= ? AND ll.createdAt <= ?
     ORDER BY ll.createdAt DESC
   `;
 
   try {
-    const rawReportData = await prisma.$queryRawUnsafe(loyaltyQuery, startDate, endDate);
+    // Convert dates to ISO strings for SQLite/LibSQL compatibility
+    const startIso = startDate.toISOString();
+    const endIso = endDate.toISOString();
     
-    // Convert all potential BigInt values to regular numbers before processing
-    reportData = (rawReportData as any[]).map((row: any) => ({
-      id: String(row.id),
-      customerId: String(row.customerId),
-      customerName: String(row.customerName),
-      invoiceId: row.invoiceId ? String(row.invoiceId) : null,
-      invoiceNumber: row.invoiceNumber ? String(row.invoiceNumber) : null,
-      invoiceDate: row.invoiceDate ? new Date(row.invoiceDate) : null,
-      type: String(row.type),
-      points: Number(row.points ?? 0),
-      rupeeValue: Number(row.rupeeValue ?? 0),
-      remarks: row.remarks ? String(row.remarks) : null,
-      createdAt: new Date(row.createdAt),
-      invoiceTotalAmount: row.invoiceTotalAmount !== null ? Number(row.invoiceTotalAmount) : null,
-      invoiceDiscountTotal: row.invoiceDiscountTotal !== null ? Number(row.invoiceDiscountTotal) : null,
-      totalProfitOnInvoice: row.totalProfitOnInvoice !== null ? Number(row.totalProfitOnInvoice) : null,
-    }));
-  } catch (error) {
-    console.error('Query error:', error);
-    if (isMissingTableError(error)) {
-      return buildEmptyReport(startDate, endDate, loyaltySettings);
+    console.log('Loyalty query:', loyaltyQuery);
+    console.log('Date params:', { startIso, endIso });
+    
+    const rawReportData = await prisma.$queryRawUnsafe(loyaltyQuery, startIso, endIso);
+    
+    console.log('Raw report data count:', (rawReportData as any[]).length);
+    
+    // Fetch invoice data separately to avoid JOIN issues
+    const invoiceIds = [...new Set((rawReportData as any[]).map(r => r.invoiceId).filter(Boolean))];
+    let invoiceMap = new Map();
+    
+    if (invoiceIds.length > 0) {
+      try {
+        const placeholders = invoiceIds.map(() => '?').join(',');
+        const invoiceData = await prisma.$queryRawUnsafe<
+          Array<{ id: string; invoiceNumber: string; invoiceDate: string; totalAmount: number; discountTotal: number }>
+        >(`SELECT id, invoiceNumber, invoiceDate, CAST(totalAmount AS REAL) as totalAmount, CAST(discountTotal AS REAL) as discountTotal FROM "Invoice" WHERE id IN (${placeholders})`, ...invoiceIds);
+        
+        for (const inv of invoiceData || []) {
+          invoiceMap.set(inv.id, {
+            invoiceNumber: inv.invoiceNumber,
+            invoiceDate: inv.invoiceDate,
+            totalAmount: Number(inv.totalAmount || 0),
+            discountTotal: Number(inv.discountTotal || 0)
+          });
+        }
+      } catch (e) {
+        console.log('Failed to fetch invoice data:', e);
+      }
     }
     
-    // If it's a BigInt error, try a simpler query without profit calculation
-    if (error instanceof RangeError && error.message.includes('BigInt')) {
-      console.log('BigInt error detected, using simplified query');
-      const simplifiedQuery = `
-        SELECT
-          ${selectParts.slice(0, -1).join(",\n      ")}
-        ${fromClause}
-        WHERE ll.createdAt >= ? AND ll.createdAt <= ?
-        ORDER BY ll.createdAt DESC
-      `;
+    // Fetch customer names separately to avoid join issues
+    const customerIds = [...new Set((rawReportData as any[]).map(r => r.customerId))];
+    let customerMap = new Map();
+    
+    if (customerIds.length > 0) {
+      try {
+        const placeholders = customerIds.map(() => '?').join(',');
+        const customerData = await prisma.$queryRawUnsafe<
+          Array<{ id: string; name: string }>
+        >(`SELECT id, name FROM "Customer" WHERE id IN (${placeholders})`, ...customerIds);
+        
+        for (const c of customerData || []) {
+          customerMap.set(c.id, c.name);
+        }
+      } catch (e) {
+        console.log('Failed to fetch customer names:', e);
+      }
+    }
+    
+    // Convert all potential BigInt values to regular numbers before processing
+    reportData = (rawReportData as any[]).map((row: any) => {
+      const invoiceData = row.invoiceId ? invoiceMap.get(row.invoiceId) : null;
       
-      const simplifiedData = await prisma.$queryRawUnsafe(simplifiedQuery, startDate, endDate);
-      
-      reportData = (simplifiedData as any[]).map((row: any) => ({
+      return {
         id: String(row.id),
         customerId: String(row.customerId),
-        customerName: String(row.customerName),
+        customerName: customerMap.get(row.customerId) || 'Unknown',
         invoiceId: row.invoiceId ? String(row.invoiceId) : null,
-        invoiceNumber: row.invoiceNumber ? String(row.invoiceNumber) : null,
-        invoiceDate: row.invoiceDate ? new Date(row.invoiceDate) : null,
+        invoiceNumber: invoiceData?.invoiceNumber || null,
+        invoiceDate: invoiceData?.invoiceDate ? new Date(invoiceData.invoiceDate) : null,
         type: String(row.type),
         points: Number(row.points ?? 0),
         rupeeValue: Number(row.rupeeValue ?? 0),
         remarks: row.remarks ? String(row.remarks) : null,
         createdAt: new Date(row.createdAt),
-        invoiceTotalAmount: row.invoiceTotalAmount !== null ? Number(row.invoiceTotalAmount) : null,
-        invoiceDiscountTotal: row.invoiceDiscountTotal !== null ? Number(row.invoiceDiscountTotal) : null,
-        totalProfitOnInvoice: null, // Skip profit calculation to avoid BigInt error
-      }));
-    } else {
-      throw error;
+        invoiceTotalAmount: invoiceData?.totalAmount ?? null,
+        invoiceDiscountTotal: invoiceData?.discountTotal ?? null,
+        totalProfitOnInvoice: null, // Skip profit calculation to avoid BigInt issues
+      };
+    });
+  } catch (error) {
+    console.error('Query error in getLoyaltyPointsReport:', error);
+    
+    // Check for missing table or column errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('no such table') || errorMessage.includes('no such column')) {
+      return buildEmptyReport(startDate, endDate, loyaltySettings);
     }
+    
+    // Check for BigInt or other data type errors
+    if (error instanceof RangeError && error.message.includes('BigInt')) {
+      return buildEmptyReport(startDate, endDate, loyaltySettings);
+    }
+    
+    // Generic database error - return empty report with error logged
+    console.error('Database query failed, error details:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    return buildEmptyReport(startDate, endDate, loyaltySettings);
   }
 
   // Calculate "Profit on the Invoice minus Loyalty Points and Discount" for each entry

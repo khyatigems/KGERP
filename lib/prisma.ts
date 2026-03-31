@@ -94,8 +94,7 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
 const prismaBase =
   globalForPrisma.prisma ??
   (() => {
-    const client = new PrismaClient({
-      adapter: adapter as any,
+    const clientOptions: any = {
       log: isProd ? ['error', 'warn'] : ['query', 'error', 'warn'],
       datasources: isLibsql
         ? undefined
@@ -104,7 +103,14 @@ const prismaBase =
               url: databaseUrl
             }
           }
-    });
+    };
+    
+    // Only add adapter if it exists (for LibSQL/Turso)
+    if (adapter) {
+      clientOptions.adapter = adapter;
+    }
+    
+    const client = new PrismaClient(clientOptions);
     // Attach slow query logger in development
     if (!isProd) {
       try {

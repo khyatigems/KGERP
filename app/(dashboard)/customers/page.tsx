@@ -154,7 +154,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   })();
 
   const loyaltyRows = await prisma.$queryRawUnsafe<Array<{ customerId: string; points: number }>>(
-    `SELECT customerId, CAST(COALESCE(SUM(CAST(points AS REAL)),0) AS REAL) as points
+    `SELECT customerId, ROUND(COALESCE(SUM(points),0)) as points
      FROM "LoyaltyLedger"
      GROUP BY customerId`
   ).catch(() => []);

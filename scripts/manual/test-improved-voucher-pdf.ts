@@ -86,6 +86,7 @@ async function main() {
       const registerData = {
         month: "March",
         year: 2026,
+        datePeriod: "March 2026",
         companyName: company?.value || "KhyatiGems",
         generatedBy: "Test User",
         entries: vouchers.map(v => {

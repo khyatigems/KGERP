@@ -123,9 +123,10 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
     include: { sales: { include: { inventory: { select: { itemName: true } } } } },
   });
 
-  const loyaltyRows = await prisma.$queryRaw<Array<{ points: number }>>(
-    Prisma.sql`SELECT COALESCE(SUM(points),0) as points FROM "LoyaltyLedger" WHERE customerId = ${id}`
-  ).catch(() => []);
+  const loyaltyRows = await prisma.$queryRawUnsafe<Array<{ points: number }>>(
+    `SELECT ROUND(COALESCE(SUM(points),0)) as points FROM "LoyaltyLedger" WHERE customerId = ?`,
+    id
+  );
   const loyaltyPoints = Number(loyaltyRows?.[0]?.points || 0);
 
   return (
