@@ -43,10 +43,25 @@ export function normalizeCertificateUrl(value: unknown) {
   if (typeof value !== "string") return null;
   const input = value.trim();
   if (!input) return null;
-  const candidate = input.startsWith("www.") ? `https://${input}` : input;
+
+  const hasScheme = /^[a-zA-Z][\w+.-]*:/.test(input);
+  const candidate = (() => {
+    if (hasScheme) return input;
+    if (input.startsWith("//")) return `https:${input}`;
+    const normalized = input.startsWith("www.") ? `https://${input}` : `https://${input}`;
+    return normalized;
+  })();
+
   if (!isValidHttpUrl(candidate)) return null;
   try {
-    return new URL(candidate).toString();
+    const url = new URL(candidate);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+    if (!url.hostname.includes(".")) {
+      return null;
+    }
+    return url.toString();
   } catch {
     return null;
   }

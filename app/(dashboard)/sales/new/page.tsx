@@ -1,9 +1,10 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
-import { SaleForm } from "@/components/sales/sale-form";
+import { NewSalesPage } from "@/components/sales/new-sales-page-redesigned";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { mergePlatformConfig } from "@/lib/platforms";
 
 export const metadata: Metadata = {
   title: "New Sale | KhyatiGems™",
@@ -22,12 +23,57 @@ export default async function NewSalePage() {
     );
   }
 
+  // Fetch company and invoice settings
+  const [companySettings, invoiceSettings, platformSetting] = await Promise.all([
+    prisma.companySettings.findFirst({
+      select: {
+        companyName: true,
+        address: true,
+        city: true,
+        state: true,
+        pincode: true,
+        country: true,
+        phone: true,
+        email: true,
+        gstin: true,
+      },
+    }),
+    prisma.invoiceSettings.findFirst({
+      select: {
+        gstEnabled: true,
+        gstType: true,
+        categoryGstRates: true,
+        prefix: true,
+      },
+    }),
+    prisma.setting.findUnique({ where: { key: "invoice_platforms" } }).catch(() => null),
+  ]);
+
+  const mergedPlatformConfig = mergePlatformConfig(platformSetting?.value);
+  const platformOptions = Object.values(mergedPlatformConfig)
+    .filter((entry) => entry.active)
+    .map((entry) => ({
+      code: entry.code,
+      label: entry.label,
+      logoUrl: entry.logoUrl,
+      active: entry.active,
+    }));
+
   const inventoryItems = await prisma.inventory.findMany({
     where: {
       status: "IN_STOCK",
     },
     orderBy: {
       createdAt: "desc",
+    },
+    select: {
+      id: true,
+      sku: true,
+      itemName: true,
+      sellingPrice: true,
+      category: true,
+      gemType: true,
+      status: true,
     },
   });
 
@@ -55,7 +101,26 @@ export default async function NewSalePage() {
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
           <Suspense fallback={<div>Loading form...</div>}>
-             <SaleForm inventoryItems={inventoryItems} existingCustomers={existingCustomers} />
+             <NewSalesPage 
+               inventoryItems={inventoryItems} 
+               existingCustomers={existingCustomers} 
+               companySettings={{
+                 gstEnabled: invoiceSettings?.gstEnabled || false,
+                 gstType: invoiceSettings?.gstType || "CGST_SGST",
+                 categoryGstRates: invoiceSettings?.categoryGstRates || "{}",
+                 invoicePrefix: invoiceSettings?.prefix || "INV",
+                 companyName: companySettings?.companyName || "",
+                 companyAddress: companySettings?.address || "",
+                 companyCity: companySettings?.city || "",
+                 companyState: companySettings?.state || "",
+                 companyPincode: companySettings?.pincode || "",
+                 companyCountry: companySettings?.country || "",
+                 companyPhone: companySettings?.phone || "",
+                 companyEmail: companySettings?.email || "",
+                 companyGstin: companySettings?.gstin || "",
+               }}
+               platformOptions={platformOptions}
+             />
           </Suspense>
         </div>
       </div>

@@ -3,13 +3,22 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { mergePlatformConfig, serializePlatformConfig } from "@/lib/platforms";
 
 export async function getInvoiceSettings() {
   const settings = await prisma.invoiceSettings.findFirst();
   let paymentSettings = await prisma.paymentSettings.findFirst();
   const creditNoteTermsRow = await prisma.setting.findUnique({ where: { key: "credit_note_terms" } }).catch(() => null);
   const creditNoteTerms = creditNoteTermsRow?.value || "";
-  
+  const platformSettingsRow = await prisma.setting.findUnique({ where: { key: "invoice_platforms" } }).catch(() => null);
+  const mergedPlatforms = mergePlatformConfig(platformSettingsRow?.value);
+  const platforms = Object.values(mergedPlatforms).map((entry) => ({
+    code: entry.code,
+    name: entry.label,
+    logoUrl: entry.logoUrl || "",
+    active: entry.active,
+  }));
+
   // Migration Logic: If payment settings are missing or incomplete, try to fetch from legacy settings
   if (!paymentSettings || (!paymentSettings.upiId && !paymentSettings.bankName)) {
       const rawSettings = await prisma.setting.findMany({
@@ -47,7 +56,8 @@ export async function getInvoiceSettings() {
   return {
     settings,
     paymentSettings,
-    creditNoteTerms
+    creditNoteTerms,
+    platforms,
   };
 }
 
@@ -77,7 +87,8 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
     const razorpayKeyId = (formData.get("razorpayKeyId") as string).trim();
     const razorpayKeySecret = (formData.get("razorpayKeySecret") as string).trim();
     const razorpayButtonId = (formData.get("razorpayButtonId") as string).trim();
-    
+    const platformConfigRaw = (formData.get("platformConfig") as string) ?? "[]";
+
     // File Uploads
     const signatureFile = formData.get("digitalSignature") as File;
     let digitalSignatureUrl: string | null | undefined = (formData.get("digitalSignatureUrl") as string | null) ?? undefined;
@@ -96,6 +107,28 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
              digitalSignatureUrl = undefined; // Do nothing (keep existing)
         }
     }
+
+    // Prepare platform configuration
+    type SubmittedPlatform = { code: string; name: string; logoUrl?: string; active?: boolean };
+    let submittedPlatforms: SubmittedPlatform[] = [];
+    try {
+      const parsed = JSON.parse(platformConfigRaw);
+      if (Array.isArray(parsed)) {
+        submittedPlatforms = parsed.filter((entry): entry is SubmittedPlatform => typeof entry?.code === "string");
+      }
+    } catch {
+      submittedPlatforms = [];
+    }
+
+    const normalizedPlatforms = mergePlatformConfig(
+      submittedPlatforms.map((platform) => ({
+        code: platform.code,
+        label: platform.name,
+        logoUrl: platform.logoUrl,
+        active: platform.active,
+      }))
+    );
+    const serializedPlatformConfig = JSON.stringify(serializePlatformConfig(normalizedPlatforms));
 
     // Update Invoice Settings
     const existingSettings = await prisma.invoiceSettings.findFirst();
@@ -172,6 +205,16 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
       where: { key: "credit_note_terms" },
       update: { value: creditNoteTerms },
       create: { key: "credit_note_terms", value: creditNoteTerms, description: "Credit Note Terms & Conditions" },
+    });
+
+    await prisma.setting.upsert({
+      where: { key: "invoice_platforms" },
+      update: { value: serializedPlatformConfig },
+      create: {
+        key: "invoice_platforms",
+        value: serializedPlatformConfig,
+        description: "Sales platform configuration for invoice branding",
+      },
     });
 
     revalidatePath("/settings/invoice");

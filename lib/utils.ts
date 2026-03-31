@@ -39,3 +39,9 @@ export function computeWeightGrams(inv: { weightGrams?: number | null; weightUni
   // 1 Carat = 0.2 Grams
   return value * 0.2;
 }
+
+export function normalizeDateToUtcNoon(date: Date | string): Date {
+  const d = new Date(date);
+  // Set time to noon UTC to avoid timezone issues
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0));
+}

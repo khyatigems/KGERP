@@ -29,6 +29,10 @@ export interface InvoiceData {
     website?: string;
     logoUrl?: string;
   };
+  platformInfo?: {
+    logoUrl?: string;
+    label: string;
+  };
   customer: {
     name: string;
     customerCode?: string;
@@ -337,6 +341,39 @@ export async function generateInvoicePDF(data: InvoiceData) {
     y += 7.2;
   } else {
     y += 4.6;
+  }
+
+  // Add platform branding (small logo without replacing company logo)
+  if (data.platformInfo?.logoUrl) {
+    try {
+      const platformRes = await loadImageMeta(data.platformInfo.logoUrl);
+      const platformLogoW = 22;
+      const platformLogoH = 12;
+      const platformX = pageWidth - margin - platformLogoW;
+      const platformY = y + 2;
+
+      doc.addImage(platformRes.dataUrl, "PNG", platformX, platformY, platformLogoW, platformLogoH, undefined, "FAST");
+
+      doc.setFont(fontFamily, "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(110);
+      doc.text("Sold via", platformX - 4, platformY + platformLogoH / 2 + 1, { align: "right" });
+
+      if (data.platformInfo.label) {
+        doc.setFont(fontFamily, "bold");
+        doc.setTextColor(0);
+        doc.text(data.platformInfo.label, platformX + platformLogoW / 2, platformY + platformLogoH + 5, { align: "center" });
+      }
+
+      doc.setFont(fontFamily, "normal");
+      doc.setFontSize(7.8);
+      doc.setTextColor(0);
+      y += platformLogoH + 8; // Add space reserved for platform branding block
+    } catch (error) {
+      doc.setFont(fontFamily, "normal");
+      doc.setFontSize(7.8);
+      doc.setTextColor(0);
+    }
   }
 
   const invoiceMetaY = y;

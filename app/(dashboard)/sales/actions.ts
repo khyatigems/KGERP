@@ -95,6 +95,73 @@ async function ensureCustomerCode(tx: PrismaTx, customerId: string) {
   return code || null;
 }
 
+type InvoiceClient = { invoice: typeof prisma.invoice };
+
+function extractInvoiceSequence(invoiceNumber: string): number {
+  const [, , seqPart] = invoiceNumber.split("-");
+  if (!seqPart) return 0;
+  const match = seqPart.match(/^(\d+)/);
+  if (!match) return 0;
+  const value = parseInt(match[1], 10);
+  return Number.isFinite(value) ? value : 0;
+}
+
+async function computeNextInvoiceNumber(client: InvoiceClient, year = new Date().getFullYear()) {
+  const existingInvoices = await client.invoice.findMany({
+    where: {
+      invoiceNumber: {
+        startsWith: `INV-${year}-`,
+      },
+    },
+    select: {
+      invoiceNumber: true,
+    },
+  });
+
+  let maxSequence = 0;
+  for (const invoice of existingInvoices) {
+    const seq = extractInvoiceSequence(invoice.invoiceNumber);
+    if (seq > maxSequence) {
+      maxSequence = seq;
+    }
+  }
+
+  let nextSequence = maxSequence + 1;
+  let invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, "0")}`;
+
+  let retries = 0;
+  while (retries < 5) {
+    const collision = await client.invoice.findUnique({ where: { invoiceNumber } });
+    if (!collision) break;
+    nextSequence += 1;
+    invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, "0")}`;
+    retries += 1;
+  }
+
+  if (retries >= 5) {
+    throw new Error(`Failed to compute next invoice number after collisions. Last tried: ${invoiceNumber}`);
+  }
+
+  return invoiceNumber;
+}
+
+export async function getNextInvoiceNumber() {
+  const perm = await checkPermission(PERMISSIONS.SALES_CREATE);
+  if (!perm.success) {
+    return { success: false, message: perm.message };
+  }
+
+  await ensureInvoiceSupportSchema();
+
+  try {
+    const invoiceNumber = await computeNextInvoiceNumber(prisma);
+    return { success: true, invoiceNumber };
+  } catch (error) {
+    console.error("Failed to compute next invoice number:", error);
+    return { success: false, message: error instanceof Error ? error.message : "Failed to compute invoice number" };
+  }
+}
+
 export async function createSale(prevState: unknown, formData: FormData) {
   const perm = await checkPermission(PERMISSIONS.SALES_CREATE);
   if (!perm.success) return { message: perm.message };
@@ -105,6 +172,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
   }
   await ensureReturnsSchema();
   await ensureBillfreePhase1Schema();
+  await ensureInvoiceSupportSchema();
   try {
     await assertNotFrozen("Sale creation");
   } catch (error) {
@@ -184,8 +252,10 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
       const shippingCharge = data.shippingCharge || 0;
       const additionalCharge = data.additionalCharge || 0;
-      const totalNetAmount = computedItems.reduce((sum, i) => sum + i.netAmount, 0) + shippingCharge + additionalCharge;
-      const totalDiscount = computedItems.reduce((sum, i) => sum + i.discount, 0);
+      const itemGrossTotal = computedItems.reduce((sum, i) => sum + i.sellingPrice, 0);
+      const totalItemDiscount = computedItems.reduce((sum, i) => sum + i.discount, 0);
+      const totalGrossAmount = itemGrossTotal + shippingCharge + additionalCharge;
+      const subtotalAfterItemDiscount = totalGrossAmount - totalItemDiscount;
       const allowedPaymentMethods = new Set(["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER", "PAYPAL", "CC", "CREDIT_NOTE", "LOYALTY_REDEEM"]);
 
       let normalizedPayments = (data.initialPayments || []).map((p) => ({
@@ -196,20 +266,23 @@ export async function createSale(prevState: unknown, formData: FormData) {
         notes: p.notes || undefined,
       }));
 
-      if (normalizedPayments.length === 0 && data.paymentStatus === "PAID" && data.autoFillSplitFromSingle) {
-        const singleRef = String(data.singlePaymentReference || "").trim();
-        if (data.paymentMode === "CREDIT_NOTE" && !singleRef) {
-          return { message: "Credit note code is required for Credit Note payment" };
-        }
-        normalizedPayments = [
-          {
-            amount: totalNetAmount,
-            method: data.paymentMode || "CASH",
-            date: data.saleDate,
-            reference: data.paymentMode === "CREDIT_NOTE" ? singleRef : undefined,
-            notes: "Auto-recorded at sale creation",
+      if (normalizedPayments.length === 0 && data.autoFillSplitFromSingle) {
+        const status = String(data.paymentStatus || "").toUpperCase();
+        if (status === "PAID" && subtotalAfterItemDiscount > 0) {
+          const singleRef = String(data.singlePaymentReference || "").trim();
+          if (data.paymentMode === "CREDIT_NOTE" && !singleRef) {
+            return { message: "Credit note code is required for Credit Note payment" };
           }
-        ];
+          normalizedPayments = [
+            {
+              amount: subtotalAfterItemDiscount,
+              method: data.paymentMode || "CASH",
+              date: data.saleDate,
+              reference: data.paymentMode === "CREDIT_NOTE" ? singleRef : undefined,
+              notes: "Auto-recorded at sale creation",
+            }
+          ];
+        }
       }
 
       for (const payment of normalizedPayments) {
@@ -288,7 +361,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
             const nowTs = Date.now();
             if (c.validFrom && new Date(c.validFrom).getTime() > nowTs) throw new Error("Coupon is not active yet");
             if (c.validTo && new Date(c.validTo).getTime() < nowTs) throw new Error("Coupon expired");
-            if (c.minInvoiceAmount != null && totalNetAmount + 0.009 < Number(c.minInvoiceAmount || 0)) throw new Error("Invoice amount below coupon minimum");
+            if (c.minInvoiceAmount != null && subtotalAfterItemDiscount + 0.009 < Number(c.minInvoiceAmount || 0)) throw new Error("Invoice amount below coupon minimum");
             const scope = String(c.applicableScope || "all");
             if (scope.startsWith("customer:")) {
               const targetCustomerId = scope.split(":")[1] || "";
@@ -307,12 +380,12 @@ export async function createSale(prevState: unknown, formData: FormData) {
               );
               if (Number(custUseRows?.[0]?.cnt || 0) >= Number(c.usageLimitPerCustomer || 0)) throw new Error("Coupon per-customer usage limit reached");
             }
-            const raw = c.type === "PERCENT" ? (totalNetAmount * Number(c.value || 0)) / 100 : Number(c.value || 0);
-            couponDiscount = Math.max(0, Math.min(raw, c.maxDiscount != null ? Number(c.maxDiscount) : raw, totalNetAmount));
+            const raw = c.type === "PERCENT" ? (subtotalAfterItemDiscount * Number(c.value || 0)) / 100 : Number(c.value || 0);
+            couponDiscount = Math.max(0, Math.min(raw, c.maxDiscount != null ? Number(c.maxDiscount) : raw, subtotalAfterItemDiscount));
             couponToRedeemId = c.id;
           }
 
-          const adjustedInvoiceTotal = Math.max(0, totalNetAmount - totalDiscount - couponDiscount);
+          const adjustedInvoiceTotal = Math.max(0, subtotalAfterItemDiscount - couponDiscount);
           const inputLoyaltyRedeem = Math.max(0, Number(data.loyaltyRedeemAmount || 0));
           let loyaltyRedeemAmount = 0;
           let loyaltyPointsUsed = 0;
@@ -364,58 +437,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
           // 1. Generate Invoice
           // Invoice Number: INV-YYYY-SEQUENCE
-          const year = new Date().getFullYear();
-          
-          // Fetch all invoice numbers for the current year to determine the next sequence accurately
-          const existingInvoices = await tx.invoice.findMany({
-              where: {
-                  invoiceNumber: {
-                      startsWith: `INV-${year}-`
-                  }
-              },
-              select: {
-                  invoiceNumber: true
-              }
-          });
-
-          let maxSequence = 0;
-          
-          for (const inv of existingInvoices) {
-              const parts = inv.invoiceNumber.split('-');
-              if (parts.length >= 3) {
-                  const seqPart = parts[2];
-                  // Extract numeric part even if there are suffixes
-                  const match = seqPart.match(/^(\d+)/);
-                  if (match) {
-                      const seq = parseInt(match[1]);
-                      if (!isNaN(seq) && seq > maxSequence) {
-                          maxSequence = seq;
-                      }
-                  }
-              }
-          }
-
-          let nextSequence = maxSequence + 1;
-          let invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, '0')}`;
-          
-          // Retry logic for collision handling (up to 5 times)
-          let retries = 0;
-          while (retries < 5) {
-              const collision = await tx.invoice.findUnique({
-                  where: { invoiceNumber }
-              });
-              
-              if (!collision) break;
-              
-              // If collision, increment and try again
-              nextSequence++;
-              invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, '0')}`;
-              retries++;
-          }
-          
-          if (retries >= 5) {
-             throw new Error(`Failed to generate unique invoice number after multiple attempts. Last tried: ${invoiceNumber}`);
-          }
+          const invoiceNumber = await computeNextInvoiceNumber(tx);
 
           const token = generateInvoiceToken();
 
@@ -426,10 +448,10 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   quotationId: data.quotationId || null,
                   isActive: true,
                   invoiceDate: normalizeDateToUtcNoon(data.saleDate),
-                  subtotal: totalNetAmount,
+                  subtotal: totalGrossAmount,
                   taxTotal: 0, 
-                  discountTotal: totalDiscount + couponDiscount,
-                  totalAmount: Math.max(0, (totalNetAmount - totalDiscount - couponDiscount)),
+                  discountTotal: totalItemDiscount + couponDiscount,
+                  totalAmount: adjustedInvoiceTotal,
                   displayOptions: invoiceDisplayOptions,
                   paymentStatus: invoicePaymentStatus,
                   paidAmount: paidAmount >= adjustedInvoiceTotal - 0.01 ? adjustedInvoiceTotal : paidAmount,
@@ -469,8 +491,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
               },
               {
                 accountId: salesAccount.id,
-                debit: 0,
-                credit: newInvoice.discountTotal || 0,
+                debit: newInvoice.discountTotal || 0,
+                credit: 0,
                 description: `Discount Allowed for Invoice ${newInvoice.invoiceNumber}`,
               },
             ],

@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -25,6 +24,7 @@ model User {
   roleRelation               Role?                  @relation(fields: [roleId], references: [id])
   userPermissions            UserPermission[]
 
+  @@index([roleId])
   labelCartItems             LabelCartItem[]
   packagingCartItems         PackagingCartItem[]
   labelPrintJobs             LabelPrintJob[]
@@ -660,6 +660,7 @@ model FollowUp {
   createdBy   User?    @relation(fields: [createdById], references: [id])
 
   @@index([invoiceId])
+  @@index([createdById])
 }
 
 model SalesReturn {
@@ -1085,6 +1086,7 @@ model JournalEntry {
 
   @@index([date])
   @@index([referenceId])
+  @@index([createdById])
 }
 
 model JournalLine {
@@ -1130,6 +1132,8 @@ model SerializedUnit {
   @@index([sku])
   @@index([packagingStatus])
   @@index([createdAt])
+  @@index([createdById])
+  @@index([printedById])
 }
 
 model SerialActivityLog {

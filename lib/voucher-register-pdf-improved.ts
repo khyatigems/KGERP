@@ -44,7 +44,7 @@ export async function generateMonthlyRegisterPDF(data: VoucherRegisterData) {
   
   y += 10;
   doc.setFontSize(16); // Increased font size
-  doc.text(`Voucher Register – ${data.month} ${data.year}`, pageWidth / 2, y, { align: "center" });
+  doc.text(`Voucher Register – ${data.datePeriod}`, pageWidth / 2, y, { align: "center" });
 
   y += 12;
 

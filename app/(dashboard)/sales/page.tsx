@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
 import { Button } from "@/components/ui/button";
@@ -40,12 +40,13 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
     );
   }
 
+  await ensureBillfreePhase1Schema();
   const session = await auth();
   const canDelete = session ? hasPermission(session.user?.role || "STAFF", PERMISSIONS.SALES_DELETE) : false;
   const sp = await searchParams;
   const sortMode = sp.sort === "invoice" ? "invoice" : "date";
 
-  const sales = await prisma.sale.findMany({
+  const salesPromise = prisma.sale.findMany({
     orderBy: {
       saleDate: "desc",
     },
@@ -74,6 +75,37 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
     },
   });
 
+  const templatesPromise = prisma.$queryRawUnsafe<Array<{
+    id: string;
+    key: string;
+    title: string;
+    body: string;
+    channel: string;
+    isActive: number;
+  }>>(`
+    SELECT id, key, title, body, channel, isActive
+    FROM "MessageTemplate"
+    WHERE channel = 'WHATSAPP_WEB'
+    AND isActive = 1
+    ORDER BY createdAt DESC
+    LIMIT 200
+  `).catch(() => []);
+
+  const [sales, templateRows] = await Promise.all([salesPromise, templatesPromise]);
+
+  type SaleWithRelations = (typeof sales)[number];
+
+  const messageTemplates = templateRows.map((row) => ({
+    id: row.id,
+    key: row.key,
+    title: row.title,
+    body: row.body,
+  }));
+
+  type WhatsappTemplate = (typeof messageTemplates)[number];
+
+  const baseInvoiceUrl = process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+
   const parseInvoiceNo = (value: string | null | undefined) => {
     if (!value) return null;
     const m = /^(INV|RPL)-(\d{4})-(\d{4})$/.exec(value.trim());
@@ -81,31 +113,29 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
     return { year: Number(m[2]), seq: Number(m[3]) };
   };
 
-  const getInvoiceString = (sale: typeof sales[number]) =>
+  const getInvoiceString = (sale: SaleWithRelations) =>
     sale.invoice?.invoiceNumber || sale.legacyInvoice?.invoiceNumber || null;
 
   const sortedSales = sortMode === "invoice"
-    ? sales
-        .slice()
-        .sort((a, b) => {
-          const ai = parseInvoiceNo(getInvoiceString(a));
-          const bi = parseInvoiceNo(getInvoiceString(b));
-          if (ai && bi) {
-            if (ai.year !== bi.year) return bi.year - ai.year;
-            if (ai.seq !== bi.seq) return bi.seq - ai.seq;
-          } else if (ai && !bi) {
-            return -1;
-          } else if (!ai && bi) {
-            return 1;
-          }
-          return b.saleDate.getTime() - a.saleDate.getTime();
-        })
+    ? [...sales].sort((a: SaleWithRelations, b: SaleWithRelations) => {
+        const ai = parseInvoiceNo(getInvoiceString(a));
+        const bi = parseInvoiceNo(getInvoiceString(b));
+        if (ai && bi) {
+          if (ai.year !== bi.year) return bi.year - ai.year;
+          if (ai.seq !== bi.seq) return bi.seq - ai.seq;
+        } else if (ai && !bi) {
+          return -1;
+        } else if (!ai && bi) {
+          return 1;
+        }
+        return b.saleDate.getTime() - a.saleDate.getTime();
+      })
     : sales;
 
   const regularSales = sortedSales.filter(s => s.platform !== "REPLACEMENT");
   const replacementSales = sortedSales.filter(s => s.platform === "REPLACEMENT");
 
-  const mapExportData = (list: typeof sortedSales) => list.map(sale => ({
+  const mapExportData = (list: SaleWithRelations[]) => list.map((sale: SaleWithRelations) => ({
     date: formatDate(sale.saleDate),
     invoice: sale.invoice?.invoiceNumber || sale.legacyInvoice?.invoiceNumber || "-",
     customer: sale.customerName || "Walk-in",
@@ -163,12 +193,22 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
       <div className="md:hidden space-y-8">
          <div>
            <h2 className="text-xl font-semibold mb-4">Regular Sales</h2>
-           <SalesCardList data={regularSales} canDelete={canDelete} />
+           <SalesCardList 
+             data={regularSales}
+             canDelete={canDelete}
+             messageTemplates={messageTemplates}
+             baseInvoiceUrl={baseInvoiceUrl}
+           />
          </div>
          {replacementSales.length > 0 && (
            <div>
              <h2 className="text-xl font-semibold mb-4 text-muted-foreground">Replacement Invoices</h2>
-             <SalesCardList data={replacementSales} canDelete={canDelete} />
+             <SalesCardList 
+               data={replacementSales}
+               canDelete={canDelete}
+               messageTemplates={messageTemplates}
+               baseInvoiceUrl={baseInvoiceUrl}
+             />
            </div>
          )}
       </div>
@@ -244,6 +284,11 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
                         <SalesActions 
                             saleId={sale.id} 
                             invoiceToken={sale.invoice?.token || sale.legacyInvoice?.token} 
+                            invoiceNumber={sale.invoice?.invoiceNumber || sale.legacyInvoice?.invoiceNumber || undefined} 
+                            customerName={sale.customerName || undefined}
+                            customerPhone={sale.customerPhone || undefined}
+                            invoiceUrl={sale.invoice?.token && baseInvoiceUrl ? `${baseInvoiceUrl.replace(/\/$/, "")}/invoice/${sale.invoice.token}` : undefined}
+                            messageTemplates={messageTemplates}
                             canDelete={canDelete} 
                         />
                       </TableCell>

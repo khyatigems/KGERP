@@ -2,6 +2,7 @@ import { normalizeCertificateUrl } from "@/lib/number-formatting";
 
 export type InventoryCertificateSource = {
   certificateUrl?: string | null;
+  certification?: string | null;
   certificateNumber?: string | null;
   certificateNo?: string | null;
   certificateComments?: string | null;
@@ -22,6 +23,7 @@ export function resolveInventoryCertificateUrl(source: InventoryCertificateSourc
 
   const directCandidates = [
     source.certificateUrl,
+    source.certification,
     source.certificateNumber,
     source.certificateNo,
     source.certificateComments,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,22 +17,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateInvoiceSettings } from "./actions";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2, GripVertical } from "lucide-react";
 import { InvoiceSettings, PaymentSettings } from "@prisma/client";
 
 import { SignatureUpload } from "@/components/invoice/signature-upload";
+import { FileUpload } from "@/components/inventory/file-upload";
+
+interface PlatformConfig {
+  code: string;
+  name: string;
+  logoUrl: string;
+  active: boolean;
+}
 
 export type InvoiceSettingsFormProps = {
   initialSettings: Partial<InvoiceSettings> | null;
   initialPaymentSettings: Partial<PaymentSettings> | null;
   creditNoteTerms?: string;
   categories: { id: string; name: string }[];
+  platforms?: PlatformConfig[];
   [key: string]: unknown;
 };
 
-export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, creditNoteTerms = "", categories }: InvoiceSettingsFormProps) {
+export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, creditNoteTerms = "", categories, platforms: initialPlatforms = [] }: InvoiceSettingsFormProps) {
   const [isPending, setIsPending] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState(initialSettings?.digitalSignatureUrl || "");
+  
+  // Platform config state
+  const [platforms, setPlatforms] = useState<PlatformConfig[]>(() => {
+    if (initialPlatforms.length > 0) return initialPlatforms;
+    return [
+      { code: "MANUAL", name: "Walk-in / Offline", logoUrl: "", active: true },
+      { code: "AMAZON", name: "Amazon", logoUrl: "", active: true },
+      { code: "ETSY", name: "Etsy", logoUrl: "", active: true },
+      { code: "EBAY", name: "eBay", logoUrl: "", active: true },
+      { code: "FACEBOOK", name: "Facebook", logoUrl: "", active: true },
+      { code: "WHATSAPP", name: "WhatsApp", logoUrl: "", active: true },
+    ];
+  });
+
+  useEffect(() => {
+    if (initialPlatforms.length > 0) {
+      setPlatforms(initialPlatforms);
+    }
+  }, [initialPlatforms]);
   
   // Parse initial GST rates
   const [gstRates, setGstRates] = useState<Record<string, string>>(() => {
@@ -50,6 +78,24 @@ export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, c
     }));
   };
 
+  const updatePlatform = (index: number, field: keyof PlatformConfig, value: any) => {
+    setPlatforms((prev: PlatformConfig[]) => prev.map((p: PlatformConfig, i: number) => i === index ? { ...p, [field]: value } : p));
+  };
+
+  const addPlatform = () => {
+    setPlatforms((prev: PlatformConfig[]) => [...prev, { code: "", name: "", logoUrl: "", active: true }]);
+  };
+
+  const removePlatform = (index: number) => {
+    setPlatforms((prev: PlatformConfig[]) => prev.filter((_: PlatformConfig, i: number) => i !== index));
+  };
+
+  const handlePlatformLogoUpload = (index: number) => (files: { url: string | null }[]) => {
+    const validFiles = files.filter((file) => file.url);
+    const latestUrl = validFiles.length > 0 ? validFiles[validFiles.length - 1].url ?? "" : "";
+    updatePlatform(index, "logoUrl", latestUrl);
+  };
+
   const [activeTab, setActiveTab] = useState("general");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -58,7 +104,8 @@ export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, c
     const formData = new FormData(event.currentTarget);
     formData.set("digitalSignatureUrl", signatureUrl);
     formData.set("categoryGstRates", JSON.stringify(gstRates));
-    
+    formData.set("platformConfig", JSON.stringify(platforms));
+
     const result = await updateInvoiceSettings(null, formData);
     
     if (result.success) {
@@ -77,6 +124,7 @@ export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, c
               <TabsTrigger value="general">General & Branding</TabsTrigger>
               <TabsTrigger value="gst">Taxation (GST)</TabsTrigger>
               <TabsTrigger value="payments">Payment Gateways</TabsTrigger>
+              <TabsTrigger value="platforms">Sales Platforms</TabsTrigger>
             </TabsList>
             <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -309,6 +357,89 @@ export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, c
                         </p>
                    </div>
                </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className={activeTab === "platforms" ? "block mt-2" : "hidden"}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales Platforms</CardTitle>
+              <CardDescription>Manage platform logos and activation. Deactivated platforms remain in reports for audit integrity.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <input type="hidden" name="platformConfig" value={JSON.stringify(platforms)} readOnly />
+              {platforms.map((platform: PlatformConfig, index: number) => (
+                <div key={`${platform.code}-${platform.logoUrl ?? "none"}-${index}`} className="border rounded-md p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <GripVertical className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Platform Code (e.g., AMAZON)"
+                        value={platform.code}
+                        onChange={(e) => updatePlatform(index, "code", e.target.value.toUpperCase())}
+                        className="w-40"
+                      />
+                      <Input
+                        placeholder="Display Name"
+                        value={platform.name}
+                        onChange={(e) => updatePlatform(index, "name", e.target.value)}
+                        className="w-48"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={platform.active}
+                          onCheckedChange={(checked) => updatePlatform(index, "active", checked)}
+                        />
+                        <Label className="text-sm">Active</Label>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removePlatform(index)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 space-y-2">
+                      <Label>Logo</Label>
+                      <FileUpload
+                        key={`${platform.code}-logo-upload-${platform.logoUrl ?? "none"}`}
+                        defaultFiles={platform.logoUrl ? [platform.logoUrl] : []}
+                        category={`platforms/${platform.code || index}`}
+                        onUploadComplete={handlePlatformLogoUpload(index)}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Label>Logo URL</Label>
+                      <Input
+                        placeholder="https://example.com/logo.png"
+                        value={platform.logoUrl}
+                        onChange={(e) => updatePlatform(index, "logoUrl", e.target.value)}
+                      />
+                    </div>
+                    {platform.logoUrl && (
+                      <div className="shrink-0">
+                        <Label>Preview</Label>
+                        <img
+                          src={platform.logoUrl}
+                          alt={platform.name}
+                          className="h-10 w-10 object-contain border rounded"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              <Button type="button" onClick={addPlatform} variant="outline" className="w-full">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Platform
+              </Button>
             </CardContent>
           </Card>
         </div>

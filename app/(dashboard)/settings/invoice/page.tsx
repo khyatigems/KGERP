@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function InvoiceSettingsPage() {
-  const { settings, paymentSettings, creditNoteTerms } = await getInvoiceSettings();
+  const { settings, paymentSettings, creditNoteTerms, platforms } = await getInvoiceSettings();
   const categories = await prisma.categoryCode.findMany({
     where: { status: "ACTIVE" },
     orderBy: { name: "asc" },
@@ -29,7 +29,7 @@ export default async function InvoiceSettingsPage() {
         initialSettings={settings} 
         initialPaymentSettings={paymentSettings} 
         categories={categories}
-        {...({ creditNoteTerms } as unknown as Record<string, unknown>)}
+        {...({ creditNoteTerms, platforms } as unknown as Record<string, unknown>)}
       />
     </div>
   );

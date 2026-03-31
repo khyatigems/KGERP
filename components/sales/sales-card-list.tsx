@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { SalesActions } from "./sales-actions";
+import { SalesActions, WhatsappTemplate } from "./sales-actions";
 
 interface SaleItem {
   id: string;
@@ -8,6 +8,7 @@ interface SaleItem {
   invoice: { invoiceNumber: string; token: string } | null;
   customerName: string | null;
   customerCity: string | null;
+  customerPhone: string | null;
   inventory: { sku: string; itemName: string };
   platform: string;
   netAmount: number;
@@ -18,9 +19,11 @@ interface SaleItem {
 interface SalesCardListProps {
   data: SaleItem[];
   canDelete: boolean;
+  messageTemplates?: WhatsappTemplate[];
+  baseInvoiceUrl?: string;
 }
 
-export function SalesCardList({ data, canDelete }: SalesCardListProps) {
+export function SalesCardList({ data, canDelete, messageTemplates = [], baseInvoiceUrl = "" }: SalesCardListProps) {
   return (
     <div className="grid grid-cols-1 gap-4 md:hidden">
       {data.map((sale) => (
@@ -33,6 +36,11 @@ export function SalesCardList({ data, canDelete }: SalesCardListProps) {
             <SalesActions 
                 saleId={sale.id} 
                 invoiceToken={sale.invoice?.token} 
+                invoiceNumber={sale.invoice?.invoiceNumber}
+                customerName={sale.customerName || undefined}
+                customerPhone={sale.customerPhone || undefined}
+                invoiceUrl={sale.invoice?.token && baseInvoiceUrl ? `${baseInvoiceUrl.replace(/\/$/, "")}/invoice/${sale.invoice.token}` : undefined}
+                messageTemplates={messageTemplates}
                 canDelete={canDelete} 
             />
           </div>

@@ -4,8 +4,6 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { sanitizeNumberText } from "@/lib/number-formatting";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
-import { buildInvoiceWhatsappLink } from "@/lib/whatsapp";
-import { Share2 } from "lucide-react";
 import { PrintButton } from "@/components/invoice/print-button";
 import { RazorpayButton } from "@/components/invoice/razorpay-button";
 import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
@@ -19,6 +17,7 @@ import { resolveInventoryCertificateUrl } from "@/lib/certificate-url";
 import type { Metadata } from "next";
 import { trackPublicView } from "@/lib/analytics";
 import { InvoiceEngagementCard } from "@/components/invoice/invoice-engagement-card";
+import { mergePlatformConfig, formatPlatformCode } from "@/lib/platforms";
 
 type PrismaRecord = Record<string, unknown>;
 type PackagingSettingsRow = { categoryHsnJson?: string | null };
@@ -155,8 +154,21 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   
   // Defensive check for stale Prisma client
   const invoiceSettings = await prisma.invoiceSettings.findFirst();
+  const platformSettingRow = await prisma.setting.findUnique({ where: { key: "invoice_platforms" } }).catch(() => null);
+  const platformConfigMap = mergePlatformConfig(platformSettingRow?.value);
 
   const displayLogo = companySettings?.invoiceLogoUrl || companySettings?.logoUrl;
+  
+  // Determine platform branding (but don't replace KhyatiGems logo)
+  const salePlatform = (primarySale as any)?.platform || "MANUAL";
+  const isOfflineWalkin = formatPlatformCode(salePlatform) === "MANUAL";
+  const normalizedPlatformCode = formatPlatformCode(salePlatform);
+  const platformEntry = platformConfigMap[normalizedPlatformCode];
+  const platformLogoUrl = !isOfflineWalkin && platformEntry?.active ? platformEntry.logoUrl || null : null;
+  const platformLabel = platformEntry?.label || normalizedPlatformCode.split("_").map((part) => part.charAt(0) + part.slice(1).toLowerCase()).join(" ");
+  // Always use KhyatiGems logo, never replace it
+  const finalLogoUrl = displayLogo;
+  const showPlatformBranding = !isOfflineWalkin && !!platformLogoUrl;
   
   // Parse GST Rates
   let gstRates: Record<string, string> = {};
@@ -256,12 +268,6 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
 
   const isOriginal = true; 
   const statusLabel = isOriginal ? "ORIGINAL INVOICE" : "DUPLICATE INVOICE";
-
-  const invoiceUrl = `${process.env.APP_BASE_URL}/invoice/${token}`;
-  const whatsappLink = buildInvoiceWhatsappLink({
-      invoiceUrl,
-      invoiceNumber: invoice.invoiceNumber
-  });
 
   const creditNotes = await (async () => {
     try {
@@ -402,8 +408,13 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
       phone: companySettings?.phone || "",
       website: companySettings?.website || "",
       gstin: companySettings?.gstin || undefined,
-      logoUrl: displayLogo || undefined,
+      logoUrl: finalLogoUrl || undefined,
     },
+    // Add platform info for PDF
+    platformInfo: showPlatformBranding ? {
+      logoUrl: platformLogoUrl || undefined,
+      label: platformLabel,
+    } : undefined,
     customer: {
       name: customerName,
       customerCode: customerCode || undefined,
@@ -510,42 +521,31 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                     <span className={isPaid ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>{displayPaymentStatus}</span>
                 </div>
                 <div className="flex gap-3">
-                    <a 
-                        href={whatsappLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-3 py-1.5 bg-[#25D366] text-white text-xs font-medium rounded hover:bg-[#128C7E] transition-colors"
-                    >
-                        <Share2 className="w-3.5 h-3.5 mr-1.5" />
-                        WhatsApp
-                    </a>
                     <DownloadPdfButton data={pdfData} />
                     <PrintButton />
                 </div>
             </div>
 
-            <InvoiceEngagementCard
-              token={token}
-              customerName={customerName}
-              banners={activeBanners || []}
-              loyalty={loyalty}
-              coupon={appliedCoupon}
-              canCaptureProfile={Boolean(customerId)}
-              missingDob={missingDob}
-              missingAnniversary={missingAnniversary}
-              profileRewardPoints={profileRewardPoints}
-            />
-
             {/* Header */}
             <div className="p-10 pb-8 flex justify-between items-start relative z-10 border-b border-slate-100">
                 <div className="space-y-2">
-                    {displayLogo && (
+                    {finalLogoUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img 
-                            src={displayLogo} 
+                            src={finalLogoUrl} 
                             alt="Logo" 
                             className="h-16 w-auto object-contain mb-4"
                         />
+                    )}
+                    {showPlatformBranding && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-gray-500">Sold via</span>
+                        {platformLogoUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={platformLogoUrl} alt={platformLabel} className="h-8 w-auto object-contain" />
+                        )}
+                        {/* Remove platform label text, only show logo */}
+                      </div>
                     )}
                     <h2 className="font-bold text-2xl text-slate-900 leading-none">{companySettings?.companyName}</h2>
                     <div className="text-sm text-gray-600 space-y-1">
@@ -792,6 +792,20 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                 {/* Footer */}
                 <div className="mt-8 pt-8 border-t border-slate-100 text-center">
                     <p className="text-xs text-gray-400">Thank you for your business</p>
+                </div>
+
+                <div className="mt-6">
+                  <InvoiceEngagementCard
+                    token={token}
+                    customerName={customerName}
+                    banners={activeBanners || []}
+                    loyalty={loyalty}
+                    coupon={appliedCoupon}
+                    canCaptureProfile={Boolean(customerId)}
+                    missingDob={missingDob}
+                    missingAnniversary={missingAnniversary}
+                    profileRewardPoints={profileRewardPoints}
+                  />
                 </div>
             </div>
             

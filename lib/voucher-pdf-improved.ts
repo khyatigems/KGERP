@@ -172,6 +172,11 @@ const loadImage = (url: string): Promise<string> => {
         const maxDimension = 500; // Increased max dimension
         if (img.width > maxDimension || img.height > maxDimension) {
           console.log(`Processing large image (${img.width}x${img.height}) for PDF`);
+          
+          // For very large images, reduce target size further to prevent memory issues
+          if (img.width > 2000 || img.height > 2000) {
+            console.log(`Very large image detected, using smaller target size`);
+          }
         }
 
         const canvas = getCanvas();
@@ -179,7 +184,13 @@ const loadImage = (url: string): Promise<string> => {
         try {
           // Calculate aspect ratio and target size
           const aspectRatio = img.width / img.height;
-          const targetWidth = Math.min(40, img.width); // Increased logo size
+          let targetWidth = Math.min(40, img.width); // Increased logo size
+          
+          // For very large images, use smaller target size to prevent memory issues
+          if (img.width > 2000 || img.height > 2000) {
+            targetWidth = Math.min(20, img.width);
+          }
+          
           const targetHeight = targetWidth / aspectRatio;
           
           canvas.width = targetWidth;
@@ -198,8 +209,9 @@ const loadImage = (url: string): Promise<string> => {
           // Draw image with proper dimensions
           ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
           
-          // Get data URL with higher quality
-          const dataUrl = canvas.toDataURL("image/png", 0.9); // Increased quality
+          // Get data URL with appropriate quality based on image size
+          const quality = (img.width > 2000 || img.height > 2000) ? 0.7 : 0.9;
+          const dataUrl = canvas.toDataURL("image/png", quality);
           
           // Clean up canvas
           releaseCanvas(canvas);
@@ -574,5 +586,5 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
   doc.setTextColor(150);
   doc.text("This is a computer-generated document and does not require a signature.", pageWidth / 2, pageHeight - 10, { align: "center" });
 
-  return doc;
+  return doc.output('blob');
 }

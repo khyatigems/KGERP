@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2, MoreHorizontal, ExternalLink, FileText, Printer } from "lucide-react";
+import { Trash2, Loader2, MoreHorizontal, ExternalLink, FileText, Printer, MessageCircle } from "lucide-react";
 import { deleteSale, getInvoiceDataForThermal } from "@/app/(dashboard)/sales/actions";
 import { generateThermalInvoicePDF } from "@/lib/thermal-invoice-generator";
 import Link from "next/link";
@@ -24,18 +24,77 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+
+export type WhatsappTemplate = {
+  id: string;
+  key: string;
+  title: string;
+  body: string;
+};
 
 interface SalesActionsProps {
   saleId: string;
   invoiceToken?: string | null;
   canDelete: boolean;
   allowConfigureInvoice?: boolean;
+  invoiceNumber?: string;
+  customerName?: string;
+  customerPhone?: string;
+  invoiceUrl?: string;
+  messageTemplates?: WhatsappTemplate[];
 }
 
-export function SalesActions({ saleId, invoiceToken, canDelete, allowConfigureInvoice = true }: SalesActionsProps) {
+const normalizePhone = (input?: string | null) => {
+  const raw = String(input || "").replace(/[^\d+]/g, "");
+  if (!raw) return "";
+  if (raw.startsWith("+") && raw.length >= 11) return raw.replace(/^\+/, "");
+  if (raw.length === 10) return `91${raw}`;
+  return raw;
+};
+
+const substitutePlaceholders = (template: string, replacements: Record<string, string>) => {
+  let output = template;
+  for (const [key, value] of Object.entries(replacements)) {
+    output = output.replaceAll(new RegExp(key, "gi"), value);
+  }
+  return output;
+};
+
+export function SalesActions({
+  saleId,
+  invoiceToken,
+  canDelete,
+  allowConfigureInvoice = true,
+  invoiceNumber,
+  customerName,
+  customerPhone,
+  invoiceUrl,
+  messageTemplates = [],
+}: SalesActionsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+    messageTemplates.length > 0 ? messageTemplates[0].id : null
+  );
+  const [isSending, setIsSending] = useState(false);
   const router = useRouter();
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -65,6 +124,80 @@ export function SalesActions({ saleId, invoiceToken, canDelete, allowConfigureIn
     }
   };
 
+  const friendlyName = (customerName || "Customer").trim();
+  const normalizedPhone = useMemo(() => normalizePhone(customerPhone), [customerPhone]);
+
+  const selectedTemplate = useMemo(() => {
+    if (!selectedTemplateId) return null;
+    return messageTemplates.find((template) => template.id === selectedTemplateId) || null;
+  }, [selectedTemplateId, messageTemplates]);
+
+  const whatsappMessage = useMemo(() => {
+    const replacements: Record<string, string> = {
+      "{name}": friendlyName || "Customer",
+      "{invoice}": invoiceNumber || "",
+      "{invoice_number}": invoiceNumber || "",
+      "{link}": invoiceUrl || "",
+      "{invoice_link}": invoiceUrl || "",
+      "{date}": new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" }),
+    };
+
+    const templateBody = selectedTemplate?.body || "Thank you for your purchase with KhyatiGems™.";
+    const substituted = substitutePlaceholders(templateBody, replacements);
+
+    // If template already starts with "Dear", don't double-prefix
+    const hasDearPrefix = substituted.trim().toLowerCase().startsWith("dear");
+    const finalLines = hasDearPrefix ? [substituted] : [
+      `Dear ${friendlyName || "Customer"},`,
+      "",
+      substituted,
+    ];
+
+    // Ensure invoice link is included if template doesn't already have it
+    if (invoiceUrl && !substituted.includes(invoiceUrl)) {
+      finalLines.push("", `Invoice: ${invoiceUrl}`);
+    }
+
+    // Add signature only if not already in template
+    if (!substituted.toLowerCase().includes("khyatigems")) {
+      finalLines.push("", "Warm regards,", "KhyatiGems™ Team");
+    }
+
+    return finalLines.join("\n");
+  }, [friendlyName, selectedTemplate, invoiceNumber, invoiceUrl]);
+
+  const handleOpenWhatsapp = () => {
+    if (!invoiceUrl) {
+      toast.error("Invoice link unavailable", {
+        description: "Generate the invoice before sending via WhatsApp.",
+      });
+      return;
+    }
+    if (!normalizedPhone) {
+      toast.error("Customer phone missing", {
+        description: "Please ensure the customer has a valid phone number before sending WhatsApp messages.",
+      });
+      return;
+    }
+    setWhatsappOpen(true);
+  };
+
+  const sendWhatsappMessage = () => {
+    if (!normalizedPhone) {
+      toast.error("Phone number not available");
+      return;
+    }
+    setIsSending(true);
+    try {
+      const url = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+      toast.success("WhatsApp opened in new tab");
+      setWhatsappOpen(false);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -91,6 +224,12 @@ export function SalesActions({ saleId, invoiceToken, canDelete, allowConfigureIn
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleThermalPrint}>
                       <Printer className="mr-2 h-4 w-4" /> Print Thermal Invoice
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleOpenWhatsapp()}
+                    disabled={!invoiceUrl}
+                  >
+                    <MessageCircle className="mr-2 h-4 w-4" /> Send via WhatsApp
                   </DropdownMenuItem>
               </>
           )}
@@ -138,6 +277,69 @@ export function SalesActions({ saleId, invoiceToken, canDelete, allowConfigureIn
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={whatsappOpen} onOpenChange={setWhatsappOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Send Invoice via WhatsApp</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="wa-template">Select Template</Label>
+              {messageTemplates.length > 0 ? (
+                <Select
+                  value={selectedTemplateId ?? undefined}
+                  onValueChange={(value) => setSelectedTemplateId(value)}
+                >
+                  <SelectTrigger id="wa-template">
+                    <SelectValue placeholder="Choose a template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {messageTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.title || template.key}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  No active WhatsApp templates found. Create one in Settings → Message Templates.
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="wa-preview">Message Preview</Label>
+              <Textarea
+                id="wa-preview"
+                value={whatsappMessage}
+                readOnly
+                rows={10}
+                className="resize-none"
+              />
+            </div>
+
+            <div className="rounded-md bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <p><span className="font-semibold">Recipient:</span> {customerName || "Customer"} ({customerPhone || "No phone"})</p>
+              {invoiceNumber && <p><span className="font-semibold">Invoice:</span> {invoiceNumber}</p>}
+              {invoiceUrl && <p className="truncate"><span className="font-semibold">Link:</span> {invoiceUrl}</p>}
+            </div>
+          </div>
+          <DialogFooter className="flex justify-between gap-2">
+            <Button variant="outline" onClick={() => setWhatsappOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={sendWhatsappMessage}
+              disabled={!normalizedPhone || !invoiceUrl || isSending}
+            >
+              {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+              Open WhatsApp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

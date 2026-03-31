@@ -40,8 +40,7 @@ export interface RegisterEntry {
 }
 
 export interface VoucherRegisterData {
-  month: string;
-  year: number;
+  datePeriod: string;
   companyName: string;
   generatedBy: string;
   entries: RegisterEntry[];
@@ -230,12 +229,8 @@ export function validateVoucherRegisterData(data: VoucherRegisterData): Validati
   const errors: ValidationError[] = [];
 
   // Required field validation
-  if (!data.month || typeof data.month !== 'string') {
-    errors.push({ field: 'month', message: 'Month is required and must be a string', value: data.month });
-  }
-
-  if (typeof data.year !== 'number' || data.year < 2000 || data.year > 2100) {
-    errors.push({ field: 'year', message: 'Year must be a valid number between 2000 and 2100', value: data.year });
+  if (!data.datePeriod || typeof data.datePeriod !== 'string') {
+    errors.push({ field: 'datePeriod', message: 'Date period is required and must be a string', value: data.datePeriod });
   }
 
   if (!data.companyName || typeof data.companyName !== 'string') {

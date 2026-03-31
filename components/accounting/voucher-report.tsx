@@ -197,18 +197,25 @@ export function VoucherReport() {
       toast.info("Generating Register PDF...");
       const company = await getCompanyDetailsForVoucher();
       
-      // Determine month/year from filters or current date
-      // Use the 'from' date if available, otherwise current date
-      const reportDate = dateRange?.from || new Date();
-      const monthName = format(reportDate, "MMMM");
-      const year = reportDate.getFullYear();
-
-      // If date range is wide, maybe indicate that? But for "Monthly Register" usually implies a month.
-      // We will title it based on the start date's month, but the data is whatever is filtered.
+      // Determine date period from filters
+      let datePeriod = "";
+      if (dateRange?.from && dateRange?.to) {
+        const fromDate = format(dateRange.from, "dd MMM yyyy");
+        const toDate = format(dateRange.to, "dd MMM yyyy");
+        datePeriod = `${fromDate} - ${toDate}`;
+      } else if (dateRange?.from) {
+        const fromDate = format(dateRange.from, "dd MMM yyyy");
+        datePeriod = `From ${fromDate}`;
+      } else {
+        // Fallback to current month
+        const reportDate = new Date();
+        const monthName = format(reportDate, "MMMM");
+        const year = reportDate.getFullYear();
+        datePeriod = `${monthName} ${year}`;
+      }
       
       const registerData = {
-        month: monthName,
-        year: year,
+        datePeriod: datePeriod,
         companyName: company.name,
         generatedBy: "Admin", // TODO: Replace with actual user name if available
         entries: data.vouchers.map(v => {
@@ -252,7 +259,7 @@ export function VoucherReport() {
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Voucher-Register-${monthName}-${year}.pdf`;
+      a.download = `Voucher-Register-${datePeriod.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
