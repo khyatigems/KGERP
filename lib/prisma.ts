@@ -95,7 +95,7 @@ const prismaBase =
   globalForPrisma.prisma ??
   (() => {
     const client = new PrismaClient({
-      adapter,
+      adapter: adapter as any,
       log: isProd ? ['error', 'warn'] : ['query', 'error', 'warn'],
       datasources: isLibsql
         ? undefined
