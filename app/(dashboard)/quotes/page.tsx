@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { Plus, ExternalLink } from "lucide-react";
+import { Plus, Wallet, ExternalLink } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,12 +54,20 @@ export default async function QuotationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-end">
         {canCreate && (
-          <Button asChild>
-            <LoadingLink href="/quotes/new">
-              <Plus className="mr-2 h-4 w-4" />
-              New Quote
-            </LoadingLink>
-          </Button>
+          <>
+            <Button asChild variant="outline" className="mr-2">
+              <Link href="/advances">
+                <Wallet className="mr-2 h-4 w-4" />
+                Record Advance
+              </Link>
+            </Button>
+            <Button asChild>
+              <LoadingLink href="/quotes/new">
+                <Plus className="mr-2 h-4 w-4" />
+                New Quote
+              </LoadingLink>
+            </Button>
+          </>
         )}
       </div>
 

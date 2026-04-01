@@ -4,7 +4,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Wallet } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -176,6 +176,12 @@ export default async function SalesPage({ searchParams }: { searchParams: Promis
         <h1 className="text-3xl font-bold tracking-tight">Sales History</h1>
         <div className="flex items-center gap-2">
             <SalesSortToggle />
+            <Link href="/advances">
+                <Button variant="outline">
+                    <Wallet className="mr-2 h-4 w-4" />
+                    Record Advance
+                </Button>
+            </Link>
             <Link href="/sales/new">
                 <Button>
                     <Plus className="mr-2 h-4 w-4" />
