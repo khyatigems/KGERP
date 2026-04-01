@@ -186,14 +186,19 @@ export async function createOrUpdateInvoiceFromSale(
 }
 
 
-interface PaymentDetails {
-  amount: number;
+interface SinglePayment {
   method: string;
-  date: string;
+  amount: number;
   reference?: string;
+  loyaltyPointsRedeemed?: number;
+}
+
+interface PaymentDetails {
+  totalAmount: number;
+  date: string;
   notes?: string;
   couponCode?: string;
-  useLoyaltyRedeem?: boolean;
+  payments: SinglePayment[];
 }
 
 export async function updateInvoicePaymentStatus(
@@ -285,28 +290,31 @@ export async function updateInvoicePaymentStatus(
       return { success: true, message: "Payment status reset to Unpaid" };
     }
 
-    if (!paymentDetails) {
+    if (!paymentDetails || paymentDetails.payments.length === 0) {
       return { success: false, message: "Payment details required" };
     }
 
-    const recordResult = await recordInvoicePayment({
-      invoiceId,
-      targetStatus: status === "PAID" ? "PAID" : "PARTIAL",
-      amount: paymentDetails.amount,
-      method: paymentDetails.method,
-      date: paymentDetails.date,
-      reference: paymentDetails.reference,
-      notes: paymentDetails.notes,
-      couponCode: paymentDetails.couponCode,
-      useLoyaltyRedeem: paymentDetails.useLoyaltyRedeem,
-      actor: { userId: session.user.id, userName: session.user.name || session.user.email || "Unknown" }
-    });
-    if (!recordResult.success) return recordResult;
+    // Process each payment in the array
+    for (const payment of paymentDetails.payments) {
+      const recordResult = await recordInvoicePayment({
+        invoiceId,
+        targetStatus: status === "PAID" ? "PAID" : "PARTIAL",
+        amount: payment.amount,
+        method: payment.method,
+        date: paymentDetails.date,
+        reference: payment.reference,
+        notes: paymentDetails.notes,
+        couponCode: paymentDetails.couponCode,
+        loyaltyPointsRedeemed: payment.loyaltyPointsRedeemed,
+        actor: { userId: session.user.id, userName: session.user.name || session.user.email || "Unknown" }
+      });
+      if (!recordResult.success) return recordResult;
+    }
 
     revalidatePath(`/invoices/${invoiceId}`);
     revalidatePath(`/invoice/${invoice.token}`);
     revalidatePath("/invoices");
-    return recordResult;
+    return { success: true, message: `${paymentDetails.payments.length} payment(s) recorded successfully` };
 
   } catch (error) {
     console.error("Failed to update payment status:", error);

@@ -20,7 +20,6 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
     if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
 
     const canViewFinancials = hasPermission(session.user.role, PERMISSIONS.REPORTS_FINANCIAL);
-    const canViewExpenses = hasPermission(session.user.role, PERMISSIONS.EXPENSE_REPORT);
     const sp = await searchParams;
     const rangeDays = (() => {
         const raw = sp.range;
@@ -359,7 +358,6 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         { title: "Loyalty Points Report", description: "Detailed breakdown of loyalty points earned and redeemed.", icon: Gift, href: "/reports/loyalty-points", allowed: true },
         { title: "Discount Usage Report", description: "Analysis of discount coupons and their impact on sales.", icon: Percent, href: "/reports/discount-usage", allowed: true },
         { title: "Payment Reports", description: "Payment trends, method distribution, recent transactions", icon: CreditCard, href: "/reports/payments", allowed: true },
-        { title: "Expense Reports", description: "Category-wise, Vendor-wise, GST breakdown", icon: ReceiptIndianRupee, href: "/reports/expenses", allowed: canViewExpenses },
         { title: "Label & Ops", description: "Printing activity, user logs", icon: Printer, href: "/reports/ops", allowed: true },
         { title: "QR Scans Report", description: "Track QR code usage and scan activity", icon: QrCode, href: "/reports/qr-scans", allowed: true }
     ];

@@ -48,6 +48,9 @@ type LoyaltyReportRow = {
 };
 
 export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
+  console.log('=== LOYALTY POINTS REPORT CALLED ===');
+  console.log('Start date:', startDate.toISOString());
+  console.log('End date:', endDate.toISOString());
   try {
     // Fetch loyalty settings via raw SQL (table exists but not modeled in Prisma schema)
     const loyaltyRows = await prisma.$queryRawUnsafe<Array<{
@@ -141,6 +144,8 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     
     // Fetch invoice data separately to avoid JOIN issues
     const invoiceIds = [...new Set((rawReportData as any[]).map(r => r.invoiceId).filter(Boolean))];
+    console.log('Extracted invoice IDs for profit lookup:', invoiceIds.length);
+    
     let invoiceMap = new Map();
     
     if (invoiceIds.length > 0) {
@@ -160,6 +165,34 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
         }
       } catch (e) {
         console.log('Failed to fetch invoice data:', e);
+      }
+    }
+    
+    // Fetch invoice profit data separately to avoid BigInt issues
+    const invoiceProfitMap = new Map();
+    if (invoiceIds.length > 0) {
+      try {
+        const profitQuery = `SELECT 
+            s.invoiceId,
+            ROUND(COALESCE(SUM(s.profit), 0)) as totalProfit
+          FROM "Sale" s
+          WHERE s.invoiceId IN (${invoiceIds.map(() => '?').join(',')})
+          GROUP BY s.invoiceId`;
+        
+        const profitData = await prisma.$queryRawUnsafe<
+          Array<{ invoiceId: string; totalProfit: number }>
+        >(profitQuery, ...invoiceIds);
+        
+        console.log(`Profit data fetched: ${profitData?.length || 0} records`);
+        
+        for (const profit of profitData || []) {
+          invoiceProfitMap.set(profit.invoiceId, Number(profit.totalProfit || 0));
+        }
+        
+        console.log(`Invoice profit map populated: ${invoiceProfitMap.size} entries`);
+      } catch (profitError) {
+        console.warn('Failed to fetch profit data:', profitError);
+        // Continue without profit data - will show as null
       }
     }
     
@@ -185,6 +218,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     // Convert all potential BigInt values to regular numbers before processing
     reportData = (rawReportData as any[]).map((row: any) => {
       const invoiceData = row.invoiceId ? invoiceMap.get(row.invoiceId) : null;
+      const profitValue = row.invoiceId ? invoiceProfitMap.get(row.invoiceId) : null;
       
       return {
         id: String(row.id),
@@ -200,7 +234,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
         createdAt: new Date(row.createdAt),
         invoiceTotalAmount: invoiceData?.totalAmount ?? null,
         invoiceDiscountTotal: invoiceData?.discountTotal ?? null,
-        totalProfitOnInvoice: null, // Skip profit calculation to avoid BigInt issues
+        totalProfitOnInvoice: profitValue ?? null,
       };
     });
   } catch (error) {
@@ -248,7 +282,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     return {
       ...entry,
       points: Number(points.toFixed(2)),
-      rupeeValue: Number(rupeeValue.toFixed(2)),
+      rupeeValue: Math.round(rupeeValue), // Round to whole numbers - no decimals
       invoiceTotalAmount: invoiceTotalAmount !== null ? Number(invoiceTotalAmount.toFixed(2)) : null,
       invoiceDiscountTotal: invoiceDiscountTotal !== null ? Number(invoiceDiscountTotal.toFixed(2)) : null,
       totalProfitOnInvoice: totalProfitOnInvoice !== null ? Number(totalProfitOnInvoice.toFixed(2)) : null,

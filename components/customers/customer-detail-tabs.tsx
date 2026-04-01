@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/lib/utils";
 import { CustomerReceivables } from "@/components/customers/customer-receivables";
+import { CustomerLoyaltyLedger } from "@/components/customers/customer-loyalty-ledger";
+import { CustomerAdvances } from "@/components/customers/customer-advances";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +50,8 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
         <TabsTrigger value="profile">Profile & Summary</TabsTrigger>
         <TabsTrigger value="timeline">Purchase Timeline</TabsTrigger>
         <TabsTrigger value="receivables">Receivables</TabsTrigger>
+        <TabsTrigger value="advances">Advances</TabsTrigger>
+        <TabsTrigger value="loyalty">Loyalty Points</TabsTrigger>
       </TabsList>
 
       <TabsContent value="profile">
@@ -197,6 +201,14 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
 
       <TabsContent value="receivables">
         <CustomerReceivables customerId={customer.id} customerName={customer.name} />
+      </TabsContent>
+
+      <TabsContent value="advances">
+        <CustomerAdvances customerId={customer.id} customerName={customer.name} />
+      </TabsContent>
+
+      <TabsContent value="loyalty">
+        <CustomerLoyaltyLedger customerId={customer.id} customerName={customer.name} />
       </TabsContent>
     </Tabs>
   );

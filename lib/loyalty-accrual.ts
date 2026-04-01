@@ -63,13 +63,13 @@ export async function accrueLoyaltyPoints(input: LoyaltyAccrualInput) {
     const excludedAmount = Number(excludedPayments?.[0]?.total || 0);
     const accrualBase = Math.max(0, input.invoiceTotal - excludedAmount);
     
-    const earnedPoints = Math.round(accrualBase * pointsPerRupee * 100) / 100; // Standard rounding (0.5+ rounds up, <0.5 rounds down)
+    const earnedPoints = Math.round(accrualBase * pointsPerRupee); // Round to whole numbers only - no decimals
     if (earnedPoints <= 0) {
       console.info(`No loyalty points earned: accrualBase=${accrualBase}, earnedPoints=${earnedPoints} for invoice ${input.invoiceNumber}`);
       return; // No points to award
     }
 
-    const rupeeValue = earnedPoints * redeemRupeePerPoint;
+    const rupeeValue = Math.round(earnedPoints * redeemRupeePerPoint); // Round to whole numbers
     const entryId = crypto.randomUUID();
     
     // Atomic UPSERT operation to prevent duplicates and race conditions

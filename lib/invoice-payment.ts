@@ -21,7 +21,7 @@ export type InvoicePaymentInput = {
   reference?: string;
   notes?: string;
   couponCode?: string;
-  useLoyaltyRedeem?: boolean;
+  loyaltyPointsRedeemed?: number;
   actor?: { userId?: string; userName?: string };
 };
 
@@ -318,7 +318,7 @@ export async function recordInvoicePayment(input: InvoicePaymentInput) {
         customerId
       );
       const availablePoints = Number(balRows?.[0]?.points || 0);
-      const needPoints = amountToRecord / redeemRupeePerPoint;
+      const needPoints = Math.round(amountToRecord / redeemRupeePerPoint); // Round to whole numbers
       if (needPoints + 0.0001 < minRedeemPoints) {
         throw new Error(`Minimum redeem points is ${minRedeemPoints}`);
       }

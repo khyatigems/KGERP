@@ -21,12 +21,6 @@ export default async function SettingsCodesPage() {
   const collections = await prisma.collectionCode.findMany({ orderBy: { name: "asc" } });
   const rashis = await prisma.rashiCode.findMany({ orderBy: { name: "asc" } });
   const certificates = await prisma.certificateCode.findMany({ orderBy: { name: "asc" } });
-  const expenseCategoriesRaw = await prisma.expenseCategory.findMany({ orderBy: { name: "asc" } });
-  // ExpenseCategory model is missing updatedAt, so we use createdAt as fallback to satisfy CodeRow interface
-  const expenseCategories = expenseCategoriesRaw.map(item => ({
-    ...item,
-    updatedAt: item.createdAt
-  }));
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -39,7 +33,6 @@ export default async function SettingsCodesPage() {
         collections={collections}
         rashis={rashis}
         certificates={certificates}
-        expenseCategories={expenseCategories}
       />
     </div>
   );

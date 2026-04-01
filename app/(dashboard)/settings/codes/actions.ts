@@ -10,21 +10,13 @@ import { z } from "zod";
 
 const codePattern = /^[A-Z0-9]{1,6}$/;
 
-export type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "expenseCategories" | "certificates";
+export type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "certificates";
 
 // Schema for other codes (CategoryCode, etc.)
 const createCodeSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   code: z.string().trim().toUpperCase().regex(codePattern, "Code must be uppercase, alphanumeric, and up to 6 characters long"),
   status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
-});
-
-// Schema specifically for Expense Categories
-const createExpenseCategorySchema = z.object({
-  name: z.string().trim().min(1, "Name is required"),
-  code: z.string().trim().toUpperCase().regex(codePattern, "Code must be uppercase, alphanumeric, and up to 6 characters long").optional().or(z.literal("")),
-  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
-  gstAllowed: z.coerce.boolean().default(false),
 });
 
 // Schema specifically for Certificate Codes
@@ -38,7 +30,6 @@ const updateCodeSchema = z.object({
   id: z.string().uuid(),
   name: z.string().trim().min(1, "Name is required"),
   status: z.enum(["ACTIVE", "INACTIVE"]),
-  gstAllowed: z.coerce.boolean().optional(), // Only for expense categories
   remarks: z.string().optional(), // Only for certificates
 });
 
@@ -58,14 +49,11 @@ export async function createCode(group: CodeGroup, formData: FormData) {
     name: formData.get("name"),
     code: formData.get("code"),
     status: formData.get("status") || "ACTIVE",
-    gstAllowed: formData.get("gstAllowed") === "true",
     remarks: formData.get("remarks"),
   };
 
   let parsed;
-  if (group === "expenseCategories") {
-    parsed = createExpenseCategorySchema.safeParse(rawData);
-  } else if (group === "certificates") {
+  if (group === "certificates") {
     parsed = createCertificateSchema.safeParse(rawData);
   } else {
     parsed = createCodeSchema.safeParse(rawData);
@@ -76,7 +64,7 @@ export async function createCode(group: CodeGroup, formData: FormData) {
   }
 
   // @ts-expect-error - handling different shapes from union schema
-  const { name, code, status, gstAllowed, remarks } = parsed.data;
+  const { name, code, status, remarks } = parsed.data;
 
   // Check existence
   let existing;
@@ -99,16 +87,6 @@ export async function createCode(group: CodeGroup, formData: FormData) {
   } else if (group === "rashis") {
     existing = await prisma.rashiCode.findUnique({ where: { code: code! } });
     existingName = await prisma.rashiCode.findUnique({ where: { name } });
-  } else if (group === "expenseCategories") {
-      // For expense categories, code is optional but must be unique if provided
-      if (code) {
-          existing = await prisma.expenseCategory.findUnique({ where: { code } });
-      }
-      // Also check name uniqueness for expense categories
-      if (!existing) {
-          const nameExists = await prisma.expenseCategory.findUnique({ where: { name } });
-          if (nameExists) return { error: "NAME_ALREADY_EXISTS", message: "Category name already exists." };
-      }
   } else if (group === "certificates") {
       // For certificates, we check name uniqueness primarily
       existing = await prisma.certificateCode.findUnique({ where: { name } });
@@ -132,15 +110,6 @@ export async function createCode(group: CodeGroup, formData: FormData) {
       created = await prisma.collectionCode.create({ data: { name, code: code!, status } });
     } else if (group === "rashis") {
       created = await prisma.rashiCode.create({ data: { name, code: code!, status } });
-    } else if (group === "expenseCategories") {
-      created = await prisma.expenseCategory.create({ 
-          data: { 
-              name, 
-              code: code || null, 
-              status, 
-              gstAllowed 
-          } 
-      });
     } else if (group === "certificates") {
       // Generate a code from name
       // Simple slug generation: uppercase, remove non-alphanumeric, take first 6 chars
@@ -203,7 +172,6 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     id: formData.get("id"),
     name: formData.get("name"),
     status: formData.get("status"),
-    gstAllowed: formData.get("gstAllowed"),
     remarks: formData.get("remarks"),
   };
 
@@ -212,7 +180,7 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const { id, name, status, gstAllowed, remarks } = parsed.data;
+  const { id, name, status, remarks } = parsed.data;
 
   let existing;
   if (group === "categories") {
@@ -227,8 +195,6 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     existing = await prisma.collectionCode.findUnique({ where: { id } });
   } else if (group === "rashis") {
     existing = await prisma.rashiCode.findUnique({ where: { id } });
-  } else if (group === "expenseCategories") {
-    existing = await prisma.expenseCategory.findUnique({ where: { id } });
   } else if (group === "certificates") {
     existing = await prisma.certificateCode.findUnique({ where: { id } });
   }
@@ -254,9 +220,6 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     } else if (group === "rashis") {
       const dup = await prisma.rashiCode.findFirst({ where: { name, id: { not: id } } });
       if (dup) return { error: "Name already exists" };
-    } else if (group === "expenseCategories") {
-      const dup = await prisma.expenseCategory.findFirst({ where: { name, id: { not: id } } });
-      if (dup) return { error: "Name already exists" };
     } else if (group === "certificates") {
       const dup = await prisma.certificateCode.findFirst({ where: { name, id: { not: id } } });
       if (dup) return { error: "Name already exists" };
@@ -275,15 +238,6 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
       updated = await prisma.collectionCode.update({ where: { id }, data: { name, status } });
     } else if (group === "rashis") {
       updated = await prisma.rashiCode.update({ where: { id }, data: { name, status } });
-    } else if (group === "expenseCategories") {
-      updated = await prisma.expenseCategory.update({ 
-          where: { id }, 
-          data: { 
-              name, 
-              status,
-              gstAllowed: gstAllowed // Update gstAllowed
-          } 
-      });
     } else if (group === "certificates") {
       updated = await prisma.certificateCode.update({ 
         where: { id }, 
@@ -362,9 +316,6 @@ export async function setCodeStatus(group: CodeGroup, formData: FormData) {
     } else if (group === "rashis") {
       existing = await prisma.rashiCode.findUnique({ where: { id } });
       updated = await prisma.rashiCode.update({ where: { id }, data: { status } });
-    } else if (group === "expenseCategories") {
-      existing = await prisma.expenseCategory.findUnique({ where: { id } });
-      updated = await prisma.expenseCategory.update({ where: { id }, data: { status } });
     } else if (group === "certificates") {
       existing = await prisma.certificateCode.findUnique({ where: { id } });
       updated = await prisma.certificateCode.update({ where: { id }, data: { status } });
@@ -401,27 +352,7 @@ export async function deleteCode(group: CodeGroup, id: string) {
 
     try {
         let existing;
-        if (group === "expenseCategories") {
-            existing = await prisma.expenseCategory.findUnique({ 
-                where: { id },
-                include: { _count: { select: { expenses: true } } }
-            });
-
-            if (!existing) return { error: "Category not found" };
-
-            const expenseCount = existing._count.expenses;
-
-            if (expenseCount > 0) {
-                await prisma.expenseCategory.update({
-                    where: { id },
-                    data: { status: "INACTIVE" }
-                });
-                return { success: true, message: "Category has associated expenses. It has been marked as INACTIVE instead of deleted." };
-            } else {
-                await prisma.expenseCategory.delete({ where: { id } });
-                return { success: true, message: "Category deleted successfully." };
-            }
-        } else if (group === "colors") {
+        if (group === "colors") {
              existing = await prisma.colorCode.findUnique({
                  where: { id },
                  include: { _count: { select: { inventories: true } } }
@@ -498,7 +429,7 @@ export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
 
     const { name, code, status } = parsed.data;
 
-    if (group !== "expenseCategories" && !code) {
+    if (group !== "certificates" && !code) {
         results.invalidCount++;
         results.errors.push({
             rowNumber: i + 1,
@@ -521,10 +452,6 @@ export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
       existing = await prisma.collectionCode.findUnique({ where: { code: code! } });
     } else if (group === "rashis") {
       existing = await prisma.rashiCode.findUnique({ where: { code: code! } });
-    } else if (group === "expenseCategories") {
-        if (code) {
-            existing = await prisma.expenseCategory.findUnique({ where: { code } });
-        }
     }
 
     if (existing) {
@@ -545,8 +472,6 @@ export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
         await prisma.collectionCode.create({ data: { name, code: code!, status } });
       } else if (group === "rashis") {
         await prisma.rashiCode.create({ data: { name, code: code!, status } });
-      } else if (group === "expenseCategories") {
-        await prisma.expenseCategory.create({ data: { name, code: code || null, status } });
       }
       results.importedCount++;
     } catch {
@@ -606,11 +531,6 @@ export async function checkCodeDuplicate(group: CodeGroup, code: string) {
 
   if (group === "rashis") {
       const existing = await prisma.rashiCode.findUnique({ where: { code: normalized } });
-      return !!existing;
-  }
-
-  if (group === "expenseCategories") {
-      const existing = await prisma.expenseCategory.findUnique({ where: { code: normalized } });
       return !!existing;
   }
 

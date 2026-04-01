@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, RotateCcw, ShoppingBag, ReceiptText, Landmark, Truck, Users, BarChart3, CreditCard, UserCog, Settings } from "lucide-react";
+import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, RotateCcw, ShoppingBag, Truck, Users, BarChart3, CreditCard, UserCog, Settings, Wallet } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 
@@ -16,9 +16,8 @@ export const navItems = [
   { href: "/quotes", label: "Quotations", icon: FileText, module: "quotations:view" },
   { href: "/sales", label: "Sales", icon: ShoppingCart, module: "sales:view" },
   { href: "/sales-returns", label: "Sales Returns", icon: RotateCcw, module: "sales:view" },
+  { href: "/advances", label: "Advances", icon: Wallet, module: "sales:view" },
   { href: "/purchases", label: "Purchases", icon: ShoppingBag, module: "purchases:view" },
-  { href: "/expenses", label: "Expenses", icon: ReceiptText, module: "expenses:view" },
-  { href: "/accounting", label: "Accounting", icon: Landmark, module: "reports:financial" },
   { href: "/vendors", label: "Vendors", icon: Truck, module: "vendors:view" },
   { href: "/customers", label: "Customers", icon: Users, module: "customers:view" },
   { href: "/reports", label: "Reports", icon: BarChart3, module: "reports:view" },

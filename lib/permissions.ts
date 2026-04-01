@@ -57,13 +57,6 @@ export const PERMISSIONS = {
   REPORTS_FINANCIAL: "reports:financial",
   REPORTS_VENDOR: "reports:vendor",
   
-  // Expenses
-  EXPENSE_VIEW: "expenses:view",
-  EXPENSE_CREATE: "expenses:create",
-  EXPENSE_EDIT: "expenses:edit",
-  EXPENSE_DELETE: "expenses:delete",
-  EXPENSE_REPORT: "expenses:report",
-
   // Packaging (GPIS)
   PACKAGING_MANAGE: "packaging:manage",
   PACKAGING_VIEW: "packaging:view",

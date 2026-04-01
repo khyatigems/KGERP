@@ -382,6 +382,76 @@ export async function getCustomerDeleteImpact(customerId: string) {
   };
 }
 
+export interface LoyaltyLedgerEntry {
+  id: string;
+  date: string;
+  type: "EARN" | "REDEEM" | "ADJUST";
+  invoiceNumber: string | null;
+  invoiceId: string | null;
+  points: number;
+  rupeeValue: number;
+  remarks: string | null;
+  runningBalance: number;
+}
+
+export async function getCustomerLoyaltyLedger(customerId: string): Promise<{ success: true; entries: LoyaltyLedgerEntry[]; totalPoints: number } | { success: false; message: string }> {
+  try {
+    const rows = await prisma.$queryRawUnsafe<Array<{
+      id: string;
+      createdAt: string | Date;
+      type: string;
+      invoiceId: string | null;
+      invoiceNumber: string | null;
+      points: number | bigint;
+      rupeeValue: number | bigint;
+      remarks: string | null;
+    }>>(
+      `SELECT 
+        ll.id,
+        ll.createdAt,
+        ll.type,
+        ll.invoiceId,
+        i.invoiceNumber,
+        ll.points,
+        ll.rupeeValue,
+        ll.remarks
+      FROM "LoyaltyLedger" ll
+      LEFT JOIN "Invoice" i ON ll.invoiceId = i.id
+      WHERE ll.customerId = ?
+      ORDER BY ll.createdAt ASC, ll.id ASC`,
+      customerId
+    );
+
+    let runningBalance = 0;
+    const entries: LoyaltyLedgerEntry[] = rows.map((row) => {
+      const points = Number(row.points);
+      const credit = row.type === "EARN" || row.type === "ADJUST" ? points : 0;
+      const debit = row.type === "REDEEM" ? Math.abs(points) : 0;
+      runningBalance += credit - debit;
+
+      return {
+        id: row.id,
+        date: new Date(row.createdAt).toISOString(),
+        type: row.type as "EARN" | "REDEEM" | "ADJUST",
+        invoiceNumber: row.invoiceNumber,
+        invoiceId: row.invoiceId,
+        points: credit > 0 ? credit : -debit,
+        rupeeValue: Number(row.rupeeValue || 0),
+        remarks: row.remarks,
+        runningBalance,
+      };
+    });
+
+    // Reverse to show newest first
+    entries.reverse();
+
+    return { success: true, entries, totalPoints: runningBalance };
+  } catch (error) {
+    console.error("Failed to fetch loyalty ledger:", error);
+    return { success: false, message: "Failed to fetch loyalty ledger" };
+  }
+}
+
 export async function deleteCustomer(customerId: string) {
   const perm = await checkPermission(PERMISSIONS.CUSTOMER_MANAGE);
   if (!perm.success) return { success: false, message: perm.message };

@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -259,6 +258,34 @@ model Customer {
   quotations Quotation[]
   sales      Sale[]
   creditNotes CreditNote[]
+  advances   CustomerAdvance[]
+}
+
+model CustomerAdvance {
+  id                String   @id @default(uuid())
+  customerId        String
+  customer          Customer @relation(fields: [customerId], references: [id])
+  amount            Float
+  paymentMode       String   @default("CASH")
+  paymentRef        String?
+  notes             String?
+  isAdjusted        Boolean  @default(false)
+  adjustedAmount    Float    @default(0)
+  remainingAmount   Float
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  adjustments CustomerAdvanceAdjustment[]
+}
+
+model CustomerAdvanceAdjustment {
+  id              String          @id @default(uuid())
+  advanceId       String
+  advance         CustomerAdvance @relation(fields: [advanceId], references: [id])
+  saleId          String
+  sale            Sale            @relation(fields: [saleId], references: [id])
+  amountUsed      Float
+  createdAt       DateTime        @default(now())
 }
 
 model Inventory {
@@ -479,6 +506,7 @@ model Sale {
   inventory         Inventory @relation(fields: [inventoryId], references: [id])
   invoice           Invoice?  @relation("NewInvoice", fields: [invoiceId], references: [id])
   legacyInvoice     Invoice?  @relation("LegacyInvoice", fields: [legacyInvoiceId], references: [id])
+  advanceAdjustments CustomerAdvanceAdjustment[]
 
   @@index([customerId])
   @@index([inventoryId])
