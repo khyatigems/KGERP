@@ -14,6 +14,14 @@ const recordAdvanceSchema = z.object({
 
 export async function recordAdvance(formData: FormData) {
   try {
+    // Debug: Log all form data
+    console.log("Record advance called with:");
+    console.log("customerId:", formData.get("customerId"));
+    console.log("amount:", formData.get("amount"));
+    console.log("paymentMode:", formData.get("paymentMode"));
+    console.log("paymentRef:", formData.get("paymentRef"));
+    console.log("notes:", formData.get("notes"));
+
     const data = recordAdvanceSchema.parse({
       customerId: formData.get("customerId"),
       amount: formData.get("amount"),
@@ -21,6 +29,8 @@ export async function recordAdvance(formData: FormData) {
       paymentRef: formData.get("paymentRef") || undefined,
       notes: formData.get("notes") || undefined,
     });
+
+    console.log("Parsed data:", data);
 
     const advance = await prisma.customerAdvance.create({
       data: {
@@ -33,12 +43,18 @@ export async function recordAdvance(formData: FormData) {
       },
     });
 
+    console.log("Advance created:", advance);
+
     revalidatePath("/advances");
     return { success: true, data: advance };
   } catch (error) {
-    console.error("Failed to record advance:", error);
+    console.error("Failed to record advance - Full error:", error);
     if (error instanceof z.ZodError) {
-      return { error: "Invalid input data" };
+      console.error("Zod validation errors:", error.issues);
+      return { error: `Invalid input: ${error.issues.map((e: z.ZodIssue) => e.message).join(", ")}` };
+    }
+    if (error instanceof Error) {
+      return { error: `Database error: ${error.message}` };
     }
     return { error: "Failed to record advance" };
   }
