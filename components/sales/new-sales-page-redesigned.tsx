@@ -127,7 +127,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   const [confirmationStep, setConfirmationStep] = useState(1);
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState<string>("");
   const [categoryGstRates, setCategoryGstRates] = useState<Record<string, number>>({});
-  const [initialPayments, setInitialPayments] = useState<Array<{ amount: number; method: string; date: string; reference?: string; notes?: string; advanceId?: string; creditNoteId?: string }>>([]);
+  const [initialPayments, setInitialPayments] = useState<Array<{ amount: number; method: string; date: string; reference?: string; notes?: string; advanceId?: string; creditNoteId?: string; creditNoteCode?: string }>>([]);
   const [availableAdvances, setAvailableAdvances] = useState<Array<{ id: string; amount: number; remainingAmount: number; paymentMode: string; createdAt: string }>>([]);
   const [availableCreditNotes, setAvailableCreditNotes] = useState<Array<{ id: string; code: string; amount: number; remainingAmount: number; createdAt: string }>>([]);
 
@@ -1235,9 +1235,10 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                 </div>
                 {initialPayments.map((payment, index) => (
                   <div key={index} className="border rounded-md p-3 space-y-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div>
-                        <Label>Amount</Label>
+                    {/* Main row: Amount, Method, Date, Reference */}
+                    <div className="grid grid-cols-1 sm:grid-cols-6 gap-3 items-start">
+                      <div className="sm:col-span-1">
+                        <Label className="text-xs">Amount</Label>
                         <Input
                           type="number"
                           min="0"
@@ -1245,17 +1246,18 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                           value={payment.amount}
                           onChange={(e) => updateInitialPayment(index, "amount", parseFloat(e.target.value) || 0)}
                           placeholder="0"
+                          className="h-9"
                         />
                       </div>
-                      <div>
-                        <Label>Method</Label>
+                      <div className="sm:col-span-2">
+                        <Label className="text-xs">Method</Label>
                         <Select value={payment.method} onValueChange={(value) => updateInitialPayment(index, "method", value)}>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-9">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="CASH">Cash</SelectItem>
-                            <SelectItem value="BANK_TRANSFER">Bank</SelectItem>
+                            <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
                             <SelectItem value="UPI">UPI</SelectItem>
                             <SelectItem value="CHEQUE">Cheque</SelectItem>
                             <SelectItem value="CARD">Card</SelectItem>
@@ -1264,91 +1266,113 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                           </SelectContent>
                         </Select>
                       </div>
-                      
-                      {/* Advance Selection */}
-                      {payment.method === "ADVANCE_ADJUST" && availableAdvances.length > 0 && (
-                        <div className="col-span-full">
-                          <Label>Select Advance</Label>
-                          <Select 
-                            value={payment.advanceId || ""} 
-                            onValueChange={(value) => {
-                              const advance = availableAdvances.find(a => a.id === value);
-                              if (advance) {
-                                updateInitialPayment(index, "advanceId", value);
-                                updateInitialPayment(index, "amount", advance.remainingAmount);
-                                updateInitialPayment(index, "reference", `Advance: ${advance.paymentMode} - ${new Date(advance.createdAt).toLocaleDateString()}`);
-                              }
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose an available advance" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableAdvances.map((advance) => (
-                                <SelectItem key={advance.id} value={advance.id}>
-                                  ₹{advance.remainingAmount.toLocaleString()} available (from {new Date(advance.createdAt).toLocaleDateString()})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                      
-                      {/* Credit Note Selection */}
-                      {payment.method === "CREDIT_NOTE" && availableCreditNotes.length > 0 && (
-                        <div className="col-span-full">
-                          <Label>Select Credit Note</Label>
-                          <Select 
-                            value={payment.creditNoteId || ""} 
-                            onValueChange={(value) => {
-                              const note = availableCreditNotes.find(n => n.id === value);
-                              if (note) {
-                                updateInitialPayment(index, "creditNoteId", value);
-                                updateInitialPayment(index, "amount", note.remainingAmount);
-                                updateInitialPayment(index, "reference", `CN: ${note.code}`);
-                              }
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose an available credit note" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableCreditNotes.map((note) => (
-                                <SelectItem key={note.id} value={note.id}>
-                                  {note.code} - ₹{note.remainingAmount.toLocaleString()} available
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-                      <div>
-                        <Label>Date</Label>
+                      <div className="sm:col-span-1">
+                        <Label className="text-xs">Date</Label>
                         <Input
                           type="date"
                           value={payment.date}
                           onChange={(e) => updateInitialPayment(index, "date", e.target.value)}
+                          className="h-9"
                         />
                       </div>
-                      <div>
-                        <Label>Reference</Label>
+                      <div className="sm:col-span-2">
+                        <Label className="text-xs">Reference</Label>
                         <Input
                           value={payment.reference || ""}
                           onChange={(e) => updateInitialPayment(index, "reference", e.target.value)}
                           placeholder="Ref #"
+                          className="h-9"
                         />
                       </div>
                     </div>
+                    
+                    {/* Advance Selection */}
+                    {payment.method === "ADVANCE_ADJUST" && availableAdvances.length > 0 && (
+                      <div className="col-span-full">
+                        <Label>Select Advance</Label>
+                        <Select 
+                          value={payment.advanceId || ""} 
+                          onValueChange={(value) => {
+                            const advance = availableAdvances.find(a => a.id === value);
+                            if (advance) {
+                              updateInitialPayment(index, "advanceId", value);
+                              updateInitialPayment(index, "amount", advance.remainingAmount);
+                              updateInitialPayment(index, "reference", `Advance: ${advance.paymentMode} - ${new Date(advance.createdAt).toLocaleDateString()}`);
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose an available advance" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableAdvances.map((advance) => (
+                              <SelectItem key={advance.id} value={advance.id}>
+                                ₹{advance.remainingAmount.toLocaleString()} available (from {new Date(advance.createdAt).toLocaleDateString()})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    
+                    {/* Credit Note Code Entry */}
+                    {payment.method === "CREDIT_NOTE" && (
+                      <div className="col-span-full">
+                        <Label>Credit Note Code</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Enter CN-XXXX format"
+                            value={payment.creditNoteCode || ""}
+                            onChange={(e) => updateInitialPayment(index, "creditNoteCode", e.target.value.toUpperCase())}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={async () => {
+                              const code = payment.creditNoteCode;
+                              if (!code) {
+                                toast.error("Please enter a credit note code");
+                                return;
+                              }
+                              try {
+                                const res = await fetch(`/api/credit-notes/validate?code=${encodeURIComponent(code)}`);
+                                const data = await res.json();
+                                if (data.valid) {
+                                  updateInitialPayment(index, "creditNoteId", data.id);
+                                  updateInitialPayment(index, "amount", data.remainingAmount);
+                                  updateInitialPayment(index, "reference", `CN: ${code}`);
+                                  toast.success(`Credit note validated: ₹${data.remainingAmount.toLocaleString()} available`);
+                                } else {
+                                  toast.error(data.error || "Invalid credit note code");
+                                }
+                              } catch {
+                                toast.error("Failed to validate credit note");
+                              }
+                            }}
+                          >
+                            Validate
+                          </Button>
+                        </div>
+                        {payment.creditNoteId && (
+                          <p className="text-xs text-green-600 mt-1">
+                            ✓ Credit note validated and linked
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Notes row with delete button */}
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
-                        <Label>Notes</Label>
+                        <Label className="text-xs">Notes</Label>
                         <Input
                           value={payment.notes || ""}
                           onChange={(e) => updateInitialPayment(index, "notes", e.target.value)}
                           placeholder="Optional notes"
+                          className="h-9"
                         />
                       </div>
-                      <Button type="button" variant="destructive" size="sm" className="ml-3" onClick={() => removeInitialPayment(index)}>
+                      <Button type="button" variant="destructive" size="sm" className="ml-3 mt-5" onClick={() => removeInitialPayment(index)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
