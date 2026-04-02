@@ -127,7 +127,9 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   const [confirmationStep, setConfirmationStep] = useState(1);
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState<string>("");
   const [categoryGstRates, setCategoryGstRates] = useState<Record<string, number>>({});
-  const [initialPayments, setInitialPayments] = useState<Array<{ amount: number; method: string; date: string; reference?: string; notes?: string }>>([]);
+  const [initialPayments, setInitialPayments] = useState<Array<{ amount: number; method: string; date: string; reference?: string; notes?: string; advanceId?: string; creditNoteId?: string }>>([]);
+  const [availableAdvances, setAvailableAdvances] = useState<Array<{ id: string; amount: number; remainingAmount: number; paymentMode: string; createdAt: string }>>([]);
+  const [availableCreditNotes, setAvailableCreditNotes] = useState<Array<{ id: string; code: string; amount: number; remainingAmount: number; createdAt: string }>>([]);
 
   const availablePlatforms = useMemo(() => {
     const fallbackMap = new Map(
@@ -322,6 +324,32 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       setFilteredItems([]);
     }
   }, [itemSearchQuery, inventoryItems]);
+
+  // Fetch available advances and credit notes when customer is selected
+  useEffect(() => {
+    if (selectedCustomer?.id) {
+      fetch(`/api/customers/${selectedCustomer.id}/advances-available`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.advances) {
+            setAvailableAdvances(data.advances);
+          }
+        })
+        .catch(() => setAvailableAdvances([]));
+      
+      fetch(`/api/customers/${selectedCustomer.id}/credit-notes-available`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.creditNotes) {
+            setAvailableCreditNotes(data.creditNotes);
+          }
+        })
+        .catch(() => setAvailableCreditNotes([]));
+    } else {
+      setAvailableAdvances([]);
+      setAvailableCreditNotes([]);
+    }
+  }, [selectedCustomer]);
 
   // Get customer loyalty points and calculate max redeemable using your loyalty settings (100% allowed)
   useEffect(() => {
@@ -1208,6 +1236,8 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                     <SelectItem value="UPI">UPI</SelectItem>
                     <SelectItem value="CHEQUE">Cheque</SelectItem>
                     <SelectItem value="CARD">Card</SelectItem>
+                    <SelectItem value="ADVANCE_ADJUST">Advance Adjustment</SelectItem>
+                    <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1247,9 +1277,69 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                             <SelectItem value="UPI">UPI</SelectItem>
                             <SelectItem value="CHEQUE">Cheque</SelectItem>
                             <SelectItem value="CARD">Card</SelectItem>
+                            <SelectItem value="ADVANCE_ADJUST">Advance Adjustment</SelectItem>
+                            <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
+                      
+                      {/* Advance Selection */}
+                      {payment.method === "ADVANCE_ADJUST" && availableAdvances.length > 0 && (
+                        <div className="col-span-full">
+                          <Label>Select Advance</Label>
+                          <Select 
+                            value={payment.advanceId || ""} 
+                            onValueChange={(value) => {
+                              const advance = availableAdvances.find(a => a.id === value);
+                              if (advance) {
+                                updateInitialPayment(index, "advanceId", value);
+                                updateInitialPayment(index, "amount", advance.remainingAmount);
+                                updateInitialPayment(index, "reference", `Advance: ${advance.paymentMode} - ${new Date(advance.createdAt).toLocaleDateString()}`);
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose an available advance" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableAdvances.map((advance) => (
+                                <SelectItem key={advance.id} value={advance.id}>
+                                  ₹{advance.remainingAmount.toLocaleString()} available (from {new Date(advance.createdAt).toLocaleDateString()})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      
+                      {/* Credit Note Selection */}
+                      {payment.method === "CREDIT_NOTE" && availableCreditNotes.length > 0 && (
+                        <div className="col-span-full">
+                          <Label>Select Credit Note</Label>
+                          <Select 
+                            value={payment.creditNoteId || ""} 
+                            onValueChange={(value) => {
+                              const note = availableCreditNotes.find(n => n.id === value);
+                              if (note) {
+                                updateInitialPayment(index, "creditNoteId", value);
+                                updateInitialPayment(index, "amount", note.remainingAmount);
+                                updateInitialPayment(index, "reference", `CN: ${note.code}`);
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose an available credit note" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableCreditNotes.map((note) => (
+                                <SelectItem key={note.id} value={note.id}>
+                                  {note.code} - ₹{note.remainingAmount.toLocaleString()} available
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       <div>
                         <Label>Date</Label>
                         <Input

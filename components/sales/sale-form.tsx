@@ -903,6 +903,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                                     <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
                                     <SelectItem value="CASH">Cash</SelectItem>
                                     <SelectItem value="CHEQUE">Cheque</SelectItem>
+                                    <SelectItem value="CARD">Card</SelectItem>
+                                    <SelectItem value="ADVANCE_ADJUST">Advance Adjustment</SelectItem>
                                     <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
                                     <SelectItem value="OTHER">Other</SelectItem>
                                   </SelectContent>
