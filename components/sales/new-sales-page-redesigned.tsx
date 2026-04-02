@@ -1224,24 +1224,6 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
               <CardTitle>Payment Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="paymentMethod">Payment Method</Label>
-                <Select value={watchedValues.paymentMethod} onValueChange={(value) => form.setValue("paymentMethod", value as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CASH">Cash</SelectItem>
-                    <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                    <SelectItem value="UPI">UPI</SelectItem>
-                    <SelectItem value="CHEQUE">Cheque</SelectItem>
-                    <SelectItem value="CARD">Card</SelectItem>
-                    <SelectItem value="ADVANCE_ADJUST">Advance Adjustment</SelectItem>
-                    <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
               {/* Multi-Payment UI */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
