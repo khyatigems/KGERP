@@ -17,12 +17,22 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecordAdvanceDialog } from "@/components/advances/record-advance-dialog";
 import { formatCurrency } from "@/lib/utils";
+import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { Plus, Search, Wallet, ArrowUpRight, ArrowDownRight, Download, Loader2 } from "lucide-react";
-import { generateAdvanceReceiptPDF, AdvanceReceiptData } from "@/lib/advance-receipt-generator";
-import { useToast } from "@/components/ui/use-toast";
+import { generateAdvanceReceiptPDF, type AdvanceReceiptData } from "@/lib/advance-receipt-generator";
+import { exportAdvancesToCSV, exportAdvancesToExcel, exportAdvancesToPDF } from "@/lib/advances-export";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { FileSpreadsheet, FileText, File as FilePdf } from "lucide-react";
 
-interface Advance {
+export interface Advance {
   id: string;
   customerId: string;
   customerName: string;
@@ -166,10 +176,36 @@ export function AdvancesPage({ advances, customers, companySettings }: AdvancesP
             Record and manage customer advance payments
           </p>
         </div>
-        <Button onClick={() => setShowRecordDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Record Advance
-        </Button>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => exportAdvancesToCSV(filteredAdvances)}>
+                <FileText className="mr-2 h-4 w-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAdvancesToExcel(filteredAdvances)}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Export as Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportAdvancesToPDF(filteredAdvances)}>
+                <FilePdf className="mr-2 h-4 w-4" />
+                Export as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button onClick={() => setShowRecordDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Record Advance
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
