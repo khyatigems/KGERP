@@ -27,6 +27,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -282,6 +283,9 @@ export function SalesActions({
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Send Invoice via WhatsApp</DialogTitle>
+            <DialogDescription>
+              Send the invoice to the customer via WhatsApp message.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid gap-2">

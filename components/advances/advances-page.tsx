@@ -18,7 +18,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecordAdvanceDialog } from "@/components/advances/record-advance-dialog";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
-import { Plus, Search, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Plus, Search, Wallet, ArrowUpRight, ArrowDownRight, Download, Loader2 } from "lucide-react";
+import { generateAdvanceReceiptPDF, AdvanceReceiptData } from "@/lib/advance-receipt-generator";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Advance {
   id: string;
@@ -37,10 +39,103 @@ interface Advance {
 
 interface AdvancesPageProps {
   advances: Advance[];
-  customers: { id: string; name: string; phone?: string }[];
+  customers: { id: string; name: string; phone?: string; address?: string; email?: string }[];
+  companySettings?: {
+    id: string;
+    companyName: string;
+    address?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    gstin?: string | null;
+    website?: string | null;
+    logoUrl?: string | null;
+  } | null;
 }
 
-export function AdvancesPage({ advances, customers }: AdvancesPageProps) {
+// Download button component for advance receipts
+function DownloadAdvanceButton({ 
+  advance, 
+  companySettings 
+}: { 
+  advance: Advance; 
+  companySettings?: AdvancesPageProps["companySettings"];
+}) {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleDownload = async () => {
+    setLoading(true);
+    try {
+      const pdfData: AdvanceReceiptData = {
+        advanceNumber: `ADV-${advance.id.slice(-6).toUpperCase()}`,
+        date: new Date(advance.createdAt),
+        amount: advance.amount,
+        remainingAmount: advance.remainingAmount,
+        paymentMode: advance.paymentMode,
+        paymentRef: advance.paymentRef,
+        notes: advance.notes,
+        customer: {
+          name: advance.customerName,
+          phone: advance.customerMobile,
+        },
+        company: {
+          name: companySettings?.companyName || "Khyati Gems",
+          address: companySettings?.address,
+          phone: companySettings?.phone,
+          email: companySettings?.email,
+          gstin: companySettings?.gstin,
+          website: companySettings?.website,
+          logoUrl: companySettings?.logoUrl,
+        },
+        terms: "This advance is valid for 6 months from the date of issue. Please present this receipt for any adjustments or refunds. Refunds are subject to company policy.",
+      };
+
+      const blob = await generateAdvanceReceiptPDF(pdfData);
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Advance-Receipt-${pdfData.advanceNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      
+      toast({
+        title: "Receipt Downloaded",
+        description: `Advance receipt ${pdfData.advanceNumber} has been downloaded.`,
+      });
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to generate advance receipt. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleDownload}
+      disabled={loading}
+      className="h-8 w-8 p-0"
+    >
+      {loading ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Download className="h-4 w-4" />
+      )}
+    </Button>
+  );
+}
+
+export function AdvancesPage({ advances, customers, companySettings }: AdvancesPageProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [showRecordDialog, setShowRecordDialog] = useState(false);
@@ -148,12 +243,13 @@ export function AdvancesPage({ advances, customers }: AdvancesPageProps) {
                     <TableHead>Payment Mode</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredAdvances.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center h-24">
+                      <TableCell colSpan={7} className="text-center h-24">
                         No advances found.
                       </TableCell>
                     </TableRow>
@@ -201,6 +297,12 @@ export function AdvancesPage({ advances, customers }: AdvancesPageProps) {
                               Available
                             </Badge>
                           )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DownloadAdvanceButton 
+                            advance={advance} 
+                            companySettings={companySettings}
+                          />
                         </TableCell>
                       </TableRow>
                     ))
