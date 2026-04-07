@@ -1,4 +1,4 @@
-import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
+import { ensureBillfreePhase1Schema, ensureInvoiceSupportSchema, prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
@@ -92,6 +92,9 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     }
   });
 
+  // Determine if this is an export invoice
+  const isExportInvoice = (invoice as { invoiceType?: string })?.invoiceType === "EXPORT_INVOICE";
+
   if (!invoice) notFound();
 
   // Track View
@@ -149,11 +152,24 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     );
   }
 
+  // Ensure schema has export columns before querying CompanySettings
+  await ensureInvoiceSupportSchema();
+
   const companySettings = await prisma.companySettings.findFirst();
   const paymentSettings = await prisma.paymentSettings.findFirst();
+  const invoiceCurrency = ((invoice as { invoiceCurrency?: string }).invoiceCurrency || companySettings?.defaultCurrency || "INR") as "INR" | "USD" | "EUR" | "GBP";
+  const conversionRateRaw = (invoice as { conversionRate?: number }).conversionRate;
+  const conversionRate = isExportInvoice ? Math.max(conversionRateRaw || 1, 0.0001) : 1;
+  const showForeignCurrency = isExportInvoice && invoiceCurrency !== "INR";
+  const convertToForeign = (amount: number) => Number((amount / conversionRate).toFixed(2));
+  const formatForeignCurrency = (amount: number) => formatCurrency(amount, invoiceCurrency);
+  const bankSwiftCode = paymentSettings?.swiftCode || companySettings?.swiftCode || undefined;
   
   // Defensive check for stale Prisma client
   const invoiceSettings = await prisma.invoiceSettings.findFirst();
+  const termsToDisplay = isExportInvoice
+    ? (invoiceSettings?.exportTerms || invoiceSettings?.terms || undefined)
+    : (invoiceSettings?.terms || undefined);
   const platformSettingRow = await prisma.setting.findUnique({ where: { key: "invoice_platforms" } }).catch(() => null);
   const platformConfigMap = mergePlatformConfig(platformSettingRow?.value);
 
@@ -307,7 +323,10 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const customerAddress = primarySale.customerAddress || invoice.quotation?.customer?.address || primarySale.customerCity || invoice.quotation?.customer?.city || "";
   const billingAddress = (primarySale as { billingAddress?: string | null }).billingAddress || primarySale.customerAddress || customerAddress;
   const shippingAddress = (primarySale as { shippingAddress?: string | null }).shippingAddress || billingAddress;
-  const placeOfSupply = (primarySale as { placeOfSupply?: string | null }).placeOfSupply || primarySale.customerCity || invoice.quotation?.customer?.city || billingAddress || "-";
+  const domesticPlaceOfSupply = (primarySale as { placeOfSupply?: string | null }).placeOfSupply || primarySale.customerCity || invoice.quotation?.customer?.city || billingAddress || "-";
+  const placeOfSupply = isExportInvoice
+    ? ((invoice as { countryOfDestination?: string }).countryOfDestination || "International")
+    : domesticPlaceOfSupply;
   const customerPhone = primarySale.customerPhone || invoice.quotation?.customer?.phone || "";
   const customerEmail = primarySale.customerEmail || invoice.quotation?.customer?.email || "";
   const customerId = primarySale.customerId || invoice.quotation?.customerId || null;
@@ -395,7 +414,8 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
     date: getInvoiceDisplayDate(invoice),
-    documentTitle: isReplacement ? "REPLACEMENT INVOICE" : undefined,
+    invoiceType: (invoice as { invoiceType?: string }).invoiceType as "TAX_INVOICE" | "EXPORT_INVOICE" | undefined,
+    documentTitle: isReplacement ? "REPLACEMENT INVOICE" : (isExportInvoice ? "EXPORT INVOICE" : undefined),
     documentRightTag: isReplacement ? "REPLACEMENT" : undefined,
     documentNumberLabel: isReplacement ? "Replacement #" : undefined,
     documentDateLabel: isReplacement ? "Date" : undefined,
@@ -498,6 +518,17 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     paidAt: isReplacement ? undefined : (latestPaymentDate || primarySale.saleDate || undefined),
     paymentBreakdown: isReplacement ? [] : paymentBreakdownRows,
     terms: invoiceSettings?.terms || undefined,
+    exportTerms: invoiceSettings?.exportTerms || undefined,
+    invoiceCurrency: (invoice as { invoiceCurrency?: string }).invoiceCurrency as "INR" | "USD" | "EUR" | "GBP" | undefined || companySettings?.defaultCurrency as "INR" | "USD" | "EUR" | "GBP" | undefined,
+    conversionRate: (invoice as { conversionRate?: number }).conversionRate || undefined,
+    totalInrValue: (invoice as { totalInrValue?: number }).totalInrValue || undefined,
+    iecCode: (invoice as { iecCode?: string }).iecCode || companySettings?.companyIec || undefined,
+    exportType: (invoice as { exportType?: string }).exportType as "LUT" | "BOND" | "PAYMENT" | undefined || companySettings?.defaultExportType as "LUT" | "BOND" | "PAYMENT" | undefined,
+    countryOfDestination: (invoice as { countryOfDestination?: string }).countryOfDestination || undefined,
+    portOfDispatch: (invoice as { portOfDispatch?: string }).portOfDispatch || companySettings?.defaultPort || undefined,
+    modeOfTransport: (invoice as { modeOfTransport?: string }).modeOfTransport as "AIR" | "COURIER" | "HAND_DELIVERY" | undefined,
+    courierPartner: (invoice as { courierPartner?: string }).courierPartner || undefined,
+    trackingId: (invoice as { trackingId?: string }).trackingId || undefined,
     notes: [invoiceSettings?.footerNotes, invoice.notes || "", creditNoteText ? `Credit Note(s): ${creditNoteText}` : ""].filter(Boolean).join("\n") || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
     upiQrData: !isReplacement && paymentSettings?.upiEnabled && paymentSettings?.upiId ? 
@@ -507,6 +538,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
       accountNumber: paymentSettings.accountNumber || "",
       ifsc: paymentSettings.ifscCode || "",
       holder: paymentSettings.accountHolder || "",
+      swiftCode: bankSwiftCode,
     } : undefined)
   };
 
@@ -555,7 +587,9 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                     </div>
                 </div>
                 <div className="text-right rounded-xl border border-slate-200 bg-slate-50 px-6 py-4 min-w-[220px]">
-                    <h1 className="text-3xl font-light text-slate-300 tracking-tight">INVOICE</h1>
+                    <h1 className="text-3xl font-light text-slate-300 tracking-tight">
+                      {isExportInvoice ? "EXPORT INVOICE" : "TAX INVOICE"}
+                    </h1>
                     <div className="mt-3 space-y-1">
                         <p className="text-lg font-bold text-slate-900">#{invoice.invoiceNumber}</p>
                         <p className="text-sm text-slate-500">{formatDate(getInvoiceDisplayDate(invoice))}</p>
@@ -567,6 +601,42 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                     </div>
                 </div>
             </div>
+
+            {/* Export Details - Only show for Export Invoices */}
+            {isExportInvoice && (
+            <div className="px-10 py-4 bg-blue-50/50 border-b border-blue-100 relative z-10">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <span className="text-xs font-semibold text-blue-600 uppercase">IEC Code</span>
+                        <p className="font-medium text-gray-900">{(invoice as { iecCode?: string }).iecCode || companySettings?.companyIec || "-"}</p>
+                    </div>
+                    <div>
+                        <span className="text-xs font-semibold text-blue-600 uppercase">Export Type</span>
+                        <p className="font-medium text-gray-900">{(invoice as { exportType?: string }).exportType || companySettings?.defaultExportType || "-"}</p>
+                    </div>
+                    <div>
+                        <span className="text-xs font-semibold text-blue-600 uppercase">Currency</span>
+                        <p className="font-medium text-gray-900">{(invoice as { invoiceCurrency?: string }).invoiceCurrency || companySettings?.defaultCurrency || "INR"}</p>
+                    </div>
+                    <div>
+                        <span className="text-xs font-semibold text-blue-600 uppercase">Country</span>
+                        <p className="font-medium text-gray-900">{(invoice as { countryOfDestination?: string }).countryOfDestination || "-"}</p>
+                    </div>
+                    <div>
+                        <span className="text-xs font-semibold text-blue-600 uppercase">Port of Dispatch</span>
+                        <p className="font-medium text-gray-900">{(invoice as { portOfDispatch?: string }).portOfDispatch || companySettings?.defaultPort || "-"}</p>
+                    </div>
+                    <div>
+                        <span className="text-xs font-semibold text-blue-600 uppercase">Transport Mode</span>
+                        <p className="font-medium text-gray-900">{(invoice as { modeOfTransport?: string }).modeOfTransport || "-"}</p>
+                    </div>
+                    <div>
+                        <span className="text-xs font-semibold text-blue-600 uppercase">Tracking ID</span>
+                        <p className="font-medium text-gray-900">{(invoice as { trackingId?: string }).trackingId || "-"}</p>
+                    </div>
+                </div>
+            </div>
+            )}
 
             {/* Bill To */}
             <div className="px-10 py-6 bg-slate-50/70 border-y border-slate-100 grid md:grid-cols-2 gap-6 relative z-10">
@@ -593,7 +663,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                         <tr className="border-b border-slate-200 bg-slate-50">
                             <th className="py-3 px-3 text-xs font-bold text-slate-900 uppercase tracking-widest w-1/2">Item</th>
                             <th className="py-3 px-3 text-xs font-bold text-slate-900 uppercase tracking-widest text-right">Base Price</th>
-                            <th className="py-3 px-3 text-xs font-bold text-slate-900 uppercase tracking-widest text-right">GST</th>
+                            {!isExportInvoice && <th className="py-3 px-3 text-xs font-bold text-slate-900 uppercase tracking-widest text-right">GST</th>}
                             <th className="py-3 px-3 text-xs font-bold text-slate-900 uppercase tracking-widest text-right">Total</th>
                         </tr>
                     </thead>
@@ -683,16 +753,18 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                 )}
                             </td>
                             <td className="py-4 px-3 text-right text-gray-600 align-top">
-                                {formatCurrency(item.basePrice)}
+                                {showForeignCurrency ? formatForeignCurrency(item.basePrice) : formatCurrency(item.basePrice)}
                             </td>
+                            {!isExportInvoice && (
                             <td className="py-4 px-3 text-right text-gray-600 align-top">
                                 <div className="flex flex-col items-end">
                                     <span>{formatCurrency(item.calculatedGst)}</span>
                                     <span className="text-[10px] text-gray-400">({item.gstRate}%)</span>
                                 </div>
                             </td>
+                            )}
                             <td className="py-4 px-3 text-right font-semibold text-gray-900 align-top">
-                                {formatCurrency(item.finalTotal)}
+                                {showForeignCurrency ? formatForeignCurrency(item.finalTotal) : formatCurrency(item.finalTotal)}
                             </td>
                           </tr>
                         ))}
@@ -718,18 +790,26 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                             <span>Taxable Amount</span>
                             <span>{formatCurrency(subtotalBase)}</span>
                         </div>
+                        {!isExportInvoice && (
                         <div className="flex justify-between text-sm text-gray-600">
                             <span>Total GST</span>
                             <span>{formatCurrency(totalGst)}</span>
                         </div>
+                        )}
                         {couponDiscountTotal > 0 ? (
                           <div className="flex justify-between text-sm text-indigo-600">
                             <span>Coupon Discount</span>
                             <span>-{formatCurrency(couponDiscountTotal)}</span>
                           </div>
                         ) : null}
+                        {showForeignCurrency && (
+                          <div className="flex justify-between text-sm text-indigo-600">
+                            <span>Foreign Total ({invoiceCurrency})</span>
+                            <span className="font-semibold">{formatForeignCurrency(total)}</span>
+                          </div>
+                        )}
                         <div className="border-t border-slate-900 pt-3 flex justify-between items-end">
-                            <span className="text-sm font-bold text-gray-900 uppercase">Total</span>
+                            <span className="text-sm font-bold text-gray-900 uppercase">Total (INR)</span>
                             <span className="text-2xl font-bold text-gray-900">{formatCurrency(total)}</span>
                         </div>
                         
@@ -761,10 +841,10 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                 {/* Terms and Signature */}
                 <div className="mt-12 grid grid-cols-2 gap-8 border-t border-slate-100 pt-8">
                     <div>
-                        {invoiceSettings?.terms && (
+                        {termsToDisplay && (
                             <div className="mb-6">
                                 <h4 className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-2">Terms & Conditions</h4>
-                                <p className="text-xs text-gray-500 whitespace-pre-line leading-relaxed">{invoiceSettings.terms}</p>
+                                <p className="text-xs text-gray-500 whitespace-pre-line leading-relaxed">{termsToDisplay}</p>
                             </div>
                         )}
                         {invoiceSettings?.footerNotes && (
@@ -841,6 +921,12 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                  
                                  <span className="text-gray-400">IFSC:</span>
                                  <span className="font-medium">{paymentSettings.ifscCode}</span>
+                                 {bankSwiftCode && (
+                                   <>
+                                     <span className="text-gray-400">SWIFT:</span>
+                                     <span className="font-medium">{bankSwiftCode}</span>
+                                   </>
+                                 )}
                                  
                                  <span className="text-gray-400">Name:</span>
                                  <span className="font-medium">{paymentSettings.accountHolder}</span>

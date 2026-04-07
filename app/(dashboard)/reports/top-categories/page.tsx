@@ -21,8 +21,8 @@ export default async function TopCategoriesReportPage() {
           <Table>
             <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Revenue</TableHead><TableHead className="text-right">Profit</TableHead><TableHead className="text-right">Orders</TableHead><TableHead className="text-right">Contribution</TableHead></TableRow></TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.category}>
+              {rows.map((row, idx) => (
+                <TableRow key={`${row.category}-${idx}`}>
                   <TableCell>{row.category}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.profit)}</TableCell>

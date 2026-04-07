@@ -1,12 +1,13 @@
 import { Metadata } from "next";
 import { getInvoiceSettings } from "./actions";
 import { InvoiceSettingsForm } from "./invoice-settings-form";
+import { ExportSettingsForm } from "@/components/settings/export-settings-form";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Invoice Settings | KhyatiGems™ ERP",
+  title: "Invoice Settings | KhyatiGems ERP",
 };
 
 export default async function InvoiceSettingsPage() {
@@ -31,6 +32,11 @@ export default async function InvoiceSettingsPage() {
         categories={categories}
         {...({ creditNoteTerms, platforms } as unknown as Record<string, unknown>)}
       />
+
+      {/* Export Settings Section */}
+      <div className="pt-6 border-t">
+        <ExportSettingsForm />
+      </div>
     </div>
   );
 }

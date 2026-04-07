@@ -10,7 +10,7 @@ import { z } from "zod";
 
 const codePattern = /^[A-Z0-9]{1,6}$/;
 
-export type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "certificates";
+export type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "certificates" | "stateCodes";
 
 // Schema for other codes (CategoryCode, etc.)
 const createCodeSchema = z.object({

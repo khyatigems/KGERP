@@ -366,6 +366,7 @@ export default async function InventoryDetailPage({
                                         src={m.mediaUrl} 
                                         alt={`Media ${i+1}`} 
                                         fill 
+                                        sizes="192px"
                                         className="object-cover"
                                      />
                                  ) : (

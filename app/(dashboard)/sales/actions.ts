@@ -33,6 +33,17 @@ const initialPaymentSchema = z.object({
 });
 
 const saleSchema = z.object({
+  invoiceType: z.enum(["TAX_INVOICE", "EXPORT_INVOICE"]).default("TAX_INVOICE"),
+  iecCode: z.string().optional(),
+  exportType: z.enum(["LUT", "BOND", "PAYMENT"]).optional(),
+  countryOfDestination: z.string().optional(),
+  portOfDispatch: z.string().optional(),
+  modeOfTransport: z.enum(["AIR", "COURIER", "HAND_DELIVERY"]).optional(),
+  courierPartner: z.string().optional(),
+  trackingId: z.string().optional(),
+  invoiceCurrency: z.enum(["INR", "USD", "EUR", "GBP"]).default("INR"),
+  conversionRate: z.coerce.number().min(0).optional(),
+  totalInrValue: z.coerce.number().min(0).optional(),
   items: z.array(saleItemSchema).min(1, "Select at least one item"),
   platform: z.string().min(1, "Platform is required"),
   saleDate: z.coerce.date(),
@@ -51,7 +62,6 @@ const saleSchema = z.object({
   singlePaymentReference: z.string().optional(),
   paymentStatus: z.string().optional(),
   shippingMethod: z.string().optional(),
-  trackingId: z.string().optional(),
   remarks: z.string().optional(),
   quotationId: z.string().optional(),
   autoFillSplitFromSingle: z.coerce.boolean().optional().default(true),
@@ -449,13 +459,25 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   isActive: true,
                   invoiceDate: normalizeDateToUtcNoon(data.saleDate),
                   subtotal: totalGrossAmount,
-                  taxTotal: 0, 
+                  taxTotal: data.invoiceType === "EXPORT_INVOICE" ? 0 : 0, // Zero rated for export
                   discountTotal: totalItemDiscount + couponDiscount,
                   totalAmount: adjustedInvoiceTotal,
                   displayOptions: invoiceDisplayOptions,
                   paymentStatus: invoicePaymentStatus,
                   paidAmount: paidAmount >= adjustedInvoiceTotal - 0.01 ? adjustedInvoiceTotal : paidAmount,
-                  status: invoicePaymentStatus === "PAID" ? "PAID" : "ISSUED"
+                  status: invoicePaymentStatus === "PAID" ? "PAID" : "ISSUED",
+                  // Export invoice fields
+                  invoiceType: data.invoiceType,
+                  iecCode: data.iecCode || null,
+                  exportType: data.exportType || null,
+                  countryOfDestination: data.countryOfDestination || null,
+                  portOfDispatch: data.portOfDispatch || null,
+                  modeOfTransport: data.modeOfTransport || null,
+                  courierPartner: data.courierPartner || null,
+                  trackingId: data.trackingId || null,
+                  invoiceCurrency: data.invoiceCurrency,
+                  conversionRate: data.conversionRate || 1,
+                  totalInrValue: data.totalInrValue || adjustedInvoiceTotal
               }
           });
 

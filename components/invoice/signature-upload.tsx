@@ -77,6 +77,7 @@ export function SignatureUpload({ onUploadComplete, defaultUrl }: SignatureUploa
                     src={currentUrl}
                     alt="Digital Signature"
                     fill
+                    sizes="192px"
                     className="object-contain"
                 />
             </div>

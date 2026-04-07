@@ -401,8 +401,67 @@ let ensuringInvoiceSupport = false;
 let ensuredInvoiceSupport = false;
 let ensureInvoiceSupportPromise: Promise<void> | null = null;
 
-export async function ensureInvoiceSupportSchema(): Promise<void> {
-  if (ensuredInvoiceSupport) return;
+async function tableHasColumn(tableName: string, columnName: string): Promise<boolean> {
+  const columns = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
+    `PRAGMA table_info("${tableName}")`
+  );
+  return Array.isArray(columns) && columns.some((col) => col.name === columnName);
+}
+
+async function invoiceSupportColumnsMissing(): Promise<boolean> {
+  const checks: Array<[string, string]> = [
+    ["Invoice", "invoiceType"],
+    ["Invoice", "iecCode"],
+    ["Invoice", "exportType"],
+    ["Invoice", "countryOfDestination"],
+    ["Invoice", "portOfDispatch"],
+    ["Invoice", "modeOfTransport"],
+    ["Invoice", "courierPartner"],
+    ["Invoice", "trackingId"],
+    ["Invoice", "invoiceCurrency"],
+    ["Invoice", "conversionRate"],
+    ["Invoice", "totalInrValue"],
+    ["CompanySettings", "invoicePrefix"],
+    ["CompanySettings", "invoicingStartNumber"],
+    ["CompanySettings", "invoiceLogoUrl"],
+    ["CompanySettings", "quotationLogoUrl"],
+    ["CompanySettings", "logoUrl"],
+    ["CompanySettings", "skuViewLogoUrl"],
+    ["CompanySettings", "otherDocsLogoUrl"],
+    ["CompanySettings", "address"],
+    ["CompanySettings", "email"],
+    ["CompanySettings", "phone"],
+    ["CompanySettings", "website"],
+    ["CompanySettings", "gstin"],
+    ["CompanySettings", "enableExportInvoice"],
+    ["CompanySettings", "defaultExportType"],
+    ["CompanySettings", "companyIec"],
+    ["CompanySettings", "defaultCurrency"],
+    ["CompanySettings", "defaultPort"],
+    ["CompanySettings", "swiftCode"],
+    ["CompanySettings", "termsAndConditions"],
+    ["CompanySettings", "createdAt"],
+    ["CompanySettings", "updatedAt"],
+    ["PaymentSettings", "swiftCode"],
+  ];
+
+  for (const [table, column] of checks) {
+    if (!(await tableHasColumn(table, column))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
+  if (!force) {
+    const missing = await invoiceSupportColumnsMissing();
+    if (!missing && ensuredInvoiceSupport) {
+      return;
+    }
+    force = missing;
+  }
+  if (ensuredInvoiceSupport && !force) return;
   if (ensuringInvoiceSupport && ensureInvoiceSupportPromise) return ensureInvoiceSupportPromise;
   ensuringInvoiceSupport = true;
   ensureInvoiceSupportPromise = (async () => {
@@ -490,6 +549,88 @@ export async function ensureInvoiceSupportSchema(): Promise<void> {
       `);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CreditNote_customerId_idx" ON "CreditNote"("customerId");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CreditNote_invoiceId_idx" ON "CreditNote"("invoiceId");`);
+
+      await ensureColumnIfMissing("Invoice", "invoiceType", '"invoiceType" TEXT DEFAULT "TAX"');
+      await ensureColumnIfMissing("Invoice", "iecCode", '"iecCode" TEXT');
+      await ensureColumnIfMissing("Invoice", "exportType", '"exportType" TEXT');
+      await ensureColumnIfMissing(
+        "Invoice",
+        "countryOfDestination",
+        '"countryOfDestination" TEXT'
+      );
+      await ensureColumnIfMissing("Invoice", "portOfDispatch", '"portOfDispatch" TEXT');
+      await ensureColumnIfMissing(
+        "Invoice",
+        "modeOfTransport",
+        '"modeOfTransport" TEXT'
+      );
+      await ensureColumnIfMissing("Invoice", "courierPartner", '"courierPartner" TEXT');
+      await ensureColumnIfMissing("Invoice", "trackingId", '"trackingId" TEXT');
+      await ensureColumnIfMissing("Invoice", "invoiceCurrency", '"invoiceCurrency" TEXT');
+      await ensureColumnIfMissing("Invoice", "conversionRate", '"conversionRate" REAL');
+      await ensureColumnIfMissing("Invoice", "totalInrValue", '"totalInrValue" REAL');
+      await ensureColumnIfMissing("CompanySettings", "invoicePrefix", '"invoicePrefix" TEXT');
+      await ensureColumnIfMissing(
+        "CompanySettings",
+        "invoicingStartNumber",
+        '"invoicingStartNumber" INTEGER'
+      );
+      await ensureColumnIfMissing("CompanySettings", "invoiceLogoUrl", '"invoiceLogoUrl" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "quotationLogoUrl", '"quotationLogoUrl" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "logoUrl", '"logoUrl" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "skuViewLogoUrl", '"skuViewLogoUrl" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "otherDocsLogoUrl", '"otherDocsLogoUrl" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "address", '"address" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "email", '"email" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "phone", '"phone" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "website", '"website" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "gstin", '"gstin" TEXT');
+      await ensureColumnIfMissing(
+        "CompanySettings",
+        "enableExportInvoice",
+        '"enableExportInvoice" INTEGER NOT NULL DEFAULT 0'
+      );
+      await ensureColumnIfMissing("CompanySettings", "defaultExportType", '"defaultExportType" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "companyIec", '"companyIec" TEXT');
+      await ensureColumnIfMissing("CompanySettings", "defaultCurrency", '"defaultCurrency" TEXT');
+      await ensureColumnIfMissing(
+        "CompanySettings",
+        "defaultPort",
+        '"defaultPort" TEXT'
+      );
+      await ensureColumnIfMissing(
+        "CompanySettings",
+        "swiftCode",
+        '"swiftCode" TEXT'
+      );
+      await ensureColumnIfMissing(
+        "CompanySettings",
+        "termsAndConditions",
+        '"termsAndConditions" TEXT'
+      );
+      await ensureColumnIfMissing(
+        "CompanySettings",
+        "createdAt",
+        '"createdAt" DATETIME'
+      );
+      await ensureColumnIfMissing(
+        "CompanySettings",
+        "updatedAt",
+        '"updatedAt" DATETIME'
+      );
+      await prisma.$executeRawUnsafe(
+        'UPDATE "CompanySettings" SET "createdAt" = COALESCE("createdAt", CURRENT_TIMESTAMP)'
+      );
+      await prisma.$executeRawUnsafe(
+        'UPDATE "CompanySettings" SET "updatedAt" = COALESCE("updatedAt", CURRENT_TIMESTAMP)'
+      );
+      await ensureColumnIfMissing(
+        "PaymentSettings",
+        "swiftCode",
+        '"swiftCode" TEXT'
+      );
+      // Add exportTerms to InvoiceSettings for export invoice specific terms
+      await ensureColumnIfMissing("InvoiceSettings", "exportTerms", '"exportTerms" TEXT');
     } catch {
     } finally {
       checkedTables = null;
@@ -697,6 +838,36 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
         );
       `);
 
+      await ensureColumnIfMissing("Customer", "stateCode", '"stateCode" TEXT');
+      await ensureColumnIfMissing("Customer", "countryCode", '"countryCode" TEXT');
+      await ensureColumnIfMissing(
+        "Customer",
+        "isInternational",
+        '"isInternational" INTEGER NOT NULL DEFAULT 0'
+      );
+      await ensureColumnIfMissing("Invoice", "invoiceType", '"invoiceType" TEXT DEFAULT "TAX"');
+      await ensureColumnIfMissing("Invoice", "iecCode", '"iecCode" TEXT');
+      await ensureColumnIfMissing("Invoice", "exportType", '"exportType" TEXT');
+      await ensureColumnIfMissing(
+        "Invoice",
+        "countryOfDestination",
+        '"countryOfDestination" TEXT'
+      );
+      await ensureColumnIfMissing("Invoice", "portOfDispatch", '"portOfDispatch" TEXT');
+      await ensureColumnIfMissing(
+        "Invoice",
+        "modeOfTransport",
+        '"modeOfTransport" TEXT'
+      );
+      await ensureColumnIfMissing("Invoice", "courierPartner", '"courierPartner" TEXT');
+      await ensureColumnIfMissing("Invoice", "trackingId", '"trackingId" TEXT');
+      await ensureColumnIfMissing("Invoice", "invoiceCurrency", '"invoiceCurrency" TEXT');
+      await ensureColumnIfMissing(
+        "Invoice",
+        "conversionRate",
+        '"conversionRate" REAL'
+      );
+      await ensureColumnIfMissing("Invoice", "totalInrValue", '"totalInrValue" REAL');
       await ensureColumnIfMissing("Customer", "dateOfBirth", '"dateOfBirth" DATETIME');
       await ensureColumnIfMissing("Customer", "anniversaryDate", '"anniversaryDate" DATETIME');
       await ensureColumnIfMissing(

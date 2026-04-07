@@ -31,7 +31,7 @@ export async function getInvoiceSettings() {
       
       // If we found legacy settings, merge them
       if (Object.keys(config).length > 0) {
-          // @ts-expect-error - Constructing a partial object that matches the shape for UI
+          // @ts-ignore - constructing hydrated partial for UI hydration only
           paymentSettings = {
               ...(paymentSettings || {}),
               upiEnabled: paymentSettings?.upiEnabled ?? !!config.upi_vpa,
@@ -42,6 +42,7 @@ export async function getInvoiceSettings() {
               bankName: paymentSettings?.bankName || config.bank_name || "",
               accountNumber: paymentSettings?.accountNumber || config.bank_account || "",
               ifscCode: paymentSettings?.ifscCode || config.bank_ifsc || "",
+              swiftCode: paymentSettings?.swiftCode || "RATNINBBXXX",
               accountHolder: paymentSettings?.accountHolder || "",
               
               // Preserve other fields
@@ -65,6 +66,7 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
   try {
     const prefix = (formData.get("prefix") as string).trim();
     const terms = (formData.get("terms") as string).trim();
+    const exportTerms = (formData.get("exportTerms") as string)?.trim() || "";
     const footerNotes = (formData.get("footerNotes") as string).trim();
     const currencySymbol = (formData.get("currencySymbol") as string).trim();
     const gstEnabled = formData.get("gstEnabled") === "on";
@@ -81,6 +83,7 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
     const bankName = (formData.get("bankName") as string).trim();
     const accountNumber = (formData.get("accountNumber") as string).trim();
     const ifscCode = (formData.get("ifscCode") as string).trim();
+    const swiftCode = ((formData.get("swiftCode") as string) || "RATNINBBXXX").trim() || "RATNINBBXXX";
     const accountHolder = (formData.get("accountHolder") as string).trim();
 
     const razorpayEnabled = formData.get("razorpayEnabled") === "on";
@@ -139,6 +142,7 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
         data: {
           prefix,
           terms,
+          exportTerms,
           footerNotes,
           currencySymbol,
           gstEnabled,
@@ -152,6 +156,7 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
         data: {
           prefix,
           terms,
+          exportTerms,
           footerNotes,
           currencySymbol,
           gstEnabled,
@@ -175,6 +180,7 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
                 bankName,
                 accountNumber,
                 ifscCode,
+                swiftCode,
                 accountHolder,
                 razorpayEnabled,
                 razorpayKeyId,
@@ -192,6 +198,7 @@ export async function updateInvoiceSettings(prevState: unknown, formData: FormDa
                 bankName,
                 accountNumber,
                 ifscCode,
+                swiftCode,
                 accountHolder,
                 razorpayEnabled,
                 razorpayKeyId,

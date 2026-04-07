@@ -123,6 +123,7 @@ export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, c
              <TabsList>
               <TabsTrigger value="general">General & Branding</TabsTrigger>
               <TabsTrigger value="gst">Taxation (GST)</TabsTrigger>
+              <TabsTrigger value="export">Export Configuration</TabsTrigger>
               <TabsTrigger value="payments">Payment Gateways</TabsTrigger>
               <TabsTrigger value="platforms">Sales Platforms</TabsTrigger>
             </TabsList>
@@ -267,6 +268,30 @@ export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, c
           </Card>
         </div>
 
+        <div className={activeTab === "export" ? "block mt-2" : "hidden"}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Export Configuration</CardTitle>
+              <CardDescription>Configure settings for export invoices including terms and LUT details.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="exportTerms">Export Invoice Terms & Conditions</Label>
+                <Textarea 
+                    id="exportTerms" 
+                    name="exportTerms" 
+                    defaultValue={initialSettings?.exportTerms || ""} 
+                    placeholder="1. Export invoice under LUT without payment of IGST...&#10;2. Goods are zero-rated for GST purposes..." 
+                    rows={6}
+                />
+                <p className="text-xs text-muted-foreground">
+                  These terms will appear on export invoices instead of the regular terms.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className={activeTab === "payments" ? "block mt-2" : "hidden"}>
           <Card>
             <CardHeader>
@@ -317,6 +342,16 @@ export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, c
                         <div className="space-y-2">
                             <Label htmlFor="ifscCode">IFSC Code</Label>
                             <Input id="ifscCode" name="ifscCode" defaultValue={initialPaymentSettings?.ifscCode || ""} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="swiftCode">SWIFT Code</Label>
+                            <Input
+                              id="swiftCode"
+                              name="swiftCode"
+                              defaultValue={initialPaymentSettings?.swiftCode || "RATNINBBXXX"}
+                              placeholder="e.g., RATNINBBXXX"
+                            />
+                            <p className="text-xs text-muted-foreground">Used on export invoices for international transfers.</p>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="accountHolder">Account Holder Name</Label>

@@ -212,7 +212,9 @@ export function InventoryPicker({
               {presets.length === 0 ? (
                 <SelectItem value="__none" disabled>No presets</SelectItem>
               ) : (
-                presets.map((p) => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)
+                presets.map((p, idx) => (
+                  <SelectItem key={`${p.name}-${idx}`} value={p.name}>{p.name}</SelectItem>
+                ))
               )}
             </SelectContent>
           </Select>

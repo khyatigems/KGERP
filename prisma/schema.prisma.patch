@@ -1,0 +1,56 @@
+
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -256,6 +256,9 @@
+   preferredContact    String?
+   createdAt  DateTime    @default(now())
+   updatedAt  DateTime    @updatedAt
++  stateCode  String?
++  countryCode String?
++  isInternational Boolean @default(false)
+   quotations Quotation[]
+   sales      Sale[]
+   creditNotes CreditNote[]
+@@ -588,6 +591,18 @@
+   isActive       Boolean          @default(true)
+   dueDate        DateTime?
+   notes          String?
++  invoiceType    String           @default("TAX")
++  iecCode        String?
++  exportType     String?
++  countryOfDestination String?
++  portOfDispatch String?
++  modeOfTransport String?
++  courierPartner String?
++  trackingId     String?
++  invoiceCurrency String?
++  conversionRate Float?
++  totalInrValue  Float?
++
+   displayOptions String?
+   subtotal       Float
+   taxTotal       Float
+@@ -663,6 +678,13 @@
+   bankBranch         String?
+   logoUrl            String?
+   invoiceLogoUrl     String?
++  enableExportInvoice Boolean @default(false)
++  defaultExportType   String?
++  companyIec          String?
++  defaultCurrency     String?
++  defaultPort         String?
+   quotationLogoUrl   String?
+   skuViewLogoUrl     String?
+   otherDocsLogoUrl   String?
+@@ -1182,3 +1204,11 @@
+   @@index([B], map: "_InventoryToRashiCode_B_index")
+   @@map("_InventoryToRashiCode")
+ }
++
++model StateCode {
++  id        String   @id @default(uuid())
++  name      String   @unique
++  code      String   @unique
++  createdAt DateTime @default(now())
++  updatedAt DateTime @updatedAt
++}

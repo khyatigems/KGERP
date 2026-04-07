@@ -48,7 +48,7 @@ type CodeRow = {
   id: string;
   name: string;
   code: string | null;
-  status: string;
+  status?: string;
   gstAllowed?: boolean;
   remarks?: string | null;
   createdAt: Date;
@@ -63,9 +63,10 @@ interface SettingsCodesViewProps {
   collections: CodeRow[];
   rashis: CodeRow[];
   certificates: CodeRow[];
+  stateCodes?: CodeRow[];
 }
 
-type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "certificates";
+type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "certificates" | "stateCodes";
 
 export function SettingsCodesView({
   categories,
@@ -75,6 +76,7 @@ export function SettingsCodesView({
   collections,
   rashis,
   certificates,
+  stateCodes = [],
 }: SettingsCodesViewProps) {
   const [activeTab, setActiveTab] = useState<CodeGroup>("categories");
 
@@ -94,6 +96,7 @@ export function SettingsCodesView({
           <TabsTrigger value="collections">Collection Codes</TabsTrigger>
           <TabsTrigger value="rashis">Rashi Codes</TabsTrigger>
           <TabsTrigger value="certificates">Certificate Codes</TabsTrigger>
+          <TabsTrigger value="stateCodes">State Codes</TabsTrigger>
         </TabsList>
         <div className="flex gap-2">
           <ImportCodesDialog group={activeTab} />
@@ -139,6 +142,9 @@ export function SettingsCodesView({
       </TabsContent>
       <TabsContent value="certificates">
         <CodeTable group="certificates" data={certificates} />
+      </TabsContent>
+      <TabsContent value="stateCodes">
+        <CodeTable group="stateCodes" data={stateCodes} />
       </TabsContent>
     </Tabs>
   );
@@ -211,9 +217,9 @@ function CodeRowItem({
   const handleSave = () => {
     if (!name.trim()) return;
     const formData = new FormData();
-    formData.append("id", row.id);
+    if (row.id) formData.append("id", row.id);
     formData.append("name", name);
-    formData.append("status", status);
+    formData.append("status", status || "ACTIVE");
     if (group === "certificates") {
       formData.append("remarks", remarks);
     }

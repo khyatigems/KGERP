@@ -519,8 +519,8 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                         <SelectValue placeholder="Choose preset" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {presets.map(p => (
-                                            <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
+                                        {presets.map((p, idx) => (
+                                            <SelectItem key={`${p.name}-${idx}`} value={p.name}>{p.name}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>

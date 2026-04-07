@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   if (!allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
   const sp = request.nextUrl.searchParams;
   const saleDays = Number(sp.get("saleDays") || 14);
   const invDays = Number(sp.get("invDays") || 7);

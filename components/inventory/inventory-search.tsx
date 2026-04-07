@@ -228,7 +228,7 @@ export function InventorySearch({
             <SelectContent>
             <SelectItem value="ALL">All Colors</SelectItem>
             {colors.map((c) => (
-                <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
             ))}
             </SelectContent>
         </Select>

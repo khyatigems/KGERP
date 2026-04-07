@@ -22,8 +22,8 @@ export default async function CategoryStockReportPage() {
           <Table>
             <TableHeader><TableRow><TableHead>Category</TableHead><TableHead>Class</TableHead><TableHead className="text-right">Items</TableHead><TableHead className="text-right">Stock Value</TableHead><TableHead className="text-right">Contribution</TableHead><TableHead className="text-right">Reorder Alert</TableHead></TableRow></TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.category}>
+              {rows.map((row, idx) => (
+                <TableRow key={`${row.category}-${idx}`}>
                   <TableCell>{row.category}</TableCell>
                   <TableCell><Badge variant="outline">{row.abcClass}</Badge></TableCell>
                   <TableCell className="text-right">{row.items}</TableCell>

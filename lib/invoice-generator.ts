@@ -20,6 +20,18 @@ export interface InvoiceData {
   showBankDetailsSection?: boolean;
   totalLabel?: string;
   extraTotalRows?: Array<{ label: string; amount: number; emphasis?: "bold" | "normal" }>;
+  // Export invoice fields
+  invoiceType?: "TAX_INVOICE" | "EXPORT_INVOICE";
+  iecCode?: string;
+  exportType?: "LUT" | "BOND" | "PAYMENT";
+  countryOfDestination?: string;
+  portOfDispatch?: string;
+  modeOfTransport?: "AIR" | "COURIER" | "HAND_DELIVERY";
+  courierPartner?: string;
+  trackingId?: string;
+  invoiceCurrency?: "INR" | "USD" | "EUR" | "GBP";
+  conversionRate?: number;
+  totalInrValue?: number;
   company: {
     name: string;
     address: string;
@@ -72,6 +84,7 @@ export interface InvoiceData {
     amount: number;
   }>;
   terms?: string;
+  exportTerms?: string; // Separate terms for export invoices
   notes?: string;
   signatureUrl?: string;
   publicUrl?: string;
@@ -82,6 +95,7 @@ export interface InvoiceData {
     accountNumber: string;
     ifsc: string;
     holder: string;
+    swiftCode?: string;
   };
 }
 
@@ -303,7 +317,9 @@ export async function generateInvoicePDF(data: InvoiceData) {
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(...blue);
-  doc.text(data.documentTitle || "TAX INVOICE", margin, y);
+  // Set document title based on invoice type
+  const documentTitle = data.invoiceType === "EXPORT_INVOICE" ? "EXPORT INVOICE" : (data.documentTitle || "TAX INVOICE");
+  doc.text(documentTitle, margin, y);
   doc.setFontSize(7.2);
   doc.setTextColor(0);
   if (logoRender) {
@@ -327,12 +343,15 @@ export async function generateInvoicePDF(data: InvoiceData) {
   doc.setFontSize(8);
   const gstLine = data.company.gstin ? `GSTIN ${data.company.gstin}` : "";
   const panLine = panFromGstin ? `PAN ${panFromGstin}` : "";
-  doc.text([gstLine, panLine].filter(Boolean).join("   "), margin, y);
+  const iecLine = data.iecCode ? `IEC ${data.iecCode}` : "";
+  const companyInfo = [gstLine, panLine, iecLine].filter(Boolean).join("   ");
+  doc.text(companyInfo, margin, y);
 
   y += 4.5;
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(7.8);
   doc.text(data.company.phone ? `Mobile: ${data.company.phone}` : "", margin, y);
+
   if (data.company.email) {
     doc.text(`Email: ${data.company.email}`, margin + 58, y);
   }
@@ -341,6 +360,58 @@ export async function generateInvoicePDF(data: InvoiceData) {
     y += 7.2;
   } else {
     y += 4.6;
+  }
+
+  // Add export details section for export invoices
+  if (data.invoiceType === "EXPORT_INVOICE") {
+    y += 2;
+    doc.setDrawColor(...blue);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 3;
+    
+    doc.setFont(fontFamily, "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...blue);
+    doc.text("Export Details:", margin, y);
+    y += 4;
+    
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(0);
+    
+    const exportDetails = [
+      data.countryOfDestination ? `Country of Destination: ${data.countryOfDestination}` : "",
+      data.portOfDispatch ? `Port of Dispatch: ${data.portOfDispatch}` : "",
+      data.exportType ? `Export Type: ${data.exportType}` : "",
+      data.modeOfTransport ? `Mode of Transport: ${data.modeOfTransport}` : "",
+      data.courierPartner ? `Courier Partner: ${data.courierPartner}` : "",
+      data.trackingId ? `Tracking ID: ${data.trackingId}` : ""
+    ].filter(Boolean);
+    
+    if (exportDetails.length > 0) {
+      const exportText = exportDetails.join("   ");
+      doc.text(exportText, margin, y);
+      y += 4;
+    }
+    
+    // Add zero rated supply notice
+    doc.setFont(fontFamily, "italic");
+    doc.setFontSize(7);
+    doc.setTextColor(0, 100, 0);
+    doc.text("Zero Rated Supply: CGST = 0, SGST = 0, IGST = 0", margin, y);
+    y += 3;
+    doc.text("Supply meant for export under LUT without payment of IGST", margin, y);
+    y += 5;
+    
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(7.8);
+    doc.setTextColor(0);
+    
+    doc.setDrawColor(...blue);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 3;
   }
 
   // Add platform branding (small logo without replacing company logo)
@@ -438,7 +509,13 @@ export async function generateInvoicePDF(data: InvoiceData) {
   doc.line(margin, y, pageWidth - margin, y);
   y += 2;
 
-  const items = data.items.map((item, index) => {
+  // Adjust table for export invoices (hide GST columns)
+  const isExportInvoice = data.invoiceType === "EXPORT_INVOICE";
+  const tableHeaders = isExportInvoice 
+    ? [["#", "Item", "Rate / Item", "Quantity", "Amount"]]
+    : [["#", "Item", "Rate / Item", "Taxable Value", "Tax Amount", "Amount"]];
+  
+  const itemsForTable = data.items.map((item, index) => {
     const qty = item.quantity || 1;
     const taxable = item.unitPrice * qty;
     const taxAmount = item.gstAmount || 0;
@@ -449,14 +526,25 @@ export async function generateInvoicePDF(data: InvoiceData) {
     const skuLine = item.sku ? `SKU: ${item.sku}` : "";
     const hsnLine = item.hsn ? `HSN: ${item.hsn}` : "";
     const itemText = [nameLine, skuLine, hsnLine, ...extraLines].filter(Boolean).join("\n");
-    return [
-      index + 1,
-      itemText,
-      formatCurrencyPDF(item.unitPrice),
-      formatCurrencyPDF(taxable),
-      `${formatCurrencyPDF(taxAmount)}${item.gstRate ? ` (${item.gstRate}%)` : ""}`,
-      formatCurrencyPDF(amount)
-    ];
+    
+    if (isExportInvoice) {
+      return [
+        index + 1,
+        itemText,
+        formatCurrencyPDF(item.unitPrice),
+        "1", // Export invoices show quantity as 1, not weight
+        formatCurrencyPDF(amount)
+      ];
+    } else {
+      return [
+        index + 1,
+        itemText,
+        formatCurrencyPDF(item.unitPrice),
+        formatCurrencyPDF(taxable),
+        `${formatCurrencyPDF(taxAmount)}${item.gstRate ? ` (${item.gstRate}%)` : ""}`,
+        formatCurrencyPDF(amount)
+      ];
+    }
   });
 
   const dense = data.items.length > 8;
@@ -464,10 +552,25 @@ export async function generateInvoicePDF(data: InvoiceData) {
   const tableFont = ultraDense ? 6.2 : dense ? 7.2 : 8;
   const tablePadding = ultraDense ? 0.7 : dense ? 1.1 : 1.5;
 
+  const columnStyles = (isExportInvoice ? {
+    0: { cellWidth: 6 },
+    1: { cellWidth: 85, overflow: "linebreak" as const },
+    2: { cellWidth: 25, halign: "right" as const },
+    3: { cellWidth: 20, halign: "center" as const },
+    4: { cellWidth: 30, halign: "right" as const }
+  } : {
+    0: { cellWidth: 6 },
+    1: { cellWidth: 76, overflow: "linebreak" as const },
+    2: { cellWidth: 22, halign: "right" as const },
+    3: { cellWidth: 25, halign: "right" as const },
+    4: { cellWidth: 25, halign: "right" as const },
+    5: { cellWidth: 24, halign: "right" as const }
+  }) as { [key: number]: { cellWidth?: number; overflow?: "linebreak"; halign?: "left" | "center" | "right" } };
+
   autoTable(doc, {
     startY: y,
-    head: [["#", "Item", "Rate / Item", "Taxable Value", "Tax Amount", "Amount"]],
-    body: items,
+    head: tableHeaders,
+    body: itemsForTable,
     theme: "plain",
     headStyles: {
       textColor: blue,
@@ -487,14 +590,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
       lineColor: lightGray,
       overflow: "linebreak"
     },
-    columnStyles: {
-      0: { cellWidth: 6 },
-      1: { cellWidth: 76, overflow: "linebreak" },
-      2: { cellWidth: 22, halign: "right" },
-      3: { cellWidth: 25, halign: "right" },
-      4: { cellWidth: 25, halign: "right" },
-      5: { cellWidth: 24, halign: "right" }
-    },
+    columnStyles,
     didDrawCell: (dataCell) => {
       const { row, table, column, section, cell } = dataCell;
       if (column.index !== 0) return;
@@ -561,13 +657,41 @@ export async function generateInvoicePDF(data: InvoiceData) {
   writeAmountRight(formatCurrencyPDF(taxableTotal), pageWidth - margin, totalsY);
   totalsY += 4;
 
-  doc.text(`CGST ${halfRate.toFixed(3)}%`, totalsX, totalsY);
-  writeAmountRight(formatCurrencyPDF(cgst), pageWidth - margin, totalsY);
-  totalsY += 4;
+  if (!isExportInvoice) {
+    doc.text(`CGST ${halfRate.toFixed(3)}%`, totalsX, totalsY);
+    writeAmountRight(formatCurrencyPDF(cgst), pageWidth - margin, totalsY);
+    totalsY += 4;
 
-  doc.text(`SGST ${halfRate.toFixed(3)}%`, totalsX, totalsY);
-  writeAmountRight(formatCurrencyPDF(sgst), pageWidth - margin, totalsY);
-  totalsY += 4;
+    doc.text(`SGST ${halfRate.toFixed(3)}%`, totalsX, totalsY);
+    writeAmountRight(formatCurrencyPDF(sgst), pageWidth - margin, totalsY);
+    totalsY += 4;
+  }
+
+  // For export invoices with foreign currency, show both FX and INR totals
+  if (isExportInvoice && data.invoiceCurrency && data.invoiceCurrency !== "INR") {
+    // Show foreign currency total
+    doc.setFont(fontFamily, "bold");
+    doc.setFontSize(10);
+    doc.text(`Total (${data.invoiceCurrency})`, totalsX, totalsY);
+    const fxTotal = data.totalInrValue && data.conversionRate 
+      ? (data.totalInrValue / data.conversionRate).toFixed(2)
+      : (data.total / (data.conversionRate || 1)).toFixed(2);
+    writeAmountRight(`${data.invoiceCurrency} ${fxTotal}`, pageWidth - margin, totalsY, { bold: true, fontSize: 10 });
+    totalsY += 6;
+
+    // Show conversion rate
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(8);
+    doc.text(`Conversion Rate`, totalsX, totalsY);
+    writeAmountRight(`1 ${data.invoiceCurrency} = ${formatCurrencyPDF(data.conversionRate || 1)}`, pageWidth - margin, totalsY);
+    totalsY += 5;
+
+    // Show INR equivalent
+    doc.text(`INR Equivalent`, totalsX, totalsY);
+    const inrTotal = data.totalInrValue || (data.total * (data.conversionRate || 1));
+    writeAmountRight(`₹ ${inrTotal.toFixed(2)}`, pageWidth - margin, totalsY);
+    totalsY += 5;
+  }
 
   if (!(typeof data.grossTotal === "number" && Number.isFinite(data.grossTotal) && data.discount > 0) && data.discount > 0) {
     doc.text("Discount", totalsX, totalsY);
@@ -660,22 +784,29 @@ export async function generateInvoicePDF(data: InvoiceData) {
     doc.text("Bank Details:", margin, infoY);
     doc.setFont(fontFamily, "normal");
     if (data.bankDetails) {
-      doc.text(`Bank: ${data.bankDetails.bankName}`, margin, infoY + 4);
-      doc.text(`Account #: ${data.bankDetails.accountNumber}`, margin, infoY + 8);
-      doc.text(`IFSC code: ${data.bankDetails.ifsc}`, margin, infoY + 12);
-      doc.text(`Account Holder: ${data.bankDetails.holder}`, margin, infoY + 16);
-      infoY += 24;
+      let bdY = infoY + 4;
+      doc.text(`Bank: ${data.bankDetails.bankName}`, margin, bdY); bdY += 4;
+      doc.text(`Account #: ${data.bankDetails.accountNumber}`, margin, bdY); bdY += 4;
+      doc.text(`IFSC code: ${data.bankDetails.ifsc}`, margin, bdY); bdY += 4;
+      if (isExportInvoice && data.bankDetails.swiftCode) {
+        doc.text(`SWIFT code: ${data.bankDetails.swiftCode}`, margin, bdY); bdY += 4;
+      }
+      doc.text(`Account Holder: ${data.bankDetails.holder}`, margin, bdY); bdY += 4;
+      infoY = bdY + 4;
     } else {
       doc.text("-", margin, infoY + 4);
       infoY += 24;
     }
   }
   const wrapWidth = pageWidth - margin * 2 - 60;
-  if (data.terms) {
+  const termsToUse = isExportInvoice
+    ? (data.exportTerms || data.terms || "")
+    : (data.terms || "");
+  if (termsToUse) {
     doc.setFont(fontFamily, "bold");
     doc.text("Terms & Conditions:", margin, infoY);
     doc.setFont(fontFamily, "normal");
-    const lines = doc.splitTextToSize(data.terms, wrapWidth);
+    const lines = doc.splitTextToSize(termsToUse, wrapWidth);
     doc.text(lines, margin, infoY + 4);
     infoY += 4 + lines.length * 4;
   }

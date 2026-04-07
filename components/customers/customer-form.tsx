@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
@@ -44,6 +44,13 @@ const formSchema = z.object({
     if (!v) return true;
     return /^[0-9A-Za-z-]{4,10}$/.test(v);
   }, "Invalid pincode"),
+  // International fields
+  countryCode: z.string().optional(),
+  isInternational: z.boolean().default(false),
+  passportId: z.string().optional(),
+  companyName: z.string().optional(),
+  addressType: z.enum(["RESIDENTIAL", "COMMERCIAL"]).default("RESIDENTIAL"),
+  phoneCountryCode: z.string().optional(),
   pan: z.string().optional(),
   gstin: z.string().optional(),
   notes: z.string().optional(),
@@ -72,6 +79,13 @@ type CustomerModel = {
   state?: string | null;
   country?: string | null;
   pincode?: string | null;
+  // International fields
+  countryCode?: string | null;
+  isInternational?: boolean | null;
+  passportId?: string | null;
+  companyName?: string | null;
+  addressType?: string | null;
+  phoneCountryCode?: string | null;
   pan?: string | null;
   gstin?: string | null;
   notes?: string | null;
@@ -92,7 +106,7 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
   const router = useRouter();
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
       name: customer?.name || "",
       email: customer?.email || "",
@@ -103,6 +117,13 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
       state: customer?.state || "",
       country: customer?.country || "",
       pincode: customer?.pincode || "",
+      // International fields
+      countryCode: customer?.countryCode || "",
+      isInternational: Boolean(customer?.isInternational ?? false),
+      passportId: customer?.passportId || "",
+      companyName: customer?.companyName || "",
+      addressType: (customer?.addressType as "RESIDENTIAL" | "COMMERCIAL") || "RESIDENTIAL",
+      phoneCountryCode: customer?.phoneCountryCode || "+91",
       pan: customer?.pan || "",
       gstin: customer?.gstin || "",
       notes: customer?.notes || "",
@@ -306,6 +327,192 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
           </div>
         </div>
 
+        {/* International Fields Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">International Information</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <Select onValueChange={(value) => {
+                      field.onChange(value);
+                      // Auto-set international flag if not India
+                      const isInternational = value !== "India";
+                      form.setValue("isInternational", isInternational, { shouldDirty: true });
+                      // Auto-set country code
+                      if (value === "United States") form.setValue("phoneCountryCode", "+1");
+                      else if (value === "United Kingdom") form.setValue("phoneCountryCode", "+44");
+                      else if (value === "United Arab Emirates") form.setValue("phoneCountryCode", "+971");
+                      else if (value === "Singapore") form.setValue("phoneCountryCode", "+65");
+                      else if (value === "Australia") form.setValue("phoneCountryCode", "+61");
+                      else if (value === "Canada") form.setValue("phoneCountryCode", "+1");
+                      else if (value === "Germany") form.setValue("phoneCountryCode", "+49");
+                      else if (value === "France") form.setValue("phoneCountryCode", "+33");
+                      else if (value === "Italy") form.setValue("phoneCountryCode", "+39");
+                      else if (value === "Japan") form.setValue("phoneCountryCode", "+81");
+                      else if (value === "China") form.setValue("phoneCountryCode", "+86");
+                      else if (value === "India") form.setValue("phoneCountryCode", "+91");
+                    }} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="India">India</SelectItem>
+                        <SelectItem value="United States">United States</SelectItem>
+                        <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                        <SelectItem value="United Arab Emirates">United Arab Emirates</SelectItem>
+                        <SelectItem value="Singapore">Singapore</SelectItem>
+                        <SelectItem value="Australia">Australia</SelectItem>
+                        <SelectItem value="Canada">Canada</SelectItem>
+                        <SelectItem value="Germany">Germany</SelectItem>
+                        <SelectItem value="France">France</SelectItem>
+                        <SelectItem value="Italy">Italy</SelectItem>
+                        <SelectItem value="Japan">Japan</SelectItem>
+                        <SelectItem value="China">China</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phoneCountryCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Country Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+91" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="isInternational"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      checked={field.value}
+                      onChange={field.onChange}
+                      className="mt-0.5"
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>International Customer</FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      Mark if customer is outside India for export compliance
+                    </p>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {form.watch("isInternational") && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="passportId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Passport / ID Number (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Passport or ID number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="addressType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Address Type</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="RESIDENTIAL">Residential</SelectItem>
+                            <SelectItem value="COMMERCIAL">Commercial</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="companyName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Name (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Company or organization name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+
+            {/* Hide PAN/GSTIN for international customers */}
+            {!form.watch("isInternational") && (
+              <div className="space-y-4">
+                <h4 className="text-md font-medium">Tax Information (India Only)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="pan"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>PAN</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ABCDE1234F" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="gstin"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>GSTIN</FormLabel>
+                        <FormControl>
+                          <Input placeholder="09AAJCK8115C1ZL" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Business (Optional)</h3>
@@ -340,32 +547,6 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
                     <FormLabel>Assigned Salesperson</FormLabel>
                     <FormControl>
                       <Input placeholder="Salesperson Name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="pan"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>PAN</FormLabel>
-                    <FormControl>
-                      <Input placeholder="ABCDE1234F" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="gstin"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>GSTIN</FormLabel>
-                    <FormControl>
-                      <Input placeholder="09AAJCK8115C1ZL" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

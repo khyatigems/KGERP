@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, ensureInvoiceSupportSchema } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "./settings-form";
@@ -32,6 +32,9 @@ export default async function SettingsPage() {
   // Fetch Landing Page Settings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const landingPageSettings = await getLandingPageSettings() as any;
+
+  // Ensure schema has export columns before querying CompanySettings
+  await ensureInvoiceSupportSchema();
 
   // Fetch Company Settings
   const companySettings = await prisma.companySettings.findFirst();

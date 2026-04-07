@@ -132,6 +132,7 @@ export function FileUpload({ onUploadComplete, defaultFiles = [], sku, category 
                     src={file.url}
                     alt={file.name}
                     fill
+                    sizes="(max-width: 768px) 50vw, 200px"
                     className="object-cover"
                   />
                 ) : (

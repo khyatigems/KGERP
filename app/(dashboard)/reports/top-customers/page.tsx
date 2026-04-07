@@ -22,8 +22,8 @@ export default async function TopCustomersReportPage() {
           <Table>
             <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead className="text-right">Orders</TableHead><TableHead className="text-right">Revenue</TableHead><TableHead>Loyalty</TableHead></TableRow></TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.customerName}>
+              {rows.map((row, idx) => (
+                <TableRow key={`${row.customerName}-${idx}`}>
                   <TableCell>{row.customerName}</TableCell>
                   <TableCell className="text-right">{row.orders}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>

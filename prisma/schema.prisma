@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -256,6 +255,9 @@ model Customer {
   preferredContact    String?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+  stateCode  String?
+  countryCode String?
+  isInternational Boolean @default(false)
   quotations Quotation[]
   sales      Sale[]
   creditNotes CreditNote[]
@@ -277,6 +279,8 @@ model CustomerAdvance {
   updatedAt         DateTime @updatedAt
   
   adjustments CustomerAdvanceAdjustment[]
+
+  @@index([customerId])
 }
 
 model CustomerAdvanceAdjustment {
@@ -287,6 +291,9 @@ model CustomerAdvanceAdjustment {
   sale            Sale            @relation(fields: [saleId], references: [id])
   amountUsed      Float
   createdAt       DateTime        @default(now())
+
+  @@index([advanceId])
+  @@index([saleId])
 }
 
 model Inventory {
@@ -589,6 +596,18 @@ model Invoice {
   isActive       Boolean          @default(true)
   dueDate        DateTime?
   notes          String?
+  invoiceType    String           @default("TAX")
+  iecCode        String?
+  exportType     String?
+  countryOfDestination String?
+  portOfDispatch String?
+  modeOfTransport String?
+  courierPartner String?
+  trackingId     String?
+  invoiceCurrency String?
+  conversionRate Float?
+  totalInrValue  Float?
+
   displayOptions String?
   subtotal       Float
   taxTotal       Float
@@ -649,31 +668,29 @@ model Setting {
 }
 
 model CompanySettings {
-  id                 String   @id @default(uuid())
-  companyName        String
-  address            String?
-  addressLine1       String?
-  addressLine2       String?
-  city               String?
-  state              String?
-  pincode            String?
-  country            String?
-  phone              String?
-  email              String?
-  website            String?
-  gstin              String?
-  pan                String?
-  bankName           String?
-  bankAccountNo      String?
-  bankIfsc           String?
-  bankBranch         String?
-  logoUrl            String?
-  invoiceLogoUrl     String?
-  quotationLogoUrl   String?
-  skuViewLogoUrl     String?
-  otherDocsLogoUrl   String?
-  termsAndConditions String?
-  updatedAt          DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  companyName          String
+  invoicePrefix        String?  @default("INV")
+  invoicingStartNumber Int?     @default(1)
+  invoiceLogoUrl       String?
+  quotationLogoUrl     String?
+  logoUrl              String?
+  skuViewLogoUrl       String?
+  otherDocsLogoUrl     String?
+  address              String?
+  email                String?
+  phone                String?
+  website              String?
+  gstin                String?
+  enableExportInvoice  Boolean  @default(false)
+  defaultExportType    String?  @default("LUT")
+  companyIec           String?
+  defaultCurrency      String?  @default("INR")
+  defaultPort          String?
+  swiftCode            String?
+  termsAndConditions   String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 model FollowUp {
@@ -759,6 +776,7 @@ model InvoiceSettings {
   currencySymbol      String   @default("₹")
   digitalSignatureUrl String?
   terms               String?
+  exportTerms         String?  // Terms & Conditions for export invoices
   footerNotes         String?
   gstEnabled          Boolean  @default(false)
   gstType             String   @default("CGST_SGST")
@@ -776,6 +794,7 @@ model PaymentSettings {
   bankName          String?
   accountNumber     String?
   ifscCode          String?
+  swiftCode         String?
   accountHolder     String?
   razorpayEnabled   Boolean  @default(false)
   razorpayKeyId     String?
@@ -1330,4 +1349,12 @@ model InventoryToRashiCode {
   @@unique([A, B], map: "_InventoryToRashiCode_AB_unique")
   @@index([B], map: "_InventoryToRashiCode_B_index")
   @@map("_InventoryToRashiCode")
+}
+
+model StateCode {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -20,8 +20,8 @@ export default async function TurnoverReportPage() {
           <Table>
             <TableHeader><TableRow><TableHead>Category</TableHead><TableHead className="text-right">Rotation</TableHead><TableHead className="text-right">Avg Sell Days</TableHead><TableHead className="text-right">Sold Items</TableHead></TableRow></TableHeader>
             <TableBody>
-              {data.byCategory.map((row) => (
-                <TableRow key={row.category}>
+              {data.byCategory.map((row, idx) => (
+                <TableRow key={`${row.category}-${idx}`}>
                   <TableCell>{row.category}</TableCell>
                   <TableCell className="text-right">{row.rotationRate.toFixed(2)}</TableCell>
                   <TableCell className="text-right">{row.avgSellDays.toFixed(1)}</TableCell>

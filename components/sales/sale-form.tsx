@@ -56,6 +56,17 @@ import { useSearchParams } from "next/navigation";
 import { Select as UISelect, SelectContent as UISelectContent, SelectItem as UISelectItem, SelectTrigger as UISelectTrigger, SelectValue as UISelectValue } from "@/components/ui/select";
 
 const formSchema = z.object({
+  invoiceType: z.enum(["TAX_INVOICE", "EXPORT_INVOICE"]).default("TAX_INVOICE"),
+  iecCode: z.string().optional(),
+  exportType: z.enum(["LUT", "BOND", "PAYMENT"]).default("LUT"),
+  countryOfDestination: z.string().optional(),
+  portOfDispatch: z.string().optional(),
+  modeOfTransport: z.enum(["AIR", "COURIER", "HAND_DELIVERY"]).optional(),
+  courierPartner: z.string().optional(),
+  trackingId: z.string().optional(),
+  invoiceCurrency: z.enum(["INR", "USD", "EUR", "GBP"]).default("INR"),
+  conversionRate: z.coerce.number().min(0).optional(),
+  totalInrValue: z.coerce.number().min(0).optional(),
   items: z.array(z.object({
     inventoryId: z.string().uuid("Please select an item"),
     sellingPrice: z.coerce.number().positive("Selling price must be positive"),
@@ -80,7 +91,6 @@ const formSchema = z.object({
   singlePaymentReference: z.string().optional(),
   paymentStatus: z.string().default("PENDING"),
   shippingMethod: z.string().optional(),
-  trackingId: z.string().optional(),
   remarks: z.string().optional(),
   autoDelistListings: z.boolean().default(true),
   autoFillSplitFromSingle: z.boolean().default(true),
@@ -177,6 +187,17 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
+      invoiceType: "TAX_INVOICE",
+      iecCode: "",
+      exportType: "LUT",
+      countryOfDestination: "",
+      portOfDispatch: "IGI Airport, New Delhi",
+      modeOfTransport: "COURIER",
+      courierPartner: "",
+      trackingId: "",
+      invoiceCurrency: "INR",
+      conversionRate: 1,
+      totalInrValue: 0,
       items: preSelectedInventoryId
         ? [{ inventoryId: preSelectedInventoryId, sellingPrice: getItemPrice(preSelectedInventoryId), discount: 0 }]
         : [],
@@ -196,7 +217,6 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
       paymentMode: "UPI",
       paymentStatus: "PAID",
       shippingMethod: "COURIER",
-      trackingId: "",
       remarks: "",
       autoDelistListings: true,
       autoFillSplitFromSingle: true,
@@ -215,6 +235,9 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   const shippingAddressValue = form.watch("shippingAddress");
   const customerIdValue = form.watch("customerId");
   const loyaltyRedeemAmountValue = Number(form.watch("loyaltyRedeemAmount") || 0);
+  const invoiceType = form.watch("invoiceType");
+  const invoiceCurrency = form.watch("invoiceCurrency");
+  const conversionRate = Number(form.watch("conversionRate") || 1);
 
   const [loyaltyContext, setLoyaltyContext] = useState<{
     availablePoints: number;
@@ -376,11 +399,39 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
       toast.error(`Loyalty redemption exceeds allowed amount (${Number(loyaltyContext.maxRedeemAmount || 0).toFixed(2)})`);
       return;
     }
+
+    // Export invoice validation
+    if (data.invoiceType === "EXPORT_INVOICE") {
+      if (!data.countryOfDestination) {
+        toast.error("Country of destination is required for export invoices");
+        return;
+      }
+      if (!data.iecCode) {
+        toast.error("IEC Code is required for export invoices");
+        return;
+      }
+      if (data.invoiceCurrency !== "INR" && (!data.conversionRate || data.conversionRate <= 0)) {
+        toast.error("Conversion rate is required for foreign currency invoices");
+        return;
+      }
+    }
+
     setIsPending(true);
     const formData = new FormData();
     formData.append("items", JSON.stringify(data.items));
     formData.append("platform", data.platform);
     formData.append("saleDate", data.saleDate);
+    formData.append("invoiceType", data.invoiceType);
+    if (data.iecCode) formData.append("iecCode", data.iecCode);
+    if (data.exportType) formData.append("exportType", data.exportType);
+    if (data.countryOfDestination) formData.append("countryOfDestination", data.countryOfDestination);
+    if (data.portOfDispatch) formData.append("portOfDispatch", data.portOfDispatch);
+    if (data.modeOfTransport) formData.append("modeOfTransport", data.modeOfTransport);
+    if (data.courierPartner) formData.append("courierPartner", data.courierPartner);
+    if (data.trackingId) formData.append("trackingId", data.trackingId);
+    formData.append("invoiceCurrency", data.invoiceCurrency);
+    formData.append("conversionRate", String(data.conversionRate || 1));
+    formData.append("totalInrValue", String(data.totalInrValue || computedInvoiceTotal));
     if (data.customerId) formData.append("customerId", data.customerId);
     if (data.customerName) formData.append("customerName", data.customerName);
     if (data.customerPhone) formData.append("customerPhone", data.customerPhone);
@@ -400,7 +451,6 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
       formData.append("paymentStatus", computedPaymentStatus);
     }
     if (data.shippingMethod) formData.append("shippingMethod", data.shippingMethod);
-    if (data.trackingId) formData.append("trackingId", data.trackingId);
     if (data.remarks) formData.append("remarks", data.remarks);
     formData.append("autoDelistListings", data.autoDelistListings ? "true" : "false");
     formData.append("autoFillSplitFromSingle", data.autoFillSplitFromSingle ? "true" : "false");
@@ -441,6 +491,230 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
           {/* Item & Transaction Details */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Transaction Details</h3>
+            
+            {/* Invoice Type Selection */}
+            <FormField
+              control={form.control}
+              name="invoiceType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Invoice Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select invoice type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="TAX_INVOICE">Tax Invoice</SelectItem>
+                      <SelectItem value="EXPORT_INVOICE">Export Invoice</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {invoiceType === "EXPORT_INVOICE" && (
+              <>
+                {/* Export Details Section */}
+                <div className="rounded-md border p-4 space-y-4 bg-blue-50/50">
+                  <h4 className="font-medium text-sm text-blue-900">Export Details</h4>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="iecCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>IEC Code</FormLabel>
+                          <FormControl>
+                            <Input placeholder="IEC Code" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="exportType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Export Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select export type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="LUT">LUT (Letter of Undertaking)</SelectItem>
+                              <SelectItem value="BOND">Bond</SelectItem>
+                              <SelectItem value="PAYMENT">Payment of IGST</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="countryOfDestination"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Country of Destination *</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., USA, UK, Germany" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="portOfDispatch"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Port of Dispatch</FormLabel>
+                          <FormControl>
+                            <Input placeholder="IGI Airport, New Delhi" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="modeOfTransport"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mode of Transport</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select mode" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="AIR">Air</SelectItem>
+                              <SelectItem value="COURIER">Courier</SelectItem>
+                              <SelectItem value="HAND_DELIVERY">Hand Delivery</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="courierPartner"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Courier Partner</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., Shiprocket, DHL" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="trackingId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tracking ID</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Tracking number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Currency Section */}
+                <div className="rounded-md border p-4 space-y-4 bg-green-50/50">
+                  <h4 className="font-medium text-sm text-green-900">Currency & Conversion</h4>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="invoiceCurrency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Invoice Currency</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="INR">INR (₹)</SelectItem>
+                              <SelectItem value="USD">USD ($)</SelectItem>
+                              <SelectItem value="EUR">EUR (€)</SelectItem>
+                              <SelectItem value="GBP">GBP (£)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="conversionRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Conversion Rate {invoiceCurrency !== "INR" && "*"}</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01" 
+                              placeholder="1.00"
+                              disabled={invoiceCurrency === "INR"}
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="totalInrValue"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Total INR Value (Auto)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              readOnly 
+                              value={field.value || computedInvoiceTotal}
+                              className="bg-muted"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Zero Rated Supply Notice */}
+                  <div className="text-sm text-green-800 bg-green-100 p-3 rounded">
+                    <strong>Zero Rated Supply:</strong> CGST = 0, SGST = 0, IGST = 0
+                    <br />
+                    <span className="text-xs">Supply meant for export under LUT without payment of IGST</span>
+                  </div>
+                </div>
+              </>
+            )}
             
             <FormField
               control={form.control}
