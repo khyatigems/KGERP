@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 // DELETE /api/settings/state-codes/:id
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session) {
@@ -62,8 +62,9 @@ export async function DELETE(
   }
 
   try {
+    const { id } = await params;
     await prisma.stateCode.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
