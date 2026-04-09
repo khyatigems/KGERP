@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
   const format = (sp.get("format") || "").toLowerCase();
   const fp = (sp.get("fp") || "").trim();
 
-  const company = await prisma.companySettings.findFirst({ select: { gstin: true, state: true } });
-  const companyState = normalizeState(company?.state);
+  const company = await prisma.companySettings.findFirst({ select: { gstin: true } });
+  const companyState = "";
   const invoiceSettings = await prisma.invoiceSettings.findFirst({ select: { categoryGstRates: true } });
   const gstRates = (() => {
     try {
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
     const sale0 = inv.sales[0];
     const customer = sale0?.customerId ? customerById.get(sale0.customerId) : undefined;
     const posState = normalizeState(customer?.state || sale0?.placeOfSupply || sale0?.customerCity || "");
-    const interstate = Boolean(companyState && posState && companyState.toLowerCase() !== posState.toLowerCase());
+    const interstate = Boolean(companyState && posState && companyState !== posState);
     const customerGstin = (customer?.gstin || "").trim() || null;
     const displayOptions = (() => {
       try {
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
     const sale0 = inv.sales[0];
     const customer = sale0?.customerId ? customerById.get(sale0.customerId) : undefined;
     const posState = normalizeState(customer?.state || sale0?.placeOfSupply || sale0?.customerCity || "");
-    const interstate = Boolean(companyState && posState && companyState.toLowerCase() !== posState.toLowerCase());
+    const interstate = Boolean(companyState && posState && companyState !== posState);
     const displayOptions = (() => {
       try {
         return inv.displayOptions ? (JSON.parse(inv.displayOptions) as Record<string, unknown>) : {};

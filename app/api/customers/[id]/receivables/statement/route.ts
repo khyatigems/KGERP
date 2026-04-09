@@ -32,10 +32,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     balance: Math.max(0, (inv.totalAmount || 0) - (inv.paidAmount || 0)),
   }));
   const totalDue = rows.reduce((s, r) => s + r.balance, 0);
-  const companyAddress = company?.address
-    || [company?.addressLine1, company?.addressLine2, company?.city, company?.state, company?.pincode, company?.country]
-      .filter(Boolean)
-      .join(", ");
+  const companyAddress = company?.address || "";
   const pdf = await generateCustomerStatementPDF({
     company: { name: company?.companyName || "Khyati Gems", address: companyAddress || undefined, gstin: company?.gstin || undefined },
     customer: { name: customer.name, address: customer.address || undefined },

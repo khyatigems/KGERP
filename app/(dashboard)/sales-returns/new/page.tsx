@@ -13,7 +13,7 @@ export default async function NewSalesReturnPage() {
   if (!session?.user) redirect("/login");
   if (!hasPermission(session.user.role, PERMISSIONS.SALES_CREATE)) redirect("/");
 
-  const company = await prisma.companySettings.findFirst({ select: { state: true } });
+  const company = await prisma.companySettings.findFirst({ select: { address: true } });
   const invoiceSettings = await prisma.invoiceSettings.findFirst({ select: { categoryGstRates: true } });
   const gstRates = (() => {
     try {
@@ -85,7 +85,7 @@ export default async function NewSalesReturnPage() {
           <CardTitle>Return Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <SalesReturnForm invoices={invoiceOptions} companyState={company?.state || ""} />
+          <SalesReturnForm invoices={invoiceOptions} companyState="" />
         </CardContent>
       </Card>
     </div>

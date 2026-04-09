@@ -73,13 +73,13 @@ export async function POST(request: NextRequest) {
       const returnNumber = nextPrefixedNumber("SR-", existingReturns);
       const salesReturnId = crypto.randomUUID();
 
-      const company = await tx.companySettings.findFirst({ select: { state: true } });
+      const company = await tx.companySettings.findFirst({ select: { address: true } });
       const placeOfSupply = inv.sales?.[0]?.placeOfSupply || inv.sales?.[0]?.customerCity || "";
       const taxableAmount = round2(
         items.reduce((s: number, i: { sellingPrice: number; quantity: number }) => s + Number(i.sellingPrice || 0) * Number(i.quantity || 1), 0)
       );
       const rate = inv.subtotal > 0 ? inv.taxTotal / inv.subtotal : 0;
-      const gst = computeGstSplit({ taxable: taxableAmount, rate, companyState: company?.state || "", placeOfSupply });
+      const gst = computeGstSplit({ taxable: taxableAmount, rate, companyState: "", placeOfSupply });
       const totalAmount = round2(taxableAmount + gst.totalTax);
 
       await tx.$executeRawUnsafe(
