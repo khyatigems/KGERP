@@ -122,6 +122,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     additionalCharge: 0,
     invoiceDiscountType: "AMOUNT",
     invoiceDiscountValue: 0,
+    invoiceDiscountAffectsTotal: true,
   };
 
   if (invoice.displayOptions) {
@@ -161,7 +162,11 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const conversionRateRaw = (invoice as { conversionRate?: number }).conversionRate;
   const conversionRate = isExportInvoice ? Math.max(conversionRateRaw || 1, 0.0001) : 1;
   const showForeignCurrency = isExportInvoice && invoiceCurrency !== "INR";
-  const convertToForeign = (amount: number) => Number((amount / conversionRate).toFixed(2));
+  // Build a map of saleId -> usdPrice from the actual stored sale records
+  const saleUsdPriceMap = new Map<string, number>(
+    salesItems.map((s) => [s.id, Number((s as { usdPrice?: number | null }).usdPrice || 0)])
+  );
+  const totalUsdFromSales = salesItems.reduce((sum, s) => sum + Number((s as { usdPrice?: number | null }).usdPrice || 0), 0);
   const formatForeignCurrency = (amount: number) => formatCurrency(amount, invoiceCurrency);
   const bankSwiftCode = paymentSettings?.swiftCode || companySettings?.swiftCode || undefined;
   
@@ -206,12 +211,10 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const totalGst = gstCalc.gstTotal;
   const saleShippingCharge = (primarySale as { shippingCharge?: number | null }).shippingCharge || 0;
   const saleAdditionalCharge = (primarySale as { additionalCharge?: number | null }).additionalCharge || 0;
-  const showShippingCharge = typeof displayOptions.showShippingCharge === "boolean"
-    ? displayOptions.showShippingCharge
-    : saleShippingCharge > 0;
-  const showAdditionalCharge = typeof displayOptions.showAdditionalCharge === "boolean"
-    ? displayOptions.showAdditionalCharge
-    : saleAdditionalCharge > 0;
+  // Show shipping/additional charges if explicitly enabled in displayOptions OR if sale has charges
+  const showShippingCharge = displayOptions.showShippingCharge === true || saleShippingCharge > 0;
+  const showAdditionalCharge = displayOptions.showAdditionalCharge === true || saleAdditionalCharge > 0;
+  // Use the charge value from displayOptions if set, otherwise use sale's charge
   const shippingCharge = showShippingCharge ? Number(displayOptions.shippingCharge || saleShippingCharge || 0) : 0;
   const additionalCharge = showAdditionalCharge ? Number(displayOptions.additionalCharge || saleAdditionalCharge || 0) : 0;
   const totalBeforeExtras = gstCalc.finalTotal;
@@ -220,9 +223,31 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     invoice.id
   ).catch(() => []);
   const couponDiscountTotal = Number(couponDiscountRows?.[0]?.amt || 0);
+  
+  // Calculate invoice-level discount from displayOptions
+  const invoiceDiscountType = displayOptions.invoiceDiscountType === "PERCENT" ? "PERCENT" : "AMOUNT";
+  const invoiceDiscountValue = Number(displayOptions.invoiceDiscountValue || 0);
+  const calculatedInvoiceDiscount = invoiceDiscountType === "PERCENT" 
+    ? (totalBeforeExtras * invoiceDiscountValue) / 100 
+    : invoiceDiscountValue;
+
+  const invoiceDiscountAffectsTotal = displayOptions.invoiceDiscountAffectsTotal !== false;
+  
+  // Use stored discountTotal from database if calculated is 0 (for backward compatibility)
+  // The stored discountTotal already includes all discounts (item + invoice + coupon)
+  const storedDiscountTotal = invoice.discountTotal || 0;
+  const invoiceDiscountAmount = calculatedInvoiceDiscount > 0 ? calculatedInvoiceDiscount : Math.max(0, storedDiscountTotal - gstCalc.itemDiscountTotal - couponDiscountTotal);
+  
   const totalWithoutCoupon = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
-  const total = Math.max(0, totalWithoutCoupon - couponDiscountTotal);
-  const discount = gstCalc.discountTotal;
+
+  // Total payable: invoice-level discount can be display-only (does not affect total).
+  // Coupon discount always affects total.
+  const payableBeforeCapping = totalWithoutCoupon - couponDiscountTotal - (invoiceDiscountAffectsTotal ? invoiceDiscountAmount : 0);
+  const total = Math.max(0, payableBeforeCapping);
+  
+  // Show only item discounts in the first discount line
+  const itemDiscountTotal = gstCalc.itemDiscountTotal || 0;
+  const discount = itemDiscountTotal;
   
   // Balance Due & Payment Status Calculation
   const amountPaidCalculated = salesItems.reduce((sum, item) => {
@@ -240,21 +265,35 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     : (invoice.paidAmount && invoice.paidAmount > 0)
     ? invoice.paidAmount
     : amountPaidCalculated;
-  let balanceDue = Math.max(0, total - amountReceived);
+  // Use stored invoice total if available and reasonable, otherwise use computed
+  // This ensures payment status is calculated against the actual amount that was charged
+  // Prefer computed total if stored seems outdated (difference > 10%)
+  const storedTotal = invoice.totalAmount || 0;
+  const computedTotal = total; // Uses the new capped discount calculation
+  const totalDifference = Math.abs(storedTotal - computedTotal);
+  const significantDifference = storedTotal > 0 && (totalDifference / storedTotal) > 0.10;
+  
+  // Use stored total if available and reasonable (within 10% of computed)
+  // If stored is 0 (bug), use computed. If computed differs significantly, use computed
+  const effectiveTotal = (storedTotal > 0 && !significantDifference) ? storedTotal : computedTotal;
+  let balanceDue = Math.max(0, effectiveTotal - amountReceived);
   let paymentStatus = "UNPAID";
-  if (amountReceived >= total - 0.01) {
+  if (amountReceived >= effectiveTotal - 0.01) {
     paymentStatus = "PAID";
   } else if (amountReceived > 0) {
     paymentStatus = "PARTIAL";
   }
+  // For self-heal, use the computed payable total
+  const actualTotalForHeal = total;
   const healResult = await selfHealInvoicePaymentOnLoad({
     invoiceId: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
     persistedTotalAmount: invoice.totalAmount || 0,
-    computedTotalAmount: total,
+    computedTotalAmount: actualTotalForHeal,
     paidAmount: amountReceived,
     currentPaymentStatus: invoice.paymentStatus || "UNPAID",
-    currentStatus: invoice.status || "ISSUED"
+    currentStatus: invoice.status || "ISSUED",
+    computedDiscountTotal: discount
   });
   paymentStatus = healResult.paymentStatus;
   balanceDue = healResult.balanceDue;
@@ -459,11 +498,14 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
         details.push(`Ratti: ${item.inventory.weightRatti}`);
       }
       if (displayOptions.showCertificates) {
+        // For PDF: Only show certificate provider and number (QR code will have the URL)
+        // For Webpage: Show full certificate info with clickable link
         const provider = item.inventory.certificates && item.inventory.certificates.length > 0
           ? item.inventory.certificates.map((c) => (c.remarks ? `${c.name} (${c.remarks})` : c.name)).join(", ")
           : (item.inventory.certification || item.inventory.certificateLab || item.inventory.lab || "");
         const certNoRaw = item.inventory.certificateNumber || item.inventory.certificateNo || "";
         const certNo = typeof certNoRaw === "string" ? certNoRaw.trim() : "";
+        // For PDF description, don't include the URL (QR code will handle that)
         const text = provider && certNo ? `Cert: ${provider} #${certNo}` : certNo ? `Cert No: ${certNo}` : provider ? `Cert: ${provider}` : "";
         if (text) details.push(text);
       }
@@ -475,7 +517,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
         details.push(`Rate: Rs. ${Number(rateFallback || 0).toFixed(2)}`);
       }
       if (details.length > 0) {
-        descriptionParts.push(details.join(" | "));
+        descriptionParts.push(details.join("\n"));
       }
 
       const hsn = item.inventory.category ? categoryHsnMap[item.inventory.category] : undefined;
@@ -484,32 +526,30 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
         : item.inventory.weightValue
         ? `${item.inventory.weightValue} ${item.inventory.weightUnit}`
         : "1";
+      // Get certificate URL for QR code
+      const certificateUrl = resolveInventoryCertificateUrl(item.inventory);
+      
       return {
         sku: displayOptions.showSku ? item.inventory.sku : "",
         hsn,
         description: descriptionParts.join("\n"),
         quantity: 1,
         displayQty: qtyLabel,
-        unitPrice: displayOptions.showPrice ? item.basePrice : 0, // Should we hide price value too? Usually invoice needs totals. User said "what information to b visible on the invoice". If they uncheck price, maybe they want a delivery challan style? But this is an invoice. Let's assume showPrice controls the *rate details* description mostly, but for columns, if showPrice is false, maybe we should hide the columns? But the PDF generator expects numbers.
-        // If showPrice is false, it's weird for an invoice. I will keep the totals but maybe hide the rate details in description as I did above.
-        // Actually, if showPrice is false, the user might want a "Delivery Challan" or "Memo" look. 
-        // For now, I will respect showPrice for the unit price and total columns in the UI. For PDF data, it's strictly typed.
-        // Let's assume showPrice controls the "Rate: .../ct" line and maybe the SKU visibility if requested.
-        // But wait, I added showPrice to options.
-        // If showPrice is false, I will pass 0 or empty string where possible, but PDF generator needs numbers for calculations.
-        // Let's stick to description modification for now. The invoice *must* have totals to be a valid invoice.
+        unitPrice: displayOptions.showPrice ? item.basePrice : 0,
+        usdPrice: isExportInvoice ? (saleUsdPriceMap.get(item.id) || 0) : undefined,
         gstRate: item.gstRate,
         gstAmount: item.calculatedGst,
-        total: item.finalTotal // Show Final Total (Inclusive - Discount)
+        total: item.finalTotal,
+        certificateUrl: certificateUrl || undefined
       };
     }),
     grossTotal: gstCalc.grossTotal,
     subtotal: subtotalBase, // Show Base Subtotal
-    discount: discount + couponDiscountTotal,
+    discount: itemDiscountTotal + invoiceDiscountAmount + couponDiscountTotal, // Total discount for PDF
     tax: totalGst,
     shippingCharge: Number.isFinite(shippingCharge) ? shippingCharge : 0,
     additionalCharge: Number.isFinite(additionalCharge) ? additionalCharge : 0,
-    total: isReplacement ? 0 : total,
+    total: isReplacement ? 0 : effectiveTotal,
     amountPaid: isReplacement ? 0 : amountReceived,
     balanceDue: isReplacement ? 0 : balanceDue,
     status: isReplacement ? "REPLACEMENT" : statusLabel,
@@ -529,9 +569,10 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     modeOfTransport: (invoice as { modeOfTransport?: string }).modeOfTransport as "AIR" | "COURIER" | "HAND_DELIVERY" | undefined,
     courierPartner: (invoice as { courierPartner?: string }).courierPartner || undefined,
     trackingId: (invoice as { trackingId?: string }).trackingId || undefined,
+    platformOrderId: (primarySale as { orderId?: string | null }).orderId || undefined,
     notes: [invoiceSettings?.footerNotes, invoice.notes || "", creditNoteText ? `Credit Note(s): ${creditNoteText}` : ""].filter(Boolean).join("\n") || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
-    upiQrData: !isReplacement && paymentSettings?.upiEnabled && paymentSettings?.upiId ? 
+    upiQrData: !isReplacement && !isExportInvoice && paymentSettings?.upiEnabled && paymentSettings?.upiId ? 
       `upi://pay?pa=${paymentSettings.upiId}&pn=${encodeURIComponent(paymentSettings.upiPayeeName || "")}&am=${balanceDue.toFixed(2)}&cu=INR` : undefined,
     bankDetails: isReplacement ? undefined : (paymentSettings?.bankEnabled ? {
       bankName: paymentSettings.bankName || "",
@@ -634,6 +675,12 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                         <span className="text-xs font-semibold text-blue-600 uppercase">Tracking ID</span>
                         <p className="font-medium text-gray-900">{(invoice as { trackingId?: string }).trackingId || "-"}</p>
                     </div>
+                    {(primarySale as { orderId?: string | null }).orderId && (
+                    <div className="col-span-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 flex items-center gap-3">
+                        <span className="text-xs font-semibold text-blue-700 uppercase tracking-widest">Platform Order ID</span>
+                        <p className="font-bold text-blue-900 font-mono text-base">{(primarySale as { orderId?: string | null }).orderId}</p>
+                    </div>
+                    )}
                 </div>
             </div>
             )}
@@ -753,7 +800,12 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                 )}
                             </td>
                             <td className="py-4 px-3 text-right text-gray-600 align-top">
-                                {showForeignCurrency ? formatForeignCurrency(item.basePrice) : formatCurrency(item.basePrice)}
+                                {showForeignCurrency ? (
+                                  <>
+                                    <div className="font-medium">{formatForeignCurrency(saleUsdPriceMap.get(item.id) || 0)}</div>
+                                    <div className="text-[10px] text-gray-400">{formatCurrency((saleUsdPriceMap.get(item.id) || 0) * conversionRate)} INR</div>
+                                  </>
+                                ) : formatCurrency(item.basePrice)}
                             </td>
                             {!isExportInvoice && (
                             <td className="py-4 px-3 text-right text-gray-600 align-top">
@@ -764,7 +816,12 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                             </td>
                             )}
                             <td className="py-4 px-3 text-right font-semibold text-gray-900 align-top">
-                                {showForeignCurrency ? formatForeignCurrency(item.finalTotal) : formatCurrency(item.finalTotal)}
+                                {showForeignCurrency ? (
+                                  <>
+                                    <div>{formatForeignCurrency(saleUsdPriceMap.get(item.id) || 0)}</div>
+                                    <div className="text-[10px] text-gray-400">{formatCurrency((saleUsdPriceMap.get(item.id) || 0) * conversionRate)} INR</div>
+                                  </>
+                                ) : formatCurrency(item.finalTotal)}
                             </td>
                           </tr>
                         ))}
@@ -786,15 +843,47 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                 <span>-{formatCurrency(discount)}</span>
                             </div>
                         )}
-                        <div className="flex justify-between text-sm text-gray-600">
+                        {!isExportInvoice && (
+                          <div className="flex justify-between text-sm text-gray-600">
                             <span>Taxable Amount</span>
                             <span>{formatCurrency(subtotalBase)}</span>
-                        </div>
+                          </div>
+                        )}
+                        {isExportInvoice && (
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Taxable Amount ({invoiceCurrency})</span>
+                            <span>{formatForeignCurrency(totalUsdFromSales)}</span>
+                          </div>
+                        )}
                         {!isExportInvoice && (
                         <div className="flex justify-between text-sm text-gray-600">
                             <span>Total GST</span>
                             <span>{formatCurrency(totalGst)}</span>
                         </div>
+                        )}
+                        {isExportInvoice && (
+                          <div className="flex justify-between text-sm text-emerald-600">
+                            <span>GST</span>
+                            <span>Zero Rated</span>
+                          </div>
+                        )}
+                        {shippingCharge > 0 && (
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Shipping Charges</span>
+                            <span>+{formatCurrency(shippingCharge)}</span>
+                          </div>
+                        )}
+                        {additionalCharge > 0 && (
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Additional Charges</span>
+                            <span>+{formatCurrency(additionalCharge)}</span>
+                          </div>
+                        )}
+                        {invoiceDiscountAmount > 0 && (
+                          <div className="flex justify-between text-sm text-red-600">
+                            <span>Discount</span>
+                            <span>-{formatCurrency(invoiceDiscountAmount)}</span>
+                          </div>
                         )}
                         {couponDiscountTotal > 0 ? (
                           <div className="flex justify-between text-sm text-indigo-600">
@@ -802,28 +891,35 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                             <span>-{formatCurrency(couponDiscountTotal)}</span>
                           </div>
                         ) : null}
-                        {showForeignCurrency && (
-                          <div className="flex justify-between text-sm text-indigo-600">
-                            <span>Foreign Total ({invoiceCurrency})</span>
-                            <span className="font-semibold">{formatForeignCurrency(total)}</span>
+                        {isExportInvoice ? (
+                          <>
+                            <div className="border-t border-slate-900 pt-3 flex justify-between items-end">
+                              <span className="text-sm font-bold text-gray-900 uppercase">Total ({invoiceCurrency})</span>
+                              <span className="text-2xl font-bold text-blue-700">{formatForeignCurrency(totalUsdFromSales)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="border-t border-slate-900 pt-3 flex justify-between items-end">
+                            <span className="text-sm font-bold text-gray-900 uppercase">Total (INR)</span>
+                            <span className="text-2xl font-bold text-gray-900">{formatCurrency(effectiveTotal)}</span>
                           </div>
                         )}
-                        <div className="border-t border-slate-900 pt-3 flex justify-between items-end">
-                            <span className="text-sm font-bold text-gray-900 uppercase">Total (INR)</span>
-                            <span className="text-2xl font-bold text-gray-900">{formatCurrency(total)}</span>
-                        </div>
                         
                         {/* Received / Pending */}
                         <div className="pt-4 space-y-2 border-t border-dashed border-gray-200">
                              <div className="flex justify-between text-sm text-green-600 font-medium">
                                 <span>Received Amount</span>
-                                <span>{formatCurrency(amountReceived)}</span>
+                                <span>{isExportInvoice
+                                  ? formatForeignCurrency(conversionRate > 0 ? amountReceived / conversionRate : amountReceived)
+                                  : formatCurrency(amountReceived)}</span>
                             </div>
                             <div className="flex justify-between text-sm text-red-600 font-medium">
                                 <span>Pending Amount</span>
-                                <span>{formatCurrency(balanceDue)}</span>
+                                <span>{isExportInvoice
+                                  ? formatForeignCurrency(conversionRate > 0 ? balanceDue / conversionRate : balanceDue)
+                                  : formatCurrency(balanceDue)}</span>
                             </div>
-                            {paymentBreakdownRows.length > 0 && (
+                            {!isExportInvoice && paymentBreakdownRows.length > 0 && (
                               <div className="pt-2 border-t border-dashed border-gray-200 space-y-1">
                                 <div className="text-xs font-semibold text-gray-700">Payment Breakdown</div>
                                 {paymentBreakdownRows.map((row) => (
@@ -889,8 +985,8 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                 </div>
             </div>
             
-             {/* Payment Details Footer (Print/PDF only mostly, but visible here too) */}
-             {(paymentSettings?.upiEnabled || paymentSettings?.bankEnabled || (paymentSettings?.razorpayEnabled && paymentSettings?.razorpayButtonId && !isPaid)) && (
+             {/* Payment Details Footer — hidden for export invoices (UPI/bank not relevant for foreign buyers) */}
+             {!isExportInvoice && (paymentSettings?.upiEnabled || paymentSettings?.bankEnabled || (paymentSettings?.razorpayEnabled && paymentSettings?.razorpayButtonId && !isPaid)) && (
                 <div className="bg-slate-50 px-10 py-6 border-t border-slate-200 flex gap-8">
                      {paymentSettings?.upiEnabled && paymentSettings.upiId && (
                          <div className="flex items-center gap-4">

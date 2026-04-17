@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix Invoice Total</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; }
+    input, button { padding: 10px; margin: 5px 0; width: 100%; font-size: 16px; }
+    button { background: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    #result { margin-top: 20px; padding: 10px; border-radius: 5px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <h2>Fix Invoice Total</h2>
+  <label>Invoice Number:</label>
+  <input type="text" id="invoiceNumber" value="INV-2026-0026" />
+  <label>New Total Amount (₹):</label>
+  <input type="number" id="totalAmount" value="1000" />
+  <button onclick="fixInvoice()">Fix Invoice</button>
+  <div id="result"></div>
+
+  <script>
+    async function fixInvoice() {
+      const invoiceNumber = document.getElementById('invoiceNumber').value;
+      const totalAmount = parseInt(document.getElementById('totalAmount').value);
+      const resultDiv = document.getElementById('result');
+      
+      try {
+        const response = await fetch('http://localhost:3000/api/admin/fix-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoiceNumber, totalAmount })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          resultDiv.className = 'success';
+          resultDiv.innerHTML = '<strong>Success!</strong><br>Invoice: ' + data.invoice.invoiceNumber + '<br>New Total: ₹' + data.invoice.totalAmount;
+        } else {
+          resultDiv.className = 'error';
+          resultDiv.innerHTML = '<strong>Error:</strong> ' + (data.error || 'Unknown error');
+        }
+      } catch (error) {
+        resultDiv.className = 'error';
+        resultDiv.innerHTML = '<strong>Error:</strong> ' + error.message + '<br><br>Make sure the dev server is running (npm run dev)';
+      }
+    }
+  </script>
+</body>
+</html>

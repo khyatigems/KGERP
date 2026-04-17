@@ -114,6 +114,12 @@ export async function generateGciCertificate(
       return { success: false, error: "GCI API configuration missing in ERP" };
     }
 
+    // A 404 from the upstream Laravel app almost always means the configured endpoint path is wrong.
+    // This is independent of whether the ERP is running on localhost.
+    if (!/^https?:\/\//i.test(gciUrl)) {
+      return { success: false, error: "GCI API URL must start with http:// or https://" };
+    }
+
     try {
       // Log URL for debugging (sanitized)
       console.log("GCI Action - Hitting URL:", finalUrl.replace(gciKey || '', '***'));
@@ -150,6 +156,10 @@ export async function generateGciCertificate(
           errorMessage += `The server returned an invalid response (not JSON). Raw response: ${responseText.substring(0, 100)}...`;
         }
 
+        const sanitizedUrl = finalUrl.replace(gciKey || "", "***");
+        if (response.status === 404) {
+          errorMessage += ` Hint: 404 usually means GCI_API_URL is pointing to the wrong route. URL called: ${sanitizedUrl}`;
+        }
         return { success: false, error: errorMessage };
       }
 

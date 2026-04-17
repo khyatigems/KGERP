@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
 }
 
@@ -402,6 +402,13 @@ model Inventory {
   @@index([colorCodeId])
   @@index([cutCodeId])
   @@index([collectionCodeId])
+  // Performance indexes for common queries
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([status, createdAt])
+  @@index([gemType])
+  @@index([color])
+  @@index([weightValue])
 }
 
 model InventoryMedia {
@@ -500,6 +507,7 @@ model Sale {
   additionalCharge  Float     @default(0)
   saleDate          DateTime  @default(now())
   salePrice         Float
+  usdPrice          Float?    // USD price for export invoices
   taxAmount         Float     @default(0)
   discountAmount    Float     @default(0)
   netAmount         Float
@@ -627,9 +635,36 @@ model Invoice {
   followUps      FollowUp[]
   salesReturns   SalesReturn[]
   creditNotes    CreditNote[]
+  exportInvoice  ExportInvoice?
 
   @@index([quotationId])
   @@index([paymentStatus])
+}
+
+// Separate table for Export Invoices - keeps invoice numbers in same sequence
+model ExportInvoice {
+  id             String   @id @default(uuid())
+  invoiceId      String   @unique
+  // Export-specific fields (these extend the main Invoice)
+  customsDeclarationNumber String?
+  fobValue         Float?
+  freightCharges   Float?
+  insuranceCharges Float?
+  shippingBillNumber String?
+  portCode         String?
+  hsnCodes         String?
+  // Additional commercial details
+  buyerReference   String?
+  contractNumber   String?
+  preCarriageBy    String?
+  preCarriagePort  String?
+  
+  invoice          Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([customsDeclarationNumber])
 }
 
 model Payment {

@@ -62,6 +62,7 @@ export default async function NewSalePage() {
     orderBy: {
       createdAt: "desc",
     },
+    take: 50,
     select: {
       id: true,
       sku: true,

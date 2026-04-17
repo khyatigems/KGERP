@@ -20,6 +20,8 @@ export function computeInvoiceTotals(params: {
     ? (params.itemsTotal * invoiceDiscountValue) / 100
     : invoiceDiscountValue;
 
+  const invoiceDiscountAffectsTotal = params.displayOptions.invoiceDiscountAffectsTotal !== false;
+
   const showShippingCharge = typeof params.displayOptions.showShippingCharge === "boolean"
     ? Boolean(params.displayOptions.showShippingCharge)
     : Number(params.displayOptions.shippingCharge || 0) > 0;
@@ -30,7 +32,7 @@ export function computeInvoiceTotals(params: {
   const shippingCharge = showShippingCharge ? Number(params.displayOptions.shippingCharge || 0) : 0;
   const additionalCharge = showAdditionalCharge ? Number(params.displayOptions.additionalCharge || 0) : 0;
 
-  const totalBeforeExtras = Math.max(0, params.itemsTotal - invoiceDiscountAmount);
+  const totalBeforeExtras = Math.max(0, params.itemsTotal - (invoiceDiscountAffectsTotal ? invoiceDiscountAmount : 0));
   const totalAmount = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
 
   return {
@@ -139,10 +141,12 @@ export async function selfHealInvoicePaymentOnLoad(params: {
   paidAmount: number;
   currentPaymentStatus: string;
   currentStatus: string;
+  computedDiscountTotal?: number;
 }) {
   const paidAmount = params.paidAmount || 0;
-  const computedTotalAmount = Math.max(0, params.computedTotalAmount || 0);
-  const currentTotalAmount = Math.max(0, params.persistedTotalAmount || 0);
+  // Don't clamp to 0 - use the actual computed total (which could be > 0 even when stored is 0 due to bug)
+  const computedTotalAmount = params.computedTotalAmount || 0;
+  const currentTotalAmount = params.persistedTotalAmount || 0;
   const nextPaidAmount = Math.min(computedTotalAmount, Math.max(0, paidAmount));
   const nextPaymentStatus = computeInvoicePaymentStatus(computedTotalAmount, paidAmount);
   const nextStatus = nextPaymentStatus === "PAID" ? "PAID" : "ISSUED";
@@ -151,7 +155,8 @@ export async function selfHealInvoicePaymentOnLoad(params: {
     Math.abs(currentTotalAmount - computedTotalAmount) > 0.009 ||
     params.currentPaymentStatus !== nextPaymentStatus ||
     params.currentStatus !== nextStatus ||
-    Math.abs((params.paidAmount || 0) - nextPaidAmount) > 0.009;
+    Math.abs((params.paidAmount || 0) - nextPaidAmount) > 0.009 ||
+    (params.computedDiscountTotal !== undefined);
 
   if (!requiresUpdate) {
     return {
@@ -164,14 +169,18 @@ export async function selfHealInvoicePaymentOnLoad(params: {
   }
 
   await prisma.$transaction(async (tx) => {
+    const updateData: { totalAmount: number; paymentStatus: string; status: string; paidAmount: number; discountTotal?: number } = {
+      totalAmount: computedTotalAmount,
+      paymentStatus: nextPaymentStatus,
+      status: nextStatus,
+      paidAmount: nextPaidAmount,
+    };
+    if (params.computedDiscountTotal !== undefined) {
+      updateData.discountTotal = params.computedDiscountTotal;
+    }
     await tx.invoice.update({
       where: { id: params.invoiceId },
-      data: {
-        totalAmount: computedTotalAmount,
-        paymentStatus: nextPaymentStatus,
-        status: nextStatus,
-        paidAmount: nextPaidAmount,
-      }
+      data: updateData
     });
 
     await tx.sale.updateMany({

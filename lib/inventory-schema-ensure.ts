@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 
-let ensuredInventoryColumns = false;
+const globalForInventoryEnsure = globalThis as unknown as {
+  __kgerpEnsuredInventoryColumns?: boolean;
+};
+
+let ensuredInventoryColumns = globalForInventoryEnsure.__kgerpEnsuredInventoryColumns ?? false;
 
 export async function ensureInventoryBraceletSchema() {
   if (ensuredInventoryColumns) return;
@@ -22,5 +26,6 @@ export async function ensureInventoryBraceletSchema() {
   }
 
   ensuredInventoryColumns = true;
+  globalForInventoryEnsure.__kgerpEnsuredInventoryColumns = true;
 }
 

@@ -70,6 +70,7 @@ const formSchema = z.object({
   items: z.array(z.object({
     inventoryId: z.string().uuid("Please select an item"),
     sellingPrice: z.coerce.number().positive("Selling price must be positive"),
+    usdPrice: z.coerce.number().positive("USD price must be positive").optional(),
     discount: z.coerce.number().min(0).default(0),
   })).min(1, "Select at least one item"),
   platform: z.string().min(1, "Platform is required"),
@@ -95,14 +96,22 @@ const formSchema = z.object({
   autoDelistListings: z.boolean().default(true),
   autoFillSplitFromSingle: z.boolean().default(true),
   couponCode: z.string().optional(),
-  loyaltyRedeemAmount: z.coerce.number().min(0).default(0),
+  loyaltyRedeemAmount: z.coerce.number().min(0).optional(),
   initialPayments: z.array(z.object({
-    amount: z.coerce.number().positive("Amount must be greater than zero"),
-    method: z.string().min(1, "Method is required"),
-    date: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" }),
+    amount: z.coerce.number().positive("Payment amount must be positive"),
+    method: z.string().min(1, "Payment method is required"),
+    date: z.string().min(1, "Payment date is required"),
     reference: z.string().optional(),
     notes: z.string().optional(),
-  })).default([]),
+  })).optional(),
+}).refine((data) => {
+  if (data.invoiceType === "EXPORT_INVOICE") {
+    return data.items.every(item => item.usdPrice && item.usdPrice > 0);
+  }
+  return true;
+}, {
+  message: "USD price is required for all items in export invoices",
+  path: ["items"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -235,8 +244,24 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   const shippingAddressValue = form.watch("shippingAddress");
   const customerIdValue = form.watch("customerId");
   const loyaltyRedeemAmountValue = Number(form.watch("loyaltyRedeemAmount") || 0);
-  const invoiceType = form.watch("invoiceType");
+  const [currentInvoiceType, setCurrentInvoiceType] = useState("TAX_INVOICE");
   const invoiceCurrency = form.watch("invoiceCurrency");
+
+  // Use local state for reliable conditional rendering
+  React.useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "invoiceType") {
+        setCurrentInvoiceType(value.invoiceType || "TAX_INVOICE");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Initialize with form value
+  React.useEffect(() => {
+    const formValue = form.getValues("invoiceType");
+    setCurrentInvoiceType(formValue || "TAX_INVOICE");
+  }, [form]);
   const conversionRate = Number(form.watch("conversionRate") || 1);
 
   const [loyaltyContext, setLoyaltyContext] = useState<{
@@ -414,6 +439,12 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
         toast.error("Conversion rate is required for foreign currency invoices");
         return;
       }
+      // Validate USD prices are provided for all items in export invoices
+      const missingUsdPrices = data.items.filter(item => !item.usdPrice || item.usdPrice <= 0);
+      if (missingUsdPrices.length > 0) {
+        toast.error("USD price is required for all items in export invoices");
+        return;
+      }
     }
 
     setIsPending(true);
@@ -499,7 +530,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Invoice Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={(val) => { field.onChange(val); setCurrentInvoiceType(val); }} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select invoice type" />
@@ -515,7 +546,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
               )}
             />
 
-            {invoiceType === "EXPORT_INVOICE" && (
+            {currentInvoiceType === "EXPORT_INVOICE" && (
               <>
                 {/* Export Details Section */}
                 <div className="rounded-md border p-4 space-y-4 bg-blue-50/50">
@@ -786,7 +817,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                   <TableHeader>
                     <TableRow>
                       <TableHead>Item</TableHead>
-                      <TableHead className="w-[120px]">Price</TableHead>
+                      <TableHead className="w-[120px]">Price (INR)</TableHead>
+                      {currentInvoiceType === "EXPORT_INVOICE" && <TableHead className="w-[120px]">Price (USD)</TableHead>}
                       <TableHead className="w-[120px]">Discount</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
@@ -816,6 +848,26 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                               )}
                             />
                           </TableCell>
+                          {currentInvoiceType === "EXPORT_INVOICE" && (
+                            <TableCell>
+                              <FormField
+                                control={form.control}
+                                name={`items.${index}.usdPrice`}
+                                render={({ field: usdPriceField }) => (
+                                  <FormItem>
+                                    <FormControl>
+                                      <Input 
+                                        type="number" 
+                                        step="0.01"
+                                        placeholder="USD Price"
+                                        {...usdPriceField} 
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell>
                             <FormField
                               control={form.control}
@@ -957,7 +1009,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                             <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
                             <SelectItem value="CASH">Cash</SelectItem>
                             <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
-                            <SelectItem value="PAYPAL">PayPal</SelectItem>
+                            {currentInvoiceType === "EXPORT_INVOICE" && <SelectItem value="PAYPAL">PayPal</SelectItem>}
+                            {currentInvoiceType === "EXPORT_INVOICE" && <SelectItem value="PAYONEER">Payoneer</SelectItem>}
                             <SelectItem value="CC">Credit Card</SelectItem>
                           </SelectContent>
                         </Select>
@@ -1180,6 +1233,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                                     <SelectItem value="CARD">Card</SelectItem>
                                     <SelectItem value="ADVANCE_ADJUST">Advance Adjustment</SelectItem>
                                     <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
+                                    {currentInvoiceType === "EXPORT_INVOICE" && <SelectItem value="PAYPAL">PayPal</SelectItem>}
+                                    {currentInvoiceType === "EXPORT_INVOICE" && <SelectItem value="PAYONEER">Payoneer</SelectItem>}
                                     <SelectItem value="OTHER">Other</SelectItem>
                                   </SelectContent>
                                 </Select>

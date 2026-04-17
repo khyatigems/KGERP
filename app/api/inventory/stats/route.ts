@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { cacheQuery } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
   const status = (sp.get("status") || "").trim();
   const vendorId = (sp.get("vendorId") || "").trim();
   const weightRange = (sp.get("weightRange") || "").trim();
+  const mode = (sp.get("mode") || "full").trim().toLowerCase();
 
   const minPrice = toNumber(sp.get("minPrice"));
   const maxPrice = toNumber(sp.get("maxPrice"));
@@ -168,123 +170,151 @@ export async function GET(request: NextRequest) {
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
-  const [
-    totalItems,
-    sums,
-    byCategory,
-    byGemType,
-    byCategoryGemType,
-    byStatus,
-    withImagesCount,
-    withCertificateCount,
-    withHsnCount,
-    completenessAllCount,
-    overallTotalItems,
-    overallByStatus,
-    agingFresh,
-    agingSlow,
-    agingDead
-  ] = await Promise.all([
-    prisma.inventory.count({ where }),
-    prisma.inventory.aggregate({ where, _sum: { sellingPrice: true }, _avg: { sellingPrice: true }, _max: { sellingPrice: true } }),
-    prisma.inventory.groupBy({
-      by: ["category", "status"],
-      where,
-      _count: { id: true },
-      _sum: { sellingPrice: true },
-      orderBy: { _count: { id: "desc" } },
-    }),
-    prisma.inventory.groupBy({
-      by: ["gemType", "status"],
-      where,
-      _count: { id: true },
-      _sum: { sellingPrice: true },
-      orderBy: { _count: { id: "desc" } },
-    }),
-    prisma.inventory.groupBy({
-      by: ["category", "gemType", "status"],
-      where,
-      _count: { id: true },
-      _sum: { sellingPrice: true },
-    }),
-    prisma.inventory.groupBy({
-      by: ["status"],
-      where,
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
-    }),
-    prisma.inventory.count({ where: imagesWhere }),
-    prisma.inventory.count({ where: certificateWhere }),
-    prisma.inventory.count({ where: hsnReadyWhere }),
-    prisma.inventory.count({ where: completenessWhere }),
-    prisma.inventory.count({ where: overallWhere }),
-    prisma.inventory.groupBy({
-      by: ["status"],
-      where: overallWhere,
-      _count: { id: true },
-      orderBy: { _count: { id: "desc" } },
-    }),
-    prisma.inventory.count({
-      where: {
-        ...where,
-        status: "IN_STOCK",
-        createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-      },
-    }),
-    prisma.inventory.count({
-      where: {
-        ...where,
-        status: "IN_STOCK",
-        createdAt: {
-          lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-          gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-        },
-      },
-    }),
-    prisma.inventory.count({
-      where: {
-        ...where,
-        status: "IN_STOCK",
-        createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
-      },
-    }),
-  ]);
+  const cacheKey = JSON.stringify({ q, category, gemType, color, status, vendorId, weightRange, minPrice, maxPrice, createdFrom: createdFrom?.toISOString(), createdTo: createdTo?.toISOString(), mode });
 
-  return NextResponse.json({
-    totalItems,
-    overallTotalItems,
-    totalSell: sums._sum.sellingPrice || 0,
-    avgSell: sums._avg.sellingPrice || 0,
-    maxSell: sums._max.sellingPrice || 0,
-    withImagesCount,
-    withCertificateCount,
-    withHsnCount,
-    completenessAllCount,
-    aging: {
-      fresh: agingFresh,
-      slow: agingSlow,
-      dead: agingDead,
+  const getQuick = cacheQuery(
+    async () => {
+      const [totalItems, sums, withCertificateCount, agingDead] = await Promise.all([
+        prisma.inventory.count({ where }),
+        prisma.inventory.aggregate({ where, _sum: { sellingPrice: true } }),
+        prisma.inventory.count({ where: certificateWhere }),
+        prisma.inventory.count({
+          where: {
+            ...where,
+            status: "IN_STOCK",
+            createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+          },
+        }),
+      ]);
+
+      return {
+        totalItems,
+        totalSell: Number(sums?._sum?.sellingPrice || 0),
+        withCertificateCount,
+        aging: { dead: agingDead },
+      };
     },
-    byStatus: byStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
-    overallByStatus: overallByStatus.map((r) => ({ status: r.status || "UNKNOWN", items: r._count.id || 0 })),
-    byCategory: byCategory.map((r) => ({
-      category: r.category || "Uncategorized",
-      status: r.status || "UNKNOWN",
-      items: r._count.id || 0,
-      sellValue: r._sum.sellingPrice || 0,
-    })),
-    byGemType: byGemType.map((r) => ({
-      gemType: r.gemType || "Unknown",
-      status: r.status || "UNKNOWN",
-      items: r._count.id || 0,
-      sellValue: r._sum.sellingPrice || 0,
-    })),
-    byCategoryGemType: byCategoryGemType.map((r) => ({
-      category: r.category || "Uncategorized",
-      gemType: r.gemType || "Unknown",
-      status: r.status || "UNKNOWN",
-      items: r._count.id || 0,
-      sellValue: r._sum.sellingPrice || 0,
-    })),
-  });
+    ["inventory", "stats", "quick", cacheKey],
+    30,
+    ["inventory:stats"]
+  );
+
+  const getFull = cacheQuery(
+    async () => {
+      const [
+        totalItems,
+        sums,
+        byCategory,
+        byGemType,
+        byCategoryGemType,
+        byStatus,
+        withImagesCount,
+        withCertificateCount,
+        withHsnCount,
+        completenessAllCount,
+        overallTotalItems,
+        overallByStatus,
+        agingFresh,
+        agingSlow,
+        agingDead,
+      ] = await Promise.all([
+        prisma.inventory.count({ where }),
+        prisma.inventory.aggregate({ where, _sum: { sellingPrice: true }, _avg: { sellingPrice: true }, _max: { sellingPrice: true } }),
+        prisma.inventory.groupBy({
+          by: ["category", "status"],
+          where,
+          _count: { id: true },
+          _sum: { sellingPrice: true },
+          orderBy: { _count: { id: "desc" } },
+        }),
+        prisma.inventory.groupBy({
+          by: ["gemType", "status"],
+          where,
+          _count: { id: true },
+          _sum: { sellingPrice: true },
+          orderBy: { _count: { id: "desc" } },
+        }),
+        prisma.inventory.groupBy({
+          by: ["category", "gemType", "status"],
+          where,
+          _count: { id: true },
+          _sum: { sellingPrice: true },
+        }),
+        prisma.inventory.groupBy({
+          by: ["status"],
+          where,
+          _count: { id: true },
+          orderBy: { _count: { id: "desc" } },
+        }),
+        prisma.inventory.count({ where: imagesWhere }),
+        prisma.inventory.count({ where: certificateWhere }),
+        prisma.inventory.count({ where: hsnReadyWhere }),
+        prisma.inventory.count({ where: completenessWhere }),
+        prisma.inventory.count({ where: overallWhere }),
+        prisma.inventory.groupBy({
+          by: ["status"],
+          where: overallWhere,
+          _count: { id: true },
+          orderBy: { _count: { id: "desc" } },
+        }),
+        prisma.inventory.count({
+          where: {
+            ...where,
+            status: "IN_STOCK",
+            createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+          },
+        }),
+        prisma.inventory.count({
+          where: {
+            ...where,
+            status: "IN_STOCK",
+            createdAt: {
+              lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+              gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+            },
+          },
+        }),
+        prisma.inventory.count({
+          where: {
+            ...where,
+            status: "IN_STOCK",
+            createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+          },
+        }),
+      ]);
+
+      const totalSell = Number(sums?._sum?.sellingPrice || 0);
+      const avgSell = Number(sums?._avg?.sellingPrice || 0);
+      const maxSell = Number(sums?._max?.sellingPrice || 0);
+
+      return {
+        totalItems,
+        overallTotalItems,
+        totalSell,
+        avgSell,
+        maxSell,
+        withImagesCount,
+        withCertificateCount,
+        withHsnCount,
+        completenessAllCount,
+        aging: { fresh: agingFresh, slow: agingSlow, dead: agingDead },
+        byCategory: byCategory.map((r) => ({ category: r.category || "-", status: r.status || "-", items: r._count.id, sellValue: Number(r._sum.sellingPrice || 0) })),
+        byGemType: byGemType.map((r) => ({ gemType: r.gemType || "-", status: r.status || "-", items: r._count.id, sellValue: Number(r._sum.sellingPrice || 0) })),
+        byCategoryGemType: byCategoryGemType.map((r) => ({ category: r.category || "-", gemType: r.gemType || "-", status: r.status || "-", items: r._count.id, sellValue: Number(r._sum.sellingPrice || 0) })),
+        byStatus: byStatus.map((r) => ({ status: r.status || "-", items: r._count.id })),
+        overallByStatus: overallByStatus.map((r) => ({ status: r.status || "-", items: r._count.id })),
+      };
+    },
+    ["inventory", "stats", "full", cacheKey],
+    60,
+    ["inventory:stats"]
+  );
+
+  if (mode === "quick") {
+    const payload = await getQuick();
+    return NextResponse.json(payload);
+  }
+
+  const payload = await getFull();
+  return NextResponse.json(payload);
 }

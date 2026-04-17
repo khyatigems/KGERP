@@ -35,7 +35,7 @@ const fetcher = async (url: string) => {
 export function InventoryStats() {
   const searchParams = useSearchParams();
   const qs = searchParams.toString();
-  const url = `/api/inventory/stats${qs ? `?${qs}` : ""}`;
+  const url = `/api/inventory/stats?mode=full${qs ? `&${qs}` : ""}`;
 
   const { data, isLoading, isValidating } = useSWR<InventoryStatsResponse>(url, fetcher, {
     revalidateOnFocus: false,

@@ -46,7 +46,9 @@ export function FileUpload({ onUploadComplete, defaultFiles = [], sku, category 
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.message || errorData.error || `Upload failed (${response.status})`;
+        throw new Error(errorMsg);
       }
 
       const data = await response.json();
@@ -60,8 +62,9 @@ export function FileUpload({ onUploadComplete, defaultFiles = [], sku, category 
       setUploadedFiles(updatedFiles);
       onUploadComplete(updatedFiles); // Pass full list back to parent
     } catch (error) {
-      console.error(error);
-      setUploadError('Failed to upload files. Please try again.');
+      console.error('File upload error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to upload files. Please try again.';
+      setUploadError(errorMsg);
     } finally {
       setIsUploading(false);
     }

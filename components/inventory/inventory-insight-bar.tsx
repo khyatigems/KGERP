@@ -20,7 +20,7 @@ const fetcher = async (url: string) => {
 export function InventoryInsightBar() {
   const searchParams = useSearchParams();
   const qs = searchParams.toString();
-  const url = `/api/inventory/stats${qs ? `?${qs}` : ""}`;
+  const url = `/api/inventory/stats?mode=quick${qs ? `&${qs}` : ""}`;
   const { data } = useSWR<InventoryStatsResponse>(url, fetcher, {
     revalidateOnFocus: false,
     keepPreviousData: true,

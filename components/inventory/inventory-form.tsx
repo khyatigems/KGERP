@@ -114,10 +114,10 @@ const formSchema = z.object({
   
   // Bracelet Attributes
   braceletType: z.string().optional(),
-  beadSizeMm: z.coerce.number().optional(),
-  beadCount: z.coerce.number().int().optional(),
-  holeSizeMm: z.coerce.number().optional(),
-  innerCircumferenceMm: z.coerce.number().optional(),
+  beadSizeMm: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().optional()),
+  beadCount: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().int().optional()),
+  holeSizeMm: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().optional()),
+  innerCircumferenceMm: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().optional()),
   standardSize: z.string().optional(),
 
   // Legacy/Other
@@ -150,6 +150,60 @@ const formSchema = z.object({
   }
 });
 
+// Input type for form state (allows strings for numeric fields to prevent uncontrolled input warnings)
+type FormInputValues = {
+  itemName: string;
+  internalName?: string | undefined;
+  category: string;
+  gemType?: string | undefined;
+  color?: string | undefined;
+  shape?: string | undefined;
+  dimensionsMm?: string | undefined;
+  weightValue: number;
+  weightUnit: string;
+  weightRatti?: number | undefined;
+  treatment?: string | undefined;
+  origin?: string | undefined;
+  fluorescence?: string | undefined;
+  certification?: string | undefined;
+  certificateCodeIds?: string[] | undefined;
+  transparency?: string | undefined;
+  vendorId: string;
+  pricingMode: "PER_CARAT" | "FLAT";
+  purchaseRatePerCarat?: number | undefined;
+  sellingRatePerCarat?: number | undefined;
+  flatPurchaseCost?: number | undefined;
+  flatSellingPrice?: number | undefined;
+  notes?: string | undefined;
+  certificateComments?: string | undefined;
+  stockLocation?: string | undefined;
+  mediaUrl?: string | undefined;
+  mediaUrls?: string[] | undefined;
+  categoryCodeId?: string | undefined;
+  gemstoneCodeId?: string | undefined;
+  colorCodeId?: string | undefined;
+  collectionCodeId?: string | undefined;
+  rashiCodeIds?: string[] | undefined;
+  cutCodeId?: string | undefined;
+  braceletType?: string | undefined;
+  beadSizeMm?: number | "" | undefined;
+  beadCount?: number | "" | undefined;
+  holeSizeMm?: number | "" | undefined;
+  innerCircumferenceMm?: number | "" | undefined;
+  standardSize?: string | undefined;
+  beadSize: string | undefined;
+  braceletSize?: string | undefined;
+  holeSize?: string | undefined;
+  ringSize?: string | undefined;
+  ringAdjustable?: string | undefined;
+  pendantLoop?: string | undefined;
+  figureHeight?: string | undefined;
+  figureWidth?: string | undefined;
+  chipSize?: string | undefined;
+  packingType?: string | undefined;
+};
+
+// Output type after Zod validation (number fields are properly typed)
 type FormValues = z.infer<typeof formSchema>;
 
 const ORIGIN_PRESETS = ["Burma (Myanmar)", "Sri Lanka (Ceylon)", "Kashmir", "Madagascar", "Mozambique", "Thailand", "Colombia", "Zambia"];
@@ -228,8 +282,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const [useCustomFluorescence, setUseCustomFluorescence] = useState(false);
 
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as Resolver<FormValues>,
+  const form = useForm<FormInputValues>({
+    resolver: zodResolver(formSchema) as unknown as Resolver<FormInputValues>,
     defaultValues: {
       itemName: initialData?.itemName || "",
       internalName: initialData?.internalName || "",
@@ -260,11 +314,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       collectionCodeId: initialData?.collectionCodeId || "",
       rashiCodeIds: initialData?.rashiCodes?.map((r: { id: string }) => r.id) || [],
       braceletType: initialData?.braceletType || "",
-      beadSizeMm: initialData?.beadSizeMm ?? undefined,
+      beadSizeMm: initialData?.beadSizeMm ?? "",
       beadSize: initialData?.beadSizeLabel || (initialData?.beadSizeMm ? `${initialData.beadSizeMm}mm` : ""),
-      beadCount: initialData?.beadCount ?? undefined,
-      holeSizeMm: initialData?.holeSizeMm ?? undefined,
-      innerCircumferenceMm: initialData?.innerCircumferenceMm ?? undefined,
+      beadCount: initialData?.beadCount ?? "",
+      holeSizeMm: initialData?.holeSizeMm ?? "",
+      innerCircumferenceMm: initialData?.innerCircumferenceMm ?? "",
       standardSize: initialData?.standardSize || "",
       categoryCodeId:
         initialData?.categoryCodeId ||
@@ -316,7 +370,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   useEffect(() => {
     if (initialData) return;
     if (!createDefaultsRef.current) {
-      createDefaultsRef.current = form.getValues();
+      try {
+        createDefaultsRef.current = formSchema.parse(form.getValues());
+      } catch {
+        // ignore
+      }
     }
   }, [initialData, form]);
 
@@ -394,7 +452,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   useEffect(() => {
     const v = (beadSize || "").trim();
     if (!v) {
-      form.setValue("beadSizeMm", undefined);
+      form.setValue("beadSizeMm", "", { shouldValidate: false });
       return;
     }
     const m = v.match(/^(\d+(?:\.\d+)?)\s*mm?$/i);
@@ -439,7 +497,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     }
   }, [selectedCategory, selectedGemstone, selectedColor, calculatedRatti, form]);
 
-  async function submitInventory(data: FormValues, ignoreDuplicates = false, shouldRedirect = true) {
+  async function submitInventory(data: z.output<typeof formSchema>, ignoreDuplicates = false, shouldRedirect = true) {
     const fastErrors: Array<{ field: keyof FormValues; message: string }> = [];
     if (!String(data.itemName || "").trim()) fastErrors.push({ field: "itemName", message: "Item Name is required" });
     if (!String(data.category || "").trim()) fastErrors.push({ field: "category", message: "Category is required" });
@@ -478,8 +536,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     setDuplicateWarning(null); // Clear previous warnings
 
     const optimisticToastId =
-      !initialData && !ignoreDuplicates
-        ? toast.success("Inventory Item Created Successfully", { duration: 2500 })
+      !ignoreDuplicates
+        ? toast.loading(initialData ? "Saving inventory..." : "Creating inventory...", { duration: Infinity })
         : null;
     
     const formData = new FormData();
@@ -506,17 +564,23 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
 
     try {
         let result;
+        const t0 = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
         if (initialData) {
             result = await updateInventory(initialData.id, null, formData);
         } else {
             result = await createInventory(null, formData);
         }
+        const t1 = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+        console.log(`[inventory-save] ${initialData ? "update" : "create"} finished in ${Math.round(Number(t1) - Number(t0))}ms`);
         
         if (result?.success) {
-             if (optimisticToastId == null) {
-               const msg = result.message || (initialData ? "Inventory updated successfully!" : "Inventory created & added to label cart!");
-               toast.success(msg, { duration: 2500 });
+             const msg = result.message || (initialData ? "Inventory updated successfully!" : "Inventory created & added to label cart!");
+             if (optimisticToastId != null) {
+               try {
+                 toast.dismiss(optimisticToastId);
+               } catch {}
              }
+             toast.success(msg, { duration: 2500 });
 
              const created = !initialData && isCreatedInventoryResult(result) ? result : null;
              
@@ -584,6 +648,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                     errorMsg += ` ${field}: ${messages}`;
                 }
              }
+             if (optimisticToastId != null) {
+               try {
+                 toast.dismiss(optimisticToastId);
+               } catch {}
+             }
              toast.error(errorMsg);
              if (result.errors) {
                  console.error("Form errors:", result.errors);
@@ -606,19 +675,21 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     }
   }
 
-  async function onSubmit(data: FormValues) {
+  async function onSubmit(data: FormInputValues) {
         setShouldRedirectAfterSave(true);
-        await submitInventory(data, false, true);
+        const parsed = formSchema.parse(data);
+        await submitInventory(parsed, false, true);
     }
 
-    async function onSaveAndAddNew(data: FormValues) {
+    async function onSaveAndAddNew(data: FormInputValues) {
         setShouldRedirectAfterSave(false);
-        await submitInventory(data, false, false);
+        const parsed = formSchema.parse(data);
+        await submitInventory(parsed, false, false);
     }
 
   const handleSaveAnyway = async () => {
     const data = form.getValues();
-    await submitInventory(data, true, shouldRedirectAfterSave);
+    await submitInventory(data as unknown as z.output<typeof formSchema>, true, shouldRedirectAfterSave);
   };
 
   return (
@@ -817,7 +888,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {categories.map((c) => (
+                      {categories.filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i).map((c) => (
                         <SelectItem key={c.id} value={c.name}>
                           {c.name} ({c.code})
                         </SelectItem>
@@ -847,7 +918,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                         </SelectTrigger>
                       </FormControl>
                     <SelectContent>
-                      {gemstones.map((g) => (
+                      {gemstones.filter((g, i, arr) => arr.findIndex((x) => x.name === g.name) === i).map((g) => (
                         <SelectItem key={g.id} value={g.name}>
                           {g.name} ({g.code})
                         </SelectItem>
@@ -924,7 +995,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {colorsList.map((c) => (
+                      {colorsList.filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i).map((c) => (
                         <SelectItem key={c.id} value={c.name}>
                           {c.name} ({c.code})
                         </SelectItem>
@@ -1735,7 +1806,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                           }
                           const result = await response.json();
                           const generated = typeof result?.description === "string" ? result.description.trim() : "";
-                          const finalDescription = generated || generateFallbackDescription(values);
+                          const parsedValues = formSchema.parse(values);
+                          const finalDescription = generated || generateFallbackDescription(parsedValues);
                           form.setValue("notes", finalDescription, { shouldDirty: true });
                           if (result?.warning) {
                             toast.warning(result.warning);
@@ -1743,7 +1815,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                             toast.success("Product description generated");
                           }
                         } catch {
-                          const fallback = generateFallbackDescription(values);
+                          const parsedValues = formSchema.parse(values);
+                          const fallback = generateFallbackDescription(parsedValues);
                           form.setValue("notes", fallback, { shouldDirty: true });
                           toast.warning("AI service unavailable. Added structured fallback description.");
                         } finally {

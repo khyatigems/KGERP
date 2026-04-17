@@ -20,7 +20,11 @@ import { accrueLoyaltyPoints } from "@/lib/loyalty-accrual";
 
 const saleItemSchema = z.object({
   inventoryId: z.string().uuid("Please select an item"),
-  sellingPrice: z.coerce.number().positive("Selling price must be positive"),
+  sellingPrice: z.coerce.number().min(0, "Selling price must be non-negative"),
+  usdPrice: z.preprocess(
+    (v) => (v === "" || v === null ? undefined : v),
+    z.coerce.number().min(0.01, "USD price must be greater than 0").optional()
+  ),
   discount: z.coerce.number().min(0).default(0),
 });
 
@@ -41,6 +45,7 @@ const saleSchema = z.object({
   modeOfTransport: z.enum(["AIR", "COURIER", "HAND_DELIVERY"]).optional(),
   courierPartner: z.string().optional(),
   trackingId: z.string().optional(),
+  platformOrderId: z.string().optional(),
   invoiceCurrency: z.enum(["INR", "USD", "EUR", "GBP"]).default("INR"),
   conversionRate: z.coerce.number().min(0).optional(),
   totalInrValue: z.coerce.number().min(0).optional(),
@@ -68,6 +73,8 @@ const saleSchema = z.object({
   initialPayments: z.array(initialPaymentSchema).optional().default([]),
   couponCode: z.string().optional(),
   loyaltyRedeemAmount: z.coerce.number().min(0).optional().default(0),
+  discountType: z.enum(["none", "flat", "coupon"]).optional().default("none"),
+  flatDiscount: z.coerce.number().min(0).optional().default(0),
 });
 
 function generateInvoiceToken() {
@@ -192,7 +199,15 @@ export async function createSale(prevState: unknown, formData: FormData) {
   const rawData = Object.fromEntries(formData.entries());
   const invoiceDisplayOptions = formData.get("invoiceDisplayOptions") as string | null;
 
-  let itemsData: { inventoryId: string; sellingPrice: number; discount: number }[] = [];
+  if (invoiceDisplayOptions) {
+    try {
+      JSON.parse(invoiceDisplayOptions);
+    } catch {
+      return { message: "Invalid invoice display options" };
+    }
+  }
+
+  let itemsData: { inventoryId: string; sellingPrice: number; usdPrice?: number; discount: number }[] = [];
   let initialPaymentsData: { amount: number; method: string; date: string; reference?: string; notes?: string }[] = [];
   try {
     if (typeof rawData.items === "string") {
@@ -201,6 +216,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
       itemsData = [{
         inventoryId: String(rawData.inventoryId),
         sellingPrice: Number(rawData.sellingPrice),
+        usdPrice: rawData.usdPrice ? Number(rawData.usdPrice) : undefined,
         discount: rawData.discount ? Number(rawData.discount) : 0
       }];
     }
@@ -247,9 +263,32 @@ export async function createSale(prevState: unknown, formData: FormData) {
         return { message: "Customer name is required to generate invoice under governance rules" };
       }
 
+      const isExport = data.invoiceType === "EXPORT_INVOICE";
+      if (isExport && !(data.conversionRate && data.conversionRate > 0)) {
+        return { message: "Conversion rate is required for export invoices" };
+      }
+      const convRate = (isExport && data.conversionRate && data.conversionRate > 0) ? data.conversionRate : 1;
+
+      if (isExport) {
+        for (const item of data.items) {
+          if (item.usdPrice == null || !Number.isFinite(Number(item.usdPrice)) || Number(item.usdPrice) <= 0) {
+            return { message: "USD price is required for export invoices" };
+          }
+        }
+      } else {
+        for (const item of data.items) {
+          if (item.sellingPrice == null || !Number.isFinite(Number(item.sellingPrice)) || Number(item.sellingPrice) <= 0) {
+            return { message: "Selling price is required" };
+          }
+        }
+      }
+
       const computedItems = data.items.map((input) => {
           const inv = inventoryMap.get(input.inventoryId)!;
-          const sellingPrice = input.sellingPrice;
+          const usdPrice = isExport ? (input.usdPrice || 0) : undefined;
+          // For export invoices: salePrice is INR equivalent (usdPrice × conversionRate)
+          // For domestic invoices: salePrice is the INR price directly
+          const sellingPrice = isExport && usdPrice ? Number((usdPrice * convRate).toFixed(2)) : input.sellingPrice;
           const discount = input.discount || 0;
           const netAmount = sellingPrice - discount;
           let cost = inv.flatPurchaseCost || 0;
@@ -257,7 +296,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
               cost = inv.purchaseRatePerCarat * inv.weightValue;
           }
           const profit = netAmount - cost;
-          return { inv, sellingPrice, discount, netAmount, profit };
+          return { inv, sellingPrice, usdPrice, discount, netAmount, profit, cost };
       });
 
       const shippingCharge = data.shippingCharge || 0;
@@ -266,7 +305,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
       const totalItemDiscount = computedItems.reduce((sum, i) => sum + i.discount, 0);
       const totalGrossAmount = itemGrossTotal + shippingCharge + additionalCharge;
       const subtotalAfterItemDiscount = totalGrossAmount - totalItemDiscount;
-      const allowedPaymentMethods = new Set(["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER", "PAYPAL", "CC", "CREDIT_NOTE", "LOYALTY_REDEEM"]);
+      const allowedPaymentMethods = new Set(["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER", "PAYPAL", "PAYONEER", "CC", "CREDIT_NOTE", "LOYALTY_REDEEM"]);
 
       let normalizedPayments = (data.initialPayments || []).map((p) => ({
         amount: Number(p.amount),
@@ -313,6 +352,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
       if (data.autoFillSplitFromSingle && (data.paymentStatus || "").toUpperCase() === "PAID" && normalizedPayments.length === 0) {
         return { message: "Add at least one payment entry or enable auto-fill split for PAID status" };
       }
+
+      const canExportInvoice = isExport ? await hasTable("ExportInvoice") : false;
 
       await prisma.$transaction(async (tx) => {
           const customerNameInput = String(data.customerName || "").trim();
@@ -395,6 +436,11 @@ export async function createSale(prevState: unknown, formData: FormData) {
             couponToRedeemId = c.id;
           }
 
+          // Calculate flat discount amount for invoice-level discount
+          const flatDiscountAmount = data.discountType === "flat" ? (data.flatDiscount || 0) : 0;
+
+          // Invoice-level flat discount is display-only (informational) and must NOT reduce payable total.
+          // Only coupon discount affects payable total.
           const adjustedInvoiceTotal = Math.max(0, subtotalAfterItemDiscount - couponDiscount);
           const inputLoyaltyRedeem = Math.max(0, Number(data.loyaltyRedeemAmount || 0));
           let loyaltyRedeemAmount = 0;
@@ -451,6 +497,34 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
           const token = generateInvoiceToken();
 
+          // Persisted discountTotal should reflect discounts that actually reduce payable total.
+          // Flat discount is display-only and excluded from discountTotal.
+          const totalDiscountAmount = totalItemDiscount + couponDiscount;
+          
+          // Build displayOptions with invoice discount info
+          let displayOptionsObj: Record<string, unknown> = {};
+          try {
+            if (invoiceDisplayOptions) {
+              displayOptionsObj = JSON.parse(invoiceDisplayOptions);
+            }
+          } catch {
+            // ignore parse errors
+          }
+          
+          // Add invoice discount to displayOptions so it shows on the invoice.
+          // Flat discount is display-only and must NOT affect total calculations.
+          if (flatDiscountAmount > 0) {
+            displayOptionsObj = {
+              ...displayOptionsObj,
+              invoiceDiscountType: "AMOUNT",
+              invoiceDiscountValue: flatDiscountAmount,
+              showInvoiceDiscount: true,
+              invoiceDiscountAffectsTotal: false
+            };
+          }
+          
+          const finalDisplayOptions = JSON.stringify(displayOptionsObj);
+
           const newInvoice = await tx.invoice.create({
               data: {
                   invoiceNumber,
@@ -460,9 +534,9 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   invoiceDate: normalizeDateToUtcNoon(data.saleDate),
                   subtotal: totalGrossAmount,
                   taxTotal: data.invoiceType === "EXPORT_INVOICE" ? 0 : 0, // Zero rated for export
-                  discountTotal: totalItemDiscount + couponDiscount,
+                  discountTotal: totalDiscountAmount,
                   totalAmount: adjustedInvoiceTotal,
-                  displayOptions: invoiceDisplayOptions,
+                  displayOptions: finalDisplayOptions,
                   paymentStatus: invoicePaymentStatus,
                   paidAmount: paidAmount >= adjustedInvoiceTotal - 0.01 ? adjustedInvoiceTotal : paidAmount,
                   status: invoicePaymentStatus === "PAID" ? "PAID" : "ISSUED",
@@ -480,6 +554,19 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   totalInrValue: data.totalInrValue || adjustedInvoiceTotal
               }
           });
+
+          // Create ExportInvoice record for export invoices
+          if (isExport && canExportInvoice) {
+            const totalUsd = computedItems.reduce((sum, i) => sum + (i.usdPrice || 0), 0);
+            // Create separate ExportInvoice record with export-specific details
+            await tx.exportInvoice.create({
+              data: {
+                invoiceId: newInvoice.id,
+                fobValue: totalUsd,
+                buyerReference: data.platformOrderId || null,
+              }
+            });
+          }
 
           // Create Journal Entry for Sale
           const arAccount = await getOrCreateAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, tx);
@@ -560,6 +647,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
               const saleData = {
                 inventoryId: itemData.inv.id,
                 platform: data.platform,
+                orderId: data.platformOrderId || null,
                 saleDate: data.saleDate,
                 customerId: customerProfile?.id || undefined,
                 customerName: customerNameFinal,
@@ -573,8 +661,10 @@ export async function createSale(prevState: unknown, formData: FormData) {
                 shippingCharge: shippingCharge,
                 additionalCharge: additionalCharge,
                 salePrice: itemData.sellingPrice,
+                usdPrice: itemData.usdPrice ?? null,
                 discountAmount: itemData.discount,
                 netAmount: itemData.netAmount,
+                costPriceSnapshot: itemData.cost,
                 profit: itemData.profit,
                 paymentMethod: data.paymentMode,
                 paymentStatus: invoicePaymentStatus,
@@ -818,13 +908,26 @@ export async function deleteSale(id: string) {
 
   await ensureInvoiceSupportSchema();
 
-  const [hasFollowUp, hasPayment, hasInvoiceVersion, hasCreditNote, hasSalesReturn, hasSalesReturnItem] = await Promise.all([
+  const [
+    hasFollowUp,
+    hasPayment,
+    hasInvoiceVersion,
+    hasCreditNote,
+    hasSalesReturn,
+    hasSalesReturnItem,
+    hasCustomerAdvanceAdjustment,
+    hasLoyaltyLedger,
+    hasCouponRedemption,
+  ] = await Promise.all([
     hasTable("FollowUp"),
     hasTable("Payment"),
     hasTable("InvoiceVersion"),
     hasTable("CreditNote"),
     hasTable("SalesReturn"),
     hasTable("SalesReturnItem"),
+    hasTable("CustomerAdvanceAdjustment"),
+    hasTable("LoyaltyLedger"),
+    hasTable("CouponRedemption"),
   ]);
 
   const sale = await prisma.sale.findUnique({
@@ -852,6 +955,11 @@ export async function deleteSale(id: string) {
             where: { id: sale.inventoryId },
             data: { status: "IN_STOCK" }
           });
+
+          // Delete advance adjustments linked to this sale before deleting the sale
+          if (hasCustomerAdvanceAdjustment) {
+            await tx.customerAdvanceAdjustment.deleteMany({ where: { saleId: id } });
+          }
 
           await tx.sale.delete({ where: { id } });
 
@@ -885,6 +993,17 @@ export async function deleteSale(id: string) {
               if (hasFollowUp) await tx.followUp.deleteMany({ where: { invoiceId: sale.invoiceId } });
               if (hasPayment) await tx.payment.deleteMany({ where: { invoiceId: sale.invoiceId } });
               if (hasInvoiceVersion) await tx.invoiceVersion.deleteMany({ where: { invoiceId: sale.invoiceId } });
+
+              // Delete loyalty ledger and coupon redemption entries linked to invoice
+              if (hasLoyaltyLedger) {
+                await tx.$executeRawUnsafe(`DELETE FROM "LoyaltyLedger" WHERE invoiceId = ?`, sale.invoiceId);
+              }
+              if (hasCouponRedemption) {
+                await tx.$executeRawUnsafe(`DELETE FROM "CouponRedemption" WHERE invoiceId = ?`, sale.invoiceId);
+              }
+
+              // Delete any remaining sale items on this invoice before deleting the invoice
+              await tx.sale.deleteMany({ where: { invoiceId: sale.invoiceId } });
 
               await tx.invoice.delete({ where: { id: sale.invoiceId } });
 
@@ -1063,6 +1182,7 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
             quantity: 1,
             displayQty: qtyLabel,
             unitPrice: item.salePrice, // Note: using salePrice here but might need basePrice depending on calculation
+            usdPrice: item.usdPrice, // USD price for export invoices
             basePrice: basePrice,
             gstRate,
             gstAmount,
@@ -1144,6 +1264,7 @@ export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceD
             quantity: 1,
             displayQty: item.displayQty,
             unitPrice: item.basePrice,
+            basePrice: item.basePrice,
             gstRate: item.gstRate,
             gstAmount: item.gstAmount,
             total: item.total

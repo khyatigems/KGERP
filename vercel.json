@@ -10,6 +10,10 @@
     {
       "path": "/api/cron/reports/export-jobs",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/inventory/rename-media",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

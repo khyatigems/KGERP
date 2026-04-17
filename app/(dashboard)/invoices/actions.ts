@@ -2,6 +2,7 @@
 
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
@@ -11,6 +12,42 @@ import { normalizeDateToUtcNoon } from "@/lib/date";
 import { updateInvoiceBillingFromDisplayOptions } from "@/lib/invoice-billing";
 import { logActivity } from "@/lib/activity-logger";
 import { recordInvoicePayment } from "@/lib/invoice-payment";
+
+async function computeNextInvoiceNumberUnsafe() {
+  const year = new Date().getFullYear();
+  const recentInvoices = await prisma.invoice.findMany({
+    where: {
+      invoiceNumber: {
+        startsWith: `INV-${year}-`
+      }
+    },
+    orderBy: {
+      createdAt: "desc"
+    },
+    select: { invoiceNumber: true },
+    take: 200,
+  });
+
+  let nextSequence = 1;
+  for (const inv of recentInvoices) {
+    const parts = String(inv.invoiceNumber || "").split("-");
+    if (parts.length !== 3) continue;
+    const seq = parseInt(parts[2] || "", 10);
+    if (Number.isFinite(seq) && seq >= nextSequence) {
+      nextSequence = seq + 1;
+    }
+  }
+
+  return `INV-${year}-${nextSequence.toString().padStart(4, "0")}`;
+}
+
+function parseInvoiceSequence(invoiceNumber: string | null | undefined) {
+  if (!invoiceNumber) return 0;
+  const parts = invoiceNumber.split("-");
+  if (parts.length !== 3) return 0;
+  const seq = parseInt(parts[2] || "", 10);
+  return Number.isFinite(seq) ? seq : 0;
+}
 
 export async function createOrUpdateInvoiceFromSale(
   saleId: string,
@@ -104,57 +141,68 @@ export async function createOrUpdateInvoiceFromSale(
         return { success: false, message: "Cannot create a normal invoice for a replacement dispatch. Use the replacement flow." };
       }
 
-      const invoiceId = await prisma.$transaction(async (tx) => {
-        const year = new Date().getFullYear();
-        
-        // Find last invoice number for this year to ensure uniqueness
-        const lastInvoice = await tx.invoice.findFirst({
-            where: {
-                invoiceNumber: {
-                    startsWith: `INV-${year}-`
-                }
-            },
-            orderBy: {
-                invoiceNumber: 'desc'
-            }
-        });
+      // Avoid interactive transaction (can time out on Turso). Use retry on unique invoiceNumber.
+      let invoiceId: string | null = null;
+      let attempts = 0;
 
-        let nextSequence = 1;
-        if (lastInvoice) {
-            const parts = lastInvoice.invoiceNumber.split('-');
-            if (parts.length === 3) {
-                const lastSeq = parseInt(parts[2]);
-                if (!isNaN(lastSeq)) {
-                    nextSequence = lastSeq + 1;
-                }
-            }
+      // Read the current max sequence once; on collision we increment locally.
+      const year = new Date().getFullYear();
+      let nextSequence = Math.max(1, parseInvoiceSequence(await computeNextInvoiceNumberUnsafe()));
+
+      while (!invoiceId && attempts < 50) {
+        attempts += 1;
+
+        // Periodically re-read the base sequence to reduce sustained collisions under concurrency.
+        if (attempts % 10 === 0) {
+          const refreshed = await computeNextInvoiceNumberUnsafe();
+          nextSequence = Math.max(nextSequence, parseInvoiceSequence(refreshed));
         }
 
         const invoiceNumber = `INV-${year}-${nextSequence.toString().padStart(4, "0")}`;
+        nextSequence += 1;
         const token = generateInvoiceToken();
 
-        const invoice = await tx.invoice.create({
-          data: {
-            invoiceNumber,
-            token,
-            isActive: true,
-            invoiceDate: normalizeDateToUtcNoon(sale.saleDate),
-            subtotal: sale.netAmount,
-            taxTotal: 0,
-            discountTotal: sale.discountAmount || 0,
-            totalAmount: sale.netAmount,
-            displayOptions: displayOptionsStr,
-            status: "ISSUED"
+        try {
+          const createdInvoice = await prisma.$transaction(async (tx) => {
+            const invoice = await tx.invoice.create({
+              data: {
+                invoiceNumber,
+                token,
+                isActive: true,
+                invoiceDate: normalizeDateToUtcNoon(sale.saleDate),
+                subtotal: sale.netAmount,
+                taxTotal: 0,
+                discountTotal: sale.discountAmount || 0,
+                totalAmount: sale.netAmount,
+                displayOptions: displayOptionsStr,
+                status: "ISSUED",
+              },
+              select: { id: true },
+            });
+
+            await tx.sale.update({
+              where: { id: saleId },
+              data: { invoiceId: invoice.id },
+            });
+
+            return invoice;
+          });
+
+          invoiceId = createdInvoice.id;
+        } catch (e) {
+          // Prisma unique constraint error
+          if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+            const target = (e.meta as { target?: string[] | string } | undefined)?.target;
+            const targetList = Array.isArray(target) ? target : typeof target === "string" ? [target] : [];
+            if (targetList.length === 0 || targetList.includes("invoiceNumber")) {
+              continue;
+            }
           }
-        });
+          throw e;
+        }
+      }
 
-        await tx.sale.update({
-          where: { id: saleId },
-          data: { invoiceId: invoice.id }
-        });
-
-        return invoice.id;
-      });
+      if (!invoiceId) return { success: false, message: "Failed to generate unique invoice number" };
 
       const created = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { token: true } });
 

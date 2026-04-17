@@ -3,6 +3,11 @@ import { uploadToCloudinary } from '@/lib/cloudinary';
 import { uploadToImageKit } from '@/lib/imagekit';
 import { withFreezeGuard } from "@/lib/governance";
 
+// Configure API route to handle larger file uploads (max 50MB)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 async function uploadMedia(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -94,7 +99,8 @@ async function uploadMedia(req: NextRequest) {
     return NextResponse.json({ results });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+    return NextResponse.json({ error: 'Upload failed', message: errorMessage }, { status: 500 });
   }
 }
 

@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDate } from "@/lib/utils";
 import { sanitizeNumberText } from "@/lib/number-formatting";
+import QRCode from "qrcode";
 
 export interface InvoiceData {
   invoiceNumber: string;
@@ -29,6 +30,7 @@ export interface InvoiceData {
   modeOfTransport?: "AIR" | "COURIER" | "HAND_DELIVERY";
   courierPartner?: string;
   trackingId?: string;
+  platformOrderId?: string;
   invoiceCurrency?: "INR" | "USD" | "EUR" | "GBP";
   conversionRate?: number;
   totalInrValue?: number;
@@ -61,10 +63,14 @@ export interface InvoiceData {
     description: string;
     quantity: number;
     displayQty?: string;
-    unitPrice: number; // Base Price
+    unitPrice: number; // Base Price (INR)
+    usdPrice?: number; // USD price for export invoices
+    basePrice?: number;
     gstRate?: number;
     gstAmount?: number;
     total: number;
+    discountAmount?: number;
+    certificateUrl?: string; // URL for certificate QR code
   }[];
   grossTotal?: number;
   subtotal: number;
@@ -146,10 +152,10 @@ const FONTS: Record<string, { normal: string; bold: string; italic?: string; bol
     bolditalic: "https://fonts.gstatic.com/s/notosansdisplay/v20/RLpjK4fy6r6tOBEJg0IAKzqdFZVZxrktdHvjCaxRgew.ttf",
   },
   poppins: {
-    normal: "https://fonts.gstatic.com/s/poppins/v20/pxiEyp8kv8JHgFVrJJfecg.ttf",
-    bold: "https://fonts.gstatic.com/s/poppins/v20/pxiByp8kv8JHgFVrLCz7Z1xlFQ.ttf",
-    italic: "https://fonts.gstatic.com/s/poppins/v20/pxiGyp8kv8JHgFVrJJLucHtF.ttf",
-    bolditalic: "https://fonts.gstatic.com/s/poppins/v20/pxiDyp8kv8JHgFVrJJLmy1zlFPE.ttf",
+    normal: "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Regular.ttf",
+    bold: "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Bold.ttf",
+    italic: "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Italic.ttf",
+    bolditalic: "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-BoldItalic.ttf",
   },
 };
 
@@ -164,9 +170,9 @@ function arrayBufferToBinaryString(buffer: ArrayBuffer) {
   return binary;
 }
 
-async function loadFont(doc: jsPDF, family: string) {
+async function loadFont(doc: jsPDF, family: string): Promise<boolean> {
   const fontDef = FONTS[family];
-  if (!fontDef) return;
+  if (!fontDef) return false;
 
   let cached = cachedFontData.get(family);
   if (!cached) {
@@ -184,6 +190,13 @@ async function loadFont(doc: jsPDF, family: string) {
       italic: italicBuf ? arrayBufferToBinaryString(italicBuf) : undefined,
       bolditalic: boldItalicBuf ? arrayBufferToBinaryString(boldItalicBuf) : undefined,
     };
+  }
+
+  const hasAnyFont = Boolean(cached.normal || cached.bold || cached.italic || cached.bolditalic);
+  if (!hasAnyFont) return false;
+
+  // Only cache successful loads so transient network failures don't get stuck permanently.
+  if (!cachedFontData.has(family)) {
     cachedFontData.set(family, cached);
   }
 
@@ -203,6 +216,8 @@ async function loadFont(doc: jsPDF, family: string) {
     doc.addFileToVFS(`${family}-BoldItalic.ttf`, cached.bolditalic);
     doc.addFont(`${family}-BoldItalic.ttf`, family, "bolditalic");
   }
+
+  return true;
 }
 
 function convertNumberToWords(amount: number): string {
@@ -248,8 +263,12 @@ export async function generateInvoicePDF(data: InvoiceData) {
     format: "a4",
   });
   await loadFont(doc, "notosansdisplay");
-  await loadFont(doc, "poppins");
-  const fontFamily = "poppins";
+  let fontFamily = "poppins";
+  const poppinsLoaded = await loadFont(doc, "poppins");
+  if (!poppinsLoaded) {
+    // Fallback to built-in font if remote font fails to load
+    fontFamily = "helvetica";
+  }
   const numberFont = "notosansdisplay";
   doc.setCharSpace(0);
 
@@ -375,26 +394,62 @@ export async function generateInvoicePDF(data: InvoiceData) {
     doc.setTextColor(...blue);
     doc.text("Export Details:", margin, y);
     y += 4;
-    
+
     doc.setFont(fontFamily, "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(0);
-    
-    const exportDetails = [
-      data.countryOfDestination ? `Country of Destination: ${data.countryOfDestination}` : "",
-      data.portOfDispatch ? `Port of Dispatch: ${data.portOfDispatch}` : "",
-      data.exportType ? `Export Type: ${data.exportType}` : "",
-      data.modeOfTransport ? `Mode of Transport: ${data.modeOfTransport}` : "",
-      data.courierPartner ? `Courier Partner: ${data.courierPartner}` : "",
-      data.trackingId ? `Tracking ID: ${data.trackingId}` : ""
+
+    // First row of export details
+    const exportDetailsRow1 = [
+      data.countryOfDestination ? `Country: ${data.countryOfDestination}` : "",
+      data.portOfDispatch ? `Port: ${data.portOfDispatch}` : "",
+      data.exportType ? `Type: ${data.exportType}` : "",
     ].filter(Boolean);
-    
-    if (exportDetails.length > 0) {
-      const exportText = exportDetails.join("   ");
-      doc.text(exportText, margin, y);
-      y += 4;
+
+    if (exportDetailsRow1.length > 0) {
+      doc.text(exportDetailsRow1.join("   "), margin, y);
+      y += 3.5;
     }
-    
+
+    // Second row - logistics details
+    const exportDetailsRow2 = [
+      data.modeOfTransport ? `Transport: ${data.modeOfTransport}` : "",
+      data.courierPartner ? `Courier: ${data.courierPartner}` : "",
+      data.trackingId ? `Tracking: ${data.trackingId}` : "",
+    ].filter(Boolean);
+
+    if (exportDetailsRow2.length > 0) {
+      doc.text(exportDetailsRow2.join("   "), margin, y);
+      y += 3.5;
+    }
+
+    // Platform Order ID - Highlighted in a box for visibility
+    if (data.platformOrderId) {
+      const orderIdText = `Platform Order ID: ${data.platformOrderId}`;
+      const textWidth = doc.getTextWidth(orderIdText);
+      const boxPadding = 2;
+
+      // Draw light blue background box
+      doc.setFillColor(230, 240, 255);
+      doc.rect(margin, y - 2, textWidth + (boxPadding * 2), 6, "F");
+
+      // Draw border
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(0.3);
+      doc.rect(margin, y - 2, textWidth + (boxPadding * 2), 6, "S");
+
+      // Draw text
+      doc.setFont(fontFamily, "bold");
+      doc.setFontSize(7.5);
+      doc.setTextColor(37, 99, 235);
+      doc.text(orderIdText, margin + boxPadding, y + 1.5);
+
+      // Reset font
+      doc.setFont(fontFamily, "normal");
+      doc.setTextColor(0);
+      y += 5;
+    }
+
     // Add zero rated supply notice
     doc.setFont(fontFamily, "italic");
     doc.setFontSize(7);
@@ -522,18 +577,25 @@ export async function generateInvoicePDF(data: InvoiceData) {
     const amount = item.total;
     const descLines = item.description.split("\n").filter(Boolean);
     const nameLine = descLines[0] || "Item";
-    const extraLines = descLines.slice(1);
+    // Filter out lines that contain certificate URLs (start with http)
+    const extraLines = descLines.slice(1).filter(line => 
+      !line.toLowerCase().includes('http://') && 
+      !line.toLowerCase().includes('https://')
+    );
     const skuLine = item.sku ? `SKU: ${item.sku}` : "";
     const hsnLine = item.hsn ? `HSN: ${item.hsn}` : "";
     const itemText = [nameLine, skuLine, hsnLine, ...extraLines].filter(Boolean).join("\n");
     
     if (isExportInvoice) {
+      const usd = item.usdPrice || 0;
+      const displayPrice = usd > 0 ? `${data.invoiceCurrency || "USD"} ${usd.toFixed(2)}` : formatCurrencyPDF(item.unitPrice);
+      const displayAmount = usd > 0 ? `${data.invoiceCurrency || "USD"} ${usd.toFixed(2)}` : formatCurrencyPDF(amount);
       return [
         index + 1,
         itemText,
-        formatCurrencyPDF(item.unitPrice),
-        "1", // Export invoices show quantity as 1, not weight
-        formatCurrencyPDF(amount)
+        displayPrice,
+        item.displayQty || "1",
+        displayAmount
       ];
     } else {
       return [
@@ -547,25 +609,35 @@ export async function generateInvoicePDF(data: InvoiceData) {
     }
   });
 
+  // Check if any items have certificate URLs - need extra row height for QR codes
+  const hasCertificateItems = data.items.some(item => item.certificateUrl);
+  
   const dense = data.items.length > 8;
   const ultraDense = data.items.length > 14;
   const tableFont = ultraDense ? 6.2 : dense ? 7.2 : 8;
-  const tablePadding = ultraDense ? 0.7 : dense ? 1.1 : 1.5;
+  // Increase padding when certificate items exist to create space between QR codes
+  const basePadding = ultraDense ? 0.7 : dense ? 1.1 : 1.5;
+  const tablePadding = hasCertificateItems ? basePadding + 2 : basePadding;
+  // Minimum cell height for certificate items to ensure QR code space
+  const minCellHeight = hasCertificateItems ? 18 : undefined;
 
+  // Track positions for QR codes (items with certificate URLs)
+  const qrCodePositions: Array<{ y: number; height: number; url: string; x: number }> = [];
+  
   const columnStyles = (isExportInvoice ? {
-    0: { cellWidth: 6 },
-    1: { cellWidth: 85, overflow: "linebreak" as const },
-    2: { cellWidth: 25, halign: "right" as const },
-    3: { cellWidth: 20, halign: "center" as const },
-    4: { cellWidth: 30, halign: "right" as const }
-  } : {
     0: { cellWidth: 6 },
     1: { cellWidth: 76, overflow: "linebreak" as const },
     2: { cellWidth: 22, halign: "right" as const },
-    3: { cellWidth: 25, halign: "right" as const },
-    4: { cellWidth: 25, halign: "right" as const },
-    5: { cellWidth: 24, halign: "right" as const }
-  }) as { [key: number]: { cellWidth?: number; overflow?: "linebreak"; halign?: "left" | "center" | "right" } };
+    3: { cellWidth: 20, halign: "center" as const },
+    4: { cellWidth: 24, halign: "right" as const }
+  } : {
+    0: { cellWidth: 6 },
+    1: { cellWidth: 76, overflow: "linebreak" as const },
+    2: { cellWidth: 20, halign: "right" as const },
+    3: { cellWidth: 22, halign: "right" as const },
+    4: { cellWidth: 22, halign: "right" as const },
+    5: { cellWidth: 20, halign: "right" as const }
+  }) as { [key: number]: { cellWidth?: number; overflow?: "linebreak"; halign?: "left" | "center" | "right"; minCellHeight?: number } };
 
   autoTable(doc, {
     startY: y,
@@ -579,7 +651,8 @@ export async function generateInvoicePDF(data: InvoiceData) {
       fontSize: tableFont,
       halign: "left",
       lineWidth: 0,
-      lineColor: blue
+      lineColor: blue,
+      cellPadding: ultraDense ? 0.7 : dense ? 1.1 : 1.5
     },
     styles: {
       font: numberFont,
@@ -590,11 +663,13 @@ export async function generateInvoicePDF(data: InvoiceData) {
       lineColor: lightGray,
       overflow: "linebreak"
     },
+    bodyStyles: {
+      minCellHeight: minCellHeight
+    },
     columnStyles,
     didDrawCell: (dataCell) => {
       const { row, table, column, section, cell } = dataCell;
-      if (column.index !== 0) return;
-      const rowMeta = row as unknown as { y?: number; height?: number };
+      const rowMeta = row as unknown as { y?: number; height?: number; raw?: unknown[] };
       const tableMeta = table as unknown as { startX?: number; width?: number; columns?: Array<{ width?: number; w?: number }> };
       const startX = Number.isFinite(tableMeta.startX) ? tableMeta.startX as number : cell.x;
       const columnWidths = tableMeta.columns?.reduce((sum, col) => sum + (col.width || col.w || 0), 0);
@@ -606,6 +681,25 @@ export async function generateInvoicePDF(data: InvoiceData) {
       const rowY = Number.isFinite(rowMeta.y) ? rowMeta.y as number : cell.y;
       const rowH = Number.isFinite(rowMeta.height) ? rowMeta.height as number : cell.height;
       if (!Number.isFinite(startX) || !Number.isFinite(width) || !Number.isFinite(rowY) || !Number.isFinite(rowH)) return;
+      
+      // Track row position for QR code (only for first column in body section)
+      if (section === "body" && column.index === 0) {
+        const rowIndex = row.index;
+        const item = data.items[rowIndex];
+        if (item?.certificateUrl) {
+          // Get the rightmost column position for QR code placement
+          const lastColIndex = isExportInvoice ? 4 : 5;
+          const tableRightX = startX + width;
+          qrCodePositions.push({ 
+            y: rowY, 
+            height: rowH, 
+            url: item.certificateUrl,
+            x: tableRightX + 2
+          });
+        }
+      }
+      
+      if (column.index !== 0) return;
       if (section === "head") {
         doc.setDrawColor(...blue);
         doc.setLineWidth(0.45);
@@ -619,10 +713,45 @@ export async function generateInvoicePDF(data: InvoiceData) {
       }
     }
   });
+  
+  // Generate and add QR codes after table is rendered
+  if (qrCodePositions.length > 0) {
+    for (const pos of qrCodePositions) {
+      try {
+        const qrDataUrl = await QRCode.toDataURL(pos.url, {
+          width: 100,
+          margin: 1,
+          errorCorrectionLevel: 'M'
+        });
+        const qrSize = 13; // QR code size in mm
+        const qrX = pos.x;
+        // Center QR code vertically within the row
+        const qrY = pos.y + (pos.height - qrSize) / 2;
+        doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+      } catch (e) {
+        // Silently skip if QR generation fails
+      }
+    }
+    
+  }
 
   // @ts-expect-error - jspdf-autotable types mismatch
   y = doc.lastAutoTable.finalY + 8;
+  
+  // Add QR code verification note if there are certificate items
+  if (qrCodePositions.length > 0) {
+    doc.setFont(fontFamily, "italic");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text("* Scan QR code next to item to verify certificate authenticity", margin, y);
+    doc.setTextColor(0);
+    doc.setFont(fontFamily, "normal");
+    y += 5;
+  }
 
+  const totalUsdValue = isExportInvoice
+    ? data.items.reduce((sum, item) => sum + (item.usdPrice || 0), 0)
+    : 0;
   const taxableTotal = data.items.reduce((sum, item) => sum + (item.unitPrice * (item.quantity || 1)), 0);
   const taxRate = taxableTotal > 0 ? (data.tax * 100) / taxableTotal : 0;
   const halfRate = taxRate / 2;
@@ -631,13 +760,19 @@ export async function generateInvoicePDF(data: InvoiceData) {
 
   const totalsX = pageWidth - margin - 58;
   const wordsY = y;
-  const amountWords = convertNumberToWords(data.total);
+  const wordsAmount = isExportInvoice
+    ? (totalUsdValue > 0 ? totalUsdValue : (data.total / (data.conversionRate || 1)))
+    : data.total;
+  const amountWords = convertNumberToWords(wordsAmount);
   doc.setFont(fontFamily, "bold");
   doc.setFontSize(8);
   const totalItems = data.items.length;
   doc.text(`Total Items : ${totalItems}`, margin, wordsY);
   doc.setFont(fontFamily, "normal");
-  const wordsLines = doc.splitTextToSize(`Total amount (in words): INR ${amountWords}`, 95);
+  const wordsLabel = isExportInvoice
+    ? `Total amount (in words): ${data.invoiceCurrency || "USD"} ${amountWords}`
+    : `Total amount (in words): INR ${amountWords}`;
+  const wordsLines = doc.splitTextToSize(wordsLabel, 95);
   doc.text(wordsLines, margin, wordsY + 4);
 
   let totalsY = y;
@@ -653,44 +788,33 @@ export async function generateInvoicePDF(data: InvoiceData) {
     totalsY += 4;
   }
 
-  doc.text("Taxable Amount", totalsX, totalsY);
-  writeAmountRight(formatCurrencyPDF(taxableTotal), pageWidth - margin, totalsY);
-  totalsY += 4;
-
-  if (!isExportInvoice) {
+  if (isExportInvoice) {
+    const usdTaxable = totalUsdValue > 0 ? totalUsdValue : (data.total / (data.conversionRate || 1));
+    doc.text(`Taxable Amount (${data.invoiceCurrency || "USD"})`, totalsX, totalsY);
+    writeAmountRight(`${data.invoiceCurrency || "USD"} ${usdTaxable.toFixed(2)}`, pageWidth - margin, totalsY);
+    totalsY += 4;
+    doc.text("GST", totalsX, totalsY);
+    doc.setTextColor(0, 150, 80);
+    writeAmountRight("NIL (Zero Rated)", pageWidth - margin, totalsY);
+    doc.setTextColor(0);
+    totalsY += 4;
+    doc.setFont(fontFamily, "bold");
+    doc.setFontSize(10);
+    doc.text(`Total (${data.invoiceCurrency || "USD"})`, totalsX, totalsY);
+    writeAmountRight(`${data.invoiceCurrency || "USD"} ${usdTaxable.toFixed(2)}`, pageWidth - margin, totalsY, { bold: true, fontSize: 10 });
+    totalsY += 6;
+    doc.setFont(fontFamily, "normal");
+    doc.setFontSize(8);
+  } else {
+    doc.text("Taxable Amount", totalsX, totalsY);
+    writeAmountRight(formatCurrencyPDF(taxableTotal), pageWidth - margin, totalsY);
+    totalsY += 4;
     doc.text(`CGST ${halfRate.toFixed(3)}%`, totalsX, totalsY);
     writeAmountRight(formatCurrencyPDF(cgst), pageWidth - margin, totalsY);
     totalsY += 4;
-
     doc.text(`SGST ${halfRate.toFixed(3)}%`, totalsX, totalsY);
     writeAmountRight(formatCurrencyPDF(sgst), pageWidth - margin, totalsY);
     totalsY += 4;
-  }
-
-  // For export invoices with foreign currency, show both FX and INR totals
-  if (isExportInvoice && data.invoiceCurrency && data.invoiceCurrency !== "INR") {
-    // Show foreign currency total
-    doc.setFont(fontFamily, "bold");
-    doc.setFontSize(10);
-    doc.text(`Total (${data.invoiceCurrency})`, totalsX, totalsY);
-    const fxTotal = data.totalInrValue && data.conversionRate 
-      ? (data.totalInrValue / data.conversionRate).toFixed(2)
-      : (data.total / (data.conversionRate || 1)).toFixed(2);
-    writeAmountRight(`${data.invoiceCurrency} ${fxTotal}`, pageWidth - margin, totalsY, { bold: true, fontSize: 10 });
-    totalsY += 6;
-
-    // Show conversion rate
-    doc.setFont(fontFamily, "normal");
-    doc.setFontSize(8);
-    doc.text(`Conversion Rate`, totalsX, totalsY);
-    writeAmountRight(`1 ${data.invoiceCurrency} = ${formatCurrencyPDF(data.conversionRate || 1)}`, pageWidth - margin, totalsY);
-    totalsY += 5;
-
-    // Show INR equivalent
-    doc.text(`INR Equivalent`, totalsX, totalsY);
-    const inrTotal = data.totalInrValue || (data.total * (data.conversionRate || 1));
-    writeAmountRight(`₹ ${inrTotal.toFixed(2)}`, pageWidth - margin, totalsY);
-    totalsY += 5;
   }
 
   if (!(typeof data.grossTotal === "number" && Number.isFinite(data.grossTotal) && data.discount > 0) && data.discount > 0) {
@@ -711,11 +835,13 @@ export async function generateInvoicePDF(data: InvoiceData) {
     totalsY += 4;
   }
 
-  doc.setFont(fontFamily, "bold");
-  doc.setFontSize(10);
-  doc.text(data.totalLabel || "Total", totalsX, totalsY);
-  writeAmountRight(formatCurrencyPDF(data.total), pageWidth - margin, totalsY, { bold: true, fontSize: 10 });
-  totalsY += 6;
+  if (!isExportInvoice) {
+    doc.setFont(fontFamily, "bold");
+    doc.setFontSize(10);
+    doc.text(data.totalLabel || "Total", totalsX, totalsY);
+    writeAmountRight(formatCurrencyPDF(data.total), pageWidth - margin, totalsY, { bold: true, fontSize: 10 });
+    totalsY += 6;
+  }
 
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(8);
@@ -745,7 +871,12 @@ export async function generateInvoicePDF(data: InvoiceData) {
     doc.setFont(fontFamily, "bold");
     doc.setTextColor(22, 163, 74);
     doc.text("Amount Paid", pageWidth - margin - 40, y, { align: "right" });
-    writeAmountRight(formatCurrencyPDF(data.amountPaid), pageWidth - margin, y, { bold: true });
+    if (isExportInvoice && data.conversionRate && data.conversionRate > 1) {
+      const usdPaid = data.amountPaid / data.conversionRate;
+      writeAmountRight(`${data.invoiceCurrency || "USD"} ${usdPaid.toFixed(2)}`, pageWidth - margin, y, { bold: true });
+    } else {
+      writeAmountRight(formatCurrencyPDF(data.amountPaid), pageWidth - margin, y, { bold: true });
+    }
     doc.setTextColor(0);
     y += 6;
     if (data.paymentBreakdown && data.paymentBreakdown.length > 0) {
@@ -753,12 +884,19 @@ export async function generateInvoicePDF(data: InvoiceData) {
       doc.setFontSize(7);
       for (const row of data.paymentBreakdown) {
         const sign = row.amount < 0 ? "-" : "";
-        writeAmountRight(`${row.method}: ${sign}${formatCurrencyPDF(Math.abs(row.amount))}`, pageWidth - margin, y - 1);
+        if (isExportInvoice) {
+          const usdAmt = data.conversionRate && data.conversionRate > 1
+            ? Math.abs(row.amount) / data.conversionRate
+            : Math.abs(row.amount);
+          writeAmountRight(`${sign}${data.invoiceCurrency || "USD"} ${usdAmt.toFixed(2)}`, pageWidth - margin, y - 1);
+        } else {
+          writeAmountRight(`${row.method}: ${sign}${formatCurrencyPDF(Math.abs(row.amount))}`, pageWidth - margin, y - 1);
+        }
         y += 4;
       }
       y += 2;
     }
-    if ((!data.paymentBreakdown || data.paymentBreakdown.length === 0) && (data.paidAt || data.paymentMethod)) {
+    if (!isExportInvoice && (!data.paymentBreakdown || data.paymentBreakdown.length === 0) && (data.paidAt || data.paymentMethod)) {
       const paidParts = [
         data.paymentMethod ? `via ${data.paymentMethod}` : "",
         data.paidAt ? `on ${formatDate(data.paidAt)}` : ""
@@ -836,9 +974,25 @@ export async function generateInvoicePDF(data: InvoiceData) {
       doc.roundedRect(margin, noteY - 4, wrapWidth, boxH, 2, 2, "F");
       doc.setTextColor(124, 45, 18);
       doc.text(cnLines, margin + 3, noteY);
+      noteY += boxH + 2;
       doc.setTextColor(0);
       doc.setFont(fontFamily, "normal");
     }
+    infoY = noteY + 2;
+  }
+
+  if (isExportInvoice) {
+    infoY += 4;
+    doc.setFont(fontFamily, "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...blue);
+    doc.text("Declaration:", margin, infoY);
+    doc.setFont(fontFamily, "normal");
+    doc.setTextColor(0);
+    const declaration = "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct. The goods are exported under Letter of Undertaking (LUT) without payment of IGST as per GST law.";
+    const declLines = doc.splitTextToSize(declaration, pageWidth - margin * 2);
+    doc.text(declLines, margin, infoY + 4);
+    infoY += 4 + declLines.length * 4 + 2;
   }
 
   const signatureY = pageHeight - 55;

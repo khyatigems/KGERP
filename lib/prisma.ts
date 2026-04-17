@@ -94,20 +94,21 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
 const prismaBase =
   globalForPrisma.prisma ??
   (() => {
+    // Build client options based on database type
     const clientOptions: any = {
       log: isProd ? ['error', 'warn'] : ['query', 'error', 'warn'],
-      datasources: isLibsql
-        ? undefined
-        : {
-            db: {
-              url: databaseUrl
-            }
-          }
     };
     
-    // Only add adapter if it exists (for LibSQL/Turso)
-    if (adapter) {
+    // Only configure adapter for LibSQL/Turso (not for local SQLite)
+    if (isLibsql && adapter) {
       clientOptions.adapter = adapter;
+    } else {
+      // For local SQLite, configure datasource
+      clientOptions.datasources = {
+        db: {
+          url: databaseUrl
+        }
+      };
     }
     
     const client = new PrismaClient(clientOptions);
@@ -631,6 +632,65 @@ export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
       );
       // Add exportTerms to InvoiceSettings for export invoice specific terms
       await ensureColumnIfMissing("InvoiceSettings", "exportTerms", '"exportTerms" TEXT');
+
+      // Ensure CustomerAdvance and CustomerAdvanceAdjustment tables exist
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CustomerAdvance" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "customerId" TEXT NOT NULL,
+          "amount" REAL NOT NULL,
+          "paymentMode" TEXT NOT NULL DEFAULT 'CASH',
+          "reference" TEXT,
+          "notes" TEXT,
+          "isAdjusted" INTEGER NOT NULL DEFAULT 0,
+          "adjustedAmount" REAL NOT NULL DEFAULT 0,
+          "remainingAmount" REAL NOT NULL DEFAULT 0,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `).catch(() => null);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerAdvance_customerId_idx" ON "CustomerAdvance"("customerId");`).catch(() => null);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CustomerAdvanceAdjustment" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "advanceId" TEXT NOT NULL,
+          "saleId" TEXT NOT NULL,
+          "amountUsed" REAL NOT NULL,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `).catch(() => null);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerAdvanceAdjustment_advanceId_idx" ON "CustomerAdvanceAdjustment"("advanceId");`).catch(() => null);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerAdvanceAdjustment_saleId_idx" ON "CustomerAdvanceAdjustment"("saleId");`).catch(() => null);
+
+      // Ensure Sale.usdPrice column exists
+      await ensureColumnIfMissing("Sale", "usdPrice", '"usdPrice" REAL');
+
+      // Ensure Invoice.totalUsdValue column exists
+      await ensureColumnIfMissing("Invoice", "totalUsdValue", '"totalUsdValue" REAL');
+
+      // Ensure ExportInvoice table exists (used by export invoice flow)
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ExportInvoice" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "invoiceId" TEXT NOT NULL UNIQUE,
+          "customsDeclarationNumber" TEXT,
+          "fobValue" REAL,
+          "freightCharges" REAL,
+          "insuranceCharges" REAL,
+          "shippingBillNumber" TEXT,
+          "portCode" TEXT,
+          "hsnCodes" TEXT,
+          "buyerReference" TEXT,
+          "contractNumber" TEXT,
+          "preCarriageBy" TEXT,
+          "preCarriagePort" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `).catch(() => null);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExportInvoice_invoiceId_idx" ON "ExportInvoice"("invoiceId");`).catch(() => null);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExportInvoice_customsDeclarationNumber_idx" ON "ExportInvoice"("customsDeclarationNumber");`).catch(() => null);
     } catch {
     } finally {
       checkedTables = null;

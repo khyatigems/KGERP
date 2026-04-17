@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2, MoreHorizontal, ExternalLink, FileText, Printer, MessageCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Trash2, Loader2, MoreHorizontal, ExternalLink, FileText, Printer, MessageCircle, AlertTriangle } from "lucide-react";
 import { deleteSale, getInvoiceDataForThermal } from "@/app/(dashboard)/sales/actions";
 import { generateThermalInvoicePDF } from "@/lib/thermal-invoice-generator";
 import Link from "next/link";
@@ -14,16 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -90,7 +81,8 @@ export function SalesActions({
 }: SalesActionsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2 | 3>(0);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [whatsappOpen, setWhatsappOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
     messageTemplates.length > 0 ? messageTemplates[0].id : null
@@ -98,9 +90,34 @@ export function SalesActions({
   const [isSending, setIsSending] = useState(false);
   const router = useRouter();
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
-    setDeleteOpen(true);
+    setDeleteConfirmText("");
+    setDeleteStep(1);
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteStep(0);
+    setDeleteConfirmText("");
+  };
+
+  const executeDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await deleteSale(saleId);
+      if (res && (res as unknown as { message?: string }).message) {
+        toast.error((res as { message: string }).message);
+      } else {
+        toast.success("Sale deleted successfully");
+        router.refresh();
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to delete sale");
+    } finally {
+      setIsDeleting(false);
+      closeDeleteDialog();
+    }
   };
 
   const handleThermalPrint = async (e: React.MouseEvent) => {
@@ -242,42 +259,87 @@ export function SalesActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Sale</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this sale? This will revert the inventory item to IN_STOCK and may delete the linked invoice if no other items remain.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                setIsDeleting(true);
-                try {
-                  const res = await deleteSale(saleId);
-                  if (res && (res as unknown as { message?: string }).message) {
-                    toast.error((res as { message: string }).message);
-                  } else {
-                    toast.success("Sale deleted successfully");
-                    router.refresh();
-                  }
-                } catch (e) {
-                  console.error(e);
-                  toast.error("Failed to delete sale");
-                } finally {
-                  setIsDeleting(false);
-                  setDeleteOpen(false);
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white"
+      {/* Step 1 — Initial confirmation */}
+      <Dialog open={deleteStep === 1} onOpenChange={(open) => { if (!open) closeDeleteDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" /> Delete Sale
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Are you sure you want to delete this sale?
+              <br /><br />
+              This will restore the inventory item to <strong>IN_STOCK</strong> and delete the linked invoice and all its payments if no other items remain.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={closeDeleteDialog}>Cancel</Button>
+            <Button variant="destructive" onClick={() => setDeleteStep(2)}>Yes, Continue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Step 2 — Type DELETE to confirm */}
+      <Dialog open={deleteStep === 2} onOpenChange={(open) => { if (!open) closeDeleteDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="h-5 w-5" /> Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              This action <strong>cannot be undone</strong>. The sale record, invoice, all linked payments, credit notes, and returns will be permanently deleted.
+              <br /><br />
+              Type <strong>DELETE</strong> below to proceed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              placeholder="Type DELETE to confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="border-orange-300 focus:border-orange-500"
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={closeDeleteDialog}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirmText.trim().toUpperCase() !== "DELETE"}
+              onClick={() => setDeleteStep(3)}
             >
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              Proceed to Final Step
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Step 3 — Final irreversible warning */}
+      <Dialog open={deleteStep === 3} onOpenChange={(open) => { if (!open && !isDeleting) closeDeleteDialog(); }}>
+        <DialogContent className="sm:max-w-md border-red-200">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5 fill-red-100" /> Final Warning
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-red-700 font-medium">
+              You are about to permanently delete this sale and all associated data.
+              <br /><br />
+              <span className="text-gray-700 font-normal">Invoice, payments, linked records, and inventory status changes will all be reversed. <strong>This is irreversible.</strong></span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={closeDeleteDialog} disabled={isDeleting}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={executeDelete}
+              disabled={isDeleting}
+              className="bg-red-700 hover:bg-red-800"
+            >
+              {isDeleting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</> : <><Trash2 className="mr-2 h-4 w-4" /> Delete Permanently</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={whatsappOpen} onOpenChange={setWhatsappOpen}>
         <DialogContent className="sm:max-w-lg">

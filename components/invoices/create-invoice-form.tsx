@@ -27,7 +27,9 @@ export function CreateInvoiceForm({ saleId, initialOptions }: CreateInvoiceFormP
   const [options, setOptions] = useState<Record<string, boolean>>(() => {
     const out: Record<string, boolean> = {};
     Object.entries(initialOptions).forEach(([k, v]) => {
+      // SQLite stores booleans as 0/1 integers — coerce them back to real booleans
       if (typeof v === "boolean") out[k] = v;
+      else if (typeof v === "number" && (v === 0 || v === 1)) out[k] = v === 1;
     });
     return out;
   });

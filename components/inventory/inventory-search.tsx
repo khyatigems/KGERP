@@ -197,7 +197,7 @@ export function InventorySearch({
             </SelectTrigger>
             <SelectContent>
             <SelectItem value="ALL">All Categories</SelectItem>
-            {categories.map((c) => (
+            {categories.filter((c, i, arr) => arr.findIndex(x => x.name === c.name) === i).map((c) => (
                 <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
             ))}
             </SelectContent>
@@ -212,7 +212,7 @@ export function InventorySearch({
             </SelectTrigger>
             <SelectContent>
             <SelectItem value="ALL">All Gems</SelectItem>
-            {gemstones.map((g) => (
+            {gemstones.filter((g, i, arr) => arr.findIndex(x => x.name === g.name) === i).map((g) => (
                 <SelectItem key={g.id} value={g.name}>{g.name}</SelectItem>
             ))}
             </SelectContent>
@@ -227,7 +227,7 @@ export function InventorySearch({
             </SelectTrigger>
             <SelectContent>
             <SelectItem value="ALL">All Colors</SelectItem>
-            {colors.map((c) => (
+            {colors.filter((c, i, arr) => arr.findIndex(x => x.name === c.name) === i).map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
             ))}
             </SelectContent>

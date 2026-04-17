@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateSku } from "@/lib/sku";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { addToCart } from "@/app/(dashboard)/labels/actions";
@@ -253,55 +253,46 @@ export async function createInventory(prevState: unknown, formData: FormData) {
       ? data.beadSizeMm
       : (beadSizeLabelNormalized ? parseBeadSizeMm(beadSizeLabelNormalized) : undefined);
 
-  // --- Integrity Checks ---
-  // 1. Loss Sale Check
-  const allowLoss = await isLossSaleAllowed();
+  // --- Integrity Checks (Parallelized for speed) ---
+  const [allowLoss, duplicates] = await Promise.all([
+    isLossSaleAllowed(),
+    data.ignoreDuplicates ? Promise.resolve([]) : checkDuplicateSku(data.gemstoneCodeId, data.weightValue)
+  ]);
+
   if (!allowLoss && sellingPrice < costPrice - 0.01) {
-      return { 
-          message: "Selling price cannot be less than cost price (Settings restricted).",
-          errors: {
-              sellingRatePerCarat: ["Resulting selling price is lower than cost"],
-              flatSellingPrice: ["Selling price is lower than cost"]
-          }
-      };
+    return {
+      message: "Selling price cannot be less than cost price (Settings restricted).",
+      errors: {
+        sellingRatePerCarat: ["Resulting selling price is lower than cost"],
+        flatSellingPrice: ["Selling price is lower than cost"]
+      }
+    };
   }
 
-  // 2. Duplicate SKU Check
-  if (!data.ignoreDuplicates) {
-    const duplicates = await checkDuplicateSku(data.gemstoneCodeId, data.weightValue);
-    if (duplicates.length > 0) {
-      return {
-          message: `Potential duplicate SKU detected: ${duplicates[0].sku}`,
-          errors: {
-              weightValue: [`Similar item exists: ${duplicates[0].sku} (${duplicates[0].weightValue}ct)`]
-          },
-          isDuplicateWarning: true
-      };
-    }
+  if (duplicates.length > 0) {
+    return {
+      message: `Potential duplicate SKU detected: ${duplicates[0].sku}`,
+      errors: {
+        weightValue: [`Similar item exists: ${duplicates[0].sku} (${duplicates[0].weightValue}ct)`]
+      },
+      isDuplicateWarning: true
+    };
   }
   // --- End Integrity Checks ---
 
   let createdInventory;
   try {
       createdInventory = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          let categoryCodeStr = "XX";
-          let gemstoneCodeStr = "XX";
-          let colorCodeStr = "XX";
+          // Parallelize code lookups
+          const [categoryCodes, gemstoneCodes, colorCodes] = await Promise.all([
+              data.categoryCodeId ? tx.categoryCode.findUnique({ where: { id: data.categoryCodeId }, select: { code: true } }) : Promise.resolve(null),
+              data.gemstoneCodeId ? tx.gemstoneCode.findUnique({ where: { id: data.gemstoneCodeId }, select: { code: true } }) : Promise.resolve(null),
+              data.colorCodeId ? tx.colorCode.findUnique({ where: { id: data.colorCodeId }, select: { code: true } }) : Promise.resolve(null),
+          ]);
 
-          if (data.categoryCodeId) {
-              const categoryCodes = await tx.categoryCode.findUnique({ where: { id: data.categoryCodeId }, select: { code: true } });
-              if (categoryCodes) categoryCodeStr = categoryCodes.code;
-          }
-
-          if (data.gemstoneCodeId) {
-              const gemstoneCodes = await tx.gemstoneCode.findUnique({ where: { id: data.gemstoneCodeId }, select: { code: true } });
-              if (gemstoneCodes) gemstoneCodeStr = gemstoneCodes.code;
-          }
-
-          if (data.colorCodeId) {
-              const colorCodes = await tx.colorCode.findUnique({ where: { id: data.colorCodeId }, select: { code: true } });
-              if (colorCodes) colorCodeStr = colorCodes.code;
-          }
+          const categoryCodeStr = categoryCodes?.code ?? "XX";
+          const gemstoneCodeStr = gemstoneCodes?.code ?? "XX";
+          const colorCodeStr = colorCodes?.code ?? "XX";
 
           const sku = await generateSku(tx, {
               categoryCode: categoryCodeStr,
@@ -400,8 +391,8 @@ export async function createInventory(prevState: unknown, formData: FormData) {
                 urls.map(async (url, i) => {
                   const isVideo = url.match(/\.(mp4|mov|webm)$/i);
                   const type = isVideo ? "VIDEO" : "IMAGE";
-                  const suffix = urls.length > 1 ? `_${i + 1}` : "";
-                  const finalUrl = await renameCloudinaryImageToSku(url, createdInventory.sku + suffix);
+                  // Avoid slow external Cloudinary rename during save; store URL as-is.
+                  const finalUrl = url;
                   return {
                     inventoryId: createdInventory.id,
                     type,
@@ -419,6 +410,19 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   }
 
   revalidatePath("/inventory");
+  // Revalidate cached master data used on inventory page
+  try {
+    revalidateTag("masters:categories", "default");
+    revalidateTag("masters:gemstones", "default");
+    revalidateTag("masters:colors", "default");
+    revalidateTag("masters:vendors", "default");
+    revalidateTag("masters:collections", "default");
+    revalidateTag("masters:rashis", "default");
+    revalidateTag("masters:certificates", "default");
+    revalidateTag("inventory:stats", "default");
+  } catch {
+    // Fallback: revalidatePath handles most cases
+  }
   // redirect("/inventory");
   const stockAgg = await prisma.inventory.aggregate({
     where: { sku: createdInventory.sku, status: "IN_STOCK" },
@@ -619,10 +623,8 @@ export async function updateInventory(
                      const url = toAdd[i];
                      const isVideo = url.match(/\.(mp4|mov|webm)$/i);
                      const type = isVideo ? "VIDEO" : "IMAGE";
-                     
-                     // Use timestamp suffix for updates to avoid collision
-                     const suffix = `_${Date.now()}_${i}`;
-                     const finalUrl = await renameCloudinaryImageToSku(url, inv.sku + suffix);
+                     // Avoid slow external Cloudinary rename during save; store URL as-is.
+                     const finalUrl = url;
                      
                      await prisma.inventoryMedia.create({
                         data: {
@@ -642,7 +644,7 @@ export async function updateInventory(
         if (!existingMedia) {
              const inv = await prisma.inventory.findUnique({ where: { id }, select: { sku: true }});
              if (inv) {
-                 const finalUrl = await renameCloudinaryImageToSku(data.mediaUrl, inv.sku);
+                 const finalUrl = data.mediaUrl;
                  await prisma.inventoryMedia.create({
                     data: {
                         inventoryId: id,
@@ -680,6 +682,14 @@ export async function updateInventory(
 
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${id}`);
+  try {
+    revalidateTag("inventory:stats", "default");
+    revalidateTag("masters:collections", "default");
+    revalidateTag("masters:rashis", "default");
+    revalidateTag("masters:certificates", "default");
+  } catch {
+    // ignore
+  }
   // redirect("/inventory"); // Removed to allow client-side handling
   return { success: true, message: "Inventory updated successfully" };
 }

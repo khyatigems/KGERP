@@ -54,6 +54,7 @@ interface CartItem extends InventoryItem {
   taxAmount: number;
   netAmount: number;
   gstRate: number;
+  usdPrice?: number;
 }
 
 interface CompanySettings {
@@ -95,7 +96,7 @@ const saleFormSchema = z.object({
   flatDiscount: z.number().min(0).optional().default(0),
   couponCode: z.string().optional().or(z.literal("")),
   loyaltyRedeemAmount: z.number().min(0).optional().default(0),
-  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "UPI", "CHEQUE", "CARD"]),
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "UPI", "CHEQUE", "CARD", "PAYPAL", "PAYONEER"]).default("CASH"),
   paymentStatus: z.enum(["PAID", "PARTIAL", "PENDING"]),
   platform: z.enum(["MANUAL", "AMAZON", "ETSY", "EBAY", "FACEBOOK", "WHATSAPP"]).default("MANUAL"),
   invoiceType: z.enum(["TAX_INVOICE", "EXPORT_INVOICE"]).default("TAX_INVOICE"),
@@ -109,6 +110,7 @@ const saleFormSchema = z.object({
   modeOfTransport: z.enum(["AIR", "COURIER", "HAND_DELIVERY"]).optional(),
   courierPartner: z.string().optional().or(z.literal("")),
   trackingId: z.string().optional().or(z.literal("")),
+  platformOrderId: z.string().optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
   shippingCharge: z.number().min(0).default(0),
   additionalCharge: z.number().min(0).default(0),
@@ -181,6 +183,67 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
     return list;
   }, [platformOptions]);
 
+  const fetchInventory = useCallback(async (q: string) => {
+    const params = new URLSearchParams();
+    params.set("status", "IN_STOCK");
+    params.set("page", "1");
+    params.set("pageSize", "25");
+    if (q.trim()) params.set("q", q.trim());
+
+    const r = await fetch(`/api/inventory/search?${params.toString()}`, {
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!r.ok) throw new Error(`Inventory search failed: ${r.status}`);
+    const json = (await r.json()) as { items?: InventoryItem[] };
+    return Array.isArray(json.items) ? json.items : [];
+  }, []);
+
+  // Initial inventory list (small) + server-backed search
+  useEffect(() => {
+    let active = true;
+    const hasInitial = Array.isArray(inventoryItems) && inventoryItems.length > 0;
+
+    // Seed with initial items quickly
+    if (hasInitial) {
+      setFilteredItems(inventoryItems);
+    } else {
+      fetchInventory("")
+        .then((items) => {
+          if (!active) return;
+          setFilteredItems(items);
+        })
+        .catch(() => {
+          if (!active) return;
+          setFilteredItems([]);
+        });
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [fetchInventory, inventoryItems]);
+
+  useEffect(() => {
+    let active = true;
+    const handle = setTimeout(() => {
+      fetchInventory(itemSearchQuery)
+        .then((items) => {
+          if (!active) return;
+          setFilteredItems(items);
+        })
+        .catch(() => {
+          if (!active) return;
+          setFilteredItems([]);
+        });
+    }, 250);
+
+    return () => {
+      active = false;
+      clearTimeout(handle);
+    };
+  }, [fetchInventory, itemSearchQuery]);
+
   const form = useForm<SaleFormData>({
     resolver: zodResolver(saleFormSchema) as any,
     defaultValues: {
@@ -211,6 +274,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       modeOfTransport: "AIR",
       courierPartner: "",
       trackingId: "",
+      platformOrderId: "",
       notes: "",
       shippingCharge: 0,
       additionalCharge: 0,
@@ -316,10 +380,27 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
     }
   }, [watchedValues.invoiceType, requiredCustomerFields]);
 
+  // Methods where the user enters amount in foreign currency (USD) directly
+  const USD_METHODS = ["PAYPAL", "PAYONEER"];
+
   const totalPaidAmount = initialPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   // Calculate totals using EXACT backend logic
-  const totalNetAmount = cart.reduce((sum, item) => sum + item.netAmount, 0) + shippingChargeValue + additionalChargeValue;
+  const isExportInvoice = watchedValues.invoiceType === "EXPORT_INVOICE";
+  const exportConvRate = (watchedValues.conversionRate && watchedValues.conversionRate > 0) ? watchedValues.conversionRate : 1;
+
+  // For export invoices: USD methods are already in USD, INR methods must be divided by rate
+  const totalPaidUsdAmount = isExportInvoice
+    ? initialPayments.reduce((sum, p) => {
+        if (!p.amount) return sum;
+        return sum + (USD_METHODS.includes(p.method) ? p.amount : p.amount / exportConvRate);
+      }, 0)
+    : 0;
+  // For export: use usdPrice * conversionRate as INR equivalent for totals
+  const totalNetAmount = isExportInvoice
+    ? cart.reduce((sum, item) => sum + (item.usdPrice ? item.usdPrice * exportConvRate : item.netAmount), 0) + shippingChargeValue + additionalChargeValue
+    : cart.reduce((sum, item) => sum + item.netAmount, 0) + shippingChargeValue + additionalChargeValue;
+  const totalUsdAmount = cart.reduce((sum, item) => sum + (item.usdPrice || 0), 0);
   const totalItemDiscount = cart.reduce((sum, item) => sum + (item.discount || 0), 0);
   
   // Calculate discount amount from coupon or flat discount (backend logic)
@@ -335,39 +416,41 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   const loyaltyRedeemAmount = Math.min(watchedValues.loyaltyRedeemAmount || 0, maxLoyaltyRedeem, adjustedInvoiceTotal);
   const finalTotal = Math.max(0, adjustedInvoiceTotal - loyaltyRedeemAmount);
   
-  // Payment status logic (EXACT backend logic)
-  const paidAmount = totalPaidAmount;
-  const invoicePaymentStatus = 
-    paidAmount >= finalTotal - 0.01
+  // Payment status logic — for export invoices compare USD vs USD, for domestic compare INR vs INR
+  const effectivePaid = isExportInvoice ? totalPaidUsdAmount : totalPaidAmount;
+  const effectiveTotal = isExportInvoice ? totalUsdAmount : finalTotal;
+  const paidAmount = totalPaidAmount; // kept for non-export INR usage
+  const invoicePaymentStatus =
+    effectivePaid >= effectiveTotal - 0.001
       ? "PAID"
-      : paidAmount > 0
+      : effectivePaid > 0
       ? "PARTIAL"
       : watchedValues.paymentStatus === "PARTIAL"
       ? "PARTIAL"
-      : "PENDING"; // Changed from UNPAID to PENDING for frontend compatibility
-  
-  // Calculate amount to collect (backend logic)
-  const amountToCollect = Math.max(0, finalTotal - paidAmount);
+      : "PENDING";
 
-  // Auto-calculate payment status using EXACT backend logic
+  // Calculate amount to collect (backend logic)
+  const amountToCollect = isExportInvoice
+    ? Math.max(0, totalUsdAmount - totalPaidUsdAmount)
+    : Math.max(0, finalTotal - paidAmount);
+
+  // Auto-calculate payment status using effective USD/INR comparison
   useEffect(() => {
-    if (finalTotal > 0) {
-      // Use exact backend payment status logic
-      const newStatus = 
-        paidAmount >= finalTotal - 0.01
+    if (effectiveTotal > 0) {
+      const newStatus =
+        effectivePaid >= effectiveTotal - 0.001
           ? "PAID"
-          : paidAmount > 0
+          : effectivePaid > 0
           ? "PARTIAL"
           : watchedValues.paymentStatus === "PARTIAL"
           ? "PARTIAL"
           : "PENDING";
-      
-      // Only update if different to avoid infinite loops
+
       if (watchedValues.paymentStatus !== newStatus) {
         form.setValue("paymentStatus", newStatus);
       }
     }
-  }, [finalTotal, paidAmount, watchedValues.paymentStatus]);
+  }, [effectiveTotal, effectivePaid, watchedValues.paymentStatus]);
 
   // Customer search
   useEffect(() => {
@@ -726,10 +809,16 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       const combinedPayments: Array<{ amount: number; method: string; date: string; reference?: string; notes?: string }> = [];
       
       // Add payments from the multi-payment UI
+      // For export invoices: Payoneer/PayPal amounts are entered in USD — convert to INR for backend storage
+      const isExport = watchedValues.invoiceType === "EXPORT_INVOICE";
+      const convRate = (watchedValues.conversionRate && watchedValues.conversionRate > 0) ? watchedValues.conversionRate : 1;
       initialPayments.forEach(p => {
         if (p.amount > 0) {
+          const storedAmount = isExport && USD_METHODS.includes(p.method)
+            ? p.amount * convRate  // convert USD → INR for backend
+            : p.amount;
           combinedPayments.push({
-            amount: p.amount,
+            amount: storedAmount,
             method: p.method,
             date: p.date,
             reference: p.reference,
@@ -761,11 +850,18 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
           inventoryId: item.id,
           sellingPrice: perUnitGross,
           discount: perUnitDiscount,
+          ...(watchedValues.invoiceType === "EXPORT_INVOICE" && item.usdPrice ? { usdPrice: item.usdPrice } : {}),
         };
       });
       formData.append("items", JSON.stringify(itemsData));
       formData.append("shippingCharge", shippingChargeValue.toString());
       formData.append("additionalCharge", additionalChargeValue.toString());
+      
+      // Discount type and flat discount
+      formData.append("discountType", watchedValues.discountType || "none");
+      if (watchedValues.flatDiscount && watchedValues.flatDiscount > 0) {
+        formData.append("flatDiscount", watchedValues.flatDiscount.toString());
+      }
       
       // Coupon code if provided
       if (watchedValues.couponCode) {
@@ -786,16 +882,20 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       // Sale date
       formData.append("saleDate", invoiceDate);
       
-      // Notes
+      // Notes (mapped to 'remarks' as expected by actions.ts saleSchema)
       if (watchedValues.notes) {
-        formData.append("notes", watchedValues.notes);
+        formData.append("remarks", watchedValues.notes);
       }
+
+      // Always send invoiceType
+      formData.append("invoiceType", watchedValues.invoiceType || "TAX_INVOICE");
 
       // Export invoice fields
       if (watchedValues.invoiceType === "EXPORT_INVOICE") {
-        formData.append("invoiceType", watchedValues.invoiceType);
         formData.append("invoiceCurrency", watchedValues.invoiceCurrency || "USD");
-        if (watchedValues.conversionRate) formData.append("conversionRate", watchedValues.conversionRate.toString());
+        if (watchedValues.conversionRate && watchedValues.conversionRate > 0) {
+          formData.append("conversionRate", watchedValues.conversionRate.toString());
+        }
         if (watchedValues.iecCode) formData.append("iecCode", watchedValues.iecCode);
         if (watchedValues.exportType) formData.append("exportType", watchedValues.exportType);
         if (watchedValues.countryOfDestination) formData.append("countryOfDestination", watchedValues.countryOfDestination);
@@ -803,6 +903,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
         if (watchedValues.modeOfTransport) formData.append("modeOfTransport", watchedValues.modeOfTransport);
         if (watchedValues.courierPartner) formData.append("courierPartner", watchedValues.courierPartner);
         if (watchedValues.trackingId) formData.append("trackingId", watchedValues.trackingId);
+        if (watchedValues.platformOrderId) formData.append("platformOrderId", watchedValues.platformOrderId);
       }
 
       const result = await createSale(null, formData);
@@ -1089,13 +1190,13 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="invoiceDate">Invoice Date</Label>
+                <Label htmlFor="invoiceDate" className="text-sm font-medium">Invoice Date</Label>
                 <Input
                   id="invoiceDate"
                   type="date"
                   value={watchedValues.invoiceDate || ""}
                   onChange={(e) => form.setValue("invoiceDate", e.target.value, { shouldValidate: true })}
-                  className="w-full md:w-auto"
+                  className="w-full md:w-48 text-base font-medium"
                 />
               </div>
               <div>
@@ -1232,6 +1333,14 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                       {...form.register("trackingId")}
                     />
                   </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="platformOrderId">Platform Order ID</Label>
+                    <Input
+                      id="platformOrderId"
+                      placeholder="e.g., eBay order #123456789, Amazon B00XXXX"
+                      {...form.register("platformOrderId")}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1317,10 +1426,12 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                     <div key={item.id} className="flex items-center gap-4 p-4 border rounded-lg">
                       <div className="flex-1">
                         <div className="font-medium">{item.itemName}</div>
-                        <div className="text-sm text-muted-foreground">SKU: {item.sku}</div>
-                        <div className="text-sm text-muted-foreground">
-                          GST: {item.gstRate}% • {formatCurrency(item.sellingPrice)} each
-                        </div>
+                        <div className="text-sm font-mono text-muted-foreground">SKU: {item.sku}</div>
+                        {watchedValues.invoiceType !== "EXPORT_INVOICE" && (
+                          <div className="text-sm text-muted-foreground">
+                            GST: {item.gstRate}% • {formatCurrency(item.sellingPrice)} each
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <Label className="text-sm">Qty:</Label>
@@ -1332,21 +1443,49 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                           className="w-20 h-8"
                         />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-sm">Discount:</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={item.discount}
-                          onChange={(e) => updateCartItem(item.id, "discount", parseFloat(e.target.value) || 0)}
-                          className="w-24 h-8"
-                        />
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold">{formatCurrency(item.netAmount)}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Tax: {formatCurrency(item.taxAmount)} ({item.gstRate}%)
+                      {watchedValues.invoiceType === "EXPORT_INVOICE" ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200 min-w-[44px] text-center">
+                            {watchedValues.invoiceCurrency || "USD"}
+                          </span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={item.usdPrice ?? ""}
+                            onChange={(e) => updateCartItem(item.id, "usdPrice", parseFloat(e.target.value) || 0)}
+                            className="w-28 h-8 border-blue-400 font-mono text-sm"
+                          />
                         </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm">Discount:</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={item.discount}
+                            onChange={(e) => updateCartItem(item.id, "discount", parseFloat(e.target.value) || 0)}
+                            className="w-24 h-8"
+                          />
+                        </div>
+                      )}
+                      <div className="text-right min-w-[90px]">
+                        {watchedValues.invoiceType === "EXPORT_INVOICE" ? (
+                          <>
+                            <div className="font-bold text-blue-700 font-mono">
+                              {item.usdPrice ? `${watchedValues.invoiceCurrency || "USD"} ${item.usdPrice.toFixed(2)}` : <span className="text-orange-400 text-sm">Enter price</span>}
+                            </div>
+                            <div className="text-xs text-emerald-600">Zero GST</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="font-bold">{formatCurrency(item.netAmount)}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Tax: {formatCurrency(item.taxAmount)} ({item.gstRate}%)
+                            </div>
+                          </>
+                        )}
                       </div>
                       <Button
                         variant="outline"
@@ -1511,24 +1650,36 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                 </div>
                 {initialPayments.map((payment, index) => (
                   <div key={index} className="border rounded-md p-4 space-y-4">
-                    {/* Main row: Amount, Method, Date, Reference */}
-                    <div className="grid gap-3 md:grid-cols-12 items-start">
-                      <div className="md:col-span-3">
-                        <Label className="text-sm font-medium text-muted-foreground">Amount</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={payment.amount}
-                          onChange={(e) => updateInitialPayment(index, "amount", parseFloat(e.target.value) || 0)}
-                          placeholder="0.00"
-                          className="h-10 text-base"
-                        />
-                      </div>
-                      <div className="md:col-span-3">
-                        <Label className="text-sm font-medium text-muted-foreground">Method</Label>
+                    {/* Row 1: Amount (full width) */}
+                    <div className="mb-4">
+                      <Label className="text-xs font-medium text-muted-foreground block mb-1.5">
+                        Amount{" "}
+                        {isExportInvoice && USD_METHODS.includes(payment.method) ? (
+                          <span className="text-blue-600 font-bold">({watchedValues.invoiceCurrency || "USD"})</span>
+                        ) : isExportInvoice ? (
+                          <span className="text-gray-400">(INR)</span>
+                        ) : null}
+                      </Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={payment.amount}
+                        onChange={(e) => updateInitialPayment(index, "amount", parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                        className={`h-10 text-base font-mono w-full ${isExportInvoice && USD_METHODS.includes(payment.method) ? "border-blue-400 focus:border-blue-600" : ""}`}
+                      />
+                      {isExportInvoice && USD_METHODS.includes(payment.method) && payment.amount > 0 && exportConvRate > 1 && (
+                        <p className="text-xs text-gray-400 mt-1">= ₹{(payment.amount * exportConvRate).toFixed(2)} INR</p>
+                      )}
+                    </div>
+                    
+                    {/* Row 2: Method, Date, Reference */}
+                    <div className="grid gap-3 md:grid-cols-3 items-start">
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Method</Label>
                         <Select value={payment.method} onValueChange={(value) => updateInitialPayment(index, "method", value)}>
-                          <SelectTrigger className="h-10 text-base">
+                          <SelectTrigger className="h-9 text-sm w-full">
                             <SelectValue placeholder="Choose method" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1539,25 +1690,27 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                             <SelectItem value="CARD">Card</SelectItem>
                             <SelectItem value="ADVANCE_ADJUST">Advance Adjustment</SelectItem>
                             <SelectItem value="CREDIT_NOTE">Credit Note</SelectItem>
+                            {watchedValues.invoiceType === "EXPORT_INVOICE" && <SelectItem value="PAYPAL">PayPal</SelectItem>}
+                            {watchedValues.invoiceType === "EXPORT_INVOICE" && <SelectItem value="PAYONEER">Payoneer</SelectItem>}
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="md:col-span-3">
-                        <Label className="text-sm font-medium text-muted-foreground">Date</Label>
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Date</Label>
                         <Input
                           type="date"
                           value={payment.date}
                           onChange={(e) => updateInitialPayment(index, "date", e.target.value)}
-                          className="h-10 text-base"
+                          className="h-9 text-sm w-full"
                         />
                       </div>
-                      <div className="md:col-span-3">
-                        <Label className="text-sm font-medium text-muted-foreground">Reference</Label>
+                      <div>
+                        <Label className="text-xs font-medium text-muted-foreground block mb-1.5">Reference</Label>
                         <Input
                           value={payment.reference || ""}
                           onChange={(e) => updateInitialPayment(index, "reference", e.target.value)}
-                          placeholder="Reference / txn id"
-                          className="h-10 text-base"
+                          placeholder="Txn Ref / CN Code"
+                          className="h-9 text-sm w-full"
                         />
                       </div>
                     </div>
@@ -1687,55 +1840,86 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Subtotal (Before Tax)</span>
-                  <span>{formatCurrency(cart.reduce((sum, item) => {
-                    const basePrice = (item.sellingPrice / (1 + (item.gstRate / 100))) * item.quantity;
-                    return sum + basePrice;
-                  }, 0))}</span>
-                </div>
-                {totalItemDiscount > 0 && (
-                  <div className="flex justify-between">
-                    <span>Item Discount</span>
-                    <span>-{formatCurrency(totalItemDiscount)}</span>
-                  </div>
+                {isExportInvoice ? (
+                  <>
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Subtotal ({watchedValues.invoiceCurrency || "USD"})</span>
+                      <span className="font-mono">{watchedValues.invoiceCurrency || "USD"} {totalUsdAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-600 text-sm">
+                      <span>GST</span>
+                      <span>Zero Rated (Export)</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between">
+                      <span>Subtotal (Before Tax)</span>
+                      <span>{formatCurrency(cart.reduce((sum, item) => {
+                        const basePrice = (item.sellingPrice / (1 + (item.gstRate / 100))) * item.quantity;
+                        return sum + basePrice;
+                      }, 0))}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax</span>
+                      <span>{formatCurrency(cart.reduce((sum, item) => sum + (item.taxAmount || 0), 0))}</span>
+                    </div>
+                    {totalItemDiscount > 0 && (
+                      <div className="flex justify-between">
+                        <span>Item Discount</span>
+                        <span>-{formatCurrency(totalItemDiscount)}</span>
+                      </div>
+                    )}
+                    {flatDiscountAmount > 0 && (
+                      <div className="flex justify-between">
+                        <span>{watchedValues.discountType === "flat" ? "Flat Discount" : "Coupon Discount"}</span>
+                        <span>-{formatCurrency(flatDiscountAmount)}</span>
+                      </div>
+                    )}
+                    {loyaltyRedeemAmount > 0 && (
+                      <div className="flex justify-between">
+                        <span>Loyalty Points</span>
+                        <span className="text-green-600">-{formatCurrency(loyaltyRedeemAmount)}</span>
+                      </div>
+                    )}
+                  </>
                 )}
-                <div className="flex justify-between">
-                  <span>Tax</span>
-                  <span>{formatCurrency(cart.reduce((sum, item) => sum + (item.taxAmount || 0), 0))}</span>
-                </div>
-                {flatDiscountAmount > 0 && (
-                  <div className="flex justify-between">
-                    <span>{watchedValues.discountType === "flat" ? "Flat Discount" : "Coupon Discount"}</span>
-                    <span>-{formatCurrency(flatDiscountAmount)}</span>
-                  </div>
-                )}
-                {loyaltyRedeemAmount > 0 && (
-                  <div className="flex justify-between">
-                    <span>Loyalty Points</span>
-                    <span className="text-green-600">-{formatCurrency(loyaltyRedeemAmount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-xl font-bold">
+                <div className="flex justify-between text-xl font-bold border-t pt-2">
                   <span>Total</span>
-                  <span>{formatCurrency(finalTotal)}</span>
+                  <span className="font-mono">
+                    {isExportInvoice
+                      ? `${watchedValues.invoiceCurrency || "USD"} ${totalUsdAmount.toFixed(2)}`
+                      : formatCurrency(finalTotal)}
+                  </span>
                 </div>
                 {totalPaidAmount > 0 && (
                   <div className="flex justify-between">
                     <span>Paid Amount</span>
-                    <span className="text-green-600">-{formatCurrency(totalPaidAmount)}</span>
+                    <span className="text-green-600">
+                      {isExportInvoice
+                        ? `-${watchedValues.invoiceCurrency || "USD"} ${totalPaidUsdAmount.toFixed(2)}`
+                        : `-${formatCurrency(totalPaidAmount)}`}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between text-xl font-bold text-green-600">
                   <span>Amount to Collect</span>
-                  <span>{formatCurrency(amountToCollect)}</span>
+                  <span className="font-mono">
+                    {isExportInvoice
+                      ? `${watchedValues.invoiceCurrency || "USD"} ${Math.max(0, totalUsdAmount - totalPaidUsdAmount).toFixed(2)}`
+                      : formatCurrency(amountToCollect)}
+                  </span>
                 </div>
               </div>
               <Separator />
               <Alert>
                 <AlertDescription>
                   <strong>Amount to be collected:</strong>{" "}
-                  <span className="text-xl font-bold text-green-600">{formatCurrency(amountToCollect)}</span>
+                  <span className="text-xl font-bold text-green-600">
+                    {isExportInvoice
+                      ? `${watchedValues.invoiceCurrency || "USD"} ${Math.max(0, totalUsdAmount - totalPaidUsdAmount).toFixed(2)}`
+                      : formatCurrency(amountToCollect)}
+                  </span>
                 </AlertDescription>
               </Alert>
             </CardContent>
@@ -1786,28 +1970,34 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
                     <strong>Partial Payment Detected</strong><br />
-                    Amount Paid: {formatCurrency(totalPaidAmount)}<br />
-                    Pending Amount: {formatCurrency(amountToCollect)}<br />
+                    Amount Paid: {isExportInvoice
+                      ? `${watchedValues.invoiceCurrency || "USD"} ${totalPaidUsdAmount.toFixed(2)}`
+                      : formatCurrency(totalPaidAmount)}<br />
+                    Pending Amount: {isExportInvoice
+                      ? `${watchedValues.invoiceCurrency || "USD"} ${Math.max(0, totalUsdAmount - totalPaidUsdAmount).toFixed(2)}`
+                      : formatCurrency(amountToCollect)}<br />
                     Are you sure you want to create this invoice with partial payment?
                   </AlertDescription>
                 </Alert>
               </div>
             )}
-            
+
             {confirmationStep === 2 && (
               <div>
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
                     <strong>No Payment Made</strong><br />
-                    Total Amount: {formatCurrency(finalTotal)}<br />
+                    Total Amount: {isExportInvoice
+                      ? `${watchedValues.invoiceCurrency || "USD"} ${totalUsdAmount.toFixed(2)}`
+                      : formatCurrency(finalTotal)}<br />
                     No payment was recorded for this invoice.<br />
                     Are you sure you want to create this invoice with pending payment status?
                   </AlertDescription>
                 </Alert>
               </div>
             )}
-            
+
             {confirmationStep === 3 && (
               <div>
                 <Alert>
@@ -1815,8 +2005,12 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                   <AlertDescription>
                     <strong>Final Confirmation</strong><br />
                     Invoice Number: <strong>{nextInvoiceNumber}</strong><br />
-                    Total Amount: {formatCurrency(finalTotal)}<br />
-                    Amount to Collect: <strong>{formatCurrency(amountToCollect)}</strong><br />
+                    Total Amount: {isExportInvoice
+                      ? `${watchedValues.invoiceCurrency || "USD"} ${totalUsdAmount.toFixed(2)}`
+                      : formatCurrency(finalTotal)}<br />
+                    Amount to Collect: <strong>{isExportInvoice
+                      ? `${watchedValues.invoiceCurrency || "USD"} ${Math.max(0, totalUsdAmount - totalPaidUsdAmount).toFixed(2)}`
+                      : formatCurrency(amountToCollect)}</strong><br />
                     Payment Status: {watchedValues.paymentStatus}<br />
                     Customer: {selectedCustomer?.name || watchedValues.customerName}<br />
                     Items: {cart.length} (Quantity: {cart.reduce((sum, item) => sum + item.quantity, 0)})

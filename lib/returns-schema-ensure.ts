@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 
-let ensured = false;
+const globalForReturnsEnsure = globalThis as unknown as {
+  __kgerpEnsuredReturnsSchema?: boolean;
+};
+
+let ensured = globalForReturnsEnsure.__kgerpEnsuredReturnsSchema ?? false;
 
 export async function ensureReturnsSchema() {
   if (ensured) return;
@@ -104,4 +108,5 @@ export async function ensureReturnsSchema() {
     // ignore
   }
   ensured = true;
+  globalForReturnsEnsure.__kgerpEnsuredReturnsSchema = true;
 }
