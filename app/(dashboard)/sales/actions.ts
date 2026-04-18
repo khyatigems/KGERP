@@ -358,7 +358,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
       const canExportInvoice = isExport ? await hasTable("ExportInvoice") : false;
 
-      await prisma.$transaction(async (tx) => {
+      const txResult = await prisma.$transaction(async (tx) => {
           const customerNameInput = String(data.customerName || "").trim();
           const customerPhoneInput = String(data.customerPhone || "").trim().replace(/[^\d+]/g, "");
           const customerEmailInput = String(data.customerEmail || "").trim().toLowerCase();
@@ -557,10 +557,6 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   totalInrValue: data.totalInrValue || adjustedInvoiceTotal
               }
           });
-
-          // Capture invoice details for response
-          createdInvoiceId = newInvoice.id;
-          createdInvoiceNumber = newInvoice.invoiceNumber;
 
           // Create ExportInvoice record for export invoices
           if (isExport && canExportInvoice) {
@@ -863,25 +859,38 @@ export async function createSale(prevState: unknown, formData: FormData) {
               throw accError; // Ensure data consistency
           }
 
-          // Accrue loyalty points if customer exists and invoice is paid
-          if (customerProfile?.id && invoicePaymentStatus === "PAID") {
-            try {
-              await accrueLoyaltyPoints({
-                tx: tx as PrismaTx,
-                customerId: customerProfile.id,
-                invoiceId: newInvoice.id,
-                invoiceNumber: newInvoice.invoiceNumber,
-                invoiceTotal: adjustedInvoiceTotal,
-                invoiceDate: newInvoice.invoiceDate ?? new Date()
-              });
-            } catch (loyaltyError) {
-              console.error("Loyalty accrual failed:", loyaltyError);
-              // Don't fail the sale, just log the error
-            }
-          }
+          // Loyalty accrual moved outside transaction - non-critical
+          const loyaltyAccrualData = (customerProfile?.id && invoicePaymentStatus === "PAID") ? {
+            customerId: customerProfile.id,
+            invoiceId: newInvoice.id,
+            invoiceNumber: newInvoice.invoiceNumber,
+            invoiceTotal: adjustedInvoiceTotal,
+            invoiceDate: newInvoice.invoiceDate ?? new Date()
+          } : null;
+
+          return { 
+            newInvoice, 
+            computedItems, 
+            customerProfile, 
+            loyaltyAccrualData,
+            data
+          };
+      }, { 
+        timeout: 15000, // Increase timeout to 15 seconds
+        maxWait: 20000  // Max wait time for transaction slot
       });
 
-      for (const itemData of computedItems) {
+      // Destructure transaction result
+      const { newInvoice, computedItems: txComputedItems, customerProfile: txCustomerProfile, loyaltyAccrualData } = txResult;
+      
+      // Capture invoice details for response
+      createdInvoiceId = newInvoice.id;
+      createdInvoiceNumber = newInvoice.invoiceNumber;
+
+      // Post-transaction operations (non-critical, can fail without affecting sale)
+      
+      // 1. Log activities (outside transaction)
+      for (const itemData of txComputedItems) {
           await logActivity({
               entityType: "Sale",
               entityId: itemData.inv.id,
@@ -892,6 +901,23 @@ export async function createSale(prevState: unknown, formData: FormData) {
               userName: session.user.name || session.user.email || "Unknown",
               newData: data
           });
+      }
+
+      // 2. Loyalty accrual (outside transaction)
+      if (loyaltyAccrualData) {
+          try {
+              await accrueLoyaltyPoints({
+                  tx: prisma as PrismaTx,
+                  customerId: loyaltyAccrualData.customerId,
+                  invoiceId: loyaltyAccrualData.invoiceId,
+                  invoiceNumber: loyaltyAccrualData.invoiceNumber,
+                  invoiceTotal: loyaltyAccrualData.invoiceTotal,
+                  invoiceDate: loyaltyAccrualData.invoiceDate
+              });
+          } catch (loyaltyError) {
+              console.error("Loyalty accrual failed (non-critical):", loyaltyError);
+              // Don't fail the sale, just log the error
+          }
       }
 
   } catch (e) {
