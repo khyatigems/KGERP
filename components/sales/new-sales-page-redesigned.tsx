@@ -1993,7 +1993,10 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
 
       {/* Confirmation Dialog */}
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent aria-describedby="confirm-sale-description" className="relative max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          aria-describedby="confirm-sale-description" 
+          className="relative max-h-[85vh] overflow-y-auto"
+        >
           {/* Loading Overlay */}
           {isSubmitting && (
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-lg">
