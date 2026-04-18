@@ -15,6 +15,7 @@ import { InventoryCardList } from "@/components/inventory/inventory-card-list";
 import { InventoryStats } from "@/components/inventory/inventory-stats";
 import { InventorySavedToast } from "@/components/inventory/inventory-saved-toast";
 import { InventoryInsightBar } from "@/components/inventory/inventory-insight-bar";
+import { RenameMediaButton } from "@/components/inventory/rename-media-button";
 import type { Inventory, Prisma } from "@prisma/client";
 import { removeDuplicates } from "@/lib/dedup";
 import { auth } from "@/lib/auth";
@@ -413,34 +414,35 @@ export default async function InventoryPage({
   return (
     <div className="space-y-6">
       <InventorySavedToast />
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <h1 className="text-2xl font-bold tracking-tight">Inventory Management</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
+          <p className="text-muted-foreground">Manage your inventory items</p>
         </div>
-        <div className="flex items-center gap-2">
-            <InventorySummaryExport />
-            <ExportButton 
-                filename="inventory_report" 
-                data={exportData} 
-                columns={columns} 
-                title="Inventory Report" 
-            />
-            {canCreate && (
-              <>
-                <Button variant="outline" asChild className="transition-all duration-200 hover:scale-105 active:scale-95">
-                    <LoadingLink href="/inventory/import">
-                        <Upload className="mr-2 h-4 w-4" />
-                        Import
-                    </LoadingLink>
-                </Button>
-                <Button asChild className="transition-all duration-200 hover:scale-105 active:scale-95">
-                    <LoadingLink href="/inventory/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Item
-                    </LoadingLink>
-                </Button>
-              </>
-            )}
+
+        <div className="flex flex-wrap gap-2">
+          {canManageAttentionVisibility && <RenameMediaButton />}
+          {canCreate && (
+            <>
+              <Button asChild variant="outline">
+                <LoadingLink href="/inventory/import">
+                  <Upload className="mr-2 h-4 w-4" /> Import
+                </LoadingLink>
+              </Button>
+              <Button asChild>
+                <LoadingLink href="/inventory/new">
+                  <Plus className="mr-2 h-4 w-4" /> Add Item
+                </LoadingLink>
+              </Button>
+            </>
+          )}
+          <InventorySummaryExport />
+          <ExportButton 
+            filename="inventory_report" 
+            data={exportData} 
+            columns={columns} 
+            title="Inventory Report" 
+          />
         </div>
       </div>
 

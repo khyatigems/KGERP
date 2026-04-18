@@ -10,9 +10,14 @@ import { MobileInventoryActions } from "@/components/inventory/mobile-inventory-
 import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { GciCertButton } from "@/components/inventory/gci-cert-button";
+import { RenameMediaButton } from "@/components/inventory/rename-media-button";
+import { auth } from "@/lib/auth";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import type { InventoryMedia } from "@prisma/client";
 
-export const dynamic = "force-dynamic";
+// ISR: Revalidate every 60 seconds for near-instant page loads
+// Page is cached and refreshed in background
+export const revalidate = 60;
 
 const safeDate = (date: unknown): Date | null => {
   if (!date) return null;
@@ -115,97 +120,47 @@ export default async function InventoryDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  try {
-    const { id } = await params;
-    
-    // Define detailedItem to hold the final result
-    let detailedItem: DetailedInventory | null = null;
-    
-    try {
-        // Try to fetch with all relations first
-        const result = await prisma.inventory.findUnique({
-          where: { id },
-          include: {
-              categoryCode: true,
-              gemstoneCode: true,
-              colorCode: true,
-              collectionCode: true,
-              cutCode: true,
-              rashis: true,
-              media: true,
-              certificates: true
-          }
-        });
-        
-        // We need to cast the result to DetailedInventory because the include types 
-        // might not perfectly match our manual type definition in strict mode,
-        // specifically regarding nullability of relations vs optional fields.
-        if (result) {
-            detailedItem = result as unknown as DetailedInventory;
-        }
-    } catch (error) {
-      console.error("Detailed inventory fetch failed (strict mode), falling back to safe mode:", error);
-      // Fallback: Select only known safe columns + media
-      detailedItem = await prisma.inventory.findUnique({
-          where: { id },
-          select: {
-            id: true, sku: true, itemName: true, internalName: true, category: true, gemType: true, description: true, pieces: true,
-            weightValue: true, weightUnit: true, carats: true, weightRatti: true, costPrice: true, sellingPrice: true, profit: true,
-            status: true, location: true, certificateNo: true, certification: true, lab: true, shape: true, color: true, clarity: true,
-            cut: true, polish: true, symmetry: true, fluorescence: true, measurements: true, dimensionsMm: true, tablePercent: true,
-            depthPercent: true, ratio: true, origin: true, treatment: true, transparency: true, braceletType: true, standardSize: true,
-            beadSizeMm: true, beadCount: true, holeSizeMm: true, innerCircumferenceMm: true, pricingMode: true, sellingRatePerCarat: true,
-            flatSellingPrice: true, purchaseRatePerCarat: true, flatPurchaseCost: true, notes: true, stockLocation: true, purchaseId: true,
-            vendorId: true, batchId: true, imageUrl: true, videoUrl: true, rapPrice: true, discountPercent: true, createdAt: true, updatedAt: true,
-            media: true,
-            categoryCodeId: true, gemstoneCodeId: true, colorCodeId: true, collectionCodeId: true, cutCodeId: true
-          }
-      }) as unknown as DetailedInventory;
+  const { id } = await params;
 
-      if (detailedItem) {
-        // Manually fetch missing relations to "fix" the data
-        const [cat, gem, col, coll, cut, rashis, certs] = await Promise.all([
-            detailedItem.categoryCodeId ? prisma.categoryCode.findUnique({ where: { id: detailedItem.categoryCodeId } }).catch(() => null) : null,
-            detailedItem.gemstoneCodeId ? prisma.gemstoneCode.findUnique({ where: { id: detailedItem.gemstoneCodeId } }).catch(() => null) : null,
-            detailedItem.colorCodeId ? prisma.colorCode.findUnique({ where: { id: detailedItem.colorCodeId } }).catch(() => null) : null,
-            detailedItem.collectionCodeId ? prisma.collectionCode.findUnique({ where: { id: detailedItem.collectionCodeId } }).catch(() => null) : null,
-            detailedItem.cutCodeId ? prisma.cutCode.findUnique({ where: { id: detailedItem.cutCodeId } }).catch(() => null) : null,
-            // Many-to-many relations are harder to fetch without include, but we can try if junction exists
-            // Or just leave them empty as they are not critical for "viewing" scalar details
-            Promise.resolve([]), 
-            Promise.resolve([])
-        ]);
+  // Check permissions in parallel with data fetching
+  const sessionPromise = auth();
+  
+  // Fetch main inventory data with ALL relations in ONE query
+  const inventoryPromise = prisma.inventory.findUnique({
+    where: { id },
+    include: {
+      categoryCode: true,
+      gemstoneCode: true,
+      colorCode: true,
+      collectionCode: true,
+      cutCode: true,
+      rashis: true,
+      media: true,
+      certificates: true
+    }
+  });
 
-        detailedItem.categoryCode = cat;
-        detailedItem.gemstoneCode = gem;
-        detailedItem.colorCode = col;
-        detailedItem.collectionCode = coll;
-        detailedItem.cutCode = cut;
-        detailedItem.rashis = rashis as { name: string }[];
-        detailedItem.certificates = certs as { name: string; remarks?: string | null }[];
-      }
-  }
-
-  if (!detailedItem) return <div className="p-6">Inventory Item not found</div>;
-
-  const vendor = detailedItem.vendorId 
-    ? await prisma.vendor.findUnique({ where: { id: detailedItem.vendorId } })
-    : null;
-
-  let logs: ActivityLogEntry[] = [];
-  try {
-      logs = await prisma.activityLog.findMany({
-        where: { entityId: id },
-        orderBy: { createdAt: "desc" },
-      }) as unknown as ActivityLogEntry[];
-  } catch (error) {
-    console.error("Failed to fetch activity logs for inventory:", error);
-  }
-
-  const [salesRows, quotationRows] = await Promise.all([
+  // Fetch all related data in PARALLEL
+  const [
+    session,
+    inventory,
+    activityLogs,
+    sales,
+    quotations,
+    returns
+  ] = await Promise.all([
+    sessionPromise,
+    inventoryPromise,
+    // Limit to recent 20 logs only - critical for performance
+    prisma.activityLog.findMany({
+      where: { entityId: id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }).catch(() => []),
     prisma.sale.findMany({
       where: { inventoryId: id },
       orderBy: { saleDate: "desc" },
+      take: 10,
       select: {
         id: true,
         saleDate: true,
@@ -216,40 +171,47 @@ export default async function InventoryDetailPage({
     prisma.quotationItem.findMany({
       where: { inventoryId: id },
       orderBy: { quotation: { createdAt: "desc" } },
+      take: 10,
       include: { quotation: { select: { id: true, quotationNumber: true, status: true, createdAt: true } } },
     }).catch(() => []),
+    // Simplified returns query using Prisma instead of raw SQL
+    prisma.salesReturnItem.findMany({
+      where: { inventoryId: id },
+      take: 10,
+      include: {
+        salesReturn: {
+          select: {
+            id: true,
+            returnNumber: true,
+            returnDate: true,
+            createdAt: true,
+            invoice: { select: { invoiceNumber: true } }
+          }
+        }
+      }
+    }).catch(() => [])
   ]);
 
-  const returnRows = await (async () => {
-    try {
-      const rows = await prisma.$queryRawUnsafe<
-        Array<{
-          id: string;
-          returnNumber: string | null;
-          returnDate: string | null;
-          createdAt: string | null;
-          invoiceNumber: string | null;
-        }>
-      >(
-        `SELECT sri.id as id,
-                sr.returnNumber as returnNumber,
-                sr.returnDate as returnDate,
-                sr.createdAt as createdAt,
-                i.invoiceNumber as invoiceNumber
-         FROM SalesReturnItem sri
-         JOIN SalesReturn sr ON sr.id = sri.salesReturnId
-         LEFT JOIN Invoice i ON i.id = sr.invoiceId
-         WHERE sri.inventoryId = ?
-         ORDER BY COALESCE(sr.returnDate, sr.createdAt) DESC
-         LIMIT 200`,
-        id
-      );
-      return rows || [];
-    } catch {
-      return [];
-    }
-  })();
+  if (!inventory) {
+    return <div className="p-6">Inventory Item not found</div>;
+  }
 
+  const userId = session?.user?.id;
+  const canEdit = userId ? await checkUserPermission(userId, PERMISSIONS.INVENTORY_EDIT) : false;
+
+  // Cast to our type
+  const detailedItem = inventory as unknown as DetailedInventory;
+
+  // Get vendor info (only if we have vendorId)
+  const vendor = detailedItem.vendorId 
+    ? await prisma.vendor.findUnique({ where: { id: detailedItem.vendorId } })
+    : null;
+
+  // Build timeline from fetched data
+  const logs = activityLogs as unknown as ActivityLogEntry[];
+  const salesRows = sales;
+  const quotationRows = quotations;
+  
   const timeline = [
     ...logs.map((l) => ({
       id: l.id,
@@ -271,15 +233,15 @@ export default async function InventoryDetailPage({
       source: "SYSTEM",
       createdAt: new Date(s.saleDate),
     })),
-    ...returnRows.map((r) => ({
+    ...returns.map((r) => ({
       id: `return-${r.id}`,
       actionType: "SALES_RETURN",
       userId: null,
       userName: "System",
-      details: `${r.returnNumber ? `Sales Return ${r.returnNumber}` : "Sales Return"}${r.invoiceNumber ? ` for Invoice ${r.invoiceNumber}` : ""}`,
+      details: `${r.salesReturn?.returnNumber ? `Sales Return ${r.salesReturn.returnNumber}` : "Sales Return"}${r.salesReturn?.invoice?.invoiceNumber ? ` for Invoice ${r.salesReturn.invoice.invoiceNumber}` : ""}`,
       fieldChanges: null,
       source: "SYSTEM",
-      createdAt: new Date(r.returnDate || r.createdAt || new Date().toISOString()),
+      createdAt: new Date(r.salesReturn?.returnDate || r.salesReturn?.createdAt || new Date().toISOString()),
     })),
     ...quotationRows.map((q) => ({
       id: `quote-${q.id}`,
@@ -343,6 +305,7 @@ export default async function InventoryDetailPage({
                     </div>
                 </div>
                 <div className="hidden gap-2 md:flex">
+                    {canEdit && <RenameMediaButton inventoryId={id} />}
                     <Button variant="outline" asChild>
                         <Link href={`/inventory/${id}/edit`}>
                             <Pencil className="mr-2 h-4 w-4" /> Edit
@@ -751,24 +714,4 @@ export default async function InventoryDetailPage({
             <MobileInventoryActions id={id} status={detailedItem.status} />
         </div>
     );
-  } catch (error) {
-    console.error("Inventory detail render error:", error);
-    return (
-      <div className="p-6">
-        <div className="bg-destructive/15 text-destructive border-destructive/20 border px-4 py-3 rounded-md relative">
-          <strong className="font-bold">Unable to render Inventory Detail</strong>
-          <span className="block mt-1 mb-2">Please try again. If the issue persists, the item’s data may be missing optional relations. We’ve logged the error.</span>
-          <div className="text-xs font-mono bg-white/50 p-2 rounded overflow-auto max-h-32 whitespace-pre-wrap">
-            {error instanceof Error ? error.message : String(error)}
-            {error instanceof Error && error.stack && (
-                <details className="mt-1 cursor-pointer">
-                    <summary>Stack Trace</summary>
-                    <pre className="mt-1 text-[10px]">{error.stack}</pre>
-                </details>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
 }
