@@ -248,7 +248,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   const invoiceCurrency = form.watch("invoiceCurrency");
 
   // Use local state for reliable conditional rendering
-  React.useEffect(() => {
+  useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === "invoiceType") {
         setCurrentInvoiceType(value.invoiceType || "TAX_INVOICE");
@@ -258,7 +258,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
   }, [form]);
 
   // Initialize with form value
-  React.useEffect(() => {
+  useEffect(() => {
     const formValue = form.getValues("invoiceType");
     setCurrentInvoiceType(formValue || "TAX_INVOICE");
   }, [form]);
