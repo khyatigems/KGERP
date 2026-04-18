@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -140,6 +140,8 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   const [maxLoyaltyRedeem, setMaxLoyaltyRedeem] = useState<number>(0);
   const [itemSearchQuery, setItemSearchQuery] = useState("");
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
+  const [showItemDropdown, setShowItemDropdown] = useState(false);
+  const itemSearchRef = useRef<HTMLDivElement>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationStep, setConfirmationStep] = useState(1);
   const [nextInvoiceNumber, setNextInvoiceNumber] = useState<string>("");
@@ -658,7 +660,20 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       }]);
     }
     setItemSearchQuery("");
+    setShowItemDropdown(false);
+    setFilteredItems([]);
   };
+
+  // Click outside handler to close item search dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (itemSearchRef.current && !itemSearchRef.current.contains(event.target as Node)) {
+        setShowItemDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Update cart item with your existing GST logic
   const updateCartItem = (id: string, field: keyof CartItem, value: number) => {
@@ -911,7 +926,18 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       console.log('Backend response:', result);
       
       if (result && result.success) {
-        toast.success(result.message || "Sale created successfully!");
+        const invoiceNumber = (result as unknown as { invoiceNumber?: string }).invoiceNumber;
+        toast.success(
+          <div className="flex flex-col gap-1">
+            <span className="font-semibold">Invoice Created Successfully!</span>
+            {invoiceNumber && (
+              <span className="text-sm text-muted-foreground">
+                Invoice #{invoiceNumber}
+              </span>
+            )}
+          </div>,
+          { duration: 5000 }
+        );
         setShowConfirmation(false);
         setConfirmationStep(1);
         
@@ -923,12 +949,14 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
         // Redirect to sales page after successful creation
         window.location.href = "/sales";
       } else {
-        toast.error(result?.message || "Failed to create sale");
+        toast.error(result?.message || "Failed to create sale", { duration: 5000 });
       }
     } catch (error) {
-      toast.error("Failed to create sale");
+      console.error("Sale creation error:", error);
+      toast.error("Failed to create sale. Please try again.", { duration: 5000 });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
@@ -1356,17 +1384,32 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="relative">
+                <div className="relative" ref={itemSearchRef}>
                   <Search className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
                   <Input
-                    placeholder="Search by SKU, item name, or category..."
+                    placeholder="Search by SKU, item name, or category (min 2 chars)..."
                     value={itemSearchQuery}
-                    onChange={(e) => setItemSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setItemSearchQuery(value);
+                      // Only show dropdown when at least 2 characters typed
+                      if (value.length >= 2) {
+                        setShowItemDropdown(true);
+                      } else {
+                        setShowItemDropdown(false);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Close dropdown on Escape key
+                      if (e.key === 'Escape') {
+                        setShowItemDropdown(false);
+                      }
+                    }}
                     className="pl-10 text-gray-900 placeholder:text-gray-500"
                     style={{ color: '#111827', backgroundColor: '#ffffff' }}
                   />
-                  {filteredItems.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-gray-50 border rounded-md shadow-lg max-h-80 overflow-auto">
+                  {showItemDropdown && filteredItems.length > 0 && itemSearchQuery.length >= 2 && (
+                    <div className="absolute z-10 w-full mt-1 bg-gray-50 border rounded-md shadow-lg max-h-60 overflow-auto">
                       {filteredItems.map((item) => (
                         <div
                           key={item.id}
@@ -1950,7 +1993,15 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
 
       {/* Confirmation Dialog */}
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent aria-describedby="confirm-sale-description">
+        <DialogContent aria-describedby="confirm-sale-description" className="relative">
+          {/* Loading Overlay */}
+          {isSubmitting && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-lg">
+              <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+              <p className="text-lg font-medium">Creating Invoice...</p>
+              <p className="text-sm text-muted-foreground mt-1">Please wait, this may take a few seconds</p>
+            </div>
+          )}
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {confirmationStep === 1 && <AlertTriangle className="w-5 h-5 text-yellow-500" />}
@@ -2021,11 +2072,25 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfirmation(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowConfirmation(false)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button onClick={proceedToNextStep}>
-              {confirmationStep === 3 ? "Create Invoice" : "Continue"}
+            <Button 
+              onClick={proceedToNextStep}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {confirmationStep === 3 ? "Creating Invoice..." : "Processing..."}
+                </>
+              ) : (
+                confirmationStep === 3 ? "Create Invoice" : "Continue"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

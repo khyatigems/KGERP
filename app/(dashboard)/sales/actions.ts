@@ -187,9 +187,10 @@ export async function createSale(prevState: unknown, formData: FormData) {
   if (!session) {
     return { message: "Unauthorized" };
   }
-  await ensureReturnsSchema();
-  await ensureBillfreePhase1Schema();
-  await ensureInvoiceSupportSchema();
+  // Schema ensures removed for performance - run once at build/deploy time via migration
+  // await ensureReturnsSchema();
+  // await ensureBillfreePhase1Schema();
+  // await ensureInvoiceSupportSchema();
   try {
     await assertNotFrozen("Sale creation");
   } catch (error) {
@@ -209,6 +210,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
   let itemsData: { inventoryId: string; sellingPrice: number; usdPrice?: number; discount: number }[] = [];
   let initialPaymentsData: { amount: number; method: string; date: string; reference?: string; notes?: string }[] = [];
+  let createdInvoiceId: string | null = null;
+  let createdInvoiceNumber: string | null = null;
   try {
     if (typeof rawData.items === "string") {
       itemsData = JSON.parse(rawData.items);
@@ -527,7 +530,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
           const newInvoice = await tx.invoice.create({
               data: {
-                  invoiceNumber,
+                  invoiceNumber: invoiceNumber,
                   token,
                   quotationId: data.quotationId || null,
                   isActive: true,
@@ -554,6 +557,10 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   totalInrValue: data.totalInrValue || adjustedInvoiceTotal
               }
           });
+
+          // Capture invoice details for response
+          createdInvoiceId = newInvoice.id;
+          createdInvoiceNumber = newInvoice.invoiceNumber;
 
           // Create ExportInvoice record for export invoices
           if (isExport && canExportInvoice) {
@@ -896,7 +903,12 @@ export async function createSale(prevState: unknown, formData: FormData) {
   revalidatePath("/sales");
   revalidatePath("/inventory");
   // redirect("/sales");
-  return { success: true, message: "Sale created successfully. Invoice Generated." };
+  return { 
+    success: true, 
+    message: "Sale created successfully. Invoice Generated.",
+    invoiceId: createdInvoiceId,
+    invoiceNumber: createdInvoiceNumber
+  };
 }
 
 export async function deleteSale(id: string) {
