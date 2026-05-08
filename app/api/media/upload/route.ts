@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToCloudinary } from '@/lib/cloudinary';
+// This imports and configures cloudinary with env vars
+import '@/lib/cloudinary';
 import { v2 as cloudinary } from 'cloudinary';
 
 // Configure API route
