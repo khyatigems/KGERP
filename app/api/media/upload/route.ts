@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // This imports and configures cloudinary with env vars
 import '@/lib/cloudinary';
 import { v2 as cloudinary } from 'cloudinary';
+import { prisma } from '@/lib/prisma';
 
 // Configure API route
 export const runtime = 'nodejs';
@@ -79,12 +80,55 @@ export async function POST(req: NextRequest) {
     });
 
     const result = uploadResult as any;
+    const cloudinaryUrl = result.secure_url;
+
+    // Save to database - find inventory by SKU and add media record
+    try {
+      // Find the inventory item by SKU
+      const inventory = await prisma.inventory.findUnique({
+        where: { sku: sku },
+        select: { id: true, imageUrl: true }
+      });
+
+      if (inventory) {
+        // Check if this is the first image (to set as primary)
+        const existingMediaCount = await prisma.inventoryMedia.count({
+          where: { inventoryId: inventory.id }
+        });
+        const isPrimary = existingMediaCount === 0;
+
+        // Create InventoryMedia record
+        await prisma.inventoryMedia.create({
+          data: {
+            inventoryId: inventory.id,
+            mediaUrl: cloudinaryUrl,
+            type: isVideo ? 'video' : 'image',
+            isPrimary: isPrimary,
+          }
+        });
+
+        // If this is the first image, also update the main imageUrl field
+        if (isPrimary && !inventory.imageUrl) {
+          await prisma.inventory.update({
+            where: { id: inventory.id },
+            data: { imageUrl: cloudinaryUrl }
+          });
+        }
+
+        console.log(`✅ Saved media to database for SKU: ${sku}, Inventory ID: ${inventory.id}`);
+      } else {
+        console.warn(`⚠️ Inventory not found for SKU: ${sku}. Image uploaded to Cloudinary but not saved to database.`);
+      }
+    } catch (dbError) {
+      console.error('❌ Database error saving media:', dbError);
+      // Don't fail the upload if DB save fails - image is still on Cloudinary
+    }
 
     // Return success response
     return NextResponse.json({
       success: true,
-      url: result.secure_url,
-      cloudinaryUrl: result.secure_url,
+      url: cloudinaryUrl,
+      cloudinaryUrl: cloudinaryUrl,
       publicId: result.public_id,
       fileName: fileName,
       sku: sku,
