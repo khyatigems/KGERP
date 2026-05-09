@@ -66,8 +66,16 @@ function buildInventoryWhere(
       OR: [
         { sku: { contains: query } },
         { itemName: { contains: query } },
+        { internalName: { contains: query } },
         { category: { contains: query } },
         { gemType: { contains: query } },
+        { color: { contains: query } },
+        { dimensionsMm: { contains: query } },
+        { standardSize: { contains: query } },
+        { certificateNo: { contains: query } },
+        { certificateNumber: { contains: query } },
+        { notes: { contains: query } },
+        { beadSizeLabel: { contains: query } } as Prisma.InventoryWhereInput,
       ],
     });
   }
@@ -447,7 +455,7 @@ export default async function InventoryPage({
         </div>
       </div>
 
-      <InventoryStats />
+      <InventoryStats searchParams={params} />
 
       <div className="bg-card p-4 rounded-md border">
         <InventorySearch

@@ -2,7 +2,6 @@
 
 import useSWR from "swr";
 import { useMemo } from "react";
-import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
@@ -32,14 +31,19 @@ const fetcher = async (url: string) => {
   return r.json();
 };
 
-export function InventoryStats() {
-  const searchParams = useSearchParams();
-  const qs = searchParams.toString();
+export function InventoryStats({ searchParams }: { searchParams: Record<string, string | undefined> }) {
+  const qs = useMemo(() => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (value) params.set(key, value);
+    }
+    return params.toString();
+  }, [searchParams]);
+
   const url = `/api/inventory/stats?mode=full${qs ? `&${qs}` : ""}`;
 
-  const { data, isLoading, isValidating } = useSWR<InventoryStatsResponse>(url, fetcher, {
+  const { data, isLoading, isValidating, error } = useSWR<InventoryStatsResponse>(url, fetcher, {
     revalidateOnFocus: false,
-    keepPreviousData: true,
   });
 
   const overallStatusSummary = useMemo(() => {
@@ -192,6 +196,19 @@ export function InventoryStats() {
   const missingCertificates = data ? Math.max(0, (data.totalItems || 0) - (data.withCertificateCount || 0)) : 0;
   const imagesPct = data && data.totalItems ? Math.round((data.withImagesCount / data.totalItems) * 100) : 0;
   const certPct = data && data.totalItems ? Math.round((data.withCertificateCount / data.totalItems) * 100) : 0;
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Inventory Overview</h2>
+        </div>
+        <div className="bg-destructive/15 text-destructive border border-destructive/20 rounded-md p-4 text-sm">
+          Failed to load inventory stats. Please try again.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
