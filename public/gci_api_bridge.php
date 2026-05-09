@@ -3,7 +3,9 @@
  * GCI Certificate API Bridge
  * 
  * Instructions:
- * 1. Upload this file to your GCI website's public_html folder (e.g., public_html/api/gci_bridge.php).
+ * 1. Upload this file to your GCI website's public_html root folder (e.g., public_html/gci_api_bridge.php).
+ *    IMPORTANT: Place at the root level, NOT inside /api/ or any subdirectory.
+ *    This avoids conflicts with the Laravel router that powers the main GCI site.
  * 2. Edit the DATABASE CONFIGURATION section below with your Hostinger DB details.
  * 3. Set a secure API_SECRET_KEY.
  * 4. Ensure the 'uploads/certificates' folder exists and is writable (chmod 755 or 777).
