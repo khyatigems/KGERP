@@ -157,6 +157,7 @@ async function testVoucherRegisterPDF() {
   const validRegisterData = {
     month: 'January',
     year: 2024,
+    datePeriod: 'January 2024',
     companyName: 'Test Company',
     generatedBy: 'Admin',
     entries: [{

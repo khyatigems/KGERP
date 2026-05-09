@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import type { PrismaClient } from "@prisma/client";
 
 /**
  * Cache configuration for common query patterns
@@ -20,56 +21,59 @@ export const CACHE_TTLS = {
  * @param keys - Cache key segments
  * @param ttl - Time to live in seconds
  */
-export function cacheQuery<T extends (...args: any[]) => Promise<any>>(
-  fn: T,
+export function cacheQuery<T>(
+  fn: () => Promise<T>,
   keys: string[],
   ttl: number = 60,
   tags?: string[]
-): T {
+): () => Promise<T> {
   return unstable_cache(fn, keys, {
     revalidate: ttl,
     tags: tags && tags.length ? tags : undefined,
-  }) as T;
+  }) as unknown as () => Promise<T>;
 }
 
 /**
  * Predefined cached queries for master data
  */
 export const cachedMasters = {
-  getCategories: (prisma: any) =>
+  getCategories: (prisma: PrismaClient) =>
     cacheQuery(
       () => prisma.categoryCode.findMany({
+        where: { status: "ACTIVE" },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, code: true },
+        select: { id: true, name: true, code: true, status: true },
       }),
       ["masters", "categories"],
       CACHE_TTLS.MASTERS,
       ["masters:categories"]
     ),
 
-  getGemstones: (prisma: any) =>
+  getGemstones: (prisma: PrismaClient) =>
     cacheQuery(
       () => prisma.gemstoneCode.findMany({
+        where: { status: "ACTIVE" },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, code: true },
+        select: { id: true, name: true, code: true, status: true },
       }),
       ["masters", "gemstones"],
       CACHE_TTLS.MASTERS,
       ["masters:gemstones"]
     ),
 
-  getColors: (prisma: any) =>
+  getColors: (prisma: PrismaClient) =>
     cacheQuery(
       () => prisma.colorCode.findMany({
+        where: { status: "ACTIVE" },
         orderBy: { name: "asc" },
-        select: { id: true, name: true, code: true },
+        select: { id: true, name: true, code: true, status: true },
       }),
       ["masters", "colors"],
       CACHE_TTLS.MASTERS,
       ["masters:colors"]
     ),
 
-  getVendors: (prisma: any) =>
+  getVendors: (prisma: PrismaClient) =>
     cacheQuery(
       () => prisma.vendor.findMany({
         orderBy: { name: "asc" },
@@ -80,43 +84,67 @@ export const cachedMasters = {
       ["masters:vendors"]
     ),
 
-  getCollections: (prisma: any) =>
+  getApprovedVendors: (prisma: PrismaClient) =>
+    cacheQuery(
+      () => prisma.vendor.findMany({
+        where: { status: "APPROVED" },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+      ["masters", "approved-vendors"],
+      CACHE_TTLS.MASTERS,
+      ["masters:approved-vendors"]
+    ),
+
+  getCollections: (prisma: PrismaClient) =>
     cacheQuery(
       () => prisma.collectionCode.findMany({
         where: { status: "ACTIVE" },
         orderBy: { name: "asc" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, code: true, status: true },
       }),
       ["masters", "collections"],
       CACHE_TTLS.MASTERS,
       ["masters:collections"]
     ),
 
-  getRashis: (prisma: any) =>
+  getRashis: (prisma: PrismaClient) =>
     cacheQuery(
       () => prisma.rashiCode.findMany({
         where: { status: "ACTIVE" },
         orderBy: { name: "asc" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, code: true, status: true },
       }),
       ["masters", "rashis"],
       CACHE_TTLS.MASTERS,
       ["masters:rashis"]
     ),
 
-  getCertificates: (prisma: any) =>
+  getCertificates: (prisma: PrismaClient) =>
     cacheQuery(
       () => prisma.certificateCode.findMany({
         where: { status: "ACTIVE" },
         orderBy: { name: "asc" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, code: true, status: true, remarks: true },
       }),
       ["masters", "certificates"],
       CACHE_TTLS.MASTERS,
       ["masters:certificates"]
     ),
 
-  getSettings: (prisma: any) =>
+  getCuts: (prisma: PrismaClient) =>
+    cacheQuery(
+      () => prisma.cutCode.findMany({
+        where: { status: "ACTIVE" },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, code: true, status: true },
+      }),
+      ["masters", "cuts"],
+      CACHE_TTLS.MASTERS,
+      ["masters:cuts"]
+    ),
+
+  getSettings: (prisma: PrismaClient) =>
     cacheQuery(
       () => prisma.setting.findMany(),
       ["settings", "all"],

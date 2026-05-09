@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -60,7 +60,22 @@ export function InventorySearch({
   const { replace } = useRouter();
   const { showLoader } = useGlobalLoader();
   const [isApplying, setIsApplying] = useState(false);
+  const [queryValue, setQueryValue] = useState(searchParams.get("query")?.toString() || "");
+  const [isPending, startTransition] = useTransition();
   const applyTimerRef = useRef<number | null>(null);
+
+  const uniqueCategories = useMemo(
+    () => categories.filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i),
+    [categories]
+  );
+  const uniqueGemstones = useMemo(
+    () => gemstones.filter((g, i, arr) => arr.findIndex((x) => x.name === g.name) === i),
+    [gemstones]
+  );
+  const uniqueColors = useMemo(
+    () => colors.filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i),
+    [colors]
+  );
 
   useEffect(() => {
     return () => {
@@ -83,9 +98,10 @@ export function InventorySearch({
     }
     params.delete("page");
     pulseApply();
-    showLoader();
-    replace(`${pathname}?${params.toString()}`);
-  }, 300);
+    startTransition(() => {
+      replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
+  }, 180);
 
   const handleFilterChange = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -96,23 +112,29 @@ export function InventorySearch({
     }
     params.delete("page");
     pulseApply();
-    showLoader();
-    replace(`${pathname}?${params.toString()}`);
+    startTransition(() => {
+      replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   const handleClear = () => {
+    setQueryValue("");
     pulseApply();
     showLoader();
-    replace(pathname);
+    startTransition(() => {
+      replace(pathname, { scroll: false });
+    });
   };
 
   const removeParam = (key: string) => {
     const params = new URLSearchParams(searchParams);
     params.delete(key);
     params.delete("page");
+    if (key === "query") setQueryValue("");
     pulseApply();
-    showLoader();
-    replace(params.toString() ? `${pathname}?${params.toString()}` : pathname);
+    startTransition(() => {
+      replace(params.toString() ? `${pathname}?${params.toString()}` : pathname, { scroll: false });
+    });
   };
 
   const activeChips = (() => {
@@ -136,8 +158,8 @@ export function InventorySearch({
   })();
 
   return (
-    <div className={`space-y-4 transition-all duration-300 ${isApplying ? "opacity-90" : "opacity-100"}`}>
-      {isApplying && (
+    <div className={`space-y-4 transition-all duration-300 ${isApplying || isPending ? "opacity-90" : "opacity-100"}`}>
+      {(isApplying || isPending) && (
         <div className="h-1 w-full rounded-full bg-muted overflow-hidden border">
           <div className="h-full w-2/3 bg-gradient-to-r from-primary via-blue-500 to-primary animate-in fade-in duration-300" />
         </div>
@@ -146,8 +168,12 @@ export function InventorySearch({
         <Input
           placeholder="Search SKU, Name, or Category..."
           className="flex-1"
-          onChange={(e) => handleSearch(e.target.value)}
-          defaultValue={searchParams.get("query")?.toString()}
+          value={queryValue}
+          onChange={(e) => {
+            const value = e.target.value;
+            setQueryValue(value);
+            handleSearch(value);
+          }}
         />
         {(searchParams.toString().length > 0) && (
           <Button variant="ghost" onClick={handleClear} className="px-2 lg:px-3">
@@ -197,7 +223,7 @@ export function InventorySearch({
             </SelectTrigger>
             <SelectContent>
             <SelectItem value="ALL">All Categories</SelectItem>
-            {categories.filter((c, i, arr) => arr.findIndex(x => x.name === c.name) === i).map((c) => (
+            {uniqueCategories.map((c) => (
                 <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
             ))}
             </SelectContent>
@@ -212,7 +238,7 @@ export function InventorySearch({
             </SelectTrigger>
             <SelectContent>
             <SelectItem value="ALL">All Gems</SelectItem>
-            {gemstones.filter((g, i, arr) => arr.findIndex(x => x.name === g.name) === i).map((g) => (
+            {uniqueGemstones.map((g) => (
                 <SelectItem key={g.id} value={g.name}>{g.name}</SelectItem>
             ))}
             </SelectContent>
@@ -227,7 +253,7 @@ export function InventorySearch({
             </SelectTrigger>
             <SelectContent>
             <SelectItem value="ALL">All Colors</SelectItem>
-            {colors.filter((c, i, arr) => arr.findIndex(x => x.name === c.name) === i).map((c) => (
+            {uniqueColors.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
             ))}
             </SelectContent>

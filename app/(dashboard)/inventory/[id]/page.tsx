@@ -10,9 +10,6 @@ import { MobileInventoryActions } from "@/components/inventory/mobile-inventory-
 import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { GciCertButton } from "@/components/inventory/gci-cert-button";
-import { RenameMediaButton } from "@/components/inventory/rename-media-button";
-import { auth } from "@/lib/auth";
-import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import type { InventoryMedia } from "@prisma/client";
 
 // ISR: Revalidate every 60 seconds for near-instant page loads
@@ -122,9 +119,6 @@ export default async function InventoryDetailPage({
 }) {
   const { id } = await params;
 
-  // Check permissions in parallel with data fetching
-  const sessionPromise = auth();
-  
   // Fetch main inventory data with ALL relations in ONE query
   const inventoryPromise = prisma.inventory.findUnique({
     where: { id },
@@ -142,14 +136,12 @@ export default async function InventoryDetailPage({
 
   // Fetch all related data in PARALLEL
   const [
-    session,
     inventory,
     activityLogs,
     sales,
     quotations,
     returns
   ] = await Promise.all([
-    sessionPromise,
     inventoryPromise,
     // Limit to recent 20 logs only - critical for performance
     prisma.activityLog.findMany({
@@ -195,9 +187,6 @@ export default async function InventoryDetailPage({
   if (!inventory) {
     return <div className="p-6">Inventory Item not found</div>;
   }
-
-  const userId = session?.user?.id;
-  const canEdit = userId ? await checkUserPermission(userId, PERMISSIONS.INVENTORY_EDIT) : false;
 
   // Cast to our type
   const detailedItem = inventory as unknown as DetailedInventory;
@@ -305,7 +294,6 @@ export default async function InventoryDetailPage({
                     </div>
                 </div>
                 <div className="hidden gap-2 md:flex">
-                    {canEdit && <RenameMediaButton inventoryId={id} />}
                     <Button variant="outline" asChild>
                         <Link href={`/inventory/${id}/edit`}>
                             <Pencil className="mr-2 h-4 w-4" /> Edit

@@ -409,6 +409,11 @@ model Inventory {
   @@index([gemType])
   @@index([color])
   @@index([weightValue])
+  @@index([itemName])
+  @@index([status, category])
+  @@index([status, gemType])
+  @@index([status, color])
+  @@index([status, vendorId])
 }
 
 model InventoryMedia {

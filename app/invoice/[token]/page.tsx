@@ -1,7 +1,6 @@
-import { ensureBillfreePhase1Schema, ensureInvoiceSupportSchema, prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { sanitizeNumberText } from "@/lib/number-formatting";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { PrintButton } from "@/components/invoice/print-button";
@@ -49,16 +48,6 @@ function parseCategoryHsnJson(input: unknown): Record<string, string> {
   }
 }
 
-function isValidHttpUrl(string: string) {
-  let url;
-  try {
-    url = new URL(string);
-  } catch (_) {
-    return false;
-  }
-  return url.protocol === "http:" || url.protocol === "https:";
-}
-
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -70,8 +59,6 @@ export const metadata: Metadata = {
 
 export default async function PublicInvoicePage({ params, searchParams }: { params: Promise<{ token: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const { token } = await params;
-  await ensureReturnsSchema();
-  await ensureBillfreePhase1Schema();
   const sp = await searchParams;
 
   const invoice = await prisma.invoice.findUnique({
@@ -98,7 +85,9 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   if (!invoice) notFound();
 
   // Track View
-  await trackPublicView("INVOICE_VIEW", invoice.id, invoice.invoiceNumber, sp);
+  void trackPublicView("INVOICE_VIEW", invoice.id, invoice.invoiceNumber, sp).catch((error) => {
+    console.error("Failed to track invoice view:", error);
+  });
 
   const packagingSettings = await packagingPrisma.gpisSettings.findFirst();
   const categoryHsnMap = parseCategoryHsnJson(packagingSettings?.categoryHsnJson);
@@ -153,9 +142,6 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     );
   }
 
-  // Ensure schema has export columns before querying CompanySettings
-  await ensureInvoiceSupportSchema();
-
   const companySettings = await prisma.companySettings.findFirst();
   const paymentSettings = await prisma.paymentSettings.findFirst();
   const invoiceCurrency = ((invoice as { invoiceCurrency?: string }).invoiceCurrency || companySettings?.defaultCurrency || "INR") as "INR" | "USD" | "EUR" | "GBP";
@@ -181,7 +167,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   const displayLogo = companySettings?.invoiceLogoUrl || companySettings?.logoUrl;
   
   // Determine platform branding (but don't replace KhyatiGems logo)
-  const salePlatform = (primarySale as any)?.platform || "MANUAL";
+  const salePlatform = (primarySale as { platform?: string | null }).platform || "MANUAL";
   const isOfflineWalkin = formatPlatformCode(salePlatform) === "MANUAL";
   const normalizedPlatformCode = formatPlatformCode(salePlatform);
   const platformEntry = platformConfigMap[normalizedPlatformCode];
@@ -276,7 +262,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   // Use stored total if available and reasonable (within 10% of computed)
   // If stored is 0 (bug), use computed. If computed differs significantly, use computed
   const effectiveTotal = (storedTotal > 0 && !significantDifference) ? storedTotal : computedTotal;
-  let balanceDue = Math.max(0, effectiveTotal - amountReceived);
+  const balanceDue = Math.max(0, effectiveTotal - amountReceived);
   let paymentStatus = "UNPAID";
   if (amountReceived >= effectiveTotal - 0.01) {
     paymentStatus = "PAID";
@@ -285,7 +271,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   }
   // For self-heal, use the computed payable total
   const actualTotalForHeal = total;
-  const healResult = await selfHealInvoicePaymentOnLoad({
+  void selfHealInvoicePaymentOnLoad({
     invoiceId: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
     persistedTotalAmount: invoice.totalAmount || 0,
@@ -294,9 +280,9 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     currentPaymentStatus: invoice.paymentStatus || "UNPAID",
     currentStatus: invoice.status || "ISSUED",
     computedDiscountTotal: discount
+  }).catch((error) => {
+    console.error("Failed to self-heal invoice payment:", error);
   });
-  paymentStatus = healResult.paymentStatus;
-  balanceDue = healResult.balanceDue;
   const paymentBreakdownRows = (() => {
     const map = new Map<string, { method: string; amount: number }>();
     for (const p of invoice.payments || []) {

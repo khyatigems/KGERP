@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { cachedMasters } from "@/lib/cache";
 import { InventoryForm } from "@/components/inventory/inventory-form";
-import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 
 export const metadata: Metadata = {
   title: "Edit Inventory | KhyatiGems™",
@@ -16,7 +16,6 @@ type EditInventoryPageProps = {
 
 async function getInventoryData(id: string) {
   try {
-    await ensureInventoryBraceletSchema();
     const data = await Promise.all([
       prisma.inventory.findUnique({
         where: { id },
@@ -31,25 +30,14 @@ async function getInventoryData(id: string) {
           collectionCode: true
         },
       }),
-      prisma.vendor.findMany({
-        where: {
-          status: "APPROVED",
-        },
-        orderBy: {
-          name: "asc",
-        },
-        select: {
-          id: true,
-          name: true,
-        },
-      }),
-      prisma.categoryCode.findMany({ orderBy: { name: "asc" } }),
-      prisma.gemstoneCode.findMany({ orderBy: { name: "asc" } }),
-      prisma.colorCode.findMany({ orderBy: { name: "asc" } }),
-      prisma.collectionCode.findMany({ orderBy: { name: "asc" } }),
-      prisma.rashiCode.findMany({ orderBy: { name: "asc" } }),
-      prisma.cutCode.findMany({ orderBy: { name: "asc" } }),
-      prisma.certificateCode.findMany({ orderBy: { name: "asc" } }),
+      cachedMasters.getApprovedVendors(prisma)(),
+      cachedMasters.getCategories(prisma)(),
+      cachedMasters.getGemstones(prisma)(),
+      cachedMasters.getColors(prisma)(),
+      cachedMasters.getCollections(prisma)(),
+      cachedMasters.getRashis(prisma)(),
+      cachedMasters.getCuts(prisma)(),
+      cachedMasters.getCertificates(prisma)(),
     ]);
     return { success: true, data };
   } catch (error) {

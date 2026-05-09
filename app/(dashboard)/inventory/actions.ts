@@ -367,71 +367,53 @@ export async function createInventory(prevState: unknown, formData: FormData) {
       return { message: "Failed to create inventory" };
   }
 
-  if (createdInventory) {
-      try {
-          const urls: string[] =
-            data.mediaUrls && data.mediaUrls.length > 0
-              ? data.mediaUrls
-              : data.mediaUrl
-              ? [data.mediaUrl]
-              : [];
+  const quantityAdded = (createdInventory.data as unknown as { pieces?: number | null }).pieces ?? 1;
+  const itemName = (createdInventory.data as unknown as { itemName?: string | null }).itemName ?? "";
 
-          await Promise.all([
-            logActivity({
-              entityType: "Inventory",
-              entityId: createdInventory.id,
-              entityIdentifier: createdInventory.sku,
-              actionType: "CREATE",
-              newData: createdInventory.data,
-            }),
-            addToCart(createdInventory.id),
-            (async () => {
-              if (!urls.length) return;
-              const mapped = await Promise.all(
-                urls.map(async (url, i) => {
-                  const isVideo = url.match(/\.(mp4|mov|webm)$/i);
-                  const type = isVideo ? "VIDEO" : "IMAGE";
-                  // Avoid slow external Cloudinary rename during save; store URL as-is.
-                  const finalUrl = url;
-                  return {
-                    inventoryId: createdInventory.id,
-                    type,
-                    mediaUrl: finalUrl,
-                    isPrimary: i === 0,
-                  };
-                })
-              );
-              await prisma.inventoryMedia.createMany({ data: mapped as any });
-            })(),
-          ]);
-      } catch (e) {
-          console.error("Post-creation error:", e);
-      }
+  // Fire side effects asynchronously — client gets the response faster
+  if (createdInventory) {
+    const urls: string[] =
+      data.mediaUrls && data.mediaUrls.length > 0
+        ? data.mediaUrls
+        : data.mediaUrl
+        ? [data.mediaUrl]
+        : [];
+
+    Promise.all([
+      logActivity({
+        entityType: "Inventory",
+        entityId: createdInventory.id,
+        entityIdentifier: createdInventory.sku,
+        actionType: "CREATE",
+        newData: createdInventory.data,
+      }),
+      addToCart(createdInventory.id),
+      (async () => {
+        if (!urls.length) return;
+        const mapped = await Promise.all(
+          urls.map(async (url, i) => {
+            const isVideo = url.match(/\.(mp4|mov|webm)$/i);
+            const type = isVideo ? "VIDEO" : "IMAGE";
+            return {
+              inventoryId: createdInventory.id,
+              type,
+              mediaUrl: url,
+              isPrimary: i === 0,
+            };
+          })
+        );
+        await prisma.inventoryMedia.createMany({ data: mapped as any });
+      })(),
+    ]).catch((e) => console.error("Post-creation error:", e));
   }
 
   revalidatePath("/inventory");
-  // Revalidate cached master data used on inventory page
   try {
-    revalidateTag("masters:categories", "default");
-    revalidateTag("masters:gemstones", "default");
-    revalidateTag("masters:colors", "default");
-    revalidateTag("masters:vendors", "default");
-    revalidateTag("masters:collections", "default");
-    revalidateTag("masters:rashis", "default");
-    revalidateTag("masters:certificates", "default");
     revalidateTag("inventory:stats", "default");
   } catch {
     // Fallback: revalidatePath handles most cases
   }
-  // redirect("/inventory");
-  const stockAgg = await prisma.inventory.aggregate({
-    where: { sku: createdInventory.sku, status: "IN_STOCK" },
-    _sum: { pieces: true },
-    _count: { id: true },
-  });
-  const quantityAdded = (createdInventory.data as unknown as { pieces?: number | null }).pieces ?? 1;
-  const totalStock = stockAgg._sum.pieces ?? stockAgg._count.id;
-  const itemName = (createdInventory.data as unknown as { itemName?: string | null }).itemName ?? "";
+
   return {
     success: true,
     message: "Inventory created successfully",
@@ -439,7 +421,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
     sku: createdInventory.sku,
     itemName,
     quantityAdded,
-    totalStock,
+    totalStock: quantityAdded,
   };
 }
 

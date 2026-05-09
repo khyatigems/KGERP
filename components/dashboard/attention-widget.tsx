@@ -1,8 +1,8 @@
- "use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Clock, FileText, User, ShieldAlert, Receipt, TrendingDown, EyeOff } from "lucide-react";
+import { AlertTriangle, Clock, FileText, User, ShieldAlert, Receipt, TrendingDown, EyeOff, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
@@ -22,11 +22,16 @@ interface AttentionData {
     highValueUnsold?: Array<{ id: string; sku: string; sellingPrice: number }>;
 }
 
+type AlertCategory =
+  | "quotations" | "invoices" | "memo" | "vendors" | "unsold"
+  | "missingCertifications" | "missingImages" | "pendingExpenses" | "highValueUnsold";
+
 export function AttentionWidget({ data }: { data: AttentionData }) {
     const [hideMissingCertifications, setHideMissingCertifications] = useState(false);
     const [hideMissingImages, setHideMissingImages] = useState(false);
     const [optimisticHiddenSkus, setOptimisticHiddenSkus] = useState<Set<string>>(new Set());
     const [isUpdatingSku, setIsUpdatingSku] = useState<string | null>(null);
+    const [expandedSection, setExpandedSection] = useState<AlertCategory | null>(null);
 
     useEffect(() => {
         const certPref = localStorage.getItem("dashboard-hide-missing-certifications");
@@ -88,14 +93,135 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
         localStorage.setItem("dashboard-hide-missing-images", next ? "1" : "0");
     };
 
+    const activeCategories: Array<{
+        key: AlertCategory;
+        label: string;
+        count: number;
+        icon: React.ReactNode;
+        color: string;
+        bgClass: string;
+        borderClass: string;
+        textClass: string;
+        badgeClass: string;
+    }> = [
+        ...(data.quotations.length > 0 ? [{
+            key: "quotations" as const,
+            label: "Expiring Quotations",
+            count: data.quotations.length,
+            icon: <FileText className="h-4 w-4" />,
+            color: "amber",
+            bgClass: "bg-amber-50 dark:bg-amber-950/20",
+            borderClass: "border-amber-200 dark:border-amber-800",
+            textClass: "text-amber-700 dark:text-amber-300",
+            badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+        }] : []),
+        ...(data.pendingExpenses && data.pendingExpenses.length > 0 ? [{
+            key: "pendingExpenses" as const,
+            label: "Pending Expenses",
+            count: data.pendingExpenses.length,
+            icon: <Receipt className="h-4 w-4" />,
+            color: "violet",
+            bgClass: "bg-violet-50 dark:bg-violet-950/20",
+            borderClass: "border-violet-200 dark:border-violet-800",
+            textClass: "text-violet-700 dark:text-violet-300",
+            badgeClass: "bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300",
+        }] : []),
+        ...(visibleMissingCertifications.length > 0 ? [{
+            key: "missingCertifications" as const,
+            label: "Missing Certification",
+            count: visibleMissingCertifications.length,
+            icon: <ShieldAlert className="h-4 w-4" />,
+            color: "blue",
+            bgClass: "bg-blue-50 dark:bg-blue-950/20",
+            borderClass: "border-blue-200 dark:border-blue-800",
+            textClass: "text-blue-700 dark:text-blue-300",
+            badgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+        }] : []),
+        ...(visibleMissingImages.length > 0 ? [{
+            key: "missingImages" as const,
+            label: "Missing Images",
+            count: visibleMissingImages.length,
+            icon: <AlertTriangle className="h-4 w-4" />,
+            color: "rose",
+            bgClass: "bg-rose-50 dark:bg-rose-950/20",
+            borderClass: "border-rose-200 dark:border-rose-800",
+            textClass: "text-rose-700 dark:text-rose-300",
+            badgeClass: "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300",
+        }] : []),
+        ...(data.invoices.length > 0 ? [{
+            key: "invoices" as const,
+            label: "Overdue Invoices",
+            count: data.invoices.length,
+            icon: <AlertTriangle className="h-4 w-4" />,
+            color: "red",
+            bgClass: "bg-red-50 dark:bg-red-950/20",
+            borderClass: "border-red-200 dark:border-red-800",
+            textClass: "text-red-700 dark:text-red-300",
+            badgeClass: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+        }] : []),
+        ...(visibleMemo.length > 0 ? [{
+            key: "memo" as const,
+            label: "Overdue Memo Items",
+            count: visibleMemo.length,
+            icon: <Clock className="h-4 w-4" />,
+            color: "orange",
+            bgClass: "bg-orange-50 dark:bg-orange-950/20",
+            borderClass: "border-orange-200 dark:border-orange-800",
+            textClass: "text-orange-700 dark:text-orange-300",
+            badgeClass: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+        }] : []),
+        ...(visibleHighValueUnsold.length > 0 ? [{
+            key: "highValueUnsold" as const,
+            label: "High Value Stagnant",
+            count: visibleHighValueUnsold.length,
+            icon: <TrendingDown className="h-4 w-4" />,
+            color: "rose",
+            bgClass: "bg-rose-50 dark:bg-rose-950/20",
+            borderClass: "border-rose-200 dark:border-rose-800",
+            textClass: "text-rose-700 dark:text-rose-300",
+            badgeClass: "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300",
+        }] : []),
+        ...(data.vendors > 0 ? [{
+            key: "vendors" as const,
+            label: "Pending Vendors",
+            count: data.vendors,
+            icon: <User className="h-4 w-4" />,
+            color: "emerald",
+            bgClass: "bg-emerald-50 dark:bg-emerald-950/20",
+            borderClass: "border-emerald-200 dark:border-emerald-800",
+            textClass: "text-emerald-700 dark:text-emerald-300",
+            badgeClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300",
+        }] : []),
+        ...(visibleUnsold.length > 0 ? [{
+            key: "unsold" as const,
+            label: "Stagnant Stock",
+            count: visibleUnsold.length,
+            icon: <AlertTriangle className="h-4 w-4" />,
+            color: "stone",
+            bgClass: "bg-stone-50 dark:bg-stone-950/20",
+            borderClass: "border-stone-200 dark:border-stone-800",
+            textClass: "text-muted-foreground",
+            badgeClass: "bg-stone-100 text-muted-foreground dark:bg-stone-800 dark:text-muted-foreground",
+        }] : []),
+    ];
+
+    const totalAlerts = activeCategories.reduce((s, c) => s + c.count, 0);
+
     return (
-        <Card className="h-full">
+        <Card>
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-amber-500" />
-                        Attention Required
-                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                            Attention Required
+                        </CardTitle>
+                        {hasItems && (
+                            <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
+                                {totalAlerts}
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-2">
                         <Button
                             type="button"
@@ -118,250 +244,165 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-                {!hasItems && (
+            <CardContent>
+                {!hasItems ? (
                     <div className="text-sm text-muted-foreground py-8 text-center flex flex-col items-center gap-2">
                         <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center text-green-600 mb-2">
-                            <ShieldAlert className="h-6 w-6" />
+                            <ShieldCheck className="h-6 w-6" />
                         </div>
-                        <p className="font-medium text-stone-900">Everything is under control!</p>
+                        <p className="font-medium text-foreground">Everything is under control!</p>
                         <p className="text-xs">No immediate actions or alerts detected at this moment.</p>
                     </div>
-                )}
-
-                {/* Expiring Quotations */}
-                {data.quotations.length > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-amber-500" />
-                            Expiring Quotations (7 Days)
-                        </h4>
-                        {data.quotations.map(q => (
-                            <Link href={`/quotes/${q.id}`} key={q.id} className="block group">
-                                <div className="flex items-center justify-between text-sm p-2 rounded-md bg-amber-50/50 hover:bg-amber-50 border border-amber-100/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <FileText className="h-3.5 w-3.5 text-amber-600" />
-                                        <span className="font-medium text-amber-900 group-hover:underline">{q.quotationNumber}</span>
-                                        <span className="text-amber-700 truncate max-w-[120px]">- {q.customerName}</span>
-                                    </div>
-                                    <span className="text-xs text-amber-600 font-medium">
-                                        Exp: {q.expiryDate ? format(new Date(q.expiryDate), "dd MMM") : "N/A"}
-                                    </span>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-
-                {/* Pending Expenses */}
-                {data.pendingExpenses && data.pendingExpenses.length > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-violet-500" />
-                            Pending Expense Payments
-                        </h4>
-                        {data.pendingExpenses.map(exp => (
-                            <Link href={`/expenses`} key={exp.id} className="block group">
-                                <div className="flex items-center justify-between text-sm p-2 rounded-md bg-violet-50/50 hover:bg-violet-50 border border-violet-100/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <Receipt className="h-3.5 w-3.5 text-violet-600" />
-                                        <span className="font-medium text-violet-900 truncate max-w-[150px]">{exp.description}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="font-mono text-xs text-violet-700">{formatCurrency(exp.totalAmount)}</span>
-                                        <span className="text-xs text-violet-600">
-                                            {format(new Date(exp.expenseDate), "dd MMM")}
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {activeCategories.map((cat) => (
+                            <div key={cat.key} className="rounded-lg border overflow-hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => setExpandedSection(expandedSection === cat.key ? null : cat.key)}
+                                    className={`flex w-full items-center justify-between px-3 py-2.5 text-left transition-colors ${cat.bgClass} hover:opacity-80`}
+                                >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className={cat.textClass}>{cat.icon}</span>
+                                        <span className="text-xs font-semibold text-foreground truncate">
+                                            {cat.label}
                                         </span>
                                     </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-
-                {/* Missing Certifications */}
-                {visibleMissingCertifications.length > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-blue-500" />
-                            Missing Lab Certification
-                        </h4>
-                        {visibleMissingCertifications.map(item => (
-                            <Link href={`/inventory/${item.id}`} key={item.id} className="block group">
-                                <div className="flex items-center justify-between text-sm p-2 rounded-md bg-blue-50/50 hover:bg-blue-50 border border-blue-100/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <ShieldAlert className="h-3.5 w-3.5 text-blue-600" />
-                                        <span className="font-medium text-blue-900 group-hover:underline">{item.sku}</span>
-                                        <span className="text-blue-700 truncate max-w-[120px]">- {item.itemName}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7"
-                                            disabled={isUpdatingSku === item.sku}
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                hideSkuFromAttention(item.id, item.sku);
-                                            }}
-                                        >
-                                            <EyeOff className="h-4 w-4" />
-                                        </Button>
-                                        <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">
-                                            {item.lab ? `${item.lab} MISSING` : "MISSING CERT"}
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${cat.badgeClass}`}>
+                                            {cat.count}
                                         </span>
+                                        {expandedSection === cat.key
+                                            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                        }
                                     </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
+                                </button>
 
-                {/* Missing Images */}
-                {visibleMissingImages.length > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-rose-500" />
-                            Missing Item Images
-                        </h4>
-                        {visibleMissingImages.map(item => (
-                            <Link href={`/inventory/${item.id}`} key={item.id} className="block group">
-                                <div className="flex items-center justify-between text-sm p-2 rounded-md bg-rose-50/50 hover:bg-rose-50 border border-rose-100/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-                                        <span className="font-medium text-rose-900 group-hover:underline">{item.sku}</span>
-                                        <span className="text-rose-700 truncate max-w-[150px]">- {item.itemName}</span>
+                                {expandedSection === cat.key && (
+                                    <div className="border-t divide-y">
+                                        {cat.key === "quotations" && data.quotations.map(q => (
+                                            <Link href={`/quotes/${q.id}`} key={q.id} className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-muted/50 group">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <FileText className="h-4 w-4 text-amber-500 shrink-0" />
+                                                    <span className="font-semibold text-foreground group-hover:underline truncate">{q.quotationNumber}</span>
+                                                    <span className="text-muted-foreground truncate">- {q.customerName}</span>
+                                                </div>
+                                                <span className="text-amber-600 font-medium shrink-0 text-xs">
+                                                    Exp: {q.expiryDate ? format(new Date(q.expiryDate), "dd MMM") : "N/A"}
+                                                </span>
+                                            </Link>
+                                        ))}
+                                        {cat.key === "pendingExpenses" && data.pendingExpenses?.map(exp => (
+                                            <Link href="/expenses" key={exp.id} className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-muted/50 group">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <Receipt className="h-4 w-4 text-violet-500 shrink-0" />
+                                                    <span className="font-semibold text-foreground truncate">{exp.description}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="font-mono text-violet-700 text-xs">{formatCurrency(exp.totalAmount)}</span>
+                                                    <span className="text-muted-foreground text-xs">{format(new Date(exp.expenseDate), "dd MMM")}</span>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                        {cat.key === "missingCertifications" && visibleMissingCertifications.map(item => (
+                                            <Link href={`/inventory/${item.id}`} key={item.id} className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-muted/50 group">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <ShieldAlert className="h-4 w-4 text-blue-500 shrink-0" />
+                                                    <span className="font-semibold text-foreground group-hover:underline truncate">{item.sku}</span>
+                                                    <span className="text-muted-foreground truncate">- {item.itemName}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">
+                                                        {item.lab ? `${item.lab} MISSING` : "MISSING CERT"}
+                                                    </span>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6"
+                                                        disabled={isUpdatingSku === item.sku}
+                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); hideSkuFromAttention(item.id, item.sku); }}
+                                                    >
+                                                        <EyeOff className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                        {cat.key === "missingImages" && visibleMissingImages.map(item => (
+                                            <Link href={`/inventory/${item.id}`} key={item.id} className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-muted/50 group">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+                                                    <span className="font-semibold text-foreground group-hover:underline truncate">{item.sku}</span>
+                                                    <span className="text-muted-foreground truncate">- {item.itemName}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">NO IMAGE</span>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6"
+                                                        disabled={isUpdatingSku === item.sku}
+                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); hideSkuFromAttention(item.id, item.sku); }}
+                                                    >
+                                                        <EyeOff className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                        {cat.key === "invoices" && data.invoices.map(inv => (
+                                            <Link href={`/invoices/${inv.id}`} key={inv.id} className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-muted/50 group">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                                                    <span className="font-semibold text-foreground group-hover:underline truncate">{inv.invoiceNumber}</span>
+                                                </div>
+                                                <div className="flex items-center gap-3 shrink-0">
+                                                    <span className="font-mono text-red-700 text-xs">{formatCurrency(inv.totalAmount)}</span>
+                                                    <span className="text-muted-foreground text-xs">{format(new Date(inv.createdAt), "dd MMM")}</span>
+                                                </div>
+                                            </Link>
+                                        ))}
+                                        {cat.key === "memo" && visibleMemo.map(m => (
+                                            <div key={m.id} className="flex items-center justify-between px-3 py-2.5 text-sm">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <Clock className="h-4 w-4 text-orange-500 shrink-0" />
+                                                    <span className="font-semibold text-foreground truncate">{m.inventory.sku}</span>
+                                                    <span className="text-muted-foreground truncate">- {m.memo.customerName}</span>
+                                                </div>
+                                                <span className="text-orange-600 shrink-0 text-xs">{format(new Date(m.memo.issueDate), "dd MMM")}</span>
+                                            </div>
+                                        ))}
+                                        {cat.key === "highValueUnsold" && visibleHighValueUnsold.map(item => (
+                                            <Link href={`/inventory/${item.id}`} key={item.id} className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-muted/50 group">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <TrendingDown className="h-4 w-4 text-rose-500 shrink-0" />
+                                                    <span className="font-semibold text-foreground group-hover:underline truncate">{item.sku}</span>
+                                                </div>
+                                                <span className="font-mono text-rose-700 font-bold shrink-0 text-xs">{formatCurrency(item.sellingPrice)}</span>
+                                            </Link>
+                                        ))}
+                                        {cat.key === "vendors" && (
+                                            <Link href="/vendors" className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-muted/50 group">
+                                                <div className="flex items-center gap-2">
+                                                    <User className="h-4 w-4 text-emerald-500 shrink-0" />
+                                                    <span className="font-semibold text-foreground">{data.vendors} Vendors Pending Approval</span>
+                                                </div>
+                                                <span className="text-emerald-600 font-bold uppercase tracking-wider shrink-0 text-xs">Review</span>
+                                            </Link>
+                                        )}
+                                        {cat.key === "unsold" && visibleUnsold.map(item => (
+                                            <Link href={`/inventory/${item.id}`} key={item.id} className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-muted/50 group">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                    <span className="font-semibold text-foreground group-hover:underline truncate">{item.sku}</span>
+                                                </div>
+                                                <span className="text-muted-foreground shrink-0 text-xs">{format(new Date(item.createdAt), "dd MMM yyyy")}</span>
+                                            </Link>
+                                        ))}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7"
-                                            disabled={isUpdatingSku === item.sku}
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                hideSkuFromAttention(item.id, item.sku);
-                                            }}
-                                        >
-                                            <EyeOff className="h-4 w-4" />
-                                        </Button>
-                                        <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">NO IMAGE</span>
-                                    </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-
-                {/* Overdue Invoices */}
-                {data.invoices.length > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-red-500" />
-                            Overdue Invoices (15+ Days)
-                        </h4>
-                        {data.invoices.map(inv => (
-                            <Link href={`/invoices/${inv.id}`} key={inv.id} className="block group">
-                                <div className="flex items-center justify-between text-sm p-2 rounded-md bg-red-50/50 hover:bg-red-50 border border-red-100/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
-                                        <span className="font-medium text-red-900 group-hover:underline">{inv.invoiceNumber}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="font-mono text-xs text-red-700">{formatCurrency(inv.totalAmount)}</span>
-                                        <span className="text-xs text-red-600">
-                                            {format(new Date(inv.createdAt), "dd MMM")}
-                                        </span>
-                                    </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-
-                {/* Overdue Memo */}
-                {visibleMemo.length > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-orange-500" />
-                            Overdue Memo Items (15+ Days)
-                        </h4>
-                        {visibleMemo.map(m => (
-                            <div key={m.id} className="flex items-center justify-between text-sm p-2 rounded-md bg-orange-50/50 border border-orange-100/50">
-                                <div className="flex items-center gap-2">
-                                    <Clock className="h-3.5 w-3.5 text-orange-600" />
-                                    <span className="font-medium text-orange-900">{m.inventory.sku}</span>
-                                    <span className="text-orange-700 truncate max-w-[150px]">- {m.memo.customerName}</span>
-                                </div>
-                                <span className="text-xs text-orange-600">
-                                    {format(new Date(m.memo.issueDate), "dd MMM")}
-                                </span>
+                                )}
                             </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* High Value Unsold */}
-                {visibleHighValueUnsold.length > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-rose-500" />
-                            High Value Stagnant Stock (&gt;60 Days)
-                        </h4>
-                        {visibleHighValueUnsold.map(item => (
-                            <Link href={`/inventory/${item.id}`} key={item.id} className="block group">
-                                <div className="flex items-center justify-between text-sm p-2 rounded-md bg-rose-50/50 hover:bg-rose-50 border border-rose-100/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
-                                        <span className="font-medium text-rose-900 group-hover:underline">{item.sku}</span>
-                                    </div>
-                                    <span className="font-mono text-xs text-rose-700 font-bold">{formatCurrency(item.sellingPrice)}</span>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-
-                {/* Pending Vendors */}
-                {data.vendors > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-emerald-500" />
-                            Vendor Management
-                        </h4>
-                        <Link href="/vendors" className="block">
-                            <div className="flex items-center justify-between text-sm p-2 rounded-md bg-emerald-50/50 hover:bg-emerald-50 border border-emerald-100/50 transition-colors">
-                                <div className="flex items-center gap-2">
-                                    <User className="h-3.5 w-3.5 text-emerald-600" />
-                                    <span className="font-medium text-emerald-900">{data.vendors} Vendors Pending Approval</span>
-                                </div>
-                                <span className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Review</span>
-                            </div>
-                        </Link>
-                    </div>
-                )}
-
-                {/* Unsold Inventory */}
-                {visibleUnsold.length > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                            <div className="w-1 h-1 rounded-full bg-stone-500" />
-                            Stagnant Stock (90+ Days)
-                        </h4>
-                         {visibleUnsold.map(item => (
-                            <Link href={`/inventory/${item.id}`} key={item.id} className="block group">
-                                <div className="flex items-center justify-between text-sm p-2 rounded-md bg-stone-50/50 hover:bg-stone-50 border border-stone-100/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle className="h-3.5 w-3.5 text-stone-500" />
-                                        <span className="font-medium text-stone-900 group-hover:underline">{item.sku}</span>
-                                    </div>
-                                    <span className="text-[10px] text-stone-500 font-medium">
-                                        {format(new Date(item.createdAt), "dd MMM yyyy")}
-                                    </span>
-                                </div>
-                            </Link>
                         ))}
                     </div>
                 )}
