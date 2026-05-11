@@ -51,7 +51,7 @@ export async function PATCH(
     });
 
     // Revalidate cache
-    revalidateTag("listings");
+    revalidateTag("listings", "layout");
 
     return NextResponse.json({
       success: true,
@@ -115,7 +115,7 @@ export async function DELETE(
     });
 
     // Revalidate cache
-    revalidateTag("listings");
+    revalidateTag("listings", "layout");
 
     return NextResponse.json({
       success: true,
