@@ -90,8 +90,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Revalidate cache
-    revalidateTag("listings", "layout");
-    revalidateTag("inventory", "layout");
+    revalidateTag("listings");
+    revalidateTag("inventory");
 
     return NextResponse.json({
       success: true,

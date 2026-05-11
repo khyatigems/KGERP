@@ -7,7 +7,7 @@ import { revalidateTag } from "next/cache";
 // PATCH - Update a listing
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -24,7 +24,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Permission denied" }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { listingUrl, status, listedPrice, externalId, listingRef } = body;
 
@@ -51,7 +51,7 @@ export async function PATCH(
     });
 
     // Revalidate cache
-    revalidateTag("listings", "layout");
+    revalidateTag("listings");
 
     return NextResponse.json({
       success: true,
@@ -81,7 +81,7 @@ export async function PATCH(
 // DELETE - Delete a listing
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -98,7 +98,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Permission denied" }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Check if listing exists
     const existingListing = await prisma.listing.findUnique({
@@ -115,7 +115,7 @@ export async function DELETE(
     });
 
     // Revalidate cache
-    revalidateTag("listings", "layout");
+    revalidateTag("listings");
 
     return NextResponse.json({
       success: true,
@@ -133,7 +133,7 @@ export async function DELETE(
 // GET - Get a single listing
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -150,7 +150,7 @@ export async function GET(
       return NextResponse.json({ error: "Permission denied" }, { status: 403 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     const listing = await prisma.listing.findUnique({
       where: { id },
