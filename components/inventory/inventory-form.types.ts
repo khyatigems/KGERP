@@ -173,45 +173,146 @@ export const ORIGIN_PRESETS = ["Burma (Myanmar)", "Sri Lanka (Ceylon)", "Kashmir
 export const FLUORESCENCE_PRESETS = ["None", "Faint", "Medium", "Strong", "Very Strong"];
 export const TREATMENT_PRESETS = ["None", "Untreated", "Heat", "Oil", "Resin", "Irradiation", "Diffusion", "Glass-Filled"];
 
-export function generateFallbackDescription(values: FormValues) {
+export function generateFallbackDescription(values: FormInputValues) {
   const {
     itemName,
-    weightValue,
-    weightUnit,
+    category,
     gemType,
     color,
     shape,
-    transparency,
-    treatment,
-    certification,
     dimensionsMm,
+    weightValue,
+    weightUnit,
+    weightRatti,
+    treatment,
+    origin,
+    fluorescence,
+    certification,
+    transparency,
+    stockLocation,
+    notes,
+    certificateComments,
+    braceletType,
+    beadSizeMm,
+    beadCount,
+    holeSizeMm,
+    innerCircumferenceMm,
+    standardSize,
+    pricingMode,
+    purchaseRatePerCarat,
+    sellingRatePerCarat,
+    flatPurchaseCost,
+    flatSellingPrice,
   } = values;
 
-  const weightStr = `${weightValue} ${weightUnit === "cts" ? "Carats" : weightUnit}`;
-  const title = `${itemName} \u2013 ${weightStr} \uD83D\uDC8E`;
+  const name = itemName || "Gemstone";
+  const weightStr = weightValue ? `${weightValue} ${weightUnit || "cts"}` : "";
+  const title = [name, weightStr].filter(Boolean).join(" — ");
 
-  return `
-${title}
+  const overviewParts: string[] = [
+    `Presenting ${name},`,
+  ];
+  if (gemType) {
+    overviewParts.push(`a premium ${gemType.toLowerCase()}`);
+  } else {
+    overviewParts.push("a premium natural gemstone");
+  }
+  if (origin) overviewParts.push(`from ${origin}`);
+  if (color) overviewParts.push(`featuring a captivating ${color.toLowerCase()} hue`);
+  if (weightValue) overviewParts.push(`weighing ${weightStr}`);
+  overviewParts.push(
+    ". This meticulously selected specimen is now available through Khyati Precious Gems Private Limited, offering exceptional quality and value for discerning buyers, collectors, and jewelry designers."
+  );
 
-Description:
-This exquisite ${gemType || itemName} weighs an impressive ${weightValue} carats and showcases a deep, rich ${color || "hue"} with excellent brilliance. Expertly cut to enhance light performance, this gemstone reflects timeless elegance and enduring value.
+  const detailParts: string[] = [];
+  if (transparency && transparency.toLowerCase() !== "none") {
+    detailParts.push(`The stone exhibits ${transparency.toLowerCase()} transparency`);
+    if (fluorescence && fluorescence.toLowerCase() !== "none") {
+      detailParts.push(`with ${fluorescence.toLowerCase()} fluorescence`);
+    }
+    detailParts.push(".");
+  } else if (fluorescence && fluorescence.toLowerCase() !== "none") {
+    detailParts.push(`The stone exhibits ${fluorescence.toLowerCase()} fluorescence.`);
+  }
+  if (treatment && treatment.toLowerCase() !== "none" && treatment.toLowerCase() !== "untreated") {
+    detailParts.push(` It has undergone ${treatment.toLowerCase()} treatment to enhance its natural beauty.`);
+  } else if (treatment && treatment.toLowerCase() === "untreated") {
+    detailParts.push(" This gemstone is completely untreated, ensuring its fully natural state.");
+  } else {
+    detailParts.push(" This gemstone is in its natural state, free from any enhancements.");
+  }
+  if (certification && certification.toLowerCase() !== "none") {
+    detailParts.push(` It is accompanied by a ${certification} certification, guaranteeing authenticity and quality.`);
+  }
+  if (dimensionsMm) {
+    detailParts.push(` The dimensions measure ${dimensionsMm}.`);
+  }
+  if (shape) {
+    detailParts.push(` Cut in a ${shape.toLowerCase()} shape, the gemstone displays excellent brilliance and proportion.`);
+  }
 
-${gemType || "This gemstone"} has long been associated with wisdom, prosperity, and royalty. Its bold presence and superior clarity make it an ideal choice for bespoke high-end jewelry or as a serious addition to a gemstone investment portfolio.
+  const specificParts: string[] = [];
+  if (braceletType) specificParts.push(`Bracelet Type: ${braceletType}`);
+  if (beadSizeMm) specificParts.push(`Bead Size: ${beadSizeMm}mm`);
+  if (beadCount) specificParts.push(`Bead Count: ${beadCount}`);
+  if (holeSizeMm) specificParts.push(`Hole Size: ${holeSizeMm}mm`);
+  if (innerCircumferenceMm) specificParts.push(`Inner Circumference: ${innerCircumferenceMm}mm`);
+  if (standardSize) specificParts.push(`Standard Size: ${standardSize}`);
 
-${certification ? `Independently lab certified (${certification}), this gemstone guarantees authenticity and quality\u2014ensuring complete peace of mind for discerning buyers.` : "Guaranteed for authenticity and quality\u2014ensuring complete peace of mind for discerning buyers."}
+  const specs: string[] = [];
+  if (category) specs.push(`Category: ${category}`);
+  if (gemType) specs.push(`Gem Type: ${gemType}`);
+  if (color) specs.push(`Color: ${color}`);
+  if (shape) specs.push(`Shape: ${shape}`);
+  if (weightValue) specs.push(`Weight: ${weightValue} ${weightUnit || "cts"}`);
+  if (weightRatti) specs.push(`Ratti Weight: ${weightRatti} ratti`);
+  if (dimensionsMm) specs.push(`Dimensions: ${dimensionsMm}`);
+  if (origin) specs.push(`Origin: ${origin}`);
+  if (treatment && treatment.toLowerCase() !== "none") specs.push(`Treatment: ${treatment}`);
+  if (fluorescence && fluorescence.toLowerCase() !== "none") specs.push(`Fluorescence: ${fluorescence}`);
+  if (transparency && transparency.toLowerCase() !== "none") specs.push(`Transparency: ${transparency}`);
+  if (certification && certification.toLowerCase() !== "none") specs.push(`Certification: ${certification}`);
+  if (stockLocation) specs.push(`Stock Location: ${stockLocation}`);
+  if (pricingMode) {
+    if (pricingMode === "PER_CARAT") {
+      if (purchaseRatePerCarat) specs.push(`Purchase Rate: ₹${purchaseRatePerCarat}/ct`);
+      if (sellingRatePerCarat) specs.push(`Selling Rate: ₹${sellingRatePerCarat}/ct`);
+    } else {
+      if (flatPurchaseCost) specs.push(`Total Cost: ₹${flatPurchaseCost}`);
+      if (flatSellingPrice) specs.push(`Selling Price: ₹${flatSellingPrice}`);
+    }
+  }
 
-Key Specifications:
+  const lines: string[] = [title, ""];
+  lines.push(overviewParts.join(" "));
+  lines.push("");
+  lines.push(detailParts.join(""));
+  lines.push("");
 
-Gem Type: ${gemType || "Natural Gemstone"}
-Shape: ${shape || "As per selection"}
-Weight: ${weightStr}
-Dimensions: ${dimensionsMm || "As per entered value"}
-Color: ${color || "As per selection"}
-Transparency: ${transparency || "As per selection"}
-Treatment: ${treatment || "As per entered value"}
-Certification: ${certification || "As per entered value"}
+  if (specificParts.length > 0) {
+    lines.push("Specific Details:");
+    specificParts.forEach((s) => lines.push(s));
+    lines.push("");
+  }
 
-Closing Note:
-A statement gemstone with undeniable presence\u2014this ${weightStr} ${gemType || itemName} is crafted for collectors, investors, and luxury jewelry connoisseurs who value authenticity and impact. Exclusively offered by Khyati Precious Gems Private Limited.
-`.trim();
+  if (specs.length > 0) {
+    lines.push("Key Specifications:");
+    specs.forEach((s) => lines.push(`  ${s}`));
+    lines.push("");
+  }
+
+  if (notes) {
+    lines.push(`Notes: ${notes}`);
+    lines.push("");
+  }
+
+  if (certificateComments) {
+    lines.push(`Certificate Comments: ${certificateComments}`);
+    lines.push("");
+  }
+
+  lines.push("Offered exclusively by Khyati Precious Gems Private Limited.");
+  lines.push("For inquiries, pricing, or additional details, please contact our sales team.");
+
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n");
 }

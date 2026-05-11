@@ -400,16 +400,36 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     }
   }
 
+  const scrollToFirstError = () => {
+    const errors = form.formState.errors;
+    const keys = Object.keys(errors);
+    if (keys.length > 0) {
+      try {
+        form.setFocus(keys[0] as keyof FormInputValues);
+        const el = document.querySelector(`[name="${keys[0]}"]`) as HTMLElement | null;
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch {}
+    }
+  };
+
   async function onSubmit(data: FormInputValues) {
     setShouldRedirectAfterSave(true);
-    const parsed = formSchema.parse(data);
-    await submitInventory(parsed, false, true);
+    const parsed = formSchema.safeParse(data);
+    if (!parsed.success) {
+      scrollToFirstError();
+      return;
+    }
+    await submitInventory(parsed.data, false, true);
   }
 
   async function onSaveAndAddNew(data: FormInputValues) {
     setShouldRedirectAfterSave(false);
-    const parsed = formSchema.parse(data);
-    await submitInventory(parsed, false, false);
+    const parsed = formSchema.safeParse(data);
+    if (!parsed.success) {
+      scrollToFirstError();
+      return;
+    }
+    await submitInventory(parsed.data, false, false);
   }
 
   const handleSaveAnyway = async () => {
@@ -419,7 +439,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit, scrollToFirstError)} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-6">
             <BasicInfoSection
@@ -487,7 +507,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               type="button"
               variant="secondary"
               disabled={isPending}
-              onClick={form.handleSubmit(onSaveAndAddNew)}
+              onClick={form.handleSubmit(onSaveAndAddNew, scrollToFirstError)}
               className="transition-all duration-200 hover:scale-105 active:scale-95 flex-1"
             >
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

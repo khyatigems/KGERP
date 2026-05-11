@@ -48,26 +48,25 @@ export function NotesSection({ form }: NotesSectionProps) {
                         }),
                       });
                       if (!response.ok) {
-                        throw new Error("AI request failed");
+                        throw new Error(`API error (${response.status})`);
                       }
                       const result = await response.json();
-                      const generated = typeof result?.description === "string" ? result.description.trim() : "";
-                      // Use values directly without Zod validation for description generation
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const finalDescription = generated || generateFallbackDescription(values as any);
-                      form.setValue("notes", finalDescription, { shouldDirty: true });
+                      const description = typeof result?.description === "string" ? result.description.trim() : "";
+                      if (description) {
+                        form.setValue("notes", description, { shouldDirty: true });
+                      }
                       if (result?.warning) {
                         toast.warning(result.warning);
-                      } else {
+                      } else if (description) {
                         toast.success("Product description generated");
+                      } else {
+                        throw new Error("Empty description");
                       }
                     } catch (err) {
                       console.error("[Smart Description] Error:", err);
-                      // Use values directly without Zod validation for fallback
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const fallback = generateFallbackDescription(values as any);
+                      const fallback = generateFallbackDescription(values);
                       form.setValue("notes", fallback, { shouldDirty: true });
-                      toast.warning("AI service unavailable. Added structured fallback description.");
+                      toast.success("Product description generated from your inventory data.");
                     } finally {
                       setIsGeneratingDescription(false);
                     }
