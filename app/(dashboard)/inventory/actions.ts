@@ -407,14 +407,11 @@ export async function createInventory(prevState: unknown, formData: FormData) {
         );
         await prisma.inventoryMedia.createMany({ data: mapped as Prisma.InventoryMediaCreateManyInput[] });
       })(),
+      (async () => {
+        revalidatePath("/inventory");
+        try { revalidateTag("inventory:stats", "default"); } catch {}
+      })(),
     ]).catch((e) => console.error("Post-creation error:", e));
-  }
-
-  revalidatePath("/inventory");
-  try {
-    revalidateTag("inventory:stats", "default");
-  } catch {
-    // Fallback: revalidatePath handles most cases
   }
 
   return {

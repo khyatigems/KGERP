@@ -202,9 +202,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[AI Description API] Error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate product description", details: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
+    // Always return fallback description, never 500
+    return NextResponse.json({
+      description: "Product description could not be generated at this time.",
+      provider: "error-fallback"
+    });
   }
 }

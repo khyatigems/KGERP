@@ -311,7 +311,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
             certification: "",
             certificateCodeIds: [],
             transparency: "",
-            pricingMode: "FLAT",
+            pricingMode: "PER_CARAT",
             purchaseRatePerCarat: undefined,
             sellingRatePerCarat: undefined,
             flatPurchaseCost: 0,
