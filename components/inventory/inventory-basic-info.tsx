@@ -28,6 +28,12 @@ export function BasicInfoSection({
   const categoryName = form.watch("category");
   const beadSize = form.watch("beadSize");
 
+  // Debug logging for bracelet fields visibility
+  useEffect(() => {
+    console.log("[BasicInfo] Category selected:", categoryName);
+    console.log("[BasicInfo] Is bracelet?", categoryName === "Bracelets" || categoryName === "Bracelet");
+  }, [categoryName]);
+
   useEffect(() => {
     const v = (beadSize || "").trim();
     if (!v) {

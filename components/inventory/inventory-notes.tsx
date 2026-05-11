@@ -7,7 +7,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles } from "lucide-react";
-import { formSchema, generateFallbackDescription, type FormInputValues } from "./inventory-form.types";
+import { generateFallbackDescription, type FormInputValues } from "./inventory-form.types";
 
 interface NotesSectionProps {
   form: UseFormReturn<FormInputValues>;
@@ -52,17 +52,20 @@ export function NotesSection({ form }: NotesSectionProps) {
                       }
                       const result = await response.json();
                       const generated = typeof result?.description === "string" ? result.description.trim() : "";
-                      const parsedValues = formSchema.parse(values);
-                      const finalDescription = generated || generateFallbackDescription(parsedValues);
+                      // Use values directly without Zod validation for description generation
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const finalDescription = generated || generateFallbackDescription(values as any);
                       form.setValue("notes", finalDescription, { shouldDirty: true });
                       if (result?.warning) {
                         toast.warning(result.warning);
                       } else {
                         toast.success("Product description generated");
                       }
-                    } catch {
-                      const parsedValues = formSchema.parse(values);
-                      const fallback = generateFallbackDescription(parsedValues);
+                    } catch (err) {
+                      console.error("[Smart Description] Error:", err);
+                      // Use values directly without Zod validation for fallback
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const fallback = generateFallbackDescription(values as any);
                       form.setValue("notes", fallback, { shouldDirty: true });
                       toast.warning("AI service unavailable. Added structured fallback description.");
                     } finally {

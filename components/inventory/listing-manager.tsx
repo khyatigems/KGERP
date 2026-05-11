@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Trash2, ExternalLink, Globe, History } from "lucide-react";
+import { Loader2, Trash2, ExternalLink, Globe, History, Pencil, Check, X, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -32,6 +32,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { addListing, updateListing, deleteListing, getListings, getListingHistory } from "@/app/(dashboard)/inventory/listing-actions";
 
 const formSchema = z.object({
@@ -174,6 +176,42 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
         loadListings();
     }
 
+    // Edit listing inline
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editValues, setEditValues] = useState<{ listingUrl: string; listingRef: string }>({ listingUrl: "", listingRef: "" });
+
+    function startEditing(listing: Listing) {
+        setEditingId(listing.id);
+        setEditValues({
+            listingUrl: listing.listingUrl || "",
+            listingRef: listing.listingRef || "",
+        });
+    }
+
+    function cancelEditing() {
+        setEditingId(null);
+        setEditValues({ listingUrl: "", listingRef: "" });
+    }
+
+    async function saveEditing(id: string) {
+        const res = await updateListing(id, {
+            listingUrl: editValues.listingUrl,
+            listingRef: editValues.listingRef,
+        });
+        if (res.success) {
+            toast.success("Listing updated successfully");
+            loadListings();
+        } else {
+            toast.error("Failed to update listing");
+        }
+        setEditingId(null);
+    }
+
+    function copyToClipboard(text: string) {
+        navigator.clipboard.writeText(text);
+        toast.success("URL copied to clipboard");
+    }
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             {trigger ? (
@@ -289,42 +327,119 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
                         ) : (
                             <div className="grid gap-4">
                                 {listings.map((listing) => (
-                                    <div key={listing.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                                                {listing.platform.substring(0, 2)}
-                                            </div>
-                                            <div>
-                                                <div className="font-medium flex items-center gap-2">
-                                                    {listing.platform}
-                                                    {listing.listingUrl && (
-                                                        <a href={listing.listingUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary">
-                                                            <ExternalLink className="h-3 w-3" />
-                                                        </a>
-                                                    )}
+                                    <div key={listing.id} className="flex flex-col p-3 border rounded-lg bg-card">
+                                        {editingId === listing.id ? (
+                                            // Edit Mode
+                                            <div className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                                            {listing.platform.substring(0, 2)}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-medium">{listing.platform}</div>
+                                                            <div className="text-xs text-muted-foreground">{formatCurrency(listing.listedPrice)}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button size="icon" variant="ghost" onClick={() => saveEditing(listing.id)}>
+                                                            <Check className="h-4 w-4 text-green-600" />
+                                                        </Button>
+                                                        <Button size="icon" variant="ghost" onClick={cancelEditing}>
+                                                            <X className="h-4 w-4 text-red-600" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div className="text-xs text-muted-foreground flex items-center">
-                                                    {formatCurrency(listing.listedPrice)} | Ref: {listing.listingRef || "-"}
-                                                    <ListingPriceHistory listingId={listing.id} />
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs text-muted-foreground">Listing URL</label>
+                                                        <div className="flex gap-1">
+                                                            <Input
+                                                                value={editValues.listingUrl}
+                                                                onChange={(e) => setEditValues({ ...editValues, listingUrl: e.target.value })}
+                                                                placeholder="https://..."
+                                                                className="text-sm"
+                                                            />
+                                                            {editValues.listingUrl && (
+                                                                <Button size="icon" variant="ghost" className="shrink-0" onClick={() => window.open(editValues.listingUrl, "_blank")}>
+                                                                    <ExternalLink className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs text-muted-foreground">Reference / Listing ID</label>
+                                                        <Input
+                                                            value={editValues.listingRef}
+                                                            onChange={(e) => setEditValues({ ...editValues, listingRef: e.target.value })}
+                                                            placeholder="e.g. #12345"
+                                                            className="text-sm"
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Select defaultValue={listing.status} onValueChange={(val) => handleStatusChange(listing.id, val)}>
-                                                <SelectTrigger className="h-8 w-[100px]">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="ACTIVE">Active</SelectItem>
-                                                    <SelectItem value="PAUSED">Paused</SelectItem>
-                                                    <SelectItem value="SOLD">Sold</SelectItem>
-                                                    <SelectItem value="REMOVED">Removed</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDelete(listing.id)}>
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                            </Button>
-                                        </div>
+                                        ) : (
+                                            // View Mode
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                                                        {listing.platform.substring(0, 2)}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="font-medium flex items-center gap-2 flex-wrap">
+                                                            {listing.platform}
+                                                            <Badge variant={listing.status === "ACTIVE" ? "default" : listing.status === "SOLD" ? "destructive" : "secondary"} className="text-[10px]">
+                                                                {listing.status}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground flex items-center flex-wrap gap-x-2 gap-y-1">
+                                                            <span>{formatCurrency(listing.listedPrice)}</span>
+                                                            {listing.listingRef && <span>Ref: {listing.listingRef}</span>}
+                                                            <ListingPriceHistory listingId={listing.id} />
+                                                        </div>
+                                                        {listing.listingUrl && (
+                                                            <div className="flex items-center gap-1 mt-1">
+                                                                <Link2 className="h-3 w-3 text-muted-foreground" />
+                                                                <a 
+                                                                    href={listing.listingUrl} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    className="text-xs text-blue-600 hover:underline truncate max-w-[250px]"
+                                                                    title={listing.listingUrl}
+                                                                >
+                                                                    {listing.listingUrl.length > 40 ? listing.listingUrl.substring(0, 40) + "..." : listing.listingUrl}
+                                                                </a>
+                                                                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => copyToClipboard(listing.listingUrl!)}>
+                                                                    <Link2 className="h-3 w-3" />
+                                                                </Button>
+                                                                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => window.open(listing.listingUrl!, "_blank")}>
+                                                                    <ExternalLink className="h-3 w-3" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <Button variant="ghost" size="icon" onClick={() => startEditing(listing)} title="Edit listing URL">
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                    <Select defaultValue={listing.status} onValueChange={(val) => handleStatusChange(listing.id, val)}>
+                                                        <SelectTrigger className="h-8 w-[100px]">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="ACTIVE">Active</SelectItem>
+                                                            <SelectItem value="PAUSED">Paused</SelectItem>
+                                                            <SelectItem value="SOLD">Sold</SelectItem>
+                                                            <SelectItem value="REMOVED">Removed</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(listing.id)}>
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

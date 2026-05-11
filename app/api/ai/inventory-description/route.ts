@@ -195,9 +195,10 @@ export async function POST(request: Request) {
       description: buildFallbackDescription(inventory, additionalInfo),
       provider: "template"
     });
-  } catch {
+  } catch (error) {
+    console.error("[AI Description API] Error:", error);
     return NextResponse.json(
-      { error: "Failed to generate product description" },
+      { error: "Failed to generate product description", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

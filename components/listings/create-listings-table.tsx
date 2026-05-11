@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addListing } from "@/app/(dashboard)/inventory/listing-actions";
 import { toast } from "sonner";
+import { ExternalLink } from "lucide-react";
 
 type InventoryRow = {
   id: string;
@@ -79,6 +80,8 @@ export function CreateListingsTable() {
   const [platform, setPlatform] = useState("");
   const [currency, setCurrency] = useState("INR");
   const [listingPrices, setListingPrices] = useState<Record<string, string>>({});
+  const [listingUrls, setListingUrls] = useState<Record<string, string>>({});
+  const [listingRefs, setListingRefs] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const query = useMemo(() => {
@@ -147,6 +150,8 @@ export function CreateListingsTable() {
   useEffect(() => {
     if (!isDialogOpen) return;
     const initialPrices: Record<string, string> = {};
+    const initialUrls: Record<string, string> = {};
+    const initialRefs: Record<string, string> = {};
     selectedIds.forEach((id) => {
       const item = itemById[id];
       if (!item) return;
@@ -157,12 +162,24 @@ export function CreateListingsTable() {
           ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
           : item.flatSellingPrice || 0;
       initialPrices[id] = Number(systemPrice || 0).toFixed(2);
+      initialUrls[id] = "";
+      initialRefs[id] = "";
     });
     setListingPrices(initialPrices);
+    setListingUrls(initialUrls);
+    setListingRefs(initialRefs);
   }, [isDialogOpen, selectedIds, itemById]);
 
   const handlePriceChange = (id: string, value: string) => {
     setListingPrices((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleUrlChange = (id: string, value: string) => {
+    setListingUrls((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleRefChange = (id: string, value: string) => {
+    setListingRefs((prev) => ({ ...prev, [id]: value }));
   };
 
   const handleBulkCreate = async () => {
@@ -190,9 +207,9 @@ export function CreateListingsTable() {
             platform,
             listedPrice: priceValue,
             currency,
-            status: "LISTED",
-            listingUrl: "",
-            listingRef: "",
+            status: "ACTIVE",
+            listingUrl: listingUrls[inventoryId] || "",
+            listingRef: listingRefs[inventoryId] || "",
           });
         })
       );
@@ -303,22 +320,59 @@ export function CreateListingsTable() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3 max-h-[50vh] overflow-y-auto">
               {Array.from(selectedIds).map((id) => {
                 const item = itemById[id];
                 return (
-                  <div key={id} className="flex items-center gap-3 rounded border p-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-mono text-xs">{item?.sku || id}</div>
-                      <div className="text-sm truncate">{item?.itemName || "-"}</div>
+                  <div key={id} className="rounded border p-3 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-xs">{item?.sku || id}</div>
+                        <div className="text-sm font-medium truncate">{item?.itemName || "-"}</div>
+                      </div>
+                      <div className="w-28">
+                        <label className="text-[10px] text-muted-foreground block mb-1">Price</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={listingPrices[id] || ""}
+                          onChange={(e) => handlePriceChange(id, e.target.value)}
+                          className="h-8"
+                        />
+                      </div>
                     </div>
-                    <div className="w-36">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={listingPrices[id] || ""}
-                        onChange={(e) => handlePriceChange(id, e.target.value)}
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-1">Listing URL (optional)</label>
+                        <div className="flex gap-1">
+                          <Input
+                            placeholder="https://..."
+                            value={listingUrls[id] || ""}
+                            onChange={(e) => handleUrlChange(id, e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                          {listingUrls[id] && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
+                              onClick={() => window.open(listingUrls[id], "_blank")}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-1">Reference / ID (optional)</label>
+                        <Input
+                          placeholder="e.g. #12345"
+                          value={listingRefs[id] || ""}
+                          onChange={(e) => handleRefChange(id, e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
                 );

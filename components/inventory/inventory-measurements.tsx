@@ -24,8 +24,12 @@ export function MeasurementsSection({ form, categoryName }: MeasurementsSectionP
   })();
 
   useEffect(() => {
-    if (form.getValues("weightRatti") !== calculatedRatti) {
-      form.setValue("weightRatti", calculatedRatti);
+    const currentRatti = form.getValues("weightRatti");
+    // Use epsilon comparison for floating point values
+    const epsilon = 0.01;
+    const needsUpdate = currentRatti === undefined || currentRatti === null || Math.abs(Number(currentRatti || 0) - calculatedRatti) > epsilon;
+    if (needsUpdate) {
+      form.setValue("weightRatti", calculatedRatti, { shouldValidate: false });
     }
   }, [calculatedRatti, form]);
 

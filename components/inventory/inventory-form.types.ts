@@ -93,10 +93,11 @@ export const formSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sellingRatePerCarat"], message: "Selling rate per carat is required" });
     }
   } else {
-    if (!values.flatPurchaseCost || values.flatPurchaseCost <= 0) {
+    // For FLAT pricing, ensure values are >= 0 (0 is allowed as a valid price)
+    if (values.flatPurchaseCost === undefined || values.flatPurchaseCost === null || values.flatPurchaseCost < 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatPurchaseCost"], message: "Flat purchase cost is required" });
     }
-    if (!values.flatSellingPrice || values.flatSellingPrice <= 0) {
+    if (values.flatSellingPrice === undefined || values.flatSellingPrice === null || values.flatSellingPrice < 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatSellingPrice"], message: "Flat selling price is required" });
     }
   }
