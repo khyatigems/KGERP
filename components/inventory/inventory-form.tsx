@@ -265,9 +265,25 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         if (optimisticToastId != null) {
           try { toast.dismiss(optimisticToastId); } catch {}
         }
-        toast.success(msg, { duration: 2500 });
+
+        const skuStr = isCreatedInventoryResult(result) ? result.sku : "";
+        const toastMsg = skuStr
+          ? initialData
+            ? `Inventory updated: ${skuStr}`
+            : `Inventory created: ${skuStr}`
+          : msg;
+        toast.success(toastMsg, { duration: 2500 });
 
         const created = !initialData && isCreatedInventoryResult(result) ? result : null;
+
+        if (created) {
+          try {
+            localStorage.setItem("inventory-last-saved", JSON.stringify({
+              sku: created.sku,
+              itemName: created.itemName,
+            }));
+          } catch {}
+        }
 
         if (!initialData && !shouldRedirect) {
           setFormResetKey((k) => k + 1);
@@ -340,14 +356,6 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         }
 
         if (shouldRedirect) {
-          try {
-            if (created) {
-              localStorage.setItem("inventory-last-saved", JSON.stringify({
-                sku: created.sku,
-                itemName: created.itemName,
-              }));
-            }
-          } catch {}
           router.push("/inventory");
           return;
         } else {

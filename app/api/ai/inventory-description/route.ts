@@ -182,7 +182,12 @@ export async function POST(request: Request) {
         const description = await generateWithOpenAI(openAiKey, prompt);
         return NextResponse.json({ description, provider: "openai" });
       } catch (error) {
-        if (!geminiKey) throw error;
+        console.error("[AI Description API] OpenAI failed:", error);
+        if (geminiKey) {
+          // Fall through to Gemini below
+        } else {
+          // No Gemini fallback either — use template
+        }
       }
     }
 

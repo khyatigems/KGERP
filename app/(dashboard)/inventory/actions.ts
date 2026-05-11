@@ -211,13 +211,12 @@ async function renameCloudinaryImageToSku(originalUrl: string, sku: string) {
 }
 
 export async function createInventory(prevState: unknown, formData: FormData) {
-  const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
+  const [perm, session] = await Promise.all([
+    checkPermission(PERMISSIONS.INVENTORY_CREATE),
+    auth(),
+  ]);
   if (!perm.success) return { message: perm.message };
-
-  const session = await auth();
-  if (!session) {
-      return { message: "Unauthorized" };
-  }
+  if (!session) return { message: "Unauthorized" };
 
   const raw = Object.fromEntries(formData.entries());
   const mediaUrls = formData.getAll('mediaUrls').map(String).filter(Boolean);
@@ -280,20 +279,24 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   }
   // --- End Integrity Checks ---
 
+  // --- Resolve codes BEFORE transaction (read-only, no atomicity needed) ---
+  let categoryCodeStr = "XX";
+  let gemstoneCodeStr = "XX";
+  let colorCodeStr = "XX";
+  if (data.categoryCodeId || data.gemstoneCodeId || data.colorCodeId) {
+    const [catCode, gemCode, colCode] = await Promise.all([
+      data.categoryCodeId ? prisma.categoryCode.findUnique({ where: { id: data.categoryCodeId }, select: { code: true } }) : Promise.resolve(null),
+      data.gemstoneCodeId ? prisma.gemstoneCode.findUnique({ where: { id: data.gemstoneCodeId }, select: { code: true } }) : Promise.resolve(null),
+      data.colorCodeId ? prisma.colorCode.findUnique({ where: { id: data.colorCodeId }, select: { code: true } }) : Promise.resolve(null),
+    ]);
+    categoryCodeStr = catCode?.code ?? "XX";
+    gemstoneCodeStr = gemCode?.code ?? "XX";
+    colorCodeStr = colCode?.code ?? "XX";
+  }
+
   let createdInventory;
   try {
       createdInventory = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-          // Parallelize code lookups
-          const [categoryCodes, gemstoneCodes, colorCodes] = await Promise.all([
-              data.categoryCodeId ? tx.categoryCode.findUnique({ where: { id: data.categoryCodeId }, select: { code: true } }) : Promise.resolve(null),
-              data.gemstoneCodeId ? tx.gemstoneCode.findUnique({ where: { id: data.gemstoneCodeId }, select: { code: true } }) : Promise.resolve(null),
-              data.colorCodeId ? tx.colorCode.findUnique({ where: { id: data.colorCodeId }, select: { code: true } }) : Promise.resolve(null),
-          ]);
-
-          const categoryCodeStr = categoryCodes?.code ?? "XX";
-          const gemstoneCodeStr = gemstoneCodes?.code ?? "XX";
-          const colorCodeStr = colorCodes?.code ?? "XX";
-
           const sku = await generateSku(tx, {
               categoryCode: categoryCodeStr,
               gemstoneCode: gemstoneCodeStr,
@@ -402,7 +405,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
             };
           })
         );
-        await prisma.inventoryMedia.createMany({ data: mapped as any });
+        await prisma.inventoryMedia.createMany({ data: mapped as Prisma.InventoryMediaCreateManyInput[] });
       })(),
     ]).catch((e) => console.error("Post-creation error:", e));
   }

@@ -414,6 +414,7 @@ model Inventory {
   @@index([status, gemType])
   @@index([status, color])
   @@index([status, vendorId])
+  @@index([gemstoneCodeId, weightValue, status])
 }
 
 model InventoryMedia {
