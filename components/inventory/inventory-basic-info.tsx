@@ -26,14 +26,16 @@ export function BasicInfoSection({
   setIsSkuPreviewOpen,
 }: BasicInfoSectionProps) {
   const categoryName = form.watch("category");
+  const gemType = form.watch("gemType");
   const beadSize = form.watch("beadSize");
-  const isBraceletCategory = typeof categoryName === "string" && categoryName.toLowerCase().includes("bracelet");
 
-  // Debug logging for bracelet fields visibility
-  useEffect(() => {
-    console.log("[BasicInfo] Category selected:", categoryName);
-    console.log("[BasicInfo] Is bracelet?", isBraceletCategory);
-  }, [categoryName, isBraceletCategory]);
+  const selectedCat = categories.find((c) => c.name === categoryName);
+  const isBraceletCategory = (() => {
+    if (typeof categoryName === "string" && categoryName.toLowerCase().includes("bracelet")) return true;
+    if (selectedCat && selectedCat.code.toLowerCase().includes("brl")) return true;
+    if (typeof gemType === "string" && gemType.toLowerCase().includes("bracelet")) return true;
+    return false;
+  })();
 
   useEffect(() => {
     const v = (beadSize || "").trim();

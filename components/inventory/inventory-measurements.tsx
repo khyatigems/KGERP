@@ -12,21 +12,23 @@ interface MeasurementsSectionProps {
   categoryName: string;
 }
 
+function computeRatti(weight: unknown, unit: string): number {
+  const val = Number(weight) || 0;
+  if (unit === "cts") return Number((val * 1.09).toFixed(2));
+  if (unit === "gms") return Number((val * 5 * 1.09).toFixed(2));
+  return 0;
+}
+
 export function MeasurementsSection({ form, categoryName }: MeasurementsSectionProps) {
   const weightValue = form.watch("weightValue");
   const weightUnit = form.watch("weightUnit");
   const normalizedCategory = (categoryName || "").toLowerCase();
 
-  const calculatedRatti = (() => {
-    const val = Number(weightValue) || 0;
-    if (weightUnit === "cts") return Number((val * 1.09).toFixed(2));
-    else if (weightUnit === "gms") return Number((val * 5 * 1.09).toFixed(2));
-    return 0;
-  })();
+  const calculatedRatti = computeRatti(weightValue, weightUnit);
 
+  // Sync calculated ratti into form state for submission
   useEffect(() => {
     const currentRatti = form.getValues("weightRatti");
-    // Use epsilon comparison for floating point values
     const epsilon = 0.01;
     const needsUpdate = currentRatti === undefined || currentRatti === null || Math.abs(Number(currentRatti || 0) - calculatedRatti) > epsilon;
     if (needsUpdate) {
@@ -47,7 +49,16 @@ export function MeasurementsSection({ form, categoryName }: MeasurementsSectionP
               <FormItem>
                 <FormLabel>Weight</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" {...field} />
+                  <Input type="number" step="0.01"
+                    onChange={(e) => {
+                      field.onChange(e);
+                      form.setValue("weightRatti", computeRatti(e.target.value, form.getValues("weightUnit") || "cts"), { shouldValidate: false });
+                    }}
+                    onBlur={field.onBlur}
+                    value={field.value}
+                    ref={field.ref}
+                    name={field.name}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -59,7 +70,10 @@ export function MeasurementsSection({ form, categoryName }: MeasurementsSectionP
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Unit</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={(val) => {
+                  field.onChange(val);
+                  form.setValue("weightRatti", computeRatti(form.getValues("weightValue"), val), { shouldValidate: false });
+                }} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Unit" />
@@ -81,7 +95,7 @@ export function MeasurementsSection({ form, categoryName }: MeasurementsSectionP
               <FormItem>
                 <FormLabel>Weight (Ratti)</FormLabel>
                 <FormControl>
-                  <Input {...field} readOnly className="bg-muted" />
+                  <Input {...field} value={calculatedRatti} readOnly className="bg-muted" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
