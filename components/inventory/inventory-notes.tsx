@@ -79,14 +79,14 @@ export function NotesSection({ form }: NotesSectionProps) {
               </div>
               <div className="mb-2">
                 <Textarea
-                  className="min-h-[80px] text-sm"
+                  className="min-h-20 text-sm"
                   placeholder="Add Product Information for AI (optional). Example: buyer style, tone, selling focus, special highlights."
                   value={additionalProductInfo}
                   onChange={(e) => setAdditionalProductInfo(e.target.value)}
                 />
               </div>
               <FormControl>
-                <Textarea className="min-h-[300px] font-mono text-sm" placeholder="Any additional details..." {...field} />
+                <Textarea className="min-h-75 font-mono text-sm" placeholder="Any additional details..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -100,7 +100,7 @@ export function NotesSection({ form }: NotesSectionProps) {
             <FormItem>
               <FormLabel>Certificate Comments</FormLabel>
               <FormControl>
-                <Textarea className="min-h-[120px] font-mono text-sm" placeholder="Optional comments to show on the certificate" {...field} />
+                <Textarea className="min-h-30 font-mono text-sm" placeholder="Optional comments to show on the certificate" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

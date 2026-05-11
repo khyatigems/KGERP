@@ -15,6 +15,7 @@ interface MeasurementsSectionProps {
 export function MeasurementsSection({ form, categoryName }: MeasurementsSectionProps) {
   const weightValue = form.watch("weightValue");
   const weightUnit = form.watch("weightUnit");
+  const normalizedCategory = (categoryName || "").toLowerCase();
 
   const calculatedRatti = (() => {
     const val = Number(weightValue) || 0;
@@ -102,7 +103,7 @@ export function MeasurementsSection({ form, categoryName }: MeasurementsSectionP
           )}
         />
 
-        {categoryName === "Beads" && (
+        {normalizedCategory.includes("bead") && (
           <div className="p-4 bg-muted/30 rounded-lg border space-y-4">
             <h4 className="font-medium text-sm">Bead Details</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -143,7 +144,7 @@ export function MeasurementsSection({ form, categoryName }: MeasurementsSectionP
           </div>
         )}
 
-        {categoryName === "Ring" && (
+        {normalizedCategory.includes("ring") && (
           <div className="p-4 bg-muted/30 rounded-lg border space-y-4">
             <h4 className="font-medium text-sm">Ring Details</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -179,7 +180,7 @@ export function MeasurementsSection({ form, categoryName }: MeasurementsSectionP
           </div>
         )}
 
-        {categoryName === "Pendant" && (
+        {normalizedCategory.includes("pendant") && (
           <div className="p-4 bg-muted/30 rounded-lg border space-y-4">
             <h4 className="font-medium text-sm">Pendant Details</h4>
             <FormField
@@ -202,7 +203,7 @@ export function MeasurementsSection({ form, categoryName }: MeasurementsSectionP
           </div>
         )}
 
-        {categoryName === "Figure / Idol" && (
+        {(normalizedCategory.includes("figure") || normalizedCategory.includes("idol")) && (
           <div className="p-4 bg-muted/30 rounded-lg border space-y-4">
             <h4 className="font-medium text-sm">Figure Dimensions</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

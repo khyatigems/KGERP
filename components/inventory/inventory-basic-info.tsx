@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type RefObject } from "react";
-import { useFormContext, type UseFormReturn } from "react-hook-form";
+import { useEffect, type RefObject } from "react";
+import { type UseFormReturn } from "react-hook-form";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,12 +27,13 @@ export function BasicInfoSection({
 }: BasicInfoSectionProps) {
   const categoryName = form.watch("category");
   const beadSize = form.watch("beadSize");
+  const isBraceletCategory = typeof categoryName === "string" && categoryName.toLowerCase().includes("bracelet");
 
   // Debug logging for bracelet fields visibility
   useEffect(() => {
     console.log("[BasicInfo] Category selected:", categoryName);
-    console.log("[BasicInfo] Is bracelet?", categoryName === "Bracelets" || categoryName === "Bracelet");
-  }, [categoryName]);
+    console.log("[BasicInfo] Is bracelet?", isBraceletCategory);
+  }, [categoryName, isBraceletCategory]);
 
   useEffect(() => {
     const v = (beadSize || "").trim();
@@ -60,7 +61,7 @@ export function BasicInfoSection({
       <div className="rounded-lg border bg-card/50 p-5 space-y-4">
         <h3 className="text-base font-semibold">Basic Information</h3>
 
-        {(categoryName === "Bracelets" || categoryName === "Bracelet") && (
+        {isBraceletCategory && (
           <div className="p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800 space-y-4">
             <h4 className="font-medium text-sm flex items-center gap-2 text-purple-700 dark:text-purple-300">
               Bracelet Attributes
