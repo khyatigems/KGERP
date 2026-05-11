@@ -35,11 +35,6 @@ function buildProfessionalDescription(inventory: InventoryPayload, additionalInf
   const holeSizeMm = str(inventory.holeSizeMm);
   const innerCircumferenceMm = str(inventory.innerCircumferenceMm);
   const standardSize = str(inventory.standardSize);
-  const pricingMode = str(inventory.pricingMode);
-  const purchaseRate = str(inventory.purchaseRatePerCarat);
-  const sellingRate = str(inventory.sellingRatePerCarat);
-  const flatCost = str(inventory.flatPurchaseCost);
-  const flatSelling = str(inventory.flatSellingPrice);
   const extra = additionalInfo.trim();
 
   // ── Title ──
@@ -116,16 +111,6 @@ function buildProfessionalDescription(inventory: InventoryPayload, additionalInf
   if (transparency && transparency.toLowerCase() !== "none") specs.push(`Transparency: ${transparency}`);
   if (certification && certification.toLowerCase() !== "none") specs.push(`Certification: ${certification}`);
   if (stockLocation) specs.push(`Stock Location: ${stockLocation}`);
-  if (pricingMode) {
-    if (pricingMode === "PER_CARAT") {
-      if (purchaseRate) specs.push(`Purchase Rate: ₹${purchaseRate}/ct`);
-      if (sellingRate) specs.push(`Selling Rate: ₹${sellingRate}/ct`);
-    } else {
-      if (flatCost) specs.push(`Total Cost: ₹${flatCost}`);
-      if (flatSelling) specs.push(`Selling Price: ₹${flatSelling}`);
-    }
-  }
-
   // ── Build final output ──
   const lines: string[] = [title, ""];
 

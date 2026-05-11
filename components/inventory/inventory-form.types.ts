@@ -198,11 +198,6 @@ export function generateFallbackDescription(values: FormInputValues) {
     holeSizeMm,
     innerCircumferenceMm,
     standardSize,
-    pricingMode,
-    purchaseRatePerCarat,
-    sellingRatePerCarat,
-    flatPurchaseCost,
-    flatSellingPrice,
   } = values;
 
   const name = itemName || "Gemstone";
@@ -273,16 +268,6 @@ export function generateFallbackDescription(values: FormInputValues) {
   if (transparency && transparency.toLowerCase() !== "none") specs.push(`Transparency: ${transparency}`);
   if (certification && certification.toLowerCase() !== "none") specs.push(`Certification: ${certification}`);
   if (stockLocation) specs.push(`Stock Location: ${stockLocation}`);
-  if (pricingMode) {
-    if (pricingMode === "PER_CARAT") {
-      if (purchaseRatePerCarat) specs.push(`Purchase Rate: ₹${purchaseRatePerCarat}/ct`);
-      if (sellingRatePerCarat) specs.push(`Selling Rate: ₹${sellingRatePerCarat}/ct`);
-    } else {
-      if (flatPurchaseCost) specs.push(`Total Cost: ₹${flatPurchaseCost}`);
-      if (flatSellingPrice) specs.push(`Selling Price: ₹${flatSellingPrice}`);
-    }
-  }
-
   const lines: string[] = [title, ""];
   lines.push(overviewParts.join(" "));
   lines.push("");

@@ -11,6 +11,7 @@ import { addToCart } from "@/app/(dashboard)/labels/actions";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { isValidBeadSizeLabel, normalizeBeadSizeLabel, parseBeadSizeMm } from "@/lib/bead-size";
+import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 
 // --- Integrity Check Helpers ---
 
@@ -43,6 +44,7 @@ async function checkDuplicateSku(
       id: excludeId ? { not: excludeId } : undefined,
     },
     select: { sku: true, weightValue: true },
+    take: 1,
   });
 
   return duplicates;
@@ -81,7 +83,7 @@ const inventorySchema = z.object({
   origin: z.string().optional(),
   fluorescence: z.string().optional(),
   transparency: z.string().optional(),
-  vendorId: z.string().uuid("Invalid vendor"),
+  vendorId: z.string().min(1, "Vendor is required"),
   pricingMode: z.enum(["PER_CARAT", "FLAT"]),
   purchaseRatePerCarat: z.coerce.number().optional(),
   sellingRatePerCarat: z.coerce.number().optional(),
@@ -217,6 +219,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   ]);
   if (!perm.success) return { message: perm.message };
   if (!session) return { message: "Unauthorized" };
+  await ensureInventoryBraceletSchema();
 
   const raw = Object.fromEntries(formData.entries());
   const mediaUrls = formData.getAll('mediaUrls').map(String).filter(Boolean);
@@ -437,6 +440,7 @@ export async function updateInventory(
   if (!session) {
     return { message: "Unauthorized" };
   }
+  await ensureInventoryBraceletSchema();
 
   // Check if sold
   const current = await prisma.inventory.findUnique({

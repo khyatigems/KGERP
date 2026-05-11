@@ -219,6 +219,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
           el?.scrollIntoView({ behavior: "smooth", block: "center" });
         } catch {}
       }
+      toast.error(fastErrors[0]?.message || "Please check required fields.");
       return;
     }
 
@@ -412,24 +413,48 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     }
   };
 
-  async function onSubmit(data: FormInputValues) {
-    setShouldRedirectAfterSave(true);
-    const parsed = formSchema.safeParse(data);
-    if (!parsed.success) {
-      scrollToFirstError();
-      return;
+  const handleValidationErrors = (error: z.ZodError<FormInputValues>) => {
+    const issues = error.issues;
+    for (const issue of issues) {
+      const field = issue.path[0];
+      if (typeof field === "string") {
+        form.setError(field as keyof FormInputValues, {
+          type: "manual",
+          message: issue.message,
+        });
+      }
     }
-    await submitInventory(parsed.data, false, true);
-  }
 
-  async function onSaveAndAddNew(data: FormInputValues) {
-    setShouldRedirectAfterSave(false);
-    const parsed = formSchema.safeParse(data);
-    if (!parsed.success) {
+    const firstIssue = issues[0];
+    const firstField = firstIssue?.path[0];
+    if (typeof firstField === "string") {
+      try {
+        form.setFocus(firstField as keyof FormInputValues);
+        const el = document.querySelector(`[name="${firstField}"]`) as HTMLElement | null;
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch {}
+    } else {
       scrollToFirstError();
+    }
+
+    toast.error(firstIssue?.message || "Please check required fields.");
+  };
+
+  async function handleSubmitClick(shouldRedirect: boolean) {
+    if (isPending) return;
+
+    console.info(`[inventory-form] ${shouldRedirect ? "create" : "save-add-new"} clicked`);
+    setShouldRedirectAfterSave(shouldRedirect);
+    form.clearErrors();
+
+    const parsed = formSchema.safeParse(form.getValues());
+    if (!parsed.success) {
+      console.warn("[inventory-form] validation blocked save", parsed.error.flatten().fieldErrors);
+      handleValidationErrors(parsed.error as z.ZodError<FormInputValues>);
       return;
     }
-    await submitInventory(parsed.data, false, false);
+
+    await submitInventory(parsed.data, false, shouldRedirect);
   }
 
   const handleSaveAnyway = async () => {
@@ -439,7 +464,13 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, scrollToFirstError)} className="space-y-8">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void handleSubmitClick(true);
+        }}
+        className="space-y-8"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-6">
             <BasicInfoSection
@@ -459,7 +490,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
           </div>
 
           <div className="space-y-6" key={`right-${formResetKey}`}>
-            <MeasurementsSection form={form} categoryName={watchCategory} />
+            <MeasurementsSection form={form} categoryName={watchCategory} categories={categories} />
 
             <PricingSection form={form} vendors={vendors} />
 
@@ -497,7 +528,12 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         </div>
 
         <div className="flex gap-4">
-          <Button type="submit" disabled={isPending} className="transition-all duration-200 hover:scale-105 active:scale-95 flex-1">
+          <Button
+            type="button"
+            disabled={isPending}
+            onClick={() => void handleSubmitClick(true)}
+            className="transition-all duration-200 hover:scale-105 active:scale-95 flex-1"
+          >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {initialData ? "Update Inventory Item" : "Create Inventory Item"}
           </Button>
@@ -507,7 +543,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               type="button"
               variant="secondary"
               disabled={isPending}
-              onClick={form.handleSubmit(onSaveAndAddNew, scrollToFirstError)}
+              onClick={() => void handleSubmitClick(false)}
               className="transition-all duration-200 hover:scale-105 active:scale-95 flex-1"
             >
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

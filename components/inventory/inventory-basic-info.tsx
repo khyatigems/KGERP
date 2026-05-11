@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { CodeRow, FormInputValues } from "./inventory-form.types";
+import { isBraceletSelection } from "./bracelet-detection";
 
 interface BasicInfoSectionProps {
   form: UseFormReturn<FormInputValues>;
@@ -29,13 +30,7 @@ export function BasicInfoSection({
   const gemType = form.watch("gemType");
   const beadSize = form.watch("beadSize");
 
-  const selectedCat = categories.find((c) => c.name === categoryName);
-  const isBraceletCategory = (() => {
-    if (typeof categoryName === "string" && categoryName.toLowerCase().includes("bracelet")) return true;
-    if (selectedCat && selectedCat.code.toLowerCase().includes("brl")) return true;
-    if (typeof gemType === "string" && gemType.toLowerCase().includes("bracelet")) return true;
-    return false;
-  })();
+  const isBraceletCategory = isBraceletSelection(categoryName, undefined, gemType, categories);
 
   useEffect(() => {
     const v = (beadSize || "").trim();

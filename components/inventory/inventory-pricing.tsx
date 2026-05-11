@@ -1,10 +1,11 @@
 "use client";
 
-import { type UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { FormInputValues } from "./inventory-form.types";
 
 interface PricingSectionProps {
@@ -13,7 +14,46 @@ interface PricingSectionProps {
 }
 
 export function PricingSection({ form, vendors }: PricingSectionProps) {
-  const pricingMode = form.watch("pricingMode");
+  const pricingMode = useWatch({
+    control: form.control,
+    name: "pricingMode",
+  }) || "PER_CARAT";
+
+  const setPricingMode = (mode: "PER_CARAT" | "FLAT") => {
+    if (mode === pricingMode) return;
+
+    if (mode === "FLAT") {
+      const purchaseRate = Number(form.getValues("purchaseRatePerCarat") || 0);
+      const sellingRate = Number(form.getValues("sellingRatePerCarat") || 0);
+      const currentFlatCost = Number(form.getValues("flatPurchaseCost") || 0);
+      const currentFlatSelling = Number(form.getValues("flatSellingPrice") || 0);
+      if (!currentFlatCost && purchaseRate > 0) {
+        form.setValue("flatPurchaseCost", purchaseRate, { shouldDirty: true });
+      }
+      if (!currentFlatSelling && sellingRate > 0) {
+        form.setValue("flatSellingPrice", sellingRate, { shouldDirty: true });
+      }
+      form.clearErrors(["flatPurchaseCost", "flatSellingPrice"]);
+    } else {
+      const flatCost = Number(form.getValues("flatPurchaseCost") || 0);
+      const flatSelling = Number(form.getValues("flatSellingPrice") || 0);
+      const currentPurchaseRate = Number(form.getValues("purchaseRatePerCarat") || 0);
+      const currentSellingRate = Number(form.getValues("sellingRatePerCarat") || 0);
+      if (!currentPurchaseRate && flatCost > 0) {
+        form.setValue("purchaseRatePerCarat", flatCost, { shouldDirty: true });
+      }
+      if (!currentSellingRate && flatSelling > 0) {
+        form.setValue("sellingRatePerCarat", flatSelling, { shouldDirty: true });
+      }
+      form.clearErrors(["purchaseRatePerCarat", "sellingRatePerCarat"]);
+    }
+
+    form.setValue("pricingMode", mode, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -48,33 +88,35 @@ export function PricingSection({ form, vendors }: PricingSectionProps) {
         <FormField
           control={form.control}
           name="pricingMode"
-          render={({ field }) => (
+          render={() => (
             <FormItem className="space-y-3">
               <FormLabel>Pricing Mode</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  value={field.value}
-                  className="flex flex-col space-y-1"
+              <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/20 p-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setPricingMode("PER_CARAT")}
+                  aria-pressed={pricingMode === "PER_CARAT"}
+                  className={cn(
+                    "h-9 rounded-md text-sm",
+                    pricingMode === "PER_CARAT" && "bg-background text-foreground shadow-sm"
+                  )}
                 >
-                  <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="PER_CARAT" />
-                    </FormControl>
-                    <FormLabel className="font-normal">
-                      Per Carat Pricing
-                    </FormLabel>
-                  </FormItem>
-                  <FormItem className="flex items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <RadioGroupItem value="FLAT" />
-                    </FormControl>
-                    <FormLabel className="font-normal">
-                      Flat Rate Pricing
-                    </FormLabel>
-                  </FormItem>
-                </RadioGroup>
-              </FormControl>
+                  Per Carat
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setPricingMode("FLAT")}
+                  aria-pressed={pricingMode === "FLAT"}
+                  className={cn(
+                    "h-9 rounded-md text-sm",
+                    pricingMode === "FLAT" && "bg-background text-foreground shadow-sm"
+                  )}
+                >
+                  Flat Total
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -116,7 +158,7 @@ export function PricingSection({ form, vendors }: PricingSectionProps) {
               name="flatPurchaseCost"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Total Cost</FormLabel>
+                  <FormLabel>Total Purchase Cost</FormLabel>
                   <FormControl>
                     <Input type="number" {...field} />
                   </FormControl>

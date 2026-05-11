@@ -6,10 +6,12 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { FormInputValues } from "./inventory-form.types";
+import { isBraceletSelection } from "./bracelet-detection";
 
 interface MeasurementsSectionProps {
   form: UseFormReturn<FormInputValues>;
   categoryName: string;
+  categories?: Parameters<typeof isBraceletSelection>[3];
 }
 
 function computeRatti(weight: unknown, unit: string): number {
@@ -19,10 +21,14 @@ function computeRatti(weight: unknown, unit: string): number {
   return 0;
 }
 
-export function MeasurementsSection({ form, categoryName }: MeasurementsSectionProps) {
+export function MeasurementsSection({ form, categoryName, categories = [] }: MeasurementsSectionProps) {
   const weightValue = form.watch("weightValue");
   const weightUnit = form.watch("weightUnit");
+  const gemType = form.watch("gemType");
   const normalizedCategory = (categoryName || "").toLowerCase();
+  const showBeadDetails =
+    normalizedCategory.includes("bead") ||
+    isBraceletSelection(categoryName, undefined, gemType, categories);
 
   const calculatedRatti = computeRatti(weightValue, weightUnit);
 
@@ -117,7 +123,7 @@ export function MeasurementsSection({ form, categoryName }: MeasurementsSectionP
           )}
         />
 
-        {normalizedCategory.includes("bead") && (
+        {showBeadDetails && (
           <div className="p-4 bg-muted/30 rounded-lg border space-y-4">
             <h4 className="font-medium text-sm">Bead Details</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
