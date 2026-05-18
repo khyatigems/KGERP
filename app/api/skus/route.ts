@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
+
+const LEGACY_DESKTOP_APP_TOKEN = 'KHYATI_MEDIA_SYNC_SECRET_2026';
+
+function getDesktopAppToken() {
+  return process.env.KHYATI_MEDIA_SYNC_TOKEN || process.env.MEDIA_UPLOAD_TOKEN || LEGACY_DESKTOP_APP_TOKEN;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get('token');
-  if (token !== 'KHYATI_MEDIA_SYNC_SECRET_2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (token !== getDesktopAppToken()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const inventoryItems = await prisma.inventory.findMany({
       select: {
         sku: true,
