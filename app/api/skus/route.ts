@@ -5,13 +5,50 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get('token');
   if (token !== 'KHYATI_MEDIA_SYNC_SECRET_2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const skus = await prisma.inventory.findMany({
-      select: { sku: true },
+  const inventoryItems = await prisma.inventory.findMany({
+      select: {
+        sku: true,
+        imageUrl: true,
+        updatedAt: true,
+        media: {
+          select: {
+            mediaUrl: true,
+            type: true,
+            isPrimary: true,
+            createdAt: true
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { createdAt: 'asc' }
+          ]
+        }
+      },
       where: { 
         sku: { not: undefined },
         status: 'IN_STOCK' // Correct status from schema
       },
       orderBy: { createdAt: 'desc' }
     });
-  return NextResponse.json({ skus: skus.map(i => i.sku).filter(Boolean) });
+
+  const items = inventoryItems
+    .filter(item => Boolean(item.sku))
+    .map(item => {
+      const imageMedia = item.media.filter(media => String(media.type).toUpperCase() === 'IMAGE');
+      const videoMedia = item.media.filter(media => String(media.type).toUpperCase() === 'VIDEO');
+      const primaryImage = imageMedia.find(media => media.isPrimary)?.mediaUrl || imageMedia[0]?.mediaUrl || item.imageUrl || null;
+
+      return {
+        sku: item.sku,
+        erpImageCount: imageMedia.length + (item.imageUrl && !imageMedia.some(media => media.mediaUrl === item.imageUrl) ? 1 : 0),
+        erpVideoCount: videoMedia.length,
+        erpThumbnailUrl: primaryImage,
+        erpSyncStatus: primaryImage ? 'synced' : 'pending',
+        lastSyncTimestamp: imageMedia[0]?.createdAt?.toISOString() || item.updatedAt?.toISOString() || null
+      };
+    });
+
+  return NextResponse.json({
+    skus: items.map(item => item.sku),
+    items
+  });
 }
