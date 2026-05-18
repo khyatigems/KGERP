@@ -53,6 +53,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const inventory = await prisma.inventory.findUnique({
+      where: { sku },
+      select: { id: true, imageUrl: true },
+    });
+
+    if (!inventory) {
+      return NextResponse.json(
+        {
+          success: false,
+          linkedToInventory: false,
+          error: `Inventory SKU not found: ${sku}`,
+        },
+        { status: 404 }
+      );
+    }
+
     const sanitizedSku = sku.replace(/[^a-zA-Z0-9.-]/g, "_");
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
     const uniqueFileName = `${sanitizedSku}_${Date.now()}_${sanitizedFileName}`;
@@ -82,51 +98,56 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const inventory = await prisma.inventory.findUnique({
-        where: { sku },
-        select: { id: true, imageUrl: true },
+      const existingPrimary = await prisma.inventoryMedia.findFirst({
+        where: { inventoryId: inventory.id, isPrimary: true },
+        select: { id: true },
       });
+      const isPrimary = !existingPrimary;
 
-      if (inventory) {
-        const existingPrimary = await prisma.inventoryMedia.findFirst({
-          where: { inventoryId: inventory.id, isPrimary: true },
-          select: { id: true },
-        });
-        const isPrimary = !existingPrimary;
+      const [mediaRecord] = await prisma.$transaction([
+        prisma.inventoryMedia.create({
+          data: {
+            inventoryId: inventory.id,
+            mediaUrl: cloudinaryUrl,
+            type: isVideo ? "VIDEO" : "IMAGE",
+            isPrimary,
+          },
+        }),
+        ...(isPrimary && !inventory.imageUrl
+          ? [
+              prisma.inventory.update({
+                where: { id: inventory.id },
+                data: { imageUrl: cloudinaryUrl },
+              }),
+            ]
+          : []),
+      ]);
 
-        await prisma.$transaction([
-          prisma.inventoryMedia.create({
-            data: {
-              inventoryId: inventory.id,
-              mediaUrl: cloudinaryUrl,
-              type: isVideo ? "VIDEO" : "IMAGE",
-              isPrimary,
-            },
-          }),
-          ...(isPrimary && !inventory.imageUrl
-            ? [
-                prisma.inventory.update({
-                  where: { id: inventory.id },
-                  data: { imageUrl: cloudinaryUrl },
-                }),
-              ]
-            : []),
-        ]);
-      } else {
-        console.warn(`Inventory not found for SKU: ${sku}. Media uploaded but not linked.`);
-      }
+      return NextResponse.json({
+        success: true,
+        linkedToInventory: true,
+        inventoryId: inventory.id,
+        mediaId: mediaRecord.id,
+        url: cloudinaryUrl,
+        cloudinaryUrl,
+        publicId: uploadResult.public_id,
+        fileName,
+        sku,
+      });
     } catch (dbError) {
       console.error("Database error saving media:", dbError);
+      return NextResponse.json(
+        {
+          success: false,
+          linkedToInventory: false,
+          cloudinaryUrl,
+          publicId: uploadResult.public_id,
+          error: "Uploaded to Cloudinary but failed to link media to ERP inventory",
+          message: dbError instanceof Error ? dbError.message : "Database error saving media",
+        },
+        { status: 500 }
+      );
     }
-
-    return NextResponse.json({
-      success: true,
-      url: cloudinaryUrl,
-      cloudinaryUrl,
-      publicId: uploadResult.public_id,
-      fileName,
-      sku,
-    });
   } catch (error) {
     console.error("Media upload error:", error);
     return NextResponse.json(
