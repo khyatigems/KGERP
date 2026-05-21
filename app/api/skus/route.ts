@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +12,29 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get('token');
   if (token !== getDesktopAppToken()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const sku = searchParams.get('sku');
+  if (sku) {
+    const item = await prisma.inventory.findUnique({
+      where: { sku },
+      select: {
+        sku: true,
+        title: true,
+        shape: true,
+        weight: true,
+        dimensions: true,
+        color: true,
+        treatment: true,
+        origin: true,
+        certification: true,
+        imageUrl: true,
+        updatedAt: true,
+      }
+    });
+    if (!item) return NextResponse.json({ error: 'SKU not found' }, { status: 404 });
+    return NextResponse.json(item);
+  }
+
   const inventoryItems = await prisma.inventory.findMany({
       select: {
         sku: true,
