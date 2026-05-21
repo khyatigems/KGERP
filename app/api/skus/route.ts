@@ -19,20 +19,29 @@ export async function GET(request: Request) {
       where: { sku },
       select: {
         sku: true,
-        title: true,
+        itemName: true,
         shape: true,
-        weight: true,
-        dimensions: true,
+        weightValue: true,
+        dimensionsMm: true,
         color: true,
+        clarity: true,
         treatment: true,
         origin: true,
         certification: true,
+        category: true,
+        description: true,
         imageUrl: true,
         updatedAt: true,
       }
     });
     if (!item) return NextResponse.json({ error: 'SKU not found' }, { status: 404 });
-    return NextResponse.json(item);
+    return NextResponse.json({
+      ...item,
+      title: item.itemName,
+      weight: item.weightValue?.toString() || '',
+      dimensions: item.dimensionsMm || '',
+      gemType: item.shape || '',
+    });
   }
 
   const inventoryItems = await prisma.inventory.findMany({
