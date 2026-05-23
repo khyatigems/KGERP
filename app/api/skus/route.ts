@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
@@ -23,15 +23,21 @@ export async function GET(request: Request) {
         shape: true,
         weightValue: true,
         dimensionsMm: true,
+        measurements: true,
         color: true,
         clarity: true,
         treatment: true,
         origin: true,
+        originCountry: true,
         certification: true,
+        lab: true,
+        certificateLab: true,
         category: true,
         description: true,
         imageUrl: true,
         updatedAt: true,
+        beadSizeMm: true,
+        beadSizeLabel: true,
       }
     });
     if (!item) return NextResponse.json({ error: 'SKU not found' }, { status: 404 });
@@ -39,7 +45,9 @@ export async function GET(request: Request) {
       ...item,
       title: item.itemName,
       weight: item.weightValue?.toString() || '',
-      dimensions: item.dimensionsMm || '',
+      dimensions: item.dimensionsMm || item.measurements || item.beadSizeLabel || (item.beadSizeMm ? `${item.beadSizeMm}mm` : ''),
+      certification: item.certification || item.certificateLab || item.lab || '',
+      origin: item.origin || item.originCountry || '',
       gemType: item.shape || '',
     });
   }
