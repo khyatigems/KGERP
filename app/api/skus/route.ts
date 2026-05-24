@@ -56,6 +56,7 @@ export async function GET(request: Request) {
       select: {
         sku: true,
         imageUrl: true,
+        category: true,
         updatedAt: true,
         media: {
           select: {
@@ -90,6 +91,7 @@ export async function GET(request: Request) {
         erpVideoCount: videoMedia.length,
         erpThumbnailUrl: primaryImage,
         erpSyncStatus: primaryImage ? 'synced' : 'pending',
+        category: item.category || '',
         lastSyncTimestamp: imageMedia[0]?.createdAt?.toISOString() || item.updatedAt?.toISOString() || null
       };
     });
