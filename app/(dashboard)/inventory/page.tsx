@@ -494,6 +494,7 @@ async function getInventoryData(params: SearchParams) {
       
       // Notes
       notes: item.notes || "",
+      description: item.description || "",
       
       // Metadata
       date: formatDate(item.createdAt),
@@ -587,6 +588,7 @@ export default async function InventoryPage({
     { header: "Stock Location", key: "stockLocation" },
     { header: "Status", key: "status" },
     { header: "Image URL", key: "imageUrl" },
+    { header: "eBay Description", key: "description" },
     { header: "Created At", key: "date" },
   ];
 

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { getMissingGciFields } from "@/lib/gci-certificate";
 
 export async function generateGciCertificate(
   inventoryId: string, 
@@ -47,17 +48,19 @@ export async function generateGciCertificate(
     const fluorescenceField = additionalData?.fluorescence || inventory.fluorescence || "";
     const hasImages = (inventory.media && inventory.media.length > 0) || !!inventory.imageUrl;
 
-    const missing: string[] = [];
-    if (!speciesField) missing.push("Species");
-    if (!varietyField) missing.push("Variety");
-    if (!colorField) missing.push("Color");
-    if (!weightField || weightField <= 0) missing.push("Weight");
-    if (!shapeField) missing.push("Shape");
-    if (!measurementsField) missing.push("Measurements");
-    if (!originField) missing.push("Origin");
-    if (!treatmentField) missing.push("Treatments");
-    if (!fluorescenceField) missing.push("Fluorescence");
-    if (!hasImages) missing.push("Images");
+    const missing = getMissingGciFields({
+      species: speciesField,
+      variety: varietyField,
+      color: colorField,
+      weight: Number(weightField) || 0,
+      shape: shapeField,
+      measurements: measurementsField,
+      origin: originField,
+      treatment: treatmentField,
+      fluorescence: fluorescenceField,
+      hasImages,
+    });
+
     if (missing.length > 0) {
       return { success: false, error: `Missing required certificate fields: ${missing.join(", ")}` };
     }

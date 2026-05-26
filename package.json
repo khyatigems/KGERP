@@ -28,6 +28,7 @@
     "test:customers:unit": "tsx scripts/tests/customer-export.unit.ts",
     "test:customers:integration": "tsx scripts/tests/customer-crud.integration.ts",
     "test:customers": "npm run test:customers:unit && npm run test:customers:integration",
+    "test:ebay-description": "tsx scripts/tests/ebay-description.unit.ts",
     "test:sales-return:rules": "tsx scripts/tests/sales-return-rules.unit.ts",
     "test:sales-return:valuation": "tsx scripts/tests/sales-return-valuation.unit.ts",
     "test:gst:v22": "tsx scripts/tests/gst-v22.unit.ts",

@@ -83,7 +83,6 @@ export function GciCertButton({ inventoryId, certificateNo, lab, certificationUr
                             if (!meta.color) missing.push("Color");
                             if (!meta.weight || meta.weight <= 0) missing.push("Weight");
                             if (!meta.shape) missing.push("Shape");
-                            if (!meta.measurements) missing.push("Measurements");
                             if (!meta.origin) missing.push("Origin");
                             if (!meta.treatment) missing.push("Treatments");
                             if (!meta.fluorescence) missing.push("Fluorescence");

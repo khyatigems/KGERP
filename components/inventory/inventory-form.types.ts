@@ -58,6 +58,7 @@ export const formSchema = z.object({
   flatPurchaseCost: z.coerce.number().optional(),
   flatSellingPrice: z.coerce.number().optional(),
   notes: z.string().optional(),
+  description: z.string().optional(),
   certificateComments: z.string().optional(),
   stockLocation: z.string().optional(),
   mediaUrl: z.string().url().optional().or(z.literal("")),
@@ -127,6 +128,7 @@ export type FormInputValues = {
   flatPurchaseCost?: number | undefined;
   flatSellingPrice?: number | undefined;
   notes?: string | undefined;
+  description?: string | undefined;
   certificateComments?: string | undefined;
   stockLocation?: string | undefined;
   mediaUrl?: string | undefined;

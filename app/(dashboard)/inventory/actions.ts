@@ -91,6 +91,7 @@ const inventorySchema = z.object({
   flatSellingPrice: z.coerce.number().optional(),
   stockLocation: z.string().optional(),
   notes: z.string().optional(),
+  description: z.string().optional(),
   certificateComments: z.string().optional(),
   mediaUrl: z.string().optional().or(z.literal("")),
   mediaUrls: z.array(z.string()).optional(),
@@ -134,83 +135,6 @@ type InventoryImportRow = {
   notes?: string;
   mediaUrl?: string;
 };
-
-async function renameCloudinaryImageToSku(originalUrl: string, sku: string) {
-  try {
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-    if (!cloudName || !apiKey || !apiSecret) {
-      return originalUrl;
-    }
-
-    const urlObj = new URL(originalUrl);
-    const parts = urlObj.pathname.split("/");
-    const uploadIndex = parts.findIndex((p) => p === "upload");
-    if (uploadIndex === -1) {
-      return originalUrl;
-    }
-
-    const afterUpload = parts.slice(uploadIndex + 1);
-    const withoutVersion =
-      afterUpload[0] && /^v[0-9]+$/.test(afterUpload[0])
-        ? afterUpload.slice(1)
-        : afterUpload;
-    const publicIdWithExt = withoutVersion.join("/");
-    const publicId = publicIdWithExt.replace(/\.[^/.]+$/, "");
-
-    if (!publicId) {
-      return originalUrl;
-    }
-
-    const currentName = publicId.split("/").pop() || "";
-    if (currentName === sku || publicId === sku) {
-      return originalUrl;
-    }
-
-    const isVideo =
-      urlObj.pathname.includes("/video/upload/") ||
-      originalUrl.match(/\.(mp4|mov|webm)$/i) != null;
-    const resourceType = isVideo ? "video" : "image";
-
-    const authHeader = Buffer.from(`${apiKey}:${apiSecret}`).toString("base64");
-
-    const body = new URLSearchParams({
-      from_public_id: publicId,
-      to_public_id: sku,
-      overwrite: "true",
-    });
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/resources/${resourceType}/upload`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${authHeader}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body,
-      }
-    );
-
-    const result = (await response.json()) as { secure_url?: string };
-
-    if (!response.ok) {
-      console.error("Cloudinary rename error:", result);
-      return originalUrl;
-    }
-
-    if (result.secure_url) {
-      return result.secure_url;
-    }
-
-    return originalUrl;
-  } catch (e) {
-    console.error("Cloudinary rename unexpected error:", e);
-    return originalUrl;
-  }
-}
 
 export async function createInventory(prevState: unknown, formData: FormData) {
   const [perm, session] = await Promise.all([
@@ -348,6 +272,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               status: "IN_STOCK",
               stockLocation: data.stockLocation,
               notes: data.notes,
+              description: data.description,
               certificateComments: data.certificateComments,
               
               // Bracelet Fields
@@ -553,6 +478,7 @@ export async function updateInventory(
       sellingPrice,
       stockLocation: data.stockLocation,
       notes: data.notes,
+      description: data.description,
       certificateComments: data.certificateComments,
       braceletType: data.braceletType,
       beadSizeMm,
@@ -600,27 +526,19 @@ export async function updateInventory(
         });
         const currentUrls = new Set(currentMedia.map(m => m.mediaUrl));
         
-        const toAdd = data.mediaUrls.filter(url => !currentUrls.has(url));
-        
+        const toAdd = Array.from(new Set(data.mediaUrls.filter(url => !currentUrls.has(url))));
+
         if (toAdd.length > 0) {
-            const inv = await prisma.inventory.findUnique({ where: { id }, select: { sku: true } });
-            if (inv) {
-                 for (let i = 0; i < toAdd.length; i++) {
-                     const url = toAdd[i];
-                     const isVideo = url.match(/\.(mp4|mov|webm)$/i);
-                     const type = isVideo ? "VIDEO" : "IMAGE";
-                     // Avoid slow external Cloudinary rename during save; store URL as-is.
-                     const finalUrl = url;
-                     
-                     await prisma.inventoryMedia.create({
-                        data: {
-                            inventoryId: id,
-                            type: type,
-                            mediaUrl: finalUrl
-                        }
-                     });
-                 }
-            }
+            await prisma.inventoryMedia.createMany({
+                data: toAdd.map((url) => {
+                    const isVideo = url.match(/\.(mp4|mov|webm)$/i);
+                    return {
+                        inventoryId: id,
+                        type: isVideo ? "VIDEO" : "IMAGE",
+                        mediaUrl: url,
+                    };
+                }),
+            });
         }
     } else if (data.mediaUrl && data.mediaUrl !== "") {
         const existingMedia = await prisma.inventoryMedia.findFirst({

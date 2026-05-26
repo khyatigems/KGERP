@@ -1,17 +1,103 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
+
+const LEGACY_DESKTOP_APP_TOKEN = 'KHYATI_MEDIA_SYNC_SECRET_2026';
+
+function getDesktopAppToken() {
+  return process.env.KHYATI_MEDIA_SYNC_TOKEN || process.env.MEDIA_UPLOAD_TOKEN || LEGACY_DESKTOP_APP_TOKEN;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get('token');
-  if (token !== 'KHYATI_MEDIA_SYNC_SECRET_2026') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const skus = await prisma.inventory.findMany({
-      select: { sku: true },
+  if (token !== getDesktopAppToken()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const sku = searchParams.get('sku');
+  if (sku) {
+    const item = await prisma.inventory.findUnique({
+      where: { sku },
+      select: {
+        sku: true,
+        itemName: true,
+        shape: true,
+        weightValue: true,
+        dimensionsMm: true,
+        measurements: true,
+        color: true,
+        clarity: true,
+        treatment: true,
+        origin: true,
+        originCountry: true,
+        certification: true,
+        lab: true,
+        certificateLab: true,
+        category: true,
+        description: true,
+        imageUrl: true,
+        updatedAt: true,
+        beadSizeMm: true,
+        beadSizeLabel: true,
+      }
+    });
+    if (!item) return NextResponse.json({ error: 'SKU not found' }, { status: 404 });
+    return NextResponse.json({
+      ...item,
+      title: item.itemName,
+      weight: item.weightValue?.toString() || '',
+      dimensions: item.dimensionsMm || item.measurements || item.beadSizeLabel || (item.beadSizeMm ? `${item.beadSizeMm}mm` : ''),
+      certification: item.certification || item.certificateLab || item.lab || '',
+      origin: item.origin || item.originCountry || '',
+      gemType: item.shape || '',
+    });
+  }
+
+  const inventoryItems = await prisma.inventory.findMany({
+      select: {
+        sku: true,
+        imageUrl: true,
+        category: true,
+        updatedAt: true,
+        media: {
+          select: {
+            mediaUrl: true,
+            type: true,
+            isPrimary: true,
+            createdAt: true
+          },
+          orderBy: [
+            { isPrimary: 'desc' },
+            { createdAt: 'asc' }
+          ]
+        }
+      },
       where: { 
         sku: { not: undefined },
         status: 'IN_STOCK' // Correct status from schema
       },
       orderBy: { createdAt: 'desc' }
     });
-  return NextResponse.json({ skus: skus.map(i => i.sku).filter(Boolean) });
+
+  const items = inventoryItems
+    .filter(item => Boolean(item.sku))
+    .map(item => {
+      const imageMedia = item.media.filter(media => String(media.type).toUpperCase() === 'IMAGE');
+      const videoMedia = item.media.filter(media => String(media.type).toUpperCase() === 'VIDEO');
+      const primaryImage = imageMedia.find(media => media.isPrimary)?.mediaUrl || imageMedia[0]?.mediaUrl || item.imageUrl || null;
+
+      return {
+        sku: item.sku,
+        erpImageCount: imageMedia.length + (item.imageUrl && !imageMedia.some(media => media.mediaUrl === item.imageUrl) ? 1 : 0),
+        erpVideoCount: videoMedia.length,
+        erpThumbnailUrl: primaryImage,
+        erpSyncStatus: primaryImage ? 'synced' : 'pending',
+        category: item.category || '',
+        lastSyncTimestamp: imageMedia[0]?.createdAt?.toISOString() || item.updatedAt?.toISOString() || null
+      };
+    });
+
+  return NextResponse.json({
+    skus: items.map(item => item.sku),
+    items
+  });
 }

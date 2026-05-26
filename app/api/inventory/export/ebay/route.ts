@@ -2,151 +2,75 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { buildEbayHtmlDescription } from "@/lib/ebay-description";
 import * as XLSX from "xlsx";
 
-// eBay field mapping for File Exchange format
-const EBAY_FIELDS = [
-  "Action",
-  "ItemID",
-  "Title",
-  "Subtitle",
-  "Description",
-  "Category",
-  "ConditionID",
-  "ConditionDescription",
-  "Format",
-  "Duration",
-  "StartPrice",
-  "BuyItNowPrice",
-  "Quantity",
-  "Location",
-  "Country",
-  "Currency",
-  "PictureURL1",
-  "PictureURL2",
-  "PictureURL3",
-  "PictureURL4",
-  "PictureURL5",
-  "PictureURL6",
-  "PictureURL7",
-  "PictureURL8",
-  "PictureURL9",
-  "PictureURL10",
-  "PictureURL11",
-  "PictureURL12",
-  "SKU",
-  "ISBN",
-  "UPC",
-  "EAN",
-  "Brand",
-  "MPN",
-  "Color",
-  "Size",
-  "SizeType",
-  "Style",
-  "Material",
-  "GemType",
-  "Clarity",
-  "Cut",
-  "Treatment",
-  "Origin",
-  "Weight",
-  "WeightUnit",
-  "MeasurementUnit",
-  "Length",
-  "Width",
-  "Depth",
-  "ShippingType",
-  "ShippingService1",
-  "ShippingServiceCost1",
-  "ShippingServiceAdditionalCost1",
-  "PaymentMethods",
-  "PayPalEmailAddress",
-  "ReturnsAcceptedOption",
-  "ReturnsWithinOption",
-  "RefundOption",
-  "ReturnPolicyDescription",
-  "ShippingCostPaidByOption",
-  "UseTaxTable",
-  "StoreCategory",
-  "ProductReferenceID",
-  "CustomLabel",
-];
+type EbayDescriptionInput = {
+  itemName?: string | null;
+  category?: string | null;
+  gemType?: string | null;
+  gemstoneCode?: { name?: string | null } | null;
+  color?: string | null;
+  colorCode?: { name?: string | null } | null;
+  shape?: string | null;
+  weightValue?: number | null;
+  weightUnit?: string | null;
+  dimensionsMm?: string | null;
+  treatment?: string | null;
+  origin?: string | null;
+  transparency?: string | null;
+  certification?: string | null;
+  braceletType?: string | null;
+  beadSizeMm?: number | null;
+  beadCount?: number | null;
+  holeSizeMm?: number | null;
+  innerCircumferenceMm?: number | null;
+  standardSize?: string | null;
+  notes?: string | null;
+};
+
+type EbayExportSettings = {
+  includeImages: boolean;
+  includeDescription: boolean;
+  useTemplate: boolean;
+  includeMeasurements: boolean;
+  includeCertificate: boolean;
+  includeOrigin: boolean;
+  autoPrice: boolean;
+  markup: number;
+};
 
 // Generate eBay-compatible HTML description
-function generateEbayDescription(item: any, settings: any): string {
-  const images = item.media?.filter((m: any) => m.type === "IMAGE" || m.type === "image").slice(0, 12) || [];
-  const imageHtml = images.map((img: any, idx: number) => 
-    `<img src="${img.mediaUrl}" alt="${item.itemName} - Image ${idx + 1}" style="max-width:100%;margin:10px 0;" />`
-  ).join("\n");
-
-  const specs = [
-    ["Gem Type", item.gemType || item.gemstoneCode?.name || "Natural Gemstone"],
-    ["Color", item.colorCode?.name || item.color || "As shown"],
-    ["Shape", item.shape || "As shown"],
-    ["Cut", item.cutCode?.name || item.cut || "As shown"],
-    ["Clarity", item.clarity || "As shown"],
-    ["Weight", `${item.weightValue || 0} ${item.weightUnit || "cts"}`],
-    ["Dimensions", item.dimensionsMm || "As shown"],
-    ["Treatment", item.treatment || "None/Unheated"],
-    ["Origin", item.origin || "Natural"],
-    ["Certification", item.certificateNumber || item.certification || "Included"],
-    ["Lab", item.certificateLab || item.lab || "Certified"],
-  ];
-
-  const specsHtml = settings.includeMeasurements 
-    ? `<table style="width:100%;border-collapse:collapse;margin:15px 0;">
-        ${specs.map(([label, value]) => 
-          `<tr><td style="padding:8px;border:1px solid #ddd;background:#f5f5f5;font-weight:bold;width:40%;">${label}</td>
-           <td style="padding:8px;border:1px solid #ddd;">${value}</td></tr>`
-        ).join("")}
-       </table>`
-    : "";
-
-  return `<![CDATA[
-    <div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto;">
-      <h1 style="color:#333;border-bottom:2px solid #c0a050;padding-bottom:10px;">${item.itemName}</h1>
-      
-      <div style="background:#f9f9f9;padding:15px;margin:15px 0;border-left:4px solid #c0a050;">
-        <h3 style="margin-top:0;color:#c0a050;">✨ Product Images</h3>
-        ${imageHtml || "<p>High-quality images available upon request.</p>"}
-      </div>
-
-      <div style="background:#fff;padding:15px;margin:15px 0;border:1px solid #ddd;">
-        <h3 style="color:#c0a050;">📋 Product Description</h3>
-        <p>${item.notes || `This exquisite ${item.gemType || "gemstone"} showcases exceptional quality and craftsmanship.`}</p>
-      </div>
-
-      ${settings.includeMeasurements ? specsHtml : ""}
-
-      ${settings.includeCertificate ? `
-      <div style="background:#f0f8ff;padding:15px;margin:15px 0;border-left:4px solid #4a90d9;">
-        <h3 style="margin-top:0;color:#4a90d9;">📜 Certification</h3>
-        <p><strong>Certificate Number:</strong> ${item.certificateNumber || item.certificateNo || "Included"}</p>
-        <p><strong>Lab:</strong> ${item.certificateLab || item.lab || "Certified Laboratory"}</p>
-        <p>This gemstone comes with a professional certificate guaranteeing authenticity and quality.</p>
-      </div>
-      ` : ""}
-
-      ${settings.includeOrigin ? `
-      <div style="background:#fff8f0;padding:15px;margin:15px 0;border-left:4px solid #e67e22;">
-        <h3 style="margin-top:0;color:#e67e22;">🌍 Origin & Treatment</h3>
-        <p><strong>Origin:</strong> ${item.origin || "Natural"}</p>
-        <p><strong>Cut & Polished:</strong> ${item.cutPolishedIn || "India"}</p>
-        <p><strong>Treatment:</strong> ${item.treatment || "None/Unheated"}</p>
-      </div>
-      ` : ""}
-
-      <div style="background:#f5f5f5;padding:15px;margin:15px 0;text-align:center;border-top:2px solid #c0a050;">
-        <h3 style="color:#c0a050;">💎 Khyati Precious Gems Private Limited</h3>
-        <p>Since 1997 | Certified Gemstones | Worldwide Shipping</p>
-        <p style="font-size:12px;color:#666;">
-          All our gemstones are ethically sourced and come with a satisfaction guarantee.
-          Contact us for custom jewelry designs and bulk orders.
-        </p>
-      </div>
-    </div>
-  ]]>`;
+function generateEbayDescription(item: EbayDescriptionInput, settings: EbayExportSettings): string {
+  return buildEbayHtmlDescription(
+    {
+      itemName: item.itemName,
+      category: item.category,
+      gemType: item.gemType || item.gemstoneCode?.name,
+      color: item.colorCode?.name || item.color,
+      shape: item.shape,
+      weightValue: item.weightValue,
+      weightUnit: item.weightUnit,
+      dimensionsMm: item.dimensionsMm,
+      treatment: item.treatment,
+      origin: item.origin,
+      transparency: item.transparency,
+      certification: item.certification,
+      braceletType: item.braceletType,
+      beadSizeMm: item.beadSizeMm,
+      beadCount: item.beadCount,
+      holeSizeMm: item.holeSizeMm,
+      innerCircumferenceMm: item.innerCircumferenceMm,
+      standardSize: item.standardSize,
+      notes: item.notes,
+    },
+    {
+      includeImages: settings.includeImages,
+      includeMeasurements: settings.includeMeasurements,
+      includeCertificate: settings.includeCertificate,
+      includeOrigin: settings.includeOrigin,
+    }
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -199,7 +123,7 @@ export async function GET(req: NextRequest) {
     console.log("[eBay Export] Filters:", { statusFilter, includeHidden: includeHiddenParam });
     
     // Fetch inventory based on filters
-    const whereClause: any = {};
+    const whereClause: { status?: string; hideFromAttention?: boolean } = {};
     
     if (statusFilter && statusFilter !== "ALL") {
       whereClause.status = statusFilter;
@@ -240,7 +164,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Transform data for eBay
-    const ebayData = inventory.map((item, index) => {
+    const ebayData = inventory.map((item) => {
       // Calculate price with markup
       const basePrice = autoPrice 
         ? (item.sellingPrice || item.flatSellingPrice || 0)
@@ -255,9 +179,9 @@ export async function GET(req: NextRequest) {
       }
 
       // Generate description
-      const description = useTemplate 
+      const description = item.description || (useTemplate
         ? generateEbayDescription(item, settings)
-        : (item.notes || item.itemName);
+        : (item.notes || item.itemName));
 
       return {
         Action: "Add",

@@ -6,7 +6,8 @@ import { type UseFormReturn } from "react-hook-form";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, FileText } from "lucide-react";
+import { buildEbayHtmlDescription } from "@/lib/ebay-description";
 import { generateFallbackDescription, type FormInputValues } from "./inventory-form.types";
 
 interface NotesSectionProps {
@@ -15,6 +16,7 @@ interface NotesSectionProps {
 
 export function NotesSection({ form }: NotesSectionProps) {
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [isGeneratingEbayDescription, setIsGeneratingEbayDescription] = useState(false);
   const [additionalProductInfo, setAdditionalProductInfo] = useState("");
 
   return (
@@ -86,6 +88,68 @@ export function NotesSection({ form }: NotesSectionProps) {
               </div>
               <FormControl>
                 <Textarea className="min-h-75 font-mono text-sm" placeholder="Any additional details..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex items-center justify-between">
+                <FormLabel>eBay HTML Description</FormLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1.5 text-muted-foreground"
+                  disabled={isGeneratingEbayDescription}
+                  onClick={() => {
+                    const values = form.getValues();
+                    const ebayFields = {
+                      ...values,
+                      beadSizeMm:
+                        values.beadSizeMm === undefined || values.beadSizeMm === ""
+                          ? null
+                          : Number(values.beadSizeMm),
+                      beadCount:
+                        values.beadCount === undefined || values.beadCount === ""
+                          ? null
+                          : Number(values.beadCount),
+                      holeSizeMm:
+                        values.holeSizeMm === undefined || values.holeSizeMm === ""
+                          ? null
+                          : Number(values.holeSizeMm),
+                      innerCircumferenceMm:
+                        values.innerCircumferenceMm === undefined || values.innerCircumferenceMm === ""
+                          ? null
+                          : Number(values.innerCircumferenceMm),
+                    };
+                    setIsGeneratingEbayDescription(true);
+                    try {
+                      const html = buildEbayHtmlDescription(ebayFields);
+                      form.setValue("description", html, { shouldDirty: true });
+                      toast.success("eBay HTML description generated");
+                    } catch (error) {
+                      console.error("[eBay HTML Description] Error:", error);
+                      toast.error("Failed to generate eBay HTML description");
+                    } finally {
+                      setIsGeneratingEbayDescription(false);
+                    }
+                  }}
+                >
+                  {isGeneratingEbayDescription ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                  {isGeneratingEbayDescription ? "Generating..." : "Generate eBay HTML Description"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This HTML description is used for eBay export and can be customized for copy-paste uploads.
+              </p>
+              <FormControl>
+                <Textarea className="min-h-96 font-mono text-sm" placeholder="Paste or generate HTML description for eBay" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -68,7 +68,7 @@ export function GciCertModal({ inventoryId, trigger, onSuccess }: GciCertModalPr
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-106.25">
         <DialogHeader>
           <DialogTitle>Create GCI Certificate</DialogTitle>
           <DialogDescription>
