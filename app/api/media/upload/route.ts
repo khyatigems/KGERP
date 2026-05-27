@@ -18,7 +18,7 @@ function getDesktopAppToken() {
 export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const token = searchParams.get("token");
+    const token = searchParams.get("token") || req.headers.get("x-media-sync-token") || req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
     const expectedToken = getDesktopAppToken();
 
     if (!expectedToken || token !== expectedToken) {
