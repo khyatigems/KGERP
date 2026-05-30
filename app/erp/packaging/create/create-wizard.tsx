@@ -361,7 +361,7 @@ export function CreatePackagingWizard() {
   };
 
   return (
-    <div className="h-[calc(100vh-220px)] min-h-[500px] flex flex-col lg:flex-row gap-6">
+    <div className="h-[calc(100vh-220px)] min-h-125 flex flex-col lg:flex-row gap-6">
       
       {/* Left Panel: Inventory Selection */}
       <div className="flex-1 flex flex-col min-h-0 space-y-4">
@@ -388,11 +388,11 @@ export function CreatePackagingWizard() {
             <Table>
               <TableHeader className="bg-muted/50 sticky top-0 z-10">
                 <TableRow>
-                  <TableHead className="w-[140px]">SKU</TableHead>
+                  <TableHead className="w-35">SKU</TableHead>
                   <TableHead>Item Details</TableHead>
-                  <TableHead className="w-[80px] text-center">Stock</TableHead>
-                  <TableHead className="w-[160px]">Pack Config</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
+                  <TableHead className="w-20 text-center">Stock</TableHead>
+                  <TableHead className="w-40">Pack Config</TableHead>
+                  <TableHead className="w-17.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -439,7 +439,7 @@ export function CreatePackagingWizard() {
       </div>
 
       {/* Right Panel: Batch / Cart */}
-      <div className="w-full lg:w-[380px] flex flex-col min-h-0 space-y-4">
+      <div className="w-full lg:w-95 flex flex-col min-h-0 space-y-4">
         <div className="flex items-center justify-between h-9">
           <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />
@@ -763,7 +763,7 @@ function InventoryRow({ item, onAdd }: { item: Inventory, onAdd: (i: Inventory, 
       <TableCell className="font-mono text-xs font-medium">{item.sku}</TableCell>
       <TableCell>
         <div className="flex flex-col gap-0.5">
-          <span className="font-medium text-sm truncate max-w-[180px]" title={item.itemName}>{item.itemName}</span>
+          <span className="font-medium text-sm truncate max-w-45" title={item.itemName}>{item.itemName}</span>
           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
             {item.category}
             <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />

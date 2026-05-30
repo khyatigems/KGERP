@@ -269,9 +269,10 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               costPrice,
               sellingPrice,
               // profit, // Commented out due to Prisma Client lock
-              status: "IN_STOCK",
+              status: data.status,
               stockLocation: data.stockLocation,
               notes: data.notes,
+              productDescription: data.productDescription,
               description: data.description,
               certificateComments: data.certificateComments,
               
@@ -476,8 +477,10 @@ export async function updateInventory(
       flatSellingPrice: data.flatSellingPrice,
       costPrice,
       sellingPrice,
+      status: data.status,
       stockLocation: data.stockLocation,
       notes: data.notes,
+      productDescription: data.productDescription,
       description: data.description,
       certificateComments: data.certificateComments,
       braceletType: data.braceletType,

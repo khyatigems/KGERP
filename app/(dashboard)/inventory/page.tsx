@@ -15,7 +15,7 @@ import { InventoryStats } from "@/components/inventory/inventory-stats";
 import { InventorySavedToast } from "@/components/inventory/inventory-saved-toast";
 import { InventoryInsightBar } from "@/components/inventory/inventory-insight-bar";
 import { ComprehensiveExport } from "@/components/inventory/comprehensive-export";
-import { EbayExport } from "@/components/inventory/ebay-export";
+import { RegenerateEbayButton } from "@/components/inventory/regenerate-ebay-button";
 import { BulkListings } from "@/components/inventory/bulk-listings";
 import type { Inventory, Prisma } from "@prisma/client";
 import { removeDuplicates } from "@/lib/dedup";
@@ -619,7 +619,7 @@ export default async function InventoryPage({
           <InventorySummaryExport />
           <ExportButton filename="inventory_report" data={data.exportData} columns={columns} title="Inventory Report" />
           <ComprehensiveExport />
-          <EbayExport />
+          <RegenerateEbayButton />
           <BulkListings inventoryItems={data.inventory.map(item => ({
             id: item.id,
             sku: item.sku,

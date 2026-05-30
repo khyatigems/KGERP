@@ -184,7 +184,7 @@ export default async function ActivityLogPage({
 
                 <div className="flex flex-col gap-1">
                   <div className="text-xs text-muted-foreground">Search</div>
-                  <input name="q" defaultValue={q} placeholder="Invoice #, SKU, user..." className="h-9 rounded-md border bg-background px-3 text-sm w-[240px]" />
+                  <input name="q" defaultValue={q} placeholder="Invoice #, SKU, user..." className="h-9 rounded-md border bg-background px-3 text-sm w-60" />
                 </div>
 
                 <Button variant="outline" size="sm" className="h-9">
@@ -251,7 +251,7 @@ export default async function ActivityLogPage({
                                              {metaStr && (
                                                  <details className="text-[10px] text-muted-foreground cursor-pointer">
                                                      <summary>View Changes</summary>
-                                                     <pre className="mt-1 p-2 bg-muted rounded overflow-x-auto max-w-[400px]">
+                                                     <pre className="mt-1 p-2 bg-muted rounded overflow-x-auto max-w-100">
                                                          {metaStr}
                                                      </pre>
                                                  </details>

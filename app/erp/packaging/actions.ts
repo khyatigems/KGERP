@@ -1055,6 +1055,7 @@ function buildGpisLabelData(params: {
     weightCarat: inv.weightValue ?? 0,
     weightRatti: inv.weightRatti ?? undefined,
     weightGrams: grams,
+    category: inv.category || undefined,
     color: inv.color ?? undefined,
     clarityGrade: inv.clarityGrade || undefined,
     cutGrade: inv.cutGrade || undefined,

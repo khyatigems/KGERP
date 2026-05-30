@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client"
 import { PrismaLibSQL } from "@prisma/adapter-libsql"
 import { createClient } from "@libsql/client"
-import { config } from "dotenv"
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -16,28 +15,35 @@ function parseLibsqlCredentials(rawUrl: string) {
   return { url: base, authToken };
 }
 
-if (!process.env.DATABASE_URL) {
-  config({ path: ".env.local" });
-  config({ path: ".env" });
+// Only load environment variables on server side
+if (typeof window === "undefined" && !process.env.DATABASE_URL) {
+  // This will only run on server
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { config } = require("dotenv");
+    config({ path: ".env.local" });
+    config({ path: ".env" });
+  } catch (e) {
+    // Ignore if dotenv is not available
+  }
 }
 
 const databaseUrl = process.env.DATABASE_URL || "file:./dev.db";
 const tursoDatabaseUrl = process.env.TURSO_DATABASE_URL || process.env.TURSO_URL || "";
 
-if (!process.env.DATABASE_URL) {
+if (!process.env.DATABASE_URL && typeof window === "undefined") {
   if (!isProd) console.warn("⚠️  WARNING: DATABASE_URL is not set in environment. Falling back to local SQLite database.");
 }
 
 if (!databaseUrl) {
-  if (!isProd) console.error("Prisma: DATABASE_URL is not set");
+  if (!isProd && typeof window === "undefined") console.error("Prisma: DATABASE_URL is not set");
 } else {
-  if (!isProd) {
+  if (!isProd && typeof window === "undefined") {
     const logUrl = databaseUrl.includes("authToken")
       ? databaseUrl.split("?")[0] + "?authToken=***"
       : databaseUrl;
     console.log("Prisma: Using connection string:", logUrl);
   }
-
 }
 
 const globalForPrisma = global as unknown as {
@@ -101,8 +107,10 @@ const prismaBase =
     
     // Only configure adapter for LibSQL/Turso (not for local SQLite)
     if (isLibsql && adapter) {
+      console.log("Using LibSQL adapter for Turso database");
       clientOptions.adapter = adapter;
     } else {
+      console.log("Using standard SQLite connection");
       // For local SQLite, configure datasource
       clientOptions.datasources = {
         db: {

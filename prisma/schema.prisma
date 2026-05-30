@@ -306,6 +306,7 @@ model Inventory {
   gemType              String?
   stoneType            String?             @map("stone_type")
   description          String?
+  productDescription   String?
   pieces               Int                 @default(1)
   weightValue          Float?              @default(0)
   weightUnit           String?
@@ -1274,6 +1275,22 @@ model GpisSettings {
   careInstruction       String?
   legalMetrologyLine    String?
   updatedAt             DateTime @updatedAt
+}
+
+model EbaySettings {
+  id                      String   @id @default(uuid())
+  globalBannerImages      String?  // JSON array of URLs
+  categoryImageUrls       String?  // JSON object: { "Category": ["url1", ...] }
+  maxImagesPerCategory    Int      @default(4)
+  imagesPerDescription    Int      @default(2)
+  imageRotationMode       String   @default("SEQUENTIAL")
+  brandLogoUrl            String?
+  companyName             String   @default("KhyatiGems")
+  tagline                 String   @default("Precious Gems for your Precious Ones")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model GpisLayoutPreset {

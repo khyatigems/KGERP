@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Download, FileSpreadsheet, ExternalLink } from "lucide-react";
+import { Download, FileSpreadsheet, X, Save } from "lucide-react";
 import { toast } from "sonner";
 
 // Comprehensive field definitions - ALL fields from inventory
@@ -24,7 +32,8 @@ const ALL_EXPORT_FIELDS = [
   { key: "category", label: "Category", category: "Basic", default: true },
   { key: "gemType", label: "Gem Type", category: "Basic", default: true },
   { key: "stoneType", label: "Stone Type", category: "Basic", default: false },
-  { key: "description", label: "Description", category: "Basic", default: false },
+  { key: "description", label: "eBay HTML Description", category: "Basic", default: false },
+  { key: "productDescription", label: "Product Description", category: "Notes", default: false },
   
   // Classification & Codes
   { key: "categoryCode", label: "Category Code", category: "Codes", default: false },
@@ -147,6 +156,50 @@ export function ComprehensiveExport({
   });
   const [includeAllStock, setIncludeAllStock] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [presets, setPresets] = useState<Array<{ name: string; fields: Record<string, boolean>; allStock: boolean }>>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("export-presets");
+      return stored ? JSON.parse(stored) : [];
+    }
+    return [];
+  });
+  const [presetName, setPresetName] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+
+  const savePreset = () => {
+    if (!presetName.trim()) {
+      toast.error("Please enter a preset name");
+      return;
+    }
+    const newPreset = { 
+      name: presetName, 
+      fields: selectedFields,
+      allStock: includeAllStock 
+    };
+    const updated = [...presets.filter(p => p.name !== presetName), newPreset];
+    setPresets(updated);
+    localStorage.setItem("export-presets", JSON.stringify(updated));
+    setPresetName("");
+    toast.success(`Preset "${presetName}" saved`);
+  };
+
+  const deletePreset = (name: string) => {
+    const updated = presets.filter(p => p.name !== name);
+    setPresets(updated);
+    localStorage.setItem("export-presets", JSON.stringify(updated));
+    if (selectedPreset === name) setSelectedPreset(null);
+    toast.success("Preset deleted");
+  };
+
+  const loadPreset = (name: string) => {
+    const preset = presets.find(p => p.name === name);
+    if (preset) {
+      setSelectedFields(preset.fields);
+      setIncludeAllStock(preset.allStock);
+      setSelectedPreset(name);
+      toast.success(`Preset "${name}" loaded`);
+    }
+  };
 
   const toggleField = (key: string) => {
     setSelectedFields(prev => ({ ...prev, [key]: !prev[key] }));
@@ -247,6 +300,55 @@ export function ComprehensiveExport({
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Presets Section */}
+            <div className="space-y-3 border-b pb-4">
+              <h3 className="text-sm font-semibold">Presets</h3>
+              {presets.length > 0 && (
+                <div className="space-y-2">
+                  <Select value={selectedPreset || ""} onValueChange={loadPreset}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Load a saved preset..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {presets.map((preset) => (
+                        <SelectItem key={preset.name} value={preset.name}>
+                          {preset.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter preset name..."
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && savePreset()}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={savePreset}
+                  className="gap-1"
+                >
+                  <Save className="h-4 w-4" />
+                  Save
+                </Button>
+              </div>
+              {presets.length > 0 && selectedPreset && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => deletePreset(selectedPreset)}
+                  className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Delete "{selectedPreset}"
+                </Button>
+              )}
+            </div>
+
             {/* Options */}
             <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
               <Checkbox 

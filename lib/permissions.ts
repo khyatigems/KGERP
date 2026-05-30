@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
 
 export const PERMISSIONS = {
@@ -124,7 +125,22 @@ export async function checkUserPermission(userId: string, permission: Permission
   }
 
   try {
-    const user = (await (prisma.user as any).findUnique({
+    type UserFindPayload = Prisma.UserGetPayload<{
+      include: {
+        roleRelation: {
+          include: {
+            permissions: {
+              include: { permission: true }
+            }
+          }
+        };
+        userPermissions: {
+          include: { permission: true }
+        };
+      };
+    }>;
+
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
         roleRelation: {
@@ -138,28 +154,38 @@ export async function checkUserPermission(userId: string, permission: Permission
           include: { permission: true }
         }
       }
-    })) as any;
-
+    }) as UserFindPayload | null;
 
     if (!user) return false;
 
-    const override = (user.userPermissions || []).find((up: any) => up.permission.key === permission);
+    const override = user.userPermissions?.find((up) => up.permission.key === permission);
     if (override) return override.allow;
 
     if (user.roleRelation) {
       if (isSuperAdminRole(user.roleRelation.name)) return true;
-      return (user.roleRelation.permissions || []).some((rp: any) => rp.permission.key === permission);
+      return user.roleRelation.permissions?.some(
+        (rp) => rp.permission.key === permission
+      ) ?? false;
     }
 
     if (isSuperAdminRole(user.role)) return true;
 
     try {
-      const role = await (prisma as any).role.findUnique({
+      type RoleFindPayload = Prisma.RoleGetPayload<{
+        include: {
+          permissions: {
+            include: { permission: true }
+          }
+        }
+      }>;
+
+      const role = await prisma.role.findUnique({
         where: { name: user.role },
         include: { permissions: { include: { permission: true } } }
-      });
+      }) as RoleFindPayload | null;
+
       if (isSuperAdminRole(role?.name)) return true;
-      if (role?.permissions?.some((rp: any) => rp.permission?.key === permission)) return true;
+      if (role?.permissions?.some((rp) => rp.permission?.key === permission)) return true;
     } catch {}
 
     return getPermissionsForRole(user.role).includes(permission);

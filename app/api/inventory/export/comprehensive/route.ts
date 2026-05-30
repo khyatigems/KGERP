@@ -14,7 +14,15 @@ const FIELD_MAPPINGS: Record<string, { label: string; getter: (item: any) => any
   category: { label: "Category", getter: (item) => item.category },
   gemType: { label: "Gem Type", getter: (item) => item.gemType || "" },
   stoneType: { label: "Stone Type", getter: (item) => item.stoneType || "" },
-  description: { label: "Description", getter: (item) => item.description || "" },
+  description: { label: "eBay HTML Description", getter: (item) => {
+    const d = item.description || "";
+    // Replace double-quotes with single-quotes for Excel-friendly output (prevents doubled quoting)
+    return typeof d === 'string' ? d.replace(/"/g, "'") : d;
+  } },
+  productDescription: { label: "Product Description", getter: (item) => {
+    const p = item.productDescription || "";
+    return typeof p === 'string' ? p.replace(/"/g, "'") : p;
+  } },
   
   // Classification & Codes
   categoryCode: { label: "Category Code", getter: (item) => item.categoryCode?.code || "" },

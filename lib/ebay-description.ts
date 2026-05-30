@@ -3,6 +3,8 @@ export const DEFAULT_EBAY_IMAGE_URLS = [
   "https://images.unsplash.com/photo-1779786410107-f1729039bb01?q=80&w=1460&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
 ];
 
+export const DEFAULT_LOGO_URL = "https://images.unsplash.com/photo-1779794047454-ad379b48d1ed?q=80&w=880&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+
 type EbayDescriptionFields = {
   itemName?: string | null;
   category?: string | null;
@@ -26,10 +28,16 @@ type EbayDescriptionFields = {
 };
 
 interface BuildEbayDescriptionOptions {
-  includeImages?: boolean;
   includeMeasurements?: boolean;
   includeCertificate?: boolean;
   includeOrigin?: boolean;
+  categoryImages?: string[];
+  settings?: {
+    companyName?: string;
+    tagline?: string;
+    brandLogoUrl?: string;
+    globalBannerImages?: string[];
+  };
 }
 
 function escapeHtml(value: string) {
@@ -161,21 +169,177 @@ function getSpecificAttributes(product: EbayDescriptionFields) {
   return rows;
 }
 
+function buildWhyBuySection() {
+  const trustPoints = [
+    "Authentic Products",
+    "Real Product Photos",
+    "Secure Packaging",
+    "Worldwide Shipping",
+    "Carefully Selected",
+    "Customer Support",
+  ];
 
-function getBannerBlock(includeImages?: boolean) {
-  if (!includeImages) return "";
   return `
-    <div style="display:flex;gap:16px;justify-content:center;margin:32px 0 24px 0;">
-      ${DEFAULT_EBAY_IMAGE_URLS.map((url, i) => `<img src="${escapeHtml(url)}" alt="KhyatiGems banner ${i+1}" style="max-width:320px;max-height:120px;border-radius:12px;box-shadow:0 2px 12px #181B4E22;object-fit:cover;background:#fff;" />`).join("\n")}
-    </div>
-  `;
+    <div style="background:#F8F9FB;padding:16px 14px;margin:20px 0 28px 0;border-radius:16px;box-shadow:0 2px 12px #181B4E11;">
+      <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
+        ${trustPoints
+          .map(
+            (point) => `
+              <div style="flex:1 1 160px;min-width:160px;background:#fff;border:1px solid #E0E3EA;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#C0A050;border-radius:9999px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 6L9 17L4 12" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span style="font-size:0.92rem;font-weight:600;color:#181B4E;">${escapeHtml(point)}</span>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+    </div>`;
+}
+
+function getItemSpecialFeatures(product: EbayDescriptionFields) {
+  const category = (product.category || "").toLowerCase();
+  const isBracelet = category.includes("bracelet");
+  const isLooseGemstone =
+    !isBracelet &&
+    (category.includes("loose") ||
+      category.includes("gemstone") ||
+      category.includes("stone"));
+
+  const points: string[] = [];
+
+  if (isBracelet) {
+    points.push(
+      "Natural Gemstone",
+      "Comfortable Wear",
+      "Carefully Selected",
+      "Gift Ready"
+    );
+  }
+
+  if (isLooseGemstone) {
+    points.push(
+      "Natural Stone",
+      "Collector Friendly",
+      "Jewelry Making Ready",
+      "Carefully Inspected"
+    );
+  }
+
+  return points;
+}
+
+function buildSpecialItemSection(product: EbayDescriptionFields) {
+  const points = getItemSpecialFeatures(product).slice(0, 4);
+  if (points.length < 3) return "";
+
+  return `
+    <div style="background:#F8F9FB;padding:20px 24px;margin:24px 0 0 0;border-radius:14px;box-shadow:0 2px 12px #181B4E11;">
+      <h3 style="margin:0 0 12px 0;color:#C0A050;font-size:1.1rem;font-weight:700;">✨ What Makes This Item Special</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+        ${points
+          .map(
+            (point) => `
+              <div style="background:#fff;border:1px solid #E0E3EA;border-radius:14px;padding:14px;min-height:96px;display:flex;align-items:flex-start;gap:10px;">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#E94B3C;border-radius:9999px;color:#fff;font-size:16px;font-weight:700;">•</span>
+                <div style="font-size:0.95rem;font-weight:700;color:#181B4E;">${escapeHtml(point)}</div>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+    </div>`;
+}
+
+function buildSmartFaqSection(product: EbayDescriptionFields) {
+  const faqs: Array<{ question: string; answer: string }> = [];
+  const treatment = normalizeText(product.treatment);
+  const origin = normalizeText(product.origin);
+  const certification = normalizeText(product.certification);
+  const category = (product.category || "").toLowerCase();
+  const isBracelet = category.includes("bracelet");
+  const isLooseGemstone =
+    !isBracelet &&
+    (category.includes("loose") ||
+      category.includes("gemstone") ||
+      category.includes("stone"));
+
+  if (
+    product.treatment &&
+    treatment !== "Not specified" &&
+    treatment.toLowerCase() !== "none"
+  ) {
+    faqs.push({
+      question: "What treatment has this gemstone received?",
+      answer: `This gemstone has been ${treatment.toLowerCase()} while preserving its natural character.`,
+    });
+  }
+
+  if (product.origin && origin !== "Not specified") {
+    faqs.push({
+      question: "Where does this gemstone come from?",
+      answer: `It originates from ${origin.toLowerCase()} and is selected for quality and authenticity.`,
+    });
+  }
+
+  if (product.certification && certification !== "Not specified") {
+    faqs.push({
+      question: "Does this item come with certification?",
+      answer: `Yes, it includes ${certification.toLowerCase()} certification to verify authenticity.`,
+    });
+  }
+
+  if (isBracelet) {
+    faqs.push({
+      question: "Is this bracelet ready to wear?",
+      answer: "Yes, this bracelet is designed for comfortable everyday wear and is ready to gift.",
+    });
+  }
+
+  if (isLooseGemstone) {
+    faqs.push({
+      question: "Is this loose gemstone suitable for jewelry making?",
+      answer: "Yes, this natural gemstone is ideal for collectors and jewelry makers.",
+    });
+  }
+
+  const visibleFaqs = faqs.slice(0, 5);
+  if (visibleFaqs.length === 0) return "";
+
+  return `
+    <div style="background:#fff8f0;padding:20px 24px;margin:24px 0 0 0;border-radius:14px;box-shadow:0 2px 12px #181B4E11;">
+      <h3 style="margin:0 0 12px 0;color:#C0A050;font-size:1.1rem;font-weight:700;">❓ Smart FAQ</h3>
+      <div style="display:grid;gap:12px;">
+        ${visibleFaqs
+          .map(
+            (faq) => `
+              <div style="background:#fff;border:1px solid #E0E3EA;border-radius:14px;padding:14px;">
+                <div style="font-size:0.95rem;font-weight:700;color:#181B4E;">${escapeHtml(
+                  faq.question
+                )}</div>
+                <div style="margin-top:8px;color:#475569;font-size:0.95rem;line-height:1.5;">${escapeHtml(
+                  faq.answer
+                )}</div>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+    </div>`;
 }
 
 export function buildEbayHtmlDescription(product: EbayDescriptionFields, options: BuildEbayDescriptionOptions = {}) {
-  const includeImages = options.includeImages ?? true;
   const includeMeasurements = options.includeMeasurements ?? true;
   const includeCertificate = options.includeCertificate ?? true;
   const includeOrigin = options.includeOrigin ?? true;
+
+  // Use settings from eBay settings if provided
+  const companyName = options.settings?.companyName || "KhyatiGems";
+  const tagline = options.settings?.tagline || "Precious Gems for your Precious Ones";
+  const brandLogoUrl = options.settings?.brandLogoUrl || DEFAULT_LOGO_URL;
 
   const title = getTitle(product);
   const summary = getProductSummary(product);
@@ -215,22 +379,28 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
       </div>`
     : "";
 
-  // Brand logo (real image)
-  const logoUrl = "https://images.unsplash.com/photo-1779794047454-ad379b48d1ed?q=80&w=880&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+  // Brand logo with settings
   const logoBlock = `
     <div style="text-align:center;margin:0 0 32px 0;">
-      <img src="${logoUrl}" alt="KhyatiGems Logo" style="height:72px;max-width:320px;object-fit:contain;border-radius:12px;box-shadow:0 2px 12px #181B4E22;margin-bottom:8px;background:#fff;" />
-      <div style="font-size:18px;font-weight:700;color:#181B4E;letter-spacing:1px;">KhyatiGems</div>
-      <div style="font-size:13px;color:#E94B3C;font-weight:500;">Precious Gems for your Precious Ones</div>
+      <img src="${brandLogoUrl}" alt="KhyatiGems Logo" style="height:72px;max-width:320px;object-fit:contain;border-radius:12px;box-shadow:0 2px 12px #181B4E22;margin-bottom:8px;background:#fff;" />
+      <div style="font-size:18px;font-weight:700;color:#181B4E;letter-spacing:1px;">${escapeHtml(companyName)}</div>
+      <div style="font-size:13px;color:#E94B3C;font-weight:500;">${escapeHtml(tagline)}</div>
     </div>
   `;
 
-  // Banner image URLs
-  const banner1 = DEFAULT_EBAY_IMAGE_URLS[0];
-  const banner2 = DEFAULT_EBAY_IMAGE_URLS[1];
+  // Banner image URLs - use dynamic category images if provided, otherwise fallback to defaults
+  // Also check for global banner images from settings
+  const globalBannerImages = options.settings?.globalBannerImages || [];
+  const availableImages = globalBannerImages.length > 0 
+    ? globalBannerImages 
+    : (options.categoryImages || DEFAULT_EBAY_IMAGE_URLS);
+  const banner1 = availableImages[0] || DEFAULT_EBAY_IMAGE_URLS[0];
+  const banner2 = availableImages[1] || DEFAULT_EBAY_IMAGE_URLS[1];
+  const trustSectionHtml = buildWhyBuySection();
+  const specialItemSectionHtml = buildSpecialItemSection(product);
+  const faqSectionHtml = buildSmartFaqSection(product);
 
-  return `
-    <div style="font-family:Inter,Roboto,Arial,sans-serif;max-width:800px;margin:0 auto;background:#fff;border-radius:18px;box-shadow:0 4px 32px #181B4E11;padding:32px 18px 32px 18px;">
+  return `<div style="font-family:Inter,Roboto,Arial,sans-serif;max-width:800px;margin:0 auto;background:#fff;border-radius:18px;box-shadow:0 4px 32px #181B4E11;padding:32px 18px 32px 18px;">
       ${logoBlock}
       <h1 style="color:#181B4E;font-size:2rem;font-weight:800;letter-spacing:0.5px;margin:0 0 18px 0;line-height:1.2;">${escapeHtml(title)}</h1>
 
@@ -242,6 +412,8 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
       <div style="margin:32px 0 28px 0;text-align:center;">
         <img src="${banner1}" alt="KhyatiGems banner 1" style="width:100%;max-width:740px;min-width:220px;object-fit:cover;border-radius:14px;box-shadow:0 2px 12px #181B4E22;" />
       </div>
+
+      ${trustSectionHtml}
 
       <div style="background:#fff;padding:20px 24px;margin:0 0 24px 0;border-radius:12px;box-shadow:0 2px 8px #181B4E11;">
         <h3 style="color:#C0A050;font-size:1.1rem;font-weight:700;margin:0 0 8px 0;">📋 Product Specifications</h3>
@@ -259,21 +431,22 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
       </div>
 
       ${specsHtml}
+      ${specialItemSectionHtml}
       ${certificateHtml}
       ${originHtml}
+      ${faqSectionHtml}
 
       <div style="background:#F8F9FB;padding:18px 20px;margin:32px 0 0 0;border-radius:12px;text-align:center;box-shadow:0 2px 8px #181B4E11;border-top:3px solid #C0A050;">
         <h3 style="color:#C0A050;font-size:1.1rem;font-weight:700;margin:0 0 8px 0;">🛡️ Store Policies & Buying Information</h3>
         <p style="color:#181B4E;font-size:1rem;margin:0 0 4px 0;">Authenticity & Quality Guarantee: We firmly believe our premium products will meet and exceed your expectations. Please allow for slight organic variations in bead patterns and color depth for natural stones.</p>
         <p style="color:#181B4E;font-size:1rem;margin:0 0 4px 0;">Shipping & Handling: Secure packaging, prompt dispatch, and reliable tracking information are provided for each order.</p>
-        <p style="color:#181B4E;font-size:1rem;margin:0;">Returns & Customer Satisfaction: If you have any questions before leaving feedback, please contact us through eBay messages.</p>
+        <p style="color:#181B4E;font-size:1rem;margin:0;">Carefully selected and offered by Khyati Precious Gems Private Limited, bringing authentic gemstones and jewelry to collectors and enthusiasts worldwide.</p>
       </div>
 
       <div style="background:#fff;padding:18px 20px;margin:32px 0 0 0;border-radius:12px;text-align:center;box-shadow:0 2px 8px #181B4E11;border-top:3px solid #E94B3C;">
         <h3 style="color:#E94B3C;font-size:1.1rem;font-weight:700;margin:0 0 8px 0;">🛍️ Closing Note</h3>
         <p style="color:#181B4E;font-size:1rem;margin:0 0 4px 0;">A statement piece with undeniable presence — this item is crafted for those who value authenticity, luxury, and spiritual alignment.</p>
-        <p style="color:#181B4E;font-size:1rem;margin:0;">Exclusively offered by Khyati Precious Gems Private Limited. Don’t forget to save khyatigemsofficial to your eBay favorite sellers list for exclusive updates on our latest authentic gemstone arrivals!</p>
+        <p style="color:#181B4E;font-size:1rem;margin:0;">Exclusively offered by Khyati Precious Gems Private Limited. Don't forget to save khyatigemsofficial to your eBay favorite sellers list for exclusive updates on our latest authentic gemstone arrivals!</p>
       </div>
-    </div>
-  `;
+    </div>`;
 }

@@ -564,7 +564,7 @@ export function PackagingPrintDialog({
 
           <TabsContent value="preview" className="h-full pt-4 overflow-hidden min-h-0">
             <div className="flex h-full gap-4 min-h-0">
-              <div className="w-[380px] shrink-0 flex flex-col gap-3 min-h-0">
+              <div className="w-95 shrink-0 flex flex-col gap-3 min-h-0">
                 <div className="rounded-md border p-3 space-y-2">
                   <Label>Layout Preset</Label>
                   <Select value={presetId} onValueChange={(id) => {
@@ -640,7 +640,7 @@ export function PackagingPrintDialog({
                         max={perPage}
                         value={layoutMm.startPosition}
                         onChange={(e) => setStartPosition(parseNumber(e.target.value, layoutMm.startPosition))}
-                        className="w-[120px]"
+                        className="w-30"
                       />
                     </div>
                     <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(layoutMm.cols, 6)}, minmax(0, 1fr))` }}>

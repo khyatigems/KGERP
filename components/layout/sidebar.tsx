@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, RotateCcw, ShoppingBag, Truck, Users, BarChart3, CreditCard, UserCog, Settings, Wallet } from "lucide-react";
+import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, RotateCcw, ShoppingBag, Truck, Users, BarChart3, CreditCard, UserCog, Settings, Wallet, Image as ImageIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 
@@ -22,6 +22,7 @@ export const navItems = [
   { href: "/customers", label: "Customers", icon: Users, module: "customers:view" },
   { href: "/reports", label: "Reports", icon: BarChart3, module: "reports:view" },
   { href: "/users", label: "Users", icon: UserCog, module: "users:manage" },
+  { href: "/settings/ebay-settings", label: "eBay Settings", icon: ImageIcon, module: "settings:manage" },
   { href: "/settings", label: "Settings", icon: Settings, module: "settings:manage" },
 ];
 

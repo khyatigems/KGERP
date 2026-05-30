@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { buildEbayHtmlDescription } from "@/lib/ebay-description";
+import { getEbaySettings, getCategoryImages, selectImagesForDescription } from "@/lib/ebay-settings-server";
 import * as XLSX from "xlsx";
 
 type EbayDescriptionInput = {
@@ -40,8 +41,24 @@ type EbayExportSettings = {
   markup: number;
 };
 
-// Generate eBay-compatible HTML description
-function generateEbayDescription(item: EbayDescriptionInput, settings: EbayExportSettings): string {
+// Generate eBay-compatible HTML description with category-specific images
+async function generateEbayDescription(item: EbayDescriptionInput, settings: EbayExportSettings): Promise<string> {
+  // Fetch eBay settings to get category-specific images
+  const ebaySettingsResult = await getEbaySettings();
+  const ebaySettings = ebaySettingsResult.success ? ebaySettingsResult.data : null;
+  
+  // Get category-specific images for this item
+  const categoryImages = ebaySettings 
+    ? getCategoryImages(ebaySettings, item.category || undefined)
+    : undefined;
+  
+  // Select images based on rotation mode
+  const imagesPerDescription = ebaySettings?.imagesPerDescription || 2;
+  const rotationMode = ebaySettings?.imageRotationMode || "RANDOM";
+  const selectedImages = categoryImages 
+    ? selectImagesForDescription(categoryImages, imagesPerDescription, rotationMode)
+    : undefined;
+  
   return buildEbayHtmlDescription(
     {
       itemName: item.itemName,
@@ -69,6 +86,8 @@ function generateEbayDescription(item: EbayDescriptionInput, settings: EbayExpor
       includeMeasurements: settings.includeMeasurements,
       includeCertificate: settings.includeCertificate,
       includeOrigin: settings.includeOrigin,
+      categoryImages: selectedImages,
+      settings: ebaySettings,
     }
   );
 }
@@ -164,7 +183,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Transform data for eBay
-    const ebayData = inventory.map((item) => {
+    const ebayData = await Promise.all(inventory.map(async (item) => {
       // Calculate price with markup
       const basePrice = autoPrice 
         ? (item.sellingPrice || item.flatSellingPrice || 0)
@@ -178,17 +197,20 @@ export async function GET(req: NextRequest) {
         pictureUrls[`PictureURL${i + 1}`] = images[i]?.mediaUrl || "";
       }
 
-      // Generate description
+      // Generate description with category-specific images
       const description = item.description || (useTemplate
-        ? generateEbayDescription(item, settings)
+        ? await generateEbayDescription(item, settings)
         : (item.notes || item.itemName));
+
+      // Pass description directly without unescaping to preserve HTML structure
+      const safeDescription = description;
 
       return {
         Action: "Add",
         ItemID: "",
         Title: `${item.itemName} - ${item.gemType || "Gemstone"} ${item.weightValue || 0}${item.weightUnit || "cts"}`,
         Subtitle: `${item.color || "Natural"} ${item.shape || ""} ${item.certification || ""}`.trim(),
-        Description: description,
+        Description: safeDescription,
         Category: categoryId,
         ConditionID: conditionId,
         ConditionDescription: "New without tags - Brand new, unused gemstone",
@@ -239,7 +261,7 @@ export async function GET(req: NextRequest) {
         ProductReferenceID: "",
         CustomLabel: item.internalName || item.sku,
       };
-    });
+    }));
 
     // Create workbook
     console.log("[eBay Export API] Creating workbook with", ebayData.length, "listings");

@@ -96,6 +96,23 @@ export function NotesSection({ form }: NotesSectionProps) {
 
         <FormField
           control={form.control}
+          name="productDescription"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Product Description</FormLabel>
+              <p className="text-xs text-muted-foreground">
+                Detailed product description for e-commerce platforms (can be used separately from eBay HTML)
+              </p>
+              <FormControl>
+                <Textarea className="min-h-24 font-mono text-sm" placeholder="Detailed product description..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
@@ -107,7 +124,7 @@ export function NotesSection({ form }: NotesSectionProps) {
                   size="sm"
                   className="h-7 text-xs gap-1.5 text-muted-foreground"
                   disabled={isGeneratingEbayDescription}
-                  onClick={() => {
+                  onClick={async () => {
                     const values = form.getValues();
                     const ebayFields = {
                       ...values,
@@ -130,7 +147,29 @@ export function NotesSection({ form }: NotesSectionProps) {
                     };
                     setIsGeneratingEbayDescription(true);
                     try {
-                      const html = buildEbayHtmlDescription(ebayFields);
+                      // Fetch eBay settings with category-specific images
+                      const settingsResponse = await fetch("/api/ebay/settings", {
+                        method: "GET",
+                      });
+                      
+                      let categoryImages: string[] | undefined;
+                      let settings: any = {};
+                      
+                      if (settingsResponse.ok) {
+                        const settingsData = await settingsResponse.json();
+                        if (settingsData.success && settingsData.data) {
+                          settings = settingsData.data;
+                          if (values.category) {
+                            const categoryMap = settingsData.data.categoryImageUrls || {};
+                            categoryImages = categoryMap[values.category] || settingsData.data.globalBannerImages;
+                          }
+                        }
+                      }
+                      
+                      const html = buildEbayHtmlDescription(ebayFields, {
+                        categoryImages,
+                        settings,
+                      });
                       form.setValue("description", html, { shouldDirty: true });
                       toast.success("eBay HTML description generated");
                     } catch (error) {
