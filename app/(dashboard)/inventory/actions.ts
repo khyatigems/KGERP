@@ -93,7 +93,6 @@ const inventorySchema = z.object({
   stockLocation: z.string().optional(),
   notes: z.string().optional(),
   description: z.string().optional(),
-  productDescription: z.string().optional(),
   certificateComments: z.string().optional(),
   mediaUrl: z.string().optional().or(z.literal("")),
   mediaUrls: z.array(z.string()).optional(),
@@ -274,7 +273,6 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               status: data.status,
               stockLocation: data.stockLocation,
               notes: data.notes,
-              productDescription: data.productDescription,
               description: data.description,
               certificateComments: data.certificateComments,
               
@@ -482,7 +480,6 @@ export async function updateInventory(
       status: data.status,
       stockLocation: data.stockLocation,
       notes: data.notes,
-      productDescription: data.productDescription,
       description: data.description,
       certificateComments: data.certificateComments,
       braceletType: data.braceletType,

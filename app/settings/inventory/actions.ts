@@ -116,9 +116,9 @@ export async function regenerateEbayHtmlDescriptions() {
         const html = buildEbayHtmlDescription(ebayFields, {
           categoryImages,
           settings: {
-            companyName: settings?.companyName,
-            tagline: settings?.tagline,
-            brandLogoUrl: settings?.brandLogoUrl,
+            companyName: settings?.companyName ?? undefined,
+            tagline: settings?.tagline ?? undefined,
+            brandLogoUrl: settings?.brandLogoUrl ?? undefined,
             globalBannerImages:
               settings && settings.globalBannerImages && typeof settings.globalBannerImages === "string"
                 ? JSON.parse(settings.globalBannerImages)
@@ -157,7 +157,7 @@ export async function regenerateEbayHtmlDescriptions() {
     // Revalidate cache
     revalidatePath("/inventory");
     try {
-      revalidateTag("inventory:stats");
+      revalidateTag("inventory:stats", "default");
     } catch {}
 
     const endTime = Date.now();

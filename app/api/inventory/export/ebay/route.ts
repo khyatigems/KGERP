@@ -58,6 +58,17 @@ async function generateEbayDescription(item: EbayDescriptionInput, settings: Eba
   const selectedImages = categoryImages 
     ? selectImagesForDescription(categoryImages, imagesPerDescription, rotationMode)
     : undefined;
+
+  const builderSettings = ebaySettings
+    ? {
+        companyName: ebaySettings.companyName ?? undefined,
+        tagline: ebaySettings.tagline ?? undefined,
+        brandLogoUrl: ebaySettings.brandLogoUrl ?? undefined,
+        globalBannerImages: typeof ebaySettings.globalBannerImages === "string"
+          ? JSON.parse(ebaySettings.globalBannerImages)
+          : ebaySettings.globalBannerImages ?? undefined,
+      }
+    : undefined;
   
   return buildEbayHtmlDescription(
     {
@@ -82,12 +93,11 @@ async function generateEbayDescription(item: EbayDescriptionInput, settings: Eba
       notes: item.notes,
     },
     {
-      includeImages: settings.includeImages,
       includeMeasurements: settings.includeMeasurements,
       includeCertificate: settings.includeCertificate,
       includeOrigin: settings.includeOrigin,
       categoryImages: selectedImages,
-      settings: ebaySettings,
+      settings: builderSettings,
     }
   );
 }
@@ -194,13 +204,16 @@ export async function GET(req: NextRequest) {
       const images = item.media?.slice(0, 12) || [];
       const pictureUrls: Record<string, string> = {};
       for (let i = 0; i < 12; i++) {
-        pictureUrls[`PictureURL${i + 1}`] = images[i]?.mediaUrl || "";
+        pictureUrls[`PictureURL${i + 1}`] = includeImages ? images[i]?.mediaUrl || "" : "";
       }
 
-      // Generate description with category-specific images
-      const description = item.description || (useTemplate
+      // Generate description with category-specific images when requested
+      const generatedDescription = useTemplate
         ? await generateEbayDescription(item, settings)
-        : (item.notes || item.itemName));
+        : item.notes || item.itemName;
+      const description = includeDescription
+        ? item.description || generatedDescription
+        : "";
 
       // Pass description directly without unescaping to preserve HTML structure
       const safeDescription = description;

@@ -121,9 +121,9 @@ async function runRegenerationTask(taskId: string) {
           {
             categoryImages,
             settings: {
-              companyName: settings?.companyName,
-              tagline: settings?.tagline,
-              brandLogoUrl: settings?.brandLogoUrl,
+              companyName: settings?.companyName ?? undefined,
+              tagline: settings?.tagline ?? undefined,
+              brandLogoUrl: settings?.brandLogoUrl ?? undefined,
               globalBannerImages,
             },
           }
@@ -152,7 +152,7 @@ async function runRegenerationTask(taskId: string) {
 
     revalidatePath("/inventory");
     try {
-      revalidateTag("inventory:stats");
+      revalidateTag("inventory:stats", "default");
     } catch {
       // ignore
     }

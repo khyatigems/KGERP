@@ -18,7 +18,7 @@ export default async function EbaySettingsPage() {
         </p>
       </div>
 
-      <EbaySettingsForm initialData={result.success ? result.data : null} />
+      <EbaySettingsForm initialData={result.success ? result.data ?? null : null} />
     </div>
   );
 }

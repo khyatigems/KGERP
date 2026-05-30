@@ -19,9 +19,9 @@ interface EbaySettingsData {
   maxImagesPerCategory?: number;
   imagesPerDescription?: number;
   imageRotationMode?: string;
-  brandLogoUrl?: string;
-  companyName?: string;
-  tagline?: string;
+  brandLogoUrl?: string | null;
+  companyName?: string | null;
+  tagline?: string | null;
 }
 
 interface EbaySettingsFormProps {

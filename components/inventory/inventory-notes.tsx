@@ -96,23 +96,6 @@ export function NotesSection({ form }: NotesSectionProps) {
 
         <FormField
           control={form.control}
-          name="productDescription"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Product Description</FormLabel>
-              <p className="text-xs text-muted-foreground">
-                Detailed product description for e-commerce platforms (can be used separately from eBay HTML)
-              </p>
-              <FormControl>
-                <Textarea className="min-h-24 font-mono text-sm" placeholder="Detailed product description..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
