@@ -134,8 +134,8 @@ async function getTask(taskId: string): Promise<RegenerationTask | null> {
       pending: row.pending,
       errors: typeof row.errors === 'string' ? JSON.parse(row.errors || '[]') : [],
       startTime: row.startTime,
-      endTime: row.endTime,
-      message: row.message,
+      endTime: row.endTime ?? undefined,
+      message: row.message ?? undefined,
     };
     
     // Cache in memory for next lookup
@@ -153,7 +153,7 @@ async function getTask(taskId: string): Promise<RegenerationTask | null> {
   }
 }
 
-function normalizeCategoryImageUrls(settings: EbaySettingsLike | null): Record<string, string[]> {
+function normalizeCategoryImageUrls(settings: EbaySettingsLike | null | undefined): Record<string, string[]> {
   if (!settings) return {};
   if (settings.categoryImageUrls && typeof settings.categoryImageUrls === "string") {
     try {
@@ -162,10 +162,12 @@ function normalizeCategoryImageUrls(settings: EbaySettingsLike | null): Record<s
       return {};
     }
   }
-  return settings.categoryImageUrls || {};
+  return settings.categoryImageUrls && typeof settings.categoryImageUrls === "object"
+    ? settings.categoryImageUrls
+    : {};
 }
 
-function normalizeGlobalBannerImages(settings: EbaySettingsLike | null): string[] | undefined {
+function normalizeGlobalBannerImages(settings: EbaySettingsLike | null | undefined): string[] | undefined {
   if (!settings) return undefined;
   if (settings.globalBannerImages && typeof settings.globalBannerImages === "string") {
     try {
@@ -174,7 +176,7 @@ function normalizeGlobalBannerImages(settings: EbaySettingsLike | null): string[
       return undefined;
     }
   }
-  return settings.globalBannerImages;
+  return Array.isArray(settings.globalBannerImages) ? settings.globalBannerImages : undefined;
 }
 
 async function runRegenerationTask(taskId: string) {
