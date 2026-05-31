@@ -25,6 +25,7 @@ interface ProgressData {
   failed: number;
   pending: number;
   timeTaken: number;
+  status?: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
   message?: string;
 }
 
@@ -42,6 +43,8 @@ export function RegenerateEbayModal({
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [errors, setErrors] = useState<Error[]>([]);
   const [isComplete, setIsComplete] = useState(false);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const pollTaskStatus = async (taskId: string) => {
     let isFinished = false;
@@ -65,15 +68,18 @@ export function RegenerateEbayModal({
         failed: result.failed,
         pending: result.pending,
         timeTaken: result.timeTaken || 0,
+        status: result.status,
         message: result.message,
       });
       setErrors(result.errors || []);
 
-      if (result.status === "COMPLETED" || result.status === "FAILED") {
+      if (result.status === "COMPLETED" || result.status === "FAILED" || result.status === "CANCELLED") {
         isFinished = true;
         setIsComplete(true);
         if (result.status === "COMPLETED" && result.failed === 0) {
           toast.success(`Regeneration finished: ${result.updated} updated.`);
+        } else if (result.status === "CANCELLED") {
+          toast.warning(result.message || "Regeneration cancelled.");
         } else {
           toast.error(
             result.message || `Regeneration finished with ${result.failed} failed item(s).`
@@ -91,6 +97,8 @@ export function RegenerateEbayModal({
     setProgress(null);
     setErrors([]);
     setIsComplete(false);
+    setTaskId(null);
+    setIsCancelling(false);
 
     try {
       // Start regeneration task on the server and include credentials so auth cookies are sent
@@ -120,8 +128,9 @@ export function RegenerateEbayModal({
         throw new Error(result.error || result.message || "Failed to start regeneration");
       }
 
+      setTaskId(result.taskId);
       // Set an initial progress state so the UI moves out of the idle alert immediately
-      setProgress({ total: 0, updated: 0, failed: 0, pending: 0, timeTaken: 0 });
+      setProgress({ total: 0, updated: 0, failed: 0, pending: 0, timeTaken: 0, status: "PENDING" });
       await pollTaskStatus(result.taskId);
     } catch (error) {
       console.error("Regenerate error:", error);
@@ -129,6 +138,46 @@ export function RegenerateEbayModal({
       toast.error(msg);
     } finally {
       setIsLoading(false);
+      setIsCancelling(false);
+    }
+  };
+
+  const handleCancelTask = async () => {
+    if (!taskId || isCancelling) return;
+
+    setIsCancelling(true);
+    try {
+      const response = await fetch(
+        `/api/inventory/regenerate-ebay?taskId=${encodeURIComponent(taskId)}`,
+        {
+          method: "DELETE",
+          credentials: "same-origin",
+        }
+      );
+
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || result?.message || "Failed to cancel regeneration");
+      }
+
+      setProgress((current) =>
+        current
+          ? {
+              ...current,
+              status: "CANCELLED",
+              total: result.total ?? current.total,
+              updated: result.updated ?? current.updated,
+              failed: result.failed ?? current.failed,
+              pending: result.pending ?? current.pending,
+              message: result.message ?? current.message,
+            }
+          : current
+      );
+      toast.info("Cancelling regeneration after the current item finishes.");
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Failed to cancel regeneration";
+      toast.error(msg);
+      setIsCancelling(false);
     }
   };
 
@@ -137,6 +186,8 @@ export function RegenerateEbayModal({
     setProgress(null);
     setErrors([]);
     setIsComplete(false);
+    setTaskId(null);
+    setIsCancelling(false);
     onOpenChange(false);
   };
 
@@ -144,6 +195,7 @@ export function RegenerateEbayModal({
     ? ((progress.updated + progress.failed) / progress.total) * 100
     : 0;
   const hasFailures = Boolean(progress && progress.failed > 0);
+  const isCancelled = progress?.status === "CANCELLED";
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -222,7 +274,7 @@ export function RegenerateEbayModal({
                 </div>
               </div>
 
-              {isComplete && !hasFailures && (
+              {isComplete && !hasFailures && !isCancelled && (
                 <Alert className="border-green-200 bg-green-50">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <AlertDescription className="text-green-800">
@@ -231,7 +283,16 @@ export function RegenerateEbayModal({
                 </Alert>
               )}
 
-              {isComplete && hasFailures && (
+              {isComplete && isCancelled && (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800">
+                    {progress.message || `Regeneration cancelled. ${progress.updated} updated, ${progress.failed} failed, ${progress.pending} skipped.`}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {isComplete && hasFailures && !isCancelled && (
                 <Alert className="border-red-200 bg-red-50">
                   <XCircle className="h-4 w-4 text-red-600" />
                   <AlertDescription className="text-red-800">
@@ -266,6 +327,18 @@ export function RegenerateEbayModal({
           {!isLoading && (
             <Button type="button" variant="outline" onClick={handleClose}>
               {isComplete ? "Close" : "Cancel"}
+            </Button>
+          )}
+          {isLoading && taskId && !isComplete && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelTask}
+              disabled={isCancelling}
+              className="gap-2"
+            >
+              <XCircle className="h-4 w-4" />
+              {isCancelling ? "Cancelling..." : "Cancel"}
             </Button>
           )}
           {!isComplete && (

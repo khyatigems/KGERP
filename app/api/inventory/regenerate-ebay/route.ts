@@ -9,7 +9,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 interface RegenerationTask {
   id: string;
-  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
   total: number;
   updated: number;
   failed: number;
@@ -40,8 +40,39 @@ type EbaySettingsLike = {
 
 // In-memory store as fallback (regeneration is fast, completes within request timeout)
 const regenerationTasks = new Map<string, RegenerationTask>();
+const REGENERATION_BATCH_SIZE = 5;
+let regenerationTasksSchemaEnsured = false;
+let regenerationTasksSchemaPromise: Promise<void> | null = null;
 let inventoryDescriptionSchemaEnsured = false;
 let inventoryDescriptionSchemaPromise: Promise<void> | null = null;
+
+async function ensureRegenerationTasksSchema() {
+  if (regenerationTasksSchemaEnsured) return;
+  if (regenerationTasksSchemaPromise) return regenerationTasksSchemaPromise;
+
+  regenerationTasksSchemaPromise = (async () => {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS regeneration_tasks (
+        id TEXT PRIMARY KEY,
+        status TEXT NOT NULL DEFAULT 'PENDING',
+        total INTEGER NOT NULL DEFAULT 0,
+        updated INTEGER NOT NULL DEFAULT 0,
+        failed INTEGER NOT NULL DEFAULT 0,
+        pending INTEGER NOT NULL DEFAULT 0,
+        errors TEXT NOT NULL DEFAULT '[]',
+        startTime INTEGER NOT NULL,
+        endTime INTEGER,
+        message TEXT,
+        createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    regenerationTasksSchemaEnsured = true;
+  })().finally(() => {
+    regenerationTasksSchemaPromise = null;
+  });
+
+  return regenerationTasksSchemaPromise;
+}
 
 async function ensureInventoryDescriptionSchema() {
   if (inventoryDescriptionSchemaEnsured) return;
@@ -72,6 +103,7 @@ async function ensureInventoryDescriptionSchema() {
 // Helper to interact with regeneration tasks
 async function saveTask(task: RegenerationTask) {
   try {
+    await ensureRegenerationTasksSchema();
     console.log(`[Regenerate] Saving task to memory: ${task.id}`);
     // Save to both in-memory and database for redundancy
     regenerationTasks.set(task.id, task);
@@ -106,6 +138,7 @@ async function saveTask(task: RegenerationTask) {
 
 async function getTask(taskId: string): Promise<RegenerationTask | null> {
   try {
+    await ensureRegenerationTasksSchema();
     // Try in-memory first (fastest)
     const cached = regenerationTasks.get(taskId);
     if (cached) {
@@ -132,7 +165,7 @@ async function getTask(taskId: string): Promise<RegenerationTask | null> {
       updated: row.updated,
       failed: row.failed,
       pending: row.pending,
-      errors: typeof row.errors === 'string' ? JSON.parse(row.errors || '[]') : [],
+      errors: typeof row.errors === "string" ? JSON.parse(row.errors || "[]") : [],
       startTime: row.startTime,
       endTime: row.endTime ?? undefined,
       message: row.message ?? undefined,
@@ -167,6 +200,21 @@ function normalizeCategoryImageUrls(settings: EbaySettingsLike | null | undefine
     : {};
 }
 
+async function markTaskCancelled(taskId: string): Promise<RegenerationTask | null> {
+  const task = await getTask(taskId);
+  if (!task) return null;
+
+  if (task.status === "COMPLETED" || task.status === "FAILED" || task.status === "CANCELLED") {
+    return task;
+  }
+
+  task.status = "CANCELLED";
+  task.endTime = Date.now();
+  task.message = `Regeneration cancelled. ${task.updated} updated, ${task.failed} failed, ${task.pending} skipped.`;
+  await saveTask(task);
+  return task;
+}
+
 function normalizeGlobalBannerImages(settings: EbaySettingsLike | null | undefined): string[] | undefined {
   if (!settings) return undefined;
   if (settings.globalBannerImages && typeof settings.globalBannerImages === "string") {
@@ -179,18 +227,43 @@ function normalizeGlobalBannerImages(settings: EbaySettingsLike | null | undefin
   return Array.isArray(settings.globalBannerImages) ? settings.globalBannerImages : undefined;
 }
 
-async function runRegenerationTask(taskId: string) {
+async function processRegenerationBatch(taskId: string) {
   const task = await getTask(taskId);
   if (!task) {
     console.error("[Regenerate] Task not found:", taskId);
     return;
   }
 
-  task.status = "RUNNING";
-  await saveTask(task);
+  if (task.status === "COMPLETED" || task.status === "FAILED" || task.status === "CANCELLED") {
+    return;
+  }
 
   try {
+    task.status = "RUNNING";
+    await saveTask(task);
     await ensureInventoryDescriptionSchema();
+
+    if (task.total === 0) {
+      task.total = await prisma.inventory.count();
+      task.pending = task.total;
+      task.updated = 0;
+      task.failed = 0;
+      task.errors = [];
+      await saveTask(task);
+    }
+
+    const processed = task.updated + task.failed;
+    if (processed >= task.total) {
+      task.status = task.failed > 0 ? "FAILED" : "COMPLETED";
+      task.pending = 0;
+      task.endTime = Date.now();
+      task.message =
+        task.failed > 0
+          ? `Regeneration finished with ${task.failed} failed item${task.failed === 1 ? "" : "s"}.`
+          : "All descriptions regenerated successfully.";
+      await saveTask(task);
+      return;
+    }
 
     const items = await prisma.inventory.findMany({
       select: {
@@ -216,14 +289,10 @@ async function runRegenerationTask(taskId: string) {
         standardSize: true,
         notes: true,
       },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      skip: processed,
+      take: REGENERATION_BATCH_SIZE,
     });
-
-    task.total = items.length;
-    task.pending = items.length;
-    task.updated = 0;
-    task.failed = 0;
-    task.errors = [];
-    await saveTask(task);
 
     const settingsResult = await getEbaySettings();
     const settings = settingsResult.success ? settingsResult.data : null;
@@ -231,6 +300,15 @@ async function runRegenerationTask(taskId: string) {
     const globalBannerImages = normalizeGlobalBannerImages(settings);
 
     for (const item of items) {
+      const latestTask = await getTask(taskId);
+      if (latestTask?.status === "CANCELLED") {
+        task.status = "CANCELLED";
+        task.endTime = Date.now();
+        task.message = `Regeneration cancelled. ${task.updated} updated, ${task.failed} failed, ${task.pending} skipped.`;
+        await saveTask(task);
+        return;
+      }
+
       try {
         const categoryImages = item.category ? categoryImageUrls[item.category] : undefined;
 
@@ -284,24 +362,35 @@ async function runRegenerationTask(taskId: string) {
           error: error instanceof Error ? error.message : "Unknown error",
         });
       } finally {
+        const currentTask = regenerationTasks.get(taskId);
+        if (currentTask?.status === "CANCELLED") {
+          task.status = "CANCELLED";
+        }
         task.pending = Math.max(0, task.total - task.updated - task.failed);
+        if (task.status === "CANCELLED") {
+          task.endTime = Date.now();
+          task.message = `Regeneration cancelled. ${task.updated} updated, ${task.failed} failed, ${task.pending} skipped.`;
+        }
         await saveTask(task);
       }
     }
 
-    task.status = task.failed > 0 ? "FAILED" : "COMPLETED";
-    task.endTime = Date.now();
-    task.message =
-      task.failed > 0
-        ? `Regeneration finished with ${task.failed} failed item${task.failed === 1 ? "" : "s"}.`
-        : "All descriptions regenerated successfully.";
-    await saveTask(task);
+    if (task.status !== "CANCELLED" && task.updated + task.failed >= task.total) {
+      task.status = task.failed > 0 ? "FAILED" : "COMPLETED";
+      task.pending = 0;
+      task.endTime = Date.now();
+      task.message =
+        task.failed > 0
+          ? `Regeneration finished with ${task.failed} failed item${task.failed === 1 ? "" : "s"}.`
+          : "All descriptions regenerated successfully.";
+      await saveTask(task);
 
-    revalidatePath("/inventory");
-    try {
-      revalidateTag("inventory:stats", "default");
-    } catch {
-      // ignore
+      revalidatePath("/inventory");
+      try {
+        revalidateTag("inventory:stats", "default");
+      } catch {
+        // ignore
+      }
     }
   } catch (error) {
     task.status = "FAILED";
@@ -309,15 +398,6 @@ async function runRegenerationTask(taskId: string) {
     task.message = error instanceof Error ? error.message : "Regeneration failed";
     await saveTask(task);
     console.error("[Regenerate eBay HTML] Background task failed:", error);
-  } finally {
-    // Cleanup task after 10 minutes
-    setTimeout(async () => {
-      try {
-        await prisma.$executeRaw`DELETE FROM regeneration_tasks WHERE id = ${taskId}`;
-      } catch {
-        // ignore
-      }
-    }, 1000 * 60 * 10);
   }
 }
 
@@ -352,8 +432,6 @@ export async function POST() {
   console.log(`[Regenerate API] Created task: ${taskId}`);
   await saveTask(task);
   console.log(`[Regenerate API] Task saved to storage`);
-  void runRegenerationTask(taskId);
-  console.log(`[Regenerate API] Started background regeneration task`);
 
   return NextResponse.json({ success: true, taskId }, { status: 202 });
 }
@@ -367,12 +445,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "taskId is required" }, { status: 400 });
   }
 
-  const task = await getTask(taskId);
+  let task = await getTask(taskId);
   console.log(`[Regenerate API] Task lookup result: ${task ? 'FOUND' : 'NOT_FOUND'}`);
   
   if (!task) {
     console.warn(`[Regenerate API] Task not found: ${taskId}`);
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  if (task.status === "PENDING" || task.status === "RUNNING") {
+    await processRegenerationBatch(taskId);
+    task = await getTask(taskId);
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
   }
 
   console.log(`[Regenerate API] Returning task status: ${task.status}`);
@@ -386,11 +472,45 @@ export async function GET(req: NextRequest) {
     pending: task.pending,
     errors: task.errors,
     timeTaken:
-      task.status === "COMPLETED" || task.status === "FAILED"
+      task.status === "COMPLETED" ||
+      task.status === "FAILED" ||
+      task.status === "CANCELLED"
         ? task.endTime && task.startTime
           ? Math.round((task.endTime - task.startTime) / 1000)
           : 0
         : undefined,
+    message: task.message,
+  });
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const permission = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
+  if (!permission.success) {
+    return NextResponse.json({ error: permission.message || "Permission denied" }, { status: 403 });
+  }
+
+  const taskId = req.nextUrl.searchParams.get("taskId");
+  if (!taskId) {
+    return NextResponse.json({ error: "taskId is required" }, { status: 400 });
+  }
+
+  const task = await markTaskCancelled(taskId);
+  if (!task) {
+    return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    success: true,
+    status: task.status,
+    total: task.total,
+    updated: task.updated,
+    failed: task.failed,
+    pending: task.pending,
     message: task.message,
   });
 }
