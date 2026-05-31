@@ -114,6 +114,8 @@ const expectedColumns: Record<string, string> = {
   "qc_code": "TEXT",
   "hsn_code": "TEXT",
   "notes": "TEXT",
+  "description": "TEXT",
+  "productDescription": "TEXT",
   "location": "TEXT",
   "stockLocation": "TEXT",
   "purchaseId": "TEXT",

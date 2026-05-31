@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { RefreshCw, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { RefreshCw, AlertTriangle, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface RegenerateEbayModalProps {
@@ -25,6 +25,7 @@ interface ProgressData {
   failed: number;
   pending: number;
   timeTaken: number;
+  message?: string;
 }
 
 interface Error {
@@ -64,19 +65,18 @@ export function RegenerateEbayModal({
         failed: result.failed,
         pending: result.pending,
         timeTaken: result.timeTaken || 0,
+        message: result.message,
       });
       setErrors(result.errors || []);
 
       if (result.status === "COMPLETED" || result.status === "FAILED") {
         isFinished = true;
         setIsComplete(true);
-        if (result.status === "COMPLETED") {
-          toast.success(
-            `Regeneration finished: ${result.updated} updated, ${result.failed} failed.`
-          );
+        if (result.status === "COMPLETED" && result.failed === 0) {
+          toast.success(`Regeneration finished: ${result.updated} updated.`);
         } else {
           toast.error(
-            result.message || "Regeneration failed. Check errors for details."
+            result.message || `Regeneration finished with ${result.failed} failed item(s).`
           );
         }
         break;
@@ -109,7 +109,7 @@ export function RegenerateEbayModal({
         try {
           const body = await response.json();
           errMsg = body?.error || body?.message || errMsg;
-        } catch (e) {
+        } catch {
           // ignore JSON parse errors
         }
         throw new Error(errMsg);
@@ -141,8 +141,9 @@ export function RegenerateEbayModal({
   };
 
   const progressPercent = progress && progress.total > 0
-    ? (progress.updated / progress.total) * 100
+    ? ((progress.updated + progress.failed) / progress.total) * 100
     : 0;
+  const hasFailures = Boolean(progress && progress.failed > 0);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -221,11 +222,20 @@ export function RegenerateEbayModal({
                 </div>
               </div>
 
-              {isComplete && (
+              {isComplete && !hasFailures && (
                 <Alert className="border-green-200 bg-green-50">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <AlertDescription className="text-green-800">
-                    ✓ All descriptions have been regenerated successfully!
+                    All descriptions have been regenerated successfully.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {isComplete && hasFailures && (
+                <Alert className="border-red-200 bg-red-50">
+                  <XCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    {progress.message || `Regeneration finished with ${progress.failed} failed item(s).`}
                   </AlertDescription>
                 </Alert>
               )}
