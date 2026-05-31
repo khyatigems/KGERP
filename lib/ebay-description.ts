@@ -55,6 +55,57 @@ function normalizeText(value?: string | null) {
   return trimmed || "Not specified";
 }
 
+function extractCertificateBrandFromNumber(value: string) {
+  const match = value.trim().match(/^([A-Za-z]+(?:[-_][A-Za-z]+)?)/);
+  return match ? match[1].replace(/_/g, "-").toUpperCase() : null;
+}
+
+function getCertificationLabel(value?: string | null) {
+  const certification = normalizeText(value);
+  if (certification === "Not specified") return certification;
+
+  const lower = certification.toLowerCase();
+  const knownBrands: Array<[string, string]> = [
+    ["igi-gtl", "IGI-GTL"],
+    ["igigtl", "IGI-GTL"],
+    ["gemstonecertificationinstitute", "GCI"],
+    ["gci", "GCI"],
+    ["igi", "IGI"],
+    ["gia", "GIA"],
+    ["gtl", "GTL"],
+    ["egl", "EGL"],
+    ["hrd", "HRD"],
+  ];
+
+  const isUrlLike = /^https?:\/\//i.test(certification) || lower.includes("certificate_number=");
+  if (!isUrlLike) return certification;
+
+  for (const [needle, brand] of knownBrands) {
+    if (lower.includes(needle)) return brand;
+  }
+
+  try {
+    const url = new URL(certification);
+    const certificateNumber =
+      url.searchParams.get("certificate_number") ||
+      url.searchParams.get("certificateNumber") ||
+      url.searchParams.get("cert") ||
+      url.searchParams.get("cert_no");
+    if (certificateNumber) {
+      const brand = extractCertificateBrandFromNumber(certificateNumber);
+      if (brand) return brand;
+    }
+  } catch {
+    const queryMatch = certification.match(/certificate[_-]?number=([^&\s]+)/i);
+    if (queryMatch?.[1]) {
+      const brand = extractCertificateBrandFromNumber(decodeURIComponent(queryMatch[1]));
+      if (brand) return brand;
+    }
+  }
+
+  return "Certified";
+}
+
 function getProductType(category?: string | null, gemType?: string | null) {
   if (category?.toLowerCase().includes("bracelet")) {
     return "Crystal Healing / Gemstone Bracelet";
@@ -90,7 +141,7 @@ function getProductSummary(product: EbayDescriptionFields) {
     parts.push(`Treatment: ${product.treatment}`);
   }
   if (product.certification) {
-    parts.push(`Certification: ${product.certification}`);
+    parts.push(`Certification: ${getCertificationLabel(product.certification)}`);
   }
 
   return parts.join("\n");
@@ -144,7 +195,7 @@ function getSpecificAttributes(product: EbayDescriptionFields) {
     ["Treatment", normalizeText(product.treatment)],
     ["Origin", normalizeText(product.origin)],
     ["Transparency", normalizeText(product.transparency)],
-    ["Certification", normalizeText(product.certification)],
+    ["Certification", getCertificationLabel(product.certification)],
   ];
 
   if (product.braceletType) {
@@ -258,7 +309,7 @@ function buildSmartFaqSection(product: EbayDescriptionFields) {
   const faqs: Array<{ question: string; answer: string }> = [];
   const treatment = normalizeText(product.treatment);
   const origin = normalizeText(product.origin);
-  const certification = normalizeText(product.certification);
+  const certification = getCertificationLabel(product.certification);
   const category = (product.category || "").toLowerCase();
   const isBracelet = category.includes("bracelet");
   const isLooseGemstone =
@@ -366,7 +417,7 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
   const certificateHtml = includeCertificate
     ? `<div style="background:#f0f8ff;padding:18px 20px;margin:24px 0 0 0;border-radius:12px;border-left:5px solid #4a90d9;box-shadow:0 2px 8px #181B4E11;">
         <h3 style="margin-top:0;color:#4a90d9;font-size:18px;font-weight:700;">📜 Certification</h3>
-        <p style="margin:0 0 4px 0;"><strong>Certification:</strong> ${escapeHtml(normalizeText(product.certification))}</p>
+        <p style="margin:0 0 4px 0;"><strong>Certification:</strong> ${escapeHtml(getCertificationLabel(product.certification))}</p>
         <p style="margin:0;">This item is guaranteed to be authentic and carefully curated by KhyatiGems.</p>
       </div>`
     : "";

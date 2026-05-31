@@ -30,3 +30,29 @@ assert.ok(html.includes("Bead Shape: Round"));
 assert.ok(html.includes("This bracelet is perfect for gifting and spiritual practice."));
 assert.ok(html.includes("https://images.unsplash.com/photo-1779786000796-effa1636a7fb"));
 assert.ok(html.includes("https://images.unsplash.com/photo-1779786410107-f1729039bb01"));
+
+const certificateUrl =
+  "https://gemstonecertificationinstitute.com/track-certificate?certificate_number=GCI202691BB21B";
+const htmlWithCertificateUrl = buildEbayHtmlDescription({
+  itemName: "Natural Aventurine",
+  category: "Loose Gemstone",
+  gemType: "Aventurine",
+  color: "Green",
+  weightValue: 158,
+  weightUnit: "gms",
+  certification: certificateUrl,
+});
+
+assert.ok(htmlWithCertificateUrl.includes("Certification: GCI"));
+assert.ok(htmlWithCertificateUrl.includes("<strong>Certification:</strong> GCI"));
+assert.ok(!htmlWithCertificateUrl.includes(certificateUrl));
+assert.ok(!htmlWithCertificateUrl.includes("track-certificate"));
+
+const htmlWithIgiGtl = buildEbayHtmlDescription({
+  itemName: "Certified Gemstone",
+  category: "Loose Gemstone",
+  gemType: "Gemstone",
+  certification: "https://example.com/certificate?certificate_number=IGI-GTL12345",
+});
+
+assert.ok(htmlWithIgiGtl.includes("Certification: IGI-GTL"));
