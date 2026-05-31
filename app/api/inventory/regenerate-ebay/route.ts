@@ -20,7 +20,46 @@ interface RegenerationTask {
   message?: string;
 }
 
-const regenerationTasks = new Map<string, RegenerationTask>();
+// Helper to interact with SQLite regeneration_tasks table
+async function saveTask(task: RegenerationTask) {
+  try {
+    await prisma.$executeRaw`
+      INSERT OR REPLACE INTO regeneration_tasks 
+      (id, status, total, updated, failed, pending, errors, startTime, endTime, message)
+      VALUES (${task.id}, ${task.status}, ${task.total}, ${task.updated}, ${task.failed}, 
+              ${task.pending}, ${JSON.stringify(task.errors)}, ${task.startTime}, 
+              ${task.endTime || null}, ${task.message || null})
+    `;
+  } catch (error) {
+    console.error("[Regenerate] Failed to save task:", error);
+  }
+}
+
+async function getTask(taskId: string): Promise<RegenerationTask | null> {
+  try {
+    const result = await prisma.$queryRaw<any[]>`
+      SELECT * FROM regeneration_tasks WHERE id = ${taskId}
+    `;
+    if (!result || result.length === 0) return null;
+    
+    const row = result[0];
+    return {
+      id: row.id,
+      status: row.status,
+      total: row.total,
+      updated: row.updated,
+      failed: row.failed,
+      pending: row.pending,
+      errors: JSON.parse(row.errors || '[]'),
+      startTime: row.startTime,
+      endTime: row.endTime,
+      message: row.message,
+    };
+  } catch (error) {
+    console.error("[Regenerate] Failed to fetch task:", error);
+    return null;
+  }
+}
 
 function normalizeCategoryImageUrls(settings: any): Record<string, string[]> {
   if (!settings) return {};
@@ -47,12 +86,14 @@ function normalizeGlobalBannerImages(settings: any): string[] | undefined {
 }
 
 async function runRegenerationTask(taskId: string) {
-  const task = regenerationTasks.get(taskId);
+  const task = await getTask(taskId);
   if (!task) {
+    console.error("[Regenerate] Task not found:", taskId);
     return;
   }
 
   task.status = "RUNNING";
+  await saveTask(task);
 
   try {
     const items = await prisma.inventory.findMany({
@@ -86,6 +127,7 @@ async function runRegenerationTask(taskId: string) {
     task.updated = 0;
     task.failed = 0;
     task.errors = [];
+    await saveTask(task);
 
     const settingsResult = await getEbaySettings();
     const settings = settingsResult.success ? settingsResult.data : null;
@@ -131,7 +173,7 @@ async function runRegenerationTask(taskId: string) {
 
         await prisma.inventory.update({
           where: { id: item.id },
-          data: { description: html },
+          data: { productDescription: html },
         });
 
         task.updated += 1;
@@ -144,11 +186,13 @@ async function runRegenerationTask(taskId: string) {
         });
       } finally {
         task.pending = Math.max(0, task.total - task.updated - task.failed);
+        await saveTask(task);
       }
     }
 
     task.status = "COMPLETED";
     task.endTime = Date.now();
+    await saveTask(task);
 
     revalidatePath("/inventory");
     try {
@@ -160,9 +204,17 @@ async function runRegenerationTask(taskId: string) {
     task.status = "FAILED";
     task.endTime = Date.now();
     task.message = error instanceof Error ? error.message : "Regeneration failed";
+    await saveTask(task);
     console.error("[Regenerate eBay HTML] Background task failed:", error);
   } finally {
-    setTimeout(() => regenerationTasks.delete(taskId), 1000 * 60 * 10);
+    // Cleanup task after 10 minutes
+    setTimeout(async () => {
+      try {
+        await prisma.$executeRaw`DELETE FROM regeneration_tasks WHERE id = ${taskId}`;
+      } catch {
+        // ignore
+      }
+    }, 1000 * 60 * 10);
   }
 }
 
@@ -183,7 +235,7 @@ export async function POST(req: NextRequest) {
   }
 
   const taskId = crypto.randomUUID();
-  regenerationTasks.set(taskId, {
+  const task: RegenerationTask = {
     id: taskId,
     status: "PENDING",
     total: 0,
@@ -192,8 +244,9 @@ export async function POST(req: NextRequest) {
     pending: 0,
     errors: [],
     startTime: Date.now(),
-  });
+  };
 
+  await saveTask(task);
   void runRegenerationTask(taskId);
 
   return NextResponse.json({ success: true, taskId }, { status: 202 });
@@ -205,7 +258,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "taskId is required" }, { status: 400 });
   }
 
-  const task = regenerationTasks.get(taskId);
+  const task = await getTask(taskId);
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
