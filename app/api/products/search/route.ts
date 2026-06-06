@@ -29,7 +29,7 @@ function productSelect() {
     },
     listings: {
       where: {
-        status: { in: ["ACTIVE", "LISTED"] },
+        status: { in: ["ACTIVE", "active", "LISTED", "listed"] },
       },
       select: {
         id: true,
