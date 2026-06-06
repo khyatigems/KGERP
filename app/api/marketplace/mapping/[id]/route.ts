@@ -12,6 +12,7 @@ type MappingBody = {
   marketplaceSku?: string;
   mpn?: string;
   price?: string | number;
+  currency?: string;
   status?: string;
 };
 
@@ -60,6 +61,7 @@ export async function PUT(
       ...(body.listingUrl !== undefined && { listingUrl: body.listingUrl }),
       ...((body.marketplaceSku !== undefined || body.mpn !== undefined) && { listingRef: body.marketplaceSku || body.mpn || null }),
       ...(price !== undefined && { listedPrice: price }),
+      ...(body.currency !== undefined && { currency: body.currency }),
       ...(body.status !== undefined && { status: body.status }),
     },
     include: {
@@ -82,6 +84,7 @@ export async function PUT(
       marketplaceSku: updated.listingRef || "",
       mpn: updated.listingRef || "",
       price: String(updated.listedPrice),
+      currency: updated.currency,
       quantity: 1,
       status: updated.status,
       dateLinked: updated.createdAt.toISOString(),
