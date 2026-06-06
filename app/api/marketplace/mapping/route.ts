@@ -12,6 +12,7 @@ type MappingBody = {
   marketplaceSku?: string;
   mpn?: string;
   price?: string | number;
+  currency?: string;
   status?: string;
 };
 
@@ -32,6 +33,7 @@ function mappingResponse(listing: {
   listingUrl: string | null;
   listingRef: string | null;
   listedPrice: number;
+  currency: string;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -50,6 +52,7 @@ function mappingResponse(listing: {
       marketplaceSku: listing.listingRef || "",
       mpn: listing.listingRef || "",
       price: String(listing.listedPrice),
+      currency: listing.currency,
       quantity: 1,
       status: listing.status,
       dateLinked: listing.createdAt.toISOString(),
@@ -100,8 +103,8 @@ export async function POST(request: NextRequest) {
       listingUrl: body.listingUrl || null,
       listingRef: body.marketplaceSku || body.mpn || null,
       listedPrice: toPrice(body.price),
+      currency: body.currency || "USD",
       status: body.status || "ACTIVE",
-      currency: "USD",
     },
     include: {
       inventory: {
