@@ -12,9 +12,10 @@ import { generateFallbackDescription, type FormInputValues } from "./inventory-f
 
 interface NotesSectionProps {
   form: UseFormReturn<FormInputValues>;
+  skuPreview?: string;
 }
 
-export function NotesSection({ form }: NotesSectionProps) {
+export function NotesSection({ form, skuPreview }: NotesSectionProps) {
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isGeneratingEbayDescription, setIsGeneratingEbayDescription] = useState(false);
   const [additionalProductInfo, setAdditionalProductInfo] = useState("");
@@ -46,6 +47,8 @@ export function NotesSection({ form }: NotesSectionProps) {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                           inventory: values,
+                          sku: skuPreview || values.sku || "",
+                          mediaUrls: values.mediaUrls || [],
                           additionalInfo: additionalProductInfo,
                         }),
                       });
@@ -66,7 +69,7 @@ export function NotesSection({ form }: NotesSectionProps) {
                       }
                     } catch (err) {
                       console.error("[Smart Description] Error:", err);
-                      const fallback = generateFallbackDescription(values);
+                      const fallback = generateFallbackDescription(values, skuPreview || values.sku);
                       form.setValue("notes", fallback, { shouldDirty: true });
                       toast.success("Product description generated from your inventory data.");
                     } finally {
@@ -149,10 +152,33 @@ export function NotesSection({ form }: NotesSectionProps) {
                         }
                       }
                       
-                      const html = buildEbayHtmlDescription(ebayFields, {
-                        categoryImages,
-                        settings,
-                      });
+                      // Fetch the next real SKU sequence number (without incrementing)
+                      let realSku = values.sku || "";
+                      if (skuPreview?.includes("####")) {
+                        try {
+                          const skuRes = await fetch("/api/sku/next");
+                          const skuData = await skuRes.json();
+                          const seqStr = String(skuData.nextSequence ?? 1).padStart(5, '0');
+                          realSku = skuPreview.replace("####", seqStr);
+                        } catch {
+                          realSku = skuPreview;
+                        }
+                      } else if (skuPreview) {
+                        realSku = skuPreview;
+                      }
+                      
+                      const html = buildEbayHtmlDescription(
+                        {
+                          ...ebayFields,
+                          sku: realSku,
+                          mediaUrls: (values.mediaUrls || []).filter(Boolean),
+                          mediaUrl: values.mediaUrl || "",
+                        },
+                        {
+                          categoryImages,
+                          settings,
+                        }
+                      );
                       form.setValue("description", html, { shouldDirty: true });
                       toast.success("eBay HTML description generated");
                     } catch (error) {

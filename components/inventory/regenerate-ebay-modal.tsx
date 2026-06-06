@@ -17,6 +17,7 @@ import { toast } from "sonner";
 interface RegenerateEbayModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  selectedItemIds?: string[]; // Items selected for regeneration
 }
 
 interface ProgressData {
@@ -38,6 +39,7 @@ interface Error {
 export function RegenerateEbayModal({
   open,
   onOpenChange,
+  selectedItemIds,
 }: RegenerateEbayModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState<ProgressData | null>(null);
@@ -101,8 +103,14 @@ export function RegenerateEbayModal({
     setIsCancelling(false);
 
     try {
+      // Build URL with itemIds if provided
+      const url = new URL("/api/inventory/regenerate-ebay", window.location.origin);
+      if (selectedItemIds && selectedItemIds.length > 0) {
+        url.searchParams.set("itemIds", JSON.stringify(selectedItemIds));
+      }
+
       // Start regeneration task on the server and include credentials so auth cookies are sent
-      const response = await fetch("/api/inventory/regenerate-ebay", {
+      const response = await fetch(url.toString(), {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -206,8 +214,9 @@ export function RegenerateEbayModal({
             Regenerate eBay HTML Descriptions
           </DialogTitle>
           <DialogDescription>
-            This will regenerate HTML descriptions for all inventory items using
-            the latest eBay settings and category-specific images.
+            {selectedItemIds && selectedItemIds.length > 0
+              ? `This will regenerate HTML descriptions for ${selectedItemIds.length} selected item(s) using the latest eBay settings and category-specific images.`
+              : `This will regenerate HTML descriptions for all inventory items using the latest eBay settings and category-specific images.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -216,9 +225,9 @@ export function RegenerateEbayModal({
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                This operation will regenerate descriptions for all inventory
-                items. It may take a few moments depending on your inventory
-                size.
+                {selectedItemIds && selectedItemIds.length > 0
+                  ? `This operation will regenerate descriptions for ${selectedItemIds.length} selected item(s). It may take a few moments.`
+                  : `This operation will regenerate descriptions for all inventory items. It may take a few moments depending on your inventory size.`}
               </AlertDescription>
             </Alert>
           )}

@@ -1281,8 +1281,9 @@ model EbaySettings {
   id                      String   @id @default(uuid())
   globalBannerImages      String?  // JSON array of URLs
   categoryImageUrls       String?  // JSON object: { "Category": ["url1", ...] }
+  categoryGemtypeImageUrls String? @default("{}") // JSON object: { "Category|GemType": ["url1", "url2", "url3"] }
   maxImagesPerCategory    Int      @default(4)
-  imagesPerDescription    Int      @default(2)
+  imagesPerDescription    Int      @default(3)
   imageRotationMode       String   @default("SEQUENTIAL")
   brandLogoUrl            String?
   companyName             String   @default("KhyatiGems")

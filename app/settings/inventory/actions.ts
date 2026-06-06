@@ -81,6 +81,7 @@ export async function regenerateEbayHtmlDescriptions() {
       try {
         // Prepare data for eBay description builder
         const ebayFields = {
+          sku: item.sku,
           itemName: item.itemName,
           category: item.category,
           gemType: item.gemType,
@@ -104,11 +105,26 @@ export async function regenerateEbayHtmlDescriptions() {
 
         // Get category-specific images if available
         let categoryImages: string[] | undefined;
-        if (settings && item.category) {
-          const categoryImageUrls =
+        let categoryImageUrls: Record<string, string[]> = {};
+        let categoryGemtypeImageUrls: Record<string, string[]> = {};
+        let globalBannerImages: string[] | undefined;
+
+        if (settings) {
+          categoryImageUrls =
             settings.categoryImageUrls && typeof settings.categoryImageUrls === "string"
               ? JSON.parse(settings.categoryImageUrls)
               : settings.categoryImageUrls || {};
+          categoryGemtypeImageUrls =
+            settings.categoryGemtypeImageUrls && typeof settings.categoryGemtypeImageUrls === "string"
+              ? JSON.parse(settings.categoryGemtypeImageUrls)
+              : settings.categoryGemtypeImageUrls || {};
+          globalBannerImages =
+            settings.globalBannerImages && typeof settings.globalBannerImages === "string"
+              ? JSON.parse(settings.globalBannerImages)
+              : settings.globalBannerImages;
+        }
+
+        if (settings && item.category) {
           categoryImages = categoryImageUrls[item.category];
         }
 
@@ -119,10 +135,9 @@ export async function regenerateEbayHtmlDescriptions() {
             companyName: settings?.companyName ?? undefined,
             tagline: settings?.tagline ?? undefined,
             brandLogoUrl: settings?.brandLogoUrl ?? undefined,
-            globalBannerImages:
-              settings && settings.globalBannerImages && typeof settings.globalBannerImages === "string"
-                ? JSON.parse(settings.globalBannerImages)
-                : settings?.globalBannerImages,
+            globalBannerImages,
+            categoryImageUrls,
+            categoryGemtypeImageUrls,
           },
         });
 

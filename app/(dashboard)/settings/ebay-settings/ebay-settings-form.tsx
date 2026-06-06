@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +17,7 @@ interface EbaySettingsData {
   id?: string;
   globalBannerImages?: string[];
   categoryImageUrls?: Record<string, string[]>;
+  categoryGemtypeImageUrls?: Record<string, string[]>;
   maxImagesPerCategory?: number;
   imagesPerDescription?: number;
   imageRotationMode?: string;
@@ -35,6 +37,13 @@ export function EbaySettingsForm({ initialData }: EbaySettingsFormProps) {
   const [categoryImages, setCategoryImages] = useState<Record<string, string[]>>(
     initialData?.categoryImageUrls || {}
   );
+  const [categoryGemtypeImageUrls, setCategoryGemtypeImageUrls] = useState<
+    Record<string, string[]>
+  >(initialData?.categoryGemtypeImageUrls || {});
+  const [selectedComboKey, setSelectedComboKey] = useState<string | null>(null);
+  const [comboKey, setComboKey] = useState<string>("");
+  const [comboImageUrls, setComboImageUrls] = useState<string[]>([""]);
+  const [comboEditorError, setComboEditorError] = useState<string | null>(null);
   const [maxImagesPerCategory, setMaxImagesPerCategory] = useState(
     String(initialData?.maxImagesPerCategory || 4)
   );
@@ -57,21 +66,34 @@ export function EbaySettingsForm({ initialData }: EbaySettingsFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [availableComboKeys, setAvailableComboKeys] = useState<
+    Array<{ key: string; category: string; gemType: string }>
+  >([]);
+  const [selectedComboKeys, setSelectedComboKeys] = useState<string[]>([]);
 
-  // Fetch available categories from inventory
+  // Fetch available categories and category|gemType combos from inventory
   useEffect(() => {
-    async function fetchCategories() {
+    async function fetchInventoryMetadata() {
       try {
-        const response = await fetch("/api/inventory/categories");
-        if (response.ok) {
-          const data = await response.json();
+        const [categoriesResponse, combosResponse] = await Promise.all([
+          fetch("/api/inventory/categories"),
+          fetch("/api/inventory/category-gemtype-combos"),
+        ]);
+
+        if (categoriesResponse.ok) {
+          const data = await categoriesResponse.json();
           setAvailableCategories(data.categories || []);
         }
+
+        if (combosResponse.ok) {
+          const data = await combosResponse.json();
+          setAvailableComboKeys(data.combos || []);
+        }
       } catch (error) {
-        console.error("Failed to fetch categories:", error);
+        console.error("Failed to fetch inventory metadata:", error);
       }
     }
-    fetchCategories();
+    fetchInventoryMetadata();
   }, []);
 
   const configuredCategories = Object.keys(categoryImages).sort();
@@ -97,8 +119,10 @@ export function EbaySettingsForm({ initialData }: EbaySettingsFormProps) {
         return;
       }
 
+      setComboEditorError(null);
       const result = await updateEbaySettingsAction({
         globalBannerImages: filteredGlobalImages,
+        categoryGemtypeImageUrls: categoryGemtypeImageUrls,
         maxImagesPerCategory: parseInt(maxImagesPerCategory) || 4,
         imagesPerDescription: parseInt(imagesPerDescription) || 2,
         imageRotationMode: rotationMode,
@@ -151,9 +175,10 @@ export function EbaySettingsForm({ initialData }: EbaySettingsFormProps) {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="global" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="global">Global Settings</TabsTrigger>
           <TabsTrigger value="categories">Category Images</TabsTrigger>
+          <TabsTrigger value="combos">Category + GemType Images</TabsTrigger>
         </TabsList>
 
         {/* Global Settings Tab */}
@@ -420,6 +445,295 @@ export function EbaySettingsForm({ initialData }: EbaySettingsFormProps) {
               />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="combos" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Category + Gem Type Banner Images</CardTitle>
+              <CardDescription>
+                Define image sets for specific category + gem type combinations.
+                Use a JSON object where keys are combination strings like
+                <code>Category|GemType</code> and values are arrays of image URLs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Object.keys(categoryGemtypeImageUrls).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No category + gem type combos configured yet. Enter JSON below to add them.
+                </p>
+              ) : (
+                <div className="grid gap-4">
+                  {Object.entries(categoryGemtypeImageUrls).map(([combo, urls]) => (
+                    <Card key={combo}>
+                      <CardHeader>
+                        <CardTitle className="text-base">{combo}</CardTitle>
+                        <CardDescription>
+                          {urls.length} image(s)
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="grid grid-cols-2 gap-4">
+                          {urls.map((url, idx) => (
+                            <div key={idx} className="rounded border overflow-hidden">
+                              <img
+                                src={url}
+                                alt={`${combo} image ${idx + 1}`}
+                                className="w-full h-28 object-cover"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground break-all">
+                          {JSON.stringify(urls)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{selectedComboKey ? "Edit" : "Add"} Category + Gem Type Combo</CardTitle>
+              <CardDescription>
+                Use the form below to create or update a combination key and the banner images used for that selection.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <Label htmlFor="comboKey">Combination Key</Label>
+                <Input
+                  id="comboKey"
+                  value={comboKey}
+                  onChange={(event) => setComboKey(event.target.value)}
+                  placeholder="Example: Bracelet|Ruby"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Combination format: <code>Category|GemType</code>. The key must match the item category and gem type in inventory.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Banner Image URLs</Label>
+                {comboImageUrls.map((url, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={url}
+                      onChange={(event) => {
+                        const updated = [...comboImageUrls];
+                        updated[index] = event.target.value;
+                        setComboImageUrls(updated);
+                      }}
+                      placeholder="https://example.com/image.jpg"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setComboImageUrls((prev) => prev.filter((_, i) => i !== index));
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setComboImageUrls((prev) => [...prev, ""])}
+                >
+                  Add Image URL
+                </Button>
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border bg-muted p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-medium">Apply to Inventory Combos</p>
+                    <p className="text-xs text-muted-foreground">
+                      Select one or more category|gem type combos from your current inventory. These options update automatically as inventory data changes.
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedComboKeys.length} selected
+                  </p>
+                </div>
+                {availableComboKeys.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No category + gem type combos found in inventory yet.
+                  </p>
+                ) : (
+                  <div className="grid max-h-64 gap-2 overflow-y-auto">
+                    {availableComboKeys.map(({ key, category, gemType }) => (
+                      <label
+                        key={key}
+                        className="inline-flex items-center gap-2 rounded-lg border px-3 py-2"
+                      >
+                        <Checkbox
+                          checked={selectedComboKeys.includes(key)}
+                          onCheckedChange={(checked) => {
+                            const isChecked = Boolean(checked);
+                            if (isChecked) {
+                              setComboKey("");
+                            }
+                            setSelectedComboKeys((prev) => {
+                              if (isChecked) {
+                                return prev.includes(key) ? prev : [...prev, key];
+                              }
+                              return prev.filter((existing) => existing !== key);
+                            });
+                          }}
+                        />
+                        <span className="text-sm">
+                          {category} | {gemType}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  If you select combos here, the image URLs will be applied to all selected inventory combinations. Otherwise, enter a custom combination key above.
+                </p>
+              </div>
+
+              {comboEditorError ? (
+                <p className="text-sm text-destructive">{comboEditorError}</p>
+              ) : null}
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex gap-2 flex-wrap">
+                  {selectedComboKey ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setSelectedComboKey(null);
+                        setComboKey("");
+                        setComboImageUrls([""]);
+                        setComboEditorError(null);
+                      }}
+                    >
+                      Clear Editor
+                    </Button>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    const normalizedKey = comboKey.trim().replace(/\s*\|\s*/g, '|');
+                    const filteredUrls = comboImageUrls.map((url) => url.trim()).filter(Boolean);
+                    const keysToSave = selectedComboKeys.length > 0 ? selectedComboKeys : normalizedKey ? [normalizedKey] : [];
+
+                    if (selectedComboKeys.length > 0 && normalizedKey) {
+                      setComboKey("");
+                    }
+
+                    if (keysToSave.length === 0) {
+                      setComboEditorError("At least one combination key must be selected or entered.");
+                      return;
+                    }
+                    if (filteredUrls.length === 0) {
+                      setComboEditorError("At least one image URL is required.");
+                      return;
+                    }
+
+                    setComboEditorError(null);
+                    const updatedCombos = { ...categoryGemtypeImageUrls };
+                    keysToSave.forEach((key) => {
+                      updatedCombos[key] = filteredUrls;
+                    });
+
+                    const result = await updateEbaySettingsAction({
+                      categoryGemtypeImageUrls: updatedCombos,
+                    });
+
+                    if (!result.success) {
+                      setComboEditorError(result.error || "Failed to save combo");
+                      return;
+                    }
+
+                    setCategoryGemtypeImageUrls(updatedCombos);
+                    setSelectedComboKeys(keysToSave);
+                    if (keysToSave.length === 1) {
+                      setSelectedComboKey(keysToSave[0]);
+                      setComboKey(keysToSave[0]);
+                    }
+                    toast.success(
+                      keysToSave.length === 1
+                        ? `Saved combo ${keysToSave[0]}`
+                        : `Saved ${keysToSave.length} inventory combos`
+                    );
+                  }}
+                >
+                  Save Combo
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          {Object.keys(categoryGemtypeImageUrls).length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Existing Combos</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-3">
+                  {Object.entries(categoryGemtypeImageUrls).map(([combo, urls]) => (
+                    <div key={combo} className="rounded-lg border p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <p className="font-semibold">{combo}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {urls.length} image(s)
+                          </p>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedComboKey(combo);
+                              setComboKey(combo);
+                              setComboImageUrls(urls.length ? urls : [""]);
+                              setComboEditorError(null);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              if (!confirm(`Delete combo ${combo}?`)) return;
+                              setCategoryGemtypeImageUrls((prev) => {
+                                const next = { ...prev };
+                                delete next[combo];
+                                return next;
+                              });
+                              if (selectedComboKey === combo) {
+                                setSelectedComboKey(null);
+                                setComboKey("");
+                                setComboImageUrls([""]);
+                              }
+                              toast.success(`Deleted combo ${combo}`);
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
         </TabsContent>
       </Tabs>
     </div>

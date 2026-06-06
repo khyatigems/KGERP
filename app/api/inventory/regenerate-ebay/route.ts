@@ -18,6 +18,8 @@ interface RegenerationTask {
   startTime: number;
   endTime?: number;
   message?: string;
+  selectedItemIds?: string[]; // For selected items regeneration
+  selectionMode?: "all" | "selected"; // Indicates if regenerating all or selected items
 }
 
 type RegenerationTaskRow = {
@@ -31,10 +33,13 @@ type RegenerationTaskRow = {
   startTime: number;
   endTime: number | null;
   message: string | null;
+  selectedItemIds?: string | null;
+  selectionMode?: string | null;
 };
 
 type EbaySettingsLike = {
   categoryImageUrls?: string | Record<string, string[]> | null;
+  categoryGemtypeImageUrls?: string | Record<string, string[]> | null;
   globalBannerImages?: string | string[] | null;
 };
 
@@ -63,6 +68,8 @@ async function ensureRegenerationTasksSchema() {
         startTime INTEGER NOT NULL,
         endTime INTEGER,
         message TEXT,
+        selectedItemIds TEXT,
+        selectionMode TEXT,
         createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -110,12 +117,13 @@ async function saveTask(task: RegenerationTask) {
     console.log(`[Regenerate] Task in memory size: ${regenerationTasks.size}`);
     
     const errorsJson = JSON.stringify(task.errors);
+    const selectedItemIdsJson = task.selectedItemIds ? JSON.stringify(task.selectedItemIds) : null;
     console.log(`[Regenerate] Saving task to database: ${task.id}`);
     
     await prisma.$executeRawUnsafe(
       `INSERT OR REPLACE INTO regeneration_tasks 
-       (id, status, total, updated, failed, pending, errors, startTime, endTime, message)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, status, total, updated, failed, pending, errors, startTime, endTime, message, selectedItemIds, selectionMode)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       task.id,
       task.status,
       task.total,
@@ -125,7 +133,9 @@ async function saveTask(task: RegenerationTask) {
       errorsJson,
       task.startTime,
       task.endTime || null,
-      task.message || null
+      task.message || null,
+      selectedItemIdsJson,
+      task.selectionMode || null
     );
     console.log(`[Regenerate] Task saved to database: ${task.id}`);
   } catch (error) {
@@ -158,6 +168,7 @@ async function getTask(taskId: string): Promise<RegenerationTask | null> {
     }
     
     const row = dbResult[0];
+    const selectedItemIds = row.selectedItemIds ? JSON.parse(row.selectedItemIds) : undefined;
     const task: RegenerationTask = {
       id: row.id,
       status: row.status,
@@ -169,6 +180,8 @@ async function getTask(taskId: string): Promise<RegenerationTask | null> {
       startTime: row.startTime,
       endTime: row.endTime ?? undefined,
       message: row.message ?? undefined,
+      selectedItemIds,
+      selectionMode: (row.selectionMode as "all" | "selected") ?? undefined,
     };
     
     // Cache in memory for next lookup
@@ -227,6 +240,20 @@ function normalizeGlobalBannerImages(settings: EbaySettingsLike | null | undefin
   return Array.isArray(settings.globalBannerImages) ? settings.globalBannerImages : undefined;
 }
 
+function normalizeCategoryGemtypeImageUrls(settings: EbaySettingsLike | null | undefined): Record<string, string[]> {
+  if (!settings) return {};
+  if (settings.categoryGemtypeImageUrls && typeof settings.categoryGemtypeImageUrls === "string") {
+    try {
+      return JSON.parse(settings.categoryGemtypeImageUrls) as Record<string, string[]>;
+    } catch {
+      return {};
+    }
+  }
+  return settings.categoryGemtypeImageUrls && typeof settings.categoryGemtypeImageUrls === "object"
+    ? settings.categoryGemtypeImageUrls
+    : {};
+}
+
 async function processRegenerationBatch(taskId: string) {
   const task = await getTask(taskId);
   if (!task) {
@@ -265,38 +292,78 @@ async function processRegenerationBatch(taskId: string) {
       return;
     }
 
-    const items = await prisma.inventory.findMany({
-      select: {
-        id: true,
-        sku: true,
-        itemName: true,
-        category: true,
-        gemType: true,
-        color: true,
-        shape: true,
-        weightValue: true,
-        weightUnit: true,
-        dimensionsMm: true,
-        treatment: true,
-        origin: true,
-        transparency: true,
-        certification: true,
-        braceletType: true,
-        beadSizeMm: true,
-        beadCount: true,
-        holeSizeMm: true,
-        innerCircumferenceMm: true,
-        standardSize: true,
-        notes: true,
-      },
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      skip: processed,
-      take: REGENERATION_BATCH_SIZE,
-    });
+    // Determine which items to fetch based on selection mode
+    let itemsQuery: Parameters<typeof prisma.inventory.findMany>[0];
+    
+    if (task.selectedItemIds && task.selectedItemIds.length > 0) {
+      // Regenerate selected items only
+      const itemsAlreadyProcessed = task.selectedItemIds.slice(0, processed);
+      const remainingItems = task.selectedItemIds.slice(processed, processed + REGENERATION_BATCH_SIZE);
+      
+      itemsQuery = {
+        select: {
+          id: true,
+          sku: true,
+          itemName: true,
+          category: true,
+          gemType: true,
+          color: true,
+          shape: true,
+          weightValue: true,
+          weightUnit: true,
+          dimensionsMm: true,
+          treatment: true,
+          origin: true,
+          transparency: true,
+          certification: true,
+          braceletType: true,
+          beadSizeMm: true,
+          beadCount: true,
+          holeSizeMm: true,
+          innerCircumferenceMm: true,
+          standardSize: true,
+          notes: true,
+        },
+        where: { id: { in: remainingItems } },
+      };
+    } else {
+      // Regenerate all items (original behavior)
+      itemsQuery = {
+        select: {
+          id: true,
+          sku: true,
+          itemName: true,
+          category: true,
+          gemType: true,
+          color: true,
+          shape: true,
+          weightValue: true,
+          weightUnit: true,
+          dimensionsMm: true,
+          treatment: true,
+          origin: true,
+          transparency: true,
+          certification: true,
+          braceletType: true,
+          beadSizeMm: true,
+          beadCount: true,
+          holeSizeMm: true,
+          innerCircumferenceMm: true,
+          standardSize: true,
+          notes: true,
+        },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        skip: processed,
+        take: REGENERATION_BATCH_SIZE,
+      };
+    }
+
+    const items = await prisma.inventory.findMany(itemsQuery);
 
     const settingsResult = await getEbaySettings();
     const settings = settingsResult.success ? settingsResult.data : null;
     const categoryImageUrls = normalizeCategoryImageUrls(settings);
+    const categoryGemtypeImageUrls = normalizeCategoryGemtypeImageUrls(settings);
     const globalBannerImages = normalizeGlobalBannerImages(settings);
 
     for (const item of items) {
@@ -310,10 +377,9 @@ async function processRegenerationBatch(taskId: string) {
       }
 
       try {
-        const categoryImages = item.category ? categoryImageUrls[item.category] : undefined;
-
         const html = buildEbayHtmlDescription(
           {
+            sku: item.sku,
             itemName: item.itemName,
             category: item.category,
             gemType: item.gemType,
@@ -335,12 +401,13 @@ async function processRegenerationBatch(taskId: string) {
             notes: item.notes,
           },
           {
-            categoryImages,
             settings: {
               companyName: settings?.companyName ?? undefined,
               tagline: settings?.tagline ?? undefined,
               brandLogoUrl: settings?.brandLogoUrl ?? undefined,
               globalBannerImages,
+              categoryImageUrls,
+              categoryGemtypeImageUrls,
             },
           }
         );
@@ -401,7 +468,7 @@ async function processRegenerationBatch(taskId: string) {
   }
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const session = await auth();
   console.log("[Regenerate API] POST invoked");
   console.log("[Regenerate API] session:", !!session, session?.user?.id || null);
@@ -417,19 +484,38 @@ export async function POST() {
     return NextResponse.json({ error: permission.message || "Permission denied" }, { status: 403 });
   }
 
+  // Get itemIds from query parameter if provided
+  const itemIdsParam = req.nextUrl.searchParams.get("itemIds");
+  let selectedItemIds: string[] | undefined;
+  
+  if (itemIdsParam) {
+    try {
+      // Try parsing as JSON array first
+      selectedItemIds = JSON.parse(itemIdsParam);
+      if (!Array.isArray(selectedItemIds)) {
+        selectedItemIds = itemIdsParam.split(",").filter(id => id.trim());
+      }
+    } catch {
+      // If JSON parsing fails, split by comma
+      selectedItemIds = itemIdsParam.split(",").filter(id => id.trim());
+    }
+  }
+
   const taskId = crypto.randomUUID();
   const task: RegenerationTask = {
     id: taskId,
     status: "PENDING",
-    total: 0,
+    total: selectedItemIds?.length || 0,
     updated: 0,
     failed: 0,
-    pending: 0,
+    pending: selectedItemIds?.length || 0,
     errors: [],
     startTime: Date.now(),
+    selectedItemIds,
+    selectionMode: selectedItemIds ? "selected" : "all",
   };
 
-  console.log(`[Regenerate API] Created task: ${taskId}`);
+  console.log(`[Regenerate API] Created task: ${taskId}`, { selectionMode: task.selectionMode, itemCount: selectedItemIds?.length });
   await saveTask(task);
   console.log(`[Regenerate API] Task saved to storage`);
 

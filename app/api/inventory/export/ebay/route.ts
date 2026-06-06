@@ -7,6 +7,7 @@ import { getEbaySettings, getCategoryImages, selectImagesForDescription } from "
 import * as XLSX from "xlsx";
 
 type EbayDescriptionInput = {
+  sku?: string | null;
   itemName?: string | null;
   category?: string | null;
   gemType?: string | null;
@@ -67,11 +68,18 @@ async function generateEbayDescription(item: EbayDescriptionInput, settings: Eba
         globalBannerImages: typeof ebaySettings.globalBannerImages === "string"
           ? JSON.parse(ebaySettings.globalBannerImages)
           : ebaySettings.globalBannerImages ?? undefined,
+        categoryImageUrls: typeof ebaySettings.categoryImageUrls === "string"
+          ? JSON.parse(ebaySettings.categoryImageUrls)
+          : ebaySettings.categoryImageUrls ?? undefined,
+        categoryGemtypeImageUrls: typeof ebaySettings.categoryGemtypeImageUrls === "string"
+          ? JSON.parse(ebaySettings.categoryGemtypeImageUrls)
+          : ebaySettings.categoryGemtypeImageUrls ?? undefined,
       }
     : undefined;
   
   return buildEbayHtmlDescription(
     {
+      sku: item.sku,
       itemName: item.itemName,
       category: item.category,
       gemType: item.gemType || item.gemstoneCode?.name,

@@ -12,6 +12,7 @@ interface RegenerateEbayButtonProps {
   variant?: "default" | "outline" | "secondary" | "ghost" | "link";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
+  selectedItemIds?: string[]; // For selected items regeneration
 }
 
 export function RegenerateEbayButton({
@@ -19,6 +20,7 @@ export function RegenerateEbayButton({
   variant = "outline",
   size = "sm",
   className,
+  selectedItemIds,
 }: RegenerateEbayButtonProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const useDefaultLabel = !label;
@@ -33,6 +35,8 @@ export function RegenerateEbayButton({
           "group min-h-10 gap-3 border-slate-300/80 bg-background/80 px-4 font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-400 hover:bg-background hover:shadow-md",
           className
         )}
+        disabled={selectedItemIds && selectedItemIds.length === 0}
+        title={selectedItemIds && selectedItemIds.length === 0 ? "Select items to regenerate" : undefined}
       >
         <RefreshCw className="h-4 w-4 transition-transform group-hover:rotate-45" />
         {useDefaultLabel ? (
@@ -50,7 +54,11 @@ export function RegenerateEbayButton({
           label
         )}
       </Button>
-      <RegenerateEbayModal open={modalOpen} onOpenChange={setModalOpen} />
+      <RegenerateEbayModal 
+        open={modalOpen} 
+        onOpenChange={setModalOpen} 
+        selectedItemIds={selectedItemIds}
+      />
     </>
   );
 }

@@ -107,6 +107,7 @@ export const formSchema = z.object({
 
 export type FormInputValues = {
   itemName: string;
+  sku?: string | undefined;
   internalName?: string | undefined;
   category: string;
   gemType?: string | undefined;
@@ -177,7 +178,7 @@ export const ORIGIN_PRESETS = ["Burma (Myanmar)", "Sri Lanka (Ceylon)", "Kashmir
 export const FLUORESCENCE_PRESETS = ["None", "Faint", "Medium", "Strong", "Very Strong"];
 export const TREATMENT_PRESETS = ["None", "Untreated", "Heat", "Oil", "Resin", "Irradiation", "Diffusion", "Glass-Filled"];
 
-export function generateFallbackDescription(values: FormInputValues) {
+export function generateFallbackDescription(values: FormInputValues, sku?: string) {
   const {
     itemName,
     category,
@@ -202,6 +203,7 @@ export function generateFallbackDescription(values: FormInputValues) {
     holeSizeMm,
     innerCircumferenceMm,
     standardSize,
+    mediaUrls,
   } = values;
 
   const name = itemName || "Gemstone";
@@ -297,6 +299,19 @@ export function generateFallbackDescription(values: FormInputValues) {
 
   if (certificateComments) {
     lines.push(`Certificate Comments: ${certificateComments}`);
+    lines.push("");
+  }
+
+  if (sku) {
+    lines.push(`SKU: ${sku}`);
+    lines.push("");
+  }
+
+  if (mediaUrls && mediaUrls.length > 0) {
+    lines.push("Product Images:");
+    mediaUrls.forEach((url) => {
+      if (url) lines.push(url);
+    });
     lines.push("");
   }
 

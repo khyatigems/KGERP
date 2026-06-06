@@ -14,6 +14,7 @@ import { BulkEditDialog } from "./bulk-edit-dialog";
 import { BulkCertificateDialog } from "./bulk-certificate-dialog";
 import { Edit, ShieldCheck } from "lucide-react";
 import { InventoryDetailDrawer } from "@/components/inventory/inventory-detail-drawer";
+import { RegenerateEbayButton } from "./regenerate-ebay-button";
 
 interface InventoryTableProps {
   data: any[];
@@ -98,6 +99,7 @@ export function InventoryTable({
               </span>
             ) : null}
           </span>
+          <RegenerateEbayButton selectedItemIds={selectedIds} />
           <Button size="sm" onClick={() => setIsBulkEditDialogOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Bulk Edit
@@ -116,29 +118,29 @@ export function InventoryTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40px]">
+              <TableHead className="w-10">
                 <Checkbox
                   checked={data.length > 0 && selectedIds.length === data.length}
                   onCheckedChange={(checked) => handleSelectAll(!!checked)}
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="w-[60px]">Image</TableHead>
-              <TableHead className="w-[100px]">SKU</TableHead>
-              <TableHead className="min-w-[200px]">Item Name</TableHead>
-              <TableHead className="w-[100px]">Category</TableHead>
-              <TableHead className="w-[100px]">Type</TableHead>
-              <TableHead className="w-[80px]">Color</TableHead>
-              <TableHead className="w-[80px]">Cut</TableHead>
-              <TableHead className="w-[100px]">Weight</TableHead>
-              <TableHead className="w-[150px]">Certificates</TableHead>
-              <TableHead className="w-[80px]">Ratti</TableHead>
-              <TableHead className="w-[100px]">Price</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[100px]">Vendor</TableHead>
-              <TableHead className="w-[100px]">Location</TableHead>
-              <TableHead className="w-[100px]">Date Added</TableHead>
-              <TableHead className="w-[60px] text-right">Actions</TableHead>
+              <TableHead className="w-15">Image</TableHead>
+              <TableHead className="w-25">SKU</TableHead>
+              <TableHead className="min-w-50">Item Name</TableHead>
+              <TableHead className="w-25">Category</TableHead>
+              <TableHead className="w-25">Type</TableHead>
+              <TableHead className="w-20">Color</TableHead>
+              <TableHead className="w-20">Cut</TableHead>
+              <TableHead className="w-25">Weight</TableHead>
+              <TableHead className="w-37.5">Certificates</TableHead>
+              <TableHead className="w-20">Ratti</TableHead>
+              <TableHead className="w-25">Price</TableHead>
+              <TableHead className="w-25">Status</TableHead>
+              <TableHead className="w-25">Vendor</TableHead>
+              <TableHead className="w-25">Location</TableHead>
+              <TableHead className="w-25">Date Added</TableHead>
+              <TableHead className="w-15 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -11,7 +11,7 @@ function str(val: unknown): string {
 }
 
 /** Build a professional product description from inventory data — no external AI required. */
-function buildProfessionalDescription(inventory: InventoryPayload, additionalInfo: string): string {
+function buildProfessionalDescription(inventory: InventoryPayload, additionalInfo: string, sku?: string, mediaUrls?: string[]): string {
   const itemName = str(inventory.itemName) || "Gemstone";
   const category = str(inventory.category);
   const gemType = str(inventory.gemType);
@@ -146,6 +146,19 @@ function buildProfessionalDescription(inventory: InventoryPayload, additionalInf
     lines.push("");
   }
 
+  if (sku) {
+    lines.push(`SKU: ${sku}`);
+    lines.push("");
+  }
+
+  if (mediaUrls && mediaUrls.length > 0) {
+    lines.push("Product Images:");
+    mediaUrls.forEach((url) => {
+      if (url) lines.push(url);
+    });
+    lines.push("");
+  }
+
   lines.push("Offered exclusively by Khyati Precious Gems Private Limited.");
   lines.push("For inquiries, pricing, or additional details, please contact our sales team.");
 
@@ -268,13 +281,21 @@ export async function POST(request: Request) {
     const body = await request.json();
     const inventory = (body?.inventory || {}) as InventoryPayload;
     const additionalInfo = typeof body?.additionalInfo === "string" ? body.additionalInfo : "";
-    const prompt = buildPrompt(inventory, additionalInfo);
+    const sku = typeof body?.sku === "string" ? body.sku.trim() : "";
+    const mediaUrls = Array.isArray(body?.mediaUrls) ? body.mediaUrls.filter((u: unknown) => typeof u === "string" && u.length > 0) : [];
+
+    // Strip media from the inventory object passed to the AI prompt
+    const inventoryForPrompt = { ...inventory };
+    delete (inventoryForPrompt as Record<string, unknown>).mediaUrl;
+    delete (inventoryForPrompt as Record<string, unknown>).mediaUrls;
+
+    const prompt = buildPrompt(inventoryForPrompt, additionalInfo);
     const openAiKey = process.env.OPENAI_API_KEY?.trim();
     const geminiKey = process.env.GEMINI_API_KEY?.trim();
 
     // Always generate the professional description — use it as immediate response
     // and optionally fall back to AI if keys are configured.
-    const professionalDesc = buildProfessionalDescription(inventory, additionalInfo);
+    const professionalDesc = buildProfessionalDescription(inventory, additionalInfo, sku, mediaUrls);
 
     if (openAiKey || geminiKey) {
       // Try AI, fall back to professional template on failure

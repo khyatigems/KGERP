@@ -34,6 +34,9 @@ export async function getEbaySettingsAction() {
           categoryImageUrls: result.data.categoryImageUrls
             ? JSON.parse(result.data.categoryImageUrls)
             : {},
+          categoryGemtypeImageUrls: result.data.categoryGemtypeImageUrls
+            ? JSON.parse(result.data.categoryGemtypeImageUrls)
+            : {},
           maxImagesPerCategory: result.data.maxImagesPerCategory || 4,
           imagesPerDescription: result.data.imagesPerDescription || 2,
           imageRotationMode: result.data.imageRotationMode || "SEQUENTIAL",
@@ -58,6 +61,8 @@ export async function getEbaySettingsAction() {
  */
 export async function updateEbaySettingsAction(data: {
   globalBannerImages?: string[];
+  categoryImageUrls?: Record<string, string[]>;
+  categoryGemtypeImageUrls?: Record<string, string[]>;
   maxImagesPerCategory?: number;
   imagesPerDescription?: number;
   imageRotationMode?: string;

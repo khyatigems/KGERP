@@ -86,6 +86,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const form = useForm<FormInputValues>({
     resolver: zodResolver(formSchema) as unknown as Resolver<FormInputValues>,
     defaultValues: {
+      sku: initialData?.sku || "",
       itemName: initialData?.itemName || "",
       internalName: initialData?.internalName || "",
       category: initialData?.category || initialData?.categoryCode?.name || categories[0]?.name || "",
@@ -528,7 +529,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               />
             </div>
 
-            <NotesSection key={`notes-${formResetKey}`} form={form} />
+            <NotesSection key={`notes-${formResetKey}`} form={form} skuPreview={skuPreview} />
           </div>
         </div>
 

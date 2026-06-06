@@ -6,6 +6,7 @@ export const DEFAULT_EBAY_IMAGE_URLS = [
 export const DEFAULT_LOGO_URL = "https://images.unsplash.com/photo-1779794047454-ad379b48d1ed?q=80&w=880&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
 type EbayDescriptionFields = {
+  sku?: string | null;
   itemName?: string | null;
   category?: string | null;
   gemType?: string | null;
@@ -25,6 +26,8 @@ type EbayDescriptionFields = {
   innerCircumferenceMm?: number | null;
   standardSize?: string | null;
   notes?: string | null;
+  mediaUrls?: string[];
+  mediaUrl?: string | null;
 };
 
 interface BuildEbayDescriptionOptions {
@@ -37,6 +40,8 @@ interface BuildEbayDescriptionOptions {
     tagline?: string;
     brandLogoUrl?: string;
     globalBannerImages?: string[];
+    categoryImageUrls?: Record<string, string[]>;
+    categoryGemtypeImageUrls?: Record<string, string[]>;
   };
 }
 
@@ -123,6 +128,9 @@ function getTitle(product: EbayDescriptionFields) {
 
 function getProductSummary(product: EbayDescriptionFields) {
   const parts: string[] = [];
+  if (product.sku) {
+    parts.push(`SKU: ${product.sku}`);
+  }
   parts.push(`Product Type: ${getProductType(product.category, product.gemType)}`);
   parts.push(`Gemstones: ${normalizeText(product.gemType || product.category)}`);
   if (product.weightValue) {
@@ -185,7 +193,14 @@ function getDetailedDescription(product: EbayDescriptionFields) {
 }
 
 function getSpecificAttributes(product: EbayDescriptionFields) {
-  const rows = [
+  const rows: Array<[string, string]> = [];
+  
+  // Add SKU as the first attribute if available
+  if (product.sku) {
+    rows.push(["SKU", normalizeText(product.sku)]);
+  }
+  
+  rows.push(
     ["Product Type", getProductType(product.category, product.gemType)],
     ["Gemstones", normalizeText(product.gemType || product.category)],
     ["Color", normalizeText(product.color)],
@@ -196,7 +211,7 @@ function getSpecificAttributes(product: EbayDescriptionFields) {
     ["Origin", normalizeText(product.origin)],
     ["Transparency", normalizeText(product.transparency)],
     ["Certification", getCertificationLabel(product.certification)],
-  ];
+  );
 
   if (product.braceletType) {
     rows.push(["Bracelet Type", product.braceletType]);
@@ -382,6 +397,61 @@ function buildSmartFaqSection(product: EbayDescriptionFields) {
     </div>`;
 }
 
+/**
+ * Hierarchical banner image selection
+ * Priority: category-gemtype combo → category-only → global → defaults
+ */
+function selectBannerImages(
+  category: string | null | undefined,
+  gemType: string | null | undefined,
+  categoryGemtypeUrls?: Record<string, string[]>,
+  categoryUrls?: Record<string, string[]>,
+  globalImages?: string[]
+): string[] {
+  // Normalize category and gemType for matching
+  const normalizedCategory = category?.trim() || null;
+  const normalizedGemType = gemType?.trim() || null;
+
+  // 1. Try category + gemType combo
+  if (normalizedCategory && normalizedGemType && categoryGemtypeUrls) {
+    const keysToTry = [
+      `${normalizedCategory}|${normalizedGemType}`,
+      `${normalizedCategory}|${normalizedGemType}`.replace(/\s*\|\s*/g, '|'),
+    ];
+    const uniqueKeys = [...new Set(keysToTry)];
+
+    for (const comboKey of uniqueKeys) {
+      const comboImages = categoryGemtypeUrls[comboKey];
+      if (comboImages?.length) {
+        console.log(`[eBay Images] Using combo images for: ${comboKey}`);
+        return comboImages;
+      }
+    }
+
+    const availableCombos = Object.keys(categoryGemtypeUrls);
+    console.log(`[eBay Images] Combo key not found. Tried: ${uniqueKeys.join(", ")}. Available keys (${availableCombos.length}): ${availableCombos.length > 0 ? availableCombos.slice(0, 10).join(", ") : "(none)"}`);
+  }
+
+  // 2. Try category-only
+  if (normalizedCategory && categoryUrls) {
+    const categoryImages = categoryUrls[normalizedCategory];
+    if (categoryImages?.length) {
+      console.log(`[eBay Images] Using category images for: ${normalizedCategory}`);
+      return categoryImages;
+    }
+  }
+
+  // 3. Try global
+  if (globalImages?.length) {
+    console.log(`[eBay Images] Using global images`);
+    return globalImages;
+  }
+
+  // 4. Use defaults
+  console.log(`[eBay Images] Using default images`);
+  return DEFAULT_EBAY_IMAGE_URLS;
+}
+
 export function buildEbayHtmlDescription(product: EbayDescriptionFields, options: BuildEbayDescriptionOptions = {}) {
   const includeMeasurements = options.includeMeasurements ?? true;
   const includeCertificate = options.includeCertificate ?? true;
@@ -391,6 +461,8 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
   const companyName = options.settings?.companyName || "KhyatiGems";
   const tagline = options.settings?.tagline || "Precious Gems for your Precious Ones";
   const brandLogoUrl = options.settings?.brandLogoUrl || DEFAULT_LOGO_URL;
+
+  console.log(`[eBay Description] category="${product.category}" gemType="${product.gemType}" hasComboUrls=${!!options.settings?.categoryGemtypeImageUrls} comboKeys=${Object.keys(options.settings?.categoryGemtypeImageUrls || {}).length}`);
 
   const title = getTitle(product);
   const summary = getProductSummary(product);
@@ -439,14 +511,19 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
     </div>
   `;
 
-  // Banner image URLs - use dynamic category images if provided, otherwise fallback to defaults
-  // Also check for global banner images from settings
-  const globalBannerImages = options.settings?.globalBannerImages || [];
-  const availableImages = globalBannerImages.length > 0 
-    ? globalBannerImages 
-    : (options.categoryImages || DEFAULT_EBAY_IMAGE_URLS);
+  // Hierarchical banner image selection: combo → category → global → defaults
+  const availableImages = selectBannerImages(
+    product.category,
+    product.gemType,
+    options.settings?.categoryGemtypeImageUrls,
+    options.settings?.categoryImageUrls || (options.categoryImages ? { [product.category || '']: options.categoryImages } : undefined),
+    options.settings?.globalBannerImages
+  );
+  
   const banner1 = availableImages[0] || DEFAULT_EBAY_IMAGE_URLS[0];
   const banner2 = availableImages[1] || DEFAULT_EBAY_IMAGE_URLS[1];
+  const banner3 = availableImages[2] || DEFAULT_EBAY_IMAGE_URLS[0]; // Fallback to first image if only 2 available
+  
   const trustSectionHtml = buildWhyBuySection();
   const specialItemSectionHtml = buildSpecialItemSection(product);
   const faqSectionHtml = buildSmartFaqSection(product);
@@ -466,6 +543,25 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
 
       ${trustSectionHtml}
 
+      ${(() => {
+        const productImages = product.mediaUrls?.filter(Boolean) || [];
+        if (product.mediaUrl && !productImages.includes(product.mediaUrl)) {
+          productImages.unshift(product.mediaUrl);
+        }
+        if (productImages.length === 0) return "";
+        return `
+          <div style="background:#fff;padding:20px 24px;margin:0 0 24px 0;border-radius:12px;box-shadow:0 2px 8px #181B4E11;">
+            <h3 style="color:#C0A050;font-size:1.1rem;font-weight:700;margin:0 0 12px 0;">📸 Product Photos</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
+              ${productImages.map(url => `
+                <div style="flex:0 0 auto;width:calc(50% - 6px);max-width:360px;min-width:180px;border-radius:12px;overflow:hidden;border:1px solid #E0E3EA;box-shadow:0 2px 8px #181B4E11;">
+                  <img src="${escapeHtml(url)}" alt="Product Image" style="width:100%;height:auto;display:block;aspect-ratio:1;object-fit:cover;" onerror="this.style.display='none'" />
+                </div>
+              `).join("")}
+            </div>
+          </div>`;
+      })()}
+
       <div style="background:#fff;padding:20px 24px;margin:0 0 24px 0;border-radius:12px;box-shadow:0 2px 8px #181B4E11;">
         <h3 style="color:#C0A050;font-size:1.1rem;font-weight:700;margin:0 0 8px 0;">📋 Product Specifications</h3>
         <p style="white-space: pre-line;color:#181B4E;font-size:1rem;margin:0 0 8px 0;">${escapeHtml(summary)}</p>
@@ -479,6 +575,10 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
         <h3 style="color:#C0A050;font-size:1.1rem;font-weight:700;margin:0 0 8px 0;">🔍 Detailed Description</h3>
         <p style="color:#181B4E;font-size:1rem;margin:0 0 8px 0;">${escapeHtml(detailedDescription)}</p>
         ${notes ? `<p style="color:#181B4E;font-size:1rem;margin:0 0 8px 0;">${escapeHtml(notes)}</p>` : ""}
+      </div>
+
+      <div style="margin:32px 0 28px 0;text-align:center;">
+        <img src="${banner3}" alt="KhyatiGems banner 3" style="width:100%;max-width:740px;min-width:220px;object-fit:cover;border-radius:14px;box-shadow:0 2px 12px #181B4E22;" />
       </div>
 
       ${specsHtml}

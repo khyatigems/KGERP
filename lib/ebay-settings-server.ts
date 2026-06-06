@@ -8,6 +8,7 @@ export const DEFAULT_EBAY_IMAGE_URLS = [
 export interface EbaySettingsData {
   globalBannerImages?: string[];
   categoryImageUrls?: Record<string, string[]>;
+  categoryGemtypeImageUrls?: Record<string, string[]>;
   maxImagesPerCategory?: number;
   imagesPerDescription?: number;
   imageRotationMode?: "SEQUENTIAL" | "RANDOM" | "FIRST";
@@ -38,6 +39,7 @@ export async function getEbaySettings() {
       id: string;
       globalBannerImages: string | null;
       categoryImageUrls: string | null;
+      categoryGemtypeImageUrls: string | null;
       maxImagesPerCategory: number;
       imagesPerDescription: number;
       imageRotationMode: string;
@@ -56,6 +58,8 @@ export async function getEbaySettings() {
         INSERT INTO "EbaySettings" (
           "id",
           "globalBannerImages",
+          "categoryImageUrls",
+          "categoryGemtypeImageUrls",
           "companyName",
           "tagline",
           "imageRotationMode",
@@ -66,6 +70,8 @@ export async function getEbaySettings() {
         ) VALUES (
           'default',
           ?,
+          '{}',
+          '{}',
           'KhyatiGems',
           'Precious Gems for your Precious Ones',
           'RANDOM',
@@ -80,6 +86,7 @@ export async function getEbaySettings() {
         id: string;
         globalBannerImages: string | null;
         categoryImageUrls: string | null;
+        categoryGemtypeImageUrls: string | null;
         maxImagesPerCategory: number;
         imagesPerDescription: number;
         imageRotationMode: string;
@@ -277,6 +284,20 @@ export async function updateEbaySettings(data: EbaySettingsData) {
       }
     }
 
+    if (data.categoryGemtypeImageUrls) {
+      for (const combo in data.categoryGemtypeImageUrls) {
+        for (const url of data.categoryGemtypeImageUrls[combo]) {
+          const validation = await validateImageUrl(url);
+          if (!validation.valid) {
+            return {
+              success: false,
+              error: `${combo} image validation failed: ${validation.error}`,
+            };
+          }
+        }
+      }
+    }
+
     const existing = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
       `SELECT "id" FROM "EbaySettings" LIMIT 1`
     );
@@ -291,6 +312,7 @@ export async function updateEbaySettings(data: EbaySettingsData) {
           "id",
           "globalBannerImages",
           "categoryImageUrls",
+          "categoryGemtypeImageUrls",
           "companyName",
           "tagline",
           "imageRotationMode",
@@ -309,10 +331,11 @@ export async function updateEbaySettings(data: EbaySettingsData) {
           ?,
           ?,
           ?,
+          ?,
           CURRENT_TIMESTAMP,
           CURRENT_TIMESTAMP
         )
-      `, defaultImages, categoryImages, data.companyName || "KhyatiGems", data.tagline || "Precious Gems for your Precious Ones", data.imageRotationMode || "RANDOM", data.maxImagesPerCategory || 4, data.imagesPerDescription || 2, data.brandLogoUrl || null);
+      `, defaultImages, categoryImages, JSON.stringify(data.categoryGemtypeImageUrls || {}), data.companyName || "KhyatiGems", data.tagline || "Precious Gems for your Precious Ones", data.imageRotationMode || "RANDOM", data.maxImagesPerCategory || 4, data.imagesPerDescription || 2, data.brandLogoUrl || null);
     } else {
       // Update existing settings
       const updates: string[] = [];
@@ -325,6 +348,10 @@ export async function updateEbaySettings(data: EbaySettingsData) {
       if (data.categoryImageUrls !== undefined) {
         updates.push(`"categoryImageUrls" = ?`);
         values.push(JSON.stringify(data.categoryImageUrls));
+      }
+      if (data.categoryGemtypeImageUrls !== undefined) {
+        updates.push(`"categoryGemtypeImageUrls" = ?`);
+        values.push(JSON.stringify(data.categoryGemtypeImageUrls));
       }
       if (data.companyName !== undefined) {
         updates.push(`"companyName" = ?`);
