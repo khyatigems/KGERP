@@ -27,6 +27,19 @@ function productSelect() {
       orderBy: [{ isPrimary: "desc" as const }, { createdAt: "asc" as const }],
       take: 3,
     },
+    listings: {
+      where: {
+        status: { in: ["ACTIVE", "LISTED"] },
+      },
+      select: {
+        id: true,
+        platform: true,
+        externalId: true,
+        listingUrl: true,
+        listingRef: true,
+        status: true,
+      },
+    },
   };
 }
 
@@ -45,6 +58,14 @@ function toProduct(item: Prisma.InventoryGetPayload<{ select: ReturnType<typeof 
     status: item.status,
     image: imageMedia?.mediaUrl || item.imageUrl || "",
     url: `/inventory/${item.id}`,
+    activeListings: item.listings.map((listing) => ({
+      id: listing.id,
+      marketplace: listing.platform.toLowerCase(),
+      listingId: listing.externalId || "",
+      listingUrl: listing.listingUrl || "",
+      marketplaceSku: listing.listingRef || "",
+      status: listing.status,
+    })),
   };
 }
 
