@@ -23,6 +23,7 @@ const listingSchema = z.object({
   listingRef: z.string().optional(),
   listedPrice: z.coerce.number().positive("Listed price must be positive"),
   listedDate: z.coerce.date().optional(),
+  currency: z.string().default("INR"),
 });
 
 export async function createListing(prevState: unknown, formData: FormData) {
@@ -68,6 +69,7 @@ export async function createListing(prevState: unknown, formData: FormData) {
         listingUrl: data.listingUrl || null,
         listingRef: data.listingRef,
         listedPrice: data.listedPrice,
+        currency: data.currency,
         listedDate: data.listedDate || new Date(),
         status: "LISTED",
       },

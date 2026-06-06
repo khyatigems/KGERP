@@ -50,6 +50,7 @@ interface Listing {
     listingUrl: string | null;
     listingRef: string | null;
     listedPrice: number;
+    currency: string;
     status: string;
     createdAt: Date;
 }
@@ -68,7 +69,7 @@ interface PriceHistoryItem {
     changedBy?: string;
 }
 
-function ListingPriceHistory({ listingId }: { listingId: string }) {
+function ListingPriceHistory({ listingId, currency = "USD" }: { listingId: string; currency?: string }) {
     const [history, setHistory] = useState<PriceHistoryItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
@@ -101,7 +102,7 @@ function ListingPriceHistory({ listingId }: { listingId: string }) {
                     <div className="space-y-2 max-h-[200px] overflow-y-auto">
                         {history.map((h, i) => (
                             <div key={i} className="text-xs flex justify-between items-center border-b last:border-0 pb-1 last:pb-0">
-                                <span className="font-medium">{formatCurrency(h.price)}</span>
+                                <span className="font-medium">{formatCurrency(h.price, currency)}</span>
                                 <div className="text-right">
                                     <div className="text-muted-foreground">{new Date(h.changedAt).toLocaleDateString()}</div>
                                     <div className="text-[10px] text-muted-foreground/70">{new Date(h.changedAt).toLocaleTimeString()}</div>
@@ -338,7 +339,7 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
                                                         </div>
                                                         <div>
                                                             <div className="font-medium">{listing.platform}</div>
-                                                            <div className="text-xs text-muted-foreground">{formatCurrency(listing.listedPrice)}</div>
+                                                            <div className="text-xs text-muted-foreground">{formatCurrency(listing.listedPrice, listing.currency || "USD")}</div>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-1">
@@ -393,9 +394,9 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
                                                             </Badge>
                                                         </div>
                                                         <div className="text-xs text-muted-foreground flex items-center flex-wrap gap-x-2 gap-y-1">
-                                                            <span>{formatCurrency(listing.listedPrice)}</span>
+                                                            <span>{formatCurrency(listing.listedPrice, listing.currency || "USD")}</span>
                                                             {listing.listingRef && <span>Ref: {listing.listingRef}</span>}
-                                                            <ListingPriceHistory listingId={listing.id} />
+                                                            <ListingPriceHistory listingId={listing.id} currency={listing.currency || "USD"} />
                                                         </div>
                                                         {listing.listingUrl && (
                                                             <div className="flex items-center gap-1 mt-1">

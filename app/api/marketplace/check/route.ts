@@ -19,6 +19,7 @@ function toMapping(listing: Awaited<ReturnType<typeof findMapping>>) {
     marketplaceSku: listing.listingRef || "",
     mpn: listing.listingRef || "",
     price: String(listing.listedPrice),
+    currency: listing.currency,
     quantity: 1,
     status: listing.status,
     dateLinked: listing.createdAt.toISOString(),
