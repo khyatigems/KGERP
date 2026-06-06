@@ -19,7 +19,7 @@ export function PricingSection({ form, vendors }: PricingSectionProps) {
     name: "pricingMode",
   }) || "PER_CARAT";
 
-  const setPricingMode = (mode: "PER_CARAT" | "FLAT") => {
+  const setPricingMode = (mode: "PER_CARAT" | "PER_RATTI" | "FLAT") => {
     if (mode === pricingMode) return;
 
     if (mode === "FLAT") {
@@ -91,7 +91,7 @@ export function PricingSection({ form, vendors }: PricingSectionProps) {
           render={() => (
             <FormItem className="space-y-3">
               <FormLabel>Pricing Mode</FormLabel>
-              <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/20 p-1">
+              <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/20 p-1">
                 <Button
                   type="button"
                   variant="ghost"
@@ -103,6 +103,18 @@ export function PricingSection({ form, vendors }: PricingSectionProps) {
                   )}
                 >
                   Per Carat
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setPricingMode("PER_RATTI")}
+                  aria-pressed={pricingMode === "PER_RATTI"}
+                  className={cn(
+                    "h-9 rounded-md text-sm",
+                    pricingMode === "PER_RATTI" && "bg-background text-foreground shadow-sm"
+                  )}
+                >
+                  Per Ratti
                 </Button>
                 <Button
                   type="button"
@@ -143,6 +155,35 @@ export function PricingSection({ form, vendors }: PricingSectionProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Selling Rate (/ct)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        ) : pricingMode === "PER_RATTI" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="purchaseRatePerRatti"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Purchase Rate (/ratti)</FormLabel>
+                  <FormControl>
+                    <Input type="number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="sellingRatePerRatti"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Selling Rate (/ratti)</FormLabel>
                   <FormControl>
                     <Input type="number" {...field} />
                   </FormControl>

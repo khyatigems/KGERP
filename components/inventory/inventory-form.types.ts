@@ -52,9 +52,11 @@ export const formSchema = z.object({
   certificateCodeIds: z.array(z.string()).optional(),
   transparency: z.string().optional(),
   vendorId: z.string().min(1, "Vendor is required"),
-  pricingMode: z.enum(["PER_CARAT", "FLAT"]),
+  pricingMode: z.enum(["PER_CARAT", "PER_RATTI", "FLAT"]),
   purchaseRatePerCarat: z.coerce.number().optional(),
   sellingRatePerCarat: z.coerce.number().optional(),
+  purchaseRatePerRatti: z.coerce.number().optional(),
+  sellingRatePerRatti: z.coerce.number().optional(),
   flatPurchaseCost: z.coerce.number().optional(),
   flatSellingPrice: z.coerce.number().optional(),
   notes: z.string().optional(),
@@ -94,6 +96,13 @@ export const formSchema = z.object({
     if (!values.sellingRatePerCarat || values.sellingRatePerCarat <= 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sellingRatePerCarat"], message: "Selling rate per carat is required" });
     }
+  } else if (values.pricingMode === "PER_RATTI") {
+    if (!values.purchaseRatePerRatti || values.purchaseRatePerRatti <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["purchaseRatePerRatti"], message: "Purchase rate per ratti is required" });
+    }
+    if (!values.sellingRatePerRatti || values.sellingRatePerRatti <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sellingRatePerRatti"], message: "Selling rate per ratti is required" });
+    }
   } else {
     // For FLAT pricing, ensure values are >= 0 (0 is allowed as a valid price)
     if (values.flatPurchaseCost === undefined || values.flatPurchaseCost === null || values.flatPurchaseCost < 0) {
@@ -124,9 +133,11 @@ export type FormInputValues = {
   certificateCodeIds?: string[] | undefined;
   transparency?: string | undefined;
   vendorId: string;
-  pricingMode: "PER_CARAT" | "FLAT";
+  pricingMode: "PER_CARAT" | "PER_RATTI" | "FLAT";
   purchaseRatePerCarat?: number | undefined;
   sellingRatePerCarat?: number | undefined;
+  purchaseRatePerRatti?: number | undefined;
+  sellingRatePerRatti?: number | undefined;
   flatPurchaseCost?: number | undefined;
   flatSellingPrice?: number | undefined;
   notes?: string | undefined;
@@ -171,11 +182,12 @@ export interface InventoryFormProps {
   rashis: CodeRow[];
   cuts: CodeRow[];
   certificates?: CodeRow[];
+  origins?: string[];
   initialData?: InventoryWithExtras & { media: InventoryMedia[]; rashiCodes?: { id: string }[] };
 }
 
 export const ORIGIN_PRESETS = ["Burma (Myanmar)", "Sri Lanka (Ceylon)", "Kashmir", "Madagascar", "Mozambique", "Thailand", "Colombia", "Zambia"];
-export const FLUORESCENCE_PRESETS = ["None", "Faint", "Medium", "Strong", "Very Strong"];
+export const FLUORESCENCE_PRESETS = ["None", "Faint", "Medium", "Strong", "Very Strong", "Not Applicable"];
 export const TREATMENT_PRESETS = ["None", "Untreated", "Heat", "Oil", "Resin", "Irradiation", "Diffusion", "Glass-Filled"];
 
 export function generateFallbackDescription(values: FormInputValues, sku?: string) {

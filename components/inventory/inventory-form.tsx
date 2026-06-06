@@ -68,7 +68,7 @@ const NotesSection = dynamic(() => import("./inventory-notes").then((m) => m.Not
   loading: () => <div className="rounded-lg border bg-card/50 p-5 space-y-4 animate-pulse"><div className="h-6 w-16 bg-muted rounded" /><div className="h-40 bg-muted rounded" /></div>,
 });
 
-export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], initialData }: InventoryFormProps) {
+export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], origins = [], initialData }: InventoryFormProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [skuPreview, setSkuPreview] = useState<string>("");
@@ -104,9 +104,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       origin: initialData?.origin || "",
       fluorescence: initialData?.fluorescence || "",
       vendorId: initialData?.vendorId || "",
-      pricingMode: (initialData?.pricingMode as "PER_CARAT" | "FLAT") || "PER_CARAT",
+      pricingMode: (initialData?.pricingMode as "PER_CARAT" | "PER_RATTI" | "FLAT") || "PER_CARAT",
       purchaseRatePerCarat: initialData?.purchaseRatePerCarat || 0,
       sellingRatePerCarat: initialData?.sellingRatePerCarat || 0,
+      purchaseRatePerRatti: initialData?.pricingMode === "PER_RATTI" ? (initialData?.purchaseRatePerCarat || 0) : 0,
+      sellingRatePerRatti: initialData?.pricingMode === "PER_RATTI" ? (initialData?.sellingRatePerCarat || 0) : 0,
       flatPurchaseCost: initialData?.flatPurchaseCost || 0,
       flatSellingPrice: initialData?.flatSellingPrice || 0,
       mediaUrl: initialData?.media?.[0]?.mediaUrl || "",
@@ -202,6 +204,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       if (!(w > 0)) fastErrors.push({ field: "weightValue", message: "Weight is required for per-carat pricing" });
       if (!(pr > 0)) fastErrors.push({ field: "purchaseRatePerCarat", message: "Purchase Rate is required" });
       if (!(sr > 0)) fastErrors.push({ field: "sellingRatePerCarat", message: "Selling Rate is required" });
+    } else if (mode === "PER_RATTI") {
+      const pr = Number(data.purchaseRatePerRatti || 0);
+      const sr = Number(data.sellingRatePerRatti || 0);
+      if (!(pr > 0)) fastErrors.push({ field: "purchaseRatePerRatti", message: "Purchase Rate per ratti is required" });
+      if (!(sr > 0)) fastErrors.push({ field: "sellingRatePerRatti", message: "Selling Rate per ratti is required" });
     } else if (mode === "FLAT") {
       const pc = Number(data.flatPurchaseCost || 0);
       const sp = Number(data.flatSellingPrice || 0);
@@ -232,6 +239,12 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       !ignoreDuplicates
         ? toast.loading(initialData ? "Saving inventory..." : "Creating inventory...", { duration: Infinity })
         : null;
+
+    // Map PER_RATTI form fields to PER_CARAT DB columns (reuse same column)
+    if (data.pricingMode === "PER_RATTI") {
+      (data as Record<string, unknown>).purchaseRatePerCarat = data.purchaseRatePerRatti;
+      (data as Record<string, unknown>).sellingRatePerCarat = data.sellingRatePerRatti;
+    }
 
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
@@ -488,7 +501,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               setIsSkuPreviewOpen={setIsSkuPreviewOpen}
             />
 
-            <GemDetailsSection key={`gem-${formResetKey}`} form={form} gemstones={gemstones} colors={colors} cuts={cuts} />
+            <GemDetailsSection key={`gem-${formResetKey}`} form={form} gemstones={gemstones} colors={colors} cuts={cuts} origins={origins} />
 
             <ClassificationSection form={form} certificates={certificates} collections={collections} />
 

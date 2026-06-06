@@ -468,7 +468,9 @@ async function getInventoryData(params: SearchParams) {
       discountPercent: item.discountPercent || 0,
       price: formatCurrency(
         item.pricingMode === "PER_CARAT"
-          ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
+          ? (item.sellingRatePerCarat || 0) * (item.carats || item.weightValue || 0)
+          : item.pricingMode === "PER_RATTI"
+          ? (item.sellingRatePerCarat || 0) * (item.weightRatti || 0)
           : item.flatSellingPrice || 0
       ),
       

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
+import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
 import { generateQuotationToken, generateInvoiceToken } from "@/lib/tokens";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -522,6 +523,17 @@ export async function convertQuotationToInvoice(id: string) {
 
       return invoice.id;
     });
+
+    for (const inv of inventoryItems) {
+      await triggerMarketplaceConflict({
+        inventoryId: inv.id,
+        status: "SOLD",
+        pieces: (inv as { pieces?: number | null }).pieces ?? 0,
+        userId: session.user.id,
+        userName: session.user.name || session.user.email || "Unknown",
+        source: "WEB",
+      });
+    }
 
     await logActivity({
       entityType: "Invoice",

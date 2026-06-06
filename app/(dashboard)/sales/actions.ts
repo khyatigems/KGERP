@@ -5,6 +5,7 @@ import { ensureBillfreePhase1Schema, ensureInvoiceSupportSchema, hasTable, prism
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
+import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
 import { applyCreditNotesOnInvoiceCreation } from "@/lib/invoice-payment";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
@@ -900,6 +901,15 @@ export async function createSale(prevState: unknown, formData: FormData) {
               userId: session.user.id,
               userName: session.user.name || session.user.email || "Unknown",
               newData: data
+          });
+
+          await triggerMarketplaceConflict({
+            inventoryId: itemData.inv.id,
+            status: "SOLD",
+            pieces: itemData.inv.pieces ?? 0,
+            userId: session.user.id,
+            userName: session.user.name || session.user.email || "Unknown",
+            source: "WEB",
           });
       }
 

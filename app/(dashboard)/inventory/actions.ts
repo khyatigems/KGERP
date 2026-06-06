@@ -7,6 +7,7 @@ import { generateSku } from "@/lib/sku";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
+import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
 import { addToCart } from "@/app/(dashboard)/labels/actions";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -62,6 +63,11 @@ function calculateRatti(weight: number, unit: string) {
    return Math.round(ratti * 100) / 100;
 }
 
+function calculateCarats(weight: number, unit: string) {
+  if (unit === "gms") return Number((weight * 5).toFixed(2));
+  return Number(weight.toFixed(2));
+}
+
 const inventorySchema = z.object({
   itemName: z.string().min(1, "Item name is required"),
   internalName: z.string().optional(),
@@ -84,7 +90,7 @@ const inventorySchema = z.object({
   fluorescence: z.string().optional(),
   transparency: z.string().optional(),
   vendorId: z.string().min(1, "Vendor is required"),
-  pricingMode: z.enum(["PER_CARAT", "FLAT"]),
+  pricingMode: z.enum(["PER_CARAT", "PER_RATTI", "FLAT"]),
   purchaseRatePerCarat: z.coerce.number().optional(),
   sellingRatePerCarat: z.coerce.number().optional(),
   flatPurchaseCost: z.coerce.number().optional(),
@@ -162,14 +168,20 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   const data = parsed.data;
 
   const weightRatti = calculateRatti(data.weightValue, data.weightUnit);
+  const carats = calculateCarats(data.weightValue, data.weightUnit);
 
-  const costPrice = data.pricingMode === "PER_CARAT" 
-      ? (data.purchaseRatePerCarat || 0) * (data.weightValue || 0)
-      : (data.flatPurchaseCost || 0);
-
-  const sellingPrice = data.pricingMode === "PER_CARAT"
-      ? (data.sellingRatePerCarat || 0) * (data.weightValue || 0)
-      : (data.flatSellingPrice || 0);
+  let costPrice: number;
+  let sellingPrice: number;
+  if (data.pricingMode === "PER_CARAT") {
+    costPrice = (data.purchaseRatePerCarat || 0) * carats;
+    sellingPrice = (data.sellingRatePerCarat || 0) * carats;
+  } else if (data.pricingMode === "PER_RATTI") {
+    costPrice = (data.purchaseRatePerCarat || 0) * weightRatti;
+    sellingPrice = (data.sellingRatePerCarat || 0) * weightRatti;
+  } else {
+    costPrice = data.flatPurchaseCost || 0;
+    sellingPrice = data.flatSellingPrice || 0;
+  }
 
   const beadSizeLabelCandidate = data.beadSizeLabel || data.beadSize || (data.beadSizeMm != null ? `${data.beadSizeMm}mm` : "");
   const beadSizeLabelNormalized = beadSizeLabelCandidate ? normalizeBeadSizeLabel(beadSizeLabelCandidate) : undefined;
@@ -255,7 +267,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               dimensionsMm: data.dimensionsMm,
               weightValue: data.weightValue,
               weightUnit: data.weightUnit,
-              carats: data.weightValue || 0,
+              carats,
               weightRatti,
               treatment: data.treatment,
               origin: data.origin,
@@ -391,14 +403,22 @@ export async function updateInventory(
 
   const data = parsed.data;
 
-  // Calculate profit
-  const costPrice = data.pricingMode === "PER_CARAT" 
-      ? (data.purchaseRatePerCarat || 0) * (data.weightValue || 0)
-      : (data.flatPurchaseCost || 0);
+  const carats = calculateCarats(data.weightValue, data.weightUnit);
+  // Calculate Ratti
+  const weightRatti = calculateRatti(data.weightValue, data.weightUnit);
 
-  const sellingPrice = data.pricingMode === "PER_CARAT"
-      ? (data.sellingRatePerCarat || 0) * (data.weightValue || 0)
-      : (data.flatSellingPrice || 0);
+  let costPrice: number;
+  let sellingPrice: number;
+  if (data.pricingMode === "PER_CARAT") {
+    costPrice = (data.purchaseRatePerCarat || 0) * carats;
+    sellingPrice = (data.sellingRatePerCarat || 0) * carats;
+  } else if (data.pricingMode === "PER_RATTI") {
+    costPrice = (data.purchaseRatePerCarat || 0) * weightRatti;
+    sellingPrice = (data.sellingRatePerCarat || 0) * weightRatti;
+  } else {
+    costPrice = data.flatPurchaseCost || 0;
+    sellingPrice = data.flatSellingPrice || 0;
+  }
 
   const beadSizeLabelCandidate = data.beadSizeLabel || data.beadSize || (data.beadSizeMm != null ? `${data.beadSizeMm}mm` : "");
   const beadSizeLabelNormalized = beadSizeLabelCandidate ? normalizeBeadSizeLabel(beadSizeLabelCandidate) : undefined;
@@ -440,9 +460,6 @@ export async function updateInventory(
   }
   // --- End Integrity Checks ---
 
-  // Calculate Ratti
-  const weightRatti = calculateRatti(data.weightValue, data.weightUnit);
-
   try {
     const oldInventory = await prisma.inventory.findUnique({ where: { id } });
 
@@ -463,7 +480,7 @@ export async function updateInventory(
       dimensionsMm: data.dimensionsMm,
       weightValue: data.weightValue,
       weightUnit: data.weightUnit,
-      carats: data.weightValue || 0,
+      carats,
       weightRatti,
       treatment: data.treatment,
       origin: data.origin,
@@ -502,6 +519,15 @@ export async function updateInventory(
         actionType: "EDIT",
         oldData: oldInventory,
         newData: updatedInventory,
+    });
+
+    await triggerMarketplaceConflict({
+      inventoryId: id,
+      status: updatedInventory.status,
+      pieces: updatedInventory.pieces,
+      userId: session.user.id,
+      userName: session.user.name || session.user.email || "Unknown",
+      source: "WEB",
     });
 
     if (data.mediaUrls) {
@@ -907,6 +933,14 @@ export async function updateInventoryStatus(
     oldData: { status: current.status },
     newData: { status },
     details: reason ? `Reason: ${reason}` : undefined,
+    userId: session.user.id,
+    userName: session.user.name || session.user.email || "Unknown",
+    source: "WEB",
+  });
+
+  await triggerMarketplaceConflict({
+    inventoryId,
+    status,
     userId: session.user.id,
     userName: session.user.name || session.user.email || "Unknown",
     source: "WEB",

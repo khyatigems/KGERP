@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { KpiCards } from "./kpi-cards";
-import { PrintLabelWidget } from "./print-label-widget";
+import { MarketplaceStatWidget } from "./marketplace-stat-widget";
 import { QuickNotes } from "./quick-notes";
 import { AppLogoLoader } from "@/components/ui/app-logo-loader";
 import { useGlobalLoader } from "@/components/global-loader-provider";
@@ -73,7 +73,7 @@ export function DashboardView() {
       <div className="grid gap-6 lg:grid-cols-4 md:grid-cols-2">
          <InventoryCompletenessWidget />
          <LowActivityAlertsWidget />
-         <PrintLabelWidget count={data.kpis.printLabels.count} lastItem={data.kpis.printLabels.lastItem} />
+         <MarketplaceStatWidget />
          <QuickNotes />
       </div>
 

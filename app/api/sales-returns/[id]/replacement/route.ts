@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureSalesReturnReplacementSchema, prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -176,6 +177,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
       return { memoId: memo.id, invoiceId: replacementInvoice.id, invoiceNumber: replacementInvoice.invoiceNumber, token: replacementInvoice.token };
     });
+
+    for (const item of items as Array<{ inventoryId?: string }>) {
+      if (!item?.inventoryId) continue;
+      await triggerMarketplaceConflict({
+        inventoryId: item.inventoryId,
+        status: "SOLD",
+        userId: session.user.id,
+        userName: session.user.name || session.user.email || "Unknown",
+        source: "SYSTEM",
+      });
+    }
+
     if ((result as any)?.alreadyExists) {
       return NextResponse.json(
         { error: "Replacement already created", invoiceId: (result as any).invoiceId, invoiceNumber: (result as any).invoiceNumber, memoId: (result as any).memoId },

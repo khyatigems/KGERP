@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
+import { logMarketplaceActivity } from "@/lib/marketplace-control-center";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
 
 const listingSchema = z.object({
@@ -72,6 +73,18 @@ export async function addListing(data: z.infer<typeof listingSchema>) {
         newData: listing,
     });
 
+    await logMarketplaceActivity({
+        entityType: "Inventory",
+        entityId: data.inventoryId,
+        entityIdentifier: inventory.sku,
+        actionType: "LISTING_LINKED",
+        details: `${data.platform} listing linked for ${inventory.sku}`,
+        userId: session.user?.id,
+        userName: session.user?.name || session.user?.email || "Unknown",
+        source: "WEB",
+        metadata: { platform: data.platform, listingId: listing.id, listingUrl: data.listingUrl || null },
+    });
+
     revalidatePath("/inventory");
     revalidatePath(`/inventory/${data.inventoryId}`);
     revalidatePath("/listings");
@@ -136,6 +149,18 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
             newData: updated,
         });
 
+        await logMarketplaceActivity({
+            entityType: "Inventory",
+            entityId: existing.inventoryId,
+            entityIdentifier: existing.inventory.sku,
+            actionType: "LISTING_UPDATED",
+            details: `${updated.platform} listing updated for ${existing.inventory.sku}`,
+            userId: session.user?.id,
+            userName: session.user?.name || session.user?.email || "Unknown",
+            source: "WEB",
+            metadata: { platform: updated.platform, listingId: updated.id, listingUrl: updated.listingUrl || null },
+        });
+
         revalidatePath("/inventory");
         revalidatePath(`/inventory/${existing.inventoryId}`);
         revalidatePath("/listings");
@@ -186,6 +211,18 @@ export async function deleteListing(id: string) {
             oldData: existing,
         });
 
+        await logMarketplaceActivity({
+            entityType: "Inventory",
+            entityId: existing.inventoryId,
+            entityIdentifier: existing.inventory.sku,
+            actionType: "LISTING_REMOVED",
+            details: `${existing.platform} listing removed for ${existing.inventory.sku}`,
+            userId: session.user?.id,
+            userName: session.user?.name || session.user?.email || "Unknown",
+            source: "WEB",
+            metadata: { platform: existing.platform, listingId: existing.id },
+        });
+
         revalidatePath("/inventory");
         revalidatePath(`/inventory/${existing.inventoryId}`);
         revalidatePath("/listings");
@@ -226,6 +263,18 @@ export async function updateListingsStatus(ids: string[], status: string) {
                 oldData: { status: listing.status },
                 newData: { status },
             });
+
+            await logMarketplaceActivity({
+                entityType: "Inventory",
+                entityId: listing.inventoryId,
+                entityIdentifier: listing.inventory.sku,
+                actionType: "LISTING_UPDATED",
+                details: `${listing.platform} listing status changed to ${status} for ${listing.inventory.sku}`,
+                userId: session.user?.id,
+                userName: session.user?.name || session.user?.email || "Unknown",
+                source: "WEB",
+                metadata: { platform: listing.platform, listingId: listing.id, status },
+            });
         }
 
         revalidatePath("/inventory");
@@ -264,6 +313,18 @@ export async function deleteListings(ids: string[]) {
                 entityIdentifier: `${listing.platform} - ${listing.inventory.sku}`,
                 actionType: "DELETE",
                 oldData: listing,
+            });
+
+            await logMarketplaceActivity({
+                entityType: "Inventory",
+                entityId: listing.inventoryId,
+                entityIdentifier: listing.inventory.sku,
+                actionType: "LISTING_REMOVED",
+                details: `${listing.platform} listing removed for ${listing.inventory.sku}`,
+                userId: session.user?.id,
+                userName: session.user?.name || session.user?.email || "Unknown",
+                source: "WEB",
+                metadata: { platform: listing.platform, listingId: listing.id },
             });
         }
 

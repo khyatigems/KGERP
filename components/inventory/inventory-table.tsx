@@ -75,6 +75,8 @@ export function InventoryTable({
       const price =
         item.pricingMode === "PER_CARAT"
           ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
+          : item.pricingMode === "PER_RATTI"
+          ? (item.sellingRatePerCarat || 0) * (item.weightRatti || 0)
           : item.flatSellingPrice || 0;
       return acc + Number(price || 0);
     }, 0);
@@ -155,6 +157,8 @@ export function InventoryTable({
                 const price =
                   item.pricingMode === "PER_CARAT"
                     ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
+                    : item.pricingMode === "PER_RATTI"
+                    ? (item.sellingRatePerCarat || 0) * (item.weightRatti || 0)
                     : item.flatSellingPrice || 0;
                 
                 return (

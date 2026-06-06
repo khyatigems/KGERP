@@ -20,6 +20,8 @@ export function InventoryCardList({ data, canManageAttentionVisibility }: Invent
       {data.map((item) => {
         const price = item.pricingMode === "PER_CARAT"
           ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
+          : item.pricingMode === "PER_RATTI"
+          ? (item.sellingRatePerCarat || 0) * (item.weightRatti || 0)
           : item.flatSellingPrice || 0;
         
         const certificateText = item.certificates?.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification;

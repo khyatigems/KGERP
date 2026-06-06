@@ -247,14 +247,20 @@ export default async function InventoryDetailPage({
   const lastEdit = timeline.find((l) => l.actionType === "EDIT");
   
   // Calculate financials
-  const weightVal = detailedItem.weightValue ?? 0;
-  const purchaseCost = detailedItem.pricingMode === "PER_CARAT" 
-      ? (detailedItem.purchaseRatePerCarat || 0) * weightVal 
-      : (detailedItem.flatPurchaseCost || 0);
-      
-  const sellingPrice = detailedItem.pricingMode === "PER_CARAT"
-      ? (detailedItem.sellingRatePerCarat || 0) * weightVal
-      : (detailedItem.flatSellingPrice || 0);
+  const caratsWeight = detailedItem.carats ?? detailedItem.weightValue ?? 0;
+  const rattiWeight = detailedItem.weightRatti ?? 0;
+  let purchaseCost: number;
+  let sellingPrice: number;
+  if (detailedItem.pricingMode === "PER_CARAT") {
+    purchaseCost = (detailedItem.purchaseRatePerCarat || 0) * caratsWeight;
+    sellingPrice = (detailedItem.sellingRatePerCarat || 0) * caratsWeight;
+  } else if (detailedItem.pricingMode === "PER_RATTI") {
+    purchaseCost = (detailedItem.purchaseRatePerCarat || 0) * rattiWeight;
+    sellingPrice = (detailedItem.sellingRatePerCarat || 0) * rattiWeight;
+  } else {
+    purchaseCost = detailedItem.flatPurchaseCost || 0;
+    sellingPrice = detailedItem.flatSellingPrice || 0;
+  }
 
   const profit = sellingPrice - purchaseCost;
   
@@ -534,6 +540,8 @@ export default async function InventoryDetailPage({
                             <span className="font-medium">
                                 {detailedItem.pricingMode === 'PER_CARAT' 
                                     ? formatCurrency(detailedItem.purchaseRatePerCarat || 0) + '/ct' 
+                                    : detailedItem.pricingMode === 'PER_RATTI' 
+                                    ? formatCurrency(detailedItem.purchaseRatePerCarat || 0) + '/ratti' 
                                     : 'Flat Rate'}
                             </span>
                         </div>
@@ -547,6 +555,8 @@ export default async function InventoryDetailPage({
                             <span className="font-medium">
                                 {detailedItem.pricingMode === 'PER_CARAT' 
                                     ? formatCurrency(detailedItem.sellingRatePerCarat || 0) + '/ct' 
+                                    : detailedItem.pricingMode === 'PER_RATTI' 
+                                    ? formatCurrency(detailedItem.sellingRatePerCarat || 0) + '/ratti' 
                                     : 'Flat Rate'}
                             </span>
                         </div>

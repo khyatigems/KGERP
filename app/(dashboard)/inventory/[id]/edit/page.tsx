@@ -38,6 +38,7 @@ async function getInventoryData(id: string) {
       cachedMasters.getRashis(prisma)(),
       cachedMasters.getCuts(prisma)(),
       cachedMasters.getCertificates(prisma)(),
+      prisma.$queryRawUnsafe<Array<{ origin: string }>>(`SELECT DISTINCT "origin" FROM "Inventory" WHERE "origin" IS NOT NULL AND "origin" <> '' ORDER BY "origin"`),
     ]);
     return { success: true, data };
   } catch (error) {
@@ -68,7 +69,8 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
     );
   }
 
-  const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts, certificates] = result.data!;
+  const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts, certificates, originRows] = result.data!;
+  const origins = originRows.map((r: { origin: string }) => r.origin);
 
   if (!inventory) {
       notFound();
@@ -101,6 +103,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
             rashis={rashis}
             cuts={cuts}
             certificates={certificates}
+            origins={origins}
             initialData={inventory} 
           />
         </div>

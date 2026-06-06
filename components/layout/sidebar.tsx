@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, RotateCcw, ShoppingBag, Truck, Users, BarChart3, CreditCard, UserCog, Settings, Wallet, Image as ImageIcon } from "lucide-react";
+import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, RotateCcw, ShoppingBag, Truck, Users, BarChart3, CreditCard, UserCog, Settings, Wallet, Image as ImageIcon, LayoutDashboard, AlertTriangle } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 
@@ -11,6 +11,8 @@ export const navItems = [
   { href: "/", label: "Dashboard", icon: Home, module: "dashboard" },
   { href: "/inventory", label: "Inventory", icon: Diamond, module: "inventory:view" },
   { href: "/listings", label: "Listings", icon: Globe, module: "listings:view" },
+  { href: "/marketplace-control-center", label: "Marketplace Control Center", icon: LayoutDashboard, module: "listings:view" },
+  { href: "/marketplace-conflicts", label: "Marketplace Conflicts", icon: AlertTriangle, module: "listings:view" },
   { href: "/labels", label: "Labels", icon: Tag, module: "reports:view" },
   { href: "/erp/packaging", label: "Packaging Identity", icon: PackageCheck, module: "packaging:view" },
   { href: "/quotes", label: "Quotations", icon: FileText, module: "quotations:view" },

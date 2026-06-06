@@ -12,7 +12,7 @@ import { createCode } from "@/app/(dashboard)/settings/codes/actions";
 import type { CodeRow, FormInputValues } from "./inventory-form.types";
 
 const ORIGIN_PRESETS = ["Burma (Myanmar)", "Sri Lanka (Ceylon)", "Kashmir", "Madagascar", "Mozambique", "Thailand", "Colombia", "Zambia"];
-const FLUORESCENCE_PRESETS = ["None", "Faint", "Medium", "Strong", "Very Strong"];
+const FLUORESCENCE_PRESETS = ["None", "Faint", "Medium", "Strong", "Very Strong", "Not Applicable"];
 const TREATMENT_PRESETS = ["None", "Untreated", "Heat", "Oil", "Resin", "Irradiation", "Diffusion", "Glass-Filled"];
 
 interface GemDetailsSectionProps {
@@ -20,14 +20,21 @@ interface GemDetailsSectionProps {
   gemstones: CodeRow[];
   colors: CodeRow[];
   cuts: CodeRow[];
+  origins?: string[];
 }
 
-export function GemDetailsSection({ form, gemstones, colors, cuts }: GemDetailsSectionProps) {
+export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, origins = [] }: GemDetailsSectionProps) {
   const [colorsList, setColorsList] = useState(colors);
   const [isAddingColor, setIsAddingColor] = useState(false);
   const [newColorName, setNewColorName] = useState("");
   const [newColorCode, setNewColorCode] = useState("");
   const [isCreatingColor, setIsCreatingColor] = useState(false);
+
+  const [cutsList, setCutsList] = useState(initialCuts);
+  const [isAddingCut, setIsAddingCut] = useState(false);
+  const [newCutName, setNewCutName] = useState("");
+  const [newCutCode, setNewCutCode] = useState("");
+  const [isCreatingCut, setIsCreatingCut] = useState(false);
 
   const [useCustomOrigin, setUseCustomOrigin] = useState(false);
   const [useCustomTreatment, setUseCustomTreatment] = useState(false);
@@ -38,6 +45,8 @@ export function GemDetailsSection({ form, gemstones, colors, cuts }: GemDetailsS
   const origin = form.watch("origin");
   const fluorescence = form.watch("fluorescence");
   const treatment = form.watch("treatment");
+
+  const allOrigins = [...new Set([...ORIGIN_PRESETS, ...origins])];
 
   useEffect(() => {
     if (origin && !ORIGIN_PRESETS.includes(origin)) setUseCustomOrigin(true);
@@ -94,6 +103,36 @@ export function GemDetailsSection({ form, gemstones, colors, cuts }: GemDetailsS
       toast.error("Failed to create color");
     } finally {
       setIsCreatingColor(false);
+    }
+  };
+
+  const handleCreateCut = async () => {
+    if (!newCutName || !newCutCode) return;
+    setIsCreatingCut(true);
+    const formData = new FormData();
+    formData.append("name", newCutName);
+    formData.append("code", newCutCode);
+    formData.append("status", "ACTIVE");
+    try {
+      const res = await createCode("cuts", formData);
+      if (res.error) {
+        toast.error(res.error);
+      } else if (res.data) {
+        toast.success("Cut added successfully");
+        setCutsList(prev =>
+          [...prev, { ...res.data, code: res.data.code || "", status: "ACTIVE", createdAt: new Date(), updatedAt: new Date() }]
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
+        form.setValue("cutCodeId", res.data.id);
+        setIsAddingCut(false);
+        setNewCutName("");
+        setNewCutCode("");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create cut");
+    } finally {
+      setIsCreatingCut(false);
     }
   };
 
@@ -238,7 +277,59 @@ export function GemDetailsSection({ form, gemstones, colors, cuts }: GemDetailsS
             name="cutCodeId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cut</FormLabel>
+                <FormLabel className="flex items-center justify-between">
+                  Cut
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                    onClick={() => setIsAddingCut(!isAddingCut)}
+                  >
+                    {isAddingCut ? <X className="w-3 h-3 mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
+                    {isAddingCut ? "Cancel" : "Add Cut"}
+                  </Button>
+                </FormLabel>
+                {isAddingCut && (
+                  <div className="mb-2 p-3 border rounded-md bg-muted/30 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Name</label>
+                        <Input
+                          value={newCutName}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewCutName(val);
+                            if (!newCutCode && val) {
+                              setNewCutCode(val.slice(0, 4).toUpperCase());
+                            }
+                          }}
+                          placeholder="e.g. Cabochon"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Code</label>
+                        <Input
+                          value={newCutCode}
+                          onChange={(e) => setNewCutCode(e.target.value.toUpperCase().slice(0, 6))}
+                          placeholder="e.g. CAB"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full h-7 text-xs"
+                      onClick={handleCreateCut}
+                      disabled={!newCutName || !newCutCode || isCreatingCut}
+                    >
+                      {isCreatingCut ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                      Save New Cut
+                    </Button>
+                  </div>
+                )}
                 <Select onValueChange={field.onChange} value={field.value || ""}>
                   <FormControl>
                     <SelectTrigger>
@@ -246,7 +337,7 @@ export function GemDetailsSection({ form, gemstones, colors, cuts }: GemDetailsS
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {cuts.map((c) => (
+                    {cutsList.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name} ({c.code})
                       </SelectItem>
@@ -356,14 +447,9 @@ export function GemDetailsSection({ form, gemstones, colors, cuts }: GemDetailsS
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Burma (Myanmar)">Burma (Myanmar)</SelectItem>
-                        <SelectItem value="Sri Lanka (Ceylon)">Sri Lanka (Ceylon)</SelectItem>
-                        <SelectItem value="Kashmir">Kashmir</SelectItem>
-                        <SelectItem value="Madagascar">Madagascar</SelectItem>
-                        <SelectItem value="Mozambique">Mozambique</SelectItem>
-                        <SelectItem value="Thailand">Thailand</SelectItem>
-                        <SelectItem value="Colombia">Colombia</SelectItem>
-                        <SelectItem value="Zambia">Zambia</SelectItem>
+                        {allOrigins.map((o) => (
+                          <SelectItem key={o} value={o}>{o}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}
@@ -406,6 +492,7 @@ export function GemDetailsSection({ form, gemstones, colors, cuts }: GemDetailsS
                         <SelectItem value="Medium">Medium</SelectItem>
                         <SelectItem value="Strong">Strong</SelectItem>
                         <SelectItem value="Very Strong">Very Strong</SelectItem>
+                        <SelectItem value="Not Applicable">Not Applicable</SelectItem>
                       </SelectContent>
                     </Select>
                   )}

@@ -21,6 +21,13 @@ function computeRatti(weight: unknown, unit: string): number {
   return 0;
 }
 
+function computeCarats(weight: unknown, unit: string): number {
+  const val = Number(weight) || 0;
+  if (unit === "cts") return Number(val.toFixed(2));
+  if (unit === "gms") return Number((val * 5).toFixed(2));
+  return 0;
+}
+
 export function MeasurementsSection({ form, categoryName, categories = [] }: MeasurementsSectionProps) {
   const weightValue = form.watch("weightValue");
   const weightUnit = form.watch("weightUnit");
@@ -31,8 +38,8 @@ export function MeasurementsSection({ form, categoryName, categories = [] }: Mea
     isBraceletSelection(categoryName, undefined, gemType, categories);
 
   const calculatedRatti = computeRatti(weightValue, weightUnit);
+  const calculatedCarats = computeCarats(weightValue, weightUnit);
 
-  // Sync calculated ratti into form state for submission
   useEffect(() => {
     const currentRatti = form.getValues("weightRatti");
     const epsilon = 0.01;
@@ -47,7 +54,7 @@ export function MeasurementsSection({ form, categoryName, categories = [] }: Mea
       <div className="rounded-lg border bg-card/50 p-5 space-y-4">
         <h3 className="text-base font-semibold">Measurements</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <FormField
             control={form.control}
             name="weightValue"
@@ -107,6 +114,12 @@ export function MeasurementsSection({ form, categoryName, categories = [] }: Mea
               </FormItem>
             )}
           />
+          <div>
+            <FormLabel className="text-sm font-medium">Carat Weight</FormLabel>
+            <div className="bg-muted h-10 w-full rounded-md border px-3 text-sm flex items-center mt-2">
+              {calculatedCarats}
+            </div>
+          </div>
         </div>
 
         <FormField
