@@ -65,7 +65,21 @@ export async function generateGciCertificate(
       return { success: false, error: `Missing required certificate fields: ${missing.join(", ")}` };
     }
 
-    // 2. Prepare Data for GCI API
+    // 2. Determine Certificate Type based on Category
+    const JEWELLERY_CATEGORY_MAP: Record<string, string> = {
+      'cat-br': 'bracelet',
+      'cat-bd': 'bracelet',  // Beads treated as Bracelets per user requirement
+      'cat-rg': 'ring',
+      'cat-pd': 'pendant',
+      'cat-fg': 'others',    // Figure/Idol → others
+      'cat-sc': 'bracelet',  // Seven Chakra → bracelet
+    };
+    
+    const categoryCodeId = inventory.categoryCodeId;
+    const certificateType = categoryCodeId && JEWELLERY_CATEGORY_MAP[categoryCodeId] ? 'jewellery' : 'gemstone';
+    const jewelleryType = categoryCodeId ? (JEWELLERY_CATEGORY_MAP[categoryCodeId] || null) : null;
+
+    // 3. Prepare Data for GCI API
     const variety = varietyField || "Gemstone";
     const species = speciesField || "Natural Gemstone";
     
@@ -90,17 +104,18 @@ export async function generateGciCertificate(
     const gciUrl = process.env.GCI_API_URL?.trim();
     const gciKey = process.env.GCI_API_KEY?.trim();
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       variety: variety,
       species: species,
       weight: inventory.weightValue || inventory.carats || 0,
       shape: inventory.shape || inventory.cut || "Unknown",
       color: inventory.color || "Unknown",
       dimensions: inventory.measurements || inventory.dimensionsMm || "Unknown",
-      customer_name: "KhyatiGems Stock", // Default owner
+      customer_name: "KhyatiGems Stock",
       image_base64: imageBase64,
-      api_key: gciKey, // Also pass in body as fallback
-      // Additional Data (from modal or defaults)
+      api_key: gciKey,
+      certificate_type: certificateType,
+      jewellery_type: jewelleryType,
       origin: additionalData?.origin || inventory.origin || "Unknown",
       treatment: additionalData?.treatment || inventory.treatment || "None",
       fluorescence: additionalData?.fluorescence || inventory.fluorescence || "None",
