@@ -132,7 +132,9 @@ function processRates(
   const displayRate = toDisplayRate(final.mean, pricingMode);
   const displayMin = toDisplayRate(final.min, pricingMode);
   const displayMax = toDisplayRate(final.max, pricingMode);
-  const totalPrice = computeTotalPrice(displayRate, pricingMode, carats, weightRatti);
+  const totalPrice = (carats > 0 || weightRatti > 0)
+    ? computeTotalPrice(displayRate, pricingMode, carats, weightRatti)
+    : null;
 
   const purchaseRates = rows
     .map((r) => r.normalizedPurchaseRate)
@@ -176,19 +178,6 @@ export async function getPriceSuggestions(
 
   const carats = computeCarats(weightValue, weightUnit);
   const weightRatti = computeWeightRatti(weightValue, weightUnit);
-
-  if (!weightValue || weightValue <= 0) {
-    return {
-      suggestedSellingRate: null,
-      suggestedSellingPrice: null,
-      suggestedPurchaseRate: null,
-      confidence: 0,
-      sampleCount: 0,
-      minRate: null,
-      maxRate: null,
-      matchLevel: "none",
-    };
-  }
 
   if (categoryCodeId && gemstoneCodeId && vendorId) {
     const exact = await queryRates(

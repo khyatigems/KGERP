@@ -16,19 +16,6 @@ export async function GET(request: NextRequest) {
   const weightUnit = searchParams.get("weightUnit") || "cts";
   const pricingMode = (searchParams.get("pricingMode") || "PER_CARAT") as "PER_CARAT" | "PER_RATTI" | "FLAT";
 
-  if (!weightValue || weightValue <= 0) {
-    return NextResponse.json({
-      suggestedSellingRate: null,
-      suggestedSellingPrice: null,
-      suggestedPurchaseRate: null,
-      confidence: 0,
-      sampleCount: 0,
-      minRate: null,
-      maxRate: null,
-      matchLevel: "none",
-    });
-  }
-
   try {
     const result = await getPriceSuggestions({
       categoryCodeId,

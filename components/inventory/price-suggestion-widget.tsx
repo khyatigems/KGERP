@@ -39,7 +39,6 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
 
   const fetchSuggestion = useCallback(async () => {
     if (!categoryCodeId && !gemstoneCodeId) return;
-    if (!weightValue || weightValue <= 0) return;
 
     const reqId = ++lastReqRef.current;
     setLoading(true);
@@ -80,6 +79,13 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
       if (reqId === lastReqRef.current) setLoading(false);
     }
   }, [categoryCodeId, gemstoneCodeId, vendorId, weightValue, weightUnit, pricingMode]);
+
+  const checkPrice = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setSuggestion(null);
+    setHasApplied(false);
+    fetchSuggestion();
+  }, [fetchSuggestion]);
 
   // Reset suggestion when form fields change so stale data is never shown
   useEffect(() => {
@@ -140,7 +146,7 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
     setHasApplied(true);
   };
 
-  const canFetch = (!!categoryCodeId || !!gemstoneCodeId) && (weightValue > 0);
+  const canFetch = !!(categoryCodeId || gemstoneCodeId);
   const hasSuggestion = suggestion && suggestion.matchLevel !== "none";
   const fetchComplete = suggestion !== null;
 
@@ -164,13 +170,26 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
       <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
         <Lightbulb className="h-4 w-4" />
         Price Suggestion
-        {loading && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
+        <div className="ml-auto flex items-center gap-2">
+          {loading && <Loader2 className="h-3 w-3 animate-spin" />}
+          {canFetch && !loading && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={checkPrice}
+              className="h-6 text-[11px] px-2 py-0 border-blue-300 text-blue-700 hover:bg-blue-100"
+            >
+              {hasSuggestion || fetchComplete ? "Refresh" : "Check Price"}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* No category/weight entered */}
+      {/* No category/gemstone selected */}
       {!canFetch && (
         <p className="text-xs text-gray-600">
-          Select a category and enter weight to see price suggestions.
+          Select a category or gemstone to see price suggestions.
         </p>
       )}
 
