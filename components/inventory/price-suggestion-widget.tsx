@@ -81,6 +81,12 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
     }
   }, [categoryCodeId, gemstoneCodeId, vendorId, weightValue, weightUnit, pricingMode]);
 
+  // Reset suggestion when form fields change so stale data is never shown
+  useEffect(() => {
+    setSuggestion(null);
+    setHasApplied(false);
+  }, [categoryCodeId, gemstoneCodeId, vendorId, weightValue, weightUnit, pricingMode]);
+
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(fetchSuggestion, 500);
@@ -136,6 +142,7 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
 
   const canFetch = (!!categoryCodeId || !!gemstoneCodeId) && (weightValue > 0);
   const hasSuggestion = suggestion && suggestion.matchLevel !== "none";
+  const fetchComplete = suggestion !== null;
 
   const confidencePct = Math.round((suggestion?.confidence ?? 0) * 100);
   const barColor =
@@ -152,9 +159,6 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
     none: "No data",
   };
 
-  const shouldShowNoData =
-    suggestion !== null && !hasSuggestion;
-
   return (
     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
       <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
@@ -163,23 +167,27 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
         {loading && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
       </div>
 
-      {!canFetch && !loading && !shouldShowNoData && (
+      {/* No category/weight entered */}
+      {!canFetch && (
         <p className="text-xs text-gray-600">
           Select a category and enter weight to see price suggestions.
         </p>
       )}
 
-      {loading && !hasSuggestion && (
+      {/* Waiting for debounce or fetch in progress */}
+      {canFetch && !fetchComplete && (
         <p className="text-xs text-gray-600">Analyzing prices…</p>
       )}
 
-      {shouldShowNoData && !loading && !hasSuggestion && (
+      {/* Fetch completed, no matches */}
+      {canFetch && fetchComplete && !hasSuggestion && !loading && (
         <div className="flex items-start gap-2 text-xs text-gray-600">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-400" />
           <span>No similar items found in the database for the current selection.</span>
         </div>
       )}
 
+      {/* Fetch completed, has suggestion */}
       {hasSuggestion && (
         <>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
