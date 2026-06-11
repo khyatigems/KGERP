@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPriceSuggestions } from "@/lib/price-suggestion";
+import { getPriceSuggestionSamples } from "@/lib/price-suggestion";
 import { auth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const pricingMode = (searchParams.get("pricingMode") || "PER_CARAT") as "PER_CARAT" | "PER_RATTI" | "FLAT";
 
   try {
-    const result = await getPriceSuggestions({
+    const samples = await getPriceSuggestionSamples({
       categoryCodeId,
       gemstoneCodeId,
       vendorId,
@@ -26,18 +26,9 @@ export async function GET(request: NextRequest) {
       pricingMode,
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json({ samples });
   } catch (err) {
-    console.error("[price-suggestion] API route error:", err);
-    return NextResponse.json({
-      suggestedSellingRate: null,
-      suggestedSellingPrice: null,
-      suggestedPurchaseRate: null,
-      confidence: 0,
-      sampleCount: 0,
-      minRate: null,
-      maxRate: null,
-      matchLevel: "none",
-    });
+    console.error("[price-suggestion/samples] API route error:", err);
+    return NextResponse.json({ samples: [] });
   }
 }

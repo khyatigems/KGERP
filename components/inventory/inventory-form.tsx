@@ -128,7 +128,6 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       categoryCodeId:
         initialData?.categoryCodeId ||
         (categories.find((c) => c.name === (initialData?.category || ""))?.id ??
-          categories[0]?.id ??
           ""),
       gemstoneCodeId:
         initialData?.gemstoneCodeId ||
@@ -334,7 +333,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
             flatPurchaseCost: 0,
             flatSellingPrice: 0,
             stockLocation: "",
-            categoryCodeId: categories[0]?.id || "",
+            categoryCodeId: "",
             gemstoneCodeId: "",
             colorCodeId: "",
             collectionCodeId: "",
@@ -462,6 +461,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   async function handleSubmitClick(shouldRedirect: boolean) {
     if (isPending) return;
 
+    // Ensure code IDs are in sync with selected names before submit
+    if (selectedCategory) form.setValue("categoryCodeId", selectedCategory.id);
+    if (selectedGemstone) form.setValue("gemstoneCodeId", selectedGemstone.id);
+    if (selectedColor) form.setValue("colorCodeId", selectedColor.id);
+
     console.info(`[inventory-form] ${shouldRedirect ? "create" : "save-add-new"} clicked`);
     setShouldRedirectAfterSave(shouldRedirect);
     form.clearErrors();
@@ -477,6 +481,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   }
 
   const handleSaveAnyway = async () => {
+    // Ensure code IDs are in sync before save
+    if (selectedCategory) form.setValue("categoryCodeId", selectedCategory.id);
+    if (selectedGemstone) form.setValue("gemstoneCodeId", selectedGemstone.id);
+    if (selectedColor) form.setValue("colorCodeId", selectedColor.id);
+
     const data = form.getValues();
     await submitInventory(data as unknown as z.output<typeof formSchema>, true, shouldRedirectAfterSave);
   };
@@ -511,7 +520,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
           <div className="space-y-6" key={`right-${formResetKey}`}>
             <MeasurementsSection form={form} categoryName={watchCategory} categories={categories} />
 
-            <PricingSection form={form} vendors={vendors} />
+            <PricingSection form={form} vendors={vendors} categories={categories} gemstones={gemstones} />
 
             <div className="rounded-lg border bg-card/50 p-5 space-y-4">
               <h3 className="text-base font-semibold">Media Upload</h3>

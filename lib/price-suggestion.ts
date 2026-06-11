@@ -20,9 +20,14 @@ export interface PriceSuggestionResult {
   matchLevel: "exact" | "close" | "broad" | "none";
 }
 
-interface RawRateRow {
-  normalizedSellingRate: number | null;
-  normalizedPurchaseRate: number | null;
+interface InventoryRow {
+  pricingMode: string | null;
+  sellingRatePerCarat: number | null;
+  purchaseRatePerCarat: number | null;
+  flatSellingPrice: number | null;
+  flatPurchaseCost: number | null;
+  carats: number | null;
+  sellingPrice: number | null;
 }
 
 const RATTI_TO_CARAT = 0.917;
@@ -37,38 +42,69 @@ function computeWeightRatti(weightValue: number, weightUnit: string): number {
   return weightValue / RATTI_TO_CARAT;
 }
 
+function normalizeRates(row: InventoryRow): { selling: number | null; purchase: number | null } {
+  const pm = row.pricingMode;
+  let selling: number | null = null;
+  let purchase: number | null = null;
+
+  if (pm === "PER_RATTI") {
+    selling = (row.sellingRatePerCarat ?? 0) / RATTI_TO_CARAT;
+    purchase = (row.purchaseRatePerCarat ?? 0) / RATTI_TO_CARAT;
+  } else if (pm === "FLAT" || pm === "FIXED") {
+    const carats = row.carats ?? 0;
+    const flatSelling = row.flatSellingPrice ?? 0;
+    const flatPurchase = row.flatPurchaseCost ?? 0;
+    selling = carats > 0 ? (flatSelling > 0 ? flatSelling : (row.sellingPrice ?? 0)) / carats : null;
+    purchase = carats > 0 ? (flatPurchase > 0 ? flatPurchase : 0) / carats : null;
+  } else {
+    selling = row.sellingRatePerCarat ?? null;
+    purchase = row.purchaseRatePerCarat ?? null;
+  }
+
+  return { selling, purchase };
+}
+
+function hasValidRate(row: InventoryRow): boolean {
+  const pm = row.pricingMode;
+  if (pm === "FLAT" || pm === "FIXED") {
+    return (row.flatSellingPrice ?? 0) > 0 || (row.sellingPrice ?? 0) > 0;
+  }
+  return (row.sellingRatePerCarat ?? 0) > 0;
+}
+
 async function queryRates(
-  whereConditions: string,
-  params: unknown[]
-): Promise<RawRateRow[]> {
-  const sql = `
-    SELECT
-      CASE
-        WHEN i."pricingMode" = 'PER_RATTI' THEN i."sellingRatePerCarat" / ${RATTI_TO_CARAT}
-        WHEN i."pricingMode" IN ('FLAT', 'FIXED') THEN i."flatSellingPrice" / NULLIF(i."carats", 0)
-        ELSE i."sellingRatePerCarat"
-      END as "normalizedSellingRate",
-      CASE
-        WHEN i."pricingMode" = 'PER_RATTI' THEN i."purchaseRatePerCarat" / ${RATTI_TO_CARAT}
-        WHEN i."pricingMode" IN ('FLAT', 'FIXED') THEN i."flatPurchaseCost" / NULLIF(i."carats", 0)
-        ELSE i."purchaseRatePerCarat"
-      END as "normalizedPurchaseRate"
-    FROM "Inventory" i
-    WHERE i."status" = 'IN_STOCK'
-      AND (
-        (i."carats" > 0 AND i."sellingRatePerCarat" > 0)
-        OR (i."pricingMode" IN ('FLAT', 'FIXED') AND i."flatSellingPrice" > 0)
-      )
-      ${whereConditions}
-    ORDER BY i."createdAt" DESC
-    LIMIT 1000
-  `;
+  where: Record<string, unknown>
+): Promise<Array<{ selling: number; purchase: number }>> {
   try {
-    return (await prisma.$queryRawUnsafe(sql, ...params)) as RawRateRow[];
+    const rows = await prisma.inventory.findMany({
+      where: {
+        status: "IN_STOCK",
+        ...where,
+      },
+      select: {
+        pricingMode: true,
+        sellingRatePerCarat: true,
+        purchaseRatePerCarat: true,
+        flatSellingPrice: true,
+        flatPurchaseCost: true,
+        carats: true,
+        sellingPrice: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 1000,
+    });
+
+    const results: Array<{ selling: number; purchase: number }> = [];
+    for (const row of rows) {
+      if (!hasValidRate(row)) continue;
+      const { selling, purchase } = normalizeRates(row);
+      if (selling !== null && selling > 0 && Number.isFinite(selling)) {
+        results.push({ selling, purchase: purchase ?? 0 });
+      }
+    }
+    return results;
   } catch (err) {
     console.error("[price-suggestion] queryRates FAILED:", err);
-    console.error("[price-suggestion] SQL:", sql);
-    console.error("[price-suggestion] Params:", params);
     return [];
   }
 }
@@ -112,14 +148,12 @@ function calcStats(values: number[]): {
 }
 
 function processRates(
-  rows: RawRateRow[],
+  rates: Array<{ selling: number; purchase: number }>,
   pricingMode: string,
   carats: number,
   weightRatti: number
 ): Omit<PriceSuggestionResult, "matchLevel"> | null {
-  const sellingRates = rows
-    .map((r) => r.normalizedSellingRate)
-    .filter((v): v is number => v !== null && v > 0 && Number.isFinite(v));
+  const sellingRates = rates.map((r) => r.selling);
   if (sellingRates.length === 0) return null;
 
   const raw = calcStats(sellingRates);
@@ -138,9 +172,9 @@ function processRates(
     ? computeTotalPrice(displayRate, pricingMode, carats, weightRatti)
     : null;
 
-  const purchaseRates = rows
-    .map((r) => r.normalizedPurchaseRate)
-    .filter((v): v is number => v !== null && v > 0 && Number.isFinite(v));
+  const purchaseRates = rates
+    .map((r) => r.purchase)
+    .filter((v): v is number => v > 0 && Number.isFinite(v));
   const avgPurchaseRate =
     purchaseRates.length > 0
       ? purchaseRates.reduce((s, v) => s + v, 0) / purchaseRates.length
@@ -160,12 +194,89 @@ function processRates(
   };
 }
 
+export interface SampleDetail {
+  sku: string | null;
+  itemName: string;
+  weightCarats: number;
+  sellingRate: number;
+  purchaseRate: number;
+  pricingMode: string;
+}
+
+async function querySamples(
+  where: Record<string, unknown>,
+  pricingMode: string
+): Promise<SampleDetail[]> {
+  try {
+    const rows = await prisma.inventory.findMany({
+      where: {
+        status: "IN_STOCK",
+        ...where,
+      },
+      select: {
+        sku: true,
+        itemName: true,
+        carats: true,
+        pricingMode: true,
+        sellingRatePerCarat: true,
+        purchaseRatePerCarat: true,
+        flatSellingPrice: true,
+        flatPurchaseCost: true,
+        sellingPrice: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    const results: SampleDetail[] = [];
+    for (const row of rows) {
+      if (!hasValidRate(row)) continue;
+      const { selling, purchase } = normalizeRates(row);
+      if (selling !== null && selling > 0 && Number.isFinite(selling)) {
+        results.push({
+          sku: row.sku,
+          itemName: row.itemName,
+          weightCarats: row.carats ?? 0,
+          sellingRate: toDisplayRate(selling, pricingMode),
+          purchaseRate: purchase !== null ? toDisplayRate(purchase, pricingMode) : 0,
+          pricingMode: row.pricingMode ?? "PER_CARAT",
+        });
+      }
+    }
+    return results;
+  } catch (err) {
+    console.error("[price-suggestion] querySamples FAILED:", err);
+    return [];
+  }
+}
+
+export async function getPriceSuggestionSamples(
+  params: PriceSuggestionParams
+): Promise<SampleDetail[]> {
+  const { categoryCodeId, gemstoneCodeId, vendorId, pricingMode } = params;
+
+  if (categoryCodeId && gemstoneCodeId && vendorId) {
+    const samples = await querySamples({ categoryCodeId, gemstoneCodeId, vendorId }, pricingMode);
+    if (samples.length >= 2) return samples;
+  }
+
+  if (categoryCodeId && gemstoneCodeId) {
+    const samples = await querySamples({ categoryCodeId, gemstoneCodeId }, pricingMode);
+    if (samples.length > 0) return samples;
+  }
+
+  if (categoryCodeId) {
+    const samples = await querySamples({ categoryCodeId }, pricingMode);
+    if (samples.length > 0) return samples;
+  }
+
+  return [];
+}
+
 export async function getPriceSuggestions(
   params: PriceSuggestionParams
 ): Promise<PriceSuggestionResult> {
   const { categoryCodeId, gemstoneCodeId, vendorId, weightValue, weightUnit, pricingMode } = params;
-
-  console.log("[price-suggestion] params:", JSON.stringify(params));
 
   if (!categoryCodeId && !gemstoneCodeId) {
     return {
@@ -184,31 +295,29 @@ export async function getPriceSuggestions(
   const weightRatti = computeWeightRatti(weightValue, weightUnit);
 
   if (categoryCodeId && gemstoneCodeId && vendorId) {
-    const exact = await queryRates(
-      `AND i."categoryCodeId" = ? AND i."gemstoneCodeId" = ? AND i."vendorId" = ?`,
-      [categoryCodeId, gemstoneCodeId, vendorId]
-    );
+    const exact = await queryRates({
+      categoryCodeId,
+      gemstoneCodeId,
+      vendorId,
+    });
     const r = processRates(exact, pricingMode, carats, weightRatti);
-    console.log("[price-suggestion] exact tier:", exact.length, "rows,", r ? `${r.sampleCount} samples` : "null");
     if (r && r.sampleCount >= 2) return { ...r, matchLevel: "exact" };
   }
 
   if (categoryCodeId && gemstoneCodeId) {
-    const close = await queryRates(
-      `AND i."categoryCodeId" = ? AND i."gemstoneCodeId" = ?`,
-      [categoryCodeId, gemstoneCodeId]
-    );
+    const close = await queryRates({
+      categoryCodeId,
+      gemstoneCodeId,
+    });
     const r = processRates(close, pricingMode, carats, weightRatti);
-    console.log("[price-suggestion] close tier:", close.length, "rows,", r ? `${r.sampleCount} samples` : "null");
-    if (r && r.sampleCount >= 2) return { ...r, matchLevel: "close" };
+    if (r) return { ...r, matchLevel: "close" };
   }
 
   if (categoryCodeId) {
-    const broad = await queryRates(`AND i."categoryCodeId" = ?`, [
+    const broad = await queryRates({
       categoryCodeId,
-    ]);
+    });
     const r = processRates(broad, pricingMode, carats, weightRatti);
-    console.log("[price-suggestion] broad tier:", broad.length, "rows,", r ? `${r.sampleCount} samples` : "null");
     if (r) return { ...r, matchLevel: "broad" };
   }
 

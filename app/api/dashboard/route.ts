@@ -155,7 +155,10 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(payload);
+    const safe = JSON.parse(JSON.stringify(payload, (_key, value) =>
+      typeof value === "bigint" ? Number(value) : value
+    ));
+    return NextResponse.json(safe);
 
   } catch (error) {
     console.error("Dashboard error:", error);

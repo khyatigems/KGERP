@@ -6,15 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { FormInputValues } from "./inventory-form.types";
+import type { FormInputValues, CodeRow } from "./inventory-form.types";
 import { PriceSuggestionWidget } from "./price-suggestion-widget";
 
 interface PricingSectionProps {
   form: UseFormReturn<FormInputValues>;
   vendors: { id: string; name: string }[];
+  categories: CodeRow[];
+  gemstones: CodeRow[];
 }
 
-export function PricingSection({ form, vendors }: PricingSectionProps) {
+export function PricingSection({ form, vendors, categories, gemstones }: PricingSectionProps) {
   const pricingMode = useWatch({
     control: form.control,
     name: "pricingMode",
@@ -135,7 +137,7 @@ export function PricingSection({ form, vendors }: PricingSectionProps) {
           )}
         />
 
-        <PriceSuggestionWidget form={form} />
+        <PriceSuggestionWidget form={form} categories={categories} gemstones={gemstones} />
 
         {pricingMode === "PER_CARAT" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
