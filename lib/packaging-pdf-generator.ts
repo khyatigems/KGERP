@@ -704,8 +704,7 @@ async function renderMultiItemLabel(
   // -----------------------------
   if (hasField(options, "qr")) {
     try {
-      const allSerials = items.map(it => it.serial).join(",");
-      const qrText = `https://erp.khyatigems.com/verify/${allSerials}`;
+      const qrText = `https://erp.khyatigems.com/verify/${items[0].serial}`;
       const qr = await makeQrPng(qrText);
       const qrY = contentY + 2;
       const qrXCentered = rightX + (rightW - qrSize) / 2;
