@@ -30,6 +30,9 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastReqRef = useRef(0);
 
+  // Watch name fields AND codeId fields for resilience
+  const category = form.watch("category");
+  const gemType = form.watch("gemType");
   const categoryCodeId = form.watch("categoryCodeId");
   const gemstoneCodeId = form.watch("gemstoneCodeId");
   const vendorId = form.watch("vendorId");
@@ -38,7 +41,10 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
   const pricingMode = form.watch("pricingMode") || "PER_CARAT";
 
   const fetchSuggestion = useCallback(async () => {
-    if (!categoryCodeId && !gemstoneCodeId) return;
+    if (!categoryCodeId && !gemstoneCodeId) {
+      setSuggestion(NONE_RESULT);
+      return;
+    }
 
     const reqId = ++lastReqRef.current;
     setLoading(true);
@@ -78,7 +84,7 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
     } finally {
       if (reqId === lastReqRef.current) setLoading(false);
     }
-  }, [categoryCodeId, gemstoneCodeId, vendorId, weightValue, weightUnit, pricingMode]);
+  }, [categoryCodeId, gemstoneCodeId, vendorId, weightValue, weightUnit, pricingMode, category, gemType]);
 
   const checkPrice = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -91,7 +97,7 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
   useEffect(() => {
     setSuggestion(null);
     setHasApplied(false);
-  }, [categoryCodeId, gemstoneCodeId, vendorId, weightValue, weightUnit, pricingMode]);
+  }, [categoryCodeId, gemstoneCodeId, vendorId, weightValue, weightUnit, pricingMode, category, gemType]);
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -146,7 +152,8 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
     setHasApplied(true);
   };
 
-  const canFetch = !!(categoryCodeId || gemstoneCodeId);
+  // Trigger on name fields OR codeId fields for maximum resilience
+  const canFetch = !!(categoryCodeId || gemstoneCodeId || category || gemType);
   const hasSuggestion = suggestion && suggestion.matchLevel !== "none";
   const fetchComplete = suggestion !== null;
 
