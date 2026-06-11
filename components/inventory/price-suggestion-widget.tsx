@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useWatch, type UseFormReturn } from "react-hook-form";
-import { Loader2, Lightbulb, TrendingUp, Check } from "lucide-react";
+import { useWatch, useFormContext, type UseFormReturn } from "react-hook-form";
+import { Loader2, Lightbulb, TrendingUp, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PriceSuggestionResult } from "@/lib/price-suggestion";
@@ -51,9 +51,10 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
         setSuggestion(data);
         setHasApplied(false);
 
-        const el = document.querySelector<HTMLInputElement>("input[name='_priceRecommendation']");
-        if (el) {
-          el.value = data.matchLevel !== "none" ? JSON.stringify(data) : "";
+        if (data.matchLevel !== "none") {
+          form.setValue("_priceRecommendation" as any, JSON.stringify(data));
+        } else {
+          form.setValue("_priceRecommendation" as any, "");
         }
       }
     } catch {
@@ -135,28 +136,35 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
   };
 
   return (
-    <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-4 space-y-3">
-      <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+      <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
         <Lightbulb className="h-4 w-4" />
         Price Suggestion
         {loading && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
       </div>
 
       {!canFetch && !loading && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-gray-600">
           Select a category and enter weight to see price suggestions.
         </p>
       )}
 
       {loading && !hasSuggestion && (
-        <p className="text-xs text-muted-foreground">Analyzing prices…</p>
+        <p className="text-xs text-gray-600">Analyzing prices…</p>
+      )}
+
+      {canFetch && !loading && !hasSuggestion && suggestion?.matchLevel === "none" && (
+        <div className="flex items-start gap-2 text-xs text-gray-600">
+          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-400" />
+          <span>No similar items found in the database for the current selection.</span>
+        </div>
       )}
 
       {hasSuggestion && (
         <>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-            <span className="text-muted-foreground">Selling Rate</span>
-            <span className="font-semibold text-right tabular-nums">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+            <span className="text-gray-500">Selling Rate</span>
+            <span className="font-semibold text-right tabular-nums text-gray-900">
               {suggestion.suggestedSellingRate != null
                 ? `${suggestion.suggestedSellingRate.toFixed(2)}${pricingMode === "PER_RATTI" ? "/ratti" : pricingMode === "FLAT" ? "/ct eq." : "/ct"}`
                 : "—"}
@@ -164,8 +172,8 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
 
             {suggestion.suggestedSellingPrice != null && (
               <>
-                <span className="text-muted-foreground">Est. Total</span>
-                <span className="font-semibold text-right tabular-nums">
+                <span className="text-gray-500">Est. Total</span>
+                <span className="font-semibold text-right tabular-nums text-gray-900">
                   {suggestion.suggestedSellingPrice.toFixed(2)}
                 </span>
               </>
@@ -173,26 +181,26 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
 
             {suggestion.suggestedPurchaseRate != null && (
               <>
-                <span className="text-muted-foreground">Purchase Rate</span>
-                <span className="font-semibold text-right tabular-nums">
+                <span className="text-gray-500">Purchase Rate</span>
+                <span className="font-semibold text-right tabular-nums text-gray-900">
                   {suggestion.suggestedPurchaseRate.toFixed(2)}
                 </span>
               </>
             )}
 
-            <span className="text-muted-foreground">Range</span>
-            <span className="text-right tabular-nums text-muted-foreground">
+            <span className="text-gray-500">Range</span>
+            <span className="text-right tabular-nums text-gray-900">
               {suggestion.minRate != null && suggestion.maxRate != null
                 ? `${suggestion.minRate.toFixed(2)} – ${suggestion.maxRate.toFixed(2)}`
                 : "—"}
             </span>
 
-            <span className="text-muted-foreground">Samples</span>
-            <span className="text-right tabular-nums">{suggestion.sampleCount}</span>
+            <span className="text-gray-500">Samples</span>
+            <span className="text-right tabular-nums text-gray-900">{suggestion.sampleCount}</span>
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center justify-between text-xs text-gray-500">
               <span>Confidence</span>
               <span>{confidencePct}%</span>
             </div>
@@ -205,7 +213,7 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[11px] text-gray-500">
               <TrendingUp className="inline h-3 w-3 mr-1" />
               {matchLabels[suggestion.matchLevel]}
             </span>
@@ -222,11 +230,9 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
               </Button>
             )}
             {hasApplied && (
-              <span className="text-xs text-green-600 font-medium">Applied</span>
+              <span className="text-xs text-green-700 font-medium">Applied</span>
             )}
           </div>
-
-          <input type="hidden" name="_priceRecommendation" value={JSON.stringify(suggestion)} />
         </>
       )}
     </div>

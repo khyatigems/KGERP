@@ -55,8 +55,11 @@ async function queryRates(
       END as normalizedPurchaseRate
     FROM inventory i
     WHERE i.status = 'IN_STOCK'
-      AND i.sellingRatePerCarat > 0
       AND i.carats > 0
+      AND (
+        i.sellingRatePerCarat > 0
+        OR (i.pricingMode = 'FLAT' AND i.flatSellingPrice > 0)
+      )
       ${whereConditions}
     ORDER BY i.createdAt DESC
     LIMIT 1000
