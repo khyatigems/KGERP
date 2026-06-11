@@ -500,7 +500,7 @@ export function CreatePackagingWizard() {
                 <span className="text-muted-foreground">Total Labels:</span>
                 <span className="font-bold text-lg">{cartItems.reduce((acc, i) => acc + i.quantity, 0)}</span>
              </div>
-             <Button className="w-full font-medium" size="default" disabled={cartItems.length === 0 || loadingCart} onClick={handleProcessBatch}>
+             <Button className="w-full font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" size="default" disabled={cartItems.length === 0 || loadingCart} onClick={handleProcessBatch}>
                {loadingCart ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
                Generate & Print Batch
              </Button>
@@ -665,7 +665,7 @@ export function CreatePackagingWizard() {
                  </div>
                  <div className="flex gap-2">
                    <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>Close</Button>
-                   <Button onClick={handleFinalizeAndPrint} disabled={!previewUrl || generatingPdf}>
+                    <Button onClick={handleFinalizeAndPrint} disabled={!previewUrl || generatingPdf} className="transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
                      {generatingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
                      Generate & Print Batch
                    </Button>

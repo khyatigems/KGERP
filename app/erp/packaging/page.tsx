@@ -94,19 +94,19 @@ export default async function PackagingDashboard() {
           <p className="text-muted-foreground">High-precision label workflow, serial control, and verification visibility.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]" asChild>
             <Link href="/erp/packaging/ledger">
               <History className="mr-2 h-4 w-4" />
               Serial Ledger
             </Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]" asChild>
             <Link href="/erp/packaging/logs">
               <ShieldCheck className="mr-2 h-4 w-4" />
               Verification Logs
             </Link>
           </Button>
-          <Button asChild>
+          <Button className="transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]" asChild>
             <Link href="/erp/packaging/settings">
               <Settings className="mr-2 h-4 w-4" />
               Settings
@@ -212,7 +212,7 @@ export default async function PackagingDashboard() {
               <span>Printer type</span>
               <span className="font-medium text-foreground">A4 / 100×50mm</span>
             </div>
-            <Button variant="outline" className="w-full" asChild>
+            <Button variant="outline" className="w-full transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]" asChild>
               <Link href="/erp/packaging/settings">Review Settings</Link>
             </Button>
           </CardContent>
@@ -224,19 +224,19 @@ export default async function PackagingDashboard() {
             <div className="text-sm text-muted-foreground">Jump to the most used tools.</div>
           </CardHeader>
           <CardContent className="grid gap-2">
-            <Button variant="outline" className="justify-start" asChild>
+            <Button variant="outline" className="justify-start transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]" asChild>
               <Link href="/erp/packaging/ledger">
                 <History className="mr-2 h-4 w-4" />
                 Serial Ledger
               </Link>
             </Button>
-            <Button variant="outline" className="justify-start" asChild>
+            <Button variant="outline" className="justify-start transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]" asChild>
               <Link href="/erp/packaging/logs">
                 <ShieldCheck className="mr-2 h-4 w-4" />
                 Verification Logs
               </Link>
             </Button>
-            <Button variant="outline" className="justify-start" asChild>
+            <Button variant="outline" className="justify-start transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]" asChild>
               <Link href="/erp/packaging/settings">
                 <Settings className="mr-2 h-4 w-4" />
                 Label Settings
@@ -248,7 +248,7 @@ export default async function PackagingDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Recent Print Jobs</CardTitle>
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" className="transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]" asChild>
               <Link href="/erp/packaging/ledger">All</Link>
             </Button>
           </CardHeader>
@@ -278,7 +278,7 @@ export default async function PackagingDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Recent Scans</CardTitle>
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" className="transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]" asChild>
               <Link href="/erp/packaging/logs">All</Link>
             </Button>
           </CardHeader>
