@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
-  if (!session) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
       pricingMode,
     });
     return NextResponse.json(result);
-  } catch {
+  } catch (err) {
+    console.error("[price-suggestion] API route error:", err);
     return NextResponse.json({
       suggestedSellingRate: null,
       suggestedSellingPrice: null,

@@ -44,29 +44,31 @@ async function queryRates(
   const sql = `
     SELECT
       CASE
-        WHEN i.pricingMode = 'PER_RATTI' THEN i.sellingRatePerCarat / ${RATTI_TO_CARAT}
-        WHEN i.pricingMode IN ('FLAT', 'FIXED') THEN i.flatSellingPrice / NULLIF(i.carats, 0)
-        ELSE i.sellingRatePerCarat
-      END as normalizedSellingRate,
+        WHEN i."pricingMode" = 'PER_RATTI' THEN i."sellingRatePerCarat" / ${RATTI_TO_CARAT}
+        WHEN i."pricingMode" IN ('FLAT', 'FIXED') THEN i."flatSellingPrice" / NULLIF(i."carats", 0)
+        ELSE i."sellingRatePerCarat"
+      END as "normalizedSellingRate",
       CASE
-        WHEN i.pricingMode = 'PER_RATTI' THEN i.purchaseRatePerCarat / ${RATTI_TO_CARAT}
-        WHEN i.pricingMode IN ('FLAT', 'FIXED') THEN i.flatPurchaseCost / NULLIF(i.carats, 0)
-        ELSE i.purchaseRatePerCarat
-      END as normalizedPurchaseRate
-    FROM inventory i
-    WHERE i.status = 'IN_STOCK'
-      AND i.carats > 0
+        WHEN i."pricingMode" = 'PER_RATTI' THEN i."purchaseRatePerCarat" / ${RATTI_TO_CARAT}
+        WHEN i."pricingMode" IN ('FLAT', 'FIXED') THEN i."flatPurchaseCost" / NULLIF(i."carats", 0)
+        ELSE i."purchaseRatePerCarat"
+      END as "normalizedPurchaseRate"
+    FROM "Inventory" i
+    WHERE i."status" = 'IN_STOCK'
       AND (
-        i.sellingRatePerCarat > 0
-        OR (i.pricingMode IN ('FLAT', 'FIXED') AND i.flatSellingPrice > 0)
+        (i."carats" > 0 AND i."sellingRatePerCarat" > 0)
+        OR (i."pricingMode" IN ('FLAT', 'FIXED') AND i."flatSellingPrice" > 0)
       )
       ${whereConditions}
-    ORDER BY i.createdAt DESC
+    ORDER BY i."createdAt" DESC
     LIMIT 1000
   `;
   try {
     return (await prisma.$queryRawUnsafe(sql, ...params)) as RawRateRow[];
-  } catch {
+  } catch (err) {
+    console.error("[price-suggestion] queryRates FAILED:", err);
+    console.error("[price-suggestion] SQL:", sql);
+    console.error("[price-suggestion] Params:", params);
     return [];
   }
 }
@@ -163,6 +165,8 @@ export async function getPriceSuggestions(
 ): Promise<PriceSuggestionResult> {
   const { categoryCodeId, gemstoneCodeId, vendorId, weightValue, weightUnit, pricingMode } = params;
 
+  console.log("[price-suggestion] params:", JSON.stringify(params));
+
   if (!categoryCodeId && !gemstoneCodeId) {
     return {
       suggestedSellingRate: null,
@@ -181,27 +185,30 @@ export async function getPriceSuggestions(
 
   if (categoryCodeId && gemstoneCodeId && vendorId) {
     const exact = await queryRates(
-      "AND i.categoryCodeId = ? AND i.gemstoneCodeId = ? AND i.vendorId = ?",
+      `AND i."categoryCodeId" = ? AND i."gemstoneCodeId" = ? AND i."vendorId" = ?`,
       [categoryCodeId, gemstoneCodeId, vendorId]
     );
     const r = processRates(exact, pricingMode, carats, weightRatti);
+    console.log("[price-suggestion] exact tier:", exact.length, "rows,", r ? `${r.sampleCount} samples` : "null");
     if (r && r.sampleCount >= 2) return { ...r, matchLevel: "exact" };
   }
 
   if (categoryCodeId && gemstoneCodeId) {
     const close = await queryRates(
-      "AND i.categoryCodeId = ? AND i.gemstoneCodeId = ?",
+      `AND i."categoryCodeId" = ? AND i."gemstoneCodeId" = ?`,
       [categoryCodeId, gemstoneCodeId]
     );
     const r = processRates(close, pricingMode, carats, weightRatti);
+    console.log("[price-suggestion] close tier:", close.length, "rows,", r ? `${r.sampleCount} samples` : "null");
     if (r && r.sampleCount >= 2) return { ...r, matchLevel: "close" };
   }
 
   if (categoryCodeId) {
-    const broad = await queryRates("AND i.categoryCodeId = ?", [
+    const broad = await queryRates(`AND i."categoryCodeId" = ?`, [
       categoryCodeId,
     ]);
     const r = processRates(broad, pricingMode, carats, weightRatti);
+    console.log("[price-suggestion] broad tier:", broad.length, "rows,", r ? `${r.sampleCount} samples` : "null");
     if (r) return { ...r, matchLevel: "broad" };
   }
 
