@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import Link from "next/link";
 import { AlertTriangle, Globe, ShoppingCart, Activity } from "lucide-react";
 import { MarketplaceExportButton } from "@/components/marketplace-export-button";
+import { MarketplaceNavButton } from "@/components/marketplace-nav-button";
 
 export const dynamic = "force-dynamic";
 
@@ -179,15 +180,15 @@ export default async function MarketplaceControlCenterPage({
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/marketplace-conflicts">
-              <Button variant="outline">View All Conflicts</Button>
-            </Link>
-            <Link href="/marketplace-control-center?report=coverage">
-              <Button variant="outline">Coverage Report</Button>
-            </Link>
-            <Link href="/marketplace-control-center?report=opportunity">
-              <Button variant="outline">Opportunity Report</Button>
-            </Link>
+            <MarketplaceNavButton href="/marketplace-conflicts">
+              View All Conflicts
+            </MarketplaceNavButton>
+            <MarketplaceNavButton href="/marketplace-control-center?report=coverage">
+              Coverage Report
+            </MarketplaceNavButton>
+            <MarketplaceNavButton href="/marketplace-control-center?report=opportunity">
+              Opportunity Report
+            </MarketplaceNavButton>
           </div>
         </>
       ) : report === "coverage" ? (
@@ -196,9 +197,9 @@ export default async function MarketplaceControlCenterPage({
             <h2 className="text-xl font-bold">Marketplace Coverage Report</h2>
             <div className="flex items-center gap-2">
               <MarketplaceExportButton href={`/api/marketplace/export?report=coverage&category=${categoryParam}&marketplace=${marketplaceParam}&from=${fromParam}&to=${toParam}`} />
-              <Link href="/marketplace-control-center">
-                <Button variant="ghost" size="sm">Back to Dashboard</Button>
-              </Link>
+              <MarketplaceNavButton href="/marketplace-control-center" variant="ghost" size="sm">
+                Back to Dashboard
+              </MarketplaceNavButton>
             </div>
           </div>
 
@@ -258,16 +259,16 @@ export default async function MarketplaceControlCenterPage({
             <h2 className="text-xl font-bold">Marketplace Opportunity Report</h2>
             <div className="flex items-center gap-2">
               <MarketplaceExportButton href={`/api/marketplace/export?report=opportunity&category=${categoryParam}&marketplace=${marketplaceParam}&from=${fromParam}&to=${toParam}`} />
-              <Link href="/marketplace-control-center">
-                <Button variant="ghost" size="sm">Back to Dashboard</Button>
-              </Link>
+              <MarketplaceNavButton href="/marketplace-control-center" variant="ghost" size="sm">
+                Back to Dashboard
+              </MarketplaceNavButton>
             </div>
           </div>
 
           {sortBy !== "opportunity" ? (
-            <Link href="/marketplace-control-center?report=opportunity&sortBy=opportunity">
-              <Button variant="outline" size="sm">Sort by Highest Opportunity First</Button>
-            </Link>
+            <MarketplaceNavButton href="/marketplace-control-center?report=opportunity&sortBy=opportunity" size="sm">
+              Sort by Highest Opportunity First
+            </MarketplaceNavButton>
           ) : null}
 
           <div className="rounded-md border bg-card">

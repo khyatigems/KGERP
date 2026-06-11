@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MarketplaceConflictActions } from "@/components/marketplace-conflict-actions";
 import { markMarketplaceConflictResolved } from "@/app/(dashboard)/marketplace-conflicts/actions";
+import { MarketplaceNavButton } from "@/components/marketplace-nav-button";
 import Link from "next/link";
 import { Filter } from "lucide-react";
 
@@ -53,9 +54,9 @@ export default async function MarketplaceConflictsPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Marketplace Conflicts</h1>
-        <Link href="/marketplace-control-center">
-          <Button variant="ghost" size="sm">Back to Control Center</Button>
-        </Link>
+        <MarketplaceNavButton href="/marketplace-control-center" variant="ghost" size="sm">
+          Back to Control Center
+        </MarketplaceNavButton>
       </div>
 
       <form className="flex flex-wrap items-end gap-3" method="get" action="/marketplace-conflicts">
