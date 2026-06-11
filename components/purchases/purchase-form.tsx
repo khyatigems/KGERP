@@ -6,8 +6,16 @@ import * as z from "zod";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import Link from "next/link";
 import {
   Form,
   FormControl,
@@ -26,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createPurchase, updatePurchase } from "@/app/(dashboard)/purchases/actions";
+import { quickCreateVendor } from "@/app/(dashboard)/vendors/actions";
 
 // --- Constants ---
 
@@ -415,6 +424,13 @@ function PurchaseItemRow({
 
 export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: PurchaseFormProps) {
   const [isPending, setIsPending] = useState(false);
+  const [vendorModalOpen, setVendorModalOpen] = useState(false);
+  const [newVendorName, setNewVendorName] = useState("");
+  const [newVendorPhone, setNewVendorPhone] = useState("");
+  const [newVendorEmail, setNewVendorEmail] = useState("");
+  const [newVendorType, setNewVendorType] = useState("General");
+  const [creatingVendor, setCreatingVendor] = useState(false);
+  const [vendorList, setVendorList] = useState(vendors);
   const router = useRouter();
 
   const defaultValues: FormValues = initialData
@@ -509,6 +525,38 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
     }
   }
 
+  const handleQuickCreateVendor = async () => {
+    if (!newVendorName.trim()) {
+      toast.error("Vendor name is required");
+      return;
+    }
+    setCreatingVendor(true);
+    try {
+      const result = await quickCreateVendor({
+        name: newVendorName.trim(),
+        phone: newVendorPhone.trim(),
+        email: newVendorEmail.trim(),
+        vendorType: newVendorType,
+      });
+      if (result.success && result.vendor) {
+        toast.success(`Vendor "${result.vendor.name}" created`);
+        setVendorList(prev => [...prev, result.vendor!]);
+        form.setValue("vendorId", result.vendor.id);
+        setVendorModalOpen(false);
+        setNewVendorName("");
+        setNewVendorPhone("");
+        setNewVendorEmail("");
+        setNewVendorType("General");
+      } else {
+        toast.error(result.message || "Failed to create vendor");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setCreatingVendor(false);
+    }
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -522,24 +570,95 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Vendor</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Vendor" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {vendors.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {v.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Vendor" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {vendorList.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => setVendorModalOpen(true)} title="Add New Vendor">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex gap-3 text-xs text-muted-foreground">
+                    <Link href="/vendors" className="hover:text-primary flex items-center gap-1">
+                      View All Vendors <ExternalLink className="h-3 w-3" />
+                    </Link>
+                    <Link href="/settings/codes" className="hover:text-primary flex items-center gap-1">
+                      Vendor Codes <ExternalLink className="h-3 w-3" />
+                    </Link>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Quick Create Vendor Modal */}
+            <Dialog open={vendorModalOpen} onOpenChange={setVendorModalOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Vendor</DialogTitle>
+                  <DialogDescription>
+                    Create a vendor quickly to use in this purchase.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <FormLabel>Vendor Name</FormLabel>
+                    <Input
+                      value={newVendorName}
+                      onChange={e => setNewVendorName(e.target.value)}
+                      placeholder="ABC Gems Ltd"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <FormLabel>Phone</FormLabel>
+                      <Input
+                        value={newVendorPhone}
+                        onChange={e => setNewVendorPhone(e.target.value)}
+                        placeholder="+91..."
+                      />
+                    </div>
+                    <div>
+                      <FormLabel>Email</FormLabel>
+                      <Input
+                        value={newVendorEmail}
+                        onChange={e => setNewVendorEmail(e.target.value)}
+                        placeholder="vendor@example.com"
+                        type="email"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <FormLabel>Type</FormLabel>
+                    <Input
+                      value={newVendorType}
+                      onChange={e => setNewVendorType(e.target.value)}
+                      placeholder="e.g. Wholesaler, Cutter"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setVendorModalOpen(false)}>Cancel</Button>
+                    <Button onClick={handleQuickCreateVendor} disabled={creatingVendor}>
+                      {creatingVendor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Create Vendor
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <div className="grid grid-cols-2 gap-4">
                 <FormField

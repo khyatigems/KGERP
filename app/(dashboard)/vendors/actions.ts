@@ -107,3 +107,36 @@ export async function updateVendor(id: string, prevState: unknown, formData: For
   // redirect("/vendors");
   return { success: true, message: "Vendor updated successfully" };
 }
+
+export async function quickCreateVendor(data: {
+  name: string;
+  phone?: string;
+  email?: string;
+  vendorType?: string;
+}) {
+  const perm = await checkPermission(PERMISSIONS.VENDOR_MANAGE);
+  if (!perm.success) return { success: false, message: perm.message };
+
+  const session = await auth();
+  if (!session) return { success: false, message: "Unauthorized" };
+
+  if (!data.name?.trim()) return { success: false, message: "Vendor name is required" };
+
+  try {
+    const vendor = await prisma.vendor.create({
+      data: {
+        name: data.name.trim(),
+        phone: data.phone || "",
+        email: data.email || "",
+        vendorType: data.vendorType || "General",
+        status: "APPROVED",
+      },
+    });
+
+    revalidatePath("/vendors");
+    return { success: true, vendor: { id: vendor.id, name: vendor.name }, message: "Vendor created" };
+  } catch (e) {
+    console.error(e);
+    return { success: false, message: "Failed to create vendor. Name might already exist." };
+  }
+}
