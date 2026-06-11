@@ -45,12 +45,12 @@ async function queryRates(
     SELECT
       CASE
         WHEN i.pricingMode = 'PER_RATTI' THEN i.sellingRatePerCarat / ${RATTI_TO_CARAT}
-        WHEN i.pricingMode = 'FLAT' THEN i.flatSellingPrice / NULLIF(i.carats, 0)
+        WHEN i.pricingMode IN ('FLAT', 'FIXED') THEN i.flatSellingPrice / NULLIF(i.carats, 0)
         ELSE i.sellingRatePerCarat
       END as normalizedSellingRate,
       CASE
         WHEN i.pricingMode = 'PER_RATTI' THEN i.purchaseRatePerCarat / ${RATTI_TO_CARAT}
-        WHEN i.pricingMode = 'FLAT' THEN i.flatPurchaseCost / NULLIF(i.carats, 0)
+        WHEN i.pricingMode IN ('FLAT', 'FIXED') THEN i.flatPurchaseCost / NULLIF(i.carats, 0)
         ELSE i.purchaseRatePerCarat
       END as normalizedPurchaseRate
     FROM inventory i
@@ -58,7 +58,7 @@ async function queryRates(
       AND i.carats > 0
       AND (
         i.sellingRatePerCarat > 0
-        OR (i.pricingMode = 'FLAT' AND i.flatSellingPrice > 0)
+        OR (i.pricingMode IN ('FLAT', 'FIXED') AND i.flatSellingPrice > 0)
       )
       ${whereConditions}
     ORDER BY i.createdAt DESC
