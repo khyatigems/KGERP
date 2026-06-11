@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { cacheQuery } from "@/lib/cache";
 
-export const dynamic = "force-dynamic";
 
 type PrismaRecord = Record<string, unknown>;
 type PackagingSettingsRow = { categoryHsnJson?: string | null };
@@ -174,24 +173,39 @@ export async function GET(request: NextRequest) {
 
   const getQuick = cacheQuery(
     async () => {
-      const [totalItems, sums, withCertificateCount, agingDead] = await Promise.all([
+      const [totalItems, sums, withImagesCount, withCertificateCount, withHsnCount, completenessAllCount, overallTotalItems, agingDead, agingFresh, agingSlow] = await Promise.all([
         prisma.inventory.count({ where }),
-        prisma.inventory.aggregate({ where, _sum: { sellingPrice: true } }),
+        prisma.inventory.aggregate({ where, _sum: { sellingPrice: true }, _avg: { sellingPrice: true }, _max: { sellingPrice: true } }),
+        prisma.inventory.count({ where: imagesWhere }),
         prisma.inventory.count({ where: certificateWhere }),
+        prisma.inventory.count({ where: hsnReadyWhere }),
+        prisma.inventory.count({ where: completenessWhere }),
+        prisma.inventory.count({ where: overallWhere }),
+        prisma.inventory.count({
+          where: { ...where, status: "IN_STOCK", createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
+        }),
+        prisma.inventory.count({
+          where: { ...where, status: "IN_STOCK", createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+        }),
         prisma.inventory.count({
           where: {
-            ...where,
-            status: "IN_STOCK",
-            createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
+            ...where, status: "IN_STOCK",
+            createdAt: { lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
           },
         }),
       ]);
 
       return {
         totalItems,
+        overallTotalItems,
         totalSell: Number(sums?._sum?.sellingPrice || 0),
+        avgSell: Number(sums?._avg?.sellingPrice || 0),
+        maxSell: Number(sums?._max?.sellingPrice || 0),
+        withImagesCount,
         withCertificateCount,
-        aging: { dead: agingDead },
+        withHsnCount,
+        completenessAllCount,
+        aging: { fresh: agingFresh, slow: agingSlow, dead: agingDead },
       };
     },
     ["inventory", "stats", "quick", cacheKey],

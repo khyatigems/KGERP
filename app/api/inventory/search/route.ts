@@ -5,7 +5,6 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { Prisma } from "@prisma/client";
 import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 
-export const dynamic = "force-dynamic";
 
 const toNumber = (value: string | null) => {
   if (!value) return undefined;

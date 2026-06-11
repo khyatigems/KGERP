@@ -11,7 +11,7 @@ const fetcher = async (url: string) => {
 
 export function InventoryCompletenessWidget() {
   const { data } = useSWR<{ totalItems: number; overallTotalItems?: number; withImagesCount: number; withCertificateCount: number; withHsnCount: number; completenessAllCount: number }>(
-    "/api/inventory/stats",
+    "/api/inventory/stats?mode=quick",
     fetcher
   );
 

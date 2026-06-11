@@ -2,10 +2,8 @@ import { Metadata } from "next";
 import { Plus, Upload } from "lucide-react";
 import Link from "next/link";
 import { prisma, hasTable } from "@/lib/prisma";
-import { formatCurrency, formatDate } from "@/lib/utils";
 import { cachedMasters } from "@/lib/cache";
 import { Button } from "@/components/ui/button";
-import { ExportButton } from "@/components/ui/export-button";
 import { InventorySummaryExport } from "@/components/reports/inventory-summary-export";
 import { LoadingLink } from "@/components/ui/loading-link";
 import { InventoryTable } from "@/components/inventory/inventory-table";
@@ -33,10 +31,6 @@ type SearchParams = {
   rashiId?: string;
   weightRange?: string;
   page?: string;
-};
-
-type InventoryWithExtras = Inventory & {
-  weightRatti?: number | null;
 };
 
 type InventoryListItem = Inventory & {
@@ -214,100 +208,39 @@ async function getInventoryData(params: SearchParams) {
   const canRashi = canRashiCode && canInventoryToRashi;
   const canCertificate = canCertificateCode && canCertificateToInventory;
   const select: Prisma.InventorySelect = {
-    // Basic Info
     id: true,
     sku: true,
     itemName: true,
     internalName: true,
     category: true,
     gemType: true,
-    stoneType: true,
-    description: true,
     color: true,
-    
-    // Physical Properties
     shape: true,
     dimensionsMm: true,
-    measurements: true,
     weightValue: true,
     weightUnit: true,
     weightRatti: true,
     carats: true,
-    weightGrams: true,
     pieces: true,
-    clarity: true,
-    clarityGrade: true,
-    cut: true,
-    cutGrade: true,
-    polish: true,
-    symmetry: true,
-    fluorescence: true,
-    transparency: true,
-    tablePercent: true,
-    depthPercent: true,
-    ratio: true,
-    
-    // Origin & Treatment
-    origin: true,
-    originCountry: true,
-    treatment: true,
-    cutPolishedIn: true,
-    
-    // Bracelet/Bead
-    braceletType: true,
-    standardSize: true,
-    beadSizeMm: true,
-    beadSizeLabel: true,
-    beadCount: true,
-    holeSizeMm: true,
-    innerCircumferenceMm: true,
-    
-    // Certification
-    certificateNo: true,
-    certificateNumber: true,
-    certification: true,
-    lab: true,
-    certificateLab: true,
-    certificateComments: true,
-    
-    // Pricing
     pricingMode: true,
     costPrice: true,
     sellingPrice: true,
-    purchaseRatePerCarat: true,
     sellingRatePerCarat: true,
-    flatPurchaseCost: true,
     flatSellingPrice: true,
     profit: true,
-    rapPrice: true,
-    discountPercent: true,
-    
-    // Status & Location
     status: true,
     condition: true,
-    location: true,
     stockLocation: true,
     hideFromAttention: true,
-    
-    // Vendor & Purchase
     vendorId: true,
-    purchaseId: true,
-    batchId: true,
-    
-    // Media
-    imageUrl: true,
-    videoUrl: true,
-    
-    // Notes
     notes: true,
-    
-    // Metadata
     createdAt: true,
     updatedAt: true,
-    
-    // Codes
-    hsnCode: true,
-    qcCode: true,
+    media: {
+      orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+      take: 1,
+      select: { id: true, createdAt: true, type: true, inventoryId: true, mediaUrl: true, isPrimary: true },
+    },
   };
 
   if (canMedia) {
@@ -390,121 +323,6 @@ async function getInventoryData(params: SearchParams) {
   ]);
 
   const inventory = removeDuplicates(rows, "id");
-  const vendorMap = new Map<string, string>(vendors.map((v: { id: string; name: string }) => [v.id, v.name]));
-  const exportData = inventory.map((item) => {
-    const typedItem = item as InventoryWithExtras;
-    return {
-      // Basic Info
-      sku: item.sku,
-      itemName: item.itemName,
-      internalName: item.internalName || "",
-      category: item.category,
-      gemType: item.gemType || "",
-      color: item.colorCode?.name || item.color || "",
-      weight: `${item.weightValue || 0} ${item.weightUnit || "cts"}`,
-      ratti: typedItem.weightRatti || 0,
-      carats: item.carats || 0,
-      weightGrams: item.weightGrams || 0,
-      
-      // Physical Properties
-      cut: item.cutCode?.name || item.cut || "",
-      shape: item.shape || "",
-      dimensions: item.dimensionsMm || "",
-      measurements: item.measurements || "",
-      clarity: item.clarity || "",
-      clarityGrade: item.clarityGrade || "",
-      cutGrade: item.cutGrade || "",
-      polish: item.polish || "",
-      symmetry: item.symmetry || "",
-      fluorescence: item.fluorescence || "",
-      transparency: item.transparency || "",
-      tablePercent: item.tablePercent || 0,
-      depthPercent: item.depthPercent || 0,
-      ratio: item.ratio || 0,
-      
-      // Origin & Treatment
-      origin: item.origin || "",
-      originCountry: item.originCountry || "",
-      treatment: item.treatment || "",
-      cutPolishedIn: item.cutPolishedIn || "",
-      
-      // Classification
-      rashi: item.rashis?.map((r) => r.name).join(", ") || "",
-      collection: item.collectionCode?.name || "",
-      categoryCode: item.categoryCode?.code || "",
-      gemstoneCode: item.gemstoneCode?.code || "",
-      colorCode: item.colorCode?.code || "",
-      cutCode: item.cutCode?.code || "",
-      hsnCode: item.hsnCode || "",
-      qcCode: item.qcCode || "",
-      
-      // Certification
-      certification: item.certificates?.map((c) => (c.remarks ? `${c.name} (${c.remarks})` : c.name)).join(", ") || item.certification || "",
-      certificateNo: item.certificateNo || "",
-      certificateNumber: item.certificateNumber || "",
-      lab: item.lab || "",
-      certificateLab: item.certificateLab || "",
-      certificateComments: item.certificateComments || "",
-      
-      // Bracelet/Bead
-      braceletType: item.braceletType || "",
-      standardSize: item.standardSize || "",
-      beadSize: item.beadSizeMm ? `${item.beadSizeMm}mm` : "",
-      beadSizeLabel: item.beadSizeLabel || "",
-      beadCount: item.beadCount || 0,
-      holeSizeMm: item.holeSizeMm || 0,
-      innerCircumference: item.innerCircumferenceMm ? `${item.innerCircumferenceMm}mm` : "",
-      
-      // Pricing
-      pricingMode: item.pricingMode || "",
-      costPrice: item.costPrice || 0,
-      sellingPrice: item.sellingPrice || 0,
-      sellingRate: item.sellingRatePerCarat || 0,
-      purchaseRatePerCarat: item.purchaseRatePerCarat || 0,
-      flatSellingPrice: item.flatSellingPrice || 0,
-      flatPurchaseCost: item.flatPurchaseCost || 0,
-      profit: item.profit || 0,
-      rapPrice: item.rapPrice || 0,
-      discountPercent: item.discountPercent || 0,
-      price: formatCurrency(
-        item.pricingMode === "PER_CARAT"
-          ? (item.sellingRatePerCarat || 0) * (item.carats || item.weightValue || 0)
-          : item.pricingMode === "PER_RATTI"
-          ? (item.sellingRatePerCarat || 0) * (item.weightRatti || 0)
-          : item.flatSellingPrice || 0
-      ),
-      
-      // Status & Location
-      status: item.status,
-      condition: item.condition || "",
-      pieces: item.pieces || 1,
-      location: item.location || "",
-      stockLocation: item.stockLocation || "",
-      hideFromAttention: item.hideFromAttention ? "Yes" : "No",
-      
-      // Vendor
-      vendor: (item.vendorId && vendorMap.get(item.vendorId)) || "",
-      vendorId: item.vendorId || "",
-      purchaseId: item.purchaseId || "",
-      batchId: item.batchId || "",
-      
-      // Media
-      imageUrl: item.imageUrl || "",
-      videoUrl: item.videoUrl || "",
-      primaryMediaUrl: item.media?.find((m) => m.isPrimary)?.mediaUrl || item.imageUrl || "",
-      mediaUrls: item.media?.map((m) => m.mediaUrl).join("; ") || "",
-      
-      // Notes
-      notes: item.notes || "",
-      description: item.description || "",
-      
-      // Metadata
-      date: formatDate(item.createdAt),
-      createdAt: formatDate(item.createdAt),
-      updatedAt: formatDate(item.updatedAt),
-      id: item.id,
-    };
-  });
 
   return {
     canView,
@@ -519,7 +337,6 @@ async function getInventoryData(params: SearchParams) {
     collections,
     rashis,
     certificates,
-    exportData,
     totalPages: Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE)),
     currentPage,
     filtersKey,
@@ -554,46 +371,6 @@ export default async function InventoryPage({
     return `/inventory${nextParams.toString() ? `?${nextParams.toString()}` : ""}`;
   };
 
-  const columns = [
-    { header: "SKU", key: "sku" },
-    { header: "Item Name", key: "itemName" },
-    { header: "Internal Name", key: "internalName" },
-    { header: "Category", key: "category" },
-    { header: "Gem Type", key: "gemType" },
-    { header: "Color", key: "color" },
-    { header: "Weight", key: "weight" },
-    { header: "Ratti", key: "ratti" },
-    { header: "Cut", key: "cut" },
-    { header: "Shape", key: "shape" },
-    { header: "Dimensions", key: "dimensions" },
-    { header: "Rashi", key: "rashi" },
-    { header: "Collection", key: "collection" },
-    { header: "Selling Rate", key: "sellingRate" },
-    { header: "Selling Price", key: "sellingPrice" },
-    { header: "Cost Price", key: "costPrice" },
-    { header: "Certification", key: "certification" },
-    { header: "Certificate No", key: "certificateNumber" },
-    { header: "Lab", key: "certificateLab" },
-    { header: "Treatment", key: "treatment" },
-    { header: "Origin", key: "origin" },
-    { header: "Fluorescence", key: "fluorescence" },
-    { header: "Transparency", key: "transparency" },
-    { header: "Clarity", key: "clarity" },
-    { header: "Polish", key: "polish" },
-    { header: "Symmetry", key: "symmetry" },
-    { header: "Bracelet Type", key: "braceletType" },
-    { header: "Standard Size", key: "standardSize" },
-    { header: "Bead Size", key: "beadSize" },
-    { header: "Bead Count", key: "beadCount" },
-    { header: "Inner Circumference", key: "innerCircumference" },
-    { header: "Vendor", key: "vendor" },
-    { header: "Stock Location", key: "stockLocation" },
-    { header: "Status", key: "status" },
-    { header: "Image URL", key: "imageUrl" },
-    { header: "eBay Description", key: "description" },
-    { header: "Created At", key: "date" },
-  ];
-
   return (
     <div className="space-y-6">
       <InventorySavedToast />
@@ -619,7 +396,6 @@ export default async function InventoryPage({
             </>
           )}
           <InventorySummaryExport />
-          <ExportButton filename="inventory_report" data={data.exportData} columns={columns} title="Inventory Report" />
           <ComprehensiveExport />
           <RegenerateEbayButton />
           <BulkListings inventoryItems={data.inventory.map(item => ({

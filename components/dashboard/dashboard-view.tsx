@@ -20,7 +20,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function DashboardView() {
   const { data, error, isLoading, mutate } = useSWR("/api/dashboard", fetcher, {
-    refreshInterval: 15000,
+    refreshInterval: 60000,
     revalidateOnFocus: true,
   });
   const { showLoader, hideLoader } = useGlobalLoader();

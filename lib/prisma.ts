@@ -37,13 +37,6 @@ if (!process.env.DATABASE_URL && typeof window === "undefined") {
 
 if (!databaseUrl) {
   if (!isProd && typeof window === "undefined") console.error("Prisma: DATABASE_URL is not set");
-} else {
-  if (!isProd && typeof window === "undefined") {
-    const logUrl = databaseUrl.includes("authToken")
-      ? databaseUrl.split("?")[0] + "?authToken=***"
-      : databaseUrl;
-    console.log("Prisma: Using connection string:", logUrl);
-  }
 }
 
 const globalForPrisma = global as unknown as {
@@ -105,13 +98,9 @@ const prismaBase =
       log: isProd ? ['error', 'warn'] : ['query', 'error', 'warn'],
     };
     
-    // Only configure adapter for LibSQL/Turso (not for local SQLite)
     if (isLibsql && adapter) {
-      console.log("Using LibSQL adapter for Turso database");
       clientOptions.adapter = adapter;
     } else {
-      console.log("Using standard SQLite connection");
-      // For local SQLite, configure datasource
       clientOptions.datasources = {
         db: {
           url: databaseUrl
@@ -134,11 +123,7 @@ const prismaBase =
     return client;
   })();
 
-// Debug: Log available models on initialization
-if (process.env.NODE_ENV !== 'production') {
-  const models = Object.keys(prismaBase).filter(key => !key.startsWith('_') && key[0] === key[0].toLowerCase());
-  console.log("Prisma Client Initialized. Available models:", models.join(", "));
-}
+
 
 export const prisma = prismaBase;
 
@@ -292,7 +277,12 @@ export async function ensureRbacSchema(): Promise<void> {
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserPermission_permissionId_idx" ON "UserPermission"("permissionId");`);
     } catch {
     } finally {
-      checkedTables = null;
+      if (checkedTables) {
+        checkedTables.set("Role", true);
+        checkedTables.set("Permission", true);
+        checkedTables.set("RolePermission", true);
+        checkedTables.set("UserPermission", true);
+      }
       ensuredRbac = true;
       ensuringRbac = false;
       ensureRbacPromise = null;
@@ -362,7 +352,7 @@ export async function ensureActivityLogSchema(): Promise<void> {
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_createdAt_idx" ON "ActivityLog"("createdAt");`);
     } catch {
     } finally {
-      checkedTables = null;
+      if (checkedTables) checkedTables.set("ActivityLog", true);
       ensuredActivityLog = true;
       ensuringActivityLog = false;
       ensureActivityLogPromise = null;
@@ -397,7 +387,7 @@ export async function ensureFollowUpSchema(): Promise<void> {
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FollowUp_createdBy_idx" ON "FollowUp"("createdBy");`);
     } catch {
     } finally {
-      checkedTables = null;
+      if (checkedTables) checkedTables.set("FollowUp", true);
       ensuredFollowUp = true;
       ensuringFollowUp = false;
       ensureFollowUpPromise = null;
@@ -701,7 +691,9 @@ export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExportInvoice_customsDeclarationNumber_idx" ON "ExportInvoice"("customsDeclarationNumber");`).catch(() => null);
     } catch {
     } finally {
-      checkedTables = null;
+      if (checkedTables) {
+        ["Payment", "InvoiceVersion", "SalesReturn", "SalesReturnItem", "CreditNote", "CustomerAdvance", "CustomerAdvanceAdjustment", "ExportInvoice"].forEach(t => checkedTables!.set(t, true));
+      }
       ensuredInvoiceSupport = true;
       ensuringInvoiceSupport = false;
       ensureInvoiceSupportPromise = null;
@@ -732,7 +724,7 @@ export async function ensureSalesReturnReplacementSchema(): Promise<void> {
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SalesReturnReplacement_invoiceId_idx" ON "SalesReturnReplacement"("invoiceId");`);
     } catch {
     } finally {
-      checkedTables = null;
+      if (checkedTables) checkedTables.set("SalesReturnReplacement", true);
       ensuredSalesReturnReplacement = true;
       ensuringSalesReturnReplacement = false;
       ensureSalesReturnReplacementPromise = null;
@@ -966,7 +958,9 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
       );
     } catch {
     } finally {
-      checkedTables = null;
+      if (checkedTables) {
+        ["OfferBanner", "Coupon", "CouponRedemption", "LoyaltyLedger", "MessageTemplate", "CustomerCampaignLog", "CustomerProfileExtra", "InvoicePromotionSettings", "LoyaltySettings"].forEach(t => checkedTables!.set(t, true));
+      }
       ensuredBillfreePhase1 = true;
       ensuringBillfreePhase1 = false;
       ensureBillfreePhase1Promise = null;

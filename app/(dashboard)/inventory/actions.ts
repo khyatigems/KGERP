@@ -13,6 +13,7 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { isValidBeadSizeLabel, normalizeBeadSizeLabel, parseBeadSizeMm } from "@/lib/bead-size";
 import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
+import type { PriceSuggestionResult } from "@/lib/price-suggestion";
 
 // --- Integrity Check Helpers ---
 
@@ -142,6 +143,78 @@ type InventoryImportRow = {
   notes?: string;
   mediaUrl?: string;
 };
+
+async function logPriceRecommendation(
+  formData: FormData,
+  inventoryId: string,
+  userId: string,
+  appliedData: {
+    sellingRatePerCarat?: number | null;
+    purchaseRatePerCarat?: number | null;
+    flatSellingPrice?: number | null;
+    flatPurchaseCost?: number | null;
+    pricingMode: string;
+    carats: number;
+  }
+) {
+  const recRaw = formData.get("_priceRecommendation");
+  if (!recRaw || typeof recRaw !== "string" || !recRaw.startsWith("{")) return;
+
+  let rec: PriceSuggestionResult;
+  try {
+    rec = JSON.parse(recRaw) as PriceSuggestionResult;
+  } catch {
+    return;
+  }
+
+  let appliedSellingRate: number | null = null;
+  let appliedPurchaseRate: number | null = null;
+  let appliedSellingPrice: number | null = null;
+  let appliedPurchaseCost: number | null = null;
+
+  if (appliedData.pricingMode === "FLAT") {
+    appliedSellingPrice = appliedData.flatSellingPrice ?? 0;
+    appliedPurchaseCost = appliedData.flatPurchaseCost ?? 0;
+    appliedSellingRate = appliedData.carats > 0 ? appliedSellingPrice / appliedData.carats : null;
+    appliedPurchaseRate = appliedData.carats > 0 ? appliedPurchaseCost / appliedData.carats : null;
+  } else {
+    appliedSellingRate = appliedData.sellingRatePerCarat ?? 0;
+    appliedPurchaseRate = appliedData.purchaseRatePerCarat ?? 0;
+    appliedSellingPrice = appliedSellingRate != null ? appliedSellingRate * appliedData.carats : null;
+    appliedPurchaseCost = appliedPurchaseRate != null ? appliedPurchaseRate * appliedData.carats : null;
+  }
+
+  const sellingDeviationPct =
+    rec.suggestedSellingRate != null && appliedSellingRate != null && appliedSellingRate > 0
+      ? ((appliedSellingRate - rec.suggestedSellingRate) / rec.suggestedSellingRate) * 100
+      : null;
+
+  const purchaseDeviationPct =
+    rec.suggestedPurchaseRate != null && appliedPurchaseRate != null && appliedPurchaseRate > 0
+      ? ((appliedPurchaseRate - rec.suggestedPurchaseRate) / rec.suggestedPurchaseRate) * 100
+      : null;
+
+  await prisma.priceRecommendationLog.create({
+    data: {
+      inventoryId,
+      userId,
+      suggestedSellingRate: rec.suggestedSellingRate,
+      suggestedSellingPrice: rec.suggestedSellingPrice,
+      suggestedPurchaseRate: rec.suggestedPurchaseRate,
+      appliedSellingRate,
+      appliedSellingPrice,
+      appliedPurchaseRate,
+      sellingDeviationPct,
+      purchaseDeviationPct,
+      confidence: rec.confidence,
+      matchLevel: rec.matchLevel,
+      sampleCount: rec.sampleCount,
+      minRate: rec.minRate,
+      maxRate: rec.maxRate,
+      recommendationSnapshot: recRaw,
+    },
+  });
+}
 
 export async function createInventory(prevState: unknown, formData: FormData) {
   const [perm, session] = await Promise.all([
@@ -351,6 +424,16 @@ export async function createInventory(prevState: unknown, formData: FormData) {
       (async () => {
         revalidatePath("/inventory");
         try { revalidateTag("inventory:stats", "default"); } catch {}
+      })(),
+      (async () => {
+        await logPriceRecommendation(formData, createdInventory.id, session.user.id, {
+          sellingRatePerCarat: data.sellingRatePerCarat,
+          purchaseRatePerCarat: data.purchaseRatePerCarat,
+          flatSellingPrice: data.flatSellingPrice,
+          flatPurchaseCost: data.flatPurchaseCost,
+          pricingMode: data.pricingMode,
+          carats,
+        });
       })(),
     ]).catch((e) => console.error("Post-creation error:", e));
   }
@@ -611,6 +694,15 @@ export async function updateInventory(
     console.error(e);
     return { message: "Failed to update inventory" };
   }
+
+  logPriceRecommendation(formData, id, session.user.id, {
+    sellingRatePerCarat: data.sellingRatePerCarat,
+    purchaseRatePerCarat: data.purchaseRatePerCarat,
+    flatSellingPrice: data.flatSellingPrice,
+    flatPurchaseCost: data.flatPurchaseCost,
+    pricingMode: data.pricingMode,
+    carats,
+  }).catch(() => {});
 
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${id}`);

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { FormInputValues } from "./inventory-form.types";
+import { PriceSuggestionWidget } from "./price-suggestion-widget";
 
 interface PricingSectionProps {
   form: UseFormReturn<FormInputValues>;
@@ -133,6 +134,8 @@ export function PricingSection({ form, vendors }: PricingSectionProps) {
             </FormItem>
           )}
         />
+
+        <PriceSuggestionWidget form={form} />
 
         {pricingMode === "PER_CARAT" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

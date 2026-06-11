@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureMarketplaceControlCenterSchema } from "@/lib/marketplace-control-center";
 
-export const dynamic = "force-dynamic";
 export const revalidate = 30;
 
 export async function GET() {

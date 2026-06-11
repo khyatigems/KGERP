@@ -88,6 +88,7 @@ export const formSchema = z.object({
   figureWidth: z.string().optional(),
   chipSize: z.string().optional(),
   packingType: z.string().optional(),
+  _priceRecommendation: z.string().optional(),
 }).superRefine((values, ctx) => {
   if (values.pricingMode === "PER_CARAT") {
     if (!values.purchaseRatePerCarat || values.purchaseRatePerCarat <= 0) {
@@ -169,6 +170,7 @@ export type FormInputValues = {
   figureWidth?: string | undefined;
   chipSize?: string | undefined;
   packingType?: string | undefined;
+  _priceRecommendation?: string | undefined;
 };
 
 export type FormValues = z.infer<typeof formSchema>;

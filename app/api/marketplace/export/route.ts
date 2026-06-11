@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { ensureMarketplaceControlCenterSchema, normalizePlatform } from "@/lib/marketplace-control-center";
 import * as XLSX from "xlsx";
 
-export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {

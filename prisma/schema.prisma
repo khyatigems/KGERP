@@ -1418,3 +1418,28 @@ model StateCode {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model PriceRecommendationLog {
+  id                     String   @id @default(uuid())
+  inventoryId            String?
+  userId                 String?
+  suggestedSellingRate   Float?
+  suggestedSellingPrice  Float?
+  suggestedPurchaseRate  Float?
+  appliedSellingRate     Float?
+  appliedSellingPrice    Float?
+  appliedPurchaseRate    Float?
+  sellingDeviationPct    Float?
+  purchaseDeviationPct   Float?
+  confidence             Float?
+  matchLevel             String?
+  sampleCount            Int?
+  minRate                Float?
+  maxRate                Float?
+  recommendationSnapshot String?
+  createdAt              DateTime @default(now())
+
+  @@index([inventoryId])
+  @@index([userId])
+  @@index([createdAt])
+}
