@@ -27,6 +27,7 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
   const [suggestion, setSuggestion] = useState<PriceSuggestionResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastReqRef = useRef(0);
 
@@ -58,13 +59,21 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
       params.set("weightUnit", weightUnit || "cts");
       params.set("pricingMode", pricingMode);
 
+      params.set("debug", "true");
       const res = await fetch(`/api/inventory/price-suggestion?${params.toString()}`);
 
       if (reqId !== lastReqRef.current) return;
 
       let data: PriceSuggestionResult;
       if (res.ok) {
-        data = await res.json();
+        const json = await res.json();
+        if (json.params) {
+          setDebugInfo(json);
+          data = json.result;
+        } else {
+          setDebugInfo(null);
+          data = json;
+        }
       } else {
         data = NONE_RESULT;
       }
@@ -288,6 +297,15 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
             )}
           </div>
         </>
+      )}
+
+      {debugInfo && (
+        <details className="mt-2">
+          <summary className="text-[10px] text-gray-400 cursor-pointer hover:text-gray-600">Debug Info</summary>
+          <pre className="mt-1 text-[10px] text-gray-500 bg-white/50 p-2 rounded overflow-auto max-h-40 whitespace-pre-wrap break-all">
+            {JSON.stringify(debugInfo, null, 2)}
+          </pre>
+        </details>
       )}
     </div>
   );
