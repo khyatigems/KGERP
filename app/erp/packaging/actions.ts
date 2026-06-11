@@ -913,6 +913,48 @@ export async function verifySerialPublic(serialNumber: string, ip: string, userA
   };
 }
 
+export type MultiSerialResult = {
+  serialNumber: string;
+  success: boolean;
+  isPreview: boolean;
+  data?: { serial: SerialPublicView; inventory: Inventory | null } | null;
+};
+
+export async function verifyMultiSerials(serials: string[], ip: string, userAgent: string): Promise<{
+  success: boolean;
+  results: MultiSerialResult[];
+}> {
+  const results = await Promise.allSettled(
+    serials.map(sn =>
+      verifySerialPublic(sn, ip, userAgent)
+        .then(r => ({
+          serialNumber: sn,
+          success: r.success,
+          isPreview: sn.endsWith("-PREV") || sn.startsWith("PREVIEW-"),
+          data: r.data
+        }))
+        .catch(() => ({
+          serialNumber: sn,
+          success: false,
+          isPreview: sn.endsWith("-PREV") || sn.startsWith("PREVIEW-"),
+          data: null
+        }))
+    )
+  );
+
+  const flatResults: MultiSerialResult[] = results.map(r =>
+    r.status === "fulfilled" ? r.value : {
+      serialNumber: "unknown",
+      success: false,
+      isPreview: false,
+      data: null
+    }
+  );
+
+  const anyVerified = flatResults.some(r => r.success);
+  return { success: anyVerified, results: flatResults };
+}
+
 // ---- PUBLIC LABEL DATA ----
 
 export async function getPublicLabelData(serialNumber: string) {
