@@ -116,10 +116,10 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
     setHasApplied(true);
   };
 
-  if (suggestion && suggestion.matchLevel === "none") return null;
-  if (!suggestion) return null;
+  const canFetch = (!!categoryCodeId || !!gemstoneCodeId) && (weightValue > 0);
+  const hasSuggestion = suggestion && suggestion.matchLevel !== "none";
 
-  const confidencePct = Math.round((suggestion.confidence ?? 0) * 100);
+  const confidencePct = Math.round((suggestion?.confidence ?? 0) * 100);
   const barColor =
     confidencePct >= 60
       ? "bg-green-500"
@@ -142,79 +142,93 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
         {loading && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
       </div>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-        <span className="text-muted-foreground">Selling Rate</span>
-        <span className="font-semibold text-right tabular-nums">
-          {suggestion.suggestedSellingRate != null
-            ? `${suggestion.suggestedSellingRate.toFixed(2)}${pricingMode === "PER_RATTI" ? "/ratti" : pricingMode === "FLAT" ? "/ct eq." : "/ct"}`
-            : "—"}
-        </span>
+      {!canFetch && !loading && (
+        <p className="text-xs text-muted-foreground">
+          Select a category and enter weight to see price suggestions.
+        </p>
+      )}
 
-        {suggestion.suggestedSellingPrice != null && (
-          <>
-            <span className="text-muted-foreground">Est. Total</span>
+      {loading && !hasSuggestion && (
+        <p className="text-xs text-muted-foreground">Analyzing prices…</p>
+      )}
+
+      {hasSuggestion && (
+        <>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            <span className="text-muted-foreground">Selling Rate</span>
             <span className="font-semibold text-right tabular-nums">
-              {suggestion.suggestedSellingPrice.toFixed(2)}
+              {suggestion.suggestedSellingRate != null
+                ? `${suggestion.suggestedSellingRate.toFixed(2)}${pricingMode === "PER_RATTI" ? "/ratti" : pricingMode === "FLAT" ? "/ct eq." : "/ct"}`
+                : "—"}
             </span>
-          </>
-        )}
 
-        {suggestion.suggestedPurchaseRate != null && (
-          <>
-            <span className="text-muted-foreground">Purchase Rate</span>
-            <span className="font-semibold text-right tabular-nums">
-              {suggestion.suggestedPurchaseRate.toFixed(2)}
+            {suggestion.suggestedSellingPrice != null && (
+              <>
+                <span className="text-muted-foreground">Est. Total</span>
+                <span className="font-semibold text-right tabular-nums">
+                  {suggestion.suggestedSellingPrice.toFixed(2)}
+                </span>
+              </>
+            )}
+
+            {suggestion.suggestedPurchaseRate != null && (
+              <>
+                <span className="text-muted-foreground">Purchase Rate</span>
+                <span className="font-semibold text-right tabular-nums">
+                  {suggestion.suggestedPurchaseRate.toFixed(2)}
+                </span>
+              </>
+            )}
+
+            <span className="text-muted-foreground">Range</span>
+            <span className="text-right tabular-nums text-muted-foreground">
+              {suggestion.minRate != null && suggestion.maxRate != null
+                ? `${suggestion.minRate.toFixed(2)} – ${suggestion.maxRate.toFixed(2)}`
+                : "—"}
             </span>
-          </>
-        )}
 
-        <span className="text-muted-foreground">Range</span>
-        <span className="text-right tabular-nums text-muted-foreground">
-          {suggestion.minRate != null && suggestion.maxRate != null
-            ? `${suggestion.minRate.toFixed(2)} – ${suggestion.maxRate.toFixed(2)}`
-            : "—"}
-        </span>
+            <span className="text-muted-foreground">Samples</span>
+            <span className="text-right tabular-nums">{suggestion.sampleCount}</span>
+          </div>
 
-        <span className="text-muted-foreground">Samples</span>
-        <span className="text-right tabular-nums">{suggestion.sampleCount}</span>
-      </div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Confidence</span>
+              <span>{confidencePct}%</span>
+            </div>
+            <div className="h-1.5 rounded-full bg-blue-100 overflow-hidden">
+              <div
+                className={cn("h-full rounded-full transition-all duration-500", barColor)}
+                style={{ width: `${confidencePct}%` }}
+              />
+            </div>
+          </div>
 
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Confidence</span>
-          <span>{confidencePct}%</span>
-        </div>
-        <div className="h-1.5 rounded-full bg-blue-100 overflow-hidden">
-          <div
-            className={cn("h-full rounded-full transition-all duration-500", barColor)}
-            style={{ width: `${confidencePct}%` }}
-          />
-        </div>
-      </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-muted-foreground">
+              <TrendingUp className="inline h-3 w-3 mr-1" />
+              {matchLabels[suggestion.matchLevel]}
+            </span>
+            {!hasApplied && suggestion.suggestedSellingRate != null && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleApply}
+                className="h-7 text-xs gap-1"
+              >
+                <Check className="h-3 w-3" />
+                Apply
+              </Button>
+            )}
+            {hasApplied && (
+              <span className="text-xs text-green-600 font-medium">Applied</span>
+            )}
+          </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] text-muted-foreground">
-          <TrendingUp className="inline h-3 w-3 mr-1" />
-          {matchLabels[suggestion.matchLevel]}
-        </span>
-        {!hasApplied && suggestion.suggestedSellingRate != null && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handleApply}
-            className="h-7 text-xs gap-1"
-          >
-            <Check className="h-3 w-3" />
-            Apply
-          </Button>
-        )}
-        {hasApplied && (
-          <span className="text-xs text-green-600 font-medium">Applied</span>
-        )}
-      </div>
-
-      <input type="hidden" name="_priceRecommendation" />
+          <input type="hidden" name="_priceRecommendation" value={JSON.stringify(suggestion)} />
+        </>
+      )}
     </div>
   );
 }
