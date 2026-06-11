@@ -106,6 +106,7 @@ export type PackagingRenderOptions = {
   selectedFields: PackagingFieldId[];
   drawGuides?: boolean;
   drawCellNumbers?: boolean;
+  itemsPerLabel?: number;
 };
 
 export interface PackagingLabelData {
@@ -218,8 +219,15 @@ export async function generatePackagingPdfBlob(
 
     const perPage = layout.cols * layout.rows;
     const startPosIndex = Math.max(0, (layout.startPosition || 1) - 1);
+    const ipp = Math.max(1, options.itemsPerLabel ?? 1);
 
-    const totalCellsNeeded = startPosIndex + labels.length;
+    // Chunk labels into groups for multi-item mode
+    const chunks: PackagingLabelData[][] = [];
+    for (let i = 0; i < labels.length; i += ipp) {
+      chunks.push(labels.slice(i, i + ipp));
+    }
+
+    const totalCellsNeeded = startPosIndex + chunks.length;
     const pages = Math.max(1, Math.ceil(totalCellsNeeded / perPage));
 
     for (let page = 0; page < pages; page++) {
@@ -227,11 +235,11 @@ export async function generatePackagingPdfBlob(
 
       for (let cell = 0; cell < perPage; cell++) {
         const absoluteCell = page * perPage + cell;
-        const row = Math.floor(cell / layout.cols);
-        const col = cell % layout.cols;
+        const r = Math.floor(cell / layout.cols);
+        const c = cell % layout.cols;
 
-        const x = layout.marginLeftMm + layout.offsetXmm + col * (layout.labelWidthMm + layout.gapXmm);
-        const y = layout.marginTopMm + layout.offsetYmm + row * (layout.labelHeightMm + layout.gapYmm);
+        const x = layout.marginLeftMm + layout.offsetXmm + c * (layout.labelWidthMm + layout.gapXmm);
+        const y = layout.marginTopMm + layout.offsetYmm + r * (layout.labelHeightMm + layout.gapYmm);
 
         if (options.drawGuides) {
           doc.setDrawColor(220);
@@ -246,10 +254,16 @@ export async function generatePackagingPdfBlob(
           doc.text(String(absoluteCell + 1), x + 3, y + 6);
         }
 
-        const labelIndex = absoluteCell - startPosIndex;
-        if (labelIndex < 0 || labelIndex >= labels.length) continue;
+        const chunkIndex = absoluteCell - startPosIndex;
+        if (chunkIndex < 0 || chunkIndex >= chunks.length) continue;
 
-        await renderLabel(doc, labels[labelIndex], x, y, layout.labelWidthMm, layout.labelHeightMm, options);
+        const chunk = chunks[chunkIndex];
+
+        if (ipp > 1) {
+          await renderMultiItemLabel(doc, chunk, x, y, layout.labelWidthMm, layout.labelHeightMm, options);
+        } else {
+          await renderLabel(doc, chunk[0], x, y, layout.labelWidthMm, layout.labelHeightMm, options);
+        }
       }
     }
 
@@ -554,5 +568,240 @@ async function renderLabel(
   doc.setTextColor(150);
   const patternText = "KhyatiGems™ AUTHENTIC PRODUCT  ".repeat(3); // More repeats for smaller font
   doc.text(patternText, x + w/2, stripY + 2, { align: "center" });
+  doc.setTextColor(0);
+}
+
+// ---------------------------------------------------------------------------
+// MULTI-ITEM LABEL RENDERER (2 or 3 items per 100×50mm label)
+// ---------------------------------------------------------------------------
+
+function truncateText(doc: jsPDF, text: string, maxWidth: number): string {
+  if (doc.getTextWidth(text) <= maxWidth) return text;
+  let truncated = text;
+  while (truncated.length > 0 && doc.getTextWidth(truncated + "…") > maxWidth) {
+    truncated = truncated.slice(0, -1);
+  }
+  return truncated.length < text.length ? truncated + "…" : truncated;
+}
+
+async function renderMultiItemLabel(
+  doc: jsPDF,
+  items: PackagingLabelData[],
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  options: PackagingRenderOptions
+) {
+  const PAD = 2;
+  const innerX = x + PAD;
+  const itemCount = items.length;
+
+  // Zone heights (same as single-item)
+  const HEADER_H = 8;
+  const FOOTER_STRIP_H = 3;
+  const LEGAL_H = 15;
+
+  const contentY = y + HEADER_H;
+  const footerY = y + h - LEGAL_H - FOOTER_STRIP_H;
+  const contentH = footerY - contentY;
+
+  // QR sits on the right, same size as single-item
+  const COL_SPLIT = 0.72;
+  const colSplitX = x + (w * COL_SPLIT);
+  const rightX = colSplitX + 1;
+  const rightW = innerX + w - (PAD * 2) - colSplitX;
+  const qrSize = 14;
+
+  // Row layout
+  const rowH = contentH / itemCount;
+  const fontSize = itemCount <= 2 ? 4 : 3.5;
+  const nameFontSize = itemCount <= 2 ? 4.5 : 3.5;
+
+  // -----------------------------
+  // DRAW ZONES & BORDERS
+  // -----------------------------
+  doc.setDrawColor(50);
+  doc.setLineWidth(0.1);
+  doc.rect(x, y, w, h);
+
+  doc.setDrawColor(200);
+  doc.line(x, contentY, x + w, contentY);
+  doc.line(x, footerY, x + w, footerY);
+
+  // -----------------------------
+  // 1. HEADER (LOGO ONLY)
+  // -----------------------------
+  if (items[0].logoUrl) {
+    try {
+      doc.addImage(items[0].logoUrl, "PNG", innerX, y + 1, 0, 6, undefined, "FAST");
+    } catch {}
+  }
+
+  if (items[0].estYear) {
+    doc.setFont("times", "bolditalic");
+    doc.setFontSize(6);
+    doc.setTextColor(50);
+    doc.text(`Est. ${items[0].estYear}`, x + w - PAD, y + 5, { align: "right" });
+    doc.setTextColor(0);
+  }
+
+  // -----------------------------
+  // 2. ITEM ROWS (COMPACT)
+  // -----------------------------
+  const maxTextW = (colSplitX - innerX) - 2;
+  const variant = items[0].labelVariant === "EXPORT" ? "EXPORT" : "RETAIL";
+
+  for (let i = 0; i < itemCount; i++) {
+    const item = items[i];
+    const rowY = contentY + i * rowH;
+    const textBaseY = rowY + rowH / 2 + 1.2;
+
+    // Item number
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(nameFontSize);
+    doc.text(`${i + 1}.`, innerX, textBaseY);
+
+    let curX = innerX + doc.getTextWidth(`${i + 1}. `);
+
+    // Gemstone Name (truncated)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(nameFontSize);
+    const nameMaxW = maxTextW * 0.28;
+    const displayName = truncateText(doc, item.gemstoneName || "Gemstone", nameMaxW);
+    doc.text(displayName, curX, textBaseY);
+    curX += doc.getTextWidth(displayName) + 2;
+
+    // SKU
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(fontSize);
+    const skuMaxW = maxTextW * 0.22;
+    const displaySku = truncateText(doc, item.sku, skuMaxW);
+    doc.text(displaySku, curX, textBaseY);
+    curX += doc.getTextWidth(displaySku) + 2;
+
+    // Weight
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(fontSize);
+    const wText = `${item.weightCarat.toFixed(2)}ct`;
+    doc.text(wText, curX, textBaseY);
+    curX += doc.getTextWidth(wText) + 2;
+
+    // Color
+    if (item.color) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(fontSize);
+      const colorMaxW = maxTextW * 0.12;
+      const displayColor = truncateText(doc, item.color, colorMaxW);
+      doc.text(displayColor, curX, textBaseY);
+      curX += doc.getTextWidth(displayColor) + 2;
+    }
+
+    // Price
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(fontSize);
+    const priceText = `₹${formatMrpValue(item.mrp)}`;
+    doc.text(priceText, curX, textBaseY);
+
+    // Divider line (except after last item)
+    if (i < itemCount - 1) {
+      doc.setDrawColor(220);
+      doc.setLineWidth(0.05);
+      doc.line(innerX, rowY + rowH, colSplitX - 1, rowY + rowH);
+    }
+  }
+
+  // -----------------------------
+  // 3. QR CODE (SHARED - first item)
+  // -----------------------------
+  if (hasField(options, "qr")) {
+    try {
+      const qrText = `https://erp.khyatigems.com/verify/${items[0].serial}`;
+      const qr = await makeQrPng(qrText);
+      const qrY = contentY + 2;
+      const qrXCentered = rightX + (rightW - qrSize) / 2;
+      doc.addImage(qr, "PNG", qrXCentered, qrY, qrSize, qrSize);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(5);
+      doc.text("Scan to verify", rightX + rightW / 2, qrY + qrSize + 2, { align: "center" });
+    } catch {}
+  }
+
+  // -----------------------------
+  // 4. FOOTER (BARCODE & LEGAL)
+  // -----------------------------
+  const fY = footerY + 2;
+  const barcodeW = 24;
+  const barcodeH = 4;
+  const legalMaxW = w - (PAD * 2) - barcodeW - 2;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(4);
+  doc.setTextColor(80);
+
+  let legalY = fY;
+
+  const drawLegal = (txt: string, isBold = false) => {
+    doc.setFont("helvetica", isBold ? "bold" : "normal");
+    const splitTxt = doc.splitTextToSize(txt, legalMaxW);
+    doc.text(splitTxt, innerX, legalY);
+    legalY += splitTxt.length * 1.8;
+  };
+
+  // Warning
+  doc.setTextColor(0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(5);
+  const warningText = "*** DO NOT ACCEPT IF SEAL IS BROKEN ***";
+  const legalAreaCenter = innerX + legalMaxW / 2;
+  doc.text(warningText, legalAreaCenter, legalY, { align: "center" });
+  legalY += 2.5;
+
+  doc.setFontSize(4);
+  doc.setTextColor(80);
+  drawLegal("Packed & Labeled as per Legal Metrology Rules");
+  drawLegal("Handle with care, Avoid chemicals & impact");
+  drawLegal("Mfd By: Khyati Precious Gems Pvt. Ltd.", true);
+
+  if (items[0].registeredAddress) {
+    drawLegal(items[0].registeredAddress);
+  }
+
+  drawLegal("support@khyatigems.com | www.khyatigems.com", true);
+
+  // Barcode (first item serial)
+  if (hasField(options, "barcode")) {
+    try {
+      const bar = makeBarcodePng(items[0].serial);
+      const barX = x + w - barcodeW - PAD;
+      doc.addImage(bar, "PNG", barX, footerY + 2, barcodeW, barcodeH);
+
+      doc.setFont("courier", "normal");
+      doc.setFontSize(4);
+      doc.text(items[0].serial, barX + barcodeW / 2, footerY + 2 + barcodeH + 2, { align: "center" });
+
+      // MRP total for Retail
+      if (variant === "RETAIL") {
+        const totalMrp = items.reduce((sum, it) => sum + (it.mrp || 0), 0);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6);
+        doc.text(`MRP: Rs. ${formatMrpValue(totalMrp)}`, barX + barcodeW / 2, footerY + 2 + barcodeH + 4, { align: "center" });
+      }
+    } catch {}
+  }
+
+  // -----------------------------
+  // 5. BOTTOM STRIP
+  // -----------------------------
+  const stripY = y + h - FOOTER_STRIP_H;
+  doc.setFillColor(240, 240, 240);
+  doc.rect(x, stripY, w, FOOTER_STRIP_H, "F");
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(4.5);
+  doc.setTextColor(150);
+  const patternText = "KhyatiGems™ AUTHENTIC PRODUCT  ".repeat(3);
+  doc.text(patternText, x + w / 2, stripY + 2, { align: "center" });
   doc.setTextColor(0);
 }

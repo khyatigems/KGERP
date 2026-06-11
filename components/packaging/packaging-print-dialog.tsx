@@ -193,6 +193,7 @@ export function PackagingPrintDialog({
   });
 
   const [selectedFields, setSelectedFields] = useState<PackagingFieldId[]>([...DEFAULT_FIELDS]);
+  const [itemsPerLabel, setItemsPerLabel] = useState<number>(1);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const previewUrlRef = useRef<string | null>(null);
@@ -230,8 +231,9 @@ export function PackagingPrintDialog({
       labelsCount: labels?.length ?? 0,
       itemsCount: previewItems?.length ?? 0,
       manufacturingDate,
+      itemsPerLabel,
     });
-  }, [layoutMm, selectedFields, settingsKey, labels?.length, previewItems?.length, manufacturingDate]);
+  }, [layoutMm, selectedFields, settingsKey, labels?.length, previewItems?.length, manufacturingDate, itemsPerLabel]);
 
   const previewBase = useMemo(() => {
     const mmToPx = 3.7795275591;
@@ -252,8 +254,9 @@ export function PackagingPrintDialog({
       selectedFields,
       drawGuides: true,
       drawCellNumbers: false,
+      itemsPerLabel,
     }),
-    [selectedFields]
+    [selectedFields, itemsPerLabel]
   );
 
   const applyPreset = useCallback((p: Preset) => {
@@ -503,7 +506,7 @@ export function PackagingPrintDialog({
         packingDate: packedDate,
         labelVariant,
       }));
-      const blob = await generatePackagingPdfBlob(labelData, layoutMm, { selectedFields, drawGuides: false });
+      const blob = await generatePackagingPdfBlob(labelData, layoutMm, { selectedFields, drawGuides: false, itemsPerLabel });
       const url = createObjectUrl(blob);
       const win = window.open(url, "_blank");
       if (!win) {
@@ -628,6 +631,27 @@ export function PackagingPrintDialog({
                           <span className="text-sm">{f.label}</span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border p-3 space-y-2">
+                    <div className="text-sm font-medium">Items Per Label</div>
+                    <Select value={String(itemsPerLabel)} onValueChange={(v) => setItemsPerLabel(Number(v))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 — Standard (default)</SelectItem>
+                        <SelectItem value="2">2 — Compact (2 items)</SelectItem>
+                        <SelectItem value="3">3 — Ultra Compact (3 items)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="text-xs text-muted-foreground">
+                      {itemsPerLabel === 1
+                        ? "Full details for each item on its own label."
+                        : itemsPerLabel === 2
+                          ? "2 items per label. Compact rows with essential fields."
+                          : "3 items per label. Minimal fields, smaller text."}
                     </div>
                   </div>
 
