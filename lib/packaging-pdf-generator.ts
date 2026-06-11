@@ -615,8 +615,8 @@ async function renderMultiItemLabel(
 
   // Row layout
   const rowH = contentH / itemCount;
-  const fontSize = itemCount <= 2 ? 4 : 3.5;
-  const nameFontSize = itemCount <= 2 ? 4.5 : 3.5;
+  const fontSize = itemCount <= 2 ? 6 : 5;
+  const nameFontSize = itemCount <= 2 ? 6.5 : 5.5;
 
   // -----------------------------
   // DRAW ZONES & BORDERS
@@ -667,40 +667,28 @@ async function renderMultiItemLabel(
     // Gemstone Name (truncated)
     doc.setFont("helvetica", "bold");
     doc.setFontSize(nameFontSize);
-    const nameMaxW = maxTextW * 0.28;
+    const nameMaxW = maxTextW * 0.30;
     const displayName = truncateText(doc, item.gemstoneName || "Gemstone", nameMaxW);
     doc.text(displayName, curX, textBaseY);
-    curX += doc.getTextWidth(displayName) + 2;
+    curX += doc.getTextWidth(displayName) + 1.5;
 
-    // SKU
+    // SKU (full width, no truncation)
     doc.setFont("helvetica", "normal");
     doc.setFontSize(fontSize);
-    const skuMaxW = maxTextW * 0.22;
-    const displaySku = truncateText(doc, item.sku, skuMaxW);
-    doc.text(displaySku, curX, textBaseY);
-    curX += doc.getTextWidth(displaySku) + 2;
+    doc.text(item.sku, curX, textBaseY);
+    curX += doc.getTextWidth(item.sku) + 1.5;
 
     // Weight
     doc.setFont("helvetica", "bold");
     doc.setFontSize(fontSize);
     const wText = `${item.weightCarat.toFixed(2)}ct`;
     doc.text(wText, curX, textBaseY);
-    curX += doc.getTextWidth(wText) + 2;
+    curX += doc.getTextWidth(wText) + 1.5;
 
-    // Color
-    if (item.color) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(fontSize);
-      const colorMaxW = maxTextW * 0.12;
-      const displayColor = truncateText(doc, item.color, colorMaxW);
-      doc.text(displayColor, curX, textBaseY);
-      curX += doc.getTextWidth(displayColor) + 2;
-    }
-
-    // Price
+    // Price (full number format)
     doc.setFont("helvetica", "bold");
     doc.setFontSize(fontSize);
-    const priceText = `₹${formatMrpValue(item.mrp)}`;
+    const priceText = `Rs. ${formatMrpValue(item.mrp)}`;
     doc.text(priceText, curX, textBaseY);
 
     // Divider line (except after last item)
@@ -712,11 +700,12 @@ async function renderMultiItemLabel(
   }
 
   // -----------------------------
-  // 3. QR CODE (SHARED - first item)
+  // 3. QR CODE (ALL ITEMS)
   // -----------------------------
   if (hasField(options, "qr")) {
     try {
-      const qrText = `https://erp.khyatigems.com/verify/${items[0].serial}`;
+      const allSerials = items.map(it => it.serial).join(",");
+      const qrText = `https://erp.khyatigems.com/verify/${allSerials}`;
       const qr = await makeQrPng(qrText);
       const qrY = contentY + 2;
       const qrXCentered = rightX + (rightW - qrSize) / 2;

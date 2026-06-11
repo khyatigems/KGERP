@@ -62,6 +62,7 @@ export function CreatePackagingWizard() {
   const [manufacturingDate, setManufacturingDate] = useState(new Date().toISOString().slice(0, 10));
   const [labelVariant, setLabelVariant] = useState<"RETAIL" | "EXPORT">("RETAIL");
   const [startPosition, setStartPosition] = useState(1);
+  const [itemsPerLabel, setItemsPerLabel] = useState(1);
   const [layoutParams, setLayoutParams] = useState<PackagingSheetLayout>({
     pageWidthMm: 210,
     pageHeightMm: 297,
@@ -268,6 +269,7 @@ export function CreatePackagingWizard() {
         selectedFields: ["header", "footer", "qr", "barcode", "price", "origin", "weight"],
         drawGuides: false,
         drawCellNumbers: false,
+        itemsPerLabel,
       });
 
       const url = createObjectUrl(blob);
@@ -279,7 +281,7 @@ export function CreatePackagingWizard() {
     } finally {
       setGeneratingPdf(false);
     }
-  }, [printDialogOpen, manufacturingDate, labelVariant, layoutParams, startPosition]); // Removed generatingPdf from deps
+  }, [printDialogOpen, manufacturingDate, labelVariant, layoutParams, startPosition, itemsPerLabel]);
 
   // Auto-refresh preview when settings change
   useEffect(() => {
@@ -341,6 +343,7 @@ export function CreatePackagingWizard() {
         selectedFields: ["header", "footer", "qr", "barcode", "price", "origin", "weight"],
         drawGuides: false,
         drawCellNumbers: false,
+        itemsPerLabel,
       });
 
       const url = createObjectUrl(blob);
@@ -585,6 +588,25 @@ export function CreatePackagingWizard() {
                       </SelectContent>
                     </Select>
                     <p className="text-[10px] text-muted-foreground">Select where to start printing on the sheet</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Items Per Label</Label>
+                    <Select value={String(itemsPerLabel)} onValueChange={(v) => setItemsPerLabel(Number(v))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 — Standard (default)</SelectItem>
+                        <SelectItem value="2">2 — Compact (2 items)</SelectItem>
+                        <SelectItem value="3">3 — Ultra Compact (3 items)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground">
+                      {itemsPerLabel === 1
+                        ? "Each item gets its own label."
+                        : `${itemsPerLabel} items share one label. Essential fields only.`}
+                    </p>
                   </div>
 
                   <Separator />
