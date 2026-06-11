@@ -1,12 +1,23 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useWatch, useFormContext, type UseFormReturn } from "react-hook-form";
+import { type UseFormReturn } from "react-hook-form";
 import { Loader2, Lightbulb, TrendingUp, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PriceSuggestionResult } from "@/lib/price-suggestion";
 import type { FormInputValues } from "./inventory-form.types";
+
+const NONE_RESULT: PriceSuggestionResult = {
+  suggestedSellingRate: null,
+  suggestedSellingPrice: null,
+  suggestedPurchaseRate: null,
+  confidence: 0,
+  sampleCount: 0,
+  minRate: null,
+  maxRate: null,
+  matchLevel: "none",
+};
 
 interface PriceSuggestionWidgetProps {
   form: UseFormReturn<FormInputValues>;
@@ -43,10 +54,16 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
       params.set("pricingMode", pricingMode);
 
       const res = await fetch(`/api/inventory/price-suggestion?${params.toString()}`);
-      if (!res.ok) return;
+
       if (reqId !== lastReqRef.current) return;
 
-      const data: PriceSuggestionResult = await res.json();
+      let data: PriceSuggestionResult;
+      if (res.ok) {
+        data = await res.json();
+      } else {
+        data = NONE_RESULT;
+      }
+
       if (reqId === lastReqRef.current) {
         setSuggestion(data);
         setHasApplied(false);
@@ -58,7 +75,7 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
         }
       }
     } catch {
-      if (reqId === lastReqRef.current) setSuggestion(null);
+      if (reqId === lastReqRef.current) setSuggestion(NONE_RESULT);
     } finally {
       if (reqId === lastReqRef.current) setLoading(false);
     }
@@ -135,6 +152,9 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
     none: "No data",
   };
 
+  const shouldShowNoData =
+    suggestion !== null && !hasSuggestion;
+
   return (
     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
       <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
@@ -143,7 +163,7 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
         {loading && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
       </div>
 
-      {!canFetch && !loading && (
+      {!canFetch && !loading && !shouldShowNoData && (
         <p className="text-xs text-gray-600">
           Select a category and enter weight to see price suggestions.
         </p>
@@ -153,7 +173,7 @@ export function PriceSuggestionWidget({ form }: PriceSuggestionWidgetProps) {
         <p className="text-xs text-gray-600">Analyzing prices…</p>
       )}
 
-      {canFetch && !loading && !hasSuggestion && suggestion?.matchLevel === "none" && (
+      {shouldShowNoData && !loading && !hasSuggestion && (
         <div className="flex items-start gap-2 text-xs text-gray-600">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-400" />
           <span>No similar items found in the database for the current selection.</span>
