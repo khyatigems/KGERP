@@ -29,14 +29,94 @@ interface AuditRow {
   treatment: string;
   certificateNo: string;
   sellingPrice: number;
+  costPrice: number;
+  erpProfit: number;
+  erpMarginPct: number;
   platform: string;
   listedPrice: number;
   currency: string;
   listedPriceInr: number;
-  priceDiff: number;
-  marginPct: number;
+  vsSellingDiff: number;
+  vsSellingMarginPct: number;
+  marketplaceProfit: number;
+  marketplaceMarginPct: number;
   listingStatus: string;
   listingUrl: string;
+}
+
+const COL_WIDTHS = [
+  { wch: 22 },  // SKU
+  { wch: 30 },  // Item Name
+  { wch: 16 },  // Category
+  { wch: 14 },  // Gem Type
+  { wch: 10 },  // Weight
+  { wch: 12 },  // Shape
+  { wch: 12 },  // Color
+  { wch: 14 },  // Clarity
+  { wch: 16 },  // Origin
+  { wch: 14 },  // Certification
+  { wch: 12 },  // Treatment
+  { wch: 20 },  // Selling Price
+  { wch: 18 },  // Cost Price
+  { wch: 16 },  // ERP Profit
+  { wch: 14 },  // ERP Margin %
+  { wch: 14 },  // Marketplace
+  { wch: 16 },  // List Price Orig
+  { wch: 10 },  // Currency
+  { wch: 18 },  // List Price INR
+  { wch: 16 },  // Price vs Selling
+  { wch: 14 },  // Margin vs Selling
+  { wch: 18 },  // Profit vs Cost
+  { wch: 16 },  // Margin vs Cost
+  { wch: 12 },  // Status
+  { wch: 50 },  // Listing Link
+];
+
+const HEADER_STYLE = {
+  fill: { fgColor: { rgb: "FF1E293B" } },
+  font: { bold: true, color: { rgb: "FFFFFFFF" }, sz: 11, name: "Calibri" },
+  alignment: { horizontal: "center" as const, wrapText: true, vertical: "center" as const },
+  border: {
+    bottom: { style: "medium" as const, color: { rgb: "FF475569" } },
+  },
+};
+
+function greenStyle(bold = false) {
+  return {
+    fill: { fgColor: { rgb: "FFD5F5E3" } },
+    font: { color: { rgb: "FF1B5E20" }, bold, sz: 10, name: "Calibri" },
+    alignment: { horizontal: "center" as const },
+  };
+}
+
+function yellowStyle(bold = false) {
+  return {
+    fill: { fgColor: { rgb: "FFFEF9C3" } },
+    font: { color: { rgb: "FF856404" }, bold, sz: 10, name: "Calibri" },
+    alignment: { horizontal: "center" as const },
+  };
+}
+
+function redStyle(bold = false) {
+  return {
+    fill: { fgColor: { rgb: "FFFFE0E0" } },
+    font: { color: { rgb: "FFB71C1C" }, bold, sz: 10, name: "Calibri" },
+    alignment: { horizontal: "center" as const },
+  };
+}
+
+function neutralStyle() {
+  return {
+    font: { sz: 10, name: "Calibri" },
+    alignment: { horizontal: "center" as const },
+  };
+}
+
+function zebraStyle(rowNum: number) {
+  if (rowNum % 2 === 0) {
+    return { fill: { fgColor: { rgb: "FFF8FAFC" } } };
+  }
+  return {};
 }
 
 export function MarketplacePriceAuditExport() {
@@ -56,102 +136,123 @@ export function MarketplacePriceAuditExport() {
 
       const rows = data.rows as AuditRow[];
       const exportRows = rows.map((r) => ({
-        SKU: r.sku,
+        "SKU": r.sku,
         "Item Name": r.itemName,
-        Category: r.category,
+        "Category": r.category,
         "Gem Type": r.gemType,
         "Weight (ct)": r.carats || "",
-        Shape: r.shape,
-        Color: r.color,
-        Clarity: r.clarity,
-        Origin: r.originCountry || r.origin,
-        Certification: r.certificateNo || "-",
-        Treatment: r.treatment,
-        "ERP Selling Price (INR)": r.sellingPrice,
-        Marketplace: r.platform,
+        "Shape": r.shape,
+        "Color": r.color,
+        "Clarity": r.clarity,
+        "Origin": r.originCountry || r.origin,
+        "Certification": r.certificateNo || "-",
+        "Treatment": r.treatment,
+        "Selling Price (INR)": r.sellingPrice,
+        "Cost Price (INR)": r.costPrice,
+        "ERP Profit (INR)": r.erpProfit,
+        "ERP Margin %": r.erpMarginPct,
+        "Marketplace": r.platform,
         "Listed Price (Orig)": r.listedPrice,
-        Currency: r.currency,
+        "Currency": r.currency,
         "Listed Price (INR)": r.listedPriceInr,
-        "Price Diff (INR)": r.priceDiff,
-        "Margin %": r.marginPct,
-        Status: r.listingStatus,
+        "Price vs Selling (INR)": r.vsSellingDiff,
+        "Margin vs Selling %": r.vsSellingMarginPct,
+        "Profit vs Cost (INR)": r.marketplaceProfit,
+        "Margin vs Cost %": r.marketplaceMarginPct,
+        "Status": r.listingStatus,
         "Listing Link": r.listingUrl,
       }));
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(exportRows);
 
-      const colWidths = [
-        { wch: 22 },  // SKU
-        { wch: 30 },  // Item Name
-        { wch: 16 },  // Category
-        { wch: 14 },  // Gem Type
-        { wch: 12 },  // Weight
-        { wch: 12 },  // Shape
-        { wch: 12 },  // Color
-        { wch: 14 },  // Clarity
-        { wch: 16 },  // Origin
-        { wch: 14 },  // Certification
-        { wch: 12 },  // Treatment
-        { wch: 22 },  // ERP Selling Price
-        { wch: 14 },  // Marketplace
-        { wch: 18 },  // Listed Price (Orig)
-        { wch: 10 },  // Currency
-        { wch: 18 },  // Listed Price (INR)
-        { wch: 16 },  // Price Diff
-        { wch: 12 },  // Margin %
-        { wch: 12 },  // Status
-        { wch: 50 },  // Listing Link
+      ws["!cols"] = COL_WIDTHS;
+
+      const headerCols = [
+        "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O",
+        "P","Q","R","S","T","U","V","W","X","Y"
       ];
-      ws["!cols"] = colWidths;
 
-      const marginCol = "R";
-      const diffCol = "Q";
+      for (const col of headerCols) {
+        const ref = `${col}1`;
+        if (ws[ref]) ws[ref].s = HEADER_STYLE;
+      }
 
-      for (let i = 1; i <= exportRows.length; i++) {
-        const rowNum = i + 1;
-        const marginVal = exportRows[i - 1]["Margin %"] as number;
+      ws["!freeze"] = { x: 0, y: 1 };
 
-        const marginRef = `${marginCol}${rowNum}`;
-        if (ws[marginRef]) {
-          ws[marginRef].t = "n";
-          ws[marginRef].z = "0.0%";
-          ws[marginRef].v = marginVal / 100;
+      for (let i = 0; i < exportRows.length; i++) {
+        const rowNum = i + 2;
+        const row = exportRows[i];
+
+        const zebra = zebraStyle(i);
+
+        const erpMarginRef = `O${rowNum}`;
+        if (ws[erpMarginRef]) {
+          ws[erpMarginRef].t = "n";
+          ws[erpMarginRef].z = "0.0%";
+          ws[erpMarginRef].v = (row["ERP Margin %"] as number) / 100;
+          const val = row["ERP Margin %"] as number;
+          if (val >= 30) ws[erpMarginRef].s = { ...greenStyle(), ...zebra };
+          else if (val >= 15) ws[erpMarginRef].s = { ...yellowStyle(), ...zebra };
+          else ws[erpMarginRef].s = { ...redStyle(), ...zebra };
         }
 
-        const marginCell = ws[marginRef];
-        if (marginCell) {
-          if (marginVal >= 20) {
-            marginCell.s = { fill: { fgColor: { rgb: "FFD5F5E3" } }, font: { color: { rgb: "FF1B5E20" }, bold: true } };
-          } else if (marginVal >= 10) {
-            marginCell.s = { fill: { fgColor: { rgb: "FFFEF9C3" } }, font: { color: { rgb: "FF856404" }, bold: true } };
-          } else {
-            marginCell.s = { fill: { fgColor: { rgb: "FFFFE0E0" } }, font: { color: { rgb: "FFB71C1C" }, bold: true } };
+        const diffRef = `T${rowNum}`;
+        if (ws[diffRef]) {
+          ws[diffRef].s = { ...(row["Price vs Selling (INR)"] < 0 ? redStyle() : row["Price vs Selling (INR)"] > 0 ? greenStyle() : neutralStyle()), ...zebra };
+        }
+
+        const vsSellMarginRef = `U${rowNum}`;
+        if (ws[vsSellMarginRef]) {
+          ws[vsSellMarginRef].t = "n";
+          ws[vsSellMarginRef].z = "0.0%";
+          ws[vsSellMarginRef].v = (row["Margin vs Selling %"] as number) / 100;
+          const val = row["Margin vs Selling %"] as number;
+          if (val >= 20) ws[vsSellMarginRef].s = { ...greenStyle(), ...zebra };
+          else if (val >= 10) ws[vsSellMarginRef].s = { ...yellowStyle(), ...zebra };
+          else ws[vsSellMarginRef].s = { ...redStyle(), ...zebra };
+        }
+
+        const profitRef = `V${rowNum}`;
+        if (ws[profitRef]) {
+          ws[profitRef].s = { ...(row["Profit vs Cost (INR)"] < 0 ? redStyle(true) : row["Profit vs Cost (INR)"] > 0 ? greenStyle(true) : neutralStyle()), ...zebra };
+        }
+
+        const costMarginRef = `W${rowNum}`;
+        if (ws[costMarginRef]) {
+          ws[costMarginRef].t = "n";
+          ws[costMarginRef].z = "0.0%";
+          ws[costMarginRef].v = (row["Margin vs Cost %"] as number) / 100;
+          const val = row["Margin vs Cost %"] as number;
+          if (val >= 50) ws[costMarginRef].s = { ...greenStyle(true), ...zebra };
+          else if (val >= 25) ws[costMarginRef].s = { ...yellowStyle(), ...zebra };
+          else ws[costMarginRef].s = { ...redStyle(true), ...zebra };
+        }
+
+        const erpProfitRef = `N${rowNum}`;
+        if (ws[erpProfitRef]) {
+          ws[erpProfitRef].s = { ...(row["ERP Profit (INR)"] < 0 ? redStyle(true) : row["ERP Profit (INR)"] > 0 ? greenStyle(true) : neutralStyle()), ...zebra };
+        }
+
+        const inrRefs = ["L", "M", "N", "S", "T", "V"];
+        for (const col of inrRefs) {
+          const ref = `${col}${rowNum}`;
+          if (ws[ref]) {
+            ws[ref].z = "₹ #,##0.00";
+            ws[ref].s = { ...(ws[ref].s || {}), ...zebra };
           }
         }
 
-        const diffRef = `${diffCol}${rowNum}`;
-        const diffCell = ws[diffRef];
-        if (diffCell) {
-          if (exportRows[i - 1]["Price Diff (INR)"] < 0) {
-            diffCell.s = { fill: { fgColor: { rgb: "FFFFE0E0" } }, font: { color: { rgb: "FFB71C1C" }, bold: true } };
-          } else if (exportRows[i - 1]["Price Diff (INR)"] > 0) {
-            diffCell.s = { fill: { fgColor: { rgb: "FFD5F5E3" } }, font: { color: { rgb: "FF1B5E20" } } };
+        const usdRefs = ["R"];
+        for (const col of usdRefs) {
+          const ref = `${col}${rowNum}`;
+          if (ws[ref]) {
+            ws[ref].z = "#,##0.00";
           }
         }
       }
 
-      const headerStyle = {
-        fill: { fgColor: { rgb: "FF1E293B" } },
-        font: { bold: true, color: { rgb: "FFFFFFFF" }, sz: 11 },
-        alignment: { horizontal: "center" as const, wrapText: true },
-      };
-
-      const headerRange = XLSX.utils.decode_range(ws["!ref"] || "A1:T1");
-      for (let c = headerRange.s.c; c <= headerRange.e.c; c++) {
-        const ref = XLSX.utils.encode_cell({ r: 0, c });
-        if (ws[ref]) ws[ref].s = headerStyle;
-      }
+      ws["!autofilter"] = { ref: ws["!ref"] || "A1:Y1" };
 
       XLSX.utils.book_append_sheet(wb, ws, "Price Audit");
       XLSX.writeFile(wb, `marketplace-price-audit-${new Date().toISOString().split("T")[0]}.xlsx`);
@@ -178,7 +279,7 @@ export function MarketplacePriceAuditExport() {
               Price Audit Export
             </DialogTitle>
             <DialogDescription>
-              Enter today&apos;s USD to INR conversion rate to compare marketplace prices with ERP selling prices.
+              Enter today&apos;s USD to INR conversion rate to compare marketplace prices with ERP cost &amp; selling prices.
             </DialogDescription>
           </DialogHeader>
 

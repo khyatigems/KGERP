@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
       const listedPrice = Number(r.listedPrice) || 0;
       const currency = String(r.currency || "INR");
       const sellingPrice = Number(r.sellingPrice) || 0;
+      const costPrice = Number(r.costPrice) || 0;
 
       let listedPriceInr = listedPrice;
       if (currency === "USD" || currency === "US") {
@@ -58,8 +59,14 @@ export async function GET(req: NextRequest) {
         listedPriceInr = listedPrice * (usdRate * 1.08);
       }
 
-      const diff = listedPriceInr - sellingPrice;
-      const marginPct = sellingPrice > 0 ? ((diff / sellingPrice) * 100) : 0;
+      const vsSellingDiff = listedPriceInr - sellingPrice;
+      const vsSellingMarginPct = sellingPrice > 0 ? ((vsSellingDiff / sellingPrice) * 100) : 0;
+
+      const erpProfit = sellingPrice - costPrice;
+      const erpMarginPct = costPrice > 0 ? ((erpProfit / costPrice) * 100) : 0;
+
+      const marketplaceProfit = listedPriceInr - costPrice;
+      const marketplaceMarginPct = costPrice > 0 ? ((marketplaceProfit / costPrice) * 100) : 0;
 
       return {
         sku: String(r.sku || ""),
@@ -88,8 +95,13 @@ export async function GET(req: NextRequest) {
         currency,
         listedPriceInr: Math.round(listedPriceInr * 100) / 100,
         sellingPrice,
-        priceDiff: Math.round(diff * 100) / 100,
-        marginPct: Math.round(marginPct * 10) / 10,
+        costPrice,
+        erpProfit: Math.round(erpProfit * 100) / 100,
+        erpMarginPct: Math.round(erpMarginPct * 10) / 10,
+        vsSellingDiff: Math.round(vsSellingDiff * 100) / 100,
+        vsSellingMarginPct: Math.round(vsSellingMarginPct * 10) / 10,
+        marketplaceProfit: Math.round(marketplaceProfit * 100) / 100,
+        marketplaceMarginPct: Math.round(marketplaceMarginPct * 10) / 10,
         listingUrl: String(r.listingUrl || ""),
         listingRef: String(r.listingRef || ""),
         listingStatus: String(r.listingStatus || ""),
