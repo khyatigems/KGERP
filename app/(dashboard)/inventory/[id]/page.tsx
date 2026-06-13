@@ -651,6 +651,14 @@ export default async function InventoryDetailPage({
                                             ? "sales return recorded"
                                             : log.actionType === "QUOTATION"
                                             ? "added to quotation"
+                                            : log.actionType === "LISTING_LINKED"
+                                            ? "linked to marketplace listing"
+                                            : log.actionType === "LISTING_UPDATED"
+                                            ? "updated marketplace listing"
+                                            : log.actionType === "STATUS_CHANGE"
+                                            ? "changed status"
+                                            : log.actionType.endsWith("ED")
+                                            ? `${log.actionType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())} this item`
                                             : `${log.actionType.toLowerCase()}d this item`}
                                         </span>
                                         {log.source !== 'WEB' && <Badge variant="outline" className="ml-2 text-[10px] h-5">{log.source}</Badge>}

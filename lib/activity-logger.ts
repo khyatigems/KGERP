@@ -100,10 +100,10 @@ export async function logActivity<T = Record<string, unknown>>({
       }
     }
 
-    // If still no user and source is SYSTEM/CRON, use system user
-    if (!finalUserId && (source === "SYSTEM" || source === "CRON")) {
+    // If still no user and source is SYSTEM/CRON/EXTENSION, use system user
+    if (!finalUserId && (source === "SYSTEM" || source === "CRON" || source === "EXTENSION")) {
        finalUserId = "SYSTEM";
-       finalUserName = "System";
+       finalUserName = source === "EXTENSION" ? "Chrome Extension" : "System";
     }
 
     // Fallback
