@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireExtensionApiToken } from "@/lib/extension-api-auth";
+import { logActivity } from "@/lib/activity-logger";
+import { logMarketplaceActivity } from "@/lib/marketplace-control-center";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +107,12 @@ export async function POST(request: NextRequest) {
       listedPrice: toPrice(body.price),
       currency: body.currency || "USD",
       status: body.status || "ACTIVE",
+      priceHistory: {
+        create: {
+          price: toPrice(body.price),
+          changedBy: "Chrome Extension",
+        },
+      },
     },
     include: {
       inventory: {
@@ -112,6 +120,27 @@ export async function POST(request: NextRequest) {
       },
     },
   });
+
+  // Fire side effects asynchronously
+  Promise.all([
+    logActivity({
+      entityType: "Listing",
+      entityId: listing.id,
+      entityIdentifier: `${platform} - ${listing.inventory.sku}`,
+      actionType: "CREATE",
+      newData: listing,
+      source: "EXTENSION",
+    }),
+    logMarketplaceActivity({
+      entityType: "Inventory",
+      entityId: productId,
+      entityIdentifier: listing.inventory.sku,
+      actionType: "LISTING_LINKED",
+      details: `${platform} listing linked for ${listing.inventory.sku}`,
+      source: "EXTENSION",
+      metadata: { platform, listingId: listing.id, listingUrl: listing.listingUrl || null },
+    }),
+  ]).catch((e) => console.error("Post-creation logging failed:", e));
 
   return NextResponse.json(mappingResponse(listing), { status: 201 });
 }

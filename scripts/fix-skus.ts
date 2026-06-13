@@ -58,7 +58,10 @@ async function loadNameToCodeMap(table: string): Promise<Record<string, string>>
     const name = (row.name as string || "").trim();
     const code = (row.code as string || "").trim();
     if (name && code) {
-      map[name.toLowerCase()] = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      // Skip hex color codes (e.g. FF0000, 0000FF) — these are not valid SKU codes
+      if (/^[0-9A-F]{6}$/.test(normalized) || code.startsWith("#")) continue;
+      map[name.toLowerCase()] = normalized;
     }
   }
   return map;

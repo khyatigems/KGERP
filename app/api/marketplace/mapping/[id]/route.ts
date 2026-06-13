@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireExtensionApiToken } from "@/lib/extension-api-auth";
+import { logActivity } from "@/lib/activity-logger";
+import { logMarketplaceActivity } from "@/lib/marketplace-control-center";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +43,7 @@ export async function PUT(
 
     const existing = await prisma.listing.findUnique({
       where: { id },
-      select: { id: true, inventoryId: true },
+      include: { inventory: { select: { id: true, sku: true } } },
     });
 
     if (!existing) {
@@ -72,6 +74,39 @@ export async function PUT(
         ...(body.status !== undefined && { status: body.status.toUpperCase() }),
       },
     });
+
+    // Fire side effects asynchronously
+    Promise.all([
+      (async () => {
+        if (price !== undefined && price !== existing.listedPrice) {
+          await prisma.listingPriceHistory.create({
+            data: {
+              listingId: id,
+              price,
+              changedBy: "Chrome Extension",
+            },
+          });
+        }
+      })(),
+      logActivity({
+        entityType: "Listing",
+        entityId: id,
+        entityIdentifier: `${updated.platform} - ${inventory.sku}`,
+        actionType: "EDIT",
+        oldData: existing,
+        newData: updated,
+        source: "EXTENSION",
+      }),
+      logMarketplaceActivity({
+        entityType: "Inventory",
+        entityId: inventory.id,
+        entityIdentifier: inventory.sku,
+        actionType: "LISTING_UPDATED",
+        details: `${updated.platform} listing updated for ${inventory.sku}`,
+        source: "EXTENSION",
+        metadata: { platform: updated.platform, listingId: updated.id, listingUrl: updated.listingUrl || null },
+      }),
+    ]).catch((e) => console.error("Post-update logging failed:", e));
 
     return NextResponse.json({
       mapping: {
