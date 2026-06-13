@@ -11,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Listing } from "@prisma/client";
-import { Download, Loader2, RefreshCw } from "lucide-react";
-import { deleteListings, updateListingsStatus } from "@/app/(dashboard)/inventory/listing-actions";
+import { Download, Loader2, RefreshCw, Eye, History, ExternalLink, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { deleteListings, updateListingsStatus, getListingHistory } from "@/app/(dashboard)/inventory/listing-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useGlobalLoader } from "@/components/global-loader-provider";
@@ -41,6 +41,11 @@ export function ListingsTable({ data }: ListingsTableProps) {
   
   const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState("");
+
+  const [selectedListing, setSelectedListing] = useState<typeof data[number] | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [listingHistory, setListingHistory] = useState<{ price: number; changedAt: Date | string; changedBy?: string }[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const filteredData = data.filter(item => {
     const itemDate = new Date(item.listedDate);
@@ -157,6 +162,20 @@ export function ListingsTable({ data }: ListingsTableProps) {
       setPlatformFilter("ALL");
       setStatusFilter("ALL");
       setSkuSearch("");
+  };
+
+  const handleViewListing = async (listing: typeof data[number]) => {
+    setSelectedListing(listing);
+    setIsDetailOpen(true);
+    setIsLoadingHistory(true);
+    try {
+      const res = await getListingHistory(listing.id);
+      if (res.success) setListingHistory(res.history);
+    } catch {
+      setListingHistory([]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
   };
 
   const hasActiveFilters = startDate || endDate || platformFilter !== "ALL" || statusFilter !== "ALL" || skuSearch;
@@ -326,8 +345,13 @@ export function ListingsTable({ data }: ListingsTableProps) {
               </TableRow>
             ) : (
               filteredData.map((listing) => (
-                <TableRow key={listing.id} data-state={selectedIds.has(listing.id) ? "selected" : undefined}>
-                  <TableCell>
+                <TableRow 
+                  key={listing.id} 
+                  data-state={selectedIds.has(listing.id) ? "selected" : undefined}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleViewListing(listing)}
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox 
                         checked={selectedIds.has(listing.id)}
                         onCheckedChange={() => toggleSelect(listing.id)}
@@ -341,20 +365,32 @@ export function ListingsTable({ data }: ListingsTableProps) {
                     <Badge variant="secondary">{listing.platform}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="font-mono flex items-center gap-1.5 w-fit">
-                      {formatCurrency(listing.listedPrice, listing.currency || "INR")}
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="font-mono">
+                        {formatCurrency(listing.listedPrice, listing.currency || "INR")}
+                      </Badge>
                       {listing.priceHistory.length > 0 && (() => {
                         const original = listing.priceHistory[0].price;
                         const diff = listing.listedPrice - original;
-                        if (Math.abs(diff) < 0.001) return null;
-                        const pct = ((diff / original) * 100).toFixed(2);
+                        if (Math.abs(diff) < 0.001) {
+                          return (
+                            <span className="text-muted-foreground" title={`Original: ${formatCurrency(original, listing.currency || "INR")}`}>
+                              <Minus className="h-3.5 w-3.5" />
+                            </span>
+                          );
+                        }
+                        const pct = ((diff / original) * 100).toFixed(1);
                         return (
-                          <span className={diff > 0 ? "text-green-600" : "text-red-600"}>
-                            {diff > 0 ? "↑" : "↓"} {pct}%
+                          <span 
+                            className={`flex items-center text-xs font-medium ${diff > 0 ? "text-green-600" : "text-red-600"}`}
+                            title={`Original: ${formatCurrency(original, listing.currency || "INR")} → Now: ${formatCurrency(listing.listedPrice, listing.currency || "INR")}`}
+                          >
+                            {diff > 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                            {pct}%
                           </span>
                         );
                       })()}
-                    </Badge>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {formatDate(listing.listedDate)}
@@ -372,7 +408,7 @@ export function ListingsTable({ data }: ListingsTableProps) {
                       {listing.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     {listing.listingUrl ? (
                       <a
                         href={listing.listingUrl}
@@ -408,6 +444,105 @@ export function ListingsTable({ data }: ListingsTableProps) {
                         Delete
                     </Button>
                 </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Eye className="h-5 w-5" />
+                        Listing Details
+                    </DialogTitle>
+                </DialogHeader>
+                {selectedListing && (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span className="text-muted-foreground text-xs">SKU</span>
+                                <p className="font-mono font-medium">{selectedListing.inventory.sku}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground text-xs">Item</span>
+                                <p className="font-medium">{selectedListing.inventory.itemName}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground text-xs">Platform</span>
+                                <p><Badge variant="secondary">{selectedListing.platform}</Badge></p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground text-xs">Status</span>
+                                <p>
+                                    <Badge variant={selectedListing.status === "LISTED" || selectedListing.status === "ACTIVE" ? "default" : "outline"}>
+                                        {selectedListing.status}
+                                    </Badge>
+                                </p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground text-xs">Listed Price</span>
+                                <p className="font-mono font-medium text-lg">{formatCurrency(selectedListing.listedPrice, selectedListing.currency || "INR")}</p>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground text-xs">Listed Date</span>
+                                <p>{formatDate(selectedListing.listedDate)}</p>
+                            </div>
+                        </div>
+
+                        {selectedListing.listingUrl && (
+                            <div className="text-sm">
+                                <span className="text-muted-foreground text-xs">Listing URL</span>
+                                <p>
+                                    <a 
+                                        href={selectedListing.listingUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-blue-600 hover:underline flex items-center gap-1"
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        {selectedListing.listingUrl.length > 60 ? selectedListing.listingUrl.substring(0, 60) + "..." : selectedListing.listingUrl}
+                                    </a>
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="border-t pt-3">
+                            <h4 className="text-sm font-medium flex items-center gap-2 mb-3">
+                                <History className="h-4 w-4" />
+                                Price History
+                            </h4>
+                            {isLoadingHistory ? (
+                                <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                            ) : listingHistory.length === 0 ? (
+                                <p className="text-xs text-muted-foreground text-center py-3">No price history recorded.</p>
+                            ) : (
+                                <div className="space-y-0">
+                                    {listingHistory.map((h, i) => {
+                                        const isFirst = i === listingHistory.length - 1;
+                                        const prevPrice = i < listingHistory.length - 1 ? listingHistory[i + 1].price : null;
+                                        const diff = prevPrice !== null ? h.price - prevPrice : null;
+                                        return (
+                                            <div key={i} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-2 h-2 rounded-full ${isFirst ? "bg-blue-500" : "bg-muted-foreground/40"}`} />
+                                                    <span className="font-mono font-medium">{formatCurrency(h.price, selectedListing.currency || "INR")}</span>
+                                                    {diff !== null && Math.abs(diff) > 0.001 && (
+                                                        <span className={`text-xs font-medium ${diff > 0 ? "text-green-600" : "text-red-600"}`}>
+                                                            {diff > 0 ? "↑" : "↓"} {formatCurrency(Math.abs(diff), selectedListing.currency || "INR")}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-right text-xs text-muted-foreground">
+                                                    <div>{new Date(h.changedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+                                                    <div className="text-[10px]">{new Date(h.changedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     </div>
