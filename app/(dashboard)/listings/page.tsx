@@ -34,6 +34,10 @@ export default async function ListingsPage() {
           itemName: true,
         },
       },
+      priceHistory: {
+        orderBy: { changedAt: "asc" },
+        take: 1,
+      },
     },
   });
 

@@ -18,7 +18,10 @@ import { useRouter } from "next/navigation";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 
 interface ListingsTableProps {
-  data: (Listing & { inventory: { sku: string; itemName: string } })[];
+  data: (Listing & { 
+    inventory: { sku: string; itemName: string };
+    priceHistory: { price: number; changedAt: Date }[];
+  })[];
 }
 
 export function ListingsTable({ data }: ListingsTableProps) {
@@ -338,8 +341,19 @@ export function ListingsTable({ data }: ListingsTableProps) {
                     <Badge variant="secondary">{listing.platform}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="font-mono">
+                    <Badge variant="outline" className="font-mono flex items-center gap-1.5 w-fit">
                       {formatCurrency(listing.listedPrice, listing.currency || "INR")}
+                      {listing.priceHistory.length > 0 && (() => {
+                        const original = listing.priceHistory[0].price;
+                        const diff = listing.listedPrice - original;
+                        if (Math.abs(diff) < 0.001) return null;
+                        const pct = ((diff / original) * 100).toFixed(2);
+                        return (
+                          <span className={diff > 0 ? "text-green-600" : "text-red-600"}>
+                            {diff > 0 ? "↑" : "↓"} {pct}%
+                          </span>
+                        );
+                      })()}
                     </Badge>
                   </TableCell>
                   <TableCell>

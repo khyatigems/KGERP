@@ -7,7 +7,10 @@ import { ListingTemplates } from "./listing-templates";
 import { Listing } from "@prisma/client";
 
 interface ListingsViewProps {
-  listings: (Listing & { inventory: { sku: string; itemName: string } })[];
+  listings: (Listing & { 
+    inventory: { sku: string; itemName: string };
+    priceHistory: { price: number; changedAt: Date }[];
+  })[];
 }
 
 export function ListingsView({ listings }: ListingsViewProps) {
