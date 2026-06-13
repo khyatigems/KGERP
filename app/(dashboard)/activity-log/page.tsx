@@ -107,7 +107,7 @@ export default async function ActivityLogPage({
       const dt = log?.createdAt ? new Date(log.createdAt) : null;
       return {
         Time: dt && !Number.isNaN(dt.getTime()) ? format(dt, "dd-MMM-yyyy HH:mm") : String(log.createdAt || ""),
-        User: log.userName || log.userId || "System",
+        User: (log.userName && log.userName !== "Unknown" ? log.userName : log.userId) || "System",
         Action: log.actionType || log.action || "UNKNOWN",
         Module: log.module || log.entityType || "",
         Reference: log.referenceId || log.entityIdentifier || log.entityId || "",
@@ -156,7 +156,7 @@ export default async function ActivityLogPage({
                       <option value="ALL">All</option>
                       {userOptions.map((u) => (
                         <option key={String(u.userId)} value={String(u.userId)}>
-                          {String(u.userName || u.userId)}
+                          {String((u.userName && u.userName !== "Unknown" ? u.userName : u.userId) || "System")}
                         </option>
                       ))}
                     </select>
@@ -235,7 +235,7 @@ export default async function ActivityLogPage({
                                          {log.referenceId || log.entityIdentifier || log.entityId || "-"}
                                      </TableCell>
                                      <TableCell>
-                                     {log.userName || log.userId || "System"}
+                                      {(log.userName && log.userName !== "Unknown" ? log.userName : log.userId) || "System"}
                                          {log.source && log.source !== 'WEB' && (
                                              <span className="text-xs text-muted-foreground ml-1">({log.source})</span>
                                          )}

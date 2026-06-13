@@ -30,6 +30,7 @@ type SearchParams = {
   collectionId?: string;
   rashiId?: string;
   weightRange?: string;
+  filter?: string;
   page?: string;
 };
 
@@ -138,6 +139,20 @@ function buildInventoryWhere(
     } else if (Number.isFinite(min) && Number.isFinite(max)) {
       direct.weightValue = { gte: min, lte: max };
     }
+  }
+
+  if (params.filter === "missingImages") {
+    and.push({ imageUrl: null, status: "IN_STOCK", hideFromAttention: false });
+  } else if (params.filter === "missingCertification") {
+    and.push({ certification: null, status: "IN_STOCK", hideFromAttention: false });
+  } else if (params.filter === "highValueUnsold") {
+    and.push({ sellingPrice: { gt: 100000 }, status: "IN_STOCK", hideFromAttention: false, updatedAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } });
+  } else if (params.filter === "stagnant") {
+    and.push({ status: "IN_STOCK", hideFromAttention: false, createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } });
+  } else if (params.filter === "newArrivals") {
+    and.push({ status: "IN_STOCK", createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } });
+  } else if (params.filter === "missingHsn") {
+    and.push({ OR: [{ hsnCode: null }, { hsnCode: "" }] });
   }
 
   if (Object.keys(direct).length > 0) and.push(direct);
@@ -371,6 +386,14 @@ export default async function InventoryPage({
     return `/inventory${nextParams.toString() ? `?${nextParams.toString()}` : ""}`;
   };
 
+  const activeFilterLabel = params.filter === "missingImages" ? "Missing Images"
+    : params.filter === "missingCertification" ? "Missing Certification"
+    : params.filter === "highValueUnsold" ? "High-Value Stagnant"
+    : params.filter === "stagnant" ? "Stagnant Stock (90+ days)"
+    : params.filter === "newArrivals" ? "New Arrivals (30 days)"
+    : params.filter === "missingHsn" ? "Missing HSN Code"
+    : null;
+
   return (
     <div className="space-y-6">
       <InventorySavedToast />
@@ -426,6 +449,16 @@ export default async function InventoryPage({
       </div>
 
       <InventoryInsightBar />
+
+      {activeFilterLabel && (
+        <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-foreground">Filtered by: {activeFilterLabel}</span>
+            <span className="text-xs text-muted-foreground">({data.totalItems} items)</span>
+          </div>
+          <Link href="/inventory" className="text-xs text-primary hover:underline">Clear filter</Link>
+        </div>
+      )}
 
       <div key={data.filtersKey} className="animate-in fade-in duration-200">
         <InventoryCardList data={data.inventory} canManageAttentionVisibility={data.canManageAttentionVisibility} />

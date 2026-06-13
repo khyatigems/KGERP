@@ -2,199 +2,190 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StickyNote, Plus, Loader2, Edit3, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Plus, X, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface Note {
-    id: string;
-    content: string;
-    color: string;
-    position: number;
-    createdBy: { name: string };
-    createdAt: string;
+  id: string;
+  content: string;
+  color: string;
+  position: number;
+  createdBy: { name: string };
+  createdAt: string;
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+const colorMap: Record<string, { darkBg: string; darkBorder: string; darkText: string; lightBg: string; lightBorder: string; lightText: string }> = {
+  yellow: { darkBg: "dark:bg-amber-900/20", darkBorder: "dark:border-amber-700/30", darkText: "dark:text-amber-200", lightBg: "bg-amber-50", lightBorder: "border-amber-200", lightText: "text-amber-800" },
+  blue: { darkBg: "dark:bg-blue-900/20", darkBorder: "dark:border-blue-700/30", darkText: "dark:text-blue-200", lightBg: "bg-blue-50", lightBorder: "border-blue-200", lightText: "text-blue-800" },
+  green: { darkBg: "dark:bg-emerald-900/20", darkBorder: "dark:border-emerald-700/30", darkText: "dark:text-emerald-200", lightBg: "bg-emerald-50", lightBorder: "border-emerald-200", lightText: "text-emerald-800" },
+  purple: { darkBg: "dark:bg-purple-900/20", darkBorder: "dark:border-purple-700/30", darkText: "dark:text-purple-200", lightBg: "bg-purple-50", lightBorder: "border-purple-200", lightText: "text-purple-800" },
+  pink: { darkBg: "dark:bg-pink-900/20", darkBorder: "dark:border-pink-700/30", darkText: "dark:text-pink-200", lightBg: "bg-pink-50", lightBorder: "border-pink-200", lightText: "text-pink-800" },
+};
+
 export function QuickNotes() {
-    const { data: notes, error, isLoading, mutate } = useSWR<Note[]>("/api/dashboard/notes", fetcher);
-    const [isAdding, setIsAdding] = useState(false);
-    const [newNoteContent, setNewNoteContent] = useState("");
-    const [selectedColor, setSelectedColor] = useState("yellow");
-    const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
-    const { toast } = useToast();
+  const { data: notes, error, isLoading, mutate } = useSWR<Note[]>("/api/dashboard/notes", fetcher);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState("");
+  const [selectedColor, setSelectedColor] = useState("yellow");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
 
-    const colors = [
-        { name: "yellow", bg: "bg-yellow-100", border: "border-yellow-200" },
-        { name: "blue", bg: "bg-blue-100", border: "border-blue-200" },
-        { name: "green", bg: "bg-green-100", border: "border-green-200" },
-        { name: "gray", bg: "bg-gray-100", border: "border-gray-200" },
-    ];
+  const noteColors = ["yellow", "blue", "green", "purple", "pink"];
 
-    const handleAddNote = async () => {
-        if (!newNoteContent.trim()) return;
+  const handleAddNote = async () => {
+    if (!newNoteContent.trim()) return;
+    try {
+      const response = await fetch("/api/dashboard/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newNoteContent, color: selectedColor, position: notes ? notes.length : 0 })
+      });
+      if (!response.ok) throw new Error("Failed to create note");
+      setNewNoteContent("");
+      setIsAdding(false);
+      mutate();
+      toast.success("Note added");
+    } catch {
+      toast.error("Failed to save note");
+    }
+  };
 
-        try {
-            const response = await fetch("/api/dashboard/notes", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    content: newNoteContent,
-                    color: selectedColor,
-                    position: notes ? notes.length : 0
-                })
-            });
+  const handleDeleteNote = async (id: string) => {
+    try {
+      const response = await fetch(`/api/dashboard/notes?id=${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete note");
+      mutate();
+      toast.success("Note deleted");
+    } catch {
+      toast.error("Failed to delete note");
+    }
+  };
 
-            if (!response.ok) {
-                throw new Error("Failed to create note");
-            }
+  const handleEditNote = async (id: string) => {
+    if (!editContent.trim()) return;
+    try {
+      const response = await fetch("/api/dashboard/notes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, content: editContent })
+      });
+      if (!response.ok) throw new Error("Failed to update note");
+      setEditingId(null);
+      setEditContent("");
+      mutate();
+      toast.success("Note updated");
+    } catch {
+      toast.error("Failed to update note");
+    }
+  };
 
-            setNewNoteContent("");
-            setIsAdding(false);
-            mutate();
-            toast({
-                title: "Note added",
-                description: "Your note has been saved successfully.",
-            });
-        } catch (error) {
-            console.error("Failed to add note", error);
-            toast({
-                title: "Error",
-                description: "Failed to save note. Please try again.",
-                variant: "destructive"
-            });
-        }
-    };
+  if (error) return null;
 
-    const handleDeleteNote = (id: string) => {
-        setNoteToDelete(id);
-    };
+  const sortedNotes = notes ? [...notes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [];
 
-    const confirmDeleteNote = async () => {
-        if (!noteToDelete) return;
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 gem-fade-in">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400">
+            <StickyNote className="h-3.5 w-3.5" />
+          </div>
+          <h2 className="text-sm font-semibold text-foreground">Quick Notes</h2>
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => setIsAdding(!isAdding)} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
 
-        try {
-            const response = await fetch(`/api/dashboard/notes?id=${noteToDelete}`, {
-                method: "DELETE"
-            });
-            
-            if (!response.ok) {
-                throw new Error("Failed to delete note");
-            }
-            
-            mutate();
-            toast({
-                title: "Note deleted",
-                description: "The note has been removed.",
-            });
-        } catch (error) {
-            console.error("Failed to delete note", error);
-            toast({
-                title: "Error",
-                description: "Failed to delete note.",
-                variant: "destructive"
-            });
-        } finally {
-            setNoteToDelete(null);
-        }
-    };
+      {isLoading ? (
+        <div className="flex justify-center py-4"><Loader2 className="animate-spin h-4 w-4 text-muted-foreground" /></div>
+      ) : (
+        <div className="space-y-2">
+          {isAdding && (
+            <div className="rounded-lg border border-border bg-muted/50 p-2.5 space-y-2">
+              <Textarea
+                placeholder="Write a note..."
+                value={newNoteContent}
+                onChange={(e) => setNewNoteContent(e.target.value)}
+                className="min-h-[48px] text-sm bg-transparent border-0 text-foreground placeholder:text-muted-foreground resize-none focus-visible:ring-0 p-0"
+                autoFocus
+              />
+              <div className="flex items-center justify-between">
+                <div className="flex gap-1.5">
+                  {noteColors.map((c) => (
+                    <button
+                      key={c}
+                      className={`h-4 w-4 rounded-full bg-${c}-500/40 transition-transform hover:scale-110 ${selectedColor === c ? "ring-2 ring-primary ring-offset-1 ring-offset-background scale-110" : ""}`}
+                      onClick={() => setSelectedColor(c)}
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <Button size="sm" variant="ghost" onClick={() => { setIsAdding(false); setNewNoteContent(""); }} className="h-6 px-2 text-[10px] text-muted-foreground">Cancel</Button>
+                  <Button size="sm" onClick={handleAddNote} className="h-6 px-2.5 text-[10px]">Add</Button>
+                </div>
+              </div>
+            </div>
+          )}
 
-    if (error) return <div className="text-red-500">Failed to load notes</div>;
+          {sortedNotes.length === 0 && !isAdding && (
+            <p className="text-center text-xs text-muted-foreground py-3">No notes yet. Click + to add one.</p>
+          )}
 
-    return (
-        <Card className="h-full flex flex-col overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 bg-muted/50">
-                <CardTitle className="text-sm font-medium">Quick Notes</CardTitle>
-                <Button size="sm" variant="ghost" onClick={() => setIsAdding(!isAdding)} className="h-8 w-8 p-0">
-                    <Plus className="h-4 w-4" />
-                </Button>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden flex flex-col pt-4">
-                {isLoading ? (
-                    <div className="flex justify-center py-4"><Loader2 className="animate-spin h-5 w-5" /></div>
-                ) : (
-                    <div className="space-y-3 overflow-y-auto pr-1 flex-1 -mr-2" style={{ maxHeight: '300px' }}>
-                        {isAdding && (
-                            <div className="p-3 border rounded-lg bg-background shadow-sm space-y-2 mb-4 sticky top-0 z-10">
-                                <Textarea 
-                                    placeholder="Write a note..." 
-                                    value={newNoteContent}
-                                    onChange={(e) => setNewNoteContent(e.target.value)}
-                                    className="resize-none min-h-[60px] text-sm"
-                                />
-                                <div className="flex justify-between items-center">
-                                    <div className="flex gap-1.5">
-                                        {colors.map((c) => (
-                                            <button
-                                                key={c.name}
-                                                className={`w-5 h-5 rounded-full ${c.bg} border ${c.border} transition-transform hover:scale-110 ${selectedColor === c.name ? "ring-2 ring-offset-1 ring-black scale-110" : ""}`}
-                                                onClick={() => setSelectedColor(c.name)}
-                                            />
-                                        ))}
-                                    </div>
-                                    <Button size="sm" onClick={handleAddNote} className="h-7 px-3">Add</Button>
-                                </div>
-                            </div>
-                        )}
-
-                        {notes?.length === 0 && !isAdding && (
-                            <div className="h-full flex flex-col items-center justify-center text-muted-foreground text-xs py-8 border border-dashed rounded-lg bg-muted/20">
-                                <p>No notes yet.</p>
-                                <Button variant="link" size="sm" onClick={() => setIsAdding(true)}>Create one</Button>
-                            </div>
-                        )}
-
-                        {notes?.map((note) => (
-                            <div 
-                                key={note.id} 
-                                className={`p-3 rounded-lg border relative group transition-all hover:shadow-md ${
-                                    note.color === "yellow" ? "bg-yellow-50 border-yellow-200" :
-                                    note.color === "blue" ? "bg-blue-50 border-blue-200" :
-                                    note.color === "green" ? "bg-green-50 border-green-200" :
-                                    "bg-gray-50 border-gray-200"
-                                }`}
-                            >
-                                <p className="text-sm whitespace-pre-wrap pr-6 text-slate-900">{note.content}</p>
-                                <button 
-                                    onClick={() => handleDeleteNote(note.id)}
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500"
-                                >
-                                    <X className="h-3.5 w-3.5" />
-                                </button>
-                                <div className="mt-2 text-[10px] text-slate-500 flex justify-between">
-                                    <span>{new Date(note.createdAt).toLocaleDateString()}</span>
-                                </div>
-                            </div>
-                        ))}
+          {sortedNotes.map((note) => {
+            const colorStyle = colorMap[note.color] || colorMap.yellow;
+            const isEditing = editingId === note.id;
+            return (
+              <div
+                key={note.id}
+                className={`group relative rounded-lg border p-2.5 transition-all duration-200 hover:shadow-md ${colorStyle.darkBg} ${colorStyle.darkBorder} ${colorStyle.lightBg} ${colorStyle.lightBorder}`}
+              >
+                {isEditing ? (
+                  <div className="space-y-1.5">
+                    <Textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="min-h-[40px] text-sm bg-transparent border-0 text-foreground resize-none focus-visible:ring-0 p-0"
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-6 px-2 text-[10px] text-muted-foreground">Cancel</Button>
+                      <Button size="sm" onClick={() => handleEditNote(note.id)} className="h-6 px-2.5 text-[10px]">Save</Button>
                     </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className={`text-sm whitespace-pre-wrap pr-6 ${colorStyle.darkText} ${colorStyle.lightText}`}>{note.content}</p>
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(note.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
+                      </span>
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => { setEditingId(note.id); setEditContent(note.content); }}
+                          className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteNote(note.id)}
+                          className="rounded p-1 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
-            </CardContent>
-
-            <Dialog open={!!noteToDelete} onOpenChange={(open) => !open && setNoteToDelete(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Delete Note</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete this note? This action cannot be undone.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setNoteToDelete(null)}>Cancel</Button>
-                        <Button variant="destructive" onClick={confirmDeleteNote}>Delete</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </Card>
-    );
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }

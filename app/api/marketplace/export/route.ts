@@ -122,8 +122,9 @@ export async function GET(req: NextRequest) {
 
     const allItems = [...grouped.values()];
     const opportunityItems = allItems.filter((item) => item.platforms.size < 3);
-    const marketplaceFiltered = marketplace && marketplace !== "ALL"
-      ? allItems.filter((item) => item.platforms.has(normalizePlatform(marketplace) as any))
+    const normMarketplace = normalizePlatform(marketplace);
+    const marketplaceFiltered = marketplace && marketplace !== "ALL" && normMarketplace
+      ? allItems.filter((item) => item.platforms.has(normMarketplace))
       : allItems;
 
     const targetItems = report === "opportunity" ? opportunityItems : marketplaceFiltered;
@@ -131,7 +132,7 @@ export async function GET(req: NextRequest) {
     function buildRow(item: typeof allItems[0]): Record<string, unknown> {
       const b = item.base;
       const platformList = [...item.platforms].sort().join(", ");
-      const missing = ["EBAY", "ETSY", "AMAZON"].filter((p) => !item.platforms.has(p as any)).join(", ");
+      const missing = ["EBAY", "ETSY", "AMAZON"].filter((p) => !item.platforms.has(p)).join(", ");
       const fmtDate = (d: unknown) => d ? String(d).split(".")[0] : "";
       return {
         "SKU": b.sku || "",
@@ -189,7 +190,7 @@ export async function GET(req: NextRequest) {
 
     for (const platform of ["EBAY", "ETSY", "AMAZON"]) {
       const platRows = targetItems
-        .filter((item) => !item.platforms.has(platform as any))
+        .filter((item) => !item.platforms.has(platform))
         .map((item) => buildRow(item));
       if (platRows.length === 0) continue;
       const ws = XLSX.utils.json_to_sheet(platRows);

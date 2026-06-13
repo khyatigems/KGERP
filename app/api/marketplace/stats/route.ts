@@ -8,14 +8,32 @@ export async function GET() {
   try {
     await ensureMarketplaceControlCenterSchema();
 
-    const countRows = await prisma.$queryRawUnsafe<Array<{ total: number }>>(
-      `SELECT COUNT(*) AS total FROM "Listing" WHERE UPPER("status") IN ('ACTIVE', 'LISTED')`
-    );
-    const totalListings = Number(countRows[0]?.total || 0);
+    const [
+      countRows,
+      conflictRows,
+      statusBreakdown,
+      recentActivity,
+    ] = await Promise.all([
+      prisma.$queryRawUnsafe<Array<{ total: number }>>(
+        `SELECT COUNT(*) AS total FROM "Listing" WHERE UPPER("status") IN ('ACTIVE', 'LISTED')`
+      ),
+      prisma.$queryRawUnsafe<Array<{ conflictStatus: string; activePlatforms: string | null; currentQuantity: number }>>(
+        `SELECT "conflictStatus", "activePlatforms", "currentQuantity" FROM "MarketplaceConflict"`
+      ),
+      prisma.listing.groupBy({
+        by: ["status"],
+        _count: { id: true },
+      }).catch(() => []),
+      prisma.listing.findMany({
+        take: 4,
+        orderBy: { updatedAt: "desc" },
+        include: {
+          inventory: { select: { sku: true, itemName: true } },
+        },
+      }).catch(() => []),
+    ]);
 
-    const conflictRows = await prisma.$queryRawUnsafe<Array<{ conflictStatus: string; activePlatforms: string | null; currentQuantity: number }>>(
-      `SELECT "conflictStatus", "activePlatforms", "currentQuantity" FROM "MarketplaceConflict"`
-    );
+    const totalListings = Number(countRows[0]?.total || 0);
 
     let pendingConflicts = 0;
     let criticalConflicts = 0;
@@ -30,10 +48,40 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ totalListings, pendingConflicts, criticalConflicts });
+    const listingStatusBreakdown: Record<string, number> = {};
+    for (const entry of statusBreakdown) {
+      listingStatusBreakdown[entry.status] = entry._count.id;
+    }
+
+    const mappedActivity = recentActivity.map((item) => ({
+      id: item.id,
+      inventoryId: item.inventoryId,
+      platform: item.platform,
+      status: item.status,
+      listedPrice: item.listedPrice,
+      currency: item.currency,
+      listingUrl: item.listingUrl || null,
+      updatedAt: item.updatedAt.toISOString(),
+      sku: item.inventory?.sku || null,
+      itemName: item.inventory?.itemName || null,
+    }));
+
+    return NextResponse.json({
+      totalListings,
+      pendingConflicts,
+      criticalConflicts,
+      listingStatusBreakdown,
+      recentActivity: mappedActivity,
+    });
   } catch (error) {
     console.error("[Marketplace Stats] Error:", error);
-    return NextResponse.json({ totalListings: 0, pendingConflicts: 0, criticalConflicts: 0 });
+    return NextResponse.json({
+      totalListings: 0,
+      pendingConflicts: 0,
+      criticalConflicts: 0,
+      listingStatusBreakdown: {},
+      recentActivity: [],
+    });
   }
 }
 

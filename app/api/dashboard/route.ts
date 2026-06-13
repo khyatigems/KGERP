@@ -29,8 +29,11 @@ export async function GET() {
       const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const endOfNextWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+      const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
-      // Single batch — all 36+ queries in one Promise.all
+      // Single batch — all 39+ queries in one Promise.all
       const [
         totalInventory, activeListingsRaw, activeQuotations, invoicesGenerated,
         labelCartCount, lastLabelCartItem, recentSales,
@@ -46,6 +49,7 @@ export async function GET() {
         pendingPaymentsLast30, pendingPaymentsPrev30,
         labelsAddedLast30, labelsAddedPrev30,
         categoryAgg, typeAgg,
+        todaySalesCount, todaySalesRevenue, dailyRevenueTrend,
       ] = await Promise.all([
         prisma.inventory.count({ where: { status: "IN_STOCK" } }).catch(() => 0),
         prisma.listing.groupBy({ by: ['platform'], where: { status: { in: ["LISTED", "ACTIVE"] } }, _count: { id: true } }).catch(() => []),
@@ -57,7 +61,7 @@ export async function GET() {
         prisma.quotation.findMany({ where: { status: "PENDING_APPROVAL", validUntil: { lt: endOfNextWeek } }, select: { id: true, quotationNumber: true, customerName: true, expiryDate: true }, take: 5 }).catch(() => []),
         prisma.invoice.findMany({ where: { status: "ISSUED", paymentStatus: "UNPAID", dueDate: { lt: now } }, select: { id: true, invoiceNumber: true, totalAmount: true, createdAt: true }, take: 5 }).catch(() => []),
         prisma.memo.findMany({ where: { status: "OPEN", expiryDate: { lt: now }, items: { some: { inventory: { hideFromAttention: false } } } }, select: { id: true, customerName: true, issueDate: true, items: { take: 1, where: { inventory: { hideFromAttention: false } }, include: { inventory: { select: { sku: true } } } } }, take: 5 }).catch(() => []),
-        prisma.vendor.count({ where: { status: "PENDING_APPROVAL" } }).catch(() => 0),
+        prisma.vendor.count({ where: { status: "PENDING" } }).catch(() => 0),
         prisma.inventory.findMany({ where: { status: "IN_STOCK", hideFromAttention: false, updatedAt: { lt: sixtyDaysAgo } }, select: { id: true, sku: true, createdAt: true }, take: 5 }).catch(() => []),
         prisma.inventory.findMany({ where: { status: "IN_STOCK", hideFromAttention: false, certification: null }, select: { id: true, sku: true, itemName: true }, take: 5 }).catch(() => []),
         prisma.inventory.findMany({ where: { status: "IN_STOCK", hideFromAttention: false, imageUrl: null }, select: { id: true, sku: true, itemName: true }, take: 5 }).catch(() => []),
@@ -100,6 +104,21 @@ export async function GET() {
           ORDER BY value DESC
           LIMIT 5
         `.catch(() => []),
+        prisma.sale.count({ where: { saleDate: { gte: startOfToday, lt: endOfToday } } }).catch(() => 0),
+        prisma.sale.aggregate({ where: { saleDate: { gte: startOfToday, lt: endOfToday } }, _sum: { netAmount: true } }).catch(() => ({ _sum: { netAmount: null } })),
+        prisma.sale.findMany({
+          where: { saleDate: { gte: oneYearAgo } },
+          select: { saleDate: true, netAmount: true },
+          orderBy: { saleDate: "asc" },
+        }).then((sales) => {
+          const grouped: Record<string, number> = {};
+          for (const sale of sales) {
+            const d = sale.saleDate;
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            grouped[dateStr] = (grouped[dateStr] || 0) + sale.netAmount;
+          }
+          return Object.entries(grouped).map(([date, revenue]) => ({ date, revenue }));
+        }).catch(() => []),
       ]);
 
       const percentChange = (current: number, previous: number) => {
@@ -144,7 +163,10 @@ export async function GET() {
           pendingPayments: { count: pendingPaymentsCount, trend: trends.pendingPayments, breakdown: { openLast30: pendingPaymentsLast30, openPrev30: pendingPaymentsPrev30 } },
           printLabels: { count: labelCartCount, trend: trends.labels, breakdown: { addedLast30: labelsAddedLast30, addedPrev30: labelsAddedPrev30 }, lastItem: lastLabelCartItem ? `${lastLabelCartItem.inventory.sku} - ${lastLabelCartItem.inventory.itemName}` : null },
           attention: { quotations: expiringQuotations, invoices: overdueInvoices, memo: normalizedMemo, vendors: pendingVendors, unsold: unsoldInventory, missingCertifications, missingImages, pendingExpenses, highValueUnsold },
-          today: { inventory: todayInventory, quotations: todayQuotations, labels: todayLabels, invoices: todayInvoices }
+          today: { inventory: todayInventory, quotations: todayQuotations, labels: todayLabels, invoices: todayInvoices },
+          todayRevenue: todaySalesRevenue?._sum?.netAmount ?? 0,
+          todayOrders: todaySalesCount,
+          revenueTrend: (dailyRevenueTrend as Array<{ date: string; revenue: number }>).map(r => ({ date: r.date, revenue: Number(r.revenue) || 0 })),
         },
         recentSales,
         analytics: {
