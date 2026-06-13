@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 
   const inventory = await prisma.inventory.findUnique({
     where: { id: productId },
-    select: { id: true },
+    select: { id: true, sellingPrice: true },
   });
 
   if (!inventory) {
@@ -97,6 +97,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const marketplacePrice = toPrice(body.price);
+  const erpOriginalPrice = inventory.sellingPrice || marketplacePrice;
+
   const listing = await prisma.listing.create({
     data: {
       inventoryId: productId,
@@ -104,12 +107,12 @@ export async function POST(request: NextRequest) {
       externalId: listingId,
       listingUrl: body.listingUrl || null,
       listingRef: body.marketplaceSku || body.mpn || null,
-      listedPrice: toPrice(body.price),
+      listedPrice: marketplacePrice,
       currency: body.currency || "USD",
       status: body.status || "ACTIVE",
       priceHistory: {
         create: {
-          price: toPrice(body.price),
+          price: erpOriginalPrice,
           changedBy: "Chrome Extension",
         },
       },

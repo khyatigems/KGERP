@@ -9,6 +9,7 @@ import Link from "next/link";
 import { AlertTriangle, Globe, ShoppingCart, Activity } from "lucide-react";
 import { MarketplaceExportButton } from "@/components/marketplace-export-button";
 import { MarketplaceNavButton } from "@/components/marketplace-nav-button";
+import { MarketplacePriceAuditExport } from "@/components/marketplace-price-audit-export";
 
 export const dynamic = "force-dynamic";
 
@@ -189,6 +190,7 @@ export default async function MarketplaceControlCenterPage({
             <MarketplaceNavButton href="/marketplace-control-center?report=opportunity">
               Opportunity Report
             </MarketplaceNavButton>
+            <MarketplacePriceAuditExport />
           </div>
         </>
       ) : report === "coverage" ? (

@@ -139,16 +139,23 @@ export function ListingsTable({ data }: ListingsTableProps) {
   };
 
   const handleExport = () => {
-    const exportData = filteredData.map(item => ({
-        SKU: item.inventory.sku,
-        Item: item.inventory.itemName,
-        Platform: item.platform,
-        Currency: item.currency || "INR",
-        "Listed Price": item.listedPrice,
-        "Listed Date": formatDate(item.listedDate),
-        Status: item.status,
-        "Link/Ref": item.listingUrl || item.listingRef || ""
-    }));
+    const exportData = filteredData.map(item => {
+        const original = item.priceHistory.length > 0 ? item.priceHistory[0].price : item.listedPrice;
+        const diff = item.listedPrice - original;
+        const pct = original > 0 ? ((diff / original) * 100).toFixed(1) : "0.0";
+        return {
+          SKU: item.inventory.sku,
+          Item: item.inventory.itemName,
+          Platform: item.platform,
+          Currency: item.currency || "INR",
+          "Original Price": original,
+          "Listed Price": item.listedPrice,
+          "Price Change %": diff === 0 ? "0%" : `${diff > 0 ? "+" : ""}${pct}%`,
+          "Listed Date": formatDate(item.listedDate),
+          Status: item.status,
+          "Link/Ref": item.listingUrl || item.listingRef || ""
+        };
+    });
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
