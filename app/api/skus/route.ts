@@ -22,6 +22,7 @@ export async function GET(request: Request) {
         itemName: true,
         shape: true,
         weightValue: true,
+        weightUnit: true,
         dimensionsMm: true,
         measurements: true,
         color: true,
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
         updatedAt: true,
         beadSizeMm: true,
         beadSizeLabel: true,
+        cut: true,
       }
     });
     if (!item) return NextResponse.json({ error: 'SKU not found' }, { status: 404 });
@@ -45,6 +47,7 @@ export async function GET(request: Request) {
       ...item,
       title: item.itemName,
       weight: item.weightValue?.toString() || '',
+      weightUnit: item.weightUnit || '',
       dimensions: item.dimensionsMm || item.measurements || item.beadSizeLabel || (item.beadSizeMm ? `${item.beadSizeMm}mm` : ''),
       certification: item.certification || item.certificateLab || item.lab || '',
       origin: item.origin || item.originCountry || '',
