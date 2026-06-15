@@ -50,6 +50,13 @@ type DrawerItem = {
   createdAt?: string;
   updatedAt?: string;
   media?: DrawerMedia[];
+  activityLogs?: Array<{
+    id: string;
+    actionType: string;
+    details: string | null;
+    userName: string | null;
+    createdAt: string;
+  }>;
 };
 
 function statusBadge(status: string) {
@@ -327,6 +334,31 @@ export function InventoryDetailDrawer({
                   <div className="text-sm mt-1">{data?.updatedAt ? formatDate(new Date(data.updatedAt)) : "—"}</div>
                 </div>
               </div>
+              {(data?.activityLogs && data.activityLogs.length > 0) && (
+                <div className="space-y-2 mt-2">
+                  <div className="text-[11px] text-muted-foreground uppercase tracking-wider">Activity</div>
+                  <div className="space-y-2">
+                    {data.activityLogs.map((log) => (
+                      <div key={log.id} className="flex items-start gap-2 rounded-md border p-2 text-xs">
+                        <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
+                          log.actionType === "CREATE" || log.actionType === "LABEL_PRINT" ? "bg-emerald-500" :
+                          log.actionType === "STATUS_CHANGE" ? "bg-amber-500" :
+                          log.actionType === "EDIT" ? "bg-blue-500" :
+                          "bg-gray-400"
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground">{log.details || log.actionType}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                            {log.userName && <span>{log.userName}</span>}
+                            <span>·</span>
+                            <span>{formatDate(new Date(log.createdAt))}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </ScrollArea>

@@ -131,11 +131,21 @@ export async function GET(request: NextRequest) {
 
   const certificateWhere = {
     ...where,
-    OR: [
-      { certificateNo: { not: null } },
-      { certificateNumber: { not: null } },
-      { certification: { not: null } },
-      { lab: { not: null } },
+    AND: [
+      {
+        OR: [
+          { imageUrl: { not: null } },
+          { media: { some: {} } },
+        ],
+      },
+      {
+        OR: [
+          { certificateNo: { not: null } },
+          { certificateNumber: { not: null } },
+          { certification: { not: null } },
+          { lab: { not: null } },
+        ],
+      },
     ],
   } as unknown as Prisma.InventoryWhereInput;
 

@@ -33,6 +33,27 @@ export async function GET(
 
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const activityLogs = await prisma.activityLog.findMany({
+    where: {
+      OR: [
+        { entityId: id },
+        { entityIdentifier: item.sku },
+      ],
+      entityType: "Inventory",
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      actionType: true,
+      action: true,
+      details: true,
+      description: true,
+      userName: true,
+      createdAt: true,
+    },
+  }).catch(() => []);
+
   return NextResponse.json({
     id: item.id,
     sku: item.sku,
@@ -78,6 +99,13 @@ export async function GET(
       type: m.type,
       mediaUrl: m.mediaUrl,
       isPrimary: m.isPrimary,
+    })),
+    activityLogs: activityLogs.map((log) => ({
+      id: log.id,
+      actionType: log.actionType || log.action,
+      details: log.details || log.description,
+      userName: log.userName,
+      createdAt: log.createdAt,
     })),
   });
 }

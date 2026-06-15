@@ -891,6 +891,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
       // Post-transaction operations (non-critical, can fail without affecting sale)
       
       // 1. Log activities (outside transaction)
+      const customerRefName = txCustomerProfile?.name || data.customerName || "Walk-in";
       for (const itemData of txComputedItems) {
           await logActivity({
               entityType: "Sale",
@@ -901,6 +902,19 @@ export async function createSale(prevState: unknown, formData: FormData) {
               userId: session.user.id,
               userName: session.user.name || session.user.email || "Unknown",
               newData: data
+          });
+
+          await logActivity({
+              entityType: "Inventory",
+              entityId: itemData.inv.id,
+              entityIdentifier: itemData.inv.sku,
+              actionType: "STATUS_CHANGE",
+              source: "WEB",
+              userId: session.user.id,
+              userName: session.user.name || session.user.email || "Unknown",
+              oldData: { status: "IN_STOCK" },
+              newData: { status: "SOLD" },
+              details: `Item marked SOLD by ${session.user.name || session.user.email || "Unknown"}. Customer: ${customerRefName}`
           });
 
           await triggerMarketplaceConflict({

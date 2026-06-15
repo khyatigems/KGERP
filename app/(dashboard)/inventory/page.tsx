@@ -482,15 +482,15 @@ export default async function InventoryPage({
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" asChild disabled={data.currentPage <= 1}>
-                <Link href={buildPageUrl(data.currentPage - 1)} className={data.currentPage <= 1 ? "pointer-events-none opacity-50" : ""}>
+                <LoadingLink href={buildPageUrl(data.currentPage - 1)} className={data.currentPage <= 1 ? "pointer-events-none opacity-50" : ""}>
                   Prev
-                </Link>
+                </LoadingLink>
               </Button>
               <span className="text-sm text-gray-600">Page {data.currentPage} of {data.totalPages}</span>
               <Button variant="outline" size="sm" asChild disabled={data.currentPage >= data.totalPages}>
-                <Link href={buildPageUrl(data.currentPage + 1)} className={data.currentPage >= data.totalPages ? "pointer-events-none opacity-50" : ""}>
+                <LoadingLink href={buildPageUrl(data.currentPage + 1)} className={data.currentPage >= data.totalPages ? "pointer-events-none opacity-50" : ""}>
                   Next
-                </Link>
+                </LoadingLink>
               </Button>
             </div>
           </div>

@@ -230,6 +230,12 @@ export async function createLabelJob(data: {
             }
         });
 
+        // 5. Log label print activity for each inventory item
+        for (const invId of data.inventoryIds) {
+          const { logLabelPrint } = await import("@/app/(dashboard)/inventory/label-actions");
+          await logLabelPrint(invId, data.printFormat?.pageSize || "A4").catch(() => {});
+        }
+
         revalidatePath("/labels");
         return { success: true, jobId: job.id, items: jobItemsData };
     } catch (e: unknown) {
