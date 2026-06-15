@@ -10,18 +10,18 @@ async function main() {
     Array<{
       jobId: string;
       sku: string;
+      inventoryId: string;
       printFormat: string | null;
       userId: string;
       userName: string | null;
       createdAt: string;
     }>
   >(
-    `SELECT j.id as jobId, i.sku, j.printFormat, j.userId, u.name as userName, j.createdAt
+    `SELECT j.id as jobId, i.sku, i.id as inventoryId, j.printFormat, j.userId, u.name as userName, j.createdAt
      FROM "LabelPrintJobItem" li
      JOIN "LabelPrintJob" j ON j.id = li.jobId
      JOIN "Inventory" i ON i.sku = li.sku
      LEFT JOIN "User" u ON u.id = j.userId
-     WHERE j.status = 'COMPLETED'
      ORDER BY j.createdAt DESC`
   );
 
@@ -34,8 +34,8 @@ async function main() {
     const existing = await prisma.$queryRawUnsafe<Array<{ cnt: number }>>(
       `SELECT COUNT(*) as cnt FROM "ActivityLog"
        WHERE entityType = 'Inventory'
-       AND (entityIdentifier = ? OR details LIKE '%Label printed%' AND entityIdentifier = ?)`,
-      job.sku,
+       AND entityIdentifier = ?
+       AND details LIKE '%Label printed%'`,
       job.sku
     );
 
@@ -46,13 +46,15 @@ async function main() {
 
     await prisma.$executeRawUnsafe(
       `INSERT INTO "ActivityLog" (id, entityType, entityId, entityIdentifier, actionType, userId, userName, source, details, description, createdAt, module, action)
-       VALUES (?, 'Inventory', '', ?, 'EDIT', ?, ?, 'SYSTEM', ?, ?, CURRENT_TIMESTAMP, 'Inventory', 'EDIT')`,
+       VALUES (?, 'Inventory', ?, ?, 'EDIT', ?, ?, 'SYSTEM', ?, ?, ?, 'Inventory', 'EDIT')`,
       crypto.randomUUID(),
+      job.inventoryId,
       job.sku,
       job.userId || "SYSTEM",
       job.userName || "System",
       `Label printed for this item (${labelType})`,
-      `Label printed for this item (${labelType})`
+      `Label printed for this item (${labelType})`,
+      job.createdAt
     );
 
     seenLabelSkus.add(job.sku);

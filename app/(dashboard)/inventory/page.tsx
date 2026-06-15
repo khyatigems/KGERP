@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { Plus, Upload } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { prisma, hasTable } from "@/lib/prisma";
 import { cachedMasters } from "@/lib/cache";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { InventoryStats } from "@/components/inventory/inventory-stats";
 import { InventorySavedToast } from "@/components/inventory/inventory-saved-toast";
 import { InventoryInsightBar } from "@/components/inventory/inventory-insight-bar";
 import { ComprehensiveExport } from "@/components/inventory/comprehensive-export";
+import { InventoryFilteredExport } from "@/components/inventory/inventory-filtered-export";
 import { RegenerateEbayButton } from "@/components/inventory/regenerate-ebay-button";
 import { BulkListings } from "@/components/inventory/bulk-listings";
 import type { Inventory, Prisma } from "@prisma/client";
@@ -142,7 +144,7 @@ function buildInventoryWhere(
   }
 
   if (params.filter === "missingImages") {
-    and.push({ imageUrl: null, status: "IN_STOCK", hideFromAttention: false });
+    and.push({ imageUrl: null, status: "IN_STOCK", hideFromAttention: false, media: { none: {} } });
   } else if (params.filter === "missingCertification") {
     and.push({ status: "IN_STOCK", hideFromAttention: false, certification: null, certificateNo: null, certificateNumber: null, lab: null, OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] });
   } else if (params.filter === "highValueUnsold") {
@@ -420,6 +422,9 @@ export default async function InventoryPage({
           )}
           <InventorySummaryExport />
           <ComprehensiveExport />
+          <Suspense fallback={null}>
+            <InventoryFilteredExport />
+          </Suspense>
           <RegenerateEbayButton />
           <BulkListings inventoryItems={data.inventory.map(item => ({
             id: item.id,

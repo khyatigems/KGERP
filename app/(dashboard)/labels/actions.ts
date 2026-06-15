@@ -7,6 +7,7 @@ import { encodePrice } from "@/lib/price-encoder";
 import { LabelConfig } from "@/lib/label-generator";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function addToCart(inventoryId: string): Promise<{ success: boolean; message?: string }> {
     const perm = await checkPermission(PERMISSIONS.INVENTORY_VIEW);
@@ -231,9 +232,21 @@ export async function createLabelJob(data: {
         });
 
         // 5. Log label print activity for each inventory item
+        const labelType = (data.printFormat as LabelConfig)?.pageSize || "A4";
         for (const invId of data.inventoryIds) {
-          const { logLabelPrint } = await import("@/app/(dashboard)/inventory/label-actions");
-          await logLabelPrint(invId, data.printFormat?.pageSize || "A4").catch(() => {});
+          const invItem = items.find((i) => i.id === invId);
+          if (invItem) {
+            await logActivity({
+              entityType: "Inventory",
+              entityId: invId,
+              entityIdentifier: invItem.sku,
+              actionType: "EDIT",
+              details: `Label printed for this item (${labelType})`,
+              source: "WEB",
+              userId: session.user.id,
+              userName: session.user.name || session.user.email || "Unknown",
+            }).catch(() => {});
+          }
         }
 
         revalidatePath("/labels");

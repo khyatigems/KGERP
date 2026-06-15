@@ -120,7 +120,7 @@ export default async function InventoryDetailPage({
   const { id } = await params;
 
   // Fetch main inventory data with ALL relations in ONE query
-  const inventoryPromise = prisma.inventory.findUnique({
+  const inventory = await prisma.inventory.findUnique({
     where: { id },
     include: {
       categoryCode: true,
@@ -134,18 +134,25 @@ export default async function InventoryDetailPage({
     }
   });
 
-  // Fetch all related data in PARALLEL
+  if (!inventory) {
+    return <div className="p-6">Inventory Item not found</div>;
+  }
+
+  // Fetch all related data in PARALLEL using inventory SKU
   const [
-    inventory,
     activityLogs,
     sales,
     quotations,
     returns
   ] = await Promise.all([
-    inventoryPromise,
-    // Limit to recent 20 logs only - critical for performance
     prisma.activityLog.findMany({
-      where: { entityId: id },
+      where: { 
+        OR: [
+          { entityId: id },
+          { entityIdentifier: inventory.sku },
+        ],
+        entityType: "Inventory",
+      },
       orderBy: { createdAt: "desc" },
       take: 20,
     }).catch(() => []),
@@ -184,10 +191,6 @@ export default async function InventoryDetailPage({
     }).catch(() => [])
   ]);
 
-  if (!inventory) {
-    return <div className="p-6">Inventory Item not found</div>;
-  }
-
   // Cast to our type
   const detailedItem = inventory as unknown as DetailedInventory;
 
@@ -201,17 +204,29 @@ export default async function InventoryDetailPage({
   const salesRows = sales;
   const quotationRows = quotations;
   
+  // Collect sale dates for deduplication
+  const saleDates = new Set(salesRows.map(s => new Date(s.saleDate).toISOString().split("T")[0]));
+
   const timeline = [
-    ...logs.map((l) => ({
-      id: l.id,
-      actionType: l.actionType,
-      userId: l.userId,
-      userName: l.userName,
-      details: l.details,
-      fieldChanges: l.fieldChanges,
-      source: l.source,
-      createdAt: l.createdAt,
-    })),
+    ...logs
+      .filter((l) => {
+        // Skip STATUS_CHANGE logs that overlap with Sale records
+        if (l.actionType === "STATUS_CHANGE" && l.details && /sold|marked\s*SOLD/i.test(l.details || "")) {
+          const logDate = l.createdAt ? new Date(l.createdAt).toISOString().split("T")[0] : null;
+          return !logDate || !saleDates.has(logDate);
+        }
+        return true;
+      })
+      .map((l) => ({
+        id: l.id,
+        actionType: l.actionType,
+        userId: l.userId,
+        userName: l.userName,
+        details: l.details,
+        fieldChanges: l.fieldChanges,
+        source: l.source,
+        createdAt: l.createdAt,
+      })),
     ...salesRows.map((s) => ({
       id: `sale-${s.id}`,
       actionType: "SALE",
