@@ -15,13 +15,14 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
 
   const roles = await (prisma as any).role.findMany({ orderBy: { name: 'asc' } });
 
-  // Pass user data needed for the form
   const userData = {
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
     avatar: user.avatar,
+    avatarUrl: user.avatarUrl,
+    avatarHistory: user.avatarHistory,
   };
 
   return (

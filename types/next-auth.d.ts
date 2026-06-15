@@ -4,6 +4,7 @@ import { Permission } from "@/lib/permissions"
 declare module "next-auth" {
   interface User {
     role: string
+    avatarUrl?: string | null
     lastLogin?: Date | string | null
   }
   
@@ -11,6 +12,7 @@ declare module "next-auth" {
     user: {
       id: string
       role: string
+      avatarUrl?: string | null
       permissions: Permission[]
       lastLogin?: Date | string | null
     } & DefaultSession["user"]
@@ -20,6 +22,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     role: string
+    avatarUrl?: string | null
     permissions: Permission[]
     lastLogin?: Date | string | null
   }

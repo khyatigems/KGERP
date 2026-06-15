@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useForm, useFieldArray, useWatch, Resolver } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { useForm, useWatch, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -15,12 +14,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "sonner";
 import { Plus, Trash2, History, RotateCcw, Save } from "lucide-react";
 import { format } from "date-fns";
-import { saveLandingPageSettings, getVersions, rollbackVersion } from "@/app/(dashboard)/settings/landing-page/actions";
-import { LandingPageSettings, LandingPageSlide, LandingPageVersion } from "@prisma/client";
+import { saveLandingPageSettings, getVersions, rollbackVersion, addWhatsNewEntry, getWhatsNewEntries, deleteWhatsNewEntry } from "@/app/(dashboard)/settings/landing-page/actions";
+import { LandingPageSettings, LandingPageVersion } from "@prisma/client";
 
 export type ExtendedLandingPageSettings = Omit<LandingPageSettings, "highlights"> & {
   highlights: string[];
-  slides: LandingPageSlide[];
 };
 
 export type VersionHistoryItem = LandingPageVersion & {
@@ -30,23 +28,16 @@ export type VersionHistoryItem = LandingPageVersion & {
     } | null;
 };
 
-const slideSchema = z.object({
-  id: z.string().optional(),
-  title: z.string().min(1, "Title is required").max(100, "Title too long"),
-  description: z.string()
-    .min(1, "Description is required")
-    .refine((val) => !/<[^>]*>/.test(val), "HTML tags are not allowed"),
-  displayOrder: z.coerce.number(),
-  isActive: z.boolean().default(true),
-});
+type WhatsNewEntry = {
+  id: string;
+  message: string;
+  createdAt: Date;
+};
 
 const configSchema = z.object({
   brandTitle: z.string(),
   subtitle: z.string().min(1, "Subtitle is required"),
   accessNotice: z.string().min(1, "Access notice is required"),
-  
-  slideshowEnabled: z.boolean(),
-  slides: z.array(slideSchema).max(10, "Too many slides"),
   
   highlightsEnabled: z.boolean(),
   highlights: z.array(
@@ -69,6 +60,9 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
   const [history, setHistory] = useState<VersionHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [rollbackTarget, setRollbackTarget] = useState<VersionHistoryItem | null>(null);
+  const [whatsNewEntries, setWhatsNewEntries] = useState<WhatsNewEntry[]>([]);
+  const [newWhatsNewMessage, setNewWhatsNewMessage] = useState("");
+  const [loadingWhatsNew, setLoadingWhatsNew] = useState(false);
 
   const form = useForm<ConfigFormValues>({
     resolver: zodResolver(configSchema) as Resolver<ConfigFormValues>,
@@ -76,24 +70,22 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
       brandTitle: initialSettings.brandTitle,
       subtitle: initialSettings.subtitle,
       accessNotice: initialSettings.accessNotice,
-      slideshowEnabled: initialSettings.slideshowEnabled,
-      slides: initialSettings.slides || [],
       highlightsEnabled: initialSettings.highlightsEnabled,
       highlights: initialSettings.highlights || [],
       whatsNewEnabled: initialSettings.whatsNewEnabled,
       whatsNewText: initialSettings.whatsNewText || "",
     },
   });
-
-  const { fields: slideFields, append: appendSlide, remove: removeSlide } = useFieldArray({
-    control: form.control,
-    name: "slides",
-  });
-  
-  const { slideshowEnabled, highlightsEnabled, whatsNewEnabled, highlights, brandTitle, slides } = useWatch({
+  const { highlightsEnabled, whatsNewEnabled, highlights, brandTitle } = useWatch({
     control: form.control,
   }) as ConfigFormValues;
-  
+
+  useEffect(() => {
+    if (whatsNewEnabled) {
+      getWhatsNewEntries().then(setWhatsNewEntries).catch(() => {});
+    }
+  }, [whatsNewEnabled]);
+
   const addHighlight = () => {
     if (highlights.length >= 5) return;
     const newHighlights = [...highlights, ""];
@@ -183,63 +175,6 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
             </CardContent>
         </Card>
 
-        {/* Slideshow Section */}
-        <Card>
-            <CardHeader>
-                <CardTitle>Slideshow</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                    <Switch 
-                        checked={slideshowEnabled} 
-                        onCheckedChange={(checked) => form.setValue("slideshowEnabled", checked)} 
-                    />
-                    <Label>Enable Slideshow</Label>
-                </div>
-                <p className="text-xs text-muted-foreground">Controls visibility of the informational slideshow on the login page.</p>
-                
-                {slideshowEnabled && (
-                    <div className="space-y-4 border rounded-md p-4">
-                        {slideFields.map((field, index) => (
-                            <div key={field.id} className="flex gap-4 items-start border-b last:border-0 pb-4 last:pb-0">
-                                <div className="grid gap-4 flex-1">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="grid gap-2">
-                                            <Label>Title</Label>
-                                            <Input {...form.register(`slides.${index}.title`)} placeholder="Slide Title" />
-                                        </div>
-                                        <div className="grid gap-2">
-                                            <Label>Display Order</Label>
-                                            <Input type="number" {...form.register(`slides.${index}.displayOrder`)} className="w-20" />
-                                        </div>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label>Description</Label>
-                                        <Input {...form.register(`slides.${index}.description`)} placeholder="Slide Description" />
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                        <Switch 
-                                            checked={slides?.[index]?.isActive ?? true} 
-                                            onCheckedChange={(checked) => form.setValue(`slides.${index}.isActive`, checked)} 
-                                        />
-                                        <Label className="text-sm text-muted-foreground">Active</Label>
-                                    </div>
-                                </div>
-                                <Button type="button" variant="ghost" size="icon" onClick={() => removeSlide(index)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </div>
-                        ))}
-                        {slideFields.length < 5 && (
-                            <Button type="button" variant="outline" size="sm" onClick={() => appendSlide({ title: "", description: "", displayOrder: slideFields.length + 1, isActive: true })}>
-                                <Plus className="h-4 w-4 mr-2" /> Add Slide
-                            </Button>
-                        )}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-
         {/* Highlights Section */}
         <Card>
             <CardHeader>
@@ -296,12 +231,67 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
                     <Label>Enable What&apos;s New</Label>
                 </div>
                 {whatsNewEnabled && (
-                    <div className="grid gap-2">
-                        <Textarea 
-                            {...form.register("whatsNewText")} 
-                            placeholder="Enter a short internal update (one line recommended)" 
-                        />
-                        <p className="text-xs text-muted-foreground">Used to communicate recent ERP updates to internal users.</p>
+                    <div className="space-y-3">
+                        <div className="flex gap-2">
+                            <Input
+                                value={newWhatsNewMessage}
+                                onChange={(e) => setNewWhatsNewMessage(e.target.value)}
+                                placeholder="What changed? E.g. 'Added bulk invoice printing'"
+                            />
+                            <Button
+                                type="button"
+                                size="sm"
+                                disabled={!newWhatsNewMessage.trim() || loadingWhatsNew}
+                                onClick={async () => {
+                                    setLoadingWhatsNew(true);
+                                    try {
+                                        const result = await addWhatsNewEntry(newWhatsNewMessage.trim());
+                                        if (result.success) {
+                                            setNewWhatsNewMessage("");
+                                            const entries = await getWhatsNewEntries();
+                                            setWhatsNewEntries(entries);
+                                            toast.success("Update added");
+                                        } else {
+                                            toast.error(result.message || "Failed");
+                                        }
+                                    } catch { toast.error("Error adding entry"); }
+                                    finally { setLoadingWhatsNew(false); }
+                                }}
+                            >
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        {whatsNewEntries.length > 0 && (
+                            <div className="space-y-1.5 border rounded-md p-3">
+                                {whatsNewEntries.map((entry) => (
+                                    <div key={entry.id} className="flex items-center justify-between text-sm py-1 border-b last:border-0">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <span className="text-xs text-muted-foreground shrink-0">
+                                                {format(new Date(entry.createdAt), "MMM d, yyyy")}
+                                            </span>
+                                            <span className="truncate">{entry.message}</span>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 shrink-0"
+                                            onClick={async () => {
+                                                const result = await deleteWhatsNewEntry(entry.id);
+                                                if (result.success) {
+                                                    const entries = await getWhatsNewEntries();
+                                                    setWhatsNewEntries(entries);
+                                                } else {
+                                                    toast.error("Failed to delete");
+                                                }
+                                            }}
+                                        >
+                                            <Trash2 className="h-3 w-3 text-destructive" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </CardContent>

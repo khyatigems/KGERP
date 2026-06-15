@@ -17,6 +17,8 @@ model User {
   role                       String
   roleId                     String?
   avatar                     String?
+  avatarUrl                  String?
+  avatarHistory              String?             @default("[]")
   lastLogin                  DateTime?
   lastPasswordChange         DateTime?
   forceLogoutBefore          DateTime?
@@ -107,7 +109,6 @@ model LandingPageSettings {
   brandTitle        String             @default("KhyatiGems™ ERP")
   subtitle          String             @default("Internal Operations & Management Platform")
   accessNotice      String             @default("Authorized internal access only")
-  slideshowEnabled  Boolean            @default(true)
   highlightsEnabled Boolean            @default(true)
   whatsNewEnabled   Boolean            @default(false)
   highlights        String             @default("[]")
@@ -116,19 +117,6 @@ model LandingPageSettings {
   activeVersion     Int                @default(1)
   updatedByUserId   String
   updatedAt         DateTime           @updatedAt
-  slides            LandingPageSlide[]
-}
-
-model LandingPageSlide {
-  id           String              @id @default(uuid())
-  settingsId   String
-  title        String
-  description  String
-  displayOrder Int
-  isActive     Boolean             @default(true)
-  settings     LandingPageSettings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
-
-  @@index([settingsId])
 }
 
 model LandingPageVersion {
@@ -141,6 +129,13 @@ model LandingPageVersion {
   createdBy       User     @relation(fields: [createdByUserId], references: [id])
 
   @@index([createdByUserId])
+}
+
+model WhatsNewEntry {
+  id        String   @id @default(uuid())
+  message   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CategoryCode {

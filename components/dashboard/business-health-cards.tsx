@@ -1,6 +1,6 @@
 "use client";
 
-import { ShoppingCart, Tag, Package, Printer, ArrowUpRight } from "lucide-react";
+import { TrendingUp, Package, Printer, CheckCircle2, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
 interface BusinessHealthProps {
@@ -9,13 +9,17 @@ interface BusinessHealthProps {
     listings?: { total: number };
     inventory?: { total: number };
     labelCart?: { count: number };
+    quotations?: { total: number };
+    readyToSell?: { count: number };
+    salesThisMonth?: number;
   };
 }
 
 export function BusinessHealthCards({ data }: BusinessHealthProps) {
-  const listings = data.listings?.total ?? 0;
   const inventory = data.inventory?.total ?? 0;
   const labelCart = data.labelCart?.count ?? 0;
+  const readyToSell = data.readyToSell?.count ?? 0;
+  const salesThisMonth = data.salesThisMonth ?? 0;
 
   const cards = [
     {
@@ -29,24 +33,24 @@ export function BusinessHealthCards({ data }: BusinessHealthProps) {
       href: "/inventory",
     },
     {
-      label: "Orders Today",
-      value: `${data.todayOrders}`,
-      sub: data.todayOrders > 0 ? "New orders received" : "No orders yet",
-      icon: ShoppingCart,
+      label: "Sales This Month",
+      value: `${salesThisMonth}`,
+      sub: salesThisMonth > 0 ? "Items sold this month" : "No sales yet",
+      icon: TrendingUp,
       accent: "from-blue-500/20 to-blue-500/5",
       iconColor: "text-blue-400",
       iconBg: "bg-blue-500/10",
       href: "/sales",
     },
     {
-      label: "Active Listings",
-      value: listings.toLocaleString("en-IN"),
-      sub: "Across all platforms",
-      icon: Tag,
-      accent: "from-purple-500/20 to-purple-500/5",
-      iconColor: "text-purple-400",
-      iconBg: "bg-purple-500/10",
-      href: "/listings",
+      label: "Ready to Sell",
+      value: readyToSell.toLocaleString("en-IN"),
+      sub: "Certified with images",
+      icon: CheckCircle2,
+      accent: "from-emerald-500/20 to-emerald-500/5",
+      iconColor: "text-emerald-400",
+      iconBg: "bg-emerald-500/10",
+      href: "/inventory?filter=readyToSell",
     },
     {
       label: "Label Cart",

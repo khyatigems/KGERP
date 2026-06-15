@@ -15,6 +15,7 @@ const userSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["SUPER_ADMIN", "ADMIN", "SALES", "ACCOUNTS", "VIEWER"]),
   avatar: z.string().optional(),
+  avatarUrl: z.string().optional(),
 });
 
 const updateUserSchema = z.object({
@@ -23,6 +24,7 @@ const updateUserSchema = z.object({
   password: z.string().optional(),
   role: z.enum(["SUPER_ADMIN", "ADMIN", "SALES", "ACCOUNTS", "VIEWER"]),
   avatar: z.string().optional(),
+  avatarUrl: z.string().optional(),
 });
 
 export async function createUser(formData: FormData) {
@@ -35,10 +37,11 @@ export async function createUser(formData: FormData) {
     password: formData.get("password"),
     role: formData.get("role"),
     avatar: formData.get("avatar"),
+    avatarUrl: formData.get("avatarUrl") || undefined,
   };
 
   const result = userSchema.safeParse(data);
-  
+
   if (!result.success) {
     return { message: "Invalid input data" };
   }
@@ -50,16 +53,19 @@ export async function createUser(formData: FormData) {
 
   try {
     const hashedPassword = await hash(result.data.password, 12);
-    
+
+    const userData: any = {
+      name: result.data.name,
+      email: result.data.email,
+      password: hashedPassword,
+      role: result.data.role,
+      roleId: roleRecord?.id,
+      avatar: result.data.avatar,
+    };
+    if (result.data.avatarUrl) userData.avatarUrl = result.data.avatarUrl;
+
     await (prisma.user as any).create({
-      data: {
-        name: result.data.name,
-        email: result.data.email,
-        password: hashedPassword,
-        role: result.data.role, // Legacy field fallback
-        roleId: roleRecord?.id,
-        avatar: result.data.avatar,
-      },
+      data: userData,
     });
   } catch (e: unknown) {
     console.error("User creation error:", e);
@@ -127,6 +133,7 @@ export async function updateUser(id: string, formData: FormData) {
         password: formData.get("password") || undefined,
         role: formData.get("role"),
         avatar: formData.get("avatar"),
+        avatarUrl: formData.get("avatarUrl") || undefined,
     };
 
     const result = updateUserSchema.safeParse(data);
@@ -137,7 +144,6 @@ export async function updateUser(id: string, formData: FormData) {
     }
 
     try {
-        // Try to find matching Role ID
         const roleRecord = await (prisma as any).role.findUnique({
           where: { name: result.data.role }
         });
@@ -145,10 +151,11 @@ export async function updateUser(id: string, formData: FormData) {
         const updateData: any = {
             name: result.data.name,
             email: result.data.email,
-            role: result.data.role, // Legacy fallback
+            role: result.data.role,
             roleRelation: roleRecord ? { connect: { id: roleRecord.id } } : undefined,
             avatar: result.data.avatar,
         };
+        if (result.data.avatarUrl) updateData.avatarUrl = result.data.avatarUrl;
 
         if (result.data.password && result.data.password.length >= 6) {
             updateData.password = await hash(result.data.password, 12);

@@ -17,18 +17,44 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PREDEFINED_AVATARS } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, ImageIcon } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function NewUserForm({ roles }: { roles: Record<string, unknown>[] }) {
   const [error, setError] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(PREDEFINED_AVATARS[0]);
+  const [uploadedAvatarUrl, setUploadedAvatarUrl] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("File too large (max 5MB)"); return; }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/user/avatar", { method: "POST", body: formData });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Upload failed"); }
+      const data = await res.json();
+      setUploadedAvatarUrl(data.avatarUrl);
+      toast.success("Avatar uploaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
 
   async function clientAction(formData: FormData) {
     setError("");
     setSubmitting(true);
-    formData.set("avatar", selectedAvatar);
+    formData.set("avatar", uploadedAvatarUrl || selectedAvatar);
     try {
       const res = await createUser(formData);
       if (res?.message) {
@@ -57,32 +83,57 @@ export default function NewUserForm({ roles }: { roles: Record<string, unknown>[
         <form action={clientAction} className="space-y-4">
           <div className="space-y-2">
             <Label>Avatar</Label>
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-4 p-4 border rounded-lg bg-slate-50 dark:bg-slate-900">
-              {PREDEFINED_AVATARS.map((svg, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => setSelectedAvatar(svg)}
-                  className={cn(
-                    "relative rounded-full overflow-hidden transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
-                    selectedAvatar === svg ? "ring-2 ring-primary ring-offset-2 scale-110" : "opacity-70 hover:opacity-100"
-                  )}
-                >
-                  <div 
-                      className="w-12 h-12"
-                      dangerouslySetInnerHTML={{ __html: svg }} 
-                  />
-                </button>
-              ))}
+            <div className="flex items-start gap-4">
+              <div className="shrink-0">
+                {uploadedAvatarUrl ? (
+                  <Avatar className="h-20 w-20 ring-2 ring-white shadow-md">
+                    <AvatarImage src={uploadedAvatarUrl} />
+                    <AvatarFallback><ImageIcon /></AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="h-20 w-20 rounded-full ring-2 ring-white shadow-md overflow-hidden" dangerouslySetInnerHTML={{ __html: selectedAvatar }} />
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <label className="inline-flex">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                  <span className={cn("inline-flex items-center gap-2 px-3 py-1.5 text-sm border rounded-md cursor-pointer hover:bg-accent", uploading && "opacity-50 pointer-events-none")}>
+                    <Upload className="h-3.5 w-3.5" />
+                    {uploading ? "Uploading..." : "Upload photo"}
+                  </span>
+                </label>
+                {uploadedAvatarUrl && (
+                  <button type="button" onClick={() => setUploadedAvatarUrl("")} className="text-xs text-red-600 hover:underline ml-2">
+                    Use preset instead
+                  </button>
+                )}
+                <p className="text-xs text-muted-foreground">Or pick a preset:</p>
+                <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                  {PREDEFINED_AVATARS.map((svg, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => { setSelectedAvatar(svg); setUploadedAvatarUrl(""); }}
+                      disabled={!!uploadedAvatarUrl}
+                      className={cn(
+                        "relative rounded-full overflow-hidden transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50",
+                        !uploadedAvatarUrl && selectedAvatar === svg ? "ring-2 ring-primary ring-offset-2 scale-110" : "opacity-70 hover:opacity-100"
+                      )}
+                    >
+                      <div className="w-9 h-9" dangerouslySetInnerHTML={{ __html: svg }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <input type="hidden" name="avatar" value={selectedAvatar} />
+            <input type="hidden" name="avatar" value={uploadedAvatarUrl || selectedAvatar} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" name="name" required />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input id="email" name="email" type="email" required />

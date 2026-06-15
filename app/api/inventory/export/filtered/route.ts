@@ -79,7 +79,15 @@ function buildFilterWhere(sp: URLSearchParams): Prisma.InventoryWhereInput {
   }
 
   if (filter === "missingImages") {
-    and.push({ imageUrl: null, status: "IN_STOCK", hideFromAttention: false });
+    and.push({ imageUrl: null, status: "IN_STOCK", hideFromAttention: false, media: { none: {} } });
+  } else if (filter === "readyToSell") {
+    and.push({
+      status: "IN_STOCK",
+      AND: [
+        { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
+        { OR: [{ certification: { not: null } }, { certificateNo: { not: null } }, { certificateNumber: { not: null } }, { lab: { not: null } }] },
+      ],
+    });
   } else if (filter === "missingCertification") {
     and.push({ status: "IN_STOCK", hideFromAttention: false, certification: null, certificateNo: null, certificateNumber: null, lab: null, OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] });
   } else if (filter === "highValueUnsold") {

@@ -968,3 +968,63 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
   })();
   return ensureBillfreePhase1Promise;
 }
+
+let ensuringAvatarWhatsNew = false;
+let ensuredAvatarWhatsNew = false;
+let ensureAvatarWhatsNewPromise: Promise<void> | null = null;
+
+export async function ensureAvatarWhatsNewSchema(): Promise<void> {
+  if (ensuredAvatarWhatsNew) return;
+  if (ensuringAvatarWhatsNew && ensureAvatarWhatsNewPromise) return ensureAvatarWhatsNewPromise;
+  ensuringAvatarWhatsNew = true;
+  ensureAvatarWhatsNewPromise = (async () => {
+    try {
+      await ensureColumnIfMissing("User", "avatarUrl", '"avatarUrl" TEXT');
+      await ensureColumnIfMissing("User", "avatarHistory", '"avatarHistory" TEXT DEFAULT \'[]\'');
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "WhatsNewEntry" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "message" TEXT NOT NULL,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `).catch(() => null);
+    } catch {
+    } finally {
+      ensuredAvatarWhatsNew = true;
+      ensuringAvatarWhatsNew = false;
+      ensureAvatarWhatsNewPromise = null;
+    }
+  })();
+  return ensureAvatarWhatsNewPromise;
+}
+
+let ensuringPasswordReset = false;
+let ensuredPasswordReset = false;
+let ensurePasswordResetPromise: Promise<void> | null = null;
+
+export async function ensurePasswordResetSchema(): Promise<void> {
+  if (ensuredPasswordReset) return;
+  if (ensuringPasswordReset && ensurePasswordResetPromise) return ensurePasswordResetPromise;
+  ensuringPasswordReset = true;
+  ensurePasswordResetPromise = (async () => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "PasswordResetToken" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT NOT NULL,
+          "token" TEXT NOT NULL UNIQUE,
+          "expiresAt" DATETIME NOT NULL,
+          "used" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `).catch(() => null);
+    } catch {
+    } finally {
+      ensuredPasswordReset = true;
+      ensuringPasswordReset = false;
+      ensurePasswordResetPromise = null;
+    }
+  })();
+  return ensurePasswordResetPromise;
+}

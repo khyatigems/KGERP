@@ -6,32 +6,25 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { checkPermission } from "@/lib/permission-guard";
 import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity-logger";
-import { LandingPageSettings, LandingPageSlide } from "@prisma/client";
+import { LandingPageSettings } from "@prisma/client";
 
 // Helper to ensure singleton settings exist
 async function getOrCreateSettings() {
-  const settings = await prisma.landingPageSettings.findFirst({
-    include: { slides: { orderBy: { displayOrder: 'asc' } } }
-  });
+  const settings = await prisma.landingPageSettings.findFirst();
 
   if (settings) return settings;
 
-  // Create default if not exists
-  // Note: system user ID is placeholder, usually we might use a known admin ID or null if optional
-  // But schema says String, so we use "system"
   return prisma.landingPageSettings.create({
     data: {
       brandTitle: "KhyatiGems™ ERP",
       subtitle: "Internal Operations & Management Platform",
       accessNotice: "Authorized internal access only",
-      slideshowEnabled: true,
       highlightsEnabled: true,
       whatsNewEnabled: false,
       highlights: JSON.stringify([]),
       activeVersion: 1,
       updatedByUserId: "system", 
     },
-    include: { slides: true }
   });
 }
 
@@ -40,24 +33,16 @@ export async function getLandingPageSettings() {
   return {
     ...settings,
     highlights: JSON.parse(settings.highlights),
-    slides: settings.slides
   };
 }
 
 export async function saveLandingPageSettings(data: {
   subtitle: string;
   accessNotice: string;
-  slideshowEnabled: boolean;
   highlightsEnabled: boolean;
   whatsNewEnabled: boolean;
   highlights: string[];
   whatsNewText?: string;
-  slides: {
-    title: string;
-    description: string;
-    displayOrder: number;
-    isActive: boolean;
-  }[];
 }) {
   const perm = await checkPermission(PERMISSIONS.SETTINGS_LANDING_PAGE);
   if (!perm.success) return { success: false, message: perm.message };
@@ -88,7 +73,6 @@ export async function saveLandingPageSettings(data: {
         data: {
           subtitle: data.subtitle,
           accessNotice: data.accessNotice,
-          slideshowEnabled: data.slideshowEnabled,
           highlightsEnabled: data.highlightsEnabled,
           whatsNewEnabled: data.whatsNewEnabled,
           highlights: JSON.stringify(data.highlights),
@@ -99,25 +83,8 @@ export async function saveLandingPageSettings(data: {
         }
       });
 
-      // 2. Update Slides (Delete all and recreate is safest for full sync)
-      await tx.landingPageSlide.deleteMany({ where: { settingsId: currentSettings.id } });
-      
-      if (data.slides && data.slides.length > 0) {
-        await tx.landingPageSlide.createMany({
-            data: data.slides.map((s, idx) => ({
-                settingsId: currentSettings.id,
-                title: s.title,
-                description: s.description,
-                displayOrder: idx + 1,
-                isActive: s.isActive
-            }))
-        });
-      }
-
-      // 3. Fetch full new state for snapshot
       const newState = await tx.landingPageSettings.findUnique({
         where: { id: currentSettings.id },
-        include: { slides: { orderBy: { displayOrder: 'asc' } } }
       });
 
       if (!newState) throw new Error("Failed to retrieve new state");
@@ -198,22 +165,17 @@ export async function rollbackVersion(versionId: string) {
         if (!version) return { success: false, message: "Version not found" };
 
         const snapshot = JSON.parse(version.snapshot);
-        // Snapshot is the LandingPageSettings object with slides
-        type SettingsWithSlides = LandingPageSettings & { slides: LandingPageSlide[] };
-        const settings = snapshot as SettingsWithSlides; 
-        const slides = (settings.slides || []) as LandingPageSlide[];
+        const settings = snapshot as LandingPageSettings;
 
         const currentSettings = await getOrCreateSettings();
         const newVersionNumber = currentSettings.activeVersion + 1;
 
         await prisma.$transaction(async (tx) => {
-            // Restore Settings
             await tx.landingPageSettings.update({
                 where: { id: currentSettings.id },
                 data: {
                     subtitle: settings.subtitle,
                     accessNotice: settings.accessNotice,
-                    slideshowEnabled: settings.slideshowEnabled,
                     highlightsEnabled: settings.highlightsEnabled,
                     whatsNewEnabled: settings.whatsNewEnabled,
                     highlights: settings.highlights,
@@ -223,24 +185,8 @@ export async function rollbackVersion(versionId: string) {
                 }
             });
 
-            // Restore Slides
-            await tx.landingPageSlide.deleteMany({ where: { settingsId: currentSettings.id } });
-            if (slides.length > 0) {
-                await tx.landingPageSlide.createMany({
-                    data: slides.map((s) => ({
-                        settingsId: currentSettings.id,
-                        title: s.title,
-                        description: s.description,
-                        displayOrder: s.displayOrder,
-                        isActive: s.isActive
-                    }))
-                });
-            }
-
-            // Create Rollback Version Entry
-             const newState = await tx.landingPageSettings.findUnique({
+            const newState = await tx.landingPageSettings.findUnique({
                 where: { id: currentSettings.id },
-                include: { slides: { orderBy: { displayOrder: 'asc' } } }
             });
 
             if (!newState) throw new Error("Failed to retrieve restored state");
@@ -276,4 +222,49 @@ export async function rollbackVersion(versionId: string) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         return { success: false, message: `Rollback failed: ${errorMessage}` };
     }
+}
+
+export async function addWhatsNewEntry(message: string) {
+  const perm = await checkPermission(PERMISSIONS.SETTINGS_LANDING_PAGE);
+  if (!perm.success) return { success: false, message: perm.message };
+
+  try {
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "WhatsNewEntry" (id, message, "createdAt", "updatedAt") VALUES (?, ?, datetime('now'), datetime('now'))`,
+      crypto.randomUUID(), message
+    );
+    revalidatePath("/login");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to add whats new entry:", error);
+    return { success: false, message: "Failed to add entry" };
+  }
+}
+
+export async function getWhatsNewEntries() {
+  try {
+    const entries = await prisma.$queryRawUnsafe<Array<{ id: string; message: string; createdAt: string }>>(
+      `SELECT id, message, "createdAt" FROM "WhatsNewEntry" ORDER BY "createdAt" DESC LIMIT 5`
+    );
+    return entries.map((e) => ({ ...e, createdAt: new Date(e.createdAt) }));
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteWhatsNewEntry(id: string) {
+  const perm = await checkPermission(PERMISSIONS.SETTINGS_LANDING_PAGE);
+  if (!perm.success) return { success: false, message: perm.message };
+
+  try {
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM "WhatsNewEntry" WHERE id = ?`,
+      id
+    );
+    revalidatePath("/login");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to delete whats new entry:", error);
+    return { success: false, message: "Failed to delete entry" };
+  }
 }

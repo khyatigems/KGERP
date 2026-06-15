@@ -55,11 +55,11 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
     addIfPresent("pending-expenses", Link2, "Pending Expenses", attention?.pendingExpenses?.length ?? 0, "info", "/expenses");
 
     // Today's activity (info)
-    addIfPresent("today-inventory", PlusCircle, "Items Added Today", todayActions?.inventory ?? 0, "info", "/inventory");
+    addIfPresent("today-inventory", PlusCircle, "Items Added Today", todayActions?.inventory ?? 0, "info", "/inventory?filter=todayItems");
     addIfPresent("today-quotations", FileText, "Quotations Created Today", todayActions?.quotations ?? 0, "info", "/quotes");
     addIfPresent("today-invoices", ShoppingCart, "Invoices Created Today", todayActions?.invoices ?? 0, "info", "/invoices");
     addIfPresent("today-sales", DollarSign, "Orders Today", todayOrders ?? 0, "info", "/sales");
-    addIfPresent("labels", Printer, "Generate Labels", todayActions?.labels ?? 0, "info", "/labels");
+    addIfPresent("labels", Printer, "Labels Printed Today", todayActions?.labels ?? 0, "info", "/labels");
 
     const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
     result.sort((a, b) => (severityOrder[a.severity] ?? 99) - (severityOrder[b.severity] ?? 99));

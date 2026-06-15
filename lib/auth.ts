@@ -96,7 +96,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           role: user.role,
-          permissions: permissions, // Add permissions here
+          avatarUrl: user.avatarUrl,
+          permissions: permissions,
           lastLogin: new Date(),
         };
       },

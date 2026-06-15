@@ -2,10 +2,11 @@
 
 import { signIn } from "next-auth/react";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 export function LoginForm() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    
+
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
@@ -29,7 +30,7 @@ export function LoginForm() {
       });
 
       if (res?.error) {
-        setError("Invalid credentials");
+        setError("Invalid email or password");
         setLoading(false);
       } else {
         router.push("/");
@@ -42,24 +43,67 @@ export function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-sm mx-auto">
-      <div className="mb-6 text-center">
-        <h2 className="text-2xl font-semibold tracking-tight">Login</h2>
-      </div>
+    <div className="space-y-4">
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" type="email" required placeholder="admin@khyatigems.com" className="bg-white/50 border-white/30 focus:bg-white transition-colors" />
+        {error && (
+          <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            placeholder="Email address"
+            autoComplete="email"
+            className="h-12 px-4 rounded-lg border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-[15px] focus-visible:ring-2 focus-visible:ring-[#1a73e8] focus-visible:border-[#1a73e8] transition-shadow"
+          />
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            required
+            placeholder="Password"
+            autoComplete="current-password"
+            className="h-12 px-4 rounded-lg border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-[15px] focus-visible:ring-2 focus-visible:ring-[#1a73e8] focus-visible:border-[#1a73e8] transition-shadow"
+          />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input id="password" name="password" type="password" required className="bg-white/50 border-white/30 focus:bg-white transition-colors" />
-        </div>
-        {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
+
+        <Button
+          type="submit"
+          disabled={loading}
+          className="w-full h-11 rounded-full bg-[#1a73e8] hover:bg-[#1557b0] active:bg-[#185abc] text-white font-medium text-sm tracking-wide transition-colors shadow-sm"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Signing in...
+            </span>
+          ) : (
+            "Sign in"
+          )}
         </Button>
       </form>
+
+      <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
+        <Link
+          href="/forgot-password"
+          className="text-[#1a73e8] hover:underline font-medium"
+          data-cursor="pointer"
+        >
+          Forgot password?
+        </Link>
+        <Link
+          href="/help"
+          className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+          data-cursor="pointer"
+        >
+          Need help?
+        </Link>
+      </div>
     </div>
   );
 }

@@ -3,12 +3,14 @@ import type { ReactNode } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { auth } from "@/lib/auth";
-import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
+import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema, ensurePasswordResetSchema } from "@/lib/prisma";
 
 type DashboardUser = {
   name?: string | null;
   email?: string | null;
   image?: string | null;
+  avatarUrl?: string | null;
+  avatarHistory?: string[];
   role?: string;
   lastLogin?: Date | string | null;
 };
@@ -25,6 +27,7 @@ export default async function DashboardLayout({
         name: session.user.name ?? null,
         email: session.user.email ?? null,
         image: (session.user as any)?.image ?? (session.user as any)?.avatar ?? null,
+        avatarUrl: (session.user as any)?.avatarUrl ?? null,
         role: session.user.role ?? undefined,
         lastLogin: session.user.lastLogin ?? null,
       }
@@ -33,6 +36,8 @@ export default async function DashboardLayout({
 
   if (session?.user?.id) {
     await ensureUserRoleIdColumn();
+    await ensureAvatarWhatsNewSchema();
+    await ensurePasswordResetSchema();
     const supports = await hasUserRoleIdColumn();
     await ensureRbacSchema();
     const hasRbacTables =
@@ -48,6 +53,8 @@ export default async function DashboardLayout({
             name: true,
             email: true,
             avatar: true,
+            avatarUrl: true,
+            avatarHistory: true,
             role: true,
             lastLogin: true,
             roleRelation: {
@@ -62,6 +69,8 @@ export default async function DashboardLayout({
             name: true,
             email: true,
             avatar: true,
+            avatarUrl: true,
+            avatarHistory: true,
             role: true,
             lastLogin: true,
           },
@@ -109,6 +118,8 @@ export default async function DashboardLayout({
         name: dbUser.name ?? session?.user?.name ?? null,
         email: dbUser.email ?? session?.user?.email ?? null,
         image: dbUser.avatar ?? (session?.user as any)?.image ?? (session?.user as any)?.avatar ?? null,
+        avatarUrl: dbUser.avatarUrl ?? (session?.user as any)?.avatarUrl ?? null,
+        avatarHistory: (() => { try { return dbUser.avatarHistory ? JSON.parse(dbUser.avatarHistory) : []; } catch { return []; } })(),
         role: (dbUser.role ?? session?.user?.role) ?? undefined,
         lastLogin: dbUser.lastLogin ?? (session?.user as any)?.lastLogin ?? null,
       };

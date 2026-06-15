@@ -145,6 +145,14 @@ function buildInventoryWhere(
 
   if (params.filter === "missingImages") {
     and.push({ imageUrl: null, status: "IN_STOCK", hideFromAttention: false, media: { none: {} } });
+  } else if (params.filter === "readyToSell") {
+    and.push({
+      status: "IN_STOCK",
+      AND: [
+        { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
+        { OR: [{ certification: { not: null } }, { certificateNo: { not: null } }, { certificateNumber: { not: null } }, { lab: { not: null } }] },
+      ],
+    } as Prisma.InventoryWhereInput);
   } else if (params.filter === "missingCertification") {
     and.push({ status: "IN_STOCK", hideFromAttention: false, certification: null, certificateNo: null, certificateNumber: null, lab: null, OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] });
   } else if (params.filter === "highValueUnsold") {
@@ -154,7 +162,11 @@ function buildInventoryWhere(
   } else if (params.filter === "newArrivals") {
     and.push({ status: "IN_STOCK", createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } });
   } else if (params.filter === "missingHsn") {
-    and.push({ OR: [{ hsnCode: null }, { hsnCode: "" }] });
+    and.push({ status: "IN_STOCK", hideFromAttention: false, OR: [{ hsnCode: null }, { hsnCode: "" }] });
+  } else if (params.filter === "todayItems") {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    and.push({ createdAt: { gte: startOfToday } });
   }
 
   if (Object.keys(direct).length > 0) and.push(direct);
@@ -276,6 +288,25 @@ async function getInventoryData(params: SearchParams) {
   if (canCertificate) select.certificates = { select: { name: true, remarks: true } };
 
   let where = buildInventoryWhere(params, { strictRelations: true });
+
+  // For missingHsn filter, exclude categories that have GPIS HSN mapping
+  if (params.filter === "missingHsn") {
+    try {
+      const gpisRow = await (prisma as unknown as { gpisSettings: { findFirst: (args?: Record<string, unknown>) => Promise<{ categoryHsnJson?: string | null } | null> } }).gpisSettings.findFirst();
+      const raw = gpisRow?.categoryHsnJson;
+      if (raw && typeof raw === "string" && raw.trim()) {
+        const parsed = JSON.parse(raw) as Record<string, string>;
+        const mappedCategories = Object.keys(parsed).filter(Boolean);
+        if (mappedCategories.length > 0) {
+          where = {
+            ...where,
+            AND: [...((where as { AND?: Prisma.InventoryWhereInput[] }).AND || []), { category: { notIn: mappedCategories } }],
+          };
+        }
+      }
+    } catch { /* ignore — keep original where */ }
+  }
+
   let rows: InventoryListItem[] = [];
   let totalItems = 0;
 
@@ -389,6 +420,7 @@ export default async function InventoryPage({
   };
 
   const activeFilterLabel = params.filter === "missingImages" ? "Missing Images"
+    : params.filter === "readyToSell" ? "Ready to Sell"
     : params.filter === "missingCertification" ? "Missing Certification"
     : params.filter === "highValueUnsold" ? "High-Value Stagnant"
     : params.filter === "stagnant" ? "Stagnant Stock (90+ days)"

@@ -83,6 +83,9 @@ export function DashboardView() {
           listings: data.kpis.listings,
           inventory: data.kpis.inventory,
           labelCart: data.kpis.printLabels,
+          quotations: data.kpis.quotations,
+          readyToSell: data.kpis.readyToSell,
+          salesThisMonth: data.kpis.salesThisMonth ?? 0,
         }}
       />
 

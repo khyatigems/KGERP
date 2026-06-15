@@ -31,6 +31,7 @@ export async function GET() {
       const endOfNextWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
       // Single batch — all 39+ queries in one Promise.all
@@ -40,7 +41,7 @@ export async function GET() {
         expiringQuotations, overdueInvoices, overdueMemoItems, pendingVendors,
         unsoldInventory, missingCertifications, missingImages, pendingExpenses, highValueUnsold,
         todayInventory, todayQuotations, todayLabels, todayInvoices,
-        pendingPaymentsCount,
+        pendingPaymentsCount, readyToSellCount, salesThisMonth,
         inventoryAddedLast30, inventoryAddedPrev30,
         salesLast30, salesPrev30,
         listingsCreatedLast30, listingsCreatedPrev30,
@@ -72,6 +73,16 @@ export async function GET() {
         prisma.labelPrintJob.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
         prisma.invoice.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
         prisma.sale.count({ where: { paymentStatus: { not: "PAID" } } }).catch(() => 0),
+        prisma.inventory.count({
+          where: {
+            status: "IN_STOCK",
+            AND: [
+              { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
+              { OR: [{ certification: { not: null } }, { certificateNo: { not: null } }, { certificateNumber: { not: null } }, { lab: { not: null } }] },
+            ],
+          },
+        }).catch(() => 0),
+        prisma.sale.count({ where: { saleDate: { gte: startOfMonth } } }).catch(() => 0),
         prisma.inventory.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
         prisma.inventory.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
         prisma.sale.count({ where: { saleDate: { gte: thirtyDaysAgo } } }).catch(() => 0),
@@ -161,6 +172,8 @@ export async function GET() {
           quotations: { total: activeQuotations, trend: trends.quotations, breakdown: { createdLast30: quotationsCreatedLast30, createdPrev30: quotationsCreatedPrev30 } },
           invoices: { total: invoicesGenerated, trend: trends.invoices, breakdown: { createdLast30: invoicesCreatedLast30, createdPrev30: invoicesCreatedPrev30 } },
           pendingPayments: { count: pendingPaymentsCount, trend: trends.pendingPayments, breakdown: { openLast30: pendingPaymentsLast30, openPrev30: pendingPaymentsPrev30 } },
+          readyToSell: { count: readyToSellCount },
+          salesThisMonth: salesThisMonth,
           printLabels: { count: labelCartCount, trend: trends.labels, breakdown: { addedLast30: labelsAddedLast30, addedPrev30: labelsAddedPrev30 }, lastItem: lastLabelCartItem ? `${lastLabelCartItem.inventory.sku} - ${lastLabelCartItem.inventory.itemName}` : null },
           attention: { quotations: expiringQuotations, invoices: overdueInvoices, memo: normalizedMemo, vendors: pendingVendors, unsold: unsoldInventory, missingCertifications, missingImages, pendingExpenses, highValueUnsold },
           today: { inventory: todayInventory, quotations: todayQuotations, labels: todayLabels, invoices: todayInvoices },

@@ -73,8 +73,10 @@ export default async function UsersPage() {
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
-                        {user.avatar ? (
-                          <div 
+                        {user.avatarUrl ? (
+                          <img src={user.avatarUrl} alt={user.name} className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-gray-200" />
+                        ) : user.avatar ? (
+                          <div
                             className="w-8 h-8 rounded-full overflow-hidden shrink-0"
                             dangerouslySetInnerHTML={{ __html: user.avatar }}
                           />

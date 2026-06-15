@@ -4,8 +4,8 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { signOut } from "next-auth/react";
-import { LogOut, Menu, ChevronRight, Home, User } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
+import { LogOut, Menu, ChevronRight, Home, User, Camera } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/layout/sidebar";
 import {
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useGlobalLoader } from "@/components/global-loader-provider";
+import { AvatarUploadModal } from "@/components/ui/avatar-upload/avatar-upload-modal";
 
 const routeTitles: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -40,6 +41,8 @@ interface TopbarProps {
     name?: string | null;
     email?: string | null;
     image?: string | null;
+    avatarUrl?: string | null;
+    avatarHistory?: string[];
     role?: string;
     lastLogin?: Date | string | null;
   };
@@ -47,8 +50,28 @@ interface TopbarProps {
 
 export function Topbar({ user }: TopbarProps) {
   const [open, setOpen] = useState(false);
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const pathname = usePathname();
   const { showLoader } = useGlobalLoader();
+  const { update } = useSession();
+
+  const effectiveAvatarUrl = user?.avatarUrl;
+  const effectiveHistory = user?.avatarHistory || [];
+  const isSvgAvatar =
+    !effectiveAvatarUrl &&
+    !!user?.image &&
+    (user.image.includes("<svg") || user.image.trim().startsWith("<svg"));
+
+  const handleSaveAvatar = async (avatarUrl: string) => {
+    await update({ avatarUrl });
+    window.location.reload();
+  };
+
+  const handleRemoveAvatar = async () => {
+    await fetch("/api/user/avatar", { method: "DELETE" });
+    await update({ avatarUrl: null });
+    window.location.reload();
+  };
 
   const getBreadcrumbs = () => {
     const paths = pathname.split('/').filter(Boolean);
@@ -118,16 +141,18 @@ export function Topbar({ user }: TopbarProps) {
          
          <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                {user?.image && (user.image.includes('<svg') || user.image.trim().startsWith('<svg')) ? (
-                  <div 
-                    className="w-8 h-8 rounded-full overflow-hidden shrink-0"
-                    dangerouslySetInnerHTML={{ __html: user.image }}
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0 focus-visible:ring-1">
+                {isSvgAvatar ? (
+                  <div
+                    className="h-9 w-9 rounded-full overflow-hidden shrink-0 ring-2 ring-white dark:ring-slate-800 shadow-sm"
+                    dangerouslySetInnerHTML={{ __html: user!.image! }}
                   />
                 ) : (
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.image || ""} alt={user?.name || ""} />
-                    <AvatarFallback>{user?.name ? user.name.charAt(0).toUpperCase() : <User className="h-4 w-4" />}</AvatarFallback>
+                  <Avatar className="h-9 w-9 ring-2 ring-white dark:ring-slate-800 shadow-sm transition-shadow hover:shadow-md">
+                    <AvatarImage src={effectiveAvatarUrl || ""} alt={user?.name || ""} />
+                    <AvatarFallback className="text-sm bg-primary/10 text-primary font-medium">
+                      {user?.name ? user.name.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
+                    </AvatarFallback>
                   </Avatar>
                 )}
               </Button>
@@ -155,6 +180,11 @@ export function Topbar({ user }: TopbarProps) {
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setAvatarModalOpen(true)}>
+                <Camera className="mr-2 h-4 w-4" />
+                <span>Change photo</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut()}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
@@ -162,6 +192,17 @@ export function Topbar({ user }: TopbarProps) {
             </DropdownMenuContent>
           </DropdownMenu>
       </div>
+
+      <AvatarUploadModal
+        open={avatarModalOpen}
+        onOpenChange={setAvatarModalOpen}
+        currentAvatar={effectiveAvatarUrl}
+        currentSvgAvatar={isSvgAvatar ? user?.image : null}
+        history={effectiveHistory}
+        userName={user?.name || ""}
+        onSave={handleSaveAvatar}
+        onRemove={handleRemoveAvatar}
+      />
     </header>
   );
 }

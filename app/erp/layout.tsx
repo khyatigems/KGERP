@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { auth } from "@/lib/auth";
-import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma } from "@/lib/prisma";
+import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema } from "@/lib/prisma";
 import { Permission } from "@/lib/permissions";
 
 export default async function ErpLayout({
@@ -17,6 +17,7 @@ export default async function ErpLayout({
 
   if (session?.user?.id) {
     await ensureUserRoleIdColumn();
+    await ensureAvatarWhatsNewSchema();
     const supports = await hasUserRoleIdColumn();
     await ensureRbacSchema();
     const hasRbacTables = (await hasTable("UserPermission")) && (await hasTable("Role")) && (await hasTable("Permission")) && (await hasTable("RolePermission"));
@@ -28,6 +29,8 @@ export default async function ErpLayout({
             name: true,
             email: true,
             avatar: true,
+            avatarUrl: true,
+            avatarHistory: true,
             role: true,
             lastLogin: true,
             roleRelation: {
@@ -42,6 +45,8 @@ export default async function ErpLayout({
             name: true,
             email: true,
             avatar: true,
+            avatarUrl: true,
+            avatarHistory: true,
             role: true,
             lastLogin: true,
           }
@@ -81,7 +86,9 @@ export default async function ErpLayout({
         ...session.user,
         name: dbUser.name,
         email: dbUser.email,
-        image: dbUser.avatar, // Map avatar field to image
+        image: dbUser.avatar,
+        avatarUrl: dbUser.avatarUrl,
+        avatarHistory: (() => { try { return dbUser.avatarHistory ? JSON.parse(dbUser.avatarHistory) : []; } catch { return []; } })(),
         role: dbUser.roleRelation?.name || dbUser.role,
         lastLogin: dbUser.lastLogin,
         permissions: allowedNavModules as Permission[]

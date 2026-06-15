@@ -204,14 +204,14 @@ export async function GET(request: NextRequest) {
         prisma.inventory.count({ where: completenessWhere }),
         prisma.inventory.count({ where: overallWhere }),
         prisma.inventory.count({
-          where: { ...where, status: "IN_STOCK", createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
+          where: { ...where, status: "IN_STOCK", hideFromAttention: false, createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
         }),
         prisma.inventory.count({
-          where: { ...where, status: "IN_STOCK", createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+          where: { ...where, status: "IN_STOCK", hideFromAttention: false, createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
         }),
         prisma.inventory.count({
           where: {
-            ...where, status: "IN_STOCK",
+            ...where, status: "IN_STOCK", hideFromAttention: false,
             createdAt: { lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
           },
         }),
@@ -303,6 +303,7 @@ export async function GET(request: NextRequest) {
           where: {
             ...where,
             status: "IN_STOCK",
+            hideFromAttention: false,
             createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
           },
         }),
@@ -310,6 +311,7 @@ export async function GET(request: NextRequest) {
           where: {
             ...where,
             status: "IN_STOCK",
+            hideFromAttention: false,
             createdAt: {
               lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
               gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
@@ -320,6 +322,7 @@ export async function GET(request: NextRequest) {
           where: {
             ...where,
             status: "IN_STOCK",
+            hideFromAttention: false,
             createdAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) },
           },
         }),
