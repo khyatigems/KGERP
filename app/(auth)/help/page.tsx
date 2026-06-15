@@ -1,6 +1,8 @@
 import { InfoPage } from "@/components/auth/info-page";
 import { HelpCircle, MessageCircle, Mail, Book, Package, FileText, BarChart3, Printer, Tag, Users, Shield } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Help & Support | KhyatiGems ERP",
 };

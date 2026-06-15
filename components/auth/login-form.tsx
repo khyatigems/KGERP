@@ -2,7 +2,6 @@
 
 import { signIn } from "next-auth/react";
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,23 +86,6 @@ export function LoginForm() {
           )}
         </Button>
       </form>
-
-      <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
-        <Link
-          href="/forgot-password"
-          className="text-[#1a73e8] hover:underline font-medium"
-          data-cursor="pointer"
-        >
-          Forgot password?
-        </Link>
-        <Link
-          href="/help"
-          className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-          data-cursor="pointer"
-        >
-          Need help?
-        </Link>
-      </div>
     </div>
   );
 }

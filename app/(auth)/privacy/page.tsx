@@ -1,6 +1,8 @@
 import { InfoPage } from "@/components/auth/info-page";
 import { Shield, Database, Lock, Eye, Camera, Globe } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Privacy Policy | KhyatiGems ERP",
 };

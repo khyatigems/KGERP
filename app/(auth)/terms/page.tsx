@@ -1,6 +1,8 @@
 import { InfoPage } from "@/components/auth/info-page";
 import { FileText, UserCheck, AlertTriangle, Scale, Gem } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Terms of Service | KhyatiGems ERP",
 };

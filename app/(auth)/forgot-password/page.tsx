@@ -1,12 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { ArrowLeft, Loader2, Mail, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { GemCursor } from "@/components/auth/effects/gem-cursor";
-import { GemParticles } from "@/components/auth/effects/gem-particles";
 import { FadeIn } from "@/components/auth/effects/fade-in";
 import { CompanyLogoClient } from "@/components/auth/company-logo-client";
 
@@ -40,10 +37,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-slate-950 relative overflow-hidden">
-      <GemCursor />
 
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-        <GemParticles />
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <FadeIn delay={100}>
             <CompanyLogoClient variant="dark" size="md" />
@@ -83,13 +78,13 @@ export default function ForgotPasswordPage() {
         <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
           <div className="w-full max-w-sm space-y-8">
             <FadeIn delay={400}>
-              <Link
+              <a
                 href="/login"
-                className="inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to sign in
-              </Link>
+              </a>
             </FadeIn>
 
             {success ? (
@@ -104,12 +99,12 @@ export default function ForgotPasswordPage() {
                       If an account exists for <strong className="text-slate-700 dark:text-slate-300">{email}</strong>, you&apos;ll receive password reset instructions.
                     </p>
                   </div>
-                  <Link
+                  <a
                     href="/login"
-                    className="inline-block text-sm text-[#1a73e8] hover:underline"
+                    className="inline-block text-sm text-[#1a73e8] hover:underline cursor-pointer"
                   >
                     Return to sign in
-                  </Link>
+                  </a>
                 </div>
               </FadeIn>
             ) : (
@@ -172,11 +167,7 @@ export default function ForgotPasswordPage() {
             <select className="bg-transparent text-xs text-slate-500 dark:text-slate-400 focus:outline-none cursor-pointer">
               <option>English (US)</option>
             </select>
-              <div className="flex items-center gap-4">
-                <Link href="/help" className="hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Help</Link>
-                <Link href="/privacy" className="hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Privacy</Link>
-                <Link href="/terms" className="hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Terms</Link>
-              </div>
+            <span>&copy; {new Date().getFullYear()} Khyati Gems</span>
           </div>
         </div>
       </div>

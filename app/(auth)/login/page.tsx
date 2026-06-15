@@ -4,13 +4,10 @@ import { Check, Sparkles, Shield, Globe, BarChart3, Package, FileText } from "lu
 
 import { formatDistanceToNow } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { GemParticles } from "@/components/auth/effects/gem-particles";
-import { GemCursor } from "@/components/auth/effects/gem-cursor";
 import { FadeIn } from "@/components/auth/effects/fade-in";
 import { ShimmerText } from "@/components/auth/effects/shimmer-text";
 import { CompanyLogo } from "@/components/auth/company-logo";
 import { getCompanyBranding } from "@/lib/company";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -43,11 +40,9 @@ export default async function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-slate-950 relative overflow-hidden">
-      <GemCursor />
 
       {/* Left Brand Panel - desktop only */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-        <GemParticles />
 
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <FadeIn delay={100} direction="down">
@@ -191,11 +186,7 @@ export default async function LoginPage() {
             <select className="bg-transparent text-xs text-slate-500 dark:text-slate-400 focus:outline-none cursor-pointer">
               <option>English (US)</option>
             </select>
-            <div className="flex items-center gap-4">
-              <Link href="/help" className="hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Help</Link>
-              <Link href="/privacy" className="hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Privacy</Link>
-              <Link href="/terms" className="hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Terms</Link>
-            </div>
+            <span>&copy; {new Date().getFullYear()} Khyati Gems</span>
           </div>
         </div>
       </div>
