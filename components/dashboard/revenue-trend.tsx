@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { TrendingUp, Calendar, BarChart3, ArrowUpRight } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { formatCurrency, cn } from "@/lib/utils";
 
 interface RevenueTrendProps {
@@ -40,7 +40,31 @@ function fillMissingDates(raw: Array<{ date: string; revenue: number }>, days: n
 
 export function RevenueTrend({ data }: RevenueTrendProps) {
   const [range, setRange] = useState<"7D" | "30D" | "90D" | "1Y">("30D");
+  const [dims, setDims] = useState({ width: 0, height: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
   const ranges = ["7D", "30D", "90D", "1Y"] as const;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        setDims({ width: r.width, height: r.height });
+      } else {
+        requestAnimationFrame(measure);
+      }
+    };
+    measure();
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      if (width > 0 && height > 0) {
+        setDims({ width, height });
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const rangeDays: Record<string, number> = { "7D": 7, "30D": 30, "90D": 90, "1Y": 365 };
   const days = rangeDays[range];
@@ -87,9 +111,9 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
         </div>
       </div>
 
-      <div className="h-[200px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+      <div className="h-[200px]" ref={containerRef}>
+        {dims.width > 0 && dims.height > 0 && (
+        <AreaChart width={dims.width} height={dims.height} data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
@@ -125,7 +149,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
               activeDot={{ r: 4, fill: "#10B981", stroke: "var(--card)", strokeWidth: 2 }}
             />
           </AreaChart>
-        </ResponsiveContainer>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-border">
