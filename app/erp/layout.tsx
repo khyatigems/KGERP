@@ -92,7 +92,7 @@ export default async function ErpLayout({
         role: dbUser.roleRelation?.name || dbUser.role,
         lastLogin: dbUser.lastLogin,
         permissions: allowedNavModules as Permission[]
-      };
+      } as any;
     }
   }
 

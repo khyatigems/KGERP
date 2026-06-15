@@ -122,7 +122,7 @@ export default async function DashboardLayout({
         avatarHistory: (() => { try { return dbUser.avatarHistory ? JSON.parse(dbUser.avatarHistory) : []; } catch { return []; } })(),
         role: (dbUser.role ?? session?.user?.role) ?? undefined,
         lastLogin: dbUser.lastLogin ?? (session?.user as any)?.lastLogin ?? null,
-      };
+      } as any;
     }
   }
 
