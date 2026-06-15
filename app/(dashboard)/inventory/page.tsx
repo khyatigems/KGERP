@@ -144,7 +144,7 @@ function buildInventoryWhere(
   if (params.filter === "missingImages") {
     and.push({ imageUrl: null, status: "IN_STOCK", hideFromAttention: false });
   } else if (params.filter === "missingCertification") {
-    and.push({ certification: null, status: "IN_STOCK", hideFromAttention: false });
+    and.push({ status: "IN_STOCK", hideFromAttention: false, certification: null, certificateNo: null, certificateNumber: null, lab: null, OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] });
   } else if (params.filter === "highValueUnsold") {
     and.push({ sellingPrice: { gt: 100000 }, status: "IN_STOCK", hideFromAttention: false, updatedAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } });
   } else if (params.filter === "stagnant") {

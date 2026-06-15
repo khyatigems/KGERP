@@ -643,27 +643,31 @@ export default async function InventoryDetailPage({
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-sm font-medium">
-                                        {log.userName || log.userId || "System"}{" "}
-                                        <span className="font-normal text-muted-foreground">
-                                          {log.details && log.details.length > 0
-                                            ? log.details
-                                            : log.actionType === "SALE"
-                                            ? "sold this item"
-                                            : log.actionType === "SALES_RETURN"
-                                            ? "sales return recorded"
-                                            : log.actionType === "QUOTATION"
-                                            ? "added to quotation"
-                                            : log.actionType === "LISTING_LINKED"
-                                            ? "linked to marketplace listing"
-                                            : log.actionType === "LISTING_UPDATED"
-                                            ? "updated marketplace listing"
-                                            : log.actionType === "STATUS_CHANGE"
-                                            ? "changed status"
-                                            : log.actionType.endsWith("ED")
-                                            ? `${log.actionType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())} this item`
-                                            : `${log.actionType.toLowerCase()}d this item`}
-                                        </span>
-                                        {log.source !== 'WEB' && <Badge variant="outline" className="ml-2 text-[10px] h-5">{log.source}</Badge>}
+                                        {log.details && log.details.length > 0 ? (
+                                            <span className="font-normal text-muted-foreground">{log.details}</span>
+                                        ) : (
+                                            <>
+                                                {log.userName || log.userId || "System"}{" "}
+                                                <span className="font-normal text-muted-foreground">
+                                                  {log.actionType === "SALE"
+                                                    ? "sold this item"
+                                                    : log.actionType === "SALES_RETURN"
+                                                    ? "sales return recorded"
+                                                    : log.actionType === "QUOTATION"
+                                                    ? "added to quotation"
+                                                    : log.actionType === "LISTING_LINKED"
+                                                    ? "linked to marketplace listing"
+                                                    : log.actionType === "LISTING_UPDATED"
+                                                    ? "updated marketplace listing"
+                                                    : log.actionType === "STATUS_CHANGE"
+                                                    ? "changed status"
+                                                    : log.actionType.endsWith("ED")
+                                                    ? `${log.actionType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())} this item`
+                                                    : `${log.actionType.toLowerCase()}d this item`}
+                                                </span>
+                                                {log.source !== 'WEB' && <Badge variant="outline" className="ml-2 text-[10px] h-5">{log.source}</Badge>}
+                                            </>
+                                        )}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
                                         {(() => {
@@ -673,7 +677,7 @@ export default async function InventoryDetailPage({
                                                 : "Unknown date";
                                         })()}
                                     </p>
-                                    {log.fieldChanges && (
+                                    {log.fieldChanges && log.actionType !== "CREATE" && (
                                         <div className="text-xs bg-muted/50 p-2 rounded mt-2 border">
                                             <span className="font-semibold text-muted-foreground">Changes: </span>
                                             {(() => {
