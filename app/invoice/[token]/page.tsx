@@ -499,7 +499,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
         const rateValue = item.inventory.pricingMode === "PER_CARAT"
           ? item.inventory.sellingRatePerCarat
           : item.inventory.pricingMode === "PER_RATTI"
-          ? (item.inventory.sellingRatePerCarat || 0) * (item.inventory.weightRatti || 0)
+          ? item.inventory.sellingRatePerCarat
           : item.inventory.flatSellingPrice;
         const rateFallback = rateValue ?? item.basePrice ?? 0;
         details.push(`Rate: Rs. ${Number(rateFallback || 0).toFixed(2)}`);
@@ -783,7 +783,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                         </span>
                                     ) : item.inventory.pricingMode === "PER_RATTI" ? (
                                         <span>
-                                            Rate (Per Ratti): {formatCurrency((item.inventory.sellingRatePerCarat || 0) * (item.inventory.weightRatti || 0))}
+                                            Rate (Per Ratti): {formatCurrency(item.inventory.sellingRatePerCarat || 0)}
                                         </span>
                                     ) : (
                                         <span>Flat Price</span>

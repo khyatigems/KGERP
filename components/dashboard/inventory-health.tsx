@@ -16,6 +16,7 @@ interface InventoryStats {
   overallTotalItems?: number;
   withImagesCount: number;
   withCertificateCount: number;
+  missingCertificationCount?: number;
   withHsnCount: number;
   aging: {
     fresh: number;
@@ -38,11 +39,11 @@ export function InventoryHealth() {
   const agingFresh = stats?.aging?.fresh ?? 0;
 
   const missingImages = totalInventory > 0 ? totalInventory - withImages : 0;
-  const missingCerts = totalInventory > 0 ? totalInventory - withCerts : 0;
+  const missingCerts = stats?.missingCertificationCount ?? (totalInventory > 0 ? totalInventory - withCerts : 0);
   const missingHsn = totalInventory > 0 ? totalInventory - withHsn : 0;
 
   const imageComplete = totalInventory > 0 ? Math.round((withImages / totalInventory) * 100) : 100;
-  const certComplete = totalInventory > 0 ? Math.round((withCerts / totalInventory) * 100) : 100;
+  const certComplete = withImages > 0 ? Math.round(((withImages - missingCerts) / withImages) * 100) : 100;
   const hsnComplete = totalInventory > 0 ? Math.round((withHsn / totalInventory) * 100) : 100;
 
   const items = [

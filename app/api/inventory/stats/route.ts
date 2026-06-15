@@ -131,21 +131,21 @@ export async function GET(request: NextRequest) {
 
   const certificateWhere = {
     ...where,
+    OR: [
+      { certificateNo: { not: null } },
+      { certificateNumber: { not: null } },
+      { certification: { not: null } },
+      { lab: { not: null } },
+    ],
+  } as unknown as Prisma.InventoryWhereInput;
+
+  const missingCertificationWhere = {
+    ...imagesWhere,
     AND: [
-      {
-        OR: [
-          { imageUrl: { not: null } },
-          { media: { some: {} } },
-        ],
-      },
-      {
-        OR: [
-          { certificateNo: { not: null } },
-          { certificateNumber: { not: null } },
-          { certification: { not: null } },
-          { lab: { not: null } },
-        ],
-      },
+      { certificateNo: null },
+      { certificateNumber: null },
+      { certification: null },
+      { lab: null },
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
@@ -183,11 +183,12 @@ export async function GET(request: NextRequest) {
 
   const getQuick = cacheQuery(
     async () => {
-      const [totalItems, sums, withImagesCount, withCertificateCount, withHsnCount, completenessAllCount, overallTotalItems, agingDead, agingFresh, agingSlow] = await Promise.all([
+      const [totalItems, sums, withImagesCount, withCertificateCount, missingCertificationCount, withHsnCount, completenessAllCount, overallTotalItems, agingDead, agingFresh, agingSlow] = await Promise.all([
         prisma.inventory.count({ where }),
         prisma.inventory.aggregate({ where, _sum: { sellingPrice: true }, _avg: { sellingPrice: true }, _max: { sellingPrice: true } }),
         prisma.inventory.count({ where: imagesWhere }),
         prisma.inventory.count({ where: certificateWhere }),
+        prisma.inventory.count({ where: missingCertificationWhere }),
         prisma.inventory.count({ where: hsnReadyWhere }),
         prisma.inventory.count({ where: completenessWhere }),
         prisma.inventory.count({ where: overallWhere }),
@@ -213,6 +214,7 @@ export async function GET(request: NextRequest) {
         maxSell: Number(sums?._max?.sellingPrice || 0),
         withImagesCount,
         withCertificateCount,
+        missingCertificationCount,
         withHsnCount,
         completenessAllCount,
         aging: { fresh: agingFresh, slow: agingSlow, dead: agingDead },
@@ -234,6 +236,7 @@ export async function GET(request: NextRequest) {
         byStatus,
         withImagesCount,
         withCertificateCount,
+        missingCertificationCount,
         withHsnCount,
         completenessAllCount,
         overallTotalItems,
@@ -272,6 +275,7 @@ export async function GET(request: NextRequest) {
         }),
         prisma.inventory.count({ where: imagesWhere }),
         prisma.inventory.count({ where: certificateWhere }),
+        prisma.inventory.count({ where: missingCertificationWhere }),
         prisma.inventory.count({ where: hsnReadyWhere }),
         prisma.inventory.count({ where: completenessWhere }),
         prisma.inventory.count({ where: overallWhere }),
@@ -319,6 +323,7 @@ export async function GET(request: NextRequest) {
         maxSell,
         withImagesCount,
         withCertificateCount,
+        missingCertificationCount,
         withHsnCount,
         completenessAllCount,
         aging: { fresh: agingFresh, slow: agingSlow, dead: agingDead },

@@ -645,7 +645,9 @@ export default async function InventoryDetailPage({
                                     <p className="text-sm font-medium">
                                         {log.userName || log.userId || "System"}{" "}
                                         <span className="font-normal text-muted-foreground">
-                                          {log.actionType === "SALE"
+                                          {log.details && log.details.length > 0
+                                            ? log.details
+                                            : log.actionType === "SALE"
                                             ? "sold this item"
                                             : log.actionType === "SALES_RETURN"
                                             ? "sales return recorded"
@@ -672,14 +674,25 @@ export default async function InventoryDetailPage({
                                         })()}
                                     </p>
                                     {log.fieldChanges && (
-                                        <div className="text-xs bg-muted/50 p-2 rounded mt-2 font-mono border">
+                                        <div className="text-xs bg-muted/50 p-2 rounded mt-2 border">
                                             <span className="font-semibold text-muted-foreground">Changes: </span>
                                             {(() => {
                                                 try {
                                                     const parsed = JSON.parse(log.fieldChanges);
-                                                    return Object.keys(parsed).join(", ");
+                                                    if (parsed.changes && typeof parsed.changes === "object") {
+                                                        return Object.entries(parsed.changes as Record<string, { old: unknown; new: unknown }>)
+                                                            .map(([key, val]) => `${key}: ${JSON.stringify(val.old)} → ${JSON.stringify(val.new)}`)
+                                                            .join(", ");
+                                                    }
+                                                    if (parsed.before && parsed.after) {
+                                                        return Object.keys(parsed.before as Record<string, unknown>)
+                                                            .filter(k => (parsed.before as Record<string, unknown>)[k] !== (parsed.after as Record<string, unknown>)[k])
+                                                            .map(k => `${k}: ${JSON.stringify((parsed.before as Record<string, unknown>)[k])} → ${JSON.stringify((parsed.after as Record<string, unknown>)[k])}`)
+                                                            .join(", ");
+                                                    }
+                                                    return Object.keys(parsed).filter(k => k !== "before" && k !== "after").join(", ");
                                                 } catch {
-                                                    return "Unparsable changes";
+                                                    return log.fieldChanges.length > 100 ? log.fieldChanges.slice(0, 100) + "..." : log.fieldChanges;
                                                 }
                                             })()}
                                         </div>

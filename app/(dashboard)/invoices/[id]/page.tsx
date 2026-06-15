@@ -388,7 +388,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
         const rateValue = item.inventory.pricingMode === "PER_CARAT"
           ? item.inventory.sellingRatePerCarat
           : item.inventory.pricingMode === "PER_RATTI"
-          ? (item.inventory.sellingRatePerCarat || 0) * (item.inventory.weightRatti || 0)
+          ? item.inventory.sellingRatePerCarat
           : item.inventory.flatSellingPrice;
         const rateFallback = rateValue ?? item.basePrice ?? 0;
         detailLines.push(`Rate: Rs. ${Number(rateFallback || 0).toFixed(2)}`);
