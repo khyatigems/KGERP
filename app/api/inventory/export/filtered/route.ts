@@ -6,6 +6,7 @@ import * as XLSX from "xlsx";
 import { Prisma } from "@prisma/client";
 
 const EXPORT_FIELDS: Record<string, { label: string; getter: (item: Record<string, unknown>) => unknown }> = {
+  // Basic
   sku: { label: "SKU", getter: (i) => i.sku },
   itemName: { label: "Item Name", getter: (i) => i.itemName },
   internalName: { label: "Internal Name", getter: (i) => i.internalName || "" },
@@ -13,21 +14,58 @@ const EXPORT_FIELDS: Record<string, { label: string; getter: (item: Record<strin
   gemType: { label: "Gem Type", getter: (i) => i.gemType || "" },
   color: { label: "Color", getter: (i) => i.color || "" },
   shape: { label: "Shape", getter: (i) => i.shape || "" },
+  // Weight & Dimensions
   weightValue: { label: "Weight (cts)", getter: (i) => i.weightValue },
   weightUnit: { label: "Weight Unit", getter: (i) => i.weightUnit },
   weightRatti: { label: "Ratti", getter: (i) => i.weightRatti },
-  dimensionsMm: { label: "Dimensions", getter: (i) => i.dimensionsMm },
+  carats: { label: "Carats", getter: (i) => i.carats },
+  dimensionsMm: { label: "Dimensions (mm)", getter: (i) => i.dimensionsMm },
+  // Pricing
   pricingMode: { label: "Pricing Mode", getter: (i) => i.pricingMode },
+  purchaseRatePerCarat: { label: "Purchase Rate/Carat", getter: (i) => i.purchaseRatePerCarat },
   sellingRatePerCarat: { label: "Selling Rate/Carat", getter: (i) => i.sellingRatePerCarat },
+  costPrice: { label: "Cost Price", getter: (i) => i.costPrice },
   sellingPrice: { label: "Selling Price", getter: (i) => i.sellingPrice || i.flatSellingPrice },
   flatSellingPrice: { label: "Flat Selling Price", getter: (i) => i.flatSellingPrice },
+  flatPurchaseCost: { label: "Flat Purchase Cost", getter: (i) => i.flatPurchaseCost },
+  // Origin & Physical
+  origin: { label: "Origin", getter: (i) => i.origin || "" },
+  treatment: { label: "Treatment", getter: (i) => i.treatment || "" },
+  fluorescence: { label: "Fluorescence", getter: (i) => i.fluorescence || "" },
+  transparency: { label: "Transparency", getter: (i) => i.transparency || "" },
+  // Bracelet/Bead
+  braceletType: { label: "Bracelet Type", getter: (i) => i.braceletType || "" },
+  standardSize: { label: "Standard Size", getter: (i) => i.standardSize || "" },
+  beadSizeMm: { label: "Bead Size (mm)", getter: (i) => i.beadSizeMm },
+  beadCount: { label: "Bead Count", getter: (i) => i.beadCount },
+  holeSizeMm: { label: "Hole Size (mm)", getter: (i) => i.holeSizeMm },
+  innerCircumferenceMm: { label: "Inner Circumference (mm)", getter: (i) => i.innerCircumferenceMm },
+  // Description
+  description: { label: "eBay HTML Description", getter: (i) => {
+    const d = i.description || "";
+    return typeof d === "string" ? d.replace(/"/g, "'") : d;
+  } },
+  productDescription: { label: "Product Description", getter: (i) => {
+    const p = i.productDescription || "";
+    return typeof p === "string" ? p.replace(/"/g, "'") : p;
+  } },
+  // Status & Location
   status: { label: "Status", getter: (i) => i.status },
   stockLocation: { label: "Location", getter: (i) => i.stockLocation },
+  pieces: { label: "Pieces/Qty", getter: (i) => i.pieces || 1 },
+  // Vendor & Codes
   vendorName: { label: "Vendor", getter: (i) => (i as { vendor?: { name?: string } }).vendor?.name || "" },
+  hsnCode: { label: "HSN Code", getter: (i) => i.hsnCode || "" },
+  // Certificate
   certificateNo: { label: "Cert No", getter: (i) => i.certificateNo || i.certificateNumber || "" },
   certification: { label: "Certification", getter: (i) => i.certification || "" },
+  certificateComments: { label: "Certificate Comments", getter: (i) => i.certificateComments || "" },
+  lab: { label: "Lab", getter: (i) => i.lab || "" },
+  // Media
   imageUrl: { label: "Image URL", getter: (i) => i.imageUrl || "" },
+  // Notes
   notes: { label: "Notes", getter: (i) => i.notes || "" },
+  // Dates
   createdAt: { label: "Created At", getter: (i) => i.createdAt ? new Date(i.createdAt as string).toISOString().split("T")[0] : "" },
   updatedAt: { label: "Updated At", getter: (i) => i.updatedAt ? new Date(i.updatedAt as string).toISOString().split("T")[0] : "" },
 };
