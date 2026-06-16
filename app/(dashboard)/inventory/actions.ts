@@ -98,6 +98,7 @@ const inventorySchema = z.object({
   flatSellingPrice: z.coerce.number().optional(),
   status: z.enum(["IN_STOCK", "RESERVED", "MEMO"]).optional(),
   stockLocation: z.string().optional(),
+  hsnCode: z.string().optional(),
   notes: z.string().optional(),
   description: z.string().optional(),
   certificateComments: z.string().optional(),
@@ -140,6 +141,7 @@ type InventoryImportRow = {
   flatPurchaseCost?: number | string;
   flatSellingPrice?: number | string;
   stockLocation?: string;
+  hsnCode?: string;
   notes?: string;
   mediaUrl?: string;
 };
@@ -357,6 +359,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               // profit, // Commented out due to Prisma Client lock
               status: data.status,
               stockLocation: data.stockLocation,
+              hsnCode: data.hsnCode && data.hsnCode.trim() ? data.hsnCode.trim() : null,
               notes: data.notes,
               description: data.description,
               certificateComments: data.certificateComments,
@@ -579,6 +582,7 @@ export async function updateInventory(
       sellingPrice,
       status: data.status,
       stockLocation: data.stockLocation,
+      hsnCode: data.hsnCode && data.hsnCode.trim() ? data.hsnCode.trim() : null,
       notes: data.notes,
       description: data.description,
       certificateComments: data.certificateComments,

@@ -131,30 +131,28 @@ export async function GET(request: NextRequest) {
 
   const certificateWhere = {
     ...where,
-    OR: [
-      { certificateNo: { not: null } },
-      { certificateNumber: { not: null } },
-      { certification: { not: null } },
-      { lab: { not: null } },
+    AND: [
+      {
+        OR: [
+          { NOT: { OR: [{ certificateNo: null }, { certificateNo: "" }] } },
+          { NOT: { OR: [{ certificateNumber: null }, { certificateNumber: "" }] } },
+        ],
+      },
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
   const missingCertificationWhere = {
     ...imagesWhere,
     status: "IN_STOCK",
-    hideFromAttention: false,
     AND: [
-      { certificateNo: null },
-      { certificateNumber: null },
-      { certification: null },
-      { lab: null },
+      { OR: [{ certificateNo: null }, { certificateNo: "" }] },
+      { OR: [{ certificateNumber: null }, { certificateNumber: "" }] },
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
   const missingImagesWhere = {
     ...where,
     status: "IN_STOCK",
-    hideFromAttention: false,
     imageUrl: null,
     media: { none: {} },
   } as unknown as Prisma.InventoryWhereInput;

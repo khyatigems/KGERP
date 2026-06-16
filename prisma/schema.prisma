@@ -319,7 +319,7 @@ model Inventory {
   certificateNumber    String?             @map("certificate_number")
   certification        String?
   lab                  String?
-  certificateLab       String?             @default("GCI") @map("certificate_lab")
+  certificateLab       String?             @map("certificate_lab")
   shape                String?
   color                String?
   clarity              String?

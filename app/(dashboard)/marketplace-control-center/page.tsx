@@ -1,4 +1,4 @@
-import { ensureMarketplaceControlCenterSchema, getMarketplaceDashboardData } from "@/lib/marketplace-control-center";
+import { ensureMarketplaceControlCenterSchema, getMarketplaceDashboardData, getMarketplaceAuditMetrics } from "@/lib/marketplace-control-center";
 import { prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +34,8 @@ export default async function MarketplaceControlCenterPage({
     from: fromParam || undefined,
     to: toParam || undefined,
   });
+
+  const audit = await getMarketplaceAuditMetrics(86);
 
   const categories = await prisma.$queryRawUnsafe<Array<{ category: string | null }>>(
     `SELECT DISTINCT "category" FROM "Inventory" WHERE "category" IS NOT NULL AND "category" <> '' ORDER BY "category" LIMIT 200`
@@ -113,22 +115,22 @@ export default async function MarketplaceControlCenterPage({
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-orange-500" />
-                  Inventory Conflicts
+                  Marketplace Pricing Alerts
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span>Pending</span>
-                    <span className="font-bold text-orange-500">{data.conflictCounts.Pending}</span>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="destructive" className="text-[10px]">Critical</Badge>
+                    <span className="text-xs">Listings below ERP Selling Price</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Resolved</span>
-                    <span className="font-bold text-green-600">{data.conflictCounts.Resolved}</span>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">Warning</Badge>
+                    <span className="text-xs">Listings below margin threshold</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Critical</span>
-                    <span className="font-bold text-red-600">{data.criticalConflicts}</span>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-600">Opportunity</Badge>
+                    <span className="text-xs">Marketplace price exceeds ERP by 15%+</span>
                   </div>
                 </div>
               </CardContent>
@@ -176,6 +178,68 @@ export default async function MarketplaceControlCenterPage({
                     </div>
                   ))
                 )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-red-600">Revenue Leakage</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">₹{audit.revenueLeakage.toLocaleString("en-IN")}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {audit.affectedLeakageCount} affected · Largest: ₹{audit.largestLeakage.toLocaleString("en-IN")}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Margin Health</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" /> Below 100%</span>
+                    <span className="font-bold">{audit.redCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500 inline-block" /> 100–300%</span>
+                    <span className="font-bold">{audit.amberCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500 inline-block" /> Above 300%</span>
+                    <span className="font-bold">{audit.greenCount}</span>
+                  </div>
+                  <div className="text-muted-foreground pt-1">Avg: {audit.avgMargin}%</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-emerald-600">Best Marketplace</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold">{audit.bestPlatform}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Profit: ₹{audit.bestPlatformProfit.toLocaleString("en-IN")}<br />
+                  Margin: {audit.bestPlatformMargin}%
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-red-600">Critical Listings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{audit.priceAlerts}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {audit.lowMargin} low margin · {audit.priceAlerts} price alerts
+                </div>
               </CardContent>
             </Card>
           </div>

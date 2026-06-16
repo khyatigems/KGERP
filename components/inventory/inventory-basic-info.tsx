@@ -233,6 +233,20 @@ export function BasicInfoSection({
 
         <FormField
           control={form.control}
+          name="hsnCode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>HSN Code</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. 71039990" maxLength={8} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="category"
           render={({ field }) => (
             <FormItem>

@@ -45,7 +45,7 @@ export function BusinessHealthCards({ data }: BusinessHealthProps) {
     {
       label: "Ready to Sell",
       value: readyToSell.toLocaleString("en-IN"),
-      sub: "Certified with images",
+      sub: "Image + cert + desc + HSN",
       icon: CheckCircle2,
       accent: "from-emerald-500/20 to-emerald-500/5",
       iconColor: "text-emerald-400",

@@ -219,14 +219,12 @@ export function InventoryTable({
                         const rawCert = String(item.certification || "").trim();
                         const certUrl = /^https?:\/\//i.test(rawCert) ? rawCert : null;
                         const providerFromCodes = item.certificates?.[0]?.name ? String(item.certificates[0].name) : "";
-                        const providerFromField =
-                          certUrl
-                            ? String((item as any).certificateLab || (item as any).lab || "GCI")
-                            : rawCert;
-                        const provider = (providerFromCodes || providerFromField || "").trim();
-                        const hasProvider = !!provider && provider.toLowerCase() !== "none";
+                        const hasCertNo = !!(item.certificateNo && String(item.certificateNo).trim());
+                        const hasCertNum = !!(item.certificateNumber && String(item.certificateNumber).trim());
 
-                        if (!hasProvider && !certUrl) return <span>— ⚠</span>;
+                        if (!hasCertNo && !hasCertNum && !certUrl) return <span className="text-amber-600">— ⚠</span>;
+
+                        const provider = providerFromCodes || String((item as any).lab || (item as any).certificateLab || "") || "GCI";
 
                         return (
                           <div className="flex flex-col gap-1">

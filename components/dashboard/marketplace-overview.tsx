@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { Globe, ExternalLink, AlertTriangle, Activity, Clock, Circle } from "lucide-react";
+import { Globe, ExternalLink, AlertTriangle, Activity, TrendingDown, TrendingUp, DollarSign, ShieldAlert, Circle } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -18,45 +18,26 @@ interface MarketplaceOverviewProps {
   listings: ListingsData;
 }
 
-interface RecentActivityItem {
-  id: string;
-  inventoryId: string;
-  platform: string;
-  status: string;
-  listedPrice: number;
-  currency: string;
-  listingUrl: string | null;
-  updatedAt: string;
-  sku: string | null;
-  itemName: string | null;
-}
-
 interface SyncStatsData {
   totalListings: number;
   pendingConflicts: number;
   criticalConflicts: number;
   listingStatusBreakdown: Record<string, number>;
-  recentActivity: RecentActivityItem[];
+  recentActivity: Array<unknown>;
+}
+
+interface HealthData {
+  priceAlertCount: number;
+  lowMarginCount: number;
+  revenueLeakage: number;
+  opportunityCount: number;
+  totalListings: number;
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-function timeAgo(dateStr: string): string {
-  const diffMs = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.floor(days / 30)}mo ago`;
-}
-
-function formatPrice(price: number, currency: string): string {
-  const symbols: Record<string, string> = { USD: "$", EUR: "€", GBP: "£", INR: "₹", AUD: "A$" };
-  const sym = symbols[currency] || "$";
-  return `${sym}${price.toLocaleString()}`;
+function formatCurrency(amount: number): string {
+  return `₹${amount.toLocaleString("en-IN")}`;
 }
 
 const platformConfig: Record<string, { color: string; bg: string }> = {
@@ -84,12 +65,15 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
     refreshInterval: 30000,
   });
 
+  const { data: healthData } = useSWR<HealthData>("/api/marketplace/health?usdRate=86", fetcher, {
+    refreshInterval: 30000,
+  });
+
   const platformOrder = ["eBay", "Etsy", "Amazon", "Website", "WhatsApp"];
   const listingMap = listings as unknown as Record<string, number | undefined>;
   const totalListings = listings.total ?? 0;
   const hasConflicts = syncData && ((syncData.pendingConflicts ?? 0) > 0 || (syncData.criticalConflicts ?? 0) > 0);
   const breakdown = syncData?.listingStatusBreakdown;
-  const activityList = syncData?.recentActivity ?? [];
   const hasStatusData = breakdown && Object.keys(breakdown).length > 0;
   const statusOrder = ["ACTIVE", "LISTED", "DRAFT", "PAUSED", "SOLD"];
 
@@ -178,50 +162,64 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
         </div>
       )}
 
-      {activityList.length > 0 && (
+      {healthData && healthData.totalListings > 0 && (
         <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
           <div className="flex items-center gap-2 mb-2">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Recent Activity</span>
+            <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Marketplace Health</span>
           </div>
-          <div className="space-y-1.5">
-            {activityList.map((item) => {
-              const platKey = item.platform.toLowerCase();
-              const platCfg = platformConfig[platKey === "ebay" ? "eBay" : platKey === "etsy" ? "Etsy" : platKey === "amazon" ? "Amazon" : platKey === "website" ? "Website" : platKey === "whatsapp" ? "WhatsApp" : "eBay"] ?? platformConfig.eBay;
-              const label = platformLabel[platKey] || item.platform;
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => window.location.href = `/inventory/${item.inventoryId}`}
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors cursor-pointer"
-                >
-                  <div className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded", platCfg.bg)}>
-                    <Globe className={cn("h-3 w-3", platCfg.color)} />
-                  </div>
-                  <span className={cn("text-[11px] font-medium shrink-0", platCfg.color)}>{label}</span>
-                  {item.sku && (
-                    <span className="text-[11px] font-mono text-muted-foreground shrink-0">{item.sku}</span>
-                  )}
-                  {item.itemName && (
-                    <span className="text-xs text-foreground truncate min-w-0">{item.itemName}</span>
-                  )}
-                  <span className="text-[11px] text-muted-foreground ml-auto shrink-0">{formatPrice(item.listedPrice, item.currency)}</span>
-                  <span className="text-[11px] text-muted-foreground shrink-0 w-14 text-right">{timeAgo(item.updatedAt)}</span>
-                  {item.listingUrl && (
-                    <a
-                      href={item.listingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                      title="Open live listing"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              href="/marketplace-control-center?priceStatus=below_selling"
+              className="flex items-center gap-2 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-2.5 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-red-100 dark:bg-red-900/50">
+                <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-red-700 dark:text-red-400">{healthData.priceAlertCount}</div>
+                <div className="text-[10px] text-red-600 dark:text-red-500">Price Alerts</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/marketplace-control-center?filter=lowMargin"
+              className="flex items-center gap-2 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-2.5 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-amber-100 dark:bg-amber-900/50">
+                <TrendingDown className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-amber-700 dark:text-amber-400">{healthData.lowMarginCount}</div>
+                <div className="text-[10px] text-amber-600 dark:text-amber-500">Low Margin</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/marketplace-control-center?report=revenue_leakage"
+              className="flex items-center gap-2 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-2.5 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-red-100 dark:bg-red-900/50">
+                <DollarSign className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-red-700 dark:text-red-400">{formatCurrency(healthData.revenueLeakage)}</div>
+                <div className="text-[10px] text-red-600 dark:text-red-500">Revenue Leakage</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/marketplace-control-center?report=opportunity"
+              className="flex items-center gap-2 rounded-md border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-2.5 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition-colors"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-emerald-100 dark:bg-emerald-900/50">
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{healthData.opportunityCount}</div>
+                <div className="text-[10px] text-emerald-600 dark:text-emerald-500">Opportunities</div>
+              </div>
+            </Link>
           </div>
         </div>
       )}

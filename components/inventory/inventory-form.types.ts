@@ -66,6 +66,7 @@ export const formSchema = z.object({
   stockLocation: z.string().optional(),
   mediaUrl: z.string().url().optional().or(z.literal("")),
   mediaUrls: z.array(z.string()).optional(),
+  hsnCode: z.string().optional(),
   categoryCodeId: z.string().optional(),
   gemstoneCodeId: z.string().optional(),
   colorCodeId: z.string().optional(),
@@ -148,6 +149,7 @@ export type FormInputValues = {
   stockLocation?: string | undefined;
   mediaUrl?: string | undefined;
   mediaUrls?: string[] | undefined;
+  hsnCode?: string | undefined;
   categoryCodeId?: string | undefined;
   gemstoneCodeId?: string | undefined;
   colorCodeId?: string | undefined;

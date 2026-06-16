@@ -144,17 +144,45 @@ function buildInventoryWhere(
   }
 
   if (params.filter === "missingImages") {
-    and.push({ imageUrl: null, status: "IN_STOCK", hideFromAttention: false, media: { none: {} } });
+    and.push({ imageUrl: null, status: "IN_STOCK", media: { none: {} } });
   } else if (params.filter === "readyToSell") {
     and.push({
       status: "IN_STOCK",
       AND: [
         { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
-        { OR: [{ certification: { not: null } }, { certificateNo: { not: null } }, { certificateNumber: { not: null } }, { lab: { not: null } }] },
+        {
+          OR: [
+            { NOT: { OR: [{ certificateNo: null }, { certificateNo: "" }] } },
+            { NOT: { OR: [{ certificateNumber: null }, { certificateNumber: "" }] } },
+          ],
+        },
+        { NOT: { OR: [{ description: null }, { description: "" }] } },
+        { NOT: { OR: [{ hsnCode: null }, { hsnCode: "" }] } },
       ],
     } as Prisma.InventoryWhereInput);
   } else if (params.filter === "missingCertification") {
-    and.push({ status: "IN_STOCK", hideFromAttention: false, certification: null, certificateNo: null, certificateNumber: null, lab: null, OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] });
+    and.push({
+      status: "IN_STOCK",
+      AND: [
+        { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
+        {
+          AND: [
+            {
+              OR: [
+                { certificateNo: null },
+                { certificateNo: "" },
+              ],
+            },
+            {
+              OR: [
+                { certificateNumber: null },
+                { certificateNumber: "" },
+              ],
+            },
+          ],
+        },
+      ],
+    } as Prisma.InventoryWhereInput);
   } else if (params.filter === "highValueUnsold") {
     and.push({ sellingPrice: { gt: 100000 }, status: "IN_STOCK", hideFromAttention: false, updatedAt: { lt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } });
   } else if (params.filter === "stagnant") {
@@ -263,6 +291,11 @@ async function getInventoryData(params: SearchParams) {
     hideFromAttention: true,
     vendorId: true,
     notes: true,
+    certification: true,
+    certificateNo: true,
+    certificateNumber: true,
+    lab: true,
+    certificateLab: true,
     createdAt: true,
     updatedAt: true,
     media: {

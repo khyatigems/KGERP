@@ -41,9 +41,10 @@ export async function GET(req: NextRequest) {
          l."listingRef",
          l."status" AS "listingStatus",
          l."listedDate"
-       FROM "Listing" l
-       INNER JOIN "Inventory" i ON i."id" = l."inventoryId"
-       ORDER BY i."sku" ASC, l."platform" ASC`
+        FROM "Listing" l
+        INNER JOIN "Inventory" i ON i."id" = l."inventoryId"
+        WHERE UPPER(l."status") IN ('ACTIVE', 'LISTED')
+        ORDER BY i."sku" ASC, l."platform" ASC`
     );
 
     const mapped = rows.map((r) => {

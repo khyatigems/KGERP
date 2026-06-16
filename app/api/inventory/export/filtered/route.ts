@@ -117,17 +117,45 @@ function buildFilterWhere(sp: URLSearchParams): Prisma.InventoryWhereInput {
   }
 
   if (filter === "missingImages") {
-    and.push({ imageUrl: null, status: "IN_STOCK", hideFromAttention: false, media: { none: {} } });
+    and.push({ imageUrl: null, status: "IN_STOCK", media: { none: {} } });
   } else if (filter === "readyToSell") {
     and.push({
       status: "IN_STOCK",
       AND: [
         { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
-        { OR: [{ certification: { not: null } }, { certificateNo: { not: null } }, { certificateNumber: { not: null } }, { lab: { not: null } }] },
+        {
+          OR: [
+            { NOT: { OR: [{ certificateNo: null }, { certificateNo: "" }] } },
+            { NOT: { OR: [{ certificateNumber: null }, { certificateNumber: "" }] } },
+          ],
+        },
+        { NOT: { OR: [{ description: null }, { description: "" }] } },
+        { NOT: { OR: [{ hsnCode: null }, { hsnCode: "" }] } },
       ],
     });
   } else if (filter === "missingCertification") {
-    and.push({ status: "IN_STOCK", hideFromAttention: false, certification: null, certificateNo: null, certificateNumber: null, lab: null, OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] });
+    and.push({
+      status: "IN_STOCK",
+      AND: [
+        { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
+        {
+          AND: [
+            {
+              OR: [
+                { certificateNo: null },
+                { certificateNo: "" },
+              ],
+            },
+            {
+              OR: [
+                { certificateNumber: null },
+                { certificateNumber: "" },
+              ],
+            },
+          ],
+        },
+      ],
+    });
   } else if (filter === "highValueUnsold") {
     and.push({ sellingPrice: { gt: 100000 }, status: "IN_STOCK", hideFromAttention: false });
   } else if (filter === "stagnant") {

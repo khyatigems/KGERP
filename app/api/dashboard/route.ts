@@ -64,8 +64,28 @@ export async function GET() {
         prisma.memo.findMany({ where: { status: "OPEN", expiryDate: { lt: now }, items: { some: { inventory: { hideFromAttention: false } } } }, select: { id: true, customerName: true, issueDate: true, items: { take: 1, where: { inventory: { hideFromAttention: false } }, include: { inventory: { select: { sku: true } } } } }, take: 5 }).catch(() => []),
         prisma.vendor.count({ where: { status: "PENDING" } }).catch(() => 0),
         prisma.inventory.findMany({ where: { status: "IN_STOCK", hideFromAttention: false, updatedAt: { lt: sixtyDaysAgo } }, select: { id: true, sku: true, createdAt: true }, take: 5 }).catch(() => []),
-        prisma.inventory.findMany({ where: { status: "IN_STOCK", hideFromAttention: false, certification: null, certificateNo: null, certificateNumber: null, lab: null, imageUrl: { not: null } }, select: { id: true, sku: true, itemName: true }, take: 5 }).catch(() => []),
-        prisma.inventory.findMany({ where: { status: "IN_STOCK", hideFromAttention: false, imageUrl: null }, select: { id: true, sku: true, itemName: true }, take: 5 }).catch(() => []),
+        prisma.inventory.findMany({
+          where: {
+            status: "IN_STOCK",
+            AND: [
+              { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
+              {
+                AND: [
+                  { OR: [{ certificateNo: null }, { certificateNo: "" }] },
+                  { OR: [{ certificateNumber: null }, { certificateNumber: "" }] },
+                ],
+              },
+            ],
+          },
+          select: { id: true, sku: true, itemName: true }, take: 5
+        }).catch(() => []),
+        prisma.inventory.findMany({
+          where: {
+            status: "IN_STOCK",
+            imageUrl: null,
+          },
+          select: { id: true, sku: true, itemName: true }, take: 5
+        }).catch(() => []),
         prisma.expense.findMany({ where: { paymentStatus: "PENDING" }, select: { id: true, description: true, totalAmount: true, expenseDate: true }, take: 5 }).catch(() => []),
         prisma.inventory.findMany({ where: { status: "IN_STOCK", hideFromAttention: false, sellingPrice: { gt: 100000 }, updatedAt: { lt: ninetyDaysAgo } }, select: { id: true, sku: true, sellingPrice: true }, take: 5 }).catch(() => []),
         prisma.inventory.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
@@ -78,7 +98,14 @@ export async function GET() {
             status: "IN_STOCK",
             AND: [
               { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
-              { OR: [{ certification: { not: null } }, { certificateNo: { not: null } }, { certificateNumber: { not: null } }, { lab: { not: null } }] },
+              {
+                OR: [
+                  { NOT: { OR: [{ certificateNo: null }, { certificateNo: "" }] } },
+                  { NOT: { OR: [{ certificateNumber: null }, { certificateNumber: "" }] } },
+                ],
+              },
+              { NOT: { OR: [{ description: null }, { description: "" }] } },
+              { NOT: { OR: [{ hsnCode: null }, { hsnCode: "" }] } },
             ],
           },
         }).catch(() => 0),

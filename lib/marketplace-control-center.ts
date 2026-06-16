@@ -500,3 +500,153 @@ export async function getMarketplaceDashboardData(options: {
   const recentActivity = await getMarketplaceTimeline(undefined, 10);
   return { totalListings, platformCounts, conflictCounts, criticalConflicts, coverageSummary, recentActivity, rows: filtered };
 }
+
+export type MarketplaceAuditMetrics = {
+  totalListings: number;
+  priceAlerts: number;
+  lowMargin: number;
+  revenueLeakage: number;
+  affectedLeakageCount: number;
+  largestLeakage: number;
+  largestLeakageSku: string;
+  largestLeakageName: string;
+  opportunities: number;
+  opportunityRevenue: number;
+  topOpportunitySku: string;
+  topOpportunityName: string;
+  topOpportunityValue: number;
+  topRiskSku: string;
+  topRiskName: string;
+  topRiskLeakage: number;
+  avgMargin: number;
+  greenCount: number;
+  amberCount: number;
+  redCount: number;
+  totalListedValue: number;
+  totalProfit: number;
+  bestPlatform: string;
+  bestPlatformProfit: number;
+  bestPlatformMargin: number;
+  bestCategory: string;
+  bestCategoryProfit: number;
+  bestCategoryMargin: number;
+  bestSku: string;
+  bestSkuName: string;
+  bestSkuProfit: number;
+  healthScore: number;
+  usdRate: number;
+};
+
+export async function getMarketplaceAuditMetrics(usdRate: number = 86): Promise<MarketplaceAuditMetrics> {
+  const rows = await prisma.$queryRawUnsafe<Array<{
+    platform: string;
+    listingUrl: string;
+    listedPrice: number;
+    currency: string;
+    listedDate: string;
+    sellingPrice: number;
+    costPrice: number;
+    sku: string;
+    itemName: string;
+    category: string;
+  }>>(`
+    SELECT l."platform", l."listingUrl", l."listedPrice", COALESCE(l."currency",'USD') AS "currency", l."listedDate",
+           i."sellingPrice", i."costPrice", i."sku", i."itemName", i."category"
+    FROM "Listing" l
+    INNER JOIN "Inventory" i ON i."id" = l."inventoryId"
+    WHERE UPPER(l."status") IN ('ACTIVE', 'LISTED')
+  `);
+
+  const items = rows.map((r) => {
+    const lp = Number(r.listedPrice) || 0;
+    const currency = String(r.currency || "INR");
+    let lpInr = lp;
+    if (currency === "USD" || currency === "US") lpInr = lp * usdRate;
+    else if (currency === "EUR") lpInr = lp * (usdRate * 1.08);
+    const sp = Number(r.sellingPrice) || 0;
+    const cp = Number(r.costPrice) || 0;
+    const profit = lpInr - cp;
+    const margin = cp > 0 ? (profit / cp) * 100 : 0;
+    const leakage = lpInr < sp ? sp - lpInr : 0;
+    const isOpportunity = lpInr > sp * 1.5;
+    const oppRevenue = isOpportunity ? lpInr - sp : 0;
+    return { ...r, lpInr, sp, cp, profit, margin, leakage, isOpportunity, oppRevenue };
+  });
+
+  const total = items.length;
+  const priceAlerts = items.filter((i) => i.lpInr < i.sp).length;
+  const lowMargin = items.filter((i) => i.margin < 100).length;
+  const red = items.filter((i) => i.margin < 100).length;
+  const amber = items.filter((i) => i.margin >= 100 && i.margin < 300).length;
+  const green = items.filter((i) => i.margin >= 300).length;
+  const totalLeakage = items.reduce((s, i) => s + i.leakage, 0);
+  const leakageItems = items.filter((i) => i.leakage > 0);
+  const largest = leakageItems.sort((a, b) => b.leakage - a.leakage)[0];
+  const totalProfit = items.reduce((s, i) => s + i.profit, 0);
+  const totalListed = items.reduce((s, i) => s + i.lpInr, 0);
+  const avgMargin = total > 0 ? items.reduce((s, i) => s + i.margin, 0) / total : 0;
+  const opportunities = items.filter((i) => i.isOpportunity).length;
+  const oppRevenue = items.reduce((s, i) => s + i.oppRevenue, 0);
+  const topOpp = items.filter((i) => i.isOpportunity).sort((a, b) => b.oppRevenue - a.oppRevenue)[0];
+
+  // Platform pivot
+  const mpMap = new Map<string, { profit: number; margin: number; count: number }>();
+  for (const i of items) {
+    const k = i.platform || "Unknown";
+    const e = mpMap.get(k) || { profit: 0, margin: 0, count: 0 };
+    e.profit += i.profit; e.margin += i.margin; e.count++;
+    mpMap.set(k, e);
+  }
+  const bestMp = Array.from(mpMap.entries()).sort((a, b) => b[1].profit - a[1].profit)[0];
+
+  // Category pivot
+  const catMap = new Map<string, { profit: number; margin: number }>();
+  for (const i of items) {
+    const k = i.category || "Unknown";
+    const e = catMap.get(k) || { profit: 0, margin: 0 };
+    e.profit += i.profit; e.margin += i.margin;
+    catMap.set(k, e);
+  }
+  const bestCat = Array.from(catMap.entries()).sort((a, b) => b[1].profit - a[1].profit)[0];
+
+  const bestSku = [...items].sort((a, b) => b.profit - a.profit)[0];
+
+  // Health Score
+  const priceCompliance = total > 0 ? Math.max(0, (total - priceAlerts) / total * 40) : 40;
+  const marginHealth = total > 0 ? Math.max(0, green / total * 30) : 30;
+  const coverage = 20;
+  const healthScore = Math.round(Math.min(100, priceCompliance + marginHealth + coverage));
+
+  return {
+    totalListings: total,
+    priceAlerts, lowMargin,
+    revenueLeakage: Math.round(totalLeakage),
+    affectedLeakageCount: leakageItems.length,
+    largestLeakage: Math.round(largest?.leakage || 0),
+    largestLeakageSku: largest?.sku || "",
+    largestLeakageName: largest?.itemName || "",
+    opportunities,
+    opportunityRevenue: Math.round(oppRevenue),
+    topOpportunitySku: topOpp?.sku || "",
+    topOpportunityName: topOpp?.itemName || "",
+    topOpportunityValue: Math.round(topOpp?.oppRevenue || 0),
+    topRiskSku: largest?.sku || "",
+    topRiskName: largest?.itemName || "",
+    topRiskLeakage: Math.round(largest?.leakage || 0),
+    avgMargin: Math.round(avgMargin * 10) / 10,
+    greenCount: green, amberCount: amber, redCount: red,
+    totalListedValue: Math.round(totalListed),
+    totalProfit: Math.round(totalProfit),
+    bestPlatform: bestMp?.[0] || "—",
+    bestPlatformProfit: Math.round(bestMp?.[1].profit || 0),
+    bestPlatformMargin: Math.round(bestMp ? bestMp[1].margin / bestMp[1].count * 10 : 0) / 10,
+    bestCategory: bestCat?.[0] || "—",
+    bestCategoryProfit: Math.round(bestCat?.[1].profit || 0),
+    bestCategoryMargin: Math.round(bestCat ? bestCat[1].margin / items.filter(i => (i.category || "Unknown") === (bestCat[0] || "Unknown")).length * 10 : 0) / 10,
+    bestSku: bestSku?.sku || "",
+    bestSkuName: bestSku?.itemName || "",
+    bestSkuProfit: Math.round(bestSku?.profit || 0),
+    healthScore,
+    usdRate,
+  };
+}
