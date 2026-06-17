@@ -53,6 +53,12 @@ export async function GET(req: NextRequest) {
     const allItems = [...grouped.values()];
 
     // ── Helpers ──
+    const cleanDesc = (d: unknown): string => {
+      const raw = String(d || "");
+      // Fix: database may store HTML with escaped quotes; normalize to single quotes
+      return raw.replace(/\\"/g, '"').replace(/""/g, '"').trim();
+    };
+
     const isReady = (b: Record<string, unknown>) => {
       const hasImage = !!(b.imageUrl);
       const hasCert = !!(b.certificateNo && String(b.certificateNo).trim()) || !!(b.certification && String(b.certification).trim());
@@ -116,7 +122,7 @@ export async function GET(req: NextRequest) {
             item.platforms.size >= 2 ? "HIGH" : "MEDIUM",
             b.stockLocation || "—",
             b.hsnCode || "—",
-            b.description || b.productDescription || "",
+            cleanDesc(b.description || b.productDescription),
           ]);
         }
       }
@@ -146,7 +152,7 @@ export async function GET(req: NextRequest) {
           fmtFmt(b.weightValue || b.carats), fmtFmt(b.sellingPrice),
           b.stockLocation || "—",
           b.hsnCode || "—",
-          b.description || b.productDescription || "",
+          cleanDesc(b.description || b.productDescription),
         ]);
       }
       autoW(ws2);
@@ -165,7 +171,7 @@ export async function GET(req: NextRequest) {
             ready.hasImage ? "✅" : "❌ Needs Image",
             ready.hasCert ? "✅" : "❌ Needs Certificate",
             MARKETPLACE_PLATFORMS.join(", "),
-            b.description || b.productDescription || "",
+            cleanDesc(b.description || b.productDescription),
           ]);
         }
         autoW(ws3);
@@ -188,7 +194,7 @@ export async function GET(req: NextRequest) {
             fmtFmt(b.weightValue || b.carats), fmtFmt(b.sellingPrice),
             item.platforms.size >= 2 ? "HIGH" : "MEDIUM",
             b.stockLocation || "—",
-            b.description || b.productDescription || "",
+            cleanDesc(b.description || b.productDescription),
           ]);
         }
         autoW(ws);
