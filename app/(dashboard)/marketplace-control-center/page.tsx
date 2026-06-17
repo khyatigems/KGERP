@@ -42,10 +42,12 @@ export default async function MarketplaceControlCenterPage({
   );
 
   const coverageRows = data.rows;
-  const opportunityRows = [...coverageRows].filter((r) => r.opportunityScore > 0);
-  if (sortBy === "opportunity") {
-    opportunityRows.sort((a, b) => b.opportunityScore - a.opportunityScore);
-  }
+  const opportunityRows = [...coverageRows]
+    .filter((r) => r.missingPlatforms.length > 0 && r.readyToList)
+    .sort((a, b) => b.opportunityScore - a.opportunityScore);
+  const needsPreparationRows = [...coverageRows]
+    .filter((r) => r.missingPlatforms.length > 0 && !r.readyToList)
+    .sort((a, b) => b.opportunityScore - a.opportunityScore);
 
   function formatDate(raw: string | null | undefined): string {
     if (!raw) return "";
@@ -131,8 +133,49 @@ export default async function MarketplaceControlCenterPage({
                   <div className="flex items-center gap-1">
                     <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-600">Opportunity</Badge>
                     <span className="text-xs">Marketplace price exceeds ERP by 15%+</span>
-                  </div>
-                </div>
+          </div>
+
+          {needsPreparationRows.length > 0 && (
+            <div className="space-y-2 mt-6">
+              <h3 className="text-lg font-semibold text-amber-600">⚠️ Needs Preparation ({needsPreparationRows.length})</h3>
+              <p className="text-xs text-muted-foreground">These items are not listed on any platform and need image + certificate before listing.</p>
+              <div className="rounded-md border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Product Name</TableHead>
+                      <TableHead>Missing</TableHead>
+                      <TableHead>Image</TableHead>
+                      <TableHead>Certificate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {needsPreparationRows.slice(0, 50).map((row) => (
+                      <TableRow key={row.inventoryId}>
+                        <TableCell className="font-medium">{row.sku}</TableCell>
+                        <TableCell>{row.productName}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {row.missingPlatforms.map((p) => (
+                              <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {row.hasImage ? <Badge variant="default" className="bg-emerald-500 text-[10px]">✅</Badge> : <Badge variant="destructive" className="text-[10px]">Missing</Badge>}
+                        </TableCell>
+                        <TableCell>
+                          {row.hasCertificate ? <Badge variant="default" className="bg-emerald-500 text-[10px]">✅</Badge> : <Badge variant="destructive" className="text-[10px]">Missing</Badge>}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </div>
               </CardContent>
             </Card>
 
@@ -346,11 +389,12 @@ export default async function MarketplaceControlCenterPage({
                   <TableHead>Current Marketplaces</TableHead>
                   <TableHead>Missing Marketplaces</TableHead>
                   <TableHead>Opportunity Score</TableHead>
+                  <TableHead>Ready</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {opportunityRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center h-24 text-muted-foreground">No opportunities found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No opportunities found</TableCell></TableRow>
                 ) : (
                   opportunityRows.slice(0, 200).map((row) => (
                     <TableRow key={row.inventoryId}>
@@ -382,6 +426,15 @@ export default async function MarketplaceControlCenterPage({
                         <Badge variant={row.opportunityScore >= 2 ? "destructive" : "secondary"}>
                           {row.opportunityScore} Missing
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {row.platforms.length > 0 ? (
+                          <Badge variant="default" className="bg-emerald-500 text-[10px]">Listed</Badge>
+                        ) : row.readyToList ? (
+                          <Badge variant="default" className="text-[10px]">✅ Ready</Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-amber-500 text-amber-600 text-[10px]">⚠️ Needs Prep</Badge>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

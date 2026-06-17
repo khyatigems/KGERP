@@ -49,6 +49,9 @@ export type MarketplacePortfolioRow = {
   coveragePercent: number;
   missingPlatforms: MarketplacePlatform[];
   opportunityScore: number;
+  readyToList: boolean;
+  hasImage: boolean;
+  hasCertificate: boolean;
 };
 
 export type MarketplaceDashboardData = {
@@ -402,12 +405,15 @@ export async function getMarketplaceDashboardData(options: {
       inventoryStatus: row.inventoryStatus,
       pieces: Number(row.pieces || 0),
       createdAt: toIsoDate(row.createdAt),
-      platforms: [],
-      urls: { EBAY: [], ETSY: [], AMAZON: [] },
-      lastListedDates: {},
+      platforms: [] as MarketplacePlatform[],
+      urls: { EBAY: [], ETSY: [], AMAZON: [] } as Record<MarketplacePlatform, string[]>,
+      lastListedDates: {} as Partial<Record<MarketplacePlatform, string>>,
       coveragePercent: 0,
-      missingPlatforms: [],
+      missingPlatforms: [] as MarketplacePlatform[],
       opportunityScore: 3,
+      readyToList: false,
+      hasImage: false,
+      hasCertificate: false,
     };
 
     const platform = normalizePlatform(row.platform);
@@ -446,6 +452,35 @@ export async function getMarketplaceDashboardData(options: {
     item.missingPlatforms = MARKETPLACE_PLATFORMS.filter((platform) => !activeSet.has(platform));
     item.opportunityScore = item.missingPlatforms.length;
     item.platforms.sort();
+    // Default: assume ready unless proven otherwise below
+    item.readyToList = item.platforms.length > 0;
+    item.hasImage = false;
+    item.hasCertificate = false;
+  }
+
+  // Batch check image/cert for items with 0 listings
+  const zeroListingItems = filtered.filter((item) => item.platforms.length === 0);
+  if (zeroListingItems.length > 0) {
+    const ids = zeroListingItems.map((item) => item.inventoryId);
+    const checks = await prisma.inventory.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        imageUrl: true,
+        certificateNo: true,
+        certificateNumber: true,
+        media: { select: { id: true }, take: 1 },
+      },
+    });
+    const checkMap = new Map(checks.map((c) => [c.id, c]));
+    for (const item of zeroListingItems) {
+      const c = checkMap.get(item.inventoryId);
+      if (c) {
+        item.hasImage = !!(c.imageUrl) || c.media.length > 0;
+        item.hasCertificate = !!(c.certificateNo && c.certificateNo.trim()) || !!(c.certificateNumber && c.certificateNumber.trim());
+        item.readyToList = item.hasImage && item.hasCertificate;
+      }
+    }
   }
 
   const totalListings = filtered.reduce(

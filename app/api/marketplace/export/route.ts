@@ -121,7 +121,16 @@ export async function GET(req: NextRequest) {
     }
 
     const allItems = [...grouped.values()];
-    const opportunityItems = allItems.filter((item) => item.platforms.size < 3);
+    const opportunityItems = allItems.filter((item) => {
+      if (item.platforms.size >= 3) return false;
+      // Always include items already on at least 1 platform
+      if (item.platforms.size > 0) return true;
+      // Items with 0 listings: only include if they have image AND certificate
+      const b = item.base;
+      const hasImage = !!(b.imageUrl);
+      const hasCert = !!(b.certificateNo && String(b.certificateNo).trim()) || !!(b.certification && String(b.certification).trim());
+      return hasImage && hasCert;
+    });
     const normMarketplace = normalizePlatform(marketplace);
     const marketplaceFiltered = marketplace && marketplace !== "ALL" && normMarketplace
       ? allItems.filter((item) => item.platforms.has(normMarketplace))
@@ -186,6 +195,33 @@ export async function GET(req: NextRequest) {
     if (mainRows.length > 0) {
       const ws = XLSX.utils.json_to_sheet(mainRows);
       XLSX.utils.book_append_sheet(wb, ws, mainSheetName.substring(0, 31));
+    }
+
+    // Add Needs Preparation sheet for opportunity report
+    if (report === "opportunity") {
+      const needsPrepItems = allItems.filter((item) => {
+        if (item.platforms.size >= 3) return false;
+        if (item.platforms.size > 0) return false;
+        const b = item.base;
+        const hasImage = !!(b.imageUrl);
+        const hasCert = !!(b.certificateNo && String(b.certificateNo).trim()) || !!(b.certification && String(b.certification).trim());
+        return !(hasImage && hasCert);
+      });
+      if (needsPrepItems.length > 0) {
+        const prepRows = needsPrepItems.map((item) => {
+          const b = item.base;
+          return {
+            "SKU": b.sku || "",
+            "Product Name": b.itemName || "",
+            "Category": b.category || "",
+            "Has Image": !!(b.imageUrl) ? "Yes" : "No",
+            "Has Certificate": (!!(b.certificateNo && String(b.certificateNo).trim()) || !!(b.certification && String(b.certification).trim())) ? "Yes" : "No",
+            "Missing Platforms": ["EBAY", "ETSY", "AMAZON"].filter((p) => !item.platforms.has(p)).join(", "),
+          };
+        });
+        const ws = XLSX.utils.json_to_sheet(prepRows);
+        XLSX.utils.book_append_sheet(wb, ws, "Needs Preparation");
+      }
     }
 
     for (const platform of ["EBAY", "ETSY", "AMAZON"]) {
