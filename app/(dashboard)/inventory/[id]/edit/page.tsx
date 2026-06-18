@@ -72,6 +72,21 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
   const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts, certificates, originRows] = result.data!;
   const origins = originRows.map((r: { origin: string }) => r.origin);
 
+  const gpisSettings = await (prisma as any).gpisSettings.findFirst();
+  const categoryHsnMap: Record<string, string> = {};
+  if (gpisSettings?.categoryHsnJson) {
+    try {
+      const parsed = JSON.parse(String(gpisSettings.categoryHsnJson));
+      if (parsed && typeof parsed === "object") {
+        for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+          if (typeof k === "string" && typeof v === "string" && k.trim() && v.trim()) {
+            categoryHsnMap[k.trim()] = v.trim();
+          }
+        }
+      }
+    } catch {}
+  }
+
   if (!inventory) {
       notFound();
   }
@@ -105,6 +120,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
             certificates={certificates}
             origins={origins}
             initialData={inventory} 
+            categoryHsnMap={categoryHsnMap}
           />
         </div>
       </div>

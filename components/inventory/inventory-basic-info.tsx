@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { type UseFormReturn } from "react-hook-form";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ interface BasicInfoSectionProps {
   skuPreview: string;
   isSkuPreviewOpen: boolean;
   setIsSkuPreviewOpen: (v: boolean) => void;
+  categoryHsnMap?: Record<string, string>;
 }
 
 export function BasicInfoSection({
@@ -25,10 +26,35 @@ export function BasicInfoSection({
   skuPreview,
   isSkuPreviewOpen,
   setIsSkuPreviewOpen,
+  categoryHsnMap: categoryHsnMapProp,
 }: BasicInfoSectionProps) {
   const categoryName = form.watch("category");
   const gemType = form.watch("gemType");
   const beadSize = form.watch("beadSize");
+
+  const [categoryHsnMap, setCategoryHsnMap] = useState<Record<string, string>>(categoryHsnMapProp || {});
+  const hsnMapFetched = useRef(false);
+
+  useEffect(() => {
+    if (hsnMapFetched.current) return;
+    if (categoryHsnMapProp && Object.keys(categoryHsnMapProp).length > 0) return;
+    hsnMapFetched.current = true;
+    fetch("/api/inventory/hsn-map")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.map) setCategoryHsnMap(data.map);
+      })
+      .catch(() => {});
+  }, [categoryHsnMapProp]);
+
+  useEffect(() => {
+    if (categoryName && Object.keys(categoryHsnMap).length > 0) {
+      const hsn = categoryHsnMap[categoryName];
+      if (hsn && !form.getValues("hsnCode")) {
+        form.setValue("hsnCode", hsn);
+      }
+    }
+  }, [categoryName, categoryHsnMap, form]);
 
   const isBraceletCategory = isBraceletSelection(categoryName, undefined, gemType, categories);
 
@@ -52,6 +78,15 @@ export function BasicInfoSection({
       form.setValue("categoryCodeId", selectedCategory.id);
     }
   }, [categoryName, categories, form]);
+
+  useEffect(() => {
+    if (categoryName && categoryHsnMap) {
+      const hsn = categoryHsnMap[categoryName];
+      if (hsn && !form.getValues("hsnCode")) {
+        form.setValue("hsnCode", hsn);
+      }
+    }
+  }, [categoryName, categoryHsnMap, form]);
 
   return (
     <div className="space-y-6">

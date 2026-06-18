@@ -35,6 +35,21 @@ export default async function NewInventoryPage() {
   ]);
   const origins = originRows.map((r) => r.origin);
 
+  const gpisSettings = await (prisma as any).gpisSettings.findFirst();
+  const categoryHsnMap: Record<string, string> = {};
+  if (gpisSettings?.categoryHsnJson) {
+    try {
+      const parsed = JSON.parse(String(gpisSettings.categoryHsnJson));
+      if (parsed && typeof parsed === "object") {
+        for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+          if (typeof k === "string" && typeof v === "string" && k.trim() && v.trim()) {
+            categoryHsnMap[k.trim()] = v.trim();
+          }
+        }
+      }
+    } catch {}
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -52,6 +67,7 @@ export default async function NewInventoryPage() {
             cuts={cuts}
             certificates={certificates}
             origins={origins}
+            categoryHsnMap={categoryHsnMap}
           />
         </div>
       </div>

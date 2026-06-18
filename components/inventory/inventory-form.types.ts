@@ -188,6 +188,7 @@ export interface InventoryFormProps {
   certificates?: CodeRow[];
   origins?: string[];
   initialData?: InventoryWithExtras & { media: InventoryMedia[]; rashiCodes?: { id: string }[] };
+  categoryHsnMap?: Record<string, string>;
 }
 
 export const ORIGIN_PRESETS = ["Burma (Myanmar)", "Sri Lanka (Ceylon)", "Kashmir", "Madagascar", "Mozambique", "Thailand", "Colombia", "Zambia"];

@@ -68,7 +68,7 @@ const NotesSection = dynamic(() => import("./inventory-notes").then((m) => m.Not
   loading: () => <div className="rounded-lg border bg-card/50 p-5 space-y-4 animate-pulse"><div className="h-6 w-16 bg-muted rounded" /><div className="h-40 bg-muted rounded" /></div>,
 });
 
-export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], origins = [], initialData }: InventoryFormProps) {
+export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], origins = [], initialData, categoryHsnMap }: InventoryFormProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [skuPreview, setSkuPreview] = useState<string>("");
@@ -138,6 +138,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         (colors.find((c) => c.name === (initialData?.color || ""))?.id ??
           ""),
       cutCodeId: initialData?.cutCodeId || "",
+      hsnCode: initialData?.hsnCode || "",
     },
   });
 
@@ -339,6 +340,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
             collectionCodeId: "",
             rashiCodeIds: [],
             cutCodeId: "",
+            hsnCode: "",
             braceletType: "",
             standardSize: "",
             beadSizeMm: undefined,
@@ -508,6 +510,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               skuPreview={skuPreview}
               isSkuPreviewOpen={isSkuPreviewOpen}
               setIsSkuPreviewOpen={setIsSkuPreviewOpen}
+              categoryHsnMap={categoryHsnMap}
             />
 
             <GemDetailsSection key={`gem-${formResetKey}`} form={form} gemstones={gemstones} colors={colors} cuts={cuts} origins={origins} />
