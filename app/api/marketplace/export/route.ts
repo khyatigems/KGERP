@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureMarketplaceControlCenterSchema, normalizePlatform, MARKETPLACE_PLATFORMS } from "@/lib/marketplace-control-center";
+import { buildEbayHtmlDescription } from "@/lib/ebay-description";
 import ExcelJS from "exceljs";
 
 export async function GET(req: NextRequest) {
@@ -26,10 +27,10 @@ export async function GET(req: NextRequest) {
               i."gemType", i."weightValue", i."weightUnit", i."carats",
               i."costPrice", i."sellingPrice", i."status", i."imageUrl",
               i."certificateNo", i."certification",
-              i."description", i."productDescription", i."dimensionsMm",
-              i."shape", i."color", i."origin", i."treatment",
-              i."clarity", i."transparency",
-              i."stockLocation", i."hsn_code" AS "hsnCode",
+              i."dimensionsMm", i."stockLocation", i."hsn_code" AS "hsnCode",
+              i."shape", i."color", i."origin", i."treatment", i."transparency",
+              i."braceletType", i."beadSizeMm", i."beadCount",
+              i."standardSize",
               l."platform", l."listingUrl"
        FROM "Inventory" i
        LEFT JOIN "Listing" l ON l."inventoryId" = i."id" AND UPPER(l."status") IN ('ACTIVE', 'LISTED')
@@ -37,6 +38,30 @@ export async function GET(req: NextRequest) {
        ORDER BY i."sku" ASC`,
       ...values
     );
+
+    // Fetch eBay settings once for all description generation
+    let categoryImageUrls: Record<string, string[]> = {};
+    let categoryGemtypeImageUrls: Record<string, string[]> = {};
+    let globalBannerImages: string[] | undefined;
+    let ebaySettings: Record<string, unknown> = {};
+    try {
+      const rows = await prisma.$queryRawUnsafe<Array<{ globalBannerImages: string | null; categoryImageUrls: string | null; categoryGemtypeImageUrls: string | null; brandLogoUrl: string | null; companyName: string | null; tagline: string | null }>>(`SELECT * FROM "EbaySettings" LIMIT 1`);
+      if (rows && rows.length > 0) {
+        const row = rows[0];
+        const parseJson = (v: string | null, fallback: any) => { if (!v) return fallback; try { return JSON.parse(v); } catch { return fallback; } };
+        categoryImageUrls = parseJson(row.categoryImageUrls, {});
+        categoryGemtypeImageUrls = parseJson(row.categoryGemtypeImageUrls, {});
+        globalBannerImages = parseJson(row.globalBannerImages, []);
+        ebaySettings = {
+          companyName: row.companyName ?? "KhyatiGems",
+          tagline: row.tagline ?? "Precious Gems for your Precious Ones",
+          brandLogoUrl: row.brandLogoUrl ?? undefined,
+          globalBannerImages: globalBannerImages ?? undefined,
+          categoryImageUrls: categoryImageUrls ?? undefined,
+          categoryGemtypeImageUrls: categoryGemtypeImageUrls ?? undefined,
+        };
+      }
+    } catch { /* use defaults */ }
 
     const grouped = new Map<string, {
       base: Record<string, unknown>;
@@ -53,10 +78,42 @@ export async function GET(req: NextRequest) {
     const allItems = [...grouped.values()];
 
     // ── Helpers ──
-    const cleanDesc = (d: unknown): string => {
-      const raw = String(d || "");
-      // Fix: database may store HTML with escaped quotes; normalize to single quotes
-      return raw.replace(/\\"/g, '"').replace(/""/g, '"').trim();
+    const getDesc = (b: Record<string, unknown>): string => {
+      try {
+        const html = buildEbayHtmlDescription(
+          {
+            sku: String(b.sku || ""),
+            itemName: String(b.itemName || ""),
+            category: String(b.category || ""),
+            gemType: String(b.gemType || ""),
+            color: String(b.color || ""),
+            shape: String(b.shape || ""),
+            weightValue: Number(b.weightValue) || null,
+            weightUnit: String(b.weightUnit || "cts"),
+            dimensionsMm: String(b.dimensionsMm || ""),
+            treatment: String(b.treatment || ""),
+            origin: String(b.origin || ""),
+            transparency: String(b.transparency || ""),
+            certification: String(b.certification || ""),
+            braceletType: String(b.braceletType || ""),
+            beadSizeMm: Number(b.beadSizeMm) || null,
+            beadCount: Number(b.beadCount) || null,
+            standardSize: String(b.standardSize || ""),
+          },
+          { settings: ebaySettings as Record<string, unknown> }
+        );
+        // Replace double-quotes with single-quotes (same fix as inventory export)
+        // This prevents Excel/XLSX from CSV-encoding HTML double-quotes
+        return typeof html === "string" ? html.replace(/"/g, "'") : html;
+      } catch {
+        return "";
+      }
+    };
+
+    // Helper to set cell as text (prevents ExcelJS from corrupting HTML)
+    const setText = (cell: ExcelJS.Cell) => {
+      cell.numFmt = '@';
+      cell.alignment = { wrapText: false, vertical: "top" };
     };
 
     const isReady = (b: Record<string, unknown>) => {
@@ -100,7 +157,7 @@ export async function GET(req: NextRequest) {
 
       // ═══ Sheet 1: Action Plan (SKU × missing platform) ═══
       const ws1 = wb.addWorksheet("Action Plan", { properties: { tabColor: { argb: C.blue } } });
-      const h1 = ["SKU", "Product Name", "Category", "Platform to List", "Listed Elsewhere?", "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)", "Priority", "Stock Location", "HSN Code", "eBay HTML Description"];
+      const h1 = ["SKU", "Product Name", "Category", "Platform to List", "Listed Elsewhere?", "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)", "Priority", "Stock Location", "HSN Code", "eBay Description"];
       ws1.addRow(h1); hdrStyle(ws1, h1.length);
 
       for (const item of opportunityItems) {
@@ -122,13 +179,14 @@ export async function GET(req: NextRequest) {
             item.platforms.size >= 2 ? "HIGH" : "MEDIUM",
             b.stockLocation || "—",
             b.hsnCode || "—",
-            cleanDesc(b.description || b.productDescription),
+            getDesc(b),
           ]);
         }
       }
       autoW(ws1);
       for (let r = 2; r <= ws1.rowCount; r++) {
         ws1.getCell(r, 10).numFmt = "₹ #,##0";
+        ws1.getCell(r, 14).numFmt = "@";
         const prio = ws1.getCell(r, 11).value?.toString();
         if (prio === "HIGH") ws1.getCell(r, 11).font = { bold: true, color: { argb: C.red }, size: 10, name: "Calibri" };
         else if (prio === "MEDIUM") ws1.getCell(r, 11).font = { color: { argb: C.amber }, size: 10, name: "Calibri" };
@@ -152,11 +210,14 @@ export async function GET(req: NextRequest) {
           fmtFmt(b.weightValue || b.carats), fmtFmt(b.sellingPrice),
           b.stockLocation || "—",
           b.hsnCode || "—",
-          cleanDesc(b.description || b.productDescription),
+          getDesc(b),
         ]);
       }
       autoW(ws2);
-      for (let r = 2; r <= ws2.rowCount; r++) ws2.getCell(r, 10).numFmt = "₹ #,##0";
+      for (let r = 2; r <= ws2.rowCount; r++) {
+        ws2.getCell(r, 10).numFmt = "₹ #,##0";
+        ws2.getCell(r, 13).numFmt = "@";
+      }
 
       // ═══ Sheet 3: Needs Preparation ═══
       if (needsPrepItems.length > 0) {
@@ -171,10 +232,11 @@ export async function GET(req: NextRequest) {
             ready.hasImage ? "✅" : "❌ Needs Image",
             ready.hasCert ? "✅" : "❌ Needs Certificate",
             MARKETPLACE_PLATFORMS.join(", "),
-            cleanDesc(b.description || b.productDescription),
+            getDesc(b),
           ]);
         }
         autoW(ws3);
+        for (let r = 2; r <= ws3.rowCount; r++) ws3.getCell(r, 7).numFmt = "@";
       }
 
       // ═══ Sheets 4-6: Per-platform missing ═══
@@ -194,11 +256,14 @@ export async function GET(req: NextRequest) {
             fmtFmt(b.weightValue || b.carats), fmtFmt(b.sellingPrice),
             item.platforms.size >= 2 ? "HIGH" : "MEDIUM",
             b.stockLocation || "—",
-            cleanDesc(b.description || b.productDescription),
+            getDesc(b),
           ]);
         }
         autoW(ws);
-        for (let r = 2; r <= ws.rowCount; r++) ws.getCell(r, 8).numFmt = "₹ #,##0";
+        for (let r = 2; r <= ws.rowCount; r++) {
+          ws.getCell(r, 8).numFmt = "₹ #,##0";
+          ws.getCell(r, 11).numFmt = "@";
+        }
       }
     } else {
       // ═══ Coverage Report (simplified) ═══

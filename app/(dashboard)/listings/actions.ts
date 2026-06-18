@@ -72,6 +72,12 @@ export async function createListing(prevState: unknown, formData: FormData) {
         currency: data.currency,
         listedDate: data.listedDate || new Date(),
         status: "LISTED",
+        priceHistory: {
+          create: {
+            price: data.listedPrice,
+            changedBy: session.user?.id || session.user?.email || "Unknown",
+          },
+        },
       },
     });
   } catch (e) {

@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
   }
 
   const marketplacePrice = toPrice(body.price);
-  const erpOriginalPrice = inventory.sellingPrice || marketplacePrice;
 
   const listing = await prisma.listing.create({
     data: {
@@ -109,10 +108,10 @@ export async function POST(request: NextRequest) {
       listingRef: body.marketplaceSku || body.mpn || null,
       listedPrice: marketplacePrice,
       currency: body.currency || "USD",
-      status: body.status || "ACTIVE",
+      status: (body.status || "ACTIVE").toUpperCase(),
       priceHistory: {
         create: {
-          price: erpOriginalPrice,
+          price: marketplacePrice,
           changedBy: "Chrome Extension",
         },
       },

@@ -62,27 +62,43 @@ export async function POST(req: NextRequest) {
 
       if (existingListing) {
         // Update existing listing
-        const updated = await prisma.listing.update({
-          where: { id: existingListing.id },
-          data: {
-            listingUrl: defaultUrl || existingListing.listingUrl,
-            listedPrice: item.sellingPrice,
-            status: "ACTIVE",
-            updatedAt: new Date(),
-          },
-        });
-        listings.push(updated);
+        if (item.sellingPrice !== existingListing.listedPrice) {
+          const updated = await prisma.listing.update({
+            where: { id: existingListing.id },
+            data: {
+              listingUrl: defaultUrl || existingListing.listingUrl,
+              listedPrice: item.sellingPrice,
+              status: "ACTIVE",
+              updatedAt: new Date(),
+              priceHistory: {
+                create: {
+                  price: item.sellingPrice,
+                  changedBy: userId,
+                },
+              },
+            },
+          });
+          listings.push(updated);
+        } else {
+          listings.push(existingListing);
+        }
       } else {
-        // Create new listing
+        // Create new listing with price history
         const created = await prisma.listing.create({
           data: {
             inventoryId: item.id,
             platform: platform,
             listingUrl: defaultUrl || "",
-            externalId: "", // Will be updated when actual listing is created on platform
+            externalId: "",
             status: "ACTIVE",
             listedPrice: item.sellingPrice,
             currency: "INR",
+            priceHistory: {
+              create: {
+                price: item.sellingPrice,
+                changedBy: userId,
+              },
+            },
           },
         });
         listings.push(created);
