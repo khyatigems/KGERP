@@ -148,8 +148,15 @@ export async function syncMetricsBatch(input: {
 
   if (inventoryIds.length) {
     try {
-      await syncOpportunityCache({ inventoryIds, marketplace });
+      const cacheResult = await syncOpportunityCache({ inventoryIds, marketplace });
+      if (cacheResult.errors.length) {
+        errors.push(...cacheResult.errors.map(e => ({
+          externalId: e.inventoryId,
+          reason: e.reason
+        })));
+      }
     } catch (e) {
+      console.error("[syncMetricsBatch] syncOpportunityCache failed:", e);
       errors.push({
         externalId: "*",
         reason: `recompute batch failed: ${e instanceof Error ? e.message : String(e)}`
@@ -169,15 +176,33 @@ export async function syncOpportunityCache(input: {
   const inventoryIds = Array.from(new Set(input.inventoryIds));
   const errors: Array<{ inventoryId: string; reason: string }> = [];
 
-  // Get the latest snapshot per inventory
-  const latestSnapshots = await prisma.listingMetricSnapshot.findMany({
-    where: {
-      inventoryId: { in: inventoryIds },
-      marketplace: input.marketplace
-    },
-    orderBy: { capturedAt: "desc" },
-    distinct: ["inventoryId"]
-  });
+  // Get the latest snapshot per inventory (using raw SQL for proper GROUP BY support)
+  const latestSnapshots = await prisma.$queryRawUnsafe<Array<{
+    id: string;
+    inventoryId: string;
+    marketplace: string;
+    externalId: string | null;
+    views: number;
+    watches: number;
+    favourites: number;
+    orders: number;
+    revenue: number;
+    currency: string;
+    capturedAt: Date;
+  }>>(
+    `SELECT s1.* FROM "ListingMetricSnapshot" s1
+     INNER JOIN (
+       SELECT "inventoryId", MAX("capturedAt") as "maxCaptured"
+       FROM "ListingMetricSnapshot"
+       WHERE "marketplace" = ?
+         AND "inventoryId" IN (${inventoryIds.map(() => "?").join(",")})
+       GROUP BY "inventoryId"
+     ) s2 ON s1."inventoryId" = s2."inventoryId" AND s1."capturedAt" = s2."maxCaptured"
+     WHERE s1."marketplace" = ?`,
+    input.marketplace,
+    ...inventoryIds,
+    input.marketplace
+  );
   if (!latestSnapshots.length) return { updated: 0, errors: [] };
 
   // Build rows with raw latest values (no score calculation)
@@ -199,7 +224,7 @@ export async function syncOpportunityCache(input: {
   // Bulk upsert via single SQL statement (1 round-trip regardless of batch size)
   if (rows.length) {
     const placeholders = rows.map(() =>
-      "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     ).join(", ");
     const params: Array<string | number | Date> = [];
     for (const row of rows) {
