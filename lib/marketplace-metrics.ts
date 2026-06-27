@@ -145,18 +145,182 @@ export async function syncMetricsBatch(input: {
   }
 
   const inventoryIds = Array.from(new Set(upserts.map((u) => u.inventoryId)));
-  for (const inventoryId of inventoryIds) {
-    try {
-      await recomputeOpportunity({ inventoryId, marketplace });
-    } catch (e) {
-      errors.push({
-        externalId: "*",
-        reason: `recompute failed for ${inventoryId}: ${e instanceof Error ? e.message : String(e)}`,
-      });
-    }
+  try {
+    await recomputeOpportunityBatch({ inventoryIds, marketplace });
+  } catch (e) {
+    errors.push({
+      externalId: "*",
+      reason: `recompute batch failed: ${e instanceof Error ? e.message : String(e)}`
+    });
   }
 
   return { upserted: upserts.length, skipped, errors };
+}
+
+async function platformMaxInWindowBulk(marketplace: string): Promise<{ maxViews: number; maxWatches: number }> {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const result = await prisma.listingMetricSnapshot.groupBy({
+    by: ["marketplace"],
+    where: { marketplace, capturedAt: { gte: since } },
+    _max: { views: true, watches: true }
+  });
+  const row = result.find((r) => r.marketplace === marketplace);
+  return {
+    maxViews: row?._max.views ?? 0,
+    maxWatches: row?._max.watches ?? 0
+  };
+}
+
+export async function recomputeOpportunityBatch(input: {
+  inventoryIds: string[];
+  marketplace: string;
+}): Promise<{ updated: number; errors: Array<{ inventoryId: string; reason: string }> }> {
+  if (!input.inventoryIds.length) return { updated: 0, errors: [] };
+
+  const inventoryIds = Array.from(new Set(input.inventoryIds));
+  const errors: Array<{ inventoryId: string; reason: string }> = [];
+
+  // Query 1: get the latest snapshot per inventory (uses capturedAt index)
+  const latestSnapshots = await prisma.listingMetricSnapshot.findMany({
+    where: {
+      inventoryId: { in: inventoryIds },
+      marketplace: input.marketplace
+    },
+    orderBy: { capturedAt: "desc" },
+    distinct: ["inventoryId"]
+  });
+  if (!latestSnapshots.length) return { updated: 0, errors: [] };
+
+  const foundInventoryIds = Array.from(new Set(latestSnapshots.map((s) => s.inventoryId)));
+
+  // Query 2: get inventory status in bulk
+  const inventories = await prisma.inventory.findMany({
+    where: { id: { in: foundInventoryIds } },
+    select: { id: true, status: true }
+  });
+  const statusById = new Map(inventories.map((i) => [i.id, i.status]));
+
+  // Query 3: get active listings in bulk
+  const activeListings = await prisma.listing.findMany({
+    where: {
+      inventoryId: { in: foundInventoryIds },
+      platform: input.marketplace,
+      status: { in: ["ACTIVE", "LISTED", "active", "listed"] }
+    },
+    select: { inventoryId: true }
+  });
+  const listedSet = new Set(activeListings.map((l) => l.inventoryId));
+
+  // Query 4 (cached): platform max
+  const platformMax = await platformMaxInWindowBulk(input.marketplace);
+
+  // Query 5: prior window averages in bulk per inventory
+  const priorStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const priorEnd = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const priorRows = await prisma.listingMetricSnapshot.groupBy({
+    by: ["inventoryId"],
+    where: {
+      inventoryId: { in: foundInventoryIds },
+      marketplace: input.marketplace,
+      capturedAt: { gte: priorStart, lt: priorEnd }
+    },
+    _avg: { views: true, watches: true }
+  });
+  const priorById = new Map(priorRows.map((p) => [p.inventoryId, p]));
+
+  // Compute scores in memory
+  const now = new Date();
+  const rows: Array<{
+    inventoryId: string;
+    marketplace: string;
+    externalId: string;
+    currentViews: number;
+    currentWatches: number;
+    currentFavourites: number;
+    viewsDelta7d: number;
+    watchesDelta7d: number;
+    trendScore: number;
+    isListed: boolean;
+    isInStock: boolean;
+    lastSnapshotAt: Date;
+    updatedAt: Date;
+  }> = [];
+
+  for (const snap of latestSnapshots) {
+    const invStatus = statusById.get(snap.inventoryId);
+    if (!invStatus) {
+      errors.push({ inventoryId: snap.inventoryId, reason: "Inventory not found" });
+      continue;
+    }
+
+    const prior = priorById.get(snap.inventoryId);
+    const avgViews = prior?._avg.views ?? 0;
+    const avgWatches = prior?._avg.watches ?? 0;
+    const viewsDelta7d = Math.round(snap.views - avgViews);
+    const watchesDelta7d = Math.round(snap.watches - avgWatches);
+
+    const isListed = listedSet.has(snap.inventoryId);
+    const isInStock = invStatus === "IN_STOCK";
+
+    const demandScore = platformMax.maxViews > 0
+      ? (snap.views / platformMax.maxViews) * 40
+      : 0;
+    const watchDemandScore = platformMax.maxWatches > 0
+      ? (snap.watches / platformMax.maxWatches) * 10
+      : 0;
+    const priorFloor = Math.max(avgViews, 1);
+    const trendRaw = (viewsDelta7d - avgViews) / priorFloor;
+    const trendScore = Math.max(0, Math.min(100, trendRaw * 25 + 12.5));
+    const supplyGap = isListed ? 0 : 30;
+    const stockPenalty = isInStock ? 10 : -50;
+
+    const raw = demandScore + watchDemandScore + trendScore + supplyGap + stockPenalty;
+    const trendScoreFinal = Math.max(0, Math.min(100, raw));
+
+    rows.push({
+      inventoryId: snap.inventoryId,
+      marketplace: input.marketplace,
+      externalId: snap.externalId,
+      currentViews: snap.views,
+      currentWatches: snap.watches,
+      currentFavourites: snap.favourites,
+      viewsDelta7d,
+      watchesDelta7d,
+      trendScore: trendScoreFinal,
+      isListed,
+      isInStock,
+      lastSnapshotAt: snap.capturedAt,
+      updatedAt: now
+    });
+  }
+
+  // Bulk upsert in a single transaction
+  if (rows.length) {
+    await prisma.$transaction(
+      rows.map((row) =>
+        prisma.listingOpportunity.upsert({
+          where: { inventoryId: row.inventoryId },
+          create: row,
+          update: {
+            marketplace: row.marketplace,
+            externalId: row.externalId,
+            currentViews: row.currentViews,
+            currentWatches: row.currentWatches,
+            currentFavourites: row.currentFavourites,
+            viewsDelta7d: row.viewsDelta7d,
+            watchesDelta7d: row.watchesDelta7d,
+            trendScore: row.trendScore,
+            isListed: row.isListed,
+            isInStock: row.isInStock,
+            lastSnapshotAt: row.lastSnapshotAt,
+            updatedAt: row.updatedAt
+          }
+        })
+      )
+    );
+  }
+
+  return { updated: rows.length, errors };
 }
 
 async function platformMaxInWindow(marketplace: string): Promise<{ maxViews: number; maxWatches: number }> {
