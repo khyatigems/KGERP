@@ -77,6 +77,22 @@ export async function GET(req: NextRequest) {
 
     const allItems = [...grouped.values()];
 
+    // Fetch latest engagement metrics for every inventoryId in scope
+    const allInventoryIds = Array.from(new Set(allItems.map((it) => String(it.base.inventoryId || ""))));
+    const allMetrics = allInventoryIds.length
+      ? await prisma.listingOpportunity.findMany({
+          where: { inventoryId: { in: allInventoryIds } }
+        })
+      : [];
+    const metricsByKey = new Map(
+      allMetrics.map((m) => [`${m.inventoryId}|${m.marketplace}`, m])
+    );
+    const getMetric = (inventoryId: string, platform: string) =>
+      metricsByKey.get(`${inventoryId}|${platform.toUpperCase()}`) || null;
+    const fmtDate = (d: Date | string | null | undefined) =>
+      d ? new Date(d).toLocaleString() : "Never";
+    const num = (v: number | null | undefined) => (typeof v === "number" ? v : 0);
+
     // ── Helpers ──
     const getDesc = (b: Record<string, unknown>): string => {
       try {
@@ -194,15 +210,25 @@ export async function GET(req: NextRequest) {
 
       // ═══ Sheet 2: SKU Summary ═══
       const ws2 = wb.addWorksheet("SKU Summary", { properties: { tabColor: { argb: C.emerald } } });
-      const h2 = ["SKU", "Product Name", "Category", "Missing Platforms", "Missing Count", "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)", "Stock Location", "HSN Code", "eBay Description"];
+      const h2 = [
+        "SKU", "Product Name", "Category", "Listed On", "Missing Platforms", "Missing Count",
+        "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)",
+        "Stock Location", "HSN Code", "eBay Description",
+        "eBay: Views", "eBay: Watchers", "eBay: Orders", "eBay: Revenue", "eBay: Last Synced",
+        "Etsy: Views", "Etsy: Favourites", "Etsy: Orders", "Etsy: Revenue", "Etsy: Last Synced"
+      ];
       ws2.addRow(h2); hdrStyle(ws2, h2.length);
 
       for (const item of opportunityItems) {
         const b = item.base;
         const ready = isReady(b);
         const missing = MARKETPLACE_PLATFORMS.filter((p) => !item.platforms.has(p));
+        const invId = String(b.inventoryId || "");
+        const eb = getMetric(invId, "EBAY");
+        const et = getMetric(invId, "ETSY");
         ws2.addRow([
           b.sku || "", b.itemName || "", b.category || "",
+          [...item.platforms].sort().join(", ") || "None",
           missing.join(", "), missing.length,
           ready.hasImage ? "✅" : "❌",
           ready.hasCert ? "✅" : "❌",
@@ -211,12 +237,16 @@ export async function GET(req: NextRequest) {
           b.stockLocation || "—",
           b.hsnCode || "—",
           getDesc(b),
+          num(eb?.currentViews), num(eb?.currentWatches), num(eb?.currentOrders), num(eb?.currentRevenue), fmtDate(eb?.lastSyncedAt),
+          num(et?.currentViews), num(et?.currentFavourites), num(et?.currentOrders), num(et?.currentRevenue), fmtDate(et?.lastSyncedAt),
         ]);
       }
       autoW(ws2);
       for (let r = 2; r <= ws2.rowCount; r++) {
-        ws2.getCell(r, 10).numFmt = "₹ #,##0";
-        ws2.getCell(r, 13).numFmt = "@";
+        ws2.getCell(r, 11).numFmt = "₹ #,##0";
+        ws2.getCell(r, 14).numFmt = "@";
+        ws2.getCell(r, 19).numFmt = "₹ #,##0.00";
+        ws2.getCell(r, 24).numFmt = "₹ #,##0.00";
       }
 
       // ═══ Sheet 3: Needs Preparation ═══
@@ -244,25 +274,39 @@ export async function GET(req: NextRequest) {
         const platItems = opportunityItems.filter((item) => !item.platforms.has(mp));
         if (!platItems.length) continue;
         const ws = wb.addWorksheet(mp, { properties: { tabColor: { argb: mp === "EBAY" ? C.blue : mp === "ETSY" ? C.amber : C.emerald } } });
-        const h = ["SKU", "Product Name", "Category", "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)", "Priority", "Stock Location", "eBay Description"];
+        const h = [
+          "SKU", "Product Name", "Category", "Listed On",
+          "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)", "Priority",
+          "Stock Location", "eBay Description",
+          "eBay: Views", "eBay: Watchers", "eBay: Orders", "eBay: Revenue", "eBay: Last Synced",
+          "Etsy: Views", "Etsy: Favourites", "Etsy: Orders", "Etsy: Revenue", "Etsy: Last Synced"
+        ];
         ws.addRow(h); hdrStyle(ws, h.length);
         for (const item of platItems) {
           const b = item.base;
           const ready = isReady(b);
+          const invId = String(b.inventoryId || "");
+          const eb = getMetric(invId, "EBAY");
+          const et = getMetric(invId, "ETSY");
           ws.addRow([
             b.sku || "", b.itemName || "", b.category || "",
+            [...item.platforms].sort().join(", ") || "None",
             ready.hasImage ? "✅" : "❌", ready.hasCert ? "✅" : "❌",
             ready.ready ? "Ready" : "Prep Needed",
             fmtFmt(b.weightValue || b.carats), fmtFmt(b.sellingPrice),
             item.platforms.size >= 2 ? "HIGH" : "MEDIUM",
             b.stockLocation || "—",
             getDesc(b),
+            num(eb?.currentViews), num(eb?.currentWatches), num(eb?.currentOrders), num(eb?.currentRevenue), fmtDate(eb?.lastSyncedAt),
+            num(et?.currentViews), num(et?.currentFavourites), num(et?.currentOrders), num(et?.currentRevenue), fmtDate(et?.lastSyncedAt),
           ]);
         }
         autoW(ws);
         for (let r = 2; r <= ws.rowCount; r++) {
-          ws.getCell(r, 8).numFmt = "₹ #,##0";
-          ws.getCell(r, 11).numFmt = "@";
+          ws.getCell(r, 9).numFmt = "₹ #,##0";
+          ws.getCell(r, 12).numFmt = "@";
+          ws.getCell(r, 17).numFmt = "₹ #,##0.00";
+          ws.getCell(r, 22).numFmt = "₹ #,##0.00";
         }
       }
 

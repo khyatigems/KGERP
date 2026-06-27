@@ -176,6 +176,10 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
         const original = item.priceHistory.length > 0 ? item.priceHistory[0].price : item.listedPrice;
         const diff = item.listedPrice - original;
         const pct = original > 0 ? ((diff / original) * 100).toFixed(1) : "0.0";
+        const m = item.latestMetric;
+        const platform = String(item.platform || "").toUpperCase();
+        const watchers = platform === "EBAY" ? (m?.currentWatches || 0) : 0;
+        const favourites = platform === "ETSY" ? (m?.currentFavourites || 0) : 0;
         return {
           SKU: item.inventory.sku,
           Item: item.inventory.itemName,
@@ -184,6 +188,14 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
           "Original Price": original,
           "Listed Price": item.listedPrice,
           "Price Change %": diff === 0 ? "0%" : `${diff > 0 ? "+" : ""}${pct}%`,
+          Views: m?.currentViews ?? 0,
+          Watchers: watchers,
+          Favourites: favourites,
+          Orders: m?.currentOrders ?? 0,
+          Revenue: m?.currentRevenue ?? 0,
+          "Last Synced": m?.lastSyncedAt
+            ? new Date(m.lastSyncedAt).toLocaleString()
+            : "Never",
           "Listed Date": formatDate(item.listedDate),
           Status: item.status,
           "Link/Ref": item.listingUrl || item.listingRef || ""
