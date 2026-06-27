@@ -30,6 +30,7 @@ type SyncRequest = {
 };
 
 export async function POST(request: NextRequest) {
+  const reqStart = Date.now();
   const unauthorized = requireExtensionApiToken(request);
   if (unauthorized) return unauthorized;
 
@@ -65,7 +66,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const t0 = Date.now();
   await ensureMarketplaceMetricsSchema();
+  const t1 = Date.now();
 
   const sanitizedRows = (rows as Array<Record<string, unknown>>).map((r) => ({
     externalId: String(r.externalId ?? "").trim(),
@@ -89,6 +92,11 @@ export async function POST(request: NextRequest) {
         | "mapping_sync",
       rows: sanitizedRows,
     });
+    const t2 = Date.now();
+
+    console.log(
+      `[metrics/sync] ${marketplace}/${source} rows=${rows.length} upserted=${result.upserted} skipped=${result.skipped} errors=${result.errors.length} | ensureSchema=${t1 - t0}ms batch=${t2 - t1}ms total=${Date.now() - reqStart}ms`
+    );
 
     await logActivity({
       actionType: "METRICS_SYNC",
@@ -99,7 +107,8 @@ export async function POST(request: NextRequest) {
         requested: rows.length,
         upserted: result.upserted,
         skipped: result.skipped,
-        errors: result.errors.length
+        errors: result.errors.length,
+        durationMs: Date.now() - reqStart
       }
     }).catch(() => null);
 
@@ -109,7 +118,7 @@ export async function POST(request: NextRequest) {
       errors: result.errors,
     });
   } catch (error) {
-    console.error("metrics sync failed", error);
+    console.error("[metrics/sync] failed", { marketplace, source, rows: rows.length, durationMs: Date.now() - reqStart, error: String(error) });
     return NextResponse.json(
       { message: "Internal error during metrics sync", detail: error instanceof Error ? error.message : String(error) },
       { status: 500 }

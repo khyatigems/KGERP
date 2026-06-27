@@ -145,13 +145,23 @@ export async function syncMetricsBatch(input: {
   }
 
   const inventoryIds = Array.from(new Set(upserts.map((u) => u.inventoryId)));
-  try {
-    await recomputeOpportunityBatch({ inventoryIds, marketplace });
-  } catch (e) {
-    errors.push({
-      externalId: "*",
-      reason: `recompute batch failed: ${e instanceof Error ? e.message : String(e)}`
-    });
+
+  // Skip recompute entirely if all snapshots are zero-metric (common for new listings
+  // that have no views/watches/favourites yet). This avoids 5 DB round-trips when
+  // there's nothing meaningful to score.
+  const hasMeaningfulMetrics = upserts.some(
+    (u) => u.views > 0 || u.watches > 0 || u.favourites > 0 || u.orders > 0
+  );
+
+  if (inventoryIds.length && hasMeaningfulMetrics) {
+    try {
+      await recomputeOpportunityBatch({ inventoryIds, marketplace });
+    } catch (e) {
+      errors.push({
+        externalId: "*",
+        reason: `recompute batch failed: ${e instanceof Error ? e.message : String(e)}`
+      });
+    }
   }
 
   return { upserted: upserts.length, skipped, errors };
@@ -192,40 +202,37 @@ export async function recomputeOpportunityBatch(input: {
   if (!latestSnapshots.length) return { updated: 0, errors: [] };
 
   const foundInventoryIds = Array.from(new Set(latestSnapshots.map((s) => s.inventoryId)));
-
-  // Query 2: get inventory status in bulk
-  const inventories = await prisma.inventory.findMany({
-    where: { id: { in: foundInventoryIds } },
-    select: { id: true, status: true }
-  });
-  const statusById = new Map(inventories.map((i) => [i.id, i.status]));
-
-  // Query 3: get active listings in bulk
-  const activeListings = await prisma.listing.findMany({
-    where: {
-      inventoryId: { in: foundInventoryIds },
-      platform: input.marketplace,
-      status: { in: ["ACTIVE", "LISTED", "active", "listed"] }
-    },
-    select: { inventoryId: true }
-  });
-  const listedSet = new Set(activeListings.map((l) => l.inventoryId));
-
-  // Query 4 (cached): platform max
-  const platformMax = await platformMaxInWindowBulk(input.marketplace);
-
-  // Query 5: prior window averages in bulk per inventory
   const priorStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const priorEnd = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const priorRows = await prisma.listingMetricSnapshot.groupBy({
-    by: ["inventoryId"],
-    where: {
-      inventoryId: { in: foundInventoryIds },
-      marketplace: input.marketplace,
-      capturedAt: { gte: priorStart, lt: priorEnd }
-    },
-    _avg: { views: true, watches: true }
-  });
+
+  // Queries 2-5: run all independent lookups in parallel
+  const [inventories, activeListings, platformMax, priorRows] = await Promise.all([
+    prisma.inventory.findMany({
+      where: { id: { in: foundInventoryIds } },
+      select: { id: true, status: true }
+    }),
+    prisma.listing.findMany({
+      where: {
+        inventoryId: { in: foundInventoryIds },
+        platform: input.marketplace,
+        status: { in: ["ACTIVE", "LISTED", "active", "listed"] }
+      },
+      select: { inventoryId: true }
+    }),
+    platformMaxInWindowBulk(input.marketplace),
+    prisma.listingMetricSnapshot.groupBy({
+      by: ["inventoryId"],
+      where: {
+        inventoryId: { in: foundInventoryIds },
+        marketplace: input.marketplace,
+        capturedAt: { gte: priorStart, lt: priorEnd }
+      },
+      _avg: { views: true, watches: true }
+    })
+  ]);
+
+  const statusById = new Map(inventories.map((i) => [i.id, i.status]));
+  const listedSet = new Set(activeListings.map((l) => l.inventoryId));
   const priorById = new Map(priorRows.map((p) => [p.inventoryId, p]));
 
   // Compute scores in memory
@@ -294,30 +301,52 @@ export async function recomputeOpportunityBatch(input: {
     });
   }
 
-  // Bulk upsert in a single transaction
+  // Bulk upsert via single SQL statement (76+ rows in 1 round-trip)
   if (rows.length) {
-    await prisma.$transaction(
-      rows.map((row) =>
-        prisma.listingOpportunity.upsert({
-          where: { inventoryId: row.inventoryId },
-          create: row,
-          update: {
-            marketplace: row.marketplace,
-            externalId: row.externalId,
-            currentViews: row.currentViews,
-            currentWatches: row.currentWatches,
-            currentFavourites: row.currentFavourites,
-            viewsDelta7d: row.viewsDelta7d,
-            watchesDelta7d: row.watchesDelta7d,
-            trendScore: row.trendScore,
-            isListed: row.isListed,
-            isInStock: row.isInStock,
-            lastSnapshotAt: row.lastSnapshotAt,
-            updatedAt: row.updatedAt
-          }
-        })
-      )
-    );
+    const placeholders = rows.map(() =>
+      "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ).join(", ");
+    const params: Array<string | number | Date> = [];
+    for (const row of rows) {
+      params.push(
+        row.inventoryId,
+        row.marketplace,
+        row.externalId ?? "",
+        row.currentViews,
+        row.currentWatches,
+        row.currentFavourites,
+        row.viewsDelta7d,
+        row.watchesDelta7d,
+        row.trendScore,
+        row.isListed ? 1 : 0,
+        row.isInStock ? 1 : 0,
+        row.lastSnapshotAt,
+        row.updatedAt
+      );
+    }
+    const sql = `
+      INSERT INTO "ListingOpportunity" (
+        "inventoryId", "marketplace", "externalId",
+        "currentViews", "currentWatches", "currentFavourites",
+        "viewsDelta7d", "watchesDelta7d", "trendScore",
+        "isListed", "isInStock",
+        "lastSnapshotAt", "updatedAt"
+      ) VALUES ${placeholders}
+      ON CONFLICT("inventoryId") DO UPDATE SET
+        "marketplace" = excluded."marketplace",
+        "externalId" = excluded."externalId",
+        "currentViews" = excluded."currentViews",
+        "currentWatches" = excluded."currentWatches",
+        "currentFavourites" = excluded."currentFavourites",
+        "viewsDelta7d" = excluded."viewsDelta7d",
+        "watchesDelta7d" = excluded."watchesDelta7d",
+        "trendScore" = excluded."trendScore",
+        "isListed" = excluded."isListed",
+        "isInStock" = excluded."isInStock",
+        "lastSnapshotAt" = excluded."lastSnapshotAt",
+        "updatedAt" = excluded."updatedAt"
+    `;
+    await prisma.$executeRawUnsafe(sql, ...params);
   }
 
   return { updated: rows.length, errors };
