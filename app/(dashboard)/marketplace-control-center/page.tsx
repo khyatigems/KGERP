@@ -475,8 +475,7 @@ export default async function MarketplaceControlCenterPage({
                   <TableHead>Current Marketplaces</TableHead>
                   <TableHead>Missing Marketplaces</TableHead>
                   <TableHead className="text-right">Views</TableHead>
-                  <TableHead className="text-right">Watches</TableHead>
-                  <TableHead className="text-right">Fav</TableHead>
+                  <TableHead className="text-right">Watchers / Favourites</TableHead>
                   <TableHead className="text-right">Δ7d</TableHead>
                   <TableHead className="text-right">Engagement</TableHead>
                   <TableHead>Opportunity</TableHead>
@@ -485,7 +484,7 @@ export default async function MarketplaceControlCenterPage({
               </TableHeader>
               <TableBody>
                 {opportunityRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="text-center h-24 text-muted-foreground">No opportunities found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={10} className="text-center h-24 text-muted-foreground">No opportunities found</TableCell></TableRow>
                 ) : (
                   opportunityRows.slice(0, 200).map((row) => (
                     <TableRow key={row.inventoryId}>
@@ -514,8 +513,26 @@ export default async function MarketplaceControlCenterPage({
                         )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{row.views || <span className="text-muted-foreground">—</span>}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.watches || <span className="text-muted-foreground">—</span>}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.favourites || <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {(() => {
+                          const total = (row.watches || 0) + (row.favourites || 0);
+                          if (!total) return <span className="text-muted-foreground">—</span>;
+                          return (
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="font-semibold">{total}</span>
+                              {(row.watches > 0 && row.favourites > 0) ? (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {row.watches}w + {row.favourites}f
+                                </span>
+                              ) : row.watches > 0 ? (
+                                <span className="text-[10px] text-muted-foreground">eBay</span>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">Etsy</span>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell className={`text-right tabular-nums ${row.delta7d > 0 ? "text-emerald-600" : row.delta7d < 0 ? "text-red-600" : "text-muted-foreground"}`}>
                         {row.delta7d === 0 ? "—" : (row.delta7d > 0 ? "+" : "") + row.delta7d}
                       </TableCell>
