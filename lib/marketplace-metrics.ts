@@ -297,11 +297,12 @@ export async function recomputeOpportunityBatch(input: {
   // Bulk upsert via single SQL statement (76+ rows in 1 round-trip)
   if (rows.length) {
     const placeholders = rows.map(() =>
-      "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     ).join(", ");
     const params: Array<string | number | Date> = [];
     for (const row of rows) {
       params.push(
+        crypto.randomUUID(),
         row.inventoryId,
         row.marketplace,
         row.externalId ?? "",
@@ -319,7 +320,7 @@ export async function recomputeOpportunityBatch(input: {
     }
     const sql = `
       INSERT INTO "ListingOpportunity" (
-        "inventoryId", "marketplace", "externalId",
+        "id", "inventoryId", "marketplace", "externalId",
         "currentViews", "currentWatches", "currentFavourites",
         "viewsDelta7d", "watchesDelta7d", "trendScore",
         "isListed", "isInStock",
