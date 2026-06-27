@@ -5,8 +5,6 @@ import { listOpportunities } from "@/lib/marketplace-metrics";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_TIERS = new Set(["hot", "warm", "cold", "all"]);
-
 export async function GET(request: NextRequest) {
   const unauthorized = requireExtensionApiToken(request);
   if (unauthorized) return unauthorized;
@@ -15,19 +13,18 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const marketplace = searchParams.get("marketplace") || undefined;
-  const tierRaw = searchParams.get("tier") || "all";
-  const tier = ALLOWED_TIERS.has(tierRaw) ? (tierRaw as "hot" | "warm" | "cold" | "all") : "all";
-  const inStockOnly = searchParams.get("inStockOnly") === "1" || searchParams.get("inStockOnly") === "true";
-  const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 50));
+  const limit = Math.min(500, Math.max(1, Number(searchParams.get("limit")) || 200));
 
   try {
     const opportunities = await listOpportunities({
       marketplace,
-      tier,
-      inStockOnly,
       limit,
     });
-    return NextResponse.json({ opportunities, count: opportunities.length, tier, marketplace: marketplace || "ALL" });
+    return NextResponse.json({
+      opportunities,
+      count: opportunities.length,
+      marketplace: marketplace || "ALL"
+    });
   } catch (error) {
     console.error("opportunities fetch failed", error);
     return NextResponse.json(

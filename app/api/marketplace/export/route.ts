@@ -265,6 +265,101 @@ export async function GET(req: NextRequest) {
           ws.getCell(r, 11).numFmt = "@";
         }
       }
+
+      // ═══ Engagement Report sheet (all listings + their latest metrics) ═══
+      // Apply same filters as the main report
+      const engagementFilterConditions: string[] = [];
+      const engagementFilterValues: Array<string | number> = [];
+      if (category && category !== "ALL") {
+        engagementFilterConditions.push(`i."category" = ?`);
+        engagementFilterValues.push(category);
+      }
+      if (from) {
+        engagementFilterConditions.push(`l."createdAt" >= ?`);
+        engagementFilterValues.push(`${from}T00:00:00.000Z`);
+      }
+      if (to) {
+        engagementFilterConditions.push(`l."createdAt" <= ?`);
+        engagementFilterValues.push(`${to}T23:59:59.999Z`);
+      }
+      if (marketplace && marketplace !== "ALL") {
+        engagementFilterConditions.push(`UPPER(l."platform") = ?`);
+        engagementFilterValues.push(marketplace.toUpperCase());
+      }
+      const engagementWhere = engagementFilterConditions.length
+        ? `WHERE ${engagementFilterConditions.join(" AND ")}`
+        : "";
+
+      const allListings = await prisma.$queryRawUnsafe<Array<{
+        id: string;
+        inventoryId: string;
+        platform: string;
+        externalId: string | null;
+        listedPrice: number;
+        currency: string;
+        status: string;
+        sku: string;
+        itemName: string;
+      }>>(
+        `SELECT l."id", l."inventoryId", l."platform", l."externalId", l."listedPrice", l."currency", l."status",
+                i."sku", i."itemName"
+         FROM "Listing" l
+         INNER JOIN "Inventory" i ON i."id" = l."inventoryId"
+         ${engagementWhere}
+         ORDER BY i."sku" ASC, l."platform" ASC`,
+        ...engagementFilterValues
+      );
+
+      // Fetch latest metrics for these listings
+      const inventoryIds = Array.from(new Set(allListings.map((l) => l.inventoryId)));
+      const latestMetrics = inventoryIds.length
+        ? await prisma.listingOpportunity.findMany({
+            where: { inventoryId: { in: inventoryIds } }
+          })
+        : [];
+      const metricsByKey = new Map(
+        latestMetrics.map((m) => [`${m.inventoryId}|${m.marketplace}`, m])
+      );
+
+      // Build "Engagement Report" sheet
+      const wsEng = wb.addWorksheet("Engagement Report", { properties: { tabColor: { argb: C.emerald } } });
+      const engHeaders = [
+        "SKU", "Product Name", "Platform", "Listing ID", "Price", "Currency", "Status",
+        "Views", "Watchers (eBay)", "Favourites (Etsy)", "Orders", "Revenue",
+        "Last Synced"
+      ];
+      wsEng.addRow(engHeaders); hdrStyle(wsEng, engHeaders.length);
+      for (const l of allListings) {
+        const m = metricsByKey.get(`${l.inventoryId}|${l.platform.toUpperCase()}`);
+        const lastSynced = m?.lastSyncedAt
+          ? new Date(m.lastSyncedAt).toLocaleString()
+          : "Never synced";
+        wsEng.addRow([
+          l.sku || "",
+          l.itemName || "",
+          l.platform,
+          l.externalId || "",
+          l.listedPrice,
+          l.currency,
+          l.status,
+          m?.currentViews ?? 0,
+          m?.currentWatches ?? 0,
+          m?.currentFavourites ?? 0,
+          m?.currentOrders ?? 0,
+          m?.currentRevenue ?? 0,
+          lastSynced
+        ]);
+      }
+      // Auto-width and number formats
+      wsEng.getColumn(1).width = 18;
+      wsEng.getColumn(2).width = 40;
+      wsEng.getColumn(3).width = 12;
+      wsEng.getColumn(4).width = 20;
+      wsEng.getColumn(13).width = 22;
+      for (let r = 2; r <= wsEng.rowCount; r++) {
+        wsEng.getCell(r, 5).numFmt = "₹ #,##0.00";
+        wsEng.getCell(r, 12).numFmt = "₹ #,##0.00";
+      }
     } else {
       // ═══ Coverage Report (simplified) ═══
       const covItems = marketplace && marketplace !== "ALL"

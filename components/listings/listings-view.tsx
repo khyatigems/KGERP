@@ -6,14 +6,35 @@ import { CreateListingsTable } from "./create-listings-table";
 import { ListingTemplates } from "./listing-templates";
 import { Listing } from "@prisma/client";
 
+type EngagementMetric = {
+  id: string;
+  inventoryId: string;
+  marketplace: string;
+  externalId: string | null;
+  currentViews: number;
+  currentWatches: number;
+  currentFavourites: number;
+  currentOrders: number;
+  currentRevenue: number;
+  currency: string;
+  lastSyncedAt: Date | null;
+  updatedAt: Date;
+};
+
+export type EnrichedListing = Listing & {
+  inventory: { sku: string; itemName: string };
+  priceHistory: { price: number; changedAt: Date }[];
+  latestMetric: EngagementMetric | null;
+};
+
 interface ListingsViewProps {
-  listings: (Listing & { 
-    inventory: { sku: string; itemName: string };
-    priceHistory: { price: number; changedAt: Date }[];
-  })[];
+  listings: EnrichedListing[];
 }
 
 export function ListingsView({ listings }: ListingsViewProps) {
+  // Check if any listing has engagement data
+  const hasMetrics = listings.some((l) => l.latestMetric !== null);
+
   return (
     <Tabs defaultValue="active" className="space-y-4">
       <TabsList>
@@ -22,7 +43,7 @@ export function ListingsView({ listings }: ListingsViewProps) {
         <TabsTrigger value="templates">Templates</TabsTrigger>
       </TabsList>
       <TabsContent value="active">
-        <ListingsTable data={listings} />
+        <ListingsTable data={listings} showEngagement={hasMetrics} />
       </TabsContent>
       <TabsContent value="create">
         <CreateListingsTable />

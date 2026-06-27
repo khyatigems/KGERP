@@ -41,9 +41,26 @@ export default async function ListingsPage() {
     },
   });
 
+  // Fetch latest engagement metrics for all listings
+  const inventoryIds = Array.from(new Set(listings.map((l) => l.inventoryId)));
+  const latestMetrics = inventoryIds.length
+    ? await prisma.listingOpportunity.findMany({
+        where: { inventoryId: { in: inventoryIds } }
+      })
+    : [];
+  const metricsByKey = new Map(
+    latestMetrics.map((m) => [`${m.inventoryId}|${m.marketplace}`, m])
+  );
+
+  // Attach metrics to each listing
+  const enrichedListings = listings.map((l) => ({
+    ...l,
+    latestMetric: metricsByKey.get(`${l.inventoryId}|${l.platform}`) || null
+  }));
+
   return (
     <div className="space-y-6">
-      <ListingsView listings={listings} />
+      <ListingsView listings={enrichedListings} />
     </div>
   );
 }

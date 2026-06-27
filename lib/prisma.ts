@@ -1074,18 +1074,14 @@ export async function ensureMarketplaceMetricsSchema(): Promise<void> {
           "currentViews" INTEGER NOT NULL DEFAULT 0,
           "currentWatches" INTEGER NOT NULL DEFAULT 0,
           "currentFavourites" INTEGER NOT NULL DEFAULT 0,
-          "viewsDelta7d" INTEGER NOT NULL DEFAULT 0,
-          "watchesDelta7d" INTEGER NOT NULL DEFAULT 0,
-          "trendScore" REAL NOT NULL DEFAULT 0,
-          "isListed" INTEGER NOT NULL DEFAULT 1,
-          "isInStock" INTEGER NOT NULL DEFAULT 1,
-          "lastSnapshotAt" DATETIME,
+          "currentOrders" INTEGER NOT NULL DEFAULT 0,
+          "currentRevenue" REAL NOT NULL DEFAULT 0,
+          "currency" TEXT NOT NULL DEFAULT 'USD',
+          "lastSyncedAt" DATETIME,
           "updatedAt" DATETIME NOT NULL
         );
       `).catch(() => null);
 
-      // ListingOpportunity uses isListed/isInStock as INTEGER (0/1) since libSQL/Turso
-      // does not support BOOLEAN the same way. The Prisma client will translate back.
       try {
         await prisma.$executeRawUnsafe(
           `CREATE UNIQUE INDEX IF NOT EXISTS "ListingOpportunity_inventoryId_key" ON "ListingOpportunity"("inventoryId");`
@@ -1108,12 +1104,12 @@ export async function ensureMarketplaceMetricsSchema(): Promise<void> {
       } catch {}
       try {
         await prisma.$executeRawUnsafe(
-          `CREATE INDEX IF NOT EXISTS "ListingOpportunity_marketplace_trendScore_idx" ON "ListingOpportunity"("marketplace", "trendScore");`
+          `CREATE INDEX IF NOT EXISTS "ListingOpportunity_marketplace_externalId_idx" ON "ListingOpportunity"("marketplace", "externalId");`
         );
       } catch {}
       try {
         await prisma.$executeRawUnsafe(
-          `CREATE INDEX IF NOT EXISTS "ListingOpportunity_isListed_isInStock_idx" ON "ListingOpportunity"("isListed", "isInStock");`
+          `CREATE INDEX IF NOT EXISTS "ListingOpportunity_lastSyncedAt_idx" ON "ListingOpportunity"("lastSyncedAt");`
         );
       } catch {}
     } catch {

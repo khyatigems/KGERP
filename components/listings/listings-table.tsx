@@ -17,14 +17,47 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 
-interface ListingsTableProps {
-  data: (Listing & { 
-    inventory: { sku: string; itemName: string };
-    priceHistory: { price: number; changedAt: Date }[];
-  })[];
+interface EngagementMetric {
+  id: string;
+  inventoryId: string;
+  marketplace: string;
+  externalId: string | null;
+  currentViews: number;
+  currentWatches: number;
+  currentFavourites: number;
+  currentOrders: number;
+  currentRevenue: number;
+  currency: string;
+  lastSyncedAt: Date | null;
+  updatedAt: Date;
 }
 
-export function ListingsTable({ data }: ListingsTableProps) {
+type EnrichedListing = Listing & {
+  inventory: { sku: string; itemName: string };
+  priceHistory: { price: number; changedAt: Date }[];
+  latestMetric: EngagementMetric | null;
+};
+
+interface ListingsTableProps {
+  data: EnrichedListing[];
+  showEngagement?: boolean;
+}
+
+function relativeTime(date: Date | string | null | undefined): string {
+  if (!date) return "Never";
+  const d = typeof date === "string" ? new Date(date) : date;
+  const diffMs = Date.now() - d.getTime();
+  const days = Math.floor(diffMs / 86400000);
+  if (days >= 7) return d.toLocaleDateString();
+  if (days >= 1) return `${days} day${days > 1 ? "s" : ""} ago`;
+  const hours = Math.floor(diffMs / 3600000);
+  if (hours >= 1) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins >= 1) return `${mins} min ago`;
+  return "Just now";
+}
+
+export function ListingsTable({ data, showEngagement = false }: ListingsTableProps) {
   const router = useRouter();
   const { showLoader, hideLoader } = useGlobalLoader();
   const [startDate, setStartDate] = useState("");
@@ -329,7 +362,7 @@ export function ListingsTable({ data }: ListingsTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[50px]">
-                  <Checkbox 
+                  <Checkbox
                     checked={filteredData.length > 0 && selectedIds.size === filteredData.length}
                     onCheckedChange={toggleSelectAll}
                   />
@@ -338,6 +371,9 @@ export function ListingsTable({ data }: ListingsTableProps) {
               <TableHead>Item</TableHead>
               <TableHead>Platform</TableHead>
               <TableHead>Listed Price</TableHead>
+              {showEngagement && <TableHead className="text-right">Views</TableHead>}
+              {showEngagement && <TableHead className="text-right">Watchers / Favourites</TableHead>}
+              {showEngagement && <TableHead className="text-right">Last Synced</TableHead>}
               <TableHead>Listed Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Link / Ref</TableHead>
@@ -346,7 +382,7 @@ export function ListingsTable({ data }: ListingsTableProps) {
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={showEngagement ? 11 : 8} className="h-24 text-center">
                   No listings found matching your filters.
                 </TableCell>
               </TableRow>
@@ -399,6 +435,27 @@ export function ListingsTable({ data }: ListingsTableProps) {
                       })()}
                     </div>
                   </TableCell>
+                  {showEngagement && (
+                    <TableCell className="text-right tabular-nums">
+                      {listing.latestMetric?.currentViews ?? <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                  )}
+                  {showEngagement && (
+                    <TableCell className="text-right tabular-nums">
+                      {(() => {
+                        const m = listing.latestMetric;
+                        if (!m) return <span className="text-muted-foreground">—</span>;
+                        if (m.marketplace === "EBAY" || m.marketplace === "ebay") return m.currentWatches || 0;
+                        if (m.marketplace === "ETSY" || m.marketplace === "etsy") return m.currentFavourites || 0;
+                        return (m.currentWatches || 0) + (m.currentFavourites || 0);
+                      })()}
+                    </TableCell>
+                  )}
+                  {showEngagement && (
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {relativeTime(listing.latestMetric?.lastSyncedAt)}
+                    </TableCell>
+                  )}
                   <TableCell>
                     {formatDate(listing.listedDate)}
                   </TableCell>

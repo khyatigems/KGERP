@@ -527,21 +527,17 @@ model ListingOpportunity {
   currentViews      Int @default(0)
   currentWatches    Int @default(0)
   currentFavourites Int @default(0)
+  currentOrders     Int @default(0)
+  currentRevenue    Float @default(0)
+  currency          String @default("USD")
 
-  viewsDelta7d   Int   @default(0)
-  watchesDelta7d Int   @default(0)
-  trendScore     Float @default(0)
-
-  isListed  Boolean @default(true)
-  isInStock Boolean @default(true)
-
-  lastSnapshotAt DateTime?
-  updatedAt      DateTime  @updatedAt
+  lastSyncedAt DateTime?
+  updatedAt    DateTime @updatedAt
 
   inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
 
-  @@index([marketplace, trendScore])
-  @@index([isListed, isInStock])
+  @@index([marketplace, externalId])
+  @@index([lastSyncedAt])
 }
 
 model Sale {
