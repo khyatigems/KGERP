@@ -1084,7 +1084,12 @@ export async function ensureMarketplaceMetricsSchema(): Promise<void> {
 
       try {
         await prisma.$executeRawUnsafe(
-          `CREATE UNIQUE INDEX IF NOT EXISTS "ListingOpportunity_inventoryId_key" ON "ListingOpportunity"("inventoryId");`
+          `DROP INDEX IF EXISTS "ListingOpportunity_inventoryId_key";`
+        );
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(
+          `CREATE UNIQUE INDEX IF NOT EXISTS "ListingOpportunity_inventoryId_marketplace_key" ON "ListingOpportunity"("inventoryId", "marketplace");`
         );
       } catch {}
       try {

@@ -383,7 +383,7 @@ model Inventory {
   vendor               Vendor?                 @relation(fields: [vendorId], references: [id])
   listings             Listing[]
   metricSnapshots      ListingMetricSnapshot[]
-  opportunity          ListingOpportunity?
+  opportunities        ListingOpportunity[]
   sales                Sale[]
   memoItems            MemoItem[]
   quotationItems       QuotationItem[]
@@ -520,7 +520,7 @@ model ListingMetricSnapshot {
 
 model ListingOpportunity {
   id          String  @id @default(uuid())
-  inventoryId String  @unique
+  inventoryId String
   marketplace String
   externalId  String?
 
@@ -536,6 +536,7 @@ model ListingOpportunity {
 
   inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
 
+  @@unique([inventoryId, marketplace])
   @@index([marketplace, externalId])
   @@index([lastSyncedAt])
 }

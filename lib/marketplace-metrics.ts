@@ -250,8 +250,7 @@ export async function syncOpportunityCache(input: {
         "currentOrders", "currentRevenue", "currency",
         "lastSyncedAt", "updatedAt"
       ) VALUES ${placeholders}
-      ON CONFLICT("inventoryId") DO UPDATE SET
-        "marketplace" = excluded."marketplace",
+      ON CONFLICT("inventoryId", "marketplace") DO UPDATE SET
         "externalId" = excluded."externalId",
         "currentViews" = excluded."currentViews",
         "currentWatches" = excluded."currentWatches",
