@@ -73,6 +73,11 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
   }
   
   const client = globalForPrisma.prisma as unknown as StaleClient;
+  interface StaleClientWithMetrics extends StaleClient {
+    listingOpportunity?: unknown;
+    listingMetricSnapshot?: unknown;
+  }
+  const client2 = client as StaleClientWithMetrics;
   const staleMissingModel =
     !client.expense ||
     !client.reportExportJob ||
@@ -81,7 +86,9 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
     !client.analyticsInventorySnapshot ||
     !client.analyticsVendorSnapshot ||
     !client.analyticsSalesSnapshot ||
-    !client.analyticsLabelSnapshot;
+    !client.analyticsLabelSnapshot ||
+    !client2.listingOpportunity ||
+    !client2.listingMetricSnapshot;
   if (staleMissingModel) {
     console.warn("Prisma: Detected stale client instance (missing required models). Re-initializing...");
     // Disconnect safely if possible
@@ -1027,4 +1034,98 @@ export async function ensurePasswordResetSchema(): Promise<void> {
     }
   })();
   return ensurePasswordResetPromise;
+}
+
+let ensuringMarketplaceMetrics = false;
+let ensuredMarketplaceMetrics = false;
+let ensureMarketplaceMetricsPromise: Promise<void> | null = null;
+
+export async function ensureMarketplaceMetricsSchema(): Promise<void> {
+  if (ensuredMarketplaceMetrics) return;
+  if (ensuringMarketplaceMetrics && ensureMarketplaceMetricsPromise) return ensureMarketplaceMetricsPromise;
+  ensuringMarketplaceMetrics = true;
+  ensureMarketplaceMetricsPromise = (async () => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ListingMetricSnapshot" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "inventoryId" TEXT NOT NULL,
+          "marketplace" TEXT NOT NULL,
+          "externalId" TEXT NOT NULL,
+          "capturedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "views" INTEGER NOT NULL DEFAULT 0,
+          "watches" INTEGER NOT NULL DEFAULT 0,
+          "favourites" INTEGER NOT NULL DEFAULT 0,
+          "orders" INTEGER NOT NULL DEFAULT 0,
+          "revenue" REAL NOT NULL DEFAULT 0,
+          "currency" TEXT NOT NULL DEFAULT 'USD',
+          "rawPayload" TEXT,
+          "source" TEXT NOT NULL,
+          CONSTRAINT "ListingMetricSnapshot_inventoryId_fkey" FOREIGN KEY ("inventoryId") REFERENCES "Inventory" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+        );
+      `).catch(() => null);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ListingOpportunity" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "inventoryId" TEXT NOT NULL,
+          "marketplace" TEXT NOT NULL,
+          "externalId" TEXT,
+          "currentViews" INTEGER NOT NULL DEFAULT 0,
+          "currentWatches" INTEGER NOT NULL DEFAULT 0,
+          "currentFavourites" INTEGER NOT NULL DEFAULT 0,
+          "viewsDelta7d" INTEGER NOT NULL DEFAULT 0,
+          "watchesDelta7d" INTEGER NOT NULL DEFAULT 0,
+          "trendScore" REAL NOT NULL DEFAULT 0,
+          "isListed" INTEGER NOT NULL DEFAULT 1,
+          "isInStock" INTEGER NOT NULL DEFAULT 1,
+          "lastSnapshotAt" DATETIME,
+          "updatedAt" DATETIME NOT NULL
+        );
+      `).catch(() => null);
+
+      // ListingOpportunity uses isListed/isInStock as INTEGER (0/1) since libSQL/Turso
+      // does not support BOOLEAN the same way. The Prisma client will translate back.
+      try {
+        await prisma.$executeRawUnsafe(
+          `CREATE UNIQUE INDEX IF NOT EXISTS "ListingOpportunity_inventoryId_key" ON "ListingOpportunity"("inventoryId");`
+        );
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(
+          `CREATE INDEX IF NOT EXISTS "ListingMetricSnapshot_inventoryId_capturedAt_idx" ON "ListingMetricSnapshot"("inventoryId", "capturedAt");`
+        );
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(
+          `CREATE INDEX IF NOT EXISTS "ListingMetricSnapshot_marketplace_capturedAt_idx" ON "ListingMetricSnapshot"("marketplace", "capturedAt");`
+        );
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(
+          `CREATE UNIQUE INDEX IF NOT EXISTS "ListingMetricSnapshot_inventoryId_marketplace_externalId_capt_key" ON "ListingMetricSnapshot"("inventoryId", "marketplace", "externalId", "capturedAt");`
+        );
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(
+          `CREATE INDEX IF NOT EXISTS "ListingOpportunity_marketplace_trendScore_idx" ON "ListingOpportunity"("marketplace", "trendScore");`
+        );
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(
+          `CREATE INDEX IF NOT EXISTS "ListingOpportunity_isListed_isInStock_idx" ON "ListingOpportunity"("isListed", "isInStock");`
+        );
+      } catch {}
+    } catch {
+    } finally {
+      if (checkedTables) {
+        checkedTables.set("ListingMetricSnapshot", true);
+        checkedTables.set("ListingOpportunity", true);
+      }
+      ensuredMarketplaceMetrics = true;
+      ensuringMarketplaceMetrics = false;
+      ensureMarketplaceMetricsPromise = null;
+    }
+  })();
+  return ensureMarketplaceMetricsPromise;
 }

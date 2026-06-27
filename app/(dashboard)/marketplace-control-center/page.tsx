@@ -1,5 +1,5 @@
 import { ensureMarketplaceControlCenterSchema, getMarketplaceDashboardData, getMarketplaceAuditMetrics } from "@/lib/marketplace-control-center";
-import { prisma } from "@/lib/prisma";
+import { ensureMarketplaceMetricsSchema, prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,15 +37,59 @@ export default async function MarketplaceControlCenterPage({
 
   const audit = await getMarketplaceAuditMetrics(86);
 
+  await ensureMarketplaceMetricsSchema();
+
   const categories = await prisma.$queryRawUnsafe<Array<{ category: string | null }>>(
     `SELECT DISTINCT "category" FROM "Inventory" WHERE "category" IS NOT NULL AND "category" <> '' ORDER BY "category" LIMIT 200`
   );
 
   const coverageRows = data.rows;
-  const opportunityRows = [...coverageRows]
+  const inventoryIds = coverageRows.map((r) => r.inventoryId);
+  let engagementRows: Array<{
+    inventoryId: string;
+    marketplace: string;
+    externalId: string | null;
+    currentViews: number;
+    currentWatches: number;
+    currentFavourites: number;
+    viewsDelta7d: number;
+    watchesDelta7d: number;
+    trendScore: number;
+    isListed: boolean;
+    isInStock: boolean;
+    lastSnapshotAt: Date | null;
+  }> = [];
+  if (inventoryIds.length) {
+    try {
+      engagementRows = await prisma.listingOpportunity.findMany({
+        where: { inventoryId: { in: inventoryIds } },
+        orderBy: { trendScore: "desc" }
+      });
+    } catch (e) {
+      console.warn("[opportunity] listingOpportunity query failed, table may not exist yet:", (e as Error).message);
+      engagementRows = [];
+    }
+  }
+  const engagementById = new Map(engagementRows.map((e) => [e.inventoryId, e]));
+
+  const enrichedRows = coverageRows.map((r) => {
+    const e = engagementById.get(r.inventoryId);
+    const engagementScore = e?.trendScore ?? 0;
+    const views = e?.currentViews ?? 0;
+    const watches = e?.currentWatches ?? 0;
+    const favourites = e?.currentFavourites ?? 0;
+    const delta7d = e?.viewsDelta7d ?? 0;
+    const tier = engagementScore >= 70 ? "hot" : engagementScore >= 40 ? "warm" : engagementScore > 0 ? "cold" : null;
+    return { ...r, engagementScore, views, watches, favourites, delta7d, tier };
+  });
+
+  const opportunityRows = [...enrichedRows]
     .filter((r) => r.missingPlatforms.length > 0 && r.readyToList)
-    .sort((a, b) => b.opportunityScore - a.opportunityScore);
-  const needsPreparationRows = [...coverageRows]
+    .sort((a, b) => {
+      if (sortBy === "engagement") return b.engagementScore - a.engagementScore || b.opportunityScore - a.opportunityScore;
+      return b.opportunityScore - a.opportunityScore;
+    });
+  const needsPreparationRows = [...enrichedRows]
     .filter((r) => r.missingPlatforms.length > 0 && !r.readyToList)
     .sort((a, b) => b.opportunityScore - a.opportunityScore);
 
@@ -374,11 +418,53 @@ export default async function MarketplaceControlCenterPage({
             </div>
           </div>
 
-          {sortBy !== "opportunity" ? (
-            <MarketplaceNavButton href="/marketplace-control-center?report=opportunity&sortBy=opportunity" size="sm">
-              Sort by Highest Opportunity First
-            </MarketplaceNavButton>
-          ) : null}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card>
+              <CardHeader className="pb-1"><CardTitle className="text-xs">🔥 Hot engagement</CardTitle></CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{enrichedRows.filter((r) => r.tier === "hot").length}</div>
+                <div className="text-[10px] text-muted-foreground">Score ≥ 70, ready to list</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-1"><CardTitle className="text-xs">🟡 Warm</CardTitle></CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600">{enrichedRows.filter((r) => r.tier === "warm").length}</div>
+                <div className="text-[10px] text-muted-foreground">Score 40–69</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-1"><CardTitle className="text-xs">Coverage gap</CardTitle></CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{opportunityRows.length}</div>
+                <div className="text-[10px] text-muted-foreground">SKUs with missing marketplaces</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-1"><CardTitle className="text-xs">With engagement</CardTitle></CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{enrichedRows.filter((r) => r.engagementScore > 0).length}</div>
+                <div className="text-[10px] text-muted-foreground">Synced from extension</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {sortBy !== "opportunity" ? (
+              <MarketplaceNavButton href="/marketplace-control-center?report=opportunity&sortBy=opportunity" size="sm" variant="outline">
+                Sort by coverage gap
+              </MarketplaceNavButton>
+            ) : (
+              <MarketplaceNavButton href="/marketplace-control-center?report=opportunity&sortBy=engagement" size="sm" variant="default">
+                Sort by engagement (views/watches)
+              </MarketplaceNavButton>
+            )}
+            {sortBy === "engagement" ? (
+              <span className="text-xs text-muted-foreground">
+                Synced from extension engagement data
+              </span>
+            ) : null}
+          </div>
 
           <div className="rounded-md border bg-card">
             <Table>
@@ -388,13 +474,18 @@ export default async function MarketplaceControlCenterPage({
                   <TableHead>Product Name</TableHead>
                   <TableHead>Current Marketplaces</TableHead>
                   <TableHead>Missing Marketplaces</TableHead>
-                  <TableHead>Opportunity Score</TableHead>
+                  <TableHead className="text-right">Views</TableHead>
+                  <TableHead className="text-right">Watches</TableHead>
+                  <TableHead className="text-right">Fav</TableHead>
+                  <TableHead className="text-right">Δ7d</TableHead>
+                  <TableHead className="text-right">Engagement</TableHead>
+                  <TableHead>Opportunity</TableHead>
                   <TableHead>Ready</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {opportunityRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No opportunities found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center h-24 text-muted-foreground">No opportunities found</TableCell></TableRow>
                 ) : (
                   opportunityRows.slice(0, 200).map((row) => (
                     <TableRow key={row.inventoryId}>
@@ -420,6 +511,27 @@ export default async function MarketplaceControlCenterPage({
                               </a>
                             ))}
                           </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{row.views || <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.watches || <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell className="text-right tabular-nums">{row.favourites || <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell className={`text-right tabular-nums ${row.delta7d > 0 ? "text-emerald-600" : row.delta7d < 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                        {row.delta7d === 0 ? "—" : (row.delta7d > 0 ? "+" : "") + row.delta7d}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {row.engagementScore > 0 ? (
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="font-bold tabular-nums">{Math.round(row.engagementScore)}</span>
+                            <Badge
+                              variant={row.tier === "hot" ? "destructive" : row.tier === "warm" ? "default" : "secondary"}
+                              className="text-[10px]"
+                            >
+                              {row.tier === "hot" ? "🔥 Hot" : row.tier === "warm" ? "Warm" : "Cold"}
+                            </Badge>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No data</span>
                         )}
                       </TableCell>
                       <TableCell>

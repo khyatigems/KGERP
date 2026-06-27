@@ -10,24 +10,22 @@ datasource db {
 }
 
 model User {
-  id                         String                 @id @default(uuid())
-  name                       String
-  email                      String                 @unique
-  password                   String
-  role                       String
-  roleId                     String?
-  avatar                     String?
-  avatarUrl                  String?
-  avatarHistory              String?             @default("[]")
-  lastLogin                  DateTime?
-  lastPasswordChange         DateTime?
-  forceLogoutBefore          DateTime?
-  createdAt                  DateTime               @default(now())
+  id                 String    @id @default(uuid())
+  name               String
+  email              String    @unique
+  password           String
+  role               String
+  roleId             String?
+  avatar             String?
+  avatarUrl          String?
+  avatarHistory      String?   @default("[]")
+  lastLogin          DateTime?
+  lastPasswordChange DateTime?
+  forceLogoutBefore  DateTime?
+  createdAt          DateTime  @default(now())
 
   roleRelation               Role?                  @relation(fields: [roleId], references: [id])
   userPermissions            UserPermission[]
-
-  @@index([roleId])
   labelCartItems             LabelCartItem[]
   packagingCartItems         PackagingCartItem[]
   labelPrintJobs             LabelPrintJob[]
@@ -43,6 +41,8 @@ model User {
   vouchers                   Voucher[]
   journalEntries             JournalEntry[]
   followUps                  FollowUp[]
+
+  @@index([roleId])
 }
 
 model Permission {
@@ -59,12 +59,12 @@ model Permission {
 }
 
 model Role {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  isSystem    Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isSystem  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   users       User[]
   permissions RolePermission[]
@@ -105,18 +105,18 @@ model InventoryMetrics {
 }
 
 model LandingPageSettings {
-  id                String             @id @default(uuid())
-  brandTitle        String             @default("KhyatiGems™ ERP")
-  subtitle          String             @default("Internal Operations & Management Platform")
-  accessNotice      String             @default("Authorized internal access only")
-  highlightsEnabled Boolean            @default(true)
-  whatsNewEnabled   Boolean            @default(false)
-  highlights        String             @default("[]")
+  id                String    @id @default(uuid())
+  brandTitle        String    @default("KhyatiGems™ ERP")
+  subtitle          String    @default("Internal Operations & Management Platform")
+  accessNotice      String    @default("Authorized internal access only")
+  highlightsEnabled Boolean   @default(true)
+  whatsNewEnabled   Boolean   @default(false)
+  highlights        String    @default("[]")
   whatsNewText      String?
   whatsNewUpdatedAt DateTime?
-  activeVersion     Int                @default(1)
+  activeVersion     Int       @default(1)
   updatedByUserId   String
-  updatedAt         DateTime           @updatedAt
+  updatedAt         DateTime  @updatedAt
 }
 
 model LandingPageVersion {
@@ -230,102 +230,102 @@ model Vendor {
 }
 
 model Customer {
-  id         String      @id @default(uuid())
-  name       String
-  email      String?
-  phone      String?
-  phoneSecondary String?
-  address    String?
-  city       String?
-  state      String?
-  country    String?
-  pincode    String?
-  pan        String?
-  gstin      String?
-  notes      String?
-  customerType        String?  @default("Retail")
+  id                  String            @id @default(uuid())
+  name                String
+  email               String?
+  phone               String?
+  phoneSecondary      String?
+  address             String?
+  city                String?
+  state               String?
+  country             String?
+  pincode             String?
+  pan                 String?
+  gstin               String?
+  notes               String?
+  customerType        String?           @default("Retail")
   assignedSalesperson String?
   interestedIn        String?
   budgetRange         String?
   whatsappNumber      String?
   preferredContact    String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  stateCode  String?
-  countryCode String?
-  isInternational Boolean @default(false)
-  quotations Quotation[]
-  sales      Sale[]
-  creditNotes CreditNote[]
-  advances   CustomerAdvance[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  stateCode           String?
+  countryCode         String?
+  isInternational     Boolean           @default(false)
+  quotations          Quotation[]
+  sales               Sale[]
+  creditNotes         CreditNote[]
+  advances            CustomerAdvance[]
 }
 
 model CustomerAdvance {
-  id                String   @id @default(uuid())
-  customerId        String
-  customer          Customer @relation(fields: [customerId], references: [id])
-  amount            Float
-  paymentMode       String   @default("CASH")
-  paymentRef        String?
-  notes             String?
-  isAdjusted        Boolean  @default(false)
-  adjustedAmount    Float    @default(0)
-  remainingAmount   Float
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  id              String   @id @default(uuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  amount          Float
+  paymentMode     String   @default("CASH")
+  paymentRef      String?
+  notes           String?
+  isAdjusted      Boolean  @default(false)
+  adjustedAmount  Float    @default(0)
+  remainingAmount Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
   adjustments CustomerAdvanceAdjustment[]
 
   @@index([customerId])
 }
 
 model CustomerAdvanceAdjustment {
-  id              String          @id @default(uuid())
-  advanceId       String
-  advance         CustomerAdvance @relation(fields: [advanceId], references: [id])
-  saleId          String
-  sale            Sale            @relation(fields: [saleId], references: [id])
-  amountUsed      Float
-  createdAt       DateTime        @default(now())
+  id         String          @id @default(uuid())
+  advanceId  String
+  advance    CustomerAdvance @relation(fields: [advanceId], references: [id])
+  saleId     String
+  sale       Sale            @relation(fields: [saleId], references: [id])
+  amountUsed Float
+  createdAt  DateTime        @default(now())
 
   @@index([advanceId])
   @@index([saleId])
 }
 
 model Inventory {
-  id                   String              @id @default(uuid())
-  sku                  String              @unique
+  id                   String                  @id @default(uuid())
+  sku                  String                  @unique
   itemName             String
   internalName         String?
   category             String
   gemType              String?
-  stoneType            String?             @map("stone_type")
+  stoneType            String?                 @map("stone_type")
   description          String?
   productDescription   String?
-  pieces               Int                 @default(1)
-  weightValue          Float?              @default(0)
+  pieces               Int                     @default(1)
+  weightValue          Float?                  @default(0)
   weightUnit           String?
-  carats               Float               @default(0)
+  carats               Float                   @default(0)
   weightRatti          Float?
-  weightGrams          Float?              @map("weight_grams")
+  weightGrams          Float?                  @map("weight_grams")
   costPrice            Float
   sellingPrice         Float
   profit               Float?
-  condition            String              @default("New")
-  status               String              @default("IN_STOCK")
-  hideFromAttention    Boolean             @default(false)
+  condition            String                  @default("New")
+  status               String                  @default("IN_STOCK")
+  hideFromAttention    Boolean                 @default(false)
   location             String?
   certificateNo        String?
-  certificateNumber    String?             @map("certificate_number")
+  certificateNumber    String?                 @map("certificate_number")
   certification        String?
   lab                  String?
-  certificateLab       String?             @map("certificate_lab")
+  certificateLab       String?                 @map("certificate_lab")
   shape                String?
   color                String?
   clarity              String?
-  clarityGrade         String?             @map("clarity_grade")
+  clarityGrade         String?                 @map("clarity_grade")
   cut                  String?
-  cutGrade             String?             @map("cut_grade")
+  cutGrade             String?                 @map("cut_grade")
   polish               String?
   symmetry             String?
   fluorescence         String?
@@ -335,20 +335,20 @@ model Inventory {
   depthPercent         Float?
   ratio                Float?
   origin               String?
-  originCountry        String?             @map("origin_country")
+  originCountry        String?                 @map("origin_country")
   treatment            String?
-  cutPolishedIn        String?             @default("India") @map("cut_polished_in")
-  qcCode               String?             @map("qc_code")
-  hsnCode              String?             @map("hsn_code")
+  cutPolishedIn        String?                 @default("India") @map("cut_polished_in")
+  qcCode               String?                 @map("qc_code")
+  hsnCode              String?                 @map("hsn_code")
   transparency         String?
   braceletType         String?
   standardSize         String?
   beadSizeMm           Float?
-  beadSizeLabel        String?             @map("bead_size_label")
+  beadSizeLabel        String?                 @map("bead_size_label")
   beadCount            Int?
   holeSizeMm           Float?
   innerCircumferenceMm Float?
-  pricingMode          String              @default("FIXED")
+  pricingMode          String                  @default("FIXED")
   sellingRatePerCarat  Float?
   flatSellingPrice     Float?
   purchaseRatePerCarat Float?
@@ -362,26 +362,28 @@ model Inventory {
   batchId              String?
   imageUrl             String?
   videoUrl             String?
-  rapPrice             Float?              @default(0)
-  discountPercent      Float?              @default(0)
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  rapPrice             Float?                  @default(0)
+  discountPercent      Float?                  @default(0)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
   categoryCodeId       String?
   gemstoneCodeId       String?
   colorCodeId          String?
   cutCodeId            String?
   collectionCodeId     String?
-  categoryCode         CategoryCode?       @relation(fields: [categoryCodeId], references: [id])
-  gemstoneCode         GemstoneCode?       @relation(fields: [gemstoneCodeId], references: [id])
-  colorCode            ColorCode?          @relation(fields: [colorCodeId], references: [id])
-  cutCode              CutCode?            @relation(fields: [cutCodeId], references: [id])
-  collectionCode       CollectionCode?     @relation(fields: [collectionCodeId], references: [id])
+  categoryCode         CategoryCode?           @relation(fields: [categoryCodeId], references: [id])
+  gemstoneCode         GemstoneCode?           @relation(fields: [gemstoneCodeId], references: [id])
+  colorCode            ColorCode?              @relation(fields: [colorCodeId], references: [id])
+  cutCode              CutCode?                @relation(fields: [cutCodeId], references: [id])
+  collectionCode       CollectionCode?         @relation(fields: [collectionCodeId], references: [id])
   rashis               RashiCode[]
   certificates         CertificateCode[]
   media                InventoryMedia[]
-  purchase             Purchase?           @relation(fields: [purchaseId], references: [id])
-  vendor               Vendor?             @relation(fields: [vendorId], references: [id])
+  purchase             Purchase?               @relation(fields: [purchaseId], references: [id])
+  vendor               Vendor?                 @relation(fields: [vendorId], references: [id])
   listings             Listing[]
+  metricSnapshots      ListingMetricSnapshot[]
+  opportunity          ListingOpportunity?
   sales                Sale[]
   memoItems            MemoItem[]
   quotationItems       QuotationItem[]
@@ -492,39 +494,89 @@ model ListingPriceHistory {
   @@index([listingId])
 }
 
+model ListingMetricSnapshot {
+  id          String   @id @default(uuid())
+  inventoryId String
+  marketplace String
+  externalId  String
+  capturedAt  DateTime @default(now())
+
+  views      Int    @default(0)
+  watches    Int    @default(0)
+  favourites Int    @default(0)
+  orders     Int    @default(0)
+  revenue    Float  @default(0)
+  currency   String @default("USD")
+
+  rawPayload String?
+  source     String
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@unique([inventoryId, marketplace, externalId, capturedAt])
+  @@index([inventoryId, capturedAt])
+  @@index([marketplace, capturedAt])
+}
+
+model ListingOpportunity {
+  id          String  @id @default(uuid())
+  inventoryId String  @unique
+  marketplace String
+  externalId  String?
+
+  currentViews      Int @default(0)
+  currentWatches    Int @default(0)
+  currentFavourites Int @default(0)
+
+  viewsDelta7d   Int   @default(0)
+  watchesDelta7d Int   @default(0)
+  trendScore     Float @default(0)
+
+  isListed  Boolean @default(true)
+  isInStock Boolean @default(true)
+
+  lastSnapshotAt DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@index([marketplace, trendScore])
+  @@index([isListed, isInStock])
+}
+
 model Sale {
-  id                String    @id @default(uuid())
-  orderId           String?
-  inventoryId       String
-  customerId        String?
-  customerName      String?
-  customerEmail     String?
-  customerPhone     String?
-  customerAddress   String?
-  billingAddress    String?
-  customerCity      String?
-  placeOfSupply     String?
-  shippingAddress   String?
-  shippingCharge    Float     @default(0)
-  additionalCharge  Float     @default(0)
-  saleDate          DateTime  @default(now())
-  salePrice         Float
-  usdPrice          Float?    // USD price for export invoices
-  taxAmount         Float     @default(0)
-  discountAmount    Float     @default(0)
-  netAmount         Float
-  paymentStatus     String    @default("PENDING")
-  paymentMethod     String?
-  platform          String    @default("OFFLINE")
-  notes             String?
-  invoiceId         String?
-  legacyInvoiceId   String?   @unique
-  costPriceSnapshot Float?
-  profit            Float?
-  customer          Customer? @relation(fields: [customerId], references: [id])
-  inventory         Inventory @relation(fields: [inventoryId], references: [id])
-  invoice           Invoice?  @relation("NewInvoice", fields: [invoiceId], references: [id])
-  legacyInvoice     Invoice?  @relation("LegacyInvoice", fields: [legacyInvoiceId], references: [id])
+  id                 String                      @id @default(uuid())
+  orderId            String?
+  inventoryId        String
+  customerId         String?
+  customerName       String?
+  customerEmail      String?
+  customerPhone      String?
+  customerAddress    String?
+  billingAddress     String?
+  customerCity       String?
+  placeOfSupply      String?
+  shippingAddress    String?
+  shippingCharge     Float                       @default(0)
+  additionalCharge   Float                       @default(0)
+  saleDate           DateTime                    @default(now())
+  salePrice          Float
+  usdPrice           Float? // USD price for export invoices
+  taxAmount          Float                       @default(0)
+  discountAmount     Float                       @default(0)
+  netAmount          Float
+  paymentStatus      String                      @default("PENDING")
+  paymentMethod      String?
+  platform           String                      @default("OFFLINE")
+  notes              String?
+  invoiceId          String?
+  legacyInvoiceId    String?                     @unique
+  costPriceSnapshot  Float?
+  profit             Float?
+  customer           Customer?                   @relation(fields: [customerId], references: [id])
+  inventory          Inventory                   @relation(fields: [inventoryId], references: [id])
+  invoice            Invoice?                    @relation("NewInvoice", fields: [invoiceId], references: [id])
+  legacyInvoice      Invoice?                    @relation("LegacyInvoice", fields: [legacyInvoiceId], references: [id])
   advanceAdjustments CustomerAdvanceAdjustment[]
 
   @@index([customerId])
@@ -599,25 +651,25 @@ model QuotationItem {
 }
 
 model Invoice {
-  id             String           @id @default(uuid())
-  invoiceNumber  String           @unique
-  token          String           @unique @default(cuid())
-  quotationId    String?
-  status         String           @default("DRAFT")
-  isActive       Boolean          @default(true)
-  dueDate        DateTime?
-  notes          String?
-  invoiceType    String           @default("TAX")
-  iecCode        String?
-  exportType     String?
+  id                   String    @id @default(uuid())
+  invoiceNumber        String    @unique
+  token                String    @unique @default(cuid())
+  quotationId          String?
+  status               String    @default("DRAFT")
+  isActive             Boolean   @default(true)
+  dueDate              DateTime?
+  notes                String?
+  invoiceType          String    @default("TAX")
+  iecCode              String?
+  exportType           String?
   countryOfDestination String?
-  portOfDispatch String?
-  modeOfTransport String?
-  courierPartner String?
-  trackingId     String?
-  invoiceCurrency String?
-  conversionRate Float?
-  totalInrValue  Float?
+  portOfDispatch       String?
+  modeOfTransport      String?
+  courierPartner       String?
+  trackingId           String?
+  invoiceCurrency      String?
+  conversionRate       Float?
+  totalInrValue        Float?
 
   displayOptions String?
   subtotal       Float
@@ -645,25 +697,25 @@ model Invoice {
 
 // Separate table for Export Invoices - keeps invoice numbers in same sequence
 model ExportInvoice {
-  id             String   @id @default(uuid())
-  invoiceId      String   @unique
+  id                       String  @id @default(uuid())
+  invoiceId                String  @unique
   // Export-specific fields (these extend the main Invoice)
   customsDeclarationNumber String?
-  fobValue         Float?
-  freightCharges   Float?
-  insuranceCharges Float?
-  shippingBillNumber String?
-  portCode         String?
-  hsnCodes         String?
+  fobValue                 Float?
+  freightCharges           Float?
+  insuranceCharges         Float?
+  shippingBillNumber       String?
+  portCode                 String?
+  hsnCodes                 String?
   // Additional commercial details
-  buyerReference   String?
-  contractNumber   String?
-  preCarriageBy    String?
-  preCarriagePort  String?
-  
-  invoice          Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  buyerReference           String?
+  contractNumber           String?
+  preCarriageBy            String?
+  preCarriagePort          String?
+
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([invoiceId])
   @@index([customsDeclarationNumber])
@@ -732,54 +784,54 @@ model CompanySettings {
 }
 
 model FollowUp {
-  id          String   @id
-  invoiceId   String
-  date        DateTime @default(now())
-  action      String?
-  note        String?
+  id           String    @id
+  invoiceId    String
+  date         DateTime  @default(now())
+  action       String?
+  note         String?
   promisedDate DateTime?
-  createdById String?  @map("createdBy")
-  createdAt   DateTime @default(now())
+  createdById  String?   @map("createdBy")
+  createdAt    DateTime  @default(now())
 
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  createdBy   User?    @relation(fields: [createdById], references: [id])
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation(fields: [createdById], references: [id])
 
   @@index([invoiceId])
   @@index([createdById])
 }
 
 model SalesReturn {
-  id           String           @id
-  invoiceId    String
-  returnNumber String           @unique
-  returnDate   DateTime         @default(now())
-  disposition  String
-  taxableAmount Float           @default(0)
-  igst         Float           @default(0)
-  cgst         Float           @default(0)
-  sgst         Float           @default(0)
-  totalTax     Float           @default(0)
-  totalAmount  Float           @default(0)
-  remarks      String?
-  createdById  String?
-  createdAt    DateTime         @default(now())
+  id            String   @id
+  invoiceId     String
+  returnNumber  String   @unique
+  returnDate    DateTime @default(now())
+  disposition   String
+  taxableAmount Float    @default(0)
+  igst          Float    @default(0)
+  cgst          Float    @default(0)
+  sgst          Float    @default(0)
+  totalTax      Float    @default(0)
+  totalAmount   Float    @default(0)
+  remarks       String?
+  createdById   String?
+  createdAt     DateTime @default(now())
 
-  invoice      Invoice          @relation(fields: [invoiceId], references: [id])
-  items        SalesReturnItem[]
+  invoice Invoice           @relation(fields: [invoiceId], references: [id])
+  items   SalesReturnItem[]
 
   @@index([invoiceId])
 }
 
 model SalesReturnItem {
-  id            String      @id
+  id            String  @id
   salesReturnId String
   inventoryId   String
-  quantity      Int         @default(1)
+  quantity      Int     @default(1)
   sellingPrice  Float
-  resaleable    Boolean     @default(true)
+  resaleable    Boolean @default(true)
 
-  salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
-  inventory     Inventory   @relation(fields: [inventoryId], references: [id])
+  salesReturn SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+  inventory   Inventory   @relation(fields: [inventoryId], references: [id])
 
   @@index([salesReturnId])
   @@index([inventoryId])
@@ -801,8 +853,8 @@ model CreditNote {
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
 
-  customer         Customer? @relation(fields: [customerId], references: [id])
-  invoice          Invoice?   @relation(fields: [invoiceId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  invoice  Invoice?  @relation(fields: [invoiceId], references: [id])
 
   @@index([customerId])
   @@index([invoiceId])
@@ -814,7 +866,7 @@ model InvoiceSettings {
   currencySymbol      String   @default("₹")
   digitalSignatureUrl String?
   terms               String?
-  exportTerms         String?  // Terms & Conditions for export invoices
+  exportTerms         String? // Terms & Conditions for export invoices
   footerNotes         String?
   gstEnabled          Boolean  @default(false)
   gstType             String   @default("CGST_SGST")
@@ -842,7 +894,7 @@ model PaymentSettings {
 }
 
 model ActivityLog {
-  id               String   @id @default(uuid())
+  id               String  @id @default(uuid())
   entityType       String?
   entityId         String?
   entityIdentifier String?
@@ -856,13 +908,13 @@ model ActivityLog {
   fieldChanges     String?
   details          String?
 
-  module           String?
-  action           String?
-  referenceId      String?
-  description      String?
-  metadata         String?
+  module      String?
+  action      String?
+  referenceId String?
+  description String?
+  metadata    String?
 
-  createdAt        DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([module])
@@ -1273,18 +1325,18 @@ model GpisSettings {
 }
 
 model EbaySettings {
-  id                      String   @id @default(uuid())
-  globalBannerImages      String?  // JSON array of URLs
-  categoryImageUrls       String?  // JSON object: { "Category": ["url1", ...] }
-  categoryGemtypeImageUrls String? @default("{}") // JSON object: { "Category|GemType": ["url1", "url2", "url3"] }
-  maxImagesPerCategory    Int      @default(4)
-  imagesPerDescription    Int      @default(3)
-  imageRotationMode       String   @default("SEQUENTIAL")
-  brandLogoUrl            String?
-  companyName             String   @default("KhyatiGems")
-  tagline                 String   @default("Precious Gems for your Precious Ones")
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id                       String   @id @default(uuid())
+  globalBannerImages       String? // JSON array of URLs
+  categoryImageUrls        String? // JSON object: { "Category": ["url1", ...] }
+  categoryGemtypeImageUrls String?  @default("{}") // JSON object: { "Category|GemType": ["url1", "url2", "url3"] }
+  maxImagesPerCategory     Int      @default(4)
+  imagesPerDescription     Int      @default(3)
+  imageRotationMode        String   @default("SEQUENTIAL")
+  brandLogoUrl             String?
+  companyName              String   @default("KhyatiGems")
+  tagline                  String   @default("Precious Gems for your Precious Ones")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
   @@index([createdAt])
 }
