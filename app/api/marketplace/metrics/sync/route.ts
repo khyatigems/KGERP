@@ -67,6 +67,17 @@ export async function POST(request: NextRequest) {
 
   await ensureMarketplaceMetricsSchema();
 
+  const sanitizedRows = (rows as Array<Record<string, unknown>>).map((r) => ({
+    externalId: String(r.externalId ?? "").trim(),
+    sku: String(r.sku ?? "").trim(),
+    views: Number(r.views) || 0,
+    watches: Number(r.watches) || 0,
+    favourites: Number(r.favourites) || 0,
+    orders: Number(r.orders) || 0,
+    revenue: Number(r.revenue) || 0,
+    currency: String(r.currency ?? "USD").toUpperCase()
+  }));
+
   try {
     const result = await syncMetricsBatch({
       marketplace,
@@ -76,20 +87,20 @@ export async function POST(request: NextRequest) {
         | "scheduled_page"
         | "stats_page"
         | "mapping_sync",
-      rows,
+      rows: sanitizedRows,
     });
 
     await logActivity({
       actionType: "METRICS_SYNC",
       entityType: "ListingMetricSnapshot",
-      details: {
+      metadata: {
         marketplace,
         source,
         requested: rows.length,
         upserted: result.upserted,
         skipped: result.skipped,
-        errors: result.errors.length,
-      },
+        errors: result.errors.length
+      }
     }).catch(() => null);
 
     return NextResponse.json({
