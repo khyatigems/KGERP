@@ -146,14 +146,7 @@ export async function syncMetricsBatch(input: {
 
   const inventoryIds = Array.from(new Set(upserts.map((u) => u.inventoryId)));
 
-  // Skip recompute entirely if all snapshots are zero-metric (common for new listings
-  // that have no views/watches/favourites yet). This avoids 5 DB round-trips when
-  // there's nothing meaningful to score.
-  const hasMeaningfulMetrics = upserts.some(
-    (u) => u.views > 0 || u.watches > 0 || u.favourites > 0 || u.orders > 0
-  );
-
-  if (inventoryIds.length && hasMeaningfulMetrics) {
+  if (inventoryIds.length) {
     try {
       await recomputeOpportunityBatch({ inventoryIds, marketplace });
     } catch (e) {
