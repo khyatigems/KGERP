@@ -19,7 +19,7 @@ import { DashboardHeader } from "./dashboard-header";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export function DashboardView() {
+export function DashboardView({ name }: { name?: string | null }) {
   const { data, error, isLoading, mutate } = useSWR("/api/dashboard", fetcher, {
     refreshInterval: 60000,
     revalidateOnFocus: true,
@@ -75,6 +75,7 @@ export function DashboardView() {
       <DashboardHeader
         dbConnection={data.dbConnection}
         onRefresh={handleRefresh}
+        name={name}
       />
 
       <BusinessHealthCards

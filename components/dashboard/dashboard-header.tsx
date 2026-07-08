@@ -4,13 +4,15 @@ import { Logo } from "@/components/ui/logo";
 import { LiveClock } from "./live-clock";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { AnimatedGreeting } from "@/components/ui/animated-greeting";
 
-interface DashboardHeaderProps {
-  dbConnection: string;
-  onRefresh: () => void;
-}
+export type DashboardHeaderProps = {
+  dbConnection?: string | null;
+  onRefresh?: () => void;
+  name?: string | null;
+};
 
-export function DashboardHeader({ dbConnection, onRefresh }: DashboardHeaderProps) {
+export function DashboardHeader({ dbConnection, onRefresh, name }: DashboardHeaderProps) {
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 rounded-xl border border-border bg-card p-4 md:p-5 gem-fade-in gem-shimmer-border">
       <div className="flex items-center gap-4">
@@ -18,12 +20,15 @@ export function DashboardHeader({ dbConnection, onRefresh }: DashboardHeaderProp
            <Logo className="h-7 w-7 text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
-            Dashboard
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Khyati Gems ERP
-          </p>
+          <div className="text-foreground">
+            {/* Animated greeting replaces static heading while preserving styles */}
+              <div className="text-xl font-bold tracking-tight">
+              <AnimatedGreeting name={name} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Khyati Gems ERP
+            </p>
+          </div>
         </div>
       </div>
 

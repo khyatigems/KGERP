@@ -262,7 +262,7 @@ export function RolesPermissionsTable() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="w-[280px]">
+        <div className="w-70">
           <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
             <SelectTrigger>
               <SelectValue placeholder="Select role" />
@@ -306,9 +306,9 @@ export function RolesPermissionsTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[220px]">Module</TableHead>
+              <TableHead className="w-55">Module</TableHead>
               {actionColumns.map((a) => (
-                <TableHead key={a} className="w-[120px] text-center">
+                <TableHead key={a} className="w-30 text-center">
                   {a.toUpperCase()}
                 </TableHead>
               ))}
