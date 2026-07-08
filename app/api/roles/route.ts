@@ -61,11 +61,20 @@ async function seedPermissionsAndRoles() {
   const permissions = await prisma.$queryRawUnsafe<Array<{ id: string; key: string }>>(`SELECT id, key FROM "Permission"`);
   const permIds = new Map((permissions || []).map((p) => [p.key, p.id]));
 
-  const fullAccessRoles = ["SUPER_ADMIN", "ADMIN"];
-  for (const roleName of fullAccessRoles) {
+  const defaultRolePermissions: Record<string, string[]> = {
+    SUPER_ADMIN: allKeys,
+    ADMIN: allKeys,
+    ACCOUNTS: [
+      PERMISSIONS.INVENTORY_VIEW,
+      PERMISSIONS.LISTINGS_VIEW,
+      PERMISSIONS.REPORTS_VIEW,
+    ],
+  };
+
+  for (const [roleName, permissionKeys] of Object.entries(defaultRolePermissions)) {
     const roleId = roleByName.get(roleName);
     if (!roleId) continue;
-    for (const key of allKeys) {
+    for (const key of permissionKeys) {
       const permissionId = permIds.get(key);
       if (!permissionId) continue;
       await prisma.$executeRawUnsafe(

@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ensureMarketplaceControlCenterSchema, normalizePlatform, MARKETPLACE_PLATFORMS } from "@/lib/marketplace-control-center";
 import { buildEbayHtmlDescription } from "@/lib/ebay-description";
+import { checkPermission } from "@/lib/permission-guard";
+import { PERMISSIONS } from "@/lib/permissions";
 import ExcelJS from "exceljs";
 
 export async function GET(req: NextRequest) {
   try {
+    const permissionCheck = await checkPermission(PERMISSIONS.LISTINGS_VIEW);
+    if (!permissionCheck.success) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     await ensureMarketplaceControlCenterSchema();
     const report = req.nextUrl.searchParams.get("report") || "coverage";
     const category = req.nextUrl.searchParams.get("category") || "ALL";
@@ -76,9 +83,13 @@ export async function GET(req: NextRequest) {
     }
 
     const allItems = [...grouped.values()];
+    const normalizedMarketplace = normalizePlatform(marketplace);
+    const exportItems = normalizedMarketplace
+      ? allItems.filter((item) => item.platforms.has(normalizedMarketplace))
+      : allItems;
 
     // Fetch latest engagement metrics for every inventoryId in scope
-    const allInventoryIds = Array.from(new Set(allItems.map((it) => String(it.base.inventoryId || ""))));
+    const allInventoryIds = Array.from(new Set(exportItems.map((it) => String(it.base.inventoryId || ""))));
     const allMetrics = allInventoryIds.length
       ? await prisma.listingOpportunity.findMany({
           where: { inventoryId: { in: allInventoryIds } }
@@ -160,13 +171,13 @@ export async function GET(req: NextRequest) {
 
     if (report === "opportunity") {
       // ── Filter items ──
-      const opportunityItems = allItems.filter((item) => {
+      const opportunityItems = exportItems.filter((item) => {
         if (item.platforms.size >= 3) return false;
         if (item.platforms.size > 0) return true;
         return isReady(item.base).ready;
       });
 
-      const needsPrepItems = allItems.filter((item) => {
+      const needsPrepItems = exportItems.filter((item) => {
         if (item.platforms.size >= 3 || item.platforms.size > 0) return false;
         return !isReady(item.base).ready;
       });
@@ -406,9 +417,7 @@ export async function GET(req: NextRequest) {
       }
     } else {
       // ═══ Coverage Report (simplified) ═══
-      const covItems = marketplace && marketplace !== "ALL"
-        ? allItems.filter((item) => item.platforms.has(normalizePlatform(marketplace) || ""))
-        : allItems;
+      const covItems = exportItems;
 
       const ws = wb.addWorksheet("Coverage Report", { properties: { tabColor: { argb: C.blue } } });
       const h = ["SKU", "Product Name", "Category", "eBay", "Etsy", "Amazon", "Coverage", "Missing", "Image", "Certificate"];

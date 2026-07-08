@@ -2,6 +2,9 @@ import { ensureMarketplaceControlCenterSchema, getMarketplaceDashboardData, getM
 import { ensureMarketplaceMetricsSchema, prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { redirect } from "next/navigation";
+import { checkPermission } from "@/lib/permission-guard";
+import { PERMISSIONS } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,6 +21,11 @@ export default async function MarketplaceControlCenterPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const permissionCheck = await checkPermission(PERMISSIONS.LISTINGS_VIEW);
+  if (!permissionCheck.success) {
+    redirect("/");
+  }
+
   await ensureMarketplaceControlCenterSchema();
   const searchParams = await _searchParamsPromise;
 

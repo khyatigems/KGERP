@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { auth } from "@/lib/auth";
 import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema, ensurePasswordResetSchema } from "@/lib/prisma";
+import { getPermissionsForRole } from "@/lib/permissions";
 
 type DashboardUser = {
   name?: string | null;
@@ -108,6 +109,10 @@ export default async function DashboardLayout({
         });
 
         allowedNavModules = Array.from(resolvedPerms);
+
+        if (!allowedNavModules.length && dbUser.role) {
+          allowedNavModules = getPermissionsForRole(dbUser.role);
+        }
 
         if (!allowedNavModules.length) {
           allowedNavModules = ["DASHBOARD_BASIC"];

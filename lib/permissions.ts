@@ -75,7 +75,11 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: Object.values(PERMISSIONS),
   ADMIN: Object.values(PERMISSIONS),
   SALES: [],
-  ACCOUNTS: [],
+  ACCOUNTS: [
+    PERMISSIONS.INVENTORY_VIEW,
+    PERMISSIONS.LISTINGS_VIEW,
+    PERMISSIONS.REPORTS_VIEW,
+  ],
   VIEWER: [],
 };
 
@@ -163,9 +167,12 @@ export async function checkUserPermission(userId: string, permission: Permission
 
     if (user.roleRelation) {
       if (isSuperAdminRole(user.roleRelation.name)) return true;
-      return user.roleRelation.permissions?.some(
-        (rp) => rp.permission.key === permission
-      ) ?? false;
+      const rolePermissionKeys = user.roleRelation.permissions?.map((rp) => rp.permission.key) ?? [];
+      if (rolePermissionKeys.includes(permission)) return true;
+      if (rolePermissionKeys.length === 0) {
+        return getPermissionsForRole(user.roleRelation.name).includes(permission);
+      }
+      return false;
     }
 
     if (isSuperAdminRole(user.role)) return true;
@@ -185,7 +192,11 @@ export async function checkUserPermission(userId: string, permission: Permission
       }) as RoleFindPayload | null;
 
       if (isSuperAdminRole(role?.name)) return true;
-      if (role?.permissions?.some((rp) => rp.permission?.key === permission)) return true;
+      const rolePermissionKeys = role?.permissions?.map((rp) => rp.permission?.key).filter(Boolean) ?? [];
+      if (rolePermissionKeys.includes(permission)) return true;
+      if (rolePermissionKeys.length === 0 && role?.name) {
+        return getPermissionsForRole(role.name).includes(permission);
+      }
     } catch {}
 
     return getPermissionsForRole(user.role).includes(permission);

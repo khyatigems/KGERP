@@ -47,7 +47,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
 
   return (
     <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border text-sidebar-foreground">
-      <div className="flex h-14 items-center border-b border-sidebar-border px-6 lg:h-[60px] justify-between">
+      <div className="flex h-14 items-center border-b border-sidebar-border px-6 lg:h-15 justify-between">
         <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={() => handleNavigation("/")}>
           <span className="text-lg tracking-tight">KhyatiGems™ ERP</span>
         </Link>
