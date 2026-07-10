@@ -55,40 +55,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const permissions = user.roleRelation?.permissions.map(p => p.permission.key) || [];
 
-        // Update last login
+        // Update last login and log activity using the shared logger (lazy import to avoid cycles)
         try {
-            await prisma.user.update({
-                where: { id: user.id },
-                data: { lastLogin: new Date() }
-            });
-
-            // Log activity manually to avoid circular dependency
-            // Use 'Security' or 'User' as entityType? 'Security' fits LOGIN action better in the schema context
-            // ActionType 'LOGIN' was added to activity-logger.ts
-            await prisma.activityLog.create({
-                data: {
-                    // Let's match the schema structure:
-                    // entity: "Security"
-                    // entityId: user.id
-                    // action: "LOGIN"
-                    // userId: user.id
-                    // details: JSON string or simple string
-                    
-                    entityType: "Security",
-                    entityId: user.id,
-                    actionType: "LOGIN",
-                    userId: user.id,
-                    details: JSON.stringify({ 
-                        message: "User logged in successfully",
-                        email: user.email,
-                        name: user.name
-                    }),
-                    // timestamp/createdAt is handled by default @default(now())
-                }
-            });
-
+          await prisma.user.update({ where: { id: user.id }, data: { lastLogin: new Date() } });
+          const { logActivity } = await import("./activity-logger");
+          await logActivity({
+            entityType: "Security",
+            entityId: user.id,
+            entityIdentifier: user.email || user.name || user.id,
+            actionType: "LOGIN",
+            userId: user.id,
+            userName: user.name,
+            description: "User logged in successfully",
+            metadata: { email: user.email, name: user.name },
+            source: "WEB",
+          });
         } catch (error) {
-            console.error("Failed to update last login or log activity", error);
+          console.error("Failed to update last login or log activity", error);
         }
 
         return {

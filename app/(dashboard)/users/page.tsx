@@ -95,11 +95,18 @@ export default async function UsersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {user.lastLogin 
-                        ? new Date(user.lastLogin).toLocaleString() 
-                        : <span className="text-muted-foreground text-sm">Never</span>}
+                      {user.lastLogin ? (
+                        (() => {
+                          try {
+                            const dt = new Date(user.lastLogin);
+                            return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }).format(dt);
+                          } catch { return new Date(user.lastLogin).toLocaleString(); }
+                        })()
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Never</span>
+                      )}
                     </TableCell>
-                    <TableCell>{user.createdAt.toLocaleDateString()}</TableCell>
+                    <TableCell>{(() => { try { return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" }).format(new Date(user.createdAt)); } catch { return user.createdAt.toLocaleDateString(); } })()}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="sm" asChild>

@@ -24,6 +24,21 @@ export const authConfig = {
         token.lastLogin = user.lastLogin;
         token.permissions = [];
       }
+
+      // Ensure token.lastLogin stays in sync with DB for existing tokens to
+      // avoid repeatedly treating missing/stale token values as a trigger
+      // to update DB and log activity.
+      try {
+        if (token.sub) {
+          const { prisma } = await import("./prisma");
+          const dbUser = await prisma.user.findUnique({ where: { id: token.sub }, select: { lastLogin: true } });
+          if (dbUser && dbUser.lastLogin) token.lastLogin = dbUser.lastLogin as any;
+        }
+      } catch (err) {
+        // non-fatal; keep using existing token value
+        // eslint-disable-next-line no-console
+        console.error("Failed to refresh token.lastLogin from DB:", err);
+      }
       return token;
     },
     async session({ session, token }) {
@@ -34,28 +49,38 @@ export const authConfig = {
         session.user.permissions = [];
         session.user.lastLogin = token.lastLogin as Date | null;
 
-        // If token.lastLogin is missing or stale, update DB and record an activity log.
+        // If token.lastLogin is missing or stale, consult DB lastLogin to avoid repeated logs
         try {
-          const tokenLast = token.lastLogin ? new Date(token.lastLogin as string) : null;
+          const { prisma } = await import("./prisma");
+          const { logActivity } = await import("./activity-logger");
+
+          const dbUser = await prisma.user.findUnique({ where: { id: token.sub }, select: { lastLogin: true, name: true, email: true } });
           const now = new Date();
-          const shouldUpdate = !tokenLast || (now.getTime() - tokenLast.getTime() > 5 * 60 * 1000); // 5 minute threshold
-          if (shouldUpdate) {
-            const { prisma } = await import("./prisma");
-            const { logActivity } = await import("./activity-logger");
+          const cutoff = new Date(now.getTime() - 10 * 60 * 1000);
 
-            await prisma.user.update({ where: { id: token.sub }, data: { lastLogin: now } });
+          // Perform a conditional update: only update lastLogin if it's null or older than cutoff.
+          const updateResult = await prisma.user.updateMany({
+            where: { id: token.sub, OR: [{ lastLogin: null }, { lastLogin: { lt: cutoff } }] },
+            data: { lastLogin: now },
+          });
 
-            // Log activity as an auto-login event
+          // If we updated exactly one row, create the activity log. This avoids race-conditions
+          // where multiple concurrent requests would otherwise each insert a log.
+          if (updateResult.count && updateResult.count > 0) {
             await logActivity({
               entityType: "Security",
               entityId: token.sub,
+              entityIdentifier: dbUser?.email || dbUser?.name || session.user.email || session.user.name || token.sub,
               actionType: "LOGIN",
               userId: token.sub,
-              description: JSON.stringify({ message: "User auto-logged in", email: session.user.email, name: session.user.name }),
+              userName: dbUser?.name || session.user.name || undefined,
+              description: "User auto-logged in",
+              metadata: { email: dbUser?.email || session.user.email, name: dbUser?.name || session.user.name },
               source: "WEB",
             });
-
             session.user.lastLogin = now as any;
+          } else if (dbUser?.lastLogin) {
+            session.user.lastLogin = dbUser.lastLogin as any;
           }
         } catch (err) {
           // Don't block session creation on logging errors

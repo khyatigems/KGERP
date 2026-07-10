@@ -159,29 +159,49 @@ export async function logActivity<T = Record<string, unknown>>({
     const finalModule = module || entityType || "Unknown";
     const finalAction = action || actionType || "UNKNOWN";
     const finalReferenceId = referenceId || entityIdentifier || entityId;
+    // Compute idempotencyKey for LOGIN actions so we can rely on DB-level uniqueness.
+    let finalIdempotencyKey: string | undefined = undefined;
+    if ((finalAction || '').toString().toUpperCase() === 'LOGIN') {
+      // Bucket by minute so concurrent requests within the same minute share the same key
+      const now = new Date();
+      const bucket = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+      finalIdempotencyKey = `auto-login:${bucket.toISOString()}`;
+    }
 
-    await (prisma.activityLog as any).create({
-      data: {
-        entityType: finalModule,
-        entityId: entityId || finalReferenceId,
-        entityIdentifier: finalReferenceId,
-        actionType: finalAction,
-        fieldChanges: finalMetadata,
-        userId: finalUserId,
-        userName: finalUserName,
-        userEmail: finalUserEmail,
-        ipAddress: finalIpAddress,
-        userAgent: finalUserAgent,
-        source,
-        details: description || details,
+    try {
+      await (prisma.activityLog as any).create({
+        data: {
+          entityType: finalModule,
+          entityId: entityId || finalReferenceId,
+          entityIdentifier: finalReferenceId,
+          idempotencyKey: finalIdempotencyKey,
+          actionType: finalAction,
+          fieldChanges: finalMetadata,
+          userId: finalUserId,
+          userName: finalUserName,
+          userEmail: finalUserEmail,
+          ipAddress: finalIpAddress,
+          userAgent: finalUserAgent,
+          source,
+          details: description || details,
 
-        module: finalModule,
-        action: finalAction,
-        referenceId: finalReferenceId,
-        description: description || details,
-        metadata: finalMetadata,
-      },
-    });
+          module: finalModule,
+          action: finalAction,
+          referenceId: finalReferenceId,
+          description: description || details,
+          metadata: finalMetadata,
+        },
+      });
+    } catch (err: any) {
+      // Prisma unique constraint error code is P2002; if we hit a unique violation on
+      // the idempotency key, ignore since it means another concurrent request already logged it.
+      const msg = String(err?.message || err);
+      if (msg.includes('UNIQUE constraint failed') || (err?.code === 'P2002')) {
+        // ignore duplicate insert
+        return;
+      }
+      throw err;
+    }
   } catch (error) {
     console.error("Failed to log activity:", error);
     // Do not block the main flow

@@ -895,6 +895,7 @@ model ActivityLog {
   entityType       String?
   entityId         String?
   entityIdentifier String?
+  idempotencyKey   String?
   actionType       String?
   userId           String?
   userName         String?
@@ -916,6 +917,7 @@ model ActivityLog {
   @@index([userId])
   @@index([module])
   @@index([createdAt])
+  @@unique([userId, actionType, idempotencyKey])
 }
 
 model LabelPrintJob {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,45 @@ export function Topbar({ user }: TopbarProps) {
   const { showLoader } = useGlobalLoader();
   const { update } = useSession();
 
+  // Periodically call the refresh endpoint while the page/tab is visible to
+  // ensure server-side lastLogin is updated. Uses useEffect and visibility/focus
+  // to avoid unnecessary background traffic.
+  useEffect(() => {
+    let timer: number | undefined;
+    let mounted = true;
+
+    const shouldRun = () => typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
+
+    const run = async () => {
+      if (!mounted) return;
+      if (!shouldRun()) {
+        // retry later
+        timer = window.setTimeout(run, 60 * 1000);
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/refresh', { cache: 'no-store' });
+        if (res.ok) {
+          await update();
+        }
+      } catch {}
+      // schedule next run
+      timer = window.setTimeout(run, 10 * 60 * 1000);
+    };
+
+    run();
+    const onVisibility = () => { if (!timer) run(); };
+    window.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onVisibility);
+
+    return () => {
+      mounted = false;
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onVisibility);
+    };
+  }, [update]);
+
   const effectiveAvatarUrl = user?.avatarUrl;
   const effectiveHistory = user?.avatarHistory || [];
   const isSvgAvatar =
@@ -100,7 +139,7 @@ export function Topbar({ user }: TopbarProps) {
             <span className="sr-only">Toggle navigation menu</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-[250px] border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+        <SheetContent side="left" className="p-0 w-62.5 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
           <SheetDescription className="sr-only">
             Mobile navigation menu

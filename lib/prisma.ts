@@ -352,11 +352,15 @@ export async function ensureActivityLogSchema(): Promise<void> {
         await add("source", "TEXT");
         await add("fieldChanges", "TEXT");
         await add("details", "TEXT");
+        await add("idempotencyKey", "TEXT");
       } catch {}
 
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_userId_idx" ON "ActivityLog"("userId");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_module_idx" ON "ActivityLog"("module");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_createdAt_idx" ON "ActivityLog"("createdAt");`);
+      try {
+        await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ActivityLog_user_action_idempotency_key_unique" ON "ActivityLog"("userId","actionType","idempotencyKey");`);
+      } catch {}
     } catch {
     } finally {
       if (checkedTables) checkedTables.set("ActivityLog", true);

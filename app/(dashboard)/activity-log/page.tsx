@@ -90,11 +90,20 @@ export default async function ActivityLogPage({
     
     const totalPages = Math.ceil(totalCount / limit);
 
-    const userOptions = isSuperAdmin
-      ? await prisma.$queryRawUnsafe<Array<{ userId: string | null; userName: string | null }>>(
-          `SELECT DISTINCT userId, userName FROM "ActivityLog" WHERE userId IS NOT NULL ORDER BY userName LIMIT 200`
-        ).catch(() => [])
-      : [];
+    let userOptionsRaw: Array<{ userId: string | null; userName: string | null }> = [];
+    if (isSuperAdmin) {
+      userOptionsRaw = await prisma.$queryRawUnsafe<Array<{ userId: string | null; userName: string | null }>>(
+        `SELECT DISTINCT userId, userName FROM "ActivityLog" WHERE userId IS NOT NULL ORDER BY userName LIMIT 200`
+      ).catch(() => []);
+    }
+
+    // Deduplicate by userId (keep first seen userName) to avoid duplicate option keys
+    const userOptionsMap: Record<string, { userId: string; userName: string | null }> = {};
+    userOptionsRaw.forEach(u => {
+      if (!u || !u.userId) return;
+      if (!userOptionsMap[u.userId]) userOptionsMap[u.userId] = { userId: u.userId, userName: u.userName };
+    });
+    const userOptions = Object.values(userOptionsMap);
     const moduleOptions = await prisma.$queryRawUnsafe<Array<{ module: string | null }>>(
       `SELECT DISTINCT module FROM "ActivityLog" WHERE module IS NOT NULL ORDER BY module LIMIT 200`
     ).catch(() => []);
@@ -155,7 +164,7 @@ export default async function ActivityLogPage({
                     <select name="userId" defaultValue={userId || "ALL"} className="h-9 rounded-md border bg-background px-3 text-sm">
                       <option value="ALL">All</option>
                       {userOptions.map((u) => (
-                        <option key={String(u.userId)} value={String(u.userId)}>
+                        <option key={`${u.userId}-${u.userName || ""}`} value={String(u.userId)}>
                           {String((u.userName && u.userName !== "Unknown" ? u.userName : u.userId) || "System")}
                         </option>
                       ))}

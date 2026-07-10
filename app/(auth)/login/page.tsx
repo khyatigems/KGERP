@@ -42,7 +42,7 @@ export default async function LoginPage() {
     <div className="min-h-screen flex flex-col lg:flex-row bg-white dark:bg-slate-950 relative overflow-hidden">
 
       {/* Left Brand Panel - desktop only */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
 
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <FadeIn delay={100} direction="down">
