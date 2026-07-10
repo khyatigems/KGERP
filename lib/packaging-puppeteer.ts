@@ -62,7 +62,7 @@ export async function generatePackagingPdfPuppeteer(labels: PackagingLabelData[]
   }); 
 
   // Set content
-  await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+  await page.setContent(htmlContent, { waitUntil: ["load"] });
 
   // Generate PDF - EXACT USER CONFIG
   const pdfBuffer = await page.pdf({
