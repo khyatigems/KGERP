@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function CustomerIntelligencePage() {
   const session = await auth();
@@ -17,6 +18,7 @@ export default async function CustomerIntelligencePage() {
   const data = await getCustomerIntelligence(365);
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -77,5 +79,6 @@ export default async function CustomerIntelligencePage() {
         </Card>
       </div>
     </div>
+    </AnimatedPage>
   );
 }

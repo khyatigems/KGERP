@@ -16,6 +16,7 @@ import { redirect } from "next/navigation";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { QrScansControls } from "@/components/reports/qr-scans-controls";
 import { Prisma } from "@prisma/client";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -119,6 +120,7 @@ export default async function QrScansReportPage({ searchParams }: { searchParams
   };
 
   return (
+    <AnimatedPage>
     <div className="p-8 space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">QR Code & Link Analytics</h1>
@@ -288,6 +290,7 @@ export default async function QrScansReportPage({ searchParams }: { searchParams
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }
 

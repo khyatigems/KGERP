@@ -11,6 +11,7 @@ import { ReportFilters } from "@/components/reports/report-filters";
 import { formatCurrency } from "@/lib/utils";
 import { endOfDay, parseISO, startOfDay, subDays, format } from "date-fns";
 import { InventorySummaryExport } from "@/components/reports/inventory-summary-export";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 type SearchMap = { [key: string]: string | string[] | undefined };
 
@@ -92,6 +93,7 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
   ];
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -234,5 +236,5 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
-}

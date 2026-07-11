@@ -14,7 +14,7 @@ interface Sale {
 
 export function RecentSales({ sales }: { sales: Sale[] }) {
     return (
-        <Card className="col-span-1">
+        <Card className="sass-enter col-span-1">
             <CardHeader>
                 <CardTitle className="text-sm font-medium">Recent Sales</CardTitle>
             </CardHeader>

@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   /* config options here */
   serverExternalPackages: ["puppeteer", "puppeteer-core", "canvas"],
   reactCompiler: true,
+  experimental: {
+    viewTransition: true,
+  },
   cacheLife: {
     page: {
       stale: 60,

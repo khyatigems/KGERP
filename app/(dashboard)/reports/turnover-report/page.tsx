@@ -4,6 +4,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { getCapitalRotationAnalytics } from "@/lib/reports-analytics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function TurnoverReportPage() {
   const session = await auth();
@@ -12,6 +13,7 @@ export default async function TurnoverReportPage() {
   const data = await getCapitalRotationAnalytics();
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Turnover Report</h1>
       <Card>
@@ -33,5 +35,6 @@ export default async function TurnoverReportPage() {
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }

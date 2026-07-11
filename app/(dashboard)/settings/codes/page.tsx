@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SettingsCodesView } from "@/components/settings/settings-codes-view";
 
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
 export default async function SettingsCodesPage() {
@@ -26,7 +27,7 @@ export default async function SettingsCodesPage() {
   const stateCodes = await prisma.stateCode.findMany({ orderBy: { name: "asc" } }).catch(() => []);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <AnimatedPage><div className="max-w-6xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Code Management</h1>
       <SettingsCodesView
         categories={categories}
@@ -38,6 +39,6 @@ export default async function SettingsCodesPage() {
         certificates={certificates}
         stateCodes={stateCodes}
       />
-    </div>
+    </div></AnimatedPage>
   );
 }

@@ -17,7 +17,7 @@ export function MarketplaceStatWidget() {
   const critical = data?.criticalConflicts ?? 0;
 
   return (
-    <Card className="overflow-hidden flex flex-col h-full">
+    <Card className="sass-enter overflow-hidden flex flex-col h-full">
       <CardHeader className="flex flex-row items-center justify-between py-3 px-4 bg-muted/50">
         <CardTitle className="text-sm font-medium">Marketplace</CardTitle>
         <Globe className="h-4 w-4 text-orange-500" />

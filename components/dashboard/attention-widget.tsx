@@ -208,7 +208,7 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
     const totalAlerts = activeCategories.reduce((s, c) => s + c.count, 0);
 
     return (
-        <Card>
+        <Card className="sass-enter">
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

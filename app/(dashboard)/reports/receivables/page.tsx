@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata: Metadata = {
   title: "Receivables | KhyatiGems™",
@@ -78,6 +79,7 @@ export default async function ReceivablesPage() {
     Object.keys(rows[0] || {}).map((k) => ({ header: k, key: k as keyof typeof rows[number] }));
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Accounts Receivable</h1>
@@ -123,5 +125,5 @@ export default async function ReceivablesPage() {
         </Table>
       </div>
     </div>
+    </AnimatedPage>
   );
-}

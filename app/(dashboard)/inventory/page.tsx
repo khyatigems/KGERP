@@ -21,6 +21,7 @@ import type { Inventory, Prisma } from "@prisma/client";
 import { removeDuplicates } from "@/lib/dedup";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 type SearchParams = {
   query?: string;
@@ -462,6 +463,7 @@ export default async function InventoryPage({
     : null;
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <InventorySavedToast />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -567,5 +569,6 @@ export default async function InventoryPage({
         )}
       </div>
     </div>
+    </AnimatedPage>
   );
 }

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import NewUserForm from "./new-user-form";
 
 export default async function NewUserPage() {
@@ -12,8 +13,8 @@ export default async function NewUserPage() {
   });
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <AnimatedPage><div className="max-w-2xl mx-auto">
       <NewUserForm roles={roles} />
-    </div>
+    </div></AnimatedPage>
   );
 }

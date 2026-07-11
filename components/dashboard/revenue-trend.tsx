@@ -80,7 +80,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
   const todayRevenue = chartData.find((d) => d.date === todayStr)?.revenue ?? 0;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 h-full gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter gem-fade-in">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
@@ -113,7 +113,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
 
       <div className="h-[200px]" ref={containerRef}>
         {dims.width > 0 && dims.height > 0 && (
-        <AreaChart width={dims.width} height={dims.height} data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+        <AreaChart width={dims.width} height={dims.height} data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }} animationDuration={800} animationEasing="ease-out">
             <defs>
               <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />

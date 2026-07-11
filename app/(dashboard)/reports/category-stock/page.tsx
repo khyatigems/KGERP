@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function CategoryStockReportPage() {
   const session = await auth();
@@ -14,6 +15,7 @@ export default async function CategoryStockReportPage() {
   const rows = await getCategoryStockData();
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Category Stock</h1>
       <Card>
@@ -37,5 +39,6 @@ export default async function CategoryStockReportPage() {
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }

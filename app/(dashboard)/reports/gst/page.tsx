@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { GstGstr1View } from "@/components/reports/gst-gstr1-view";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,6 @@ export default async function GstReportsPage() {
   if (!session?.user) redirect("/login");
   if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
 
-  return <GstGstr1View />;
+  return <AnimatedPage><GstGstr1View /></AnimatedPage>;
 }
 

@@ -5,6 +5,7 @@ import { getLabelPrintingReportData } from "@/lib/report-module-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function LabelPrintingReportPage() {
   const session = await auth();
@@ -13,6 +14,7 @@ export default async function LabelPrintingReportPage() {
   const rows = await getLabelPrintingReportData();
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Label Printing</h1>
       <Card><CardHeader><CardTitle>Print Queue and Reprint History</CardTitle></CardHeader><CardContent>
@@ -32,5 +34,5 @@ export default async function LabelPrintingReportPage() {
         </Table>
       </CardContent></Card>
     </div>
+    </AnimatedPage>
   );
-}

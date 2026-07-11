@@ -30,7 +30,7 @@ export async function ActivityWidget() {
 
   if (loggingDisabled) {
     return (
-      <Card className="col-span-1 md:col-span-2 lg:col-span-1 h-full">
+      <Card className="sass-enter col-span-1 md:col-span-2 lg:col-span-1 h-full">
         <CardHeader>
           <CardTitle>Activity Log</CardTitle>
         </CardHeader>
@@ -40,7 +40,7 @@ export async function ActivityWidget() {
   }
 
   return (
-    <Card className="col-span-1 md:col-span-2 lg:col-span-1 h-full">
+    <Card className="sass-enter col-span-1 md:col-span-2 lg:col-span-1 h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <div className="space-y-1">
             <CardTitle className="text-base font-medium">Recent Activity</CardTitle>

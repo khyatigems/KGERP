@@ -4,6 +4,7 @@ import { ListingsView } from "@/components/listings/listings-view";
 import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -59,8 +60,10 @@ export default async function ListingsPage() {
   }));
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <ListingsView listings={enrichedListings} />
     </div>
+    </AnimatedPage>
   );
 }

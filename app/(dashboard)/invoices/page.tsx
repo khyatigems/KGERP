@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Eye, Globe, Receipt } from "lucide-react";
 import type { ElementType } from "react";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import type { Invoice, Sale, Quotation } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -142,7 +143,7 @@ export default async function InvoicesPage() {
   const exportInvoices = invoices.filter((i) => i.invoiceType === "EXPORT_INVOICE");
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
         <div className="flex gap-2">
@@ -180,6 +181,6 @@ export default async function InvoicesPage() {
           />
         </div>
       )}
-    </div>
+    </div></AnimatedPage>
   );
 }

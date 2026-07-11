@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { QuotationForm } from "@/components/quotes/quotation-form";
 import { checkPermission } from "@/lib/permission-guard";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { PERMISSIONS } from "@/lib/permissions";
 
 export const metadata: Metadata = {
@@ -48,7 +49,7 @@ export default async function NewQuotationPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Create Quotation</h1>
       </div>
@@ -62,6 +63,6 @@ export default async function NewQuotationPage() {
           </Suspense>
         </div>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

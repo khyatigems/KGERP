@@ -5,6 +5,7 @@ import { NewSalesPage } from "@/components/sales/new-sales-page-redesigned";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { mergePlatformConfig } from "@/lib/platforms";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata: Metadata = {
   title: "New Sale | KhyatiGems™",
@@ -91,6 +92,7 @@ export default async function NewSalePage() {
   });
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Record New Sale</h1>
@@ -122,5 +124,6 @@ export default async function NewSalePage() {
         </div>
       </div>
     </div>
+    </AnimatedPage>
   );
 }

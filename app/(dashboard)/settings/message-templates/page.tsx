@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { getMessageTemplates } from "./actions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { MessageTemplatesForm } from "./message-templates-form";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +18,12 @@ export default async function MessageTemplatesPage() {
   if (!hasPermission(session.user.role, PERMISSIONS.SETTINGS_MANAGE)) redirect("/");
   const rows = await getMessageTemplates();
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Message Templates</h1>
         <p className="text-muted-foreground">Manage WhatsApp templates with placeholders for customer name, loyalty points and coupon references.</p>
       </div>
       <MessageTemplatesForm initial={rows} />
-    </div>
+    </div></AnimatedPage>
   );
 }

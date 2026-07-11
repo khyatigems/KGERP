@@ -2,7 +2,7 @@
 
 import useSWR from "swr";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -14,7 +14,7 @@ export function LowActivityAlertsWidget({ saleDays = 14, invDays = 7 }: { saleDa
   const staleCount = data?.staleSkusCount || 0;
 
   return (
-    <Card className={(nosale || noinv) ? "border-red-300 bg-red-50/30" : ""}>
+    <Card className={cn("sass-enter", (nosale || noinv) && "border-red-300 bg-red-50/30")}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm text-muted-foreground">Low Activity Alerts</CardTitle>
       </CardHeader>

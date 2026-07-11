@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +108,7 @@ export default async function SalesReturnDetailsPage({ params }: { params: Promi
   });
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -238,5 +240,6 @@ export default async function SalesReturnDetailsPage({ params }: { params: Promi
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }

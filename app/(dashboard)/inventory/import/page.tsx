@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Download } from "lucide-react";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function ImportInventoryPage() {
   const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
@@ -27,6 +28,7 @@ export default async function ImportInventoryPage() {
   ];
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -49,5 +51,6 @@ export default async function ImportInventoryPage() {
 
       <CsvImporter onImport={importInventory} templateHeaders={headers} />
     </div>
+    </AnimatedPage>
   );
 }

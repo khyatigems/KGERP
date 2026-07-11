@@ -45,7 +45,7 @@ export function MarketplaceSyncHealth() {
   if (platforms.length === 0 && pending === 0 && critical === 0) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 sass-enter gem-fade-in">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-500 dark:text-purple-400">

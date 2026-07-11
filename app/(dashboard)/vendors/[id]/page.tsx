@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -59,7 +60,7 @@ export default async function VendorDetailPage({
   const canManage = hasPermission(session.user.role, PERMISSIONS.VENDOR_MANAGE);
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -232,6 +233,6 @@ export default async function VendorDetailPage({
           </CardContent>
         </Card>
       )}
-    </div>
+    </div></AnimatedPage>
   );
 }

@@ -65,7 +65,7 @@ export function BusinessHealthCards({ data }: BusinessHealthProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="sass-enter grid grid-cols-2 lg:grid-cols-4 gap-3">
       {cards.map((card, i) => (
         <Link
           key={card.label}

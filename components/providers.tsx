@@ -16,7 +16,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <GlobalLoaderProvider>
           {children}
-          <Toaster />
+          <Toaster
+            richColors
+            expand
+            visibleToasts={4}
+            toastOptions={{
+              className: "sass-enter",
+            }}
+          />
         </GlobalLoaderProvider>
       </NextThemesProvider>
     </SessionProvider>

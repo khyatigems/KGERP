@@ -1,6 +1,7 @@
 import { AdvancesPage } from "@/components/advances/advances-page";
 import { getAdvances } from "./actions";
 import { prisma } from "@/lib/prisma";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function AdvancesPageRoute() {
   const [advancesResult, customers, companySettings] = await Promise.all([
@@ -31,9 +32,9 @@ export default async function AdvancesPageRoute() {
     email: c.email || undefined,
   }));
 
-  return <AdvancesPage 
+  return <AnimatedPage><AdvancesPage 
     advances={advances} 
     customers={mappedCustomers} 
     companySettings={companySettings || undefined}
-  />;
+  /></AnimatedPage>;
 }

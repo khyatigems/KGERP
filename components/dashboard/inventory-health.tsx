@@ -112,7 +112,7 @@ export function InventoryHealth() {
 
   if (!stats) {
     return (
-      <div className="rounded-xl border border-border bg-card p-5 h-full gem-fade-in">
+      <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter gem-fade-in">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-500/10 text-slate-500 dark:text-slate-400">
             <Package className="h-4 w-4" />
@@ -127,7 +127,7 @@ export function InventoryHealth() {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 h-full gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter gem-fade-in">
       <div className="flex items-center gap-3 mb-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-500/10 text-slate-500 dark:text-slate-400">
           <Package className="h-4 w-4" />

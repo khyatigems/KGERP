@@ -1,6 +1,7 @@
 import { getLoyaltyPointsReport } from "./actions";
 import LoyaltyPointsClientPage from "./loyalty-points-client-page";
 import { subDays } from "date-fns";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function LoyaltyPointsReportServerPage() {
   const endDate = new Date();
@@ -8,5 +9,5 @@ export default async function LoyaltyPointsReportServerPage() {
 
   const initialReport = await getLoyaltyPointsReport(startDate, endDate);
 
-  return <LoyaltyPointsClientPage initialReport={initialReport} />;
+  return <AnimatedPage><LoyaltyPointsClientPage initialReport={initialReport} /></AnimatedPage>;
 }

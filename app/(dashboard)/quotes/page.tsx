@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { QuotesCardList } from "@/components/quotes/quotes-card-list";
 import { auth } from "@/lib/auth";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 
 export const metadata: Metadata = {
@@ -51,7 +52,7 @@ export default async function QuotationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-end">
         {canCreate && (
           <>
@@ -151,6 +152,6 @@ export default async function QuotationsPage() {
           </TableBody>
         </Table>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

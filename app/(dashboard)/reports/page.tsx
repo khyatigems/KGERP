@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ExportJobCenter } from "@/components/reports/export-job-center";
 import { getGovernanceConfig } from "@/lib/governance";
 import { ReportsRangeSelect } from "@/components/reports/reports-range-select";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function ReportsHubPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
     const session = await auth();
@@ -372,6 +373,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
     ];
 
     return (
+        <AnimatedPage>
         <div className="space-y-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
@@ -445,6 +447,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                     ))}
                 </div>
             </div>
-        </div>
+            </div>
+        </AnimatedPage>
     );
 }

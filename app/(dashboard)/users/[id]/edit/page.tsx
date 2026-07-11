@@ -1,6 +1,7 @@
 
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import EditUserForm from "./edit-form";
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,8 +27,8 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <AnimatedPage><div className="max-w-2xl mx-auto">
       <EditUserForm user={userData} roles={roles} />
-    </div>
+    </div></AnimatedPage>
   );
 }

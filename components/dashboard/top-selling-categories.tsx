@@ -20,7 +20,7 @@ export function TopSellingCategories({ data }: TopSellingCategoriesProps) {
   const maxValue = Math.max(...data.map((d) => d.value));
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 h-full gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter gem-fade-in">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500 dark:text-violet-400">

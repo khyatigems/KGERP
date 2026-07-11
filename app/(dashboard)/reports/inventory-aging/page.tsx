@@ -11,6 +11,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExportButton } from "@/components/ui/export-button";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 type SearchMap = { [key: string]: string | string[] | undefined };
 
@@ -76,6 +77,7 @@ export default async function InventoryAgingReportPage({ searchParams }: { searc
   };
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -172,5 +174,5 @@ export default async function InventoryAgingReportPage({ searchParams }: { searc
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
-}

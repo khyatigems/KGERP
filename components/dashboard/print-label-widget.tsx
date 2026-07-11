@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export function PrintLabelWidget({ count, lastItem }: { count: number; lastItem: string | null }) {
     return (
-        <Card className="overflow-hidden flex flex-col h-full">
+        <Card className="sass-enter overflow-hidden flex flex-col h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-muted/50">
                 <CardTitle className="text-sm font-medium">Print Label Cart</CardTitle>
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">

@@ -61,7 +61,7 @@ export function ActivityFeed() {
   if (error) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 h-full flex flex-col gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 h-full flex flex-col sass-enter gem-fade-in">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">

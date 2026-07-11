@@ -21,6 +21,7 @@ import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-b
 import { computeInvoiceGst } from "@/lib/invoice-gst";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { sanitizeNumberText } from "@/lib/number-formatting";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { resolveInventoryCertificateUrl } from "@/lib/certificate-url";
 
 export const dynamic = "force-dynamic";
@@ -466,7 +467,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   // For PARTIAL/UNPAID, use calculated values (already set in object definition)
   
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
           <Link href="/invoices">
@@ -732,6 +733,6 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
                 )}
           </div>
       )}
-    </div>
+    </div></AnimatedPage>
   );
 }

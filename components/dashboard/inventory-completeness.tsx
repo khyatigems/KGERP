@@ -28,7 +28,7 @@ export function InventoryCompletenessWidget() {
   const pct = Math.round(((pctImages + pctCerts + pctHsn) / 3) * 100);
 
   return (
-    <Card>
+    <Card className="sass-enter">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm text-muted-foreground">Inventory Completeness</CardTitle>
       </CardHeader>

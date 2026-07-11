@@ -23,6 +23,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { RolesPermissionsTable } from "@/components/roles-permissions-table";
 
 export default async function UsersPage() {
@@ -39,7 +40,7 @@ export default async function UsersPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <Tabs defaultValue="users" className="w-full">
         <TabsList>
           <TabsTrigger value="users">User Management</TabsTrigger>
@@ -140,6 +141,6 @@ export default async function UsersPage() {
           <RolesPermissionsTable />
         </TabsContent>
       </Tabs>
-    </div>
+    </div></AnimatedPage>
   );
 }

@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { VendorForm } from "@/components/vendors/vendor-form";
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export default async function EditVendorPage({
   if (!vendor) notFound();
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Edit Vendor</h1>
       </div>
@@ -30,6 +31,6 @@ export default async function EditVendorPage({
           <VendorForm vendor={vendor} />
         </div>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

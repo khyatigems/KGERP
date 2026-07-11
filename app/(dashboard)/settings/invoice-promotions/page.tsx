@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { getInvoicePromotionSettings } from "./actions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { InvoicePromotionsForm } from "./invoice-promotions-form";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +18,12 @@ export default async function InvoicePromotionsPage() {
   if (!hasPermission(session.user.role, PERMISSIONS.SETTINGS_MANAGE)) redirect("/");
   const data = await getInvoicePromotionSettings();
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Invoice Promotions</h1>
         <p className="text-muted-foreground">Manage public invoice banners and review/referral CTA visibility.</p>
       </div>
       <InvoicePromotionsForm initialSettings={data.settings} initialBanners={data.banners} />
-    </div>
+    </div></AnimatedPage>
   );
 }

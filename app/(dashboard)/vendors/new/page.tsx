@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { VendorForm } from "@/components/vendors/vendor-form";
 
 export const metadata: Metadata = {
@@ -7,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function NewVendorPage() {
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Add Vendor</h1>
       </div>
@@ -16,6 +17,6 @@ export default function NewVendorPage() {
           <VendorForm />
         </div>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

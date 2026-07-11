@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { MergeClient } from "@/components/masters/merge-client";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export default async function MergeCustomersPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Merge Customers</h1>
       </div>
@@ -29,6 +30,6 @@ export default async function MergeCustomersPage() {
           <MergeClient customers={customers} />
         </CardContent>
       </Card>
-    </div>
+    </div></AnimatedPage>
   );
 }

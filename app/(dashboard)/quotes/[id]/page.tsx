@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowLeft, ExternalLink, ShoppingCart } from "lucide-react";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { QuotationActions } from "@/components/quotes/quotation-actions";
 
 export const metadata: Metadata = {
@@ -56,7 +57,7 @@ export default async function QuoteDetailPage({
   }, {} as Record<string, string>);
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
           <Link href="/quotes">
@@ -186,6 +187,6 @@ export default async function QuoteDetailPage({
           </TableBody>
         </Table>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { getInvoiceSettings } from "./actions";
 import { InvoiceSettingsForm } from "./invoice-settings-form";
 import { ExportSettingsForm } from "@/components/settings/export-settings-form";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export default async function InvoiceSettingsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Invoice Settings</h1>
@@ -37,6 +38,6 @@ export default async function InvoiceSettingsPage() {
       <div className="pt-6 border-t">
         <ExportSettingsForm />
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

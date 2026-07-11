@@ -25,6 +25,7 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { PurchaseSearch } from "@/components/purchases/purchase-search";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata: Metadata = {
   title: "Purchases | KhyatiGems™",
@@ -144,6 +145,7 @@ export default async function PurchasesPage({
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       {/* Stats Cards */}
       {stats && (
@@ -293,5 +295,6 @@ export default async function PurchasesPage({
         </Table>
       </div>
     </div>
+    </AnimatedPage>
   );
 }

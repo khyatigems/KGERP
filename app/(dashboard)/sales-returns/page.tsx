@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { ensureSalesReturnReplacementSchema } from "@/lib/prisma";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -149,6 +150,7 @@ export default async function SalesReturnsPage() {
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -237,5 +239,6 @@ export default async function SalesReturnsPage() {
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }

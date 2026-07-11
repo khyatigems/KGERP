@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Download, Search, Wallet } from "lucide-react";
 import Link from "next/link";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 interface CustomerAdvanceBalance {
   customerId: string;
@@ -85,6 +86,7 @@ export default function CustomerAdvanceBalanceReportPage() {
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Customer Advance Balance Report</h1>
@@ -195,5 +197,6 @@ export default function CustomerAdvanceBalanceReportPage() {
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { getLoyaltySettings } from "./actions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { LoyaltySettingsForm } from "./loyalty-settings-form";
 
 export const dynamic = "force-dynamic";
@@ -17,12 +18,12 @@ export default async function LoyaltySettingsPage() {
   if (!hasPermission(session.user.role, PERMISSIONS.SETTINGS_MANAGE)) redirect("/");
   const initial = await getLoyaltySettings();
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Loyalty Settings</h1>
         <p className="text-muted-foreground">Configure earn/redeem rules and profile-completion reward points (DOB/Anniversary).</p>
       </div>
       <LoyaltySettingsForm initial={initial} />
-    </div>
+    </div></AnimatedPage>
   );
 }

@@ -11,6 +11,7 @@ import { Filter } from "lucide-react";
 import { ExportButton } from "@/components/ui/export-button";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata: Metadata = {
   title: "Activity Log | KhyatiGems™",
@@ -135,6 +136,7 @@ export default async function ActivityLogPage({
     ];
 
     return (
+        <AnimatedPage>
         <div className="space-y-6">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <form className="flex flex-wrap items-end gap-3" action="/activity-log" method="get">
@@ -289,5 +291,6 @@ export default async function ActivityLogPage({
                 </div>
             </div>
         </div>
+        </AnimatedPage>
     );
 }

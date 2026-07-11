@@ -14,7 +14,7 @@ export type DashboardHeaderProps = {
 
 export function DashboardHeader({ dbConnection, onRefresh, name }: DashboardHeaderProps) {
   return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 rounded-xl border border-border bg-card p-4 md:p-5 gem-fade-in gem-shimmer-border">
+    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 rounded-xl border border-border bg-card p-4 md:p-5 sass-enter gem-fade-in gem-shimmer-border">
       <div className="flex items-center gap-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
            <Logo className="h-7 w-7 text-primary" />

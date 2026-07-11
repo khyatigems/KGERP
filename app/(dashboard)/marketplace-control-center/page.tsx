@@ -13,6 +13,7 @@ import { AlertTriangle, Globe, ShoppingCart, Activity } from "lucide-react";
 import { MarketplaceExportButton } from "@/components/marketplace-export-button";
 import { MarketplaceNavButton } from "@/components/marketplace-nav-button";
 import { MarketplacePriceAuditExport } from "@/components/marketplace-price-audit-export";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,7 @@ export default async function MarketplaceControlCenterPage({
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Marketplace Control Center</h1>
@@ -481,5 +483,6 @@ export default async function MarketplaceControlCenterPage({
         </div>
       ) : null}
     </div>
+    </AnimatedPage>
   );
 }

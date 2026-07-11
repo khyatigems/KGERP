@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { CompanySettingsForm } from "@/components/settings/company-settings-form";
 import { LoadingLink } from "@/components/ui/loading-link";
 
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 
 export default async function SettingsPage() {
@@ -40,7 +41,7 @@ export default async function SettingsPage() {
   const companySettings = await prisma.companySettings.findFirst();
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <AnimatedPage><div className="max-w-6xl mx-auto space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
@@ -206,6 +207,6 @@ export default async function SettingsPage() {
            </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </div></AnimatedPage>
   );
 }

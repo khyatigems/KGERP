@@ -88,7 +88,7 @@ export function QuickNotes() {
   const sortedNotes = notes ? [...notes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-4 sass-enter gem-fade-in">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400">

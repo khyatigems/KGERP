@@ -23,6 +23,7 @@ import type { ElementType } from "react";
 
 import { checkPermission } from "@/lib/permission-guard";
 import { Input } from "@/components/ui/input";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata: Metadata = {
   title: "Sales History | KhyatiGems™",
@@ -551,6 +552,7 @@ export default async function SalesPage({
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       {/* Header with Search */}
       <div className="flex flex-col gap-4">
@@ -662,5 +664,6 @@ export default async function SalesPage({
         </div>
       )}
     </div>
+    </AnimatedPage>
   );
 }

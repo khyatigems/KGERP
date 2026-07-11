@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, Suspense, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { AppLogoLoader } from "@/components/ui/app-logo-loader";
+import { TopLoader } from "@/components/ui/top-loader";
 
 interface GlobalLoaderContextType {
   isLoading: boolean;
@@ -97,6 +98,7 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
   return (
     <GlobalLoaderContext.Provider value={{ isLoading, setIsLoading, showLoader, hideLoader }}>
       {children}
+      <TopLoader isLoading={isLoading} progress={progress} />
       {isLoading && <AppLogoLoader label={null} progress={progress} />}
     </GlobalLoaderContext.Provider>
   );

@@ -35,7 +35,7 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
 
 export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="sass-enter grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">Best Selling Categories</CardTitle>
@@ -44,7 +44,7 @@ export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
           {categories && categories.length > 0 ? (
             <div className="min-w-0 min-h-[240px] h-[260px]">
               <ResponsiveContainer width="100%" height={260} minWidth={0} minHeight={240}>
-                <BarChart data={categories} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                <BarChart data={categories} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }} animationDuration={800} animationEasing="ease-out">
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
                   <Tooltip content={<CustomTooltip />} />
@@ -72,7 +72,7 @@ export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
            {types && types.length > 0 ? (
             <div className="min-w-0 min-h-[240px] h-[260px]">
               <ResponsiveContainer width="100%" height={260} minWidth={0} minHeight={240}>
-                <BarChart data={types} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                <BarChart data={types} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }} animationDuration={800} animationEasing="ease-out">
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
                   <Tooltip content={<CustomTooltip />} />

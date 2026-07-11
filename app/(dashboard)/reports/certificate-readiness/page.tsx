@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExportButton } from "@/components/ui/export-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 type ChecklistRow = {
   id: string;
@@ -138,6 +139,7 @@ export default async function CertificateReadinessReportPage() {
   ];
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Certificate Checklist Report</h2>
@@ -225,5 +227,6 @@ export default async function CertificateReadinessReportPage() {
         </Table>
       </div>
     </div>
+    </AnimatedPage>
   );
 }

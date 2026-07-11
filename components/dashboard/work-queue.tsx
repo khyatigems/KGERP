@@ -74,7 +74,7 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 gem-fade-in gem-shimmer-border">
+    <div className="rounded-xl border border-border bg-card p-5 sass-enter gem-fade-in gem-shimmer-border">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">

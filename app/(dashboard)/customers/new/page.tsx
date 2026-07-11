@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { CustomerForm } from "@/components/customers/customer-form";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export default async function NewCustomerPage() {
   if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_MANAGE)) redirect("/");
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Add Customer</h1>
       </div>
@@ -23,7 +24,7 @@ export default async function NewCustomerPage() {
           <CustomerForm />
         </div>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }
 

@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -37,7 +38,7 @@ export default async function VendorsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-end">
         <Button asChild>
           <LoadingLink href="/vendors/new">
@@ -111,6 +112,6 @@ export default async function VendorsPage() {
           </TableBody>
         </Table>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

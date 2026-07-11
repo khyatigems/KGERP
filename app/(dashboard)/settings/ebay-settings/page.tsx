@@ -1,4 +1,5 @@
 import { EbaySettingsForm } from "./ebay-settings-form";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { getEbaySettingsAction } from "@/app/settings/ebay/actions";
 
 export const metadata = {
@@ -10,7 +11,7 @@ export default async function EbaySettingsPage() {
   const result = await getEbaySettingsAction();
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">eBay Product Description Settings</h1>
         <p className="text-muted-foreground mt-2">
@@ -19,6 +20,6 @@ export default async function EbaySettingsPage() {
       </div>
 
       <EbaySettingsForm initialData={result.success ? result.data ?? null : null} />
-    </div>
+    </div></AnimatedPage>
   );
 }

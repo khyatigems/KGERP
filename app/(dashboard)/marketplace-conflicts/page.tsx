@@ -8,6 +8,7 @@ import { markMarketplaceConflictResolved } from "@/app/(dashboard)/marketplace-c
 import { MarketplaceNavButton } from "@/components/marketplace-nav-button";
 import Link from "next/link";
 import { Filter } from "lucide-react";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,7 @@ export default async function MarketplaceConflictsPage({
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Marketplace Conflicts</h1>
@@ -164,5 +166,6 @@ export default async function MarketplaceConflictsPage({
         </div>
       )}
     </div>
+    </AnimatedPage>
   );
 }

@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { QuotationForm } from "@/components/quotes/quotation-form";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -43,7 +44,7 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
   };
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Edit Quotation</h1>
       </div>
@@ -52,6 +53,6 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
           <QuotationForm availableItems={availableItems} initialData={initialData} />
         </div>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

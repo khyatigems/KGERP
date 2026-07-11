@@ -11,6 +11,7 @@ import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { GciCertButton } from "@/components/inventory/gci-cert-button";
 import type { InventoryMedia } from "@prisma/client";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 // ISR: Revalidate every 60 seconds for near-instant page loads
 // Page is cached and refreshed in background
@@ -297,6 +298,7 @@ export default async function InventoryDetailPage({
   const meta = { species, variety, color: colorVal, weight: weightValDisplay, shape: shapeVal, measurements: measurementsVal, origin: originVal, treatment: treatmentVal, fluorescence: fluorescenceVal, certificateComments: certificateCommentsVal, imageCount };
 
     return (
+        <AnimatedPage>
         <div className="space-y-6 pb-20 md:pb-0">
             <div className="flex items-center justify-between">
                 <div>
@@ -751,5 +753,6 @@ export default async function InventoryDetailPage({
 
             <MobileInventoryActions id={id} status={detailedItem.status} />
         </div>
+        </AnimatedPage>
     );
 }

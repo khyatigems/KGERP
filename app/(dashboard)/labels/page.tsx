@@ -4,6 +4,7 @@ import { LabelsManagementTable } from "@/components/labels/labels-management-tab
 import { LabelCartSheet } from "@/components/labels/label-cart-sheet";
 import { LabelHistory } from "@/components/labels/label-history";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata: Metadata = {
   title: "Label Management | KhyatiGems™",
@@ -27,6 +28,7 @@ export default async function LabelsPage() {
   ]);
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-end">
         <LabelCartSheet initialItems={cartItems} />
@@ -47,5 +49,6 @@ export default async function LabelsPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </AnimatedPage>
   );
 }

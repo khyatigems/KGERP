@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { LandingPageForm } from "@/components/settings/landing-page-form";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { getLandingPageSettings } from "./actions";
 
 export const metadata = {
@@ -19,8 +20,8 @@ export default async function LandingPageSettingsPage() {
   const settings = await getLandingPageSettings();
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
+    <AnimatedPage><div className="flex-1 space-y-4 p-8 pt-6">
       <LandingPageForm initialSettings={settings} />
-    </div>
+    </div></AnimatedPage>
   );
 }

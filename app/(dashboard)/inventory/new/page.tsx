@@ -4,6 +4,7 @@ import { cachedMasters } from "@/lib/cache";
 import { InventoryForm } from "@/components/inventory/inventory-form";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata: Metadata = {
   title: "Add Inventory | KhyatiGems™",
@@ -51,6 +52,7 @@ export default async function NewInventoryPage() {
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Add New Item</h1>
@@ -72,5 +74,6 @@ export default async function NewInventoryPage() {
         </div>
       </div>
     </div>
+    </AnimatedPage>
   );
 }

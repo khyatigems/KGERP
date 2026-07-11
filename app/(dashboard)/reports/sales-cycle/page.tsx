@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { ReportFilters } from "@/components/reports/report-filters";
 import { ExportButton } from "@/components/ui/export-button";
 import { endOfDay, parseISO, startOfDay, subDays, format } from "date-fns";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export default async function SalesCycleReportPage({ searchParams }: SalesCycleR
   ];
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-2xl font-bold">Sales Cycle</h1>
@@ -86,5 +88,6 @@ export default async function SalesCycleReportPage({ searchParams }: SalesCycleR
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }

@@ -9,6 +9,7 @@ import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -128,12 +129,13 @@ export default async function CustomerEventsPage({
     .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
 
   return (
+    <AnimatedPage>
     <CustomerEventsClientPage
       initialEvents={filtered.map((e) => ({
         ...e,
         eventDate: e.eventDate.toISOString(),
       }))}
       initialRange={range}
-    />
+    /></AnimatedPage>
   );
 }

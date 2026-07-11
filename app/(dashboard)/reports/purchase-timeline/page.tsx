@@ -5,6 +5,7 @@ import { getPurchaseTimelineData } from "@/lib/report-module-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function PurchaseTimelineReportPage() {
   const session = await auth();
@@ -14,6 +15,7 @@ export default async function PurchaseTimelineReportPage() {
   const rows = await getPurchaseTimelineData();
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Purchase Timeline</h1>
       <Card>
@@ -36,5 +38,6 @@ export default async function PurchaseTimelineReportPage() {
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { cachedMasters } from "@/lib/cache";
 import { InventoryForm } from "@/components/inventory/inventory-form";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata: Metadata = {
   title: "Edit Inventory | KhyatiGems™",
@@ -103,6 +104,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Edit Inventory</h1>
@@ -125,5 +127,6 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
         </div>
       </div>
     </div>
+    </AnimatedPage>
   );
 }

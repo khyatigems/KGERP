@@ -92,13 +92,16 @@ const TabsContent = React.forwardRef<
   const context = React.useContext(TabsContext)
   if (!context) throw new Error("TabsContent must be used within Tabs")
 
-  if (context.value !== value) return null
+  const isActive = context.value === value
 
   return (
     <div
       ref={ref}
+      data-state={isActive ? "active" : "inactive"}
       className={cn(
         "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        !isActive && "hidden",
+        isActive && "animate-scale-in",
         className
       )}
       {...props}

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { OpsAnalytics } from "@/components/reports/ops-analytics";
 import { startOfDay, subDays, format } from "date-fns";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -81,9 +82,10 @@ export default async function OpsReportPage() {
   };
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Label & Ops Reports</h1>
       <OpsAnalytics data={analyticsData} />
     </div>
+    </AnimatedPage>
   );
-}

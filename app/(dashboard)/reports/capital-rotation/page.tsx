@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 type SearchMap = { [key: string]: string | string[] | undefined };
 
@@ -56,6 +57,7 @@ export default async function CapitalRotationReportPage({ searchParams }: { sear
   }));
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -165,5 +167,6 @@ export default async function CapitalRotationReportPage({ searchParams }: { sear
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }

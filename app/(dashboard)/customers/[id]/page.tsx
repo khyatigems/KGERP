@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
 import { CustomerDetailTabs } from "@/components/customers/customer-detail-tabs";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 
 export const metadata: Metadata = {
@@ -130,7 +131,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
   const loyaltyPoints = Number(loyaltyRows?.[0]?.points || 0);
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{customer.name}</h1>
@@ -191,6 +192,6 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
         }}
         recentInvoices={recentInvoices}
       />
-    </div>
+    </div></AnimatedPage>
   );
 }

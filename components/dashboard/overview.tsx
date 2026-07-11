@@ -9,33 +9,35 @@ interface OverviewProps {
 
 export function Overview({ data }: OverviewProps) {
   return (
-    <ResponsiveContainer width="100%" height={350} minWidth={0} minHeight={200}>
-      <BarChart data={data}>
-        <XAxis
-          dataKey="name"
-          stroke="#888888"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
-          stroke="#888888"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={(value) => `₹${value}`}
-        />
-        <Tooltip 
-            formatter={(value: number | undefined) => formatCurrency(value || 0)}
-            cursor={{ fill: 'transparent' }}
-        />
-        <Bar
-          dataKey="total"
-          fill="currentColor"
-          radius={[4, 4, 0, 0]}
-          className="fill-primary"
-        />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="sass-enter">
+      <ResponsiveContainer width="100%" height={350} minWidth={0} minHeight={200}>
+        <BarChart data={data} animationDuration={800} animationEasing="ease-out">
+          <XAxis
+            dataKey="name"
+            stroke="#888888"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis
+            stroke="#888888"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) => `₹${value}`}
+          />
+          <Tooltip 
+              formatter={(value: number | undefined) => formatCurrency(value || 0)}
+              cursor={{ fill: 'transparent' }}
+          />
+          <Bar
+            dataKey="total"
+            fill="currentColor"
+            radius={[4, 4, 0, 0]}
+            className="fill-primary"
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

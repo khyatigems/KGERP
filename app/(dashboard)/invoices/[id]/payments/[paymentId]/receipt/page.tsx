@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type Props = {
@@ -27,7 +28,7 @@ export default async function PaymentReceiptPage({ params }: Props) {
   const customerName = payment.invoice.sales[0]?.customerName || "Customer";
 
   return (
-    <div className="max-w-2xl mx-auto p-8">
+    <AnimatedPage><div className="max-w-2xl mx-auto p-8">
       <div className="border rounded-lg p-6 space-y-4">
         <h1 className="text-2xl font-bold">Payment Receipt</h1>
         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -49,6 +50,6 @@ export default async function PaymentReceiptPage({ params }: Props) {
           <div>{payment.recordedBy || "-"}</div>
         </div>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Download, Search, Clock } from "lucide-react";
 import Link from "next/link";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 interface PendingAdvance {
   advanceId: string;
@@ -94,6 +95,7 @@ export default function PendingAdvancesReportPage() {
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Pending Advance Adjustment Report</h1>
@@ -253,5 +255,5 @@ export default function PendingAdvancesReportPage() {
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
-}

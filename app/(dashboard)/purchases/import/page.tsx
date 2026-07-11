@@ -5,6 +5,7 @@ import { importPurchases } from "../actions";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default function ImportPurchasesPage() {
   const headers = [
@@ -14,6 +15,7 @@ export default function ImportPurchasesPage() {
   ];
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" asChild>
@@ -28,5 +30,6 @@ export default function ImportPurchasesPage() {
 
       <CsvImporter onImport={importPurchases} templateHeaders={headers} />
     </div>
+    </AnimatedPage>
   );
 }

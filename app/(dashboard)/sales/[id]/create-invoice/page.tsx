@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { CreateInvoiceForm } from "@/components/invoices/create-invoice-form";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const metadata: Metadata = {
   title: "Create Invoice | KhyatiGems™",
@@ -48,6 +49,7 @@ export default async function CreateInvoicePage({ params }: { params: Promise<{ 
   }
 
   return (
+    <AnimatedPage>
     <div className="max-w-2xl mx-auto space-y-6 p-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Invoice Configuration</h1>
@@ -61,5 +63,6 @@ export default async function CreateInvoicePage({ params }: { params: Promise<{ 
         </div>
       </div>
     </div>
+    </AnimatedPage>
   );
 }

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Download, Search, Receipt } from "lucide-react";
 import Link from "next/link";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 interface AdvanceUtilization {
   adjustmentId: string;
@@ -84,6 +85,7 @@ export default function AdvanceUtilizationReportPage() {
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Advance Utilization Report</h1>
@@ -182,5 +184,6 @@ export default function AdvanceUtilizationReportPage() {
         </CardContent>
       </Card>
     </div>
+    </AnimatedPage>
   );
 }

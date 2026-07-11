@@ -1,6 +1,7 @@
 import { getDiscountUsageReport } from "./actions";
 import DiscountUsageClientPage from "./discount-usage-client-page";
 import { subDays } from "date-fns";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function DiscountUsageReportServerPage() {
   const endDate = new Date();
@@ -8,5 +9,5 @@ export default async function DiscountUsageReportServerPage() {
 
   const initialReport = await getDiscountUsageReport(startDate, endDate);
 
-  return <DiscountUsageClientPage initialReport={initialReport} />;
+  return <AnimatedPage><DiscountUsageClientPage initialReport={initialReport} /></AnimatedPage>;
 }

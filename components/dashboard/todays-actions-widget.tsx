@@ -47,7 +47,7 @@ export function TodaysActionsWidget({ data }: { data: TodaysActionsData }) {
     ];
 
     return (
-        <Card className="h-full">
+        <Card className="sass-enter h-full">
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold flex items-center gap-2">

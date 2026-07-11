@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { updatePurchaseInvoice, deletePurchaseAction } from "../actions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 type PurchasePageProps = {
   params: Promise<{
@@ -103,6 +104,7 @@ export default async function PurchaseDetailPage({
   }
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -290,5 +292,6 @@ export default async function PurchaseDetailPage({
         </div>
       </div>
     </div>
+    </AnimatedPage>
   );
 }

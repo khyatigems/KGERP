@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -172,7 +173,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const { rows: exportData, columns: exportColumns } = buildCustomerExport(exportCustomers as any);
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
@@ -348,6 +349,6 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           </TableBody>
         </Table>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

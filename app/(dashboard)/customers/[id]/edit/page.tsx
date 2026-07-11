@@ -4,6 +4,7 @@ import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { CustomerForm } from "@/components/customers/customer-form";
+import { AnimatedPage } from "@/components/ui/animated-page";
 import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
 
 export const metadata: Metadata = {
@@ -42,7 +43,7 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
   };
 
   return (
-    <div className="space-y-6">
+    <AnimatedPage><div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Edit Customer</h1>
       </div>
@@ -51,6 +52,6 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
           <CustomerForm customer={merged} />
         </div>
       </div>
-    </div>
+    </div></AnimatedPage>
   );
 }

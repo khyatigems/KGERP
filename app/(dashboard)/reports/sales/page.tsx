@@ -3,6 +3,7 @@ import { SalesAnalytics } from "@/components/reports/sales-analytics";
 import { startOfMonth, subMonths, format, endOfDay, startOfDay, parseISO } from "date-fns";
 import { ReportFilters } from "@/components/reports/report-filters";
 import { ExportButton } from "@/components/ui/export-button";
+import { AnimatedPage } from "@/components/ui/animated-page";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +112,7 @@ export default async function SalesReportPage({ searchParams }: SalesReportPageP
   ];
 
   return (
+    <AnimatedPage>
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -133,5 +135,6 @@ export default async function SalesReportPage({ searchParams }: SalesReportPageP
 
       <SalesAnalytics data={analyticsData} />
     </div>
+    </AnimatedPage>
   );
 }

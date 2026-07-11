@@ -47,6 +47,20 @@
   --animate-shimmer: shimmer 1.5s infinite linear;
   --animate-progress-indeterminate: progress-indeterminate 1.5s infinite linear;
   --animate-logo-pulse: logo-pulse 2s ease-in-out infinite;
+  --animate-enter: enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-exit: exit 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+  --animate-scale-in: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-up: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-down: slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fade-in: fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pulse-soft: pulse-soft 3s ease-in-out infinite;
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-breathe: breathe 3s ease-in-out infinite;
+  --animate-shimmer-fast: shimmer-fast 0.8s infinite linear;
+  --animate-skeleton: skeleton-shimmer 1.5s infinite linear;
+  --animate-content-show: content-show 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shake: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --animate-check-pop: check-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
   @keyframes shimmer {
     0% { transform: translateX(-100%); }
@@ -61,6 +75,63 @@
     0% { transform: scale(0.95); opacity: 0.7; }
     50% { transform: scale(1.05); opacity: 1; }
     100% { transform: scale(0.95); opacity: 0.7; }
+  }
+  @keyframes enter {
+    0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes exit {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-8px); }
+  }
+  @keyframes scale-in {
+    0% { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes slide-up {
+    0% { opacity: 0; transform: translateY(16px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-down {
+    0% { opacity: 0; transform: translateY(-16px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+  @keyframes shimmer-fast {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  @keyframes content-show {
+    0% { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+    20%, 40%, 60%, 80% { transform: translateX(4px); }
+  }
+  @keyframes check-pop {
+    0% { opacity: 0; transform: scale(0.5); }
+    100% { opacity: 1; transform: scale(1); }
   }
 
   @keyframes gem-fade-in {
@@ -181,46 +252,90 @@
   }
 }
 
-/* Gemstone Dashboard Animations */
-.gem-fade-in {
-  animation: gem-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* ═══════════════════════════════════════════════════════════════
+   SAAS Animation Utilities — KhyatiGems ERP
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Page Transitions ── */
+@utility sass-enter {
+  animation: enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.gem-stagger-in {
-  animation: gem-stagger 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-fill-mode: both;
+/* ── Staggered Children ── */
+@utility sass-stagger {
+  & > *:nth-child(1) { animation-delay: 0s; }
+  & > *:nth-child(2) { animation-delay: 0.05s; }
+  & > *:nth-child(3) { animation-delay: 0.1s; }
+  & > *:nth-child(4) { animation-delay: 0.15s; }
+  & > *:nth-child(5) { animation-delay: 0.2s; }
+  & > *:nth-child(6) { animation-delay: 0.25s; }
+  & > *:nth-child(7) { animation-delay: 0.3s; }
+  & > *:nth-child(8) { animation-delay: 0.35s; }
+  & > *:nth-child(n+9) { animation-delay: 0.4s; }
 }
 
-.gem-facet-glow {
-  animation: gem-facet-glow 4s ease-in-out infinite;
+/* ── Hover Interactions ── */
+@utility sass-hover-lift {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(59, 130, 246, 0.05);
+  }
 }
 
-.gem-shimmer-border {
-  position: relative;
-  overflow: hidden;
+@utility sass-hover-glow {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  &:hover {
+    border-color: rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.1);
+  }
 }
-.gem-shimmer-border::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 40%,
-    rgba(255, 255, 255, 0.03) 45%,
-    rgba(255, 255, 255, 0.06) 50%,
-    rgba(255, 255, 255, 0.03) 55%,
-    transparent 60%
-  );
+
+/* ── Click Feedback ── */
+@utility sass-click-scale {
+  transition: transform 0.1s ease;
+  &:active { transform: scale(0.97); }
+}
+
+/* ── Skeleton Loading ── */
+@utility sass-skeleton {
+  background: linear-gradient(90deg, hsl(var(--muted) / 0.3) 25%, hsl(var(--muted) / 0.6) 37%, hsl(var(--muted) / 0.3) 63%);
   background-size: 200% 100%;
-  animation: gem-shimmer 6s ease-in-out infinite;
-  pointer-events: none;
-  border-radius: inherit;
+  animation: skeleton-shimmer 1.5s infinite linear;
+  border-radius: var(--radius);
 }
 
-.gem-pulse {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+/* ── Modal Animations ── */
+@utility sass-overlay-show {
+  animation: fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.gem-pulse:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.05);
+
+@utility sass-content-show {
+  animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Accessibility ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Input Shake on Error ── */
+@utility animate-shake {
+  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* ── View Transitions ── */
+::view-transition-old(page) {
+  animation: exit 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+::view-transition-new(page) {
+  animation: enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@view-transition {
+  navigation: auto;
 }
