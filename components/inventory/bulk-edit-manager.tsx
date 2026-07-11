@@ -34,6 +34,8 @@ type InventoryItem = {
   collectionCodeId: string | null;
   stockLocation: string | null;
   status: string;
+  vendor: { id: string; name: string } | null;
+  collectionCode: { id: string; name: string } | null;
   categoryCode: { id: string; name: string } | null;
   gemstoneCode: { id: string; name: string } | null;
   colorCode: { id: string; name: string } | null;
@@ -124,8 +126,8 @@ export function BulkEditManager({
       case "categoryCodeId": return item.categoryCode?.name ?? "";
       case "gemstoneCodeId": return item.gemstoneCode?.name ?? "";
       case "colorCodeId": return item.colorCode?.name ?? "";
-      case "vendorId": return item.vendorId ?? "";
-      case "collectionCodeId": return item.collectionCodeId ?? "";
+      case "vendorId": return item.vendor?.name ?? "";
+      case "collectionCodeId": return item.collectionCode?.name ?? "";
       case "cutCodeId": return item.cutCode?.name ?? "";
       case "origin": return item.origin ?? "";
       case "shape": return item.shape ?? "";

@@ -53,6 +53,8 @@ export default async function BulkEditPage({
       gemstoneCode: { select: { id: true, name: true } },
       colorCode: { select: { id: true, name: true } },
       cutCode: { select: { id: true, name: true } },
+      vendor: { select: { id: true, name: true } },
+      collectionCode: { select: { id: true, name: true } },
     },
     orderBy: { sku: "asc" },
   });
