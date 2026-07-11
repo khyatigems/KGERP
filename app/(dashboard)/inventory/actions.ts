@@ -10,7 +10,7 @@ import { logActivity } from "@/lib/activity-logger";
 import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
 import { addToCart } from "@/app/(dashboard)/labels/actions";
 import { checkPermission } from "@/lib/permission-guard";
-import { PERMISSIONS } from "@/lib/permissions";
+import { PERMISSIONS, checkUserPermission } from "@/lib/permissions";
 import { isValidBeadSizeLabel, normalizeBeadSizeLabel, parseBeadSizeMm } from "@/lib/bead-size";
 import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 import type { PriceSuggestionResult } from "@/lib/price-suggestion";
@@ -219,12 +219,10 @@ async function logPriceRecommendation(
 }
 
 export async function createInventory(prevState: unknown, formData: FormData) {
-  const [perm, session] = await Promise.all([
-    checkPermission(PERMISSIONS.INVENTORY_CREATE),
-    auth(),
-  ]);
-  if (!perm.success) return { message: perm.message };
-  if (!session) return { message: "Unauthorized" };
+  const session = await auth();
+  if (!session?.user?.id) return { message: "Unauthorized" };
+  const hasPerm = await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_CREATE);
+  if (!hasPerm) return { message: "Insufficient permissions" };
   await ensureInventoryBraceletSchema();
 
   const raw = Object.fromEntries(formData.entries());
@@ -925,7 +923,8 @@ export async function bulkUpdateInventory(
         const allowedFields = [
           "stockLocation", "status", "categoryCodeId", 
           "gemstoneCodeId", "colorCodeId", "cutCodeId", 
-          "collectionCodeId", "vendorId", "pricingMode"
+          "collectionCodeId", "vendorId", "pricingMode",
+          "fluorescence", "origin", "shape", "treatment", "transparency"
         ];
         if (allowedFields.includes(key)) {
           simpleUpdates[key] = value;

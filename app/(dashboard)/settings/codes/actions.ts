@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { logActivity } from "@/lib/activity-logger";
 import { PERMISSIONS } from "@/lib/permissions";
 import { checkPermission } from "@/lib/permission-guard";
@@ -150,6 +150,7 @@ export async function createCode(group: CodeGroup, formData: FormData) {
     });
 
     revalidatePath("/settings/codes");
+    revalidateTag(`masters:${group}`, "default");
     return { success: true, data: created };
   } catch (error) {
     console.error(error);
@@ -264,6 +265,7 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     });
 
     revalidatePath("/settings/codes");
+    revalidateTag(`masters:${group}`, "default");
     return { success: true };
   } catch (error) {
     console.error(error);
@@ -336,6 +338,7 @@ export async function setCodeStatus(group: CodeGroup, formData: FormData) {
     });
 
     revalidatePath("/settings/codes");
+    revalidateTag(`masters:${group}`, "default");
     return { success: true };
   } catch (error) {
     console.error(error);
@@ -496,6 +499,7 @@ export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
       userName: session.user.name || undefined,
     });
     revalidatePath("/settings/codes");
+    revalidateTag(`masters:${group}`, "default");
   }
 
   return { success: true, results };

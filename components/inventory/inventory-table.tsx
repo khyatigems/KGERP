@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,8 @@ interface InventoryTableProps {
   rashis: any[];
   certificates: any[];
   collections: any[];
+  cuts?: any[];
+  origins?: string[];
   canManageAttentionVisibility: boolean;
 }
 
@@ -37,8 +40,11 @@ export function InventoryTable({
   rashis,
   certificates,
   collections,
+  cuts = [],
+  origins = [],
   canManageAttentionVisibility,
 }: InventoryTableProps) {
+  const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
   const [isBulkCertificateDialogOpen, setIsBulkCertificateDialogOpen] = useState(false);
@@ -102,9 +108,16 @@ export function InventoryTable({
             ) : null}
           </span>
           <RegenerateEbayButton selectedItemIds={selectedIds} />
-          <Button size="sm" onClick={() => setIsBulkEditDialogOpen(true)}>
+          <Button size="sm" onClick={() => {
+            const params = new URLSearchParams();
+            selectedIds.forEach(id => params.append('id', id));
+            router.push(`/inventory/bulk-edit?${params.toString()}`);
+          }}>
             <Edit className="mr-2 h-4 w-4" />
             Bulk Edit
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setIsBulkEditDialogOpen(true)}>
+            Quick Edit
           </Button>
           <Button size="sm" variant="secondary" onClick={() => setIsBulkCertificateDialogOpen(true)}>
             <ShieldCheck className="mr-2 h-4 w-4" />
@@ -303,6 +316,8 @@ export function InventoryTable({
         certificates={certificates}
         vendors={vendors}
         collections={collections}
+        cuts={cuts}
+        origins={origins}
       />
       <BulkCertificateDialog
         selectedIds={selectedIds}

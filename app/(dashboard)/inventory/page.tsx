@@ -394,6 +394,7 @@ async function getInventoryData(params: SearchParams) {
     collections,
     rashis,
     certificates,
+    cuts,
   ] = await Promise.all([
     canCategoryCode ? cachedMasters.getCategories(prisma)() : Promise.resolve([]),
     canGemstoneCode ? cachedMasters.getGemstones(prisma)() : Promise.resolve([]),
@@ -402,7 +403,13 @@ async function getInventoryData(params: SearchParams) {
     canCollectionCode ? cachedMasters.getCollections(prisma)() : Promise.resolve([]),
     canRashi ? cachedMasters.getRashis(prisma)() : Promise.resolve([]),
     canCertificate ? cachedMasters.getCertificates(prisma)() : Promise.resolve([]),
+    canCutCode ? cachedMasters.getCuts(prisma)() : Promise.resolve([]),
   ]);
+
+  const originRows = await prisma.$queryRawUnsafe<Array<{ origin: string }>>(
+    `SELECT DISTINCT "origin" FROM "Inventory" WHERE "origin" IS NOT NULL AND "origin" <> '' ORDER BY "origin"`
+  );
+  const origins = originRows.map((r) => r.origin);
 
   const inventory = removeDuplicates(rows, "id");
 
@@ -419,6 +426,8 @@ async function getInventoryData(params: SearchParams) {
     collections,
     rashis,
     certificates,
+    cuts,
+    origins,
     totalPages: Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE)),
     currentPage,
     filtersKey,
@@ -544,6 +553,8 @@ export default async function InventoryPage({
           rashis={data.rashis}
           certificates={data.certificates}
           collections={data.collections}
+          cuts={data.cuts}
+          origins={data.origins}
           canManageAttentionVisibility={data.canManageAttentionVisibility}
         />
 

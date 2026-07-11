@@ -24,6 +24,8 @@ interface BulkEditDialogProps {
   certificates: { id: string; name: string }[];
   vendors: { id: string; name: string }[];
   collections: { id: string; name: string }[];
+  cuts?: { id: string; name: string; code: string }[];
+  origins?: string[];
 }
 
 export function BulkEditDialog({
@@ -38,6 +40,8 @@ export function BulkEditDialog({
   certificates,
   vendors,
   collections,
+  cuts = [],
+  origins = [],
 }: BulkEditDialogProps) {
   const [updates, setUpdates] = useState<Record<string, unknown>>({});
   const [enabledFields, setEnabledFields] = useState<string[]>([]);
@@ -91,6 +95,12 @@ export function BulkEditDialog({
     { id: "colorCodeId", label: "Color", type: "select" },
     { id: "vendorId", label: "Vendor", type: "select" },
     { id: "collectionCodeId", label: "Collection", type: "select" },
+    { id: "cutCodeId", label: "Cut", type: "select" },
+    { id: "shape", label: "Shape", type: "select" },
+    { id: "origin", label: "Origin", type: "select" },
+    { id: "fluorescence", label: "Fluorescence", type: "select" },
+    { id: "treatment", label: "Treatment", type: "select" },
+    { id: "transparency", label: "Transparency", type: "select" },
     { id: "rashiIds", label: "Rashi", type: "multi" },
     { id: "certificateIds", label: "Certificates", type: "multi" },
   ];
@@ -216,6 +226,73 @@ export function BulkEditDialog({
                ))}
              </div>
            </ScrollArea>
+        );
+      case "cutCodeId":
+        return (
+           <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Select Cut" /></SelectTrigger>
+            <SelectContent>
+              {cuts.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      case "shape":
+        return (
+          <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Select Shape" /></SelectTrigger>
+            <SelectContent>
+              {["Round", "Oval", "Cushion", "Emerald", "Pear", "Marquise", "Heart", "Other"].map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      case "origin":
+        return (
+          <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Select Origin" /></SelectTrigger>
+            <SelectContent>
+              {[...new Set(["Burma (Myanmar)", "Sri Lanka (Ceylon)", "Kashmir", "Madagascar", "Mozambique", "Thailand", "Colombia", "Zambia", ...origins])]
+                .map((o) => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        );
+      case "fluorescence":
+        return (
+          <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Select Fluorescence" /></SelectTrigger>
+            <SelectContent>
+              {["None", "Faint", "Medium", "Strong", "Very Strong", "Not Applicable"].map((f) => (
+                <SelectItem key={f} value={f}>{f}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      case "treatment":
+        return (
+          <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Select Treatment" /></SelectTrigger>
+            <SelectContent>
+              {["None", "Untreated", "Heat", "Oil", "Resin", "Irradiation", "Diffusion", "Glass-Filled"].map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      case "transparency":
+        return (
+          <Select onValueChange={(v) => updateValue(fieldId, v)} value={(value as string) || ""}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Select Transparency" /></SelectTrigger>
+            <SelectContent>
+              {["Transparent", "Translucent", "Opaque", "Semi-Transparent", "Semi-Translucent"].map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         );
       default:
         return null;

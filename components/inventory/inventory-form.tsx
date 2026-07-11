@@ -374,7 +374,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         }
 
         if (shouldRedirect) {
-          router.push("/inventory");
+          router.replace("/inventory");
           return;
         } else {
           window.scrollTo({ top: 0, behavior: 'smooth' });
