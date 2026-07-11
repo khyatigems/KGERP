@@ -1,8 +1,6 @@
 import { cn } from "@/lib/utils"
 
-interface SkeletonProps {
-  className?: string
-}
+interface SkeletonProps extends React.ComponentProps<"div"> {}
 
 export function Skeleton({ className, ...props }: SkeletonProps) {
   return (

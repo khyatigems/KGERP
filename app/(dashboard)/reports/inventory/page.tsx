@@ -238,3 +238,4 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
     </div>
     </AnimatedPage>
   );
+}

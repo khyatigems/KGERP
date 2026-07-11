@@ -113,7 +113,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
 
       <div className="h-[200px]" ref={containerRef}>
         {dims.width > 0 && dims.height > 0 && (
-        <AreaChart width={dims.width} height={dims.height} data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }} animationDuration={800} animationEasing="ease-out">
+        <AreaChart width={dims.width} height={dims.height} data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
@@ -147,6 +147,8 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
               fill="url(#revenueGradient)"
               dot={false}
               activeDot={{ r: 4, fill: "#10B981", stroke: "var(--card)", strokeWidth: 2 }}
+              animationDuration={800}
+              animationEasing="ease-out"
             />
           </AreaChart>
         )}

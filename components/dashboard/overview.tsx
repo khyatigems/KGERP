@@ -11,7 +11,7 @@ export function Overview({ data }: OverviewProps) {
   return (
     <div className="sass-enter">
       <ResponsiveContainer width="100%" height={350} minWidth={0} minHeight={200}>
-        <BarChart data={data} animationDuration={800} animationEasing="ease-out">
+        <BarChart data={data}>
           <XAxis
             dataKey="name"
             stroke="#888888"
@@ -35,6 +35,8 @@ export function Overview({ data }: OverviewProps) {
             fill="currentColor"
             radius={[4, 4, 0, 0]}
             className="fill-primary"
+            animationDuration={800}
+            animationEasing="ease-out"
           />
         </BarChart>
       </ResponsiveContainer>

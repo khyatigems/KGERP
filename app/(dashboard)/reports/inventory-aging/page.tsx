@@ -176,3 +176,4 @@ export default async function InventoryAgingReportPage({ searchParams }: { searc
     </div>
     </AnimatedPage>
   );
+}

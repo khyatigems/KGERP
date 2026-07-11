@@ -44,11 +44,11 @@ export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
           {categories && categories.length > 0 ? (
             <div className="min-w-0 min-h-[240px] h-[260px]">
               <ResponsiveContainer width="100%" height={260} minWidth={0} minHeight={240}>
-                <BarChart data={categories} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }} animationDuration={800} animationEasing="ease-out">
+                <BarChart data={categories} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} animationDuration={800} animationEasing="ease-out">
                     {categories.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
@@ -72,11 +72,11 @@ export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
            {types && types.length > 0 ? (
             <div className="min-w-0 min-h-[240px] h-[260px]">
               <ResponsiveContainer width="100%" height={260} minWidth={0} minHeight={240}>
-                <BarChart data={types} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }} animationDuration={800} animationEasing="ease-out">
+                <BarChart data={types} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} animationDuration={800} animationEasing="ease-out">
                     {types.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}

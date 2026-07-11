@@ -31,7 +31,7 @@ export default async function ReceivablesPage() {
         </div>
       </div>
     );
-  }
+}
 
   const today = new Date();
   const invoices = await prisma.invoice.findMany({
@@ -116,8 +116,9 @@ export default async function ReceivablesPage() {
                       <TableCell key={String(c.key)}>
                         {typeof val === "number" ? formatCurrency(val) : val}
                       </TableCell>
-                    );
-                  })}
+  );
+}
+                  )}
                 </TableRow>
               ))
             )}
@@ -127,3 +128,4 @@ export default async function ReceivablesPage() {
     </div>
     </AnimatedPage>
   );
+}
