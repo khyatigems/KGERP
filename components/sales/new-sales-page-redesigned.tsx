@@ -470,22 +470,6 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
     }
   }, [customerSearchQuery, existingCustomers]);
 
-  // Item search
-  useEffect(() => {
-    if (itemSearchQuery) {
-      const filtered = inventoryItems.filter(item =>
-        item.status === 'IN_STOCK' && (
-          item.sku.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
-          item.itemName.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
-          item.category.toLowerCase().includes(itemSearchQuery.toLowerCase())
-        )
-      );
-      setFilteredItems(filtered.slice(0, 10));
-    } else {
-      setFilteredItems([]);
-    }
-  }, [itemSearchQuery, inventoryItems]);
-
   // Fetch available advances and credit notes when customer is selected
   useEffect(() => {
     if (selectedCustomer?.id) {
