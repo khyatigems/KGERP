@@ -1472,7 +1472,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                       </div>
                       {watchedValues.invoiceType === "EXPORT_INVOICE" ? (
                         <div className="flex items-center gap-1">
-                          <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200 min-w-[44px] text-center">
+                          <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-200 min-w-11 text-center">
                             {watchedValues.invoiceCurrency || "USD"}
                           </span>
                           <Input
@@ -1497,7 +1497,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                           />
                         </div>
                       )}
-                      <div className="text-right min-w-[90px]">
+                      <div className="text-right min-w-22.5">
                         {watchedValues.invoiceType === "EXPORT_INVOICE" ? (
                           <>
                             <div className="font-bold text-blue-700 font-mono">

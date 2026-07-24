@@ -573,7 +573,7 @@ export async function getPackagingInventory(params?: { search?: string; page?: n
         skip,
         take: limit,
       }),
-      prisma.inventory.count(statusFilter),
+      prisma.inventory.count({ where: statusFilter }),
       prisma.inventory.count(),
     ]);
       
