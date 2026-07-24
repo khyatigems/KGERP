@@ -492,8 +492,8 @@ export async function validateInventoryForPackaging(sku: string, _opts?: { bypas
   }
 
   // Stock check handled in generation, but good to check here too
-  if (inventory.status !== "IN_STOCK") {
-      return { success: false, message: `Item status is ${inventory.status}, must be IN_STOCK` };
+  if (inventory.status !== "IN_STOCK" && inventory.status !== "SOLD") {
+      return { success: false, message: `Item status is ${inventory.status}, must be IN_STOCK or SOLD` };
   }
 
   return { success: true, inventory };
@@ -531,7 +531,7 @@ export async function validatePackagingEligibility(inventoryIds: string[]) {
     const mappedHsn = inv.category ? categoryHsnMap[inv.category] : undefined;
     if (!mappedHsn) missing.push("HSN Code (add in settings)");
     // if (!inv.stockLocation) missing.push("Inventory Location");
-    if (inv.status !== "IN_STOCK") missing.push(`Status ${inv.status} (must be IN_STOCK)`);
+    if (inv.status !== "IN_STOCK" && inv.status !== "SOLD") missing.push(`Status ${inv.status} (must be IN_STOCK or SOLD)`);
     if (showGstin && !gstin) missing.push("GSTIN (enabled in settings)");
 
     if (missing.length > 0) {
@@ -552,8 +552,9 @@ export async function getPackagingInventory(params?: { search?: string; page?: n
     const page = params?.page ?? 1;
     const limit = params?.limit ?? 20;
     const skip = (page - 1) * limit;
-    const where = {
-      status: "IN_STOCK",
+    const statusFilter = { status: { in: ["IN_STOCK", "SOLD"] } };
+  const where = {
+      ...statusFilter,
       ...(params?.search
         ? {
             OR: [
@@ -572,7 +573,7 @@ export async function getPackagingInventory(params?: { search?: string; page?: n
         skip,
         take: limit,
       }),
-      prisma.inventory.count({ where: { status: "IN_STOCK" } }),
+      prisma.inventory.count(statusFilter),
       prisma.inventory.count(),
     ]);
       
