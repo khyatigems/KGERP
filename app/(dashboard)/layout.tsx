@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { Sidebar } from "@/components/layout/sidebar";
@@ -14,6 +15,16 @@ type DashboardUser = {
   avatarHistory?: string[];
   role?: string;
   lastLogin?: Date | string | null;
+};
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    noarchive: true,
+    nosnippet: true,
+    noimageindex: true,
+  },
 };
 
 export default async function DashboardLayout({

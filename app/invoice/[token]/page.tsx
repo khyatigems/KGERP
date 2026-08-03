@@ -572,7 +572,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-slate-50 to-white py-8 px-4 print:py-0 print:px-0 print:bg-white">
+    <div className="min-h-screen bg-linear-to-b from-slate-100 via-slate-50 to-white py-8 px-4 print:py-0 print:px-0 print:bg-white">
         <div className="max-w-5xl mx-auto bg-white shadow-2xl rounded-2xl border border-slate-200/70 overflow-hidden print:shadow-none print:rounded-none print:border-0 relative print:w-full">
             
             {/* Top Action Bar */}
@@ -615,7 +615,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                         {companySettings?.gstin && <p className="font-medium text-gray-800">GSTIN: {companySettings.gstin}</p>}
                     </div>
                 </div>
-                <div className="text-right rounded-xl border border-slate-200 bg-slate-50 px-6 py-4 min-w-[220px]">
+                <div className="text-right rounded-xl border border-slate-200 bg-slate-50 px-6 py-4 min-w-55">
                     <h1 className="text-3xl font-light text-slate-300 tracking-tight">
                       {isExportInvoice ? "EXPORT INVOICE" : "TAX INVOICE"}
                     </h1>
@@ -679,7 +679,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Bill To</h3>
                     <div className="text-gray-900 font-medium text-lg">{customerName}</div>
                     <div className="text-sm text-gray-600 mt-1 space-y-0.5">
-                        {customerAddress && <p className="whitespace-pre-wrap break-words">{customerAddress}</p>}
+                        {customerAddress && <p className="whitespace-pre-wrap wrap-break-word">{customerAddress}</p>}
                         {customerPhone && <p>{customerPhone}</p>}
                         {customerEmail && <p>{customerEmail}</p>}
                         {customerCode && <p>Customer Code: {customerCode}</p>}
@@ -1023,7 +1023,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                      )}
 
                      {paymentSettings?.razorpayEnabled && paymentSettings?.razorpayButtonId && !isPaid && (
-                        <div className="border-l border-gray-200 pl-8 flex flex-col justify-center min-w-[200px]">
+                        <div className="border-l border-gray-200 pl-8 flex flex-col justify-center min-w-50">
                             <p className="font-bold text-gray-900 mb-2 text-xs">Pay Online</p>
                             <RazorpayButton buttonId={paymentSettings.razorpayButtonId.trim()} className="flex justify-start" />
                         </div>

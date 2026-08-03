@@ -3,12 +3,25 @@ import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
+const ROBOTS_TAG = "noindex, nofollow, noarchive, nosnippet, noimageindex";
+const INTERNAL_ROUTE_PREFIXES = ["/erp", "/dashboard", "/inventory", "/orders", "/customers", "/settings", "/reports", "/admin", "/login", "/api"];
+
+function shouldSetNoindexHeader(pathname: string) {
+  const normalized = pathname.toLowerCase();
+
+  return INTERNAL_ROUTE_PREFIXES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
+}
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
-  
-  const isPublicRoute = 
+  const response = NextResponse.next();
+
+  if (shouldSetNoindexHeader(pathname)) {
+    response.headers.set("x-robots-tag", ROBOTS_TAG);
+  }
+
+  const isPublicRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/verify") ||
     pathname.startsWith("/preview") ||
@@ -24,11 +37,11 @@ export default auth((req) => {
     if (isLoggedIn && pathname.startsWith("/login")) {
       return NextResponse.redirect(new URL("/", req.nextUrl));
     }
-    return NextResponse.next();
+    return response;
   }
 
   if (pathname.startsWith("/api")) {
-    return NextResponse.next();
+    return response;
   }
 
   // 2. Enforce Authentication for Protected Routes
@@ -38,11 +51,11 @@ export default auth((req) => {
 
   // Root path specific check if needed, or default allow for authenticated
   if (pathname === "/") {
-     return NextResponse.next();
+    return response;
   }
 
   // Allow static files and others
-  return NextResponse.next();
+  return response;
 });
 
 export const config = {
