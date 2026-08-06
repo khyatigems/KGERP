@@ -21,6 +21,7 @@ type ExportSaleRow = {
   paymentStatus: string | null;
   platform: string;
   profit: number | null;
+  actualProfit: number | null;
   costPriceSnapshot: number | null;
   inventory: {
     sku: string;
@@ -56,6 +57,7 @@ function computeProfitMap(rows: Array<{
   discountAmount: number;
   costPriceSnapshot: number | null;
   profit: number | null;
+  actualProfit: number | null;
   inventory: {
     flatPurchaseCost: number | null;
     purchaseRatePerCarat: number | null;
@@ -136,7 +138,7 @@ function computeProfitMap(rows: Array<{
       const net = Number(s.netAmount || 0);
       const tax = Number(s.taxAmount ?? NaN);
       const lineTaxable = Number.isFinite(tax) && tax > 0 ? net - tax : net;
-      const baseProfit = Number.isFinite(effectiveCost) ? lineTaxable - effectiveCost : Number(s.profit || 0);
+      const baseProfit = Number.isFinite(effectiveCost) ? lineTaxable - effectiveCost : Number(s.actualProfit ?? s.profit ?? 0);
       const weight = taxableTotal > 0 ? lineTaxable / taxableTotal : 0;
       const share = discountTaxable > 0 ? discountTaxable * weight : 0;
       out.set(s.id, baseProfit - (Number.isFinite(share) ? share : 0));
@@ -235,6 +237,7 @@ export async function GET(request: NextRequest) {
             paymentStatus: true,
             platform: true,
             profit: true,
+            actualProfit: true,
             costPriceSnapshot: true,
             inventory: {
               select: {
@@ -275,6 +278,7 @@ export async function GET(request: NextRequest) {
                 discountAmount: true,
                 costPriceSnapshot: true,
                 profit: true,
+                actualProfit: true,
                 inventory: {
                   select: {
                     flatPurchaseCost: true,

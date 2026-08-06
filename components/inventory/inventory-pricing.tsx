@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { FormInputValues, CodeRow } from "./inventory-form.types";
 import { PriceSuggestionWidget } from "./price-suggestion-widget";
+import { InventoryPricingPlanner } from "./inventory-pricing-planner";
 
 interface PricingSectionProps {
   form: UseFormReturn<FormInputValues>;
@@ -138,6 +139,8 @@ export function PricingSection({ form, vendors, categories, gemstones }: Pricing
         />
 
         <PriceSuggestionWidget form={form} categories={categories} gemstones={gemstones} />
+
+        <InventoryPricingPlanner form={form} />
 
         {pricingMode === "PER_CARAT" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -14,6 +14,9 @@ export const PERMISSIONS = {
 
   // Listings
   LISTINGS_VIEW: "listings:view",
+
+  // Marketplace settings & pricing engine
+  MARKETPLACE_SETTINGS_MANAGE: "marketplace:settings_manage",
   
   // Quotations
   QUOTATION_VIEW: "quotations:view",

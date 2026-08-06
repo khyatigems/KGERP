@@ -397,7 +397,8 @@ export async function createInventory(prevState: unknown, formData: FormData) {
         ? [data.mediaUrl]
         : [];
 
-    Promise.all([
+    // Fire-and-forget: don't await side effects — return immediately
+    Promise.allSettled([
       logActivity({
         entityType: "Inventory",
         entityId: createdInventory.id,
@@ -436,7 +437,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
           carats,
         });
       })(),
-    ]).catch((e) => console.error("Post-creation error:", e));
+    ]).catch(() => {});
   }
 
   return {
@@ -464,10 +465,9 @@ export async function updateInventory(
   }
   await ensureInventoryBraceletSchema();
 
-  // Check if sold
+  // Fetch full row once: used for the sold-check AND as the pre-update snapshot.
   const current = await prisma.inventory.findUnique({
-      where: { id },
-      select: { status: true }
+      where: { id }
   });
   
   if (!current) return { message: "Inventory not found" };
@@ -545,7 +545,7 @@ export async function updateInventory(
   // --- End Integrity Checks ---
 
   try {
-    const oldInventory = await prisma.inventory.findUnique({ where: { id } });
+    const oldInventory = current;
 
     const updateData: Prisma.InventoryUpdateInput & { beadSizeLabel?: string | null } = {
       itemName: data.itemName,
@@ -597,23 +597,25 @@ export async function updateInventory(
       data: updateData,
     });
 
-    await logActivity({
+    // Fire-and-forget: activity log, marketplace conflict, price recommendation
+    // These are independent and don't affect the save response.
+    logActivity({
         entityType: "Inventory",
         entityId: id,
         entityIdentifier: updatedInventory.sku,
         actionType: "EDIT",
         oldData: oldInventory,
         newData: updatedInventory,
-    });
+    }).catch(() => {});
 
-    await triggerMarketplaceConflict({
+    triggerMarketplaceConflict({
       inventoryId: id,
       status: updatedInventory.status,
       pieces: updatedInventory.pieces,
       userId: session.user.id,
       userName: session.user.name || session.user.email || "Unknown",
       source: "WEB",
-    });
+    }).catch(() => {});
 
     if (data.mediaUrls) {
         // 1. Delete removed media using strict database query
@@ -1020,7 +1022,8 @@ export async function updateInventoryStatus(
     data: { status },
   });
 
-  await logActivity({
+  // Fire-and-forget side effects
+  logActivity({
     entityType: "Inventory",
     entityId: inventoryId,
     entityIdentifier: current.sku,
@@ -1031,15 +1034,15 @@ export async function updateInventoryStatus(
     userId: session.user.id,
     userName: session.user.name || session.user.email || "Unknown",
     source: "WEB",
-  });
+  }).catch(() => {});
 
-  await triggerMarketplaceConflict({
+  triggerMarketplaceConflict({
     inventoryId,
     status,
     userId: session.user.id,
     userName: session.user.name || session.user.email || "Unknown",
     source: "WEB",
-  });
+  }).catch(() => {});
 
   revalidatePath("/inventory");
   return { success: true };

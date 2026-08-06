@@ -1,4 +1,4 @@
-import { ensureMarketplaceControlCenterSchema, getMarketplaceDashboardData, getMarketplaceAuditMetrics } from "@/lib/marketplace-control-center";
+import { ensureMarketplaceControlCenterSchema, getMarketplaceDashboardData, getMarketplaceAuditMetrics, MarketplacePortfolioRow, MarketplacePlatform } from "@/lib/marketplace-control-center";
 import { ensureMarketplaceMetricsSchema, prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,12 +8,16 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import Link from "next/link";
 import { AlertTriangle, Globe, ShoppingCart, Activity } from "lucide-react";
 import { MarketplaceExportButton } from "@/components/marketplace-export-button";
 import { MarketplaceNavButton } from "@/components/marketplace-nav-button";
 import { MarketplacePriceAuditExport } from "@/components/marketplace-price-audit-export";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { analyzePricing, resolvePurchaseCost } from "@/lib/pricing/engine";
+import { getCurrencyRates, getDefaultProfile, getProfiles, isPricingEngineEnabled } from "@/lib/pricing/db";
+import { toInr } from "@/lib/pricing/currency";
+import type { MarketplaceProfileConfig, PricingAnalysis } from "@/lib/pricing/types";
+import { OpportunityReportTable, OpportunityReportRowPayload } from "@/components/opportunity-report-table";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +49,45 @@ export default async function MarketplaceControlCenterPage({
     to: toParam || undefined,
   });
 
-  const audit = await getMarketplaceAuditMetrics(86);
+  const audit = await getMarketplaceAuditMetrics();
 
   await ensureMarketplaceMetricsSchema();
+
+  // Pricing analysis data (Opportunity Report)
+  const pricingEnabled = await isPricingEngineEnabled();
+  const defaultProfile = await getDefaultProfile();
+  const allProfiles = await getProfiles();
+  const rates = await getCurrencyRates();
+  const profileByName = new Map<string, MarketplaceProfileConfig>(
+    allProfiles.map((p) => [p.name, p])
+  );
+
+  function analyzeRow(row: MarketplacePortfolioRow, sellingPrice: number, profile?: MarketplaceProfileConfig): PricingAnalysis | null {
+    if (!profile) return null;
+    const purchasePrice = resolvePurchaseCost(row);
+    return analyzePricing({
+      purchasePrice,
+      sellingPrice,
+      charges: profile.charges,
+      marginType: profile.marginType,
+      marginValue: profile.marginValue,
+    });
+  }
+
+  function perMarketplaceRows(row: MarketplacePortfolioRow): Array<{ platform: MarketplacePlatform; analysis: PricingAnalysis; listedPriceInr: number }> {
+    if (!pricingEnabled) return [];
+    const out: Array<{ platform: MarketplacePlatform; analysis: PricingAnalysis; listedPriceInr: number }> = [];
+    for (const platform of row.platforms) {
+      const profile = profileByName.get(platform);
+      const listed = row.marketplacePrices[platform];
+      if (!profile || listed == null) continue;
+      const listedInr = toInr(listed, row.marketplaceCurrencies[platform] || profile.currency, rates);
+      const finalPrice = Number.isFinite(listedInr) ? listedInr : Number(listed);
+      const analysis = analyzeRow(row, finalPrice, profile);
+      if (analysis) out.push({ platform, analysis, listedPriceInr: finalPrice });
+    }
+    return out;
+  }
 
   const categories = await prisma.$queryRawUnsafe<Array<{ category: string | null }>>(
     `SELECT DISTINCT "category" FROM "Inventory" WHERE "category" IS NOT NULL AND "category" <> '' ORDER BY "category" LIMIT 200`
@@ -61,6 +101,21 @@ export default async function MarketplaceControlCenterPage({
   const needsPreparationRows = [...coverageRows]
     .filter((r) => r.missingPlatforms.length > 0 && !r.readyToList)
     .sort((a, b) => b.opportunityScore - a.opportunityScore);
+
+  const belowMspCount = pricingEnabled
+    ? opportunityRows.filter((r) => {
+        const a = analyzeRow(r, r.sellingPrice || 0, defaultProfile);
+        return a?.status === "BELOW_MSP";
+      }).length
+    : 0;
+
+  const opportunityPayload: OpportunityReportRowPayload[] = opportunityRows
+    .slice(0, 200)
+    .map((row) => ({
+      row,
+      analysis: pricingEnabled ? analyzeRow(row, row.sellingPrice || 0, defaultProfile) : null,
+      perMp: perMarketplaceRows(row),
+    }));
 
   function formatDate(raw: string | null | undefined): string {
     if (!raw) return "";
@@ -403,83 +458,40 @@ export default async function MarketplaceControlCenterPage({
                 <div className="text-[10px] text-muted-foreground">Cannot list</div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-1"><CardTitle className="text-xs">Not listed</CardTitle></CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{data.rows.filter((r) => r.platforms.length === 0).length}</div>
-                <div className="text-[10px] text-muted-foreground">High supply gap</div>
-              </CardContent>
-            </Card>
+            {pricingEnabled ? (
+              <Card>
+                <CardHeader className="pb-1"><CardTitle className="text-xs">Below MSP</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-600">{belowMspCount}</div>
+                  <div className="text-[10px] text-muted-foreground">Listed below minimum profitable price</div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader className="pb-1"><CardTitle className="text-xs">Not listed</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{data.rows.filter((r) => r.platforms.length === 0).length}</div>
+                  <div className="text-[10px] text-muted-foreground">High supply gap</div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">
               Showing SKUs that need listing on at least one platform
             </span>
+            {pricingEnabled && defaultProfile ? (
+              <Badge variant="outline" className="text-[10px]">
+                Default pricing basis: {defaultProfile.displayName}
+              </Badge>
+            ) : null}
           </div>
 
-          <div className="rounded-md border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>Current Marketplaces</TableHead>
-                  <TableHead>Missing Marketplaces</TableHead>
-                  <TableHead>Opportunity</TableHead>
-                  <TableHead>Ready</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {opportunityRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">No opportunities found</TableCell></TableRow>
-                ) : (
-                  opportunityRows.slice(0, 200).map((row) => (
-                    <TableRow key={row.inventoryId}>
-                      <TableCell className="font-medium">{row.sku}</TableCell>
-                      <TableCell>{row.productName}</TableCell>
-                      <TableCell>
-                        {row.platforms.length === 0 ? "None" : (
-                          <div className="flex flex-wrap gap-1">
-                            {row.platforms.map((p) => (
-                              <Badge key={p} variant="default" className="text-[10px]">
-                                {p}{row.lastListedDates?.[p] ? ` ${formatDate(row.lastListedDates[p])}` : ""}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {row.missingPlatforms.length === 0 ? "None" : (
-                          <div className="flex flex-wrap gap-1">
-                            {row.missingPlatforms.map((p) => (
-                              <a key={p} href={`/inventory/${row.inventoryId}`} target="_blank" rel="noopener noreferrer">
-                                <Badge variant="outline" className="cursor-pointer hover:bg-accent text-[10px]">{p}</Badge>
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={row.opportunityScore >= 2 ? "destructive" : "secondary"}>
-                          {row.opportunityScore} Missing
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {row.platforms.length > 0 ? (
-                          <Badge variant="default" className="bg-emerald-500 text-[10px]">Listed</Badge>
-                        ) : row.readyToList ? (
-                          <Badge variant="default" className="text-[10px]">✅ Ready</Badge>
-                        ) : (
-                          <Badge variant="outline" className="border-amber-500 text-amber-600 text-[10px]">⚠️ Needs Prep</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <OpportunityReportTable
+            rows={opportunityPayload}
+            pricingEnabled={pricingEnabled}
+          />
         </div>
       ) : null}
     </div>

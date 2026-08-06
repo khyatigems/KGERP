@@ -122,20 +122,21 @@ function applyCondFmt(ws: ExcelJS.Worksheet, rows: EnhancedRow[], colMap: Record
 
 export function MarketplacePriceAuditExport() {
   const [open, setOpen] = useState(false);
-  const [usdRate, setUsdRate] = useState("86");
+  const [usdRate, setUsdRate] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleExport = useCallback(async () => {
     const rate = parseFloat(usdRate);
-    if (Number.isNaN(rate) || rate <= 0) return;
+    const hasOverride = Number.isFinite(rate) && rate > 0;
     setLoading(true);
     try {
-      const res = await fetch(`/api/marketplace/price-audit?usdRate=${rate}`);
+      const res = await fetch(`/api/marketplace/price-audit${hasOverride ? `?usdRate=${rate}` : ""}`);
       const data = await res.json();
       const raw = (data.rows as AuditRow[]) || [];
       if (!raw.length) return;
 
       const rows = enrich(raw);
+      const effectiveRate = hasOverride ? rate : 0;
 
       // QC
       const qcErr = validate(rows);
@@ -173,7 +174,7 @@ export function MarketplacePriceAuditExport() {
       ws1.views = [{ state: "normal" }];
 
       ws1.mergeCells("A1:D1"); ws1.getCell("A1").value = "MARKETPLACE INTELLIGENCE REPORT"; ws1.getCell("A1").style = { font: { bold: true, size: 18, color: { argb: C.navy }, name: "Calibri" }, alignment: { horizontal: "center" } }; ws1.getRow(1).height = 36;
-      ws1.mergeCells("A2:D2"); ws1.getCell("A2").value = `Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}  |  USD Rate: ₹${rate}  |  Active Listings: ${total}`; ws1.getCell("A2").font = { size: 11, color: { argb: "FF64748B" }, name: "Calibri" }; ws1.getCell("A2").alignment = { horizontal: "center" };
+      ws1.mergeCells("A2:D2"); ws1.getCell("A2").value = `Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}  |  USD Rate: ${hasOverride ? `₹${rate}` : "Configured"}  |  Active Listings: ${total}`; ws1.getCell("A2").font = { size: 11, color: { argb: "FF64748B" }, name: "Calibri" }; ws1.getCell("A2").alignment = { horizontal: "center" };
 
       const scorecard = [
         ["MANAGEMENT SCORECARD", "", "", ""],
@@ -364,17 +365,18 @@ export function MarketplacePriceAuditExport() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="usdRate">USD to INR Rate</Label>
+              <Label htmlFor="usdRate">USD to INR Rate (optional)</Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground w-8">1 USD</span><span className="text-lg">=</span>
-                <Input id="usdRate" type="number" step="0.01" min="1" value={usdRate} onChange={(e) => setUsdRate(e.target.value)} className="w-32 text-center text-lg font-bold" />
+                <Input id="usdRate" type="number" step="0.01" min="1" value={usdRate} onChange={(e) => setUsdRate(e.target.value)} className="w-32 text-center text-lg font-bold" placeholder="Auto" />
                 <span className="text-sm font-medium text-muted-foreground w-8">INR</span>
               </div>
+              <p className="text-xs text-muted-foreground">Leave blank to use the configured currency rate.</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
-            <Button onClick={handleExport} disabled={loading || !usdRate || parseFloat(usdRate) <= 0}>
+            <Button onClick={handleExport} disabled={loading}>
               {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : <><Download className="mr-2 h-4 w-4" /> Download Excel</>}
             </Button>
           </DialogFooter>

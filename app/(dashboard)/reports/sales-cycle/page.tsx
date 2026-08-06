@@ -33,7 +33,7 @@ export default async function SalesCycleReportPage({ searchParams }: SalesCycleR
     Category: row.category,
     "Gem Type": row.gemType,
     "Cycle Days": row.cycleDays,
-    Margin: row.margin,
+    Profit: row.profit,
   }));
 
   const exportColumns = [
@@ -42,7 +42,7 @@ export default async function SalesCycleReportPage({ searchParams }: SalesCycleR
     { header: "Category", key: "Category" },
     { header: "Gem Type", key: "Gem Type" },
     { header: "Cycle Days", key: "Cycle Days" },
-    { header: "Margin", key: "Margin" },
+    { header: "Profit", key: "Profit" },
   ];
 
   return (
@@ -70,7 +70,7 @@ export default async function SalesCycleReportPage({ searchParams }: SalesCycleR
                 <TableHead>Gem Type</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead className="text-right">Cycle Days</TableHead>
-                <TableHead className="text-right">Margin</TableHead>
+                <TableHead className="text-right">Profit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -80,7 +80,7 @@ export default async function SalesCycleReportPage({ searchParams }: SalesCycleR
                   <TableCell>{row.gemType}</TableCell>
                   <TableCell className="font-mono text-xs">{row.sku}</TableCell>
                   <TableCell className="text-right">{row.cycleDays}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(row.margin)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(row.profit)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

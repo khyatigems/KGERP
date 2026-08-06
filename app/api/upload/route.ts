@@ -21,79 +21,88 @@ async function uploadMedia(req: NextRequest) {
 
     const results = [];
 
-    for (const file of files) {
+    // Process files in bounded batches with parallel provider uploads per file.
+    const CONCURRENCY = 4;
+
+    async function processFile(file: File) {
       const buffer = Buffer.from(await file.arrayBuffer());
-      
-      let cloudinaryUrl = null;
-      let imageKitUrl = null;
-      let errorMsg = null;
 
       // Sanitize SKU and Filename
       const sanitizedSku = sku !== 'temp' ? sku.replace(/[^a-zA-Z0-9.-]/g, '_') : '';
       const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      
+
       // Construct unique filename
       const timestamp = Date.now();
       const prefix = sanitizedSku ? `${sanitizedSku}_${timestamp}_` : `${timestamp}_`;
-      
+
       // Truncate filename if needed
       const maxNameLength = 200 - prefix.length;
-      const truncatedFileName = sanitizedFileName.length > maxNameLength 
+      const truncatedFileName = sanitizedFileName.length > maxNameLength
         ? sanitizedFileName.substring(0, maxNameLength) + (sanitizedFileName.includes('.') ? sanitizedFileName.substring(sanitizedFileName.lastIndexOf('.')) : '')
         : sanitizedFileName;
 
       const uniqueFileName = `${prefix}${truncatedFileName}`;
 
-      // 1. Upload to Cloudinary (Primary)
-      try {
-        console.log(`Starting upload for ${uniqueFileName}, size: ${file.size} bytes`);
-        cloudinaryUrl = await uploadToCloudinary(buffer, uniqueFileName);
-        console.log(`Cloudinary upload successful: ${cloudinaryUrl}`);
-      } catch (error: unknown) {
-        console.error(`Cloudinary upload failed for ${file.name}:`, error);
+      // Run Cloudinary (primary) and ImageKit (backup) in parallel.
+      const [cloudOut, kitOut] = await Promise.allSettled([
+        (async () => {
+          console.log(`Starting upload for ${uniqueFileName}, size: ${file.size} bytes`);
+          const url = await uploadToCloudinary(buffer, uniqueFileName);
+          console.log(`Cloudinary upload successful: ${url}`);
+          return url;
+        })(),
+        (async () => {
+          const safeCategory = category.replace(/[^a-zA-Z0-9\s-_]/g, '').trim().replace(/\s+/g, '_');
+          const folder = `/KhyatiGems_Backups/${safeCategory || 'Uncategorized'}`;
+          if (!process.env.IMAGEKIT_PRIVATE_KEY) console.error("IMAGEKIT_PRIVATE_KEY is missing in API route");
+          const imageKitResult = await uploadToImageKit(buffer, uniqueFileName, folder);
+          if (imageKitResult && imageKitResult.url) {
+            console.log(`ImageKit backup successful: ${imageKitResult.url}`);
+            return imageKitResult.url;
+          }
+          console.warn(`ImageKit upload returned no URL:`, JSON.stringify(imageKitResult));
+          return null;
+        })(),
+      ]);
+
+      let cloudinaryUrl: string | null = null;
+      let imageKitUrl: string | null = null;
+      let errorMsg: string | null = null;
+
+      if (cloudOut.status === "fulfilled" && cloudOut.value) {
+        cloudinaryUrl = cloudOut.value;
+      } else {
+        const reason = cloudOut.status === "rejected" ? cloudOut.reason : null;
+        console.error(`Cloudinary upload failed for ${file.name}:`, reason);
         const msg =
-          error instanceof Error
-            ? error.message
-            : typeof error === "object" && error && "error" in error
-              ? String((error as { error?: unknown }).error)
+          reason instanceof Error
+            ? reason.message
+            : typeof reason === "object" && reason && "error" in reason
+              ? String((reason as { error?: unknown }).error)
               : "";
         errorMsg = msg || "Cloudinary Upload failed";
       }
 
-      // 2. Backup to ImageKit (Secondary)
-      try {
-        // Sanitize category for folder name (remove special chars to avoid path issues)
-        // Replace spaces with underscores for ImageKit compatibility
-        const safeCategory = category.replace(/[^a-zA-Z0-9\s-_]/g, '').trim().replace(/\s+/g, '_');
-        const folder = `/KhyatiGems_Backups/${safeCategory || 'Uncategorized'}`;
-        
-        console.log(`Starting ImageKit upload for ${uniqueFileName} to folder ${folder}`);
-        
-        // Debug env vars (safe logging)
-        if (!process.env.IMAGEKIT_PRIVATE_KEY) console.error("IMAGEKIT_PRIVATE_KEY is missing in API route");
-        
-        const imageKitResult = await uploadToImageKit(buffer, uniqueFileName, folder);
-        
-        if (imageKitResult && imageKitResult.url) {
-            imageKitUrl = imageKitResult.url;
-            console.log(`ImageKit backup successful: ${imageKitUrl}`);
-        } else {
-            console.warn(`ImageKit upload returned no URL:`, JSON.stringify(imageKitResult));
-        }
-      } catch (error: unknown) {
-        console.error(`ImageKit backup failed for ${file.name}:`, error);
-        // Do not fail the whole request if backup fails, but log it
-        const msg = error instanceof Error ? error.message : "ImageKit upload failed";
-        if (!errorMsg && !cloudinaryUrl) errorMsg = "Both uploads failed: " + msg;
-        // else if (errorMsg) errorMsg += " | ImageKit failed: " + error.message; 
+      if (kitOut.status === "fulfilled" && kitOut.value) {
+        imageKitUrl = kitOut.value;
+      } else {
+        const reason = kitOut.status === "rejected" ? kitOut.reason : null;
+        console.error(`ImageKit backup failed for ${file.name}:`, reason);
+        if (!errorMsg && !cloudinaryUrl) errorMsg = "Both uploads failed: " + (reason instanceof Error ? reason.message : "ImageKit upload failed");
       }
 
-      results.push({
+      return {
         fileName: file.name,
         cloudinaryUrl: cloudinaryUrl,
-        backupUrl: imageKitUrl, // Renamed from googleDriveUrl
-        error: errorMsg
-      });
+        backupUrl: imageKitUrl,
+        error: errorMsg,
+      };
+    }
+
+    for (let i = 0; i < files.length; i += CONCURRENCY) {
+      const batch = files.slice(i, i + CONCURRENCY);
+      const batchResults = await Promise.all(batch.map(processFile));
+      results.push(...batchResults);
     }
 
     return NextResponse.json({ results });

@@ -50,6 +50,9 @@ async function main() {
     // Settings
     { key: "settings.view", module: "settings", action: "view", description: "View settings" },
     { key: "settings.edit", module: "settings", action: "edit", description: "Edit settings" },
+
+    // Marketplace & Pricing
+    { key: "marketplace.settings_manage", module: "marketplace", action: "settings_manage", description: "Manage marketplace fee schedules and pricing profiles" },
     
     // Admin
     { key: "admin.users", module: "admin", action: "users", description: "Manage users" },

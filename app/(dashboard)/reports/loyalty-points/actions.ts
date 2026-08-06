@@ -174,7 +174,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
       try {
         const profitQuery = `SELECT 
             s.invoiceId,
-            ROUND(COALESCE(SUM(s.profit), 0)) as totalProfit
+            ROUND(COALESCE(SUM(COALESCE(s.actualProfit, s.profit)), 0)) as totalProfit
           FROM "Sale" s
           WHERE s.invoiceId IN (${invoiceIds.map(() => '?').join(',')})
           GROUP BY s.invoiceId`;

@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrencyRates } from "@/lib/pricing/db";
+import { toInr } from "@/lib/pricing/currency";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 30;
 
 export async function GET(req: NextRequest) {
   try {
-    const usdRate = parseFloat(req.nextUrl.searchParams.get("usdRate") || "86");
+    const configuredRates = await getCurrencyRates();
+    const usdOverride = parseFloat(req.nextUrl.searchParams.get("usdRate") || "");
+    const rates = {
+      ...configuredRates,
+      ...(Number.isFinite(usdOverride) && usdOverride > 0 ? { USD: usdOverride } : {}),
+    };
     const MARGIN_THRESHOLD = 1.00; // Critical below 100%
     const OPPORTUNITY_THRESHOLD = 0.50;
 
@@ -41,9 +49,8 @@ export async function GET(req: NextRequest) {
     for (const row of rows) {
       const listedPrice = Number(row.listedPrice) || 0;
       const currency = String(row.currency || "INR");
-      let listedPriceInr = listedPrice;
-      if (currency === "USD" || currency === "US") listedPriceInr = listedPrice * usdRate;
-      else if (currency === "EUR") listedPriceInr = listedPrice * (usdRate * 1.08);
+      let listedPriceInr = toInr(listedPrice, currency, rates);
+      if (!Number.isFinite(listedPriceInr)) listedPriceInr = listedPrice;
       const sellingPrice = Number(row.sellingPrice) || 0;
       const costPrice = Number(row.costPrice) || 0;
       const marginPct = costPrice > 0 ? (listedPriceInr - costPrice) / costPrice : 0;

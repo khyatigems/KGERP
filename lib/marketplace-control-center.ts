@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-logger";
+import { toInr, type CurrencyRates } from "@/lib/pricing/currency";
+import { getCurrencyRates } from "@/lib/pricing/db";
 
 export const MARKETPLACE_PLATFORMS = ["EBAY", "ETSY", "AMAZON"] as const;
 export const ACTIVE_LISTING_STATUSES = ["ACTIVE", "LISTED"] as const;
@@ -52,6 +54,15 @@ export type MarketplacePortfolioRow = {
   readyToList: boolean;
   hasImage: boolean;
   hasCertificate: boolean;
+  // Pricing fields (used by the pricing analysis view)
+  costPrice: number | null;
+  sellingPrice: number | null;
+  purchaseRatePerCarat: number | null;
+  flatPurchaseCost: number | null;
+  weightValue: number | null;
+  weightUnit: string | null;
+  marketplacePrices: Partial<Record<MarketplacePlatform, number>>;
+  marketplaceCurrencies: Partial<Record<MarketplacePlatform, string>>;
 };
 
 export type MarketplaceDashboardData = {
@@ -86,37 +97,55 @@ function parsePlatforms(value: string | null | undefined): string[] {
   }
 }
 
+let ensuringMccSchema = false;
+let ensuredMccSchema = false;
+let ensureMccSchemaPromise: Promise<void> | null = null;
+
 export async function ensureMarketplaceControlCenterSchema(): Promise<void> {
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "MarketplaceConflict" (
-      "id" TEXT NOT NULL PRIMARY KEY,
-      "inventoryId" TEXT NOT NULL,
-      "sku" TEXT NOT NULL,
-      "productName" TEXT NOT NULL,
-      "soldDate" DATETIME,
-      "currentQuantity" INTEGER NOT NULL DEFAULT 0,
-      "activePlatforms" TEXT NOT NULL DEFAULT '[]',
-      "conflictStatus" TEXT NOT NULL DEFAULT 'Pending',
-      "resolvedAt" DATETIME,
-      "resolvedBy" TEXT,
-      "resolutionNote" TEXT,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+  if (ensuredMccSchema) return;
+  if (ensuringMccSchema && ensureMccSchemaPromise) return ensureMccSchemaPromise;
+  ensuringMccSchema = true;
+  ensureMccSchemaPromise = (async () => {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "MarketplaceConflict" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "inventoryId" TEXT NOT NULL,
+          "sku" TEXT NOT NULL,
+          "productName" TEXT NOT NULL,
+          "soldDate" DATETIME,
+          "currentQuantity" INTEGER NOT NULL DEFAULT 0,
+          "activePlatforms" TEXT NOT NULL DEFAULT '[]',
+          "conflictStatus" TEXT NOT NULL DEFAULT 'Pending',
+          "resolvedAt" DATETIME,
+          "resolvedBy" TEXT,
+          "resolutionNote" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
 
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_inventoryId_idx" ON "MarketplaceConflict"("inventoryId");`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_sku_idx" ON "MarketplaceConflict"("sku");`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_status_idx" ON "MarketplaceConflict"("conflictStatus");`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_createdAt_idx" ON "MarketplaceConflict"("createdAt");`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_inventory_status_idx" ON "MarketplaceConflict"("inventoryId", "conflictStatus");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_inventoryId_idx" ON "MarketplaceConflict"("inventoryId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_sku_idx" ON "MarketplaceConflict"("sku");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_status_idx" ON "MarketplaceConflict"("conflictStatus");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_createdAt_idx" ON "MarketplaceConflict"("createdAt");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_inventory_status_idx" ON "MarketplaceConflict"("inventoryId", "conflictStatus");`);
 
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_inventoryId_status_idx" ON "Listing"("inventoryId", "status");`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_platform_status_idx" ON "Listing"("platform", "status");`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_inventory_platform_idx" ON "Listing"("inventoryId", "platform");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_inventoryId_status_idx" ON "Listing"("inventoryId", "status");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_platform_status_idx" ON "Listing"("platform", "status");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_inventory_platform_idx" ON "Listing"("inventoryId", "platform");`);
 
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_entityId_idx" ON "ActivityLog"("entityId");`);
-  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_actionType_idx" ON "ActivityLog"("actionType");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_entityId_idx" ON "ActivityLog"("entityId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_actionType_idx" ON "ActivityLog"("actionType");`);
+    } catch {
+      // Idempotent by design; swallow so safe deploys never break.
+    } finally {
+      ensuredMccSchema = true;
+      ensuringMccSchema = false;
+      ensureMccSchemaPromise = null;
+    }
+  })();
+  return ensureMccSchemaPromise;
 }
 
 export async function logMarketplaceActivity(params: {
@@ -387,8 +416,18 @@ export async function getMarketplaceDashboardData(options: {
     platform: string | null;
     listingUrl: string | null;
     lastListedDate: string | null;
+    costPrice: number | null;
+    sellingPrice: number | null;
+    purchaseRatePerCarat: number | null;
+    flatPurchaseCost: number | null;
+    weightValue: number | null;
+    weightUnit: string | null;
+    listedPrice: number | null;
+    currency: string | null;
   }>>(
-    `SELECT i."id" AS "inventoryId", i."sku", i."itemName", i."category", i."status" AS "inventoryStatus", i."pieces", i."createdAt", l."platform", l."listingUrl", l."createdAt" AS "lastListedDate"
+    `SELECT i."id" AS "inventoryId", i."sku", i."itemName", i."category", i."status" AS "inventoryStatus", i."pieces", i."createdAt",
+            i."costPrice", i."sellingPrice", i."purchaseRatePerCarat", i."flatPurchaseCost", i."weightValue", i."weightUnit",
+            l."platform", l."listingUrl", l."createdAt" AS "lastListedDate", l."listedPrice", l."currency"
      FROM "Inventory" i
      LEFT JOIN "Listing" l ON l."inventoryId" = i."id" AND UPPER(l."status") IN ('ACTIVE', 'LISTED')
      WHERE i."status" != 'SOLD'
@@ -414,15 +453,27 @@ export async function getMarketplaceDashboardData(options: {
       readyToList: false,
       hasImage: false,
       hasCertificate: false,
+      costPrice: row.costPrice == null ? null : Number(row.costPrice),
+      sellingPrice: row.sellingPrice == null ? null : Number(row.sellingPrice),
+      purchaseRatePerCarat: row.purchaseRatePerCarat == null ? null : Number(row.purchaseRatePerCarat),
+      flatPurchaseCost: row.flatPurchaseCost == null ? null : Number(row.flatPurchaseCost),
+      weightValue: row.weightValue == null ? null : Number(row.weightValue),
+      weightUnit: row.weightUnit || null,
+      marketplacePrices: {} as Partial<Record<MarketplacePlatform, number>>,
+      marketplaceCurrencies: {} as Partial<Record<MarketplacePlatform, string>>,
     };
 
     const platform = normalizePlatform(row.platform);
     if (platform) {
       if (!existing.platforms.includes(platform)) existing.platforms.push(platform);
       if (row.listingUrl) existing.urls[platform] = [...(existing.urls[platform] || []), row.listingUrl];
-      // First encounter holds the latest listedDate due to ORDER BY l."createdAt" DESC
+      // First encounter holds the latest listedDate / price due to ORDER BY l."createdAt" DESC
       if (row.lastListedDate && !existing.lastListedDates[platform]) {
         existing.lastListedDates[platform] = toIsoDate(row.lastListedDate);
+      }
+      if (row.listedPrice != null && existing.marketplacePrices[platform] == null) {
+        existing.marketplacePrices[platform] = Number(row.listedPrice);
+        existing.marketplaceCurrencies[platform] = row.currency || "USD";
       }
     }
 
@@ -572,7 +623,8 @@ export type MarketplaceAuditMetrics = {
   usdRate: number;
 };
 
-export async function getMarketplaceAuditMetrics(usdRate: number = 86): Promise<MarketplaceAuditMetrics> {
+export async function getMarketplaceAuditMetrics(rates?: CurrencyRates): Promise<MarketplaceAuditMetrics> {
+  const rateMap = rates ?? (await getCurrencyRates());
   const rows = await prisma.$queryRawUnsafe<Array<{
     platform: string;
     listingUrl: string;
@@ -595,9 +647,8 @@ export async function getMarketplaceAuditMetrics(usdRate: number = 86): Promise<
   const items = rows.map((r) => {
     const lp = Number(r.listedPrice) || 0;
     const currency = String(r.currency || "INR");
-    let lpInr = lp;
-    if (currency === "USD" || currency === "US") lpInr = lp * usdRate;
-    else if (currency === "EUR") lpInr = lp * (usdRate * 1.08);
+    let lpInr = toInr(lp, currency, rateMap);
+    if (!Number.isFinite(lpInr)) lpInr = lp; // no configured rate: fall back to raw value
     const sp = Number(r.sellingPrice) || 0;
     const cp = Number(r.costPrice) || 0;
     const profit = lpInr - cp;
@@ -682,6 +733,6 @@ export async function getMarketplaceAuditMetrics(usdRate: number = 86): Promise<
     bestSkuName: bestSku?.itemName || "",
     bestSkuProfit: Math.round(bestSku?.profit || 0),
     healthScore,
-    usdRate,
+    usdRate: Number(rateMap.USD) || 0,
   };
 }

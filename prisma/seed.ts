@@ -131,6 +131,50 @@ async function main() {
   }
   console.log("Expense Categories seeded.");
 
+  // --- Seed Marketplace Profiles ---
+  const profiles = [
+    { name: "SHOPIFY", displayName: "Shopify", currency: "USD", isDefault: false },
+    { name: "ETSY", displayName: "Etsy", currency: "USD", isDefault: true },
+    { name: "EBAY", displayName: "eBay", currency: "USD", isDefault: false },
+    { name: "AMAZON", displayName: "Amazon", currency: "USD", isDefault: false },
+    { name: "WEBSITE", displayName: "Website", currency: "INR", isDefault: false },
+    { name: "WHOLESALE", displayName: "Wholesale", currency: "INR", isDefault: false },
+    { name: "OFFLINE", displayName: "Offline Sales", currency: "INR", isDefault: false },
+  ];
+
+  console.log("Seeding Marketplace Profiles...");
+  for (const profile of profiles) {
+    await prisma.marketplaceProfile.upsert({
+      where: { name: profile.name },
+      update: { displayName: profile.displayName, currency: profile.currency },
+      create: { ...profile, marginType: "PERCENT", marginValue: 0, isActive: true },
+    });
+  }
+  console.log("Marketplace Profiles seeded.");
+
+  // --- Seed Currency Rates ---
+  const currencies = [
+    { code: "INR", rateToInr: 1, isBase: true },
+    { code: "USD", rateToInr: 0, isBase: false },
+    { code: "EUR", rateToInr: 0, isBase: false },
+    { code: "GBP", rateToInr: 0, isBase: false },
+    { code: "AUD", rateToInr: 0, isBase: false },
+    { code: "CAD", rateToInr: 0, isBase: false },
+    { code: "SGD", rateToInr: 0, isBase: false },
+    { code: "AED", rateToInr: 0, isBase: false },
+    { code: "JPY", rateToInr: 0, isBase: false },
+  ];
+
+  console.log("Seeding Currency Rates...");
+  for (const currency of currencies) {
+    await prisma.currencyRate.upsert({
+      where: { code: currency.code },
+      update: { isBase: currency.isBase },
+      create: currency,
+    });
+  }
+  console.log("Currency Rates seeded.");
+
   console.log("Seeding completed.");
 }
 

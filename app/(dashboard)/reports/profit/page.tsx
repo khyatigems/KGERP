@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+﻿import { prisma } from "@/lib/prisma";
 import { ProfitAnalytics } from "@/components/reports/profit-analytics";
 import { startOfMonth, subMonths, format } from "date-fns";
 import { AnimatedPage } from "@/components/ui/animated-page";
@@ -28,7 +28,7 @@ export default async function ProfitReportPage() {
 
   // 2. Aggregate Data
   const totalRevenue = sales.reduce((sum, sale) => sum + sale.netAmount, 0);
-  const totalProfit = sales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
+  const totalProfit = sales.reduce((sum, sale) => sum + ((sale.actualProfit ?? sale.profit) || 0), 0);
   const averageMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
   // Monthly Trend
@@ -46,7 +46,7 @@ export default async function ProfitReportPage() {
     const current = monthlyDataMap.get(monthKey) || { revenue: 0, profit: 0 };
     monthlyDataMap.set(monthKey, {
       revenue: current.revenue + sale.netAmount,
-      profit: current.profit + (sale.profit || 0),
+      profit: current.profit + ((sale.actualProfit ?? sale.profit) || 0),
     });
   });
 
@@ -61,7 +61,7 @@ export default async function ProfitReportPage() {
   const categoryProfitMap = new Map<string, number>();
   sales.forEach((sale) => {
     const category = sale.inventory?.category || "Uncategorized";
-    categoryProfitMap.set(category, (categoryProfitMap.get(category) || 0) + (sale.profit || 0));
+    categoryProfitMap.set(category, (categoryProfitMap.get(category) || 0) + ((sale.actualProfit ?? sale.profit) || 0));
   });
 
   const categoryProfit = Array.from(categoryProfitMap.entries())

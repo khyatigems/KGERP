@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, ensureActivityLogSchema } from "@/lib/prisma";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 
 
@@ -15,6 +15,8 @@ export async function GET(
   }
 
   const { id } = await context.params;
+
+  await ensureActivityLogSchema();
 
   const item = await prisma.inventory.findUnique({
     where: { id },
@@ -35,11 +37,8 @@ export async function GET(
 
   const activityLogs = await prisma.activityLog.findMany({
     where: {
-      OR: [
-        { entityId: id },
-        { entityIdentifier: item.sku },
-      ],
       entityType: "Inventory",
+      entityId: id,
     },
     orderBy: { createdAt: "desc" },
     take: 20,

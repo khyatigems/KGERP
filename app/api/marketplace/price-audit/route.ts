@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrencyRates } from "@/lib/pricing/db";
+import { toInr } from "@/lib/pricing/currency";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const usdRate = parseFloat(req.nextUrl.searchParams.get("usdRate") || "87");
+    const configuredRates = await getCurrencyRates();
+    const usdOverride = parseFloat(req.nextUrl.searchParams.get("usdRate") || "");
+    const rates = {
+      ...configuredRates,
+      ...(Number.isFinite(usdOverride) && usdOverride > 0 ? { USD: usdOverride } : {}),
+    };
 
     const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
       `SELECT
@@ -53,12 +60,8 @@ export async function GET(req: NextRequest) {
       const sellingPrice = Number(r.sellingPrice) || 0;
       const costPrice = Number(r.costPrice) || 0;
 
-      let listedPriceInr = listedPrice;
-      if (currency === "USD" || currency === "US") {
-        listedPriceInr = listedPrice * usdRate;
-      } else if (currency === "EUR") {
-        listedPriceInr = listedPrice * (usdRate * 1.08);
-      }
+      let listedPriceInr = toInr(listedPrice, currency, rates);
+      if (!Number.isFinite(listedPriceInr)) listedPriceInr = listedPrice;
 
       const vsSellingDiff = listedPriceInr - sellingPrice;
       const vsSellingMarginPct = sellingPrice > 0 ? ((vsSellingDiff / sellingPrice) * 100) : 0;
@@ -111,7 +114,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ rows: mapped, usdRate });
+    return NextResponse.json({ rows: mapped, usdRate: rates.USD || null });
   } catch (error) {
     console.error("[Price Audit API] Error:", error);
     return NextResponse.json(

@@ -175,6 +175,7 @@ async function refreshSalesSnapshot() {
       netAmount: true,
       costPriceSnapshot: true,
       profit: true,
+      actualProfit: true,
       inventory: {
         select: {
           sku: true,
@@ -200,7 +201,7 @@ async function refreshSalesSnapshot() {
           category: sale.inventory.category || "Uncategorized",
           purchaseCost,
           sellingPrice: sale.netAmount || sale.salePrice || 0,
-          profitAmount: sale.profit || ((sale.netAmount || sale.salePrice || 0) - purchaseCost),
+          profitAmount: (sale.actualProfit ?? sale.profit) || ((sale.netAmount || sale.salePrice || 0) - purchaseCost),
           saleDate: sale.saleDate,
           saleCycleDays: diffDays(sale.inventory.createdAt, sale.saleDate),
         };

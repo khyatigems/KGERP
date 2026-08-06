@@ -49,7 +49,7 @@ export async function GET() {
       await prisma.sale.aggregate({ _sum: { netAmount: true } });
     }),
     runCheck("profit", async () => {
-      await prisma.sale.aggregate({ _avg: { profit: true } });
+      await prisma.$queryRawUnsafe(`SELECT AVG(COALESCE("actualProfit", "profit")) FROM "Sale"`);
     }),
     runCheck("quotations", async () => {
       await prisma.quotation.count();

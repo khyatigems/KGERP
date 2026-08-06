@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client"
 import { PrismaLibSQL } from "@prisma/adapter-libsql"
 import { createClient } from "@libsql/client"
+import crypto from "crypto";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -358,6 +359,8 @@ export async function ensureActivityLogSchema(): Promise<void> {
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_userId_idx" ON "ActivityLog"("userId");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_module_idx" ON "ActivityLog"("module");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_createdAt_idx" ON "ActivityLog"("createdAt");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_entityId_idx" ON "ActivityLog"("entityId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_entityType_entityId_idx" ON "ActivityLog"("entityType", "entityId");`);
       try {
         await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ActivityLog_user_action_idempotency_key_unique" ON "ActivityLog"("userId","actionType","idempotencyKey");`);
       } catch {}
@@ -1133,4 +1136,150 @@ export async function ensureMarketplaceMetricsSchema(): Promise<void> {
     }
   })();
   return ensureMarketplaceMetricsPromise;
+}
+
+let ensuringPricingEngine = false;
+let ensuredPricingEngine = false;
+let ensurePricingEnginePromise: Promise<void> | null = null;
+
+export async function ensurePricingEngineSchema(): Promise<void> {
+  if (ensuredPricingEngine) return;
+  if (ensuringPricingEngine && ensurePricingEnginePromise) return ensurePricingEnginePromise;
+  ensuringPricingEngine = true;
+  ensurePricingEnginePromise = (async () => {
+    try {
+      // MarketplaceProfile
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "MarketplaceProfile" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "displayName" TEXT NOT NULL,
+          "currency" TEXT NOT NULL DEFAULT 'INR',
+          "isActive" INTEGER NOT NULL DEFAULT 1,
+          "isDefault" INTEGER NOT NULL DEFAULT 0,
+          "marginType" TEXT NOT NULL DEFAULT 'PERCENT',
+          "marginValue" REAL NOT NULL DEFAULT 0,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceProfile_name_key" ON "MarketplaceProfile"("name");`);
+
+      // MarketplaceCharge
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "MarketplaceCharge" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "profileId" TEXT NOT NULL,
+          "chargeKey" TEXT NOT NULL,
+          "name" TEXT NOT NULL,
+          "enabled" INTEGER NOT NULL DEFAULT 1,
+          "amountType" TEXT NOT NULL DEFAULT 'PERCENT',
+          "amount" REAL NOT NULL DEFAULT 0,
+          "countryCode" TEXT,
+          "sortOrder" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "MarketplaceCharge_profileId_fkey" FOREIGN KEY ("profileId") REFERENCES "MarketplaceProfile" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceCharge_profileId_idx" ON "MarketplaceCharge"("profileId");`);
+
+      // CurrencyRate
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CurrencyRate" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "code" TEXT NOT NULL,
+          "rateToInr" REAL NOT NULL DEFAULT 0,
+          "isBase" INTEGER NOT NULL DEFAULT 0,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "CurrencyRate_code_key" ON "CurrencyRate"("code");`);
+
+      // Invoice internal cost columns
+      for (const col of [
+        "internalShippingCost",
+        "internalPackagingCost",
+        "internalInsuranceCost",
+        "internalHandlingCost",
+        "internalOtherCharges",
+        "internalCostTotal",
+      ]) {
+        await ensureColumnIfMissing("Invoice", col, `"${col}" REAL NOT NULL DEFAULT 0`);
+        await ensureColumnIfMissing("Sale", col, `"${col}" REAL NOT NULL DEFAULT 0`);
+      }
+      await ensureColumnIfMissing("Sale", "actualProfit", '"actualProfit" REAL');
+
+      // Performance indexes
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_origin_idx" ON "Inventory"("origin");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_hsnCode_idx" ON "Inventory"("hsn_code");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_hideFromAttention_idx" ON "Inventory"("hideFromAttention");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_status_sellingPrice_idx" ON "Inventory"("status", "sellingPrice");`);
+
+      // Seed marketplace profiles
+      const profiles: Array<[string, string, string, number, number]> = [
+        ["SHOPIFY", "Shopify", "USD", 0, 0],
+        ["ETSY", "Etsy", "USD", 1, 0],
+        ["EBAY", "eBay", "USD", 0, 0],
+        ["AMAZON", "Amazon", "USD", 0, 0],
+        ["WEBSITE", "Website", "INR", 0, 0],
+        ["WHOLESALE", "Wholesale", "INR", 0, 0],
+        ["OFFLINE", "Offline Sales", "INR", 0, 0],
+      ];
+      for (const [name, displayName, currency, isDefault, marginValue] of profiles) {
+        await prisma.$executeRawUnsafe(
+          `INSERT OR IGNORE INTO "MarketplaceProfile" ("id", "name", "displayName", "currency", "isActive", "isDefault", "marginType", "marginValue", "createdAt", "updatedAt")
+           VALUES (?, ?, ?, ?, 1, ?, 'PERCENT', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          crypto.randomUUID(),
+          name,
+          displayName,
+          currency,
+          isDefault,
+          marginValue
+        );
+      }
+
+      // Seed currency rates (INR base)
+      const currencies: Array<[string, number, number]> = [
+        ["INR", 1, 1],
+        ["USD", 0, 0],
+        ["EUR", 0, 0],
+        ["GBP", 0, 0],
+        ["AUD", 0, 0],
+        ["CAD", 0, 0],
+        ["SGD", 0, 0],
+        ["AED", 0, 0],
+        ["JPY", 0, 0],
+      ];
+      for (const [code, rateToInr, isBase] of currencies) {
+        await prisma.$executeRawUnsafe(
+          `INSERT OR IGNORE INTO "CurrencyRate" ("id", "code", "rateToInr", "isBase", "updatedAt")
+           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+          crypto.randomUUID(),
+          code,
+          rateToInr,
+          isBase
+        );
+      }
+
+      // Feature flags / defaults
+      await prisma.$executeRawUnsafe(
+        `INSERT OR IGNORE INTO "Setting" ("id", "key", "value", "description", "updatedAt")
+         VALUES (?, 'default_marketplace', 'ETSY', 'Marketplace profile used for single-row MSP/MRP planning in the Opportunity Report', CURRENT_TIMESTAMP)`,
+        crypto.randomUUID()
+      );
+      await prisma.$executeRawUnsafe(
+        `INSERT OR IGNORE INTO "Setting" ("id", "key", "value", "description", "updatedAt")
+         VALUES (?, 'pricing_engine_enabled', 'false', 'Enables the pricing analysis view in the Opportunity Report', CURRENT_TIMESTAMP)`,
+        crypto.randomUUID()
+      );
+    } catch (e) {
+      console.error("ensurePricingEngineSchema failed:", e);
+    } finally {
+      ensuredPricingEngine = true;
+      ensuringPricingEngine = false;
+      ensurePricingEnginePromise = null;
+    }
+  })();
+  return ensurePricingEnginePromise;
 }

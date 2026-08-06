@@ -65,7 +65,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
     refreshInterval: 30000,
   });
 
-  const { data: healthData } = useSWR<HealthData>("/api/marketplace/health?usdRate=86", fetcher, {
+  const { data: healthData } = useSWR<HealthData>("/api/marketplace/health", fetcher, {
     refreshInterval: 30000,
   });
 

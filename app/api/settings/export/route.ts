@@ -16,7 +16,7 @@ export async function GET() {
       enableExportInvoice: settings?.enableExportInvoice ?? true,
       defaultExportType: settings?.defaultExportType ?? "LUT",
       companyIec: settings?.companyIec ?? "",
-      defaultCurrency: settings?.defaultCurrency ?? "USD",
+      defaultCurrency: settings?.defaultCurrency || "INR",
       defaultPort: settings?.defaultPort ?? "IGI Airport, New Delhi",
       swiftCode: settings?.swiftCode ?? "RATNINBBXXX",
     });

@@ -570,6 +570,13 @@ model Sale {
   legacyInvoiceId    String?                     @unique
   costPriceSnapshot  Float?
   profit             Float?
+  actualProfit       Float?
+  internalShippingCost   Float   @default(0)
+  internalPackagingCost  Float   @default(0)
+  internalInsuranceCost  Float   @default(0)
+  internalHandlingCost   Float   @default(0)
+  internalOtherCharges   Float   @default(0)
+  internalCostTotal      Float   @default(0)
   customer           Customer?                   @relation(fields: [customerId], references: [id])
   inventory          Inventory                   @relation(fields: [inventoryId], references: [id])
   invoice            Invoice?                    @relation("NewInvoice", fields: [invoiceId], references: [id])
@@ -667,6 +674,14 @@ model Invoice {
   invoiceCurrency      String?
   conversionRate       Float?
   totalInrValue        Float?
+
+  // ERP-only internal cost tracking (never shown on customer invoices)
+  internalShippingCost   Float   @default(0)
+  internalPackagingCost  Float   @default(0)
+  internalInsuranceCost  Float   @default(0)
+  internalHandlingCost   Float   @default(0)
+  internalOtherCharges   Float   @default(0)
+  internalCostTotal      Float   @default(0)
 
   displayOptions String?
   subtotal       Float
@@ -1488,4 +1503,44 @@ model PriceRecommendationLog {
   @@index([inventoryId])
   @@index([userId])
   @@index([createdAt])
+}
+
+model MarketplaceProfile {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  displayName String
+  currency    String   @default("INR")
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  marginType  String   @default("PERCENT")
+  marginValue Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  charges MarketplaceCharge[]
+}
+
+model MarketplaceCharge {
+  id          String             @id @default(uuid())
+  profileId   String
+  chargeKey   String
+  name        String
+  enabled     Boolean            @default(true)
+  amountType  String             @default("PERCENT")
+  amount      Float              @default(0)
+  countryCode String?
+  sortOrder   Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  profile     MarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model CurrencyRate {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  rateToInr Float    @default(0)
+  isBase    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
 }

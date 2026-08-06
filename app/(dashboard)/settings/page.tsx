@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "./settings-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Settings2, Search, FileText, TicketPercent, MessageSquare, Gift, Image as ImageIcon } from "lucide-react";
+import { Database, Settings2, Search, FileText, TicketPercent, MessageSquare, Gift, Image as ImageIcon, Store } from "lucide-react";
 import { removeDuplicates } from "@/lib/dedup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LandingPageForm } from "@/components/settings/landing-page-form";
@@ -150,6 +150,16 @@ export default async function SettingsPage() {
                   <ImageIcon className="h-8 w-8 mb-2 text-primary" />
                   <CardTitle>eBay Settings</CardTitle>
                   <CardDescription>Configure category-specific images for eBay product descriptions.</CardDescription>
+                </CardHeader>
+              </Card>
+            </LoadingLink>
+
+            <LoadingLink href="/settings/marketplaces">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <Store className="h-8 w-8 mb-2 text-primary" />
+                  <CardTitle>Marketplace Settings</CardTitle>
+                  <CardDescription>Configure marketplace fee schedules, margins and pricing profiles.</CardDescription>
                 </CardHeader>
               </Card>
             </LoadingLink>

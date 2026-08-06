@@ -88,7 +88,7 @@ export async function getDiscountUsageReport(startDate: Date, endDate: Date) {
     "cust.name AS customerName",
     hasRedemptionDiscount ? "cr.discountAmount AS discountAmount" : "0 AS discountAmount",
     `${redeemedAtExpression} AS redeemedAt`,
-    "(SELECT SUM(s.profit) FROM \"Sale\" s WHERE s.invoiceId = i.id) AS totalProfitOnInvoice",
+    "(SELECT SUM(COALESCE(s.actualProfit, s.profit)) FROM \"Sale\" s WHERE s.invoiceId = i.id) AS totalProfitOnInvoice",
   ];
 
   const discountUsageQuery = `

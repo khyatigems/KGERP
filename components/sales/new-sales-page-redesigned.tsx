@@ -114,6 +114,11 @@ const saleFormSchema = z.object({
   notes: z.string().optional().or(z.literal("")),
   shippingCharge: z.number().min(0).default(0),
   additionalCharge: z.number().min(0).default(0),
+  internalShippingCost: z.number().min(0).default(0),
+  internalPackagingCost: z.number().min(0).default(0),
+  internalInsuranceCost: z.number().min(0).default(0),
+  internalHandlingCost: z.number().min(0).default(0),
+  internalOtherCharges: z.number().min(0).default(0),
   invoiceDate: z.string(),
 });
 
@@ -136,6 +141,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [couponDiscountValue, setCouponDiscount] = useState<number>(0);
+  const [discountConflictMessage, setDiscountConflictMessage] = useState<string | null>(null);
   const [showCustomerWarning, setShowCustomerWarning] = useState(false);
   const [maxLoyaltyRedeem, setMaxLoyaltyRedeem] = useState<number>(0);
   const [itemSearchQuery, setItemSearchQuery] = useState("");
@@ -280,6 +286,11 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       notes: "",
       shippingCharge: 0,
       additionalCharge: 0,
+      internalShippingCost: 0,
+      internalPackagingCost: 0,
+      internalInsuranceCost: 0,
+      internalHandlingCost: 0,
+      internalOtherCharges: 0,
       invoiceDate: new Date().toISOString().split('T')[0],
     },
   });
@@ -304,6 +315,10 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   }, [form]);
 
   const watchedValues = form.watch();
+  const hasLineDiscount = cart.some((item) => Number(item.discount || 0) > 0);
+  const hasInvoiceLevelDiscount =
+    watchedValues.discountType === "flat" ||
+    (watchedValues.discountType === "coupon" && couponDiscountValue > 0);
   const customerType = watchedValues.customerType;
   const shippingChargeValue = Number(watchedValues.shippingCharge || 0);
   const additionalChargeValue = Number(watchedValues.additionalCharge || 0);
@@ -739,6 +754,10 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
 
   // Apply coupon
   const applyCoupon = async () => {
+    if (hasLineDiscount) {
+      setDiscountConflictMessage("Product line discount already applied. Remove it before applying invoice level discount.");
+      return;
+    }
     if (!watchedValues.couponCode) {
       toast.error("Please enter a coupon code");
       return;
@@ -855,6 +874,11 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       formData.append("items", JSON.stringify(itemsData));
       formData.append("shippingCharge", shippingChargeValue.toString());
       formData.append("additionalCharge", additionalChargeValue.toString());
+      formData.append("internalShippingCost", String(Number(watchedValues.internalShippingCost) || 0));
+      formData.append("internalPackagingCost", String(Number(watchedValues.internalPackagingCost) || 0));
+      formData.append("internalInsuranceCost", String(Number(watchedValues.internalInsuranceCost) || 0));
+      formData.append("internalHandlingCost", String(Number(watchedValues.internalHandlingCost) || 0));
+      formData.append("internalOtherCharges", String(Number(watchedValues.internalOtherCharges) || 0));
       
       // Discount type and flat discount
       formData.append("discountType", watchedValues.discountType || "none");
@@ -1492,7 +1516,15 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                             type="number"
                             min="0"
                             value={item.discount}
-                            onChange={(e) => updateCartItem(item.id, "discount", parseFloat(e.target.value) || 0)}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 0;
+                              if (value > 0 && hasInvoiceLevelDiscount) {
+                                setDiscountConflictMessage("Invoice level discount already applied. Remove it before applying product line discount.");
+                                return;
+                              }
+                              setDiscountConflictMessage(null);
+                              updateCartItem(item.id, "discount", value);
+                            }}
                             className="w-24 h-8"
                           />
                         </div>
@@ -1540,7 +1572,22 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Select value={watchedValues.discountType} onValueChange={(value) => form.setValue("discountType", value as any)}>
+              {discountConflictMessage && (
+                <div className="p-2 bg-red-50 rounded border border-red-200 text-red-700 text-xs">
+                  {discountConflictMessage}
+                </div>
+              )}
+              <Select
+                value={watchedValues.discountType}
+                onValueChange={(value) => {
+                  if ((value === "flat" || value === "coupon") && hasLineDiscount) {
+                    setDiscountConflictMessage("Product line discount already applied. Remove it before applying invoice level discount.");
+                    return;
+                  }
+                  setDiscountConflictMessage(null);
+                  form.setValue("discountType", value as any);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select discount type" />
                 </SelectTrigger>
@@ -1656,6 +1703,75 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                   onChange={(e) => form.setValue("additionalCharge", parseFloat(e.target.value) || 0, { shouldValidate: true })}
                   placeholder="Enter additional charge"
                 />
+              </div>
+
+              <div className="rounded-md border border-dashed p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-muted-foreground">Internal Costs</Label>
+                  <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">ERP only — not shown on customer invoice</span>
+                </div>
+                <div>
+                  <Label htmlFor="internalShippingCost" className="text-xs">Actual Shipping Cost</Label>
+                  <Input
+                    id="internalShippingCost"
+                    type="number"
+                    min="0"
+                    value={watchedValues.internalShippingCost ?? ""}
+                    onChange={(e) => form.setValue("internalShippingCost", parseFloat(e.target.value) || 0, { shouldValidate: true })}
+                    placeholder="0.00"
+                    className="h-8 mt-1"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="internalPackagingCost" className="text-xs">Packaging Cost</Label>
+                    <Input
+                      id="internalPackagingCost"
+                      type="number"
+                      min="0"
+                      value={watchedValues.internalPackagingCost ?? ""}
+                      onChange={(e) => form.setValue("internalPackagingCost", parseFloat(e.target.value) || 0, { shouldValidate: true })}
+                      placeholder="0.00"
+                      className="h-8 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="internalInsuranceCost" className="text-xs">Insurance</Label>
+                    <Input
+                      id="internalInsuranceCost"
+                      type="number"
+                      min="0"
+                      value={watchedValues.internalInsuranceCost ?? ""}
+                      onChange={(e) => form.setValue("internalInsuranceCost", parseFloat(e.target.value) || 0, { shouldValidate: true })}
+                      placeholder="0.00"
+                      className="h-8 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="internalHandlingCost" className="text-xs">Handling Charges</Label>
+                    <Input
+                      id="internalHandlingCost"
+                      type="number"
+                      min="0"
+                      value={watchedValues.internalHandlingCost ?? ""}
+                      onChange={(e) => form.setValue("internalHandlingCost", parseFloat(e.target.value) || 0, { shouldValidate: true })}
+                      placeholder="0.00"
+                      className="h-8 mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="internalOtherCharges" className="text-xs">Other Internal Charges</Label>
+                    <Input
+                      id="internalOtherCharges"
+                      type="number"
+                      min="0"
+                      value={watchedValues.internalOtherCharges ?? ""}
+                      onChange={(e) => form.setValue("internalOtherCharges", parseFloat(e.target.value) || 0, { shouldValidate: true })}
+                      placeholder="0.00"
+                      className="h-8 mt-1"
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

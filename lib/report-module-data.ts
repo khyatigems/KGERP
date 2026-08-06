@@ -114,7 +114,7 @@ export async function getSalesCycleData(filters: SalesCycleFilters = {}) {
       gemType: r.inventory.gemType || "-",
       soldAt: r.saleDate,
       cycleDays,
-      margin: (r.salePrice || 0) - (r.inventory.costPrice || 0)
+      profit: (r.salePrice || 0) - (r.inventory.costPrice || 0)
     };
   });
   const avgCycle = mapped.length ? mapped.reduce((sum, r) => sum + r.cycleDays, 0) / mapped.length : 0;

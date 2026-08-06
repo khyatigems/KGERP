@@ -98,51 +98,64 @@ export function PriceSuggestionWidget({ form, categories, gemstones }: PriceSugg
     }
   }, []);
 
-  // Auto-refresh when category or gemType changes
+  // Auto-refresh when category or gemType changes (debounced to avoid refetch on every keystroke)
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let abortController: AbortController | null = null;
     const sub = form.watch((values, { name }) => {
       if (name !== "category" && name !== "gemType") return;
       const catName = (values as any).category as string | undefined;
       const gemName = (values as any).gemType as string | undefined;
       if (!catName && !gemName) return;
 
-      const ccId = categories.find((c) => c.name === catName)?.id;
-      const gcId = gemstones.find((g) => g.name === gemName)?.id;
-      if (!ccId && !gcId) return;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (abortController) abortController.abort();
 
-      const allVals = form.getValues();
-      const reqId = ++lastReqRef.current;
-      setSuggestion(null);
-      setLoading(true);
-      setHasApplied(false);
+      debounceTimer = setTimeout(() => {
+        const ccId = categories.find((c) => c.name === catName)?.id;
+        const gcId = gemstones.find((g) => g.name === gemName)?.id;
+        if (!ccId && !gcId) return;
 
-      const params = new URLSearchParams();
-      if (ccId) params.set("categoryCodeId", ccId);
-      if (gcId) params.set("gemstoneCodeId", gcId);
-      if (allVals.vendorId) params.set("vendorId", allVals.vendorId);
-      params.set("weightValue", String(allVals.weightValue ?? 0));
-      params.set("weightUnit", allVals.weightUnit || "cts");
-      params.set("pricingMode", allVals.pricingMode || "PER_CARAT");
+        const allVals = form.getValues();
+        const reqId = ++lastReqRef.current;
+        setSuggestion(null);
+        setLoading(true);
+        setHasApplied(false);
 
-      fetch(`/api/inventory/price-suggestion?${params.toString()}`)
-        .then((r) => (r.ok ? r.json() : NONE_RESULT))
-        .then((data) => {
-          if (reqId === lastReqRef.current) {
-            setSuggestion(data);
-            form.setValue(
-              "_priceRecommendation" as any,
-              data.matchLevel !== "none" ? JSON.stringify(data) : "",
-            );
-          }
-        })
-        .catch(() => {
-          if (reqId === lastReqRef.current) setSuggestion(NONE_RESULT);
-        })
-        .finally(() => {
-          if (reqId === lastReqRef.current) setLoading(false);
-        });
+        const params = new URLSearchParams();
+        if (ccId) params.set("categoryCodeId", ccId);
+        if (gcId) params.set("gemstoneCodeId", gcId);
+        if (allVals.vendorId) params.set("vendorId", allVals.vendorId);
+        params.set("weightValue", String(allVals.weightValue ?? 0));
+        params.set("weightUnit", allVals.weightUnit || "cts");
+        params.set("pricingMode", allVals.pricingMode || "PER_CARAT");
+
+        abortController = new AbortController();
+        fetch(`/api/inventory/price-suggestion?${params.toString()}`, { signal: abortController.signal })
+          .then((r) => (r.ok ? r.json() : NONE_RESULT))
+          .then((data) => {
+            if (reqId === lastReqRef.current) {
+              setSuggestion(data);
+              form.setValue(
+                "_priceRecommendation" as any,
+                data.matchLevel !== "none" ? JSON.stringify(data) : "",
+              );
+            }
+          })
+          .catch((err) => {
+            if (err && err.name === "AbortError") return;
+            if (reqId === lastReqRef.current) setSuggestion(NONE_RESULT);
+          })
+          .finally(() => {
+            if (reqId === lastReqRef.current) setLoading(false);
+          });
+      }, 400);
     });
-    return () => sub.unsubscribe();
+    return () => {
+      sub.unsubscribe();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      if (abortController) abortController.abort();
+    };
   }, [form, categories, gemstones]);
 
   // Also fetch on mount if category or gemType is already set (no change event fired)

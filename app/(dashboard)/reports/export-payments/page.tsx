@@ -266,7 +266,9 @@ export default function ExportPaymentsPage() {
                     </TableCell>
                     <TableCell>
                       {payment.invoice.currency === "USD" ? (
-                        formatCurrency(payment.amount * (payment.invoice.conversionRate || 83))
+                        payment.invoice.conversionRate && payment.invoice.conversionRate > 0
+                          ? formatCurrency(payment.amount * payment.invoice.conversionRate)
+                          : "-"
                       ) : (
                         "-"
                       )}

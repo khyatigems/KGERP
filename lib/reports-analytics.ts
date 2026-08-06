@@ -297,6 +297,7 @@ async function buildCapitalRotationAnalytics(): Promise<CapitalRotationAnalytics
       saleDate: true,
       netAmount: true,
       profit: true,
+      actualProfit: true,
       costPriceSnapshot: true,
       inventory: {
         select: {
@@ -321,7 +322,11 @@ async function buildCapitalRotationAnalytics(): Promise<CapitalRotationAnalytics
       ? (s.costPriceSnapshot as number)
       : getInventoryCost(s.inventory);
     const sell = s.netAmount || 0;
-    const profit = Number.isFinite(s.profit ?? NaN) ? (s.profit as number) : sell - cost;
+    const profit = Number.isFinite(s.actualProfit ?? NaN)
+      ? (s.actualProfit as number)
+      : Number.isFinite(s.profit ?? NaN)
+      ? (s.profit as number)
+      : sell - cost;
     const row = byCategoryAgg.get(cat) || { soldItems: 0, sumDays: 0, sumProfit: 0, sumCost: 0, sumSell: 0 };
     row.soldItems += 1;
     row.sumDays += days;

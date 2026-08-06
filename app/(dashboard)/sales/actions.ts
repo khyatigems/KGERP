@@ -15,6 +15,7 @@ import { Prisma } from "@prisma/client";
 import { postJournalEntry, getOrCreateAccountByCode, ACCOUNTS, PrismaTx } from "@/lib/accounting";
 import { normalizeDateToUtcNoon } from "@/lib/date";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
+import { computeInvoiceGst } from "@/lib/invoice-gst";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { accrueLoyaltyPoints } from "@/lib/loyalty-accrual";
@@ -64,6 +65,12 @@ const saleSchema = z.object({
   shippingAddress: z.string().optional(),
   shippingCharge: z.coerce.number().min(0).optional(),
   additionalCharge: z.coerce.number().min(0).optional(),
+  // ERP-only internal cost tracking (never shown on customer invoices)
+  internalShippingCost: z.coerce.number().min(0).optional().default(0),
+  internalPackagingCost: z.coerce.number().min(0).optional().default(0),
+  internalInsuranceCost: z.coerce.number().min(0).optional().default(0),
+  internalHandlingCost: z.coerce.number().min(0).optional().default(0),
+  internalOtherCharges: z.coerce.number().min(0).optional().default(0),
   paymentMode: z.string().optional(),
   singlePaymentReference: z.string().optional(),
   paymentStatus: z.string().optional(),
@@ -300,15 +307,29 @@ export async function createSale(prevState: unknown, formData: FormData) {
               cost = inv.purchaseRatePerCarat * inv.weightValue;
           }
           const profit = netAmount - cost;
-          return { inv, sellingPrice, usdPrice, discount, netAmount, profit, cost };
+          return { inv, sellingPrice, usdPrice, discount, netAmount, profit, cost, internalCostTotal: 0, actualProfit: 0 };
       });
 
       const shippingCharge = data.shippingCharge || 0;
       const additionalCharge = data.additionalCharge || 0;
+      const internalShippingCost = data.internalShippingCost || 0;
+      const internalPackagingCost = data.internalPackagingCost || 0;
+      const internalInsuranceCost = data.internalInsuranceCost || 0;
+      const internalHandlingCost = data.internalHandlingCost || 0;
+      const internalOtherCharges = data.internalOtherCharges || 0;
+      const internalCostTotal = internalShippingCost + internalPackagingCost + internalInsuranceCost + internalHandlingCost + internalOtherCharges;
       const itemGrossTotal = computedItems.reduce((sum, i) => sum + i.sellingPrice, 0);
       const totalItemDiscount = computedItems.reduce((sum, i) => sum + i.discount, 0);
       const totalGrossAmount = itemGrossTotal + shippingCharge + additionalCharge;
       const subtotalAfterItemDiscount = totalGrossAmount - totalItemDiscount;
+
+      // Allocate invoice-level internal costs pro-rata by selling price (exact for single-item invoices).
+      for (const item of computedItems) {
+        const share = itemGrossTotal > 0 ? item.sellingPrice / itemGrossTotal : 1 / computedItems.length;
+        item.internalCostTotal = internalCostTotal * share;
+        item.actualProfit = item.netAmount - item.cost - item.internalCostTotal;
+      }
+
       const allowedPaymentMethods = new Set(["UPI", "BANK_TRANSFER", "CASH", "CHEQUE", "OTHER", "PAYPAL", "PAYONEER", "CC", "CREDIT_NOTE", "LOYALTY_REDEEM"]);
 
       let normalizedPayments = (data.initialPayments || []).map((p) => ({
@@ -443,6 +464,12 @@ export async function createSale(prevState: unknown, formData: FormData) {
           // Calculate flat discount amount for invoice-level discount
           const flatDiscountAmount = data.discountType === "flat" ? (data.flatDiscount || 0) : 0;
 
+          // Mutual-exclusion: line-level discount and invoice-level discount cannot be combined.
+          const hasLineDiscount = data.items.some((i) => Number(i.discount || 0) > 0);
+          if (hasLineDiscount && (flatDiscountAmount > 0 || couponDiscount > 0)) {
+            throw new Error("Product line discount already applied. Remove it before applying invoice level discount.");
+          }
+
           // Invoice-level flat discount is display-only (informational) and must NOT reduce payable total.
           // Only coupon discount affects payable total.
           const adjustedInvoiceTotal = Math.max(0, subtotalAfterItemDiscount - couponDiscount);
@@ -529,6 +556,35 @@ export async function createSale(prevState: unknown, formData: FormData) {
           
           const finalDisplayOptions = JSON.stringify(displayOptionsObj);
 
+          // Compute real GST for domestic (tax) invoices so accounting + GSTR1 report correctly.
+          // Export invoices are zero-rated. Selling prices are GST-inclusive, so GST is split out
+          // for the Sales Revenue / GST Payable journal lines without changing the customer total.
+          let taxAmountForInvoice = 0;
+          if (data.invoiceType !== "EXPORT_INVOICE" && computedItems.length > 0) {
+            const invSettings = await prisma.invoiceSettings.findFirst().catch(() => null);
+            let gstRates: Record<string, string> | undefined;
+            try {
+              const raw = invSettings?.categoryGstRates;
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === "object") gstRates = parsed as Record<string, string>;
+              }
+            } catch {
+              gstRates = undefined;
+            }
+            const gstResult = computeInvoiceGst({
+              items: computedItems.map((i) => ({
+                salePrice: i.sellingPrice,
+                netAmount: i.netAmount,
+                discountAmount: i.discount,
+                inventory: { category: i.inv.category ?? "General", itemName: i.inv.itemName ?? "Item" },
+              })),
+              gstRates,
+              displayOptions: displayOptionsObj,
+            });
+            taxAmountForInvoice = Math.max(0, gstResult.gstTotal || 0);
+          }
+
           const newInvoice = await tx.invoice.create({
               data: {
                   invoiceNumber: invoiceNumber,
@@ -537,7 +593,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   isActive: true,
                   invoiceDate: normalizeDateToUtcNoon(data.saleDate),
                   subtotal: totalGrossAmount,
-                  taxTotal: data.invoiceType === "EXPORT_INVOICE" ? 0 : 0, // Zero rated for export
+                  taxTotal: taxAmountForInvoice,
                   discountTotal: totalDiscountAmount,
                   totalAmount: adjustedInvoiceTotal,
                   displayOptions: finalDisplayOptions,
@@ -555,7 +611,13 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   trackingId: data.trackingId || null,
                   invoiceCurrency: data.invoiceCurrency,
                   conversionRate: data.conversionRate || 1,
-                  totalInrValue: data.totalInrValue || adjustedInvoiceTotal
+                  totalInrValue: data.totalInrValue || adjustedInvoiceTotal,
+                  internalShippingCost,
+                  internalPackagingCost,
+                  internalInsuranceCost,
+                  internalHandlingCost,
+                  internalOtherCharges,
+                  internalCostTotal
               }
           });
 
@@ -567,6 +629,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
               data: {
                 invoiceId: newInvoice.id,
                 fobValue: totalUsd,
+                freightCharges: internalShippingCost + internalHandlingCost || 0,
+                insuranceCharges: internalInsuranceCost || 0,
                 buyerReference: data.platformOrderId || null,
               }
             });
@@ -593,7 +657,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
               {
                 accountId: salesAccount.id,
                 debit: 0,
-                credit: newInvoice.subtotal,
+                credit: Math.max(0, newInvoice.subtotal - newInvoice.taxTotal),
                 description: `Sales Revenue for Invoice ${newInvoice.invoiceNumber}`,
               },
               {
@@ -670,6 +734,13 @@ export async function createSale(prevState: unknown, formData: FormData) {
                 netAmount: itemData.netAmount,
                 costPriceSnapshot: itemData.cost,
                 profit: itemData.profit,
+                actualProfit: itemData.actualProfit,
+                internalShippingCost: internalShippingCost * (itemGrossTotal > 0 ? itemData.sellingPrice / itemGrossTotal : 1 / computedItems.length),
+                internalPackagingCost: internalPackagingCost * (itemGrossTotal > 0 ? itemData.sellingPrice / itemGrossTotal : 1 / computedItems.length),
+                internalInsuranceCost: internalInsuranceCost * (itemGrossTotal > 0 ? itemData.sellingPrice / itemGrossTotal : 1 / computedItems.length),
+                internalHandlingCost: internalHandlingCost * (itemGrossTotal > 0 ? itemData.sellingPrice / itemGrossTotal : 1 / computedItems.length),
+                internalOtherCharges: internalOtherCharges * (itemGrossTotal > 0 ? itemData.sellingPrice / itemGrossTotal : 1 / computedItems.length),
+                internalCostTotal: itemData.internalCostTotal,
                 paymentMethod: data.paymentMode,
                 paymentStatus: invoicePaymentStatus,
                 notes: data.remarks,
@@ -836,28 +907,6 @@ export async function createSale(prevState: unknown, formData: FormData) {
                       }
                   });
               }
-          }
-
-          // 4. Accounting Entry (Double Entry)
-          try {
-              const prismaTx = tx as PrismaTx;
-              const acAR = await getOrCreateAccountByCode(ACCOUNTS.ASSETS.ACCOUNTS_RECEIVABLE, prismaTx);
-              const acSales = await getOrCreateAccountByCode(ACCOUNTS.INCOME.SALES, prismaTx);
-              
-              await postJournalEntry({
-                  date: new Date(),
-                  description: `Invoice #${invoiceNumber} - ${data.customerName || "Walk-in"}`,
-                  referenceType: "INVOICE",
-                  referenceId: newInvoice.id,
-                  userId: session.user.id,
-                  lines: [
-                      { accountId: acAR.id, debit: adjustedInvoiceTotal },
-                      { accountId: acSales.id, credit: adjustedInvoiceTotal }
-                  ]
-              }, prismaTx);
-          } catch (accError) {
-              console.error("Accounting Entry Failed:", accError);
-              throw accError; // Ensure data consistency
           }
 
           // Loyalty accrual moved outside transaction - non-critical

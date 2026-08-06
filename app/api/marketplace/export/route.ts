@@ -4,6 +4,9 @@ import { ensureMarketplaceControlCenterSchema, normalizePlatform, MARKETPLACE_PL
 import { buildEbayHtmlDescription } from "@/lib/ebay-description";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { analyzePricing } from "@/lib/pricing/engine";
+import { getDefaultProfile } from "@/lib/pricing/db";
+import { PRICING_STATUS_LABELS } from "@/lib/pricing/constants";
 import ExcelJS from "exceljs";
 
 export async function GET(req: NextRequest) {
@@ -38,6 +41,7 @@ export async function GET(req: NextRequest) {
               i."shape", i."color", i."origin", i."treatment", i."transparency",
               i."braceletType", i."beadSizeMm", i."beadCount",
               i."standardSize",
+              i."flatPurchaseCost", i."purchaseRatePerCarat",
               l."platform", l."listingUrl"
        FROM "Inventory" i
        LEFT JOIN "Listing" l ON l."inventoryId" = i."id" AND UPPER(l."status") IN ('ACTIVE', 'LISTED')
@@ -87,6 +91,51 @@ export async function GET(req: NextRequest) {
     const exportItems = normalizedMarketplace
       ? allItems.filter((item) => item.platforms.has(normalizedMarketplace))
       : allItems;
+
+    // Pricing analysis (planning only) — always computed for opportunity exports.
+    // Uses the default marketplace fee schedule.
+    const pricingProfile = await getDefaultProfile();
+    const pricingMap = new Map<string, { msp: number; mrp: number; status: string; expectedProfit: number; profitPct: number; marginPct: number }>();
+    if (pricingProfile) {
+      for (const item of exportItems) {
+        const b = item.base;
+        const a = analyzePricing({
+          purchasePrice: Number(b.costPrice) || 0,
+          sellingPrice: Number(b.sellingPrice) || 0,
+          charges: pricingProfile.charges,
+          marginType: pricingProfile.marginType,
+          marginValue: pricingProfile.marginValue,
+        });
+        pricingMap.set(String(b.inventoryId || ""), {
+          msp: a.msp,
+          mrp: a.mrp,
+          status: PRICING_STATUS_LABELS[a.status],
+          expectedProfit: a.expectedProfit,
+          profitPct: a.profitPct,
+          marginPct: a.marginPct,
+        });
+      }
+    }
+    const pricingCols = (invId: string): Array<string | number> => {
+      const p = pricingMap.get(invId);
+      if (!p) return ["—", "—", "—", "—", "—", "—"];
+      return [
+        Number(p.mrp.toFixed(2)),
+        Number(p.msp.toFixed(2)),
+        Number(p.expectedProfit.toFixed(2)),
+        Number(p.profitPct.toFixed(1)),
+        Number(p.marginPct.toFixed(1)),
+        p.status,
+      ];
+    };
+    const PRICING_HEADERS = [
+      "MRP",
+      "MSP",
+      "Expected Profit",
+      "Profit %",
+      "Margin %",
+      "Pricing Status",
+    ];
 
     // Fetch latest engagement metrics for every inventoryId in scope
     const allInventoryIds = Array.from(new Set(exportItems.map((it) => String(it.base.inventoryId || ""))));
@@ -184,7 +233,12 @@ export async function GET(req: NextRequest) {
 
       // ═══ Sheet 1: Action Plan (SKU × missing platform) ═══
       const ws1 = wb.addWorksheet("Action Plan", { properties: { tabColor: { argb: C.blue } } });
-      const h1 = ["SKU", "Product Name", "Category", "Platform to List", "Listed Elsewhere?", "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)", "Priority", "Stock Location", "HSN Code", "eBay Description"];
+      const h1 = [
+        "SKU", "Product Name", "Category", "Platform to List", "Listed Elsewhere?",
+        "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)",
+        ...PRICING_HEADERS,
+        "Priority", "Stock Location", "HSN Code", "eBay Description",
+      ];
       ws1.addRow(h1); hdrStyle(ws1, h1.length);
 
       for (const item of opportunityItems) {
@@ -193,6 +247,7 @@ export async function GET(req: NextRequest) {
         const listed = [...item.platforms].sort().join(", ");
         const weight = fmtFmt(b.weightValue || b.carats);
         const sp = fmtFmt(b.sellingPrice);
+        const pc = pricingCols(String(b.inventoryId || ""));
 
         for (const mp of MARKETPLACE_PLATFORMS) {
           if (item.platforms.has(mp)) continue;
@@ -203,6 +258,7 @@ export async function GET(req: NextRequest) {
             ready.hasCert ? "✅" : "❌",
             ready.ready ? "Ready" : "Prep Needed",
             weight, sp,
+            ...pc,
             item.platforms.size >= 2 ? "HIGH" : "MEDIUM",
             b.stockLocation || "—",
             b.hsnCode || "—",
@@ -212,11 +268,13 @@ export async function GET(req: NextRequest) {
       }
       autoW(ws1);
       for (let r = 2; r <= ws1.rowCount; r++) {
-        ws1.getCell(r, 10).numFmt = "₹ #,##0";
-        ws1.getCell(r, 14).numFmt = "@";
-        const prio = ws1.getCell(r, 11).value?.toString();
-        if (prio === "HIGH") ws1.getCell(r, 11).font = { bold: true, color: { argb: C.red }, size: 10, name: "Calibri" };
-        else if (prio === "MEDIUM") ws1.getCell(r, 11).font = { color: { argb: C.amber }, size: 10, name: "Calibri" };
+        for (const c of [10, 11, 12, 13]) ws1.getCell(r, c).numFmt = "₹ #,##0.00";
+        ws1.getCell(r, 14).numFmt = "0.0"; // Profit %
+        ws1.getCell(r, 15).numFmt = "0.0"; // Margin %
+        ws1.getCell(r, 20).numFmt = "@"; // eBay Description
+        const prio = ws1.getCell(r, 17).value?.toString();
+        if (prio === "HIGH") ws1.getCell(r, 17).font = { bold: true, color: { argb: C.red }, size: 10, name: "Calibri" };
+        else if (prio === "MEDIUM") ws1.getCell(r, 17).font = { color: { argb: C.amber }, size: 10, name: "Calibri" };
       }
 
       // ═══ Sheet 2: SKU Summary ═══
@@ -224,9 +282,10 @@ export async function GET(req: NextRequest) {
       const h2 = [
         "SKU", "Product Name", "Category", "Listed On", "Missing Platforms", "Missing Count",
         "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)",
+        ...PRICING_HEADERS,
         "Stock Location", "HSN Code", "eBay Description",
         "eBay: Views", "eBay: Watchers", "eBay: Orders", "eBay: Revenue", "eBay: Last Synced",
-        "Etsy: Views", "Etsy: Favourites", "Etsy: Orders", "Etsy: Revenue", "Etsy: Last Synced"
+        "Etsy: Views", "Etsy: Favourites", "Etsy: Orders", "Etsy: Revenue", "Etsy: Last Synced",
       ];
       ws2.addRow(h2); hdrStyle(ws2, h2.length);
 
@@ -245,6 +304,7 @@ export async function GET(req: NextRequest) {
           ready.hasCert ? "✅" : "❌",
           ready.ready ? "Ready" : "Prep Needed",
           fmtFmt(b.weightValue || b.carats), fmtFmt(b.sellingPrice),
+          ...pricingCols(invId),
           b.stockLocation || "—",
           b.hsnCode || "—",
           getDesc(b),
@@ -254,10 +314,12 @@ export async function GET(req: NextRequest) {
       }
       autoW(ws2);
       for (let r = 2; r <= ws2.rowCount; r++) {
-        ws2.getCell(r, 11).numFmt = "₹ #,##0";
-        ws2.getCell(r, 14).numFmt = "@";
-        ws2.getCell(r, 19).numFmt = "₹ #,##0.00";
-        ws2.getCell(r, 24).numFmt = "₹ #,##0.00";
+        for (const c of [11, 12, 13, 14]) ws2.getCell(r, c).numFmt = "₹ #,##0.00";
+        ws2.getCell(r, 15).numFmt = "0.0"; // Profit %
+        ws2.getCell(r, 16).numFmt = "0.0"; // Margin %
+        ws2.getCell(r, 20).numFmt = "@"; // eBay Description
+        ws2.getCell(r, 24).numFmt = "₹ #,##0.00"; // eBay Revenue
+        ws2.getCell(r, 29).numFmt = "₹ #,##0.00"; // Etsy Revenue
       }
 
       // ═══ Sheet 3: Needs Preparation ═══
@@ -287,10 +349,11 @@ export async function GET(req: NextRequest) {
         const ws = wb.addWorksheet(mp, { properties: { tabColor: { argb: mp === "EBAY" ? C.blue : mp === "ETSY" ? C.amber : C.emerald } } });
         const h = [
           "SKU", "Product Name", "Category", "Listed On",
-          "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)", "Priority",
-          "Stock Location", "eBay Description",
+          "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)",
+          ...PRICING_HEADERS,
+          "Priority", "Stock Location", "eBay Description",
           "eBay: Views", "eBay: Watchers", "eBay: Orders", "eBay: Revenue", "eBay: Last Synced",
-          "Etsy: Views", "Etsy: Favourites", "Etsy: Orders", "Etsy: Revenue", "Etsy: Last Synced"
+          "Etsy: Views", "Etsy: Favourites", "Etsy: Orders", "Etsy: Revenue", "Etsy: Last Synced",
         ];
         ws.addRow(h); hdrStyle(ws, h.length);
         for (const item of platItems) {
@@ -305,6 +368,7 @@ export async function GET(req: NextRequest) {
             ready.hasImage ? "✅" : "❌", ready.hasCert ? "✅" : "❌",
             ready.ready ? "Ready" : "Prep Needed",
             fmtFmt(b.weightValue || b.carats), fmtFmt(b.sellingPrice),
+            ...pricingCols(invId),
             item.platforms.size >= 2 ? "HIGH" : "MEDIUM",
             b.stockLocation || "—",
             getDesc(b),
@@ -314,10 +378,12 @@ export async function GET(req: NextRequest) {
         }
         autoW(ws);
         for (let r = 2; r <= ws.rowCount; r++) {
-          ws.getCell(r, 9).numFmt = "₹ #,##0";
-          ws.getCell(r, 12).numFmt = "@";
-          ws.getCell(r, 17).numFmt = "₹ #,##0.00";
-          ws.getCell(r, 22).numFmt = "₹ #,##0.00";
+          for (const c of [9, 10, 11, 12]) ws.getCell(r, c).numFmt = "₹ #,##0.00";
+          ws.getCell(r, 13).numFmt = "0.0"; // Profit %
+          ws.getCell(r, 14).numFmt = "0.0"; // Margin %
+          ws.getCell(r, 18).numFmt = "@"; // eBay Description
+          ws.getCell(r, 22).numFmt = "₹ #,##0.00"; // eBay Revenue
+          ws.getCell(r, 27).numFmt = "₹ #,##0.00"; // Etsy Revenue
         }
       }
 
