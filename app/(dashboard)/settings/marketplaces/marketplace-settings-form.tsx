@@ -56,6 +56,7 @@ export function MarketplaceSettingsForm({ initialProfiles }: MarketplaceSettings
     initialProfiles.find((p) => p.isDefault)?.name || initialProfiles[0]?.name || ""
   );
   const [samplePurchase, setSamplePurchase] = useState("100");
+  const [sampleSelling, setSampleSelling] = useState("1500");
   const [saving, setSaving] = useState<string | null>(null);
 
   const active = profiles.find((p) => p.name === activeName) || profiles[0];
@@ -63,14 +64,15 @@ export function MarketplaceSettingsForm({ initialProfiles }: MarketplaceSettings
   const preview = useMemo(() => {
     if (!active) return null;
     const purchasePrice = Number(samplePurchase) || 0;
+    const sellingPrice = Number(sampleSelling) || 0;
     return analyzePricing({
       purchasePrice,
-      sellingPrice: purchasePrice, // preview placeholder
+      sellingPrice,
       charges: active.charges,
       marginType: active.marginType,
       marginValue: active.marginValue,
     });
-  }, [active, samplePurchase]);
+  }, [active, samplePurchase, sampleSelling]);
 
   if (!active) {
     return (
@@ -332,18 +334,29 @@ export function MarketplaceSettingsForm({ initialProfiles }: MarketplaceSettings
                 <CardHeader>
                   <CardTitle className="text-base">Live MSP / MRP Preview</CardTitle>
                   <CardDescription>
-                    Uses the current fee schedule against a sample purchase price.
+                    Enter a sample purchase and selling price to see MSP/MRP values live.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Sample Purchase Price</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={samplePurchase}
-                      onChange={(e) => setSamplePurchase(e.target.value)}
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Sample Purchase Price</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={samplePurchase}
+                        onChange={(e) => setSamplePurchase(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Sample Selling Price (MRP)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={sampleSelling}
+                        onChange={(e) => setSampleSelling(e.target.value)}
+                      />
+                    </div>
                   </div>
                   {preview ? (
                     <>
@@ -396,10 +409,10 @@ export function MarketplaceSettingsForm({ initialProfiles }: MarketplaceSettings
                 <CardContent className="space-y-2">
                   {(
                     [
-                      ["BELOW_MSP", "Selling below break-even — loss"],
-                      ["BREAK_EVEN", "Selling at exactly MSP"],
-                      ["HEALTHY_MARGIN", "Between MSP and MRP"],
-                      ["PREMIUM_MARGIN", "At or above MRP"],
+                      ["BELOW_MSP", "MRP below break-even — listing won't cover marketplace costs"],
+                      ["BREAK_EVEN", "MRP equals MSP — just covers costs, no profit"],
+                      ["HEALTHY_MARGIN", "MRP above MSP — profitable listing"],
+                      ["PREMIUM_MARGIN", "MRP ≥ 1.5× MSP — high-margin item"],
                     ] as const
                   ).map(([s, desc]) => (
                     <div key={s} className="flex items-center gap-2 text-xs">
