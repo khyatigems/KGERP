@@ -7,6 +7,7 @@ import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, Rotate
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { useSidebar } from "./sidebar-context";
+import { useTheme } from "next-themes";
 
 export const navItems = [
   { href: "/", label: "Dashboard", icon: Home, module: "dashboard" },
@@ -38,6 +39,10 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
   const pathname = usePathname();
   const { showLoader } = useGlobalLoader();
   const { collapsed, toggleCollapsed } = useSidebar();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const brandNavy = isDark ? "#FFFFFF" : "#181547";
+  const brandRed = isDark ? "#FFFFFF" : "#D03837";
 
   const handleNavigation = (href: string) => {
     if (onNavigate) onNavigate();
@@ -57,11 +62,34 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
       >
         <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={() => handleNavigation("/")} title="KhyatiGems™ ERP">
           {collapsed ? (
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Diamond className="h-5 w-5" />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 transition-all duration-300">
+              <svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
+                <g>
+                  <g>
+                    <polygon fill={brandRed} points="391.3,256.3 300.9,375.7 420.8,256.3" />
+                    <polygon fill={brandRed} points="465.1,256.3 374.7,375.7 494.6,256.3" />
+                    <polygon fill={brandRed} points="608.7,256.3 699.1,375.7 579.2,256.3" />
+                    <polygon fill={brandRed} points="534.9,256.3 625.3,375.7 505.4,256.3" />
+                  </g>
+                  <polygon fill={brandNavy} points="641.4,256.3 793.5,375.7 872,375.7 658.2,207.8 342.1,207.8 176.5,337.9 176.5,207.8 176,207.8 128,245.4 128,738.2 176.3,792.2 176.5,792.2 176.5,430.2 500.1,792.2 745.1,518.2 788.5,469.7 723.4,469.7 453.9,469.7 497.3,518.2 680.1,518.2 500.1,719.4 320.2,518.2 276.8,469.7 198.6,382.2 358.8,256.3" />
+                </g>
+              </svg>
             </span>
           ) : (
-            <span className="text-lg tracking-tight">KhyatiGems™ ERP</span>
+            <span className="flex items-center gap-2 transition-all duration-300">
+              <svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 shrink-0 animate-sidebar-logo-in">
+                <g>
+                  <g>
+                    <polygon fill={brandRed} points="391.3,256.3 300.9,375.7 420.8,256.3" />
+                    <polygon fill={brandRed} points="465.1,256.3 374.7,375.7 494.6,256.3" />
+                    <polygon fill={brandRed} points="608.7,256.3 699.1,375.7 579.2,256.3" />
+                    <polygon fill={brandRed} points="534.9,256.3 625.3,375.7 505.4,256.3" />
+                  </g>
+                  <polygon fill={brandNavy} points="641.4,256.3 793.5,375.7 872,375.7 658.2,207.8 342.1,207.8 176.5,337.9 176.5,207.8 176,207.8 128,245.4 128,738.2 176.3,792.2 176.5,792.2 176.5,430.2 500.1,792.2 745.1,518.2 788.5,469.7 723.4,469.7 453.9,469.7 497.3,518.2 680.1,518.2 500.1,719.4 320.2,518.2 276.8,469.7 198.6,382.2 358.8,256.3" />
+                </g>
+              </svg>
+              <span className="text-lg tracking-tight whitespace-nowrap">KhyatiGems™</span>
+            </span>
           )}
         </Link>
         {collapsed ? (

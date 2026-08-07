@@ -1079,6 +1079,16 @@ html[data-premium="true"] .gem-facet-glow {
   animation: var(--animate-fade-in);
 }
 
+/* ── Sidebar Logo Animation ── */
+@keyframes sidebar-logo-in {
+  0% { opacity: 0; transform: scale(0.7) rotate(-12deg); }
+  60% { opacity: 1; transform: scale(1.08) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+.animate-sidebar-logo-in {
+  animation: sidebar-logo-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 /* ── Input Shake on Error ── */
 @utility animate-shake {
   animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
