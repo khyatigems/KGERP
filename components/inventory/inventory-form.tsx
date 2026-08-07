@@ -246,6 +246,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     const optimisticToastId = toast.custom(
       () => (
         <InventorySaveProgressToast
+          key="saving"
           itemName={String(data.itemName || "")}
           completeness={completeness}
           status="saving"
@@ -298,6 +299,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         toast.custom(
           () => (
             <InventorySaveProgressToast
+              key="success"
               itemName={String(data.itemName || "")}
               sku={skuStr || undefined}
               completeness={completeness}
@@ -427,6 +429,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         toast.custom(
           () => (
             <InventorySaveProgressToast
+              key="error"
               itemName={String(data.itemName || "")}
               completeness={completeness}
               status="error"
@@ -447,6 +450,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       toast.custom(
         () => (
           <InventorySaveProgressToast
+            key="error"
             itemName={String(data?.itemName || "")}
             completeness={completeness}
             status="error"

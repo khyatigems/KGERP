@@ -223,6 +223,96 @@ export function getPermissionsForRole(role: string): Permission[] {
   return ROLE_PERMISSIONS[key as keyof typeof ROLE_PERMISSIONS] || [];
 }
 
+/**
+ * Batch permission check — fetches the user ONCE and checks all permissions in-memory.
+ * Returns a Map of permission → boolean.
+ */
+export async function checkUserPermissions(
+  userId: string,
+  permissions: Permission[]
+): Promise<Map<Permission, boolean>> {
+  const result = new Map<Permission, boolean>();
+
+  await ensureUserRoleIdColumn();
+  await ensureRbacSchema();
+  const supports = await hasUserRoleIdColumn();
+  const hasUserPermissionTable = await hasTable("UserPermission");
+  const hasRolePermissionTable = await hasTable("RolePermission");
+  const hasRoleTable = await hasTable("Role");
+  const hasPermissionTable = await hasTable("Permission");
+  const hasRbacTables = hasUserPermissionTable && hasRolePermissionTable && hasRoleTable && hasPermissionTable;
+
+  if (!hasRbacTables || !supports) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+    if (!user) {
+      permissions.forEach(p => result.set(p, false));
+      return result;
+    }
+    const isSuper = isSuperAdminRole(user.role);
+    const rolePerms = getPermissionsForRole(user.role);
+    permissions.forEach(p => result.set(p, isSuper || rolePerms.includes(p)));
+    return result;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        roleRelation: {
+          include: {
+            permissions: { include: { permission: true } }
+          }
+        },
+        userPermissions: { include: { permission: true } }
+      }
+    });
+
+    if (!user) {
+      permissions.forEach(p => result.set(p, false));
+      return result;
+    }
+
+    if (user.roleRelation && isSuperAdminRole(user.roleRelation.name)) {
+      permissions.forEach(p => result.set(p, true));
+      return result;
+    }
+
+    const overrides = new Map<string, boolean>();
+    user.userPermissions?.forEach(up => {
+      if (up.permission?.key) overrides.set(up.permission.key, up.allow);
+    });
+
+    const rolePermissionKeys = new Set(
+      user.roleRelation?.permissions?.map(rp => rp.permission?.key).filter(Boolean) ?? []
+    );
+
+    permissions.forEach(p => {
+      if (overrides.has(p)) {
+        result.set(p, overrides.get(p)!);
+      } else if (rolePermissionKeys.has(p)) {
+        result.set(p, true);
+      } else if (rolePermissionKeys.size === 0 && user.roleRelation?.name) {
+        result.set(p, getPermissionsForRole(user.roleRelation.name).includes(p));
+      } else {
+        result.set(p, getPermissionsForRole(user.role).includes(p));
+      }
+    });
+  } catch {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true }
+    });
+    const isSuper = user ? isSuperAdminRole(user.role) : false;
+    const rolePerms = user ? getPermissionsForRole(user.role) : [];
+    permissions.forEach(p => result.set(p, isSuper || rolePerms.includes(p)));
+  }
+
+  return result;
+}
+
 // Deprecated: Only used in UI where async is not possible yet.
 // Replaced by session.user.permissions array (which we will inject)
 export function hasPermission(role: string, permission: Permission): boolean {

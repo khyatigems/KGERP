@@ -246,9 +246,6 @@ export async function ensureRbacSchema(): Promise<void> {
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL
         );
-      `);
-
-      await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "Permission" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "module" TEXT NOT NULL,
@@ -258,31 +255,24 @@ export async function ensureRbacSchema(): Promise<void> {
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL
         );
-      `);
-
-      await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "RolePermission" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "roleId" TEXT NOT NULL,
           "permissionId" TEXT NOT NULL
         );
-      `);
-
-      await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "UserPermission" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "userId" TEXT NOT NULL,
           "permissionId" TEXT NOT NULL,
           "allow" INTEGER NOT NULL
         );
+        CREATE UNIQUE INDEX IF NOT EXISTS "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId","permissionId");
+        CREATE UNIQUE INDEX IF NOT EXISTS "UserPermission_userId_permissionId_key" ON "UserPermission"("userId","permissionId");
+        CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId");
+        CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");
+        CREATE INDEX IF NOT EXISTS "UserPermission_userId_idx" ON "UserPermission"("userId");
+        CREATE INDEX IF NOT EXISTS "UserPermission_permissionId_idx" ON "UserPermission"("permissionId");
       `);
-
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId","permissionId");`);
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "UserPermission_userId_permissionId_key" ON "UserPermission"("userId","permissionId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserPermission_userId_idx" ON "UserPermission"("userId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserPermission_permissionId_idx" ON "UserPermission"("permissionId");`);
     } catch {
     } finally {
       if (checkedTables) {

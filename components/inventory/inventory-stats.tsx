@@ -44,6 +44,7 @@ export function InventoryStats({ searchParams }: { searchParams: Record<string, 
 
   const { data, isLoading, isValidating, error } = useSWR<InventoryStatsResponse>(url, fetcher, {
     revalidateOnFocus: false,
+    dedupingInterval: 30000,
   });
 
   const overallStatusSummary = useMemo(() => {

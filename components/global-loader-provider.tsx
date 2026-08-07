@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, Suspense, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { Toaster } from "sonner";
 import { AppLogoLoader } from "@/components/ui/app-logo-loader";
 import { TopLoader } from "@/components/ui/top-loader";
 
@@ -100,6 +101,14 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
       {children}
       <TopLoader isLoading={isLoading} progress={progress} />
       {isLoading && <AppLogoLoader label={null} progress={progress} />}
+      <Toaster
+        richColors
+        expand
+        visibleToasts={4}
+        toastOptions={{
+          unstyled: false,
+        }}
+      />
     </GlobalLoaderContext.Provider>
   );
 }

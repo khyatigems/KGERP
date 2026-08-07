@@ -151,6 +151,16 @@ export const cachedMasters = {
       CACHE_TTLS.SETTINGS,
       ["settings:all"]
     ),
+
+  getOrigins: (prisma: PrismaClient) =>
+    cacheQuery(
+      () => prisma.$queryRawUnsafe<Array<{ origin: string }>>(
+        `SELECT DISTINCT "origin" FROM "Inventory" WHERE "origin" IS NOT NULL AND "origin" <> '' ORDER BY "origin"`
+      ),
+      ["masters", "origins"],
+      CACHE_TTLS.MASTERS,
+      ["masters:origins"]
+    ),
 };
 
 /**

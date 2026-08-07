@@ -19,8 +19,30 @@ import { BulkListings } from "@/components/inventory/bulk-listings";
 import type { Inventory, Prisma } from "@prisma/client";
 import { removeDuplicates } from "@/lib/dedup";
 import { auth } from "@/lib/auth";
-import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermissions, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
+
+// Short-lived in-memory cache for the main inventory query (5 seconds)
+// Prevents duplicate queries from InventoryStats + InventoryInsightBar firing simultaneously
+const inventoryQueryCache = new Map<string, { data: unknown; expiry: number }>();
+const INVENTORY_CACHE_TTL = 5000;
+
+function getInventoryCache<T>(key: string): T | null {
+  const entry = inventoryQueryCache.get(key);
+  if (entry && entry.expiry > Date.now()) return entry.data as T;
+  inventoryQueryCache.delete(key);
+  return null;
+}
+
+function setInventoryCache<T>(key: string, data: T): void {
+  inventoryQueryCache.set(key, { data, expiry: Date.now() + INVENTORY_CACHE_TTL });
+  // Clean up old entries periodically
+  if (inventoryQueryCache.size > 50) {
+    for (const [k, v] of inventoryQueryCache) {
+      if (v.expiry <= Date.now()) inventoryQueryCache.delete(k);
+    }
+  }
+}
 
 type SearchParams = {
   query?: string;
@@ -197,13 +219,21 @@ function buildInventoryWhere(
 async function getInventoryData(params: SearchParams) {
   const session = await auth();
   const userId = session?.user?.id;
-  const [canView, canCreate, canManageAttentionVisibility] = userId
-    ? await Promise.all([
-        checkUserPermission(userId, PERMISSIONS.INVENTORY_VIEW),
-        checkUserPermission(userId, PERMISSIONS.INVENTORY_CREATE),
-        checkUserPermission(userId, PERMISSIONS.INVENTORY_EDIT),
-      ])
-    : [false, false, false];
+
+  let canView = false;
+  let canCreate = false;
+  let canManageAttentionVisibility = false;
+
+  if (userId) {
+    const perms = await checkUserPermissions(userId, [
+      PERMISSIONS.INVENTORY_VIEW,
+      PERMISSIONS.INVENTORY_CREATE,
+      PERMISSIONS.INVENTORY_EDIT,
+    ]);
+    canView = perms.get(PERMISSIONS.INVENTORY_VIEW) ?? false;
+    canCreate = perms.get(PERMISSIONS.INVENTORY_CREATE) ?? false;
+    canManageAttentionVisibility = perms.get(PERMISSIONS.INVENTORY_EDIT) ?? false;
+  }
 
   if (!canView) {
     return {
@@ -336,21 +366,29 @@ async function getInventoryData(params: SearchParams) {
   let rows: InventoryListItem[] = [];
   let totalItems = 0;
 
-  try {
-    const [count, items] = await Promise.all([
-      prisma.inventory.count({ where }),
-      prisma.inventory.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        select,
-        skip: (currentPage - 1) * ITEMS_PER_PAGE,
-        take: ITEMS_PER_PAGE,
-      }),
-    ]);
-    totalItems = count;
-    rows = items as unknown as InventoryListItem[];
-  } catch (error) {
-    console.error("Inventory fetch failed in strict mode, retrying with direct fields:", error);
+  const queryCacheKey = JSON.stringify({ where: JSON.stringify(where), currentPage, filtersKey });
+  const cachedResult = getInventoryCache<{ rows: InventoryListItem[]; totalItems: number }>(queryCacheKey);
+
+  if (cachedResult) {
+    rows = cachedResult.rows;
+    totalItems = cachedResult.totalItems;
+  } else {
+    try {
+      const [count, items] = await Promise.all([
+        prisma.inventory.count({ where }),
+        prisma.inventory.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          select,
+          skip: (currentPage - 1) * ITEMS_PER_PAGE,
+          take: ITEMS_PER_PAGE,
+        }),
+      ]);
+      totalItems = count;
+      rows = items as unknown as InventoryListItem[];
+      setInventoryCache(queryCacheKey, { rows, totalItems });
+    } catch (error) {
+      console.error("Inventory fetch failed in strict mode, retrying with direct fields:", error);
     where = buildInventoryWhere(params, { strictRelations: false });
     const safeSelect = { ...select };
     delete safeSelect.categoryCode;
@@ -376,6 +414,7 @@ async function getInventoryData(params: SearchParams) {
       ...item,
       media: item.media || [],
     }));
+    }
   }
 
   const [
@@ -398,9 +437,7 @@ async function getInventoryData(params: SearchParams) {
     canCutCode ? cachedMasters.getCuts(prisma)() : Promise.resolve([]),
   ]);
 
-  const originRows = await prisma.$queryRawUnsafe<Array<{ origin: string }>>(
-    `SELECT DISTINCT "origin" FROM "Inventory" WHERE "origin" IS NOT NULL AND "origin" <> '' ORDER BY "origin"`
-  );
+  const originRows = await cachedMasters.getOrigins(prisma)();
   const origins = originRows.map((r) => r.origin);
 
   const inventory = removeDuplicates(rows, "id");

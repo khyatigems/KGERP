@@ -24,7 +24,8 @@ export function InventorySaveProgressToast({
 }: Omit<Props, "id">) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    requestAnimationFrame(() => setMounted(true));
+    const raf = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const isSaving = status === "saving";
@@ -35,7 +36,6 @@ export function InventorySaveProgressToast({
 
   return (
     <div
-      data-sonner-toast
       className={cn(
         "w-[340px] rounded-xl border overflow-hidden",
         "bg-gradient-to-br from-background/95 via-background/90 to-background/95 backdrop-blur-xl",
