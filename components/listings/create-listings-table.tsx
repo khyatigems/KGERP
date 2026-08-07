@@ -112,6 +112,9 @@ export function CreateListingsTable() {
           for (const it of items) next[it.id] = it;
           return next;
         });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        throw err;
       } finally {
         setLoading(false);
       }

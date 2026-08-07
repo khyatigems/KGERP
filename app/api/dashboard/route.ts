@@ -156,7 +156,7 @@ export async function GET() {
             grouped[dateStr] = (grouped[dateStr] || 0) + sale.netAmount;
           }
           return Object.entries(grouped).map(([date, revenue]) => ({ date, revenue }));
-        }).catch(() => []),
+        }).catch((err) => { console.error("[dashboard] revenue trend query failed:", err); return []; }),
       ]);
 
       const percentChange = (current: number, previous: number) => {
@@ -220,7 +220,11 @@ export async function GET() {
     const safe = JSON.parse(JSON.stringify(payload, (_key, value) =>
       typeof value === "bigint" ? Number(value) : value
     ));
-    return NextResponse.json(safe);
+    const response = NextResponse.json(safe);
+    // Dashboard data includes the signed-in user's label cart, so it must not
+    // be shared through a public CDN cache.
+    response.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
+    return response;
 
   } catch (error) {
     console.error("Dashboard error:", error);

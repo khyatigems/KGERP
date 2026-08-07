@@ -1013,6 +1013,50 @@ export async function ensureAvatarWhatsNewSchema(): Promise<void> {
   return ensureAvatarWhatsNewPromise;
 }
 
+let ensuringUserTheme = false;
+let ensuredUserTheme = false;
+let ensureUserThemePromise: Promise<void> | null = null;
+
+export async function ensureUserThemeSchema(): Promise<void> {
+  if (ensuredUserTheme) return;
+  if (ensuringUserTheme && ensureUserThemePromise) return ensureUserThemePromise;
+  ensuringUserTheme = true;
+  ensureUserThemePromise = (async () => {
+    try {
+      await ensureColumnIfMissing("User", "themePreference", '"themePreference" TEXT DEFAULT \'default\'');
+    } catch {
+      // Keep theme preferences non-blocking for existing deployments.
+    } finally {
+      ensuredUserTheme = true;
+      ensuringUserTheme = false;
+      ensureUserThemePromise = null;
+    }
+  })();
+  return ensureUserThemePromise;
+}
+
+let ensuringPremiumMode = false;
+let ensuredPremiumMode = false;
+let ensurePremiumModePromise: Promise<void> | null = null;
+
+export async function ensurePremiumModeSchema(): Promise<void> {
+  if (ensuredPremiumMode) return;
+  if (ensuringPremiumMode && ensurePremiumModePromise) return ensurePremiumModePromise;
+  ensuringPremiumMode = true;
+  ensurePremiumModePromise = (async () => {
+    try {
+      await ensureColumnIfMissing("User", "premiumMode", '"premiumMode" INTEGER DEFAULT 0');
+    } catch {
+      // Keep premium mode non-blocking for existing deployments.
+    } finally {
+      ensuredPremiumMode = true;
+      ensuringPremiumMode = false;
+      ensurePremiumModePromise = null;
+    }
+  })();
+  return ensurePremiumModePromise;
+}
+
 let ensuringPasswordReset = false;
 let ensuredPasswordReset = false;
 let ensurePasswordResetPromise: Promise<void> | null = null;
@@ -1250,6 +1294,16 @@ export async function ensurePricingEngineSchema(): Promise<void> {
         ["SGD", 0, 0],
         ["AED", 0, 0],
         ["JPY", 0, 0],
+        ["CHF", 0, 0],
+        ["CNY", 0, 0],
+        ["HKD", 0, 0],
+        ["NZD", 0, 0],
+        ["SAR", 0, 0],
+        ["QAR", 0, 0],
+        ["KWD", 0, 0],
+        ["ZAR", 0, 0],
+        ["THB", 0, 0],
+        ["MYR", 0, 0],
       ];
       for (const [code, rateToInr, isBase] of currencies) {
         await prisma.$executeRawUnsafe(

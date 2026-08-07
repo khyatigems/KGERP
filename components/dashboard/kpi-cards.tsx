@@ -35,7 +35,7 @@ export function KpiCards({ data }: { data: DashboardData }) {
             trend: data.kpis.inventory.trend,
             breakdown: data.kpis.inventory.breakdown,
             icon: Package,
-            color: "text-blue-600"
+            color: "text-primary"
         },
         {
             title: "Active Listings",
@@ -83,9 +83,9 @@ export function KpiCards({ data }: { data: DashboardData }) {
     ];
 
     return (
-        <div className="sass-enter grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="sass-enter sass-stagger grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {kpis.map((kpi, index) => (
-                <Card key={index}>
+                <Card key={index} className="gem-facet-glow">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">
                             {kpi.title}

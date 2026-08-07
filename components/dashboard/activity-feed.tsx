@@ -24,8 +24,8 @@ const fetcher = async (url: string) => {
 
 const actionColors: Record<string, string> = {
   CREATE: "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400",
-  UPDATE: "bg-blue-500/10 text-blue-500 dark:text-blue-400",
-  EDIT: "bg-blue-500/10 text-blue-500 dark:text-blue-400",
+  UPDATE: "bg-primary/10 text-primary dark:text-primary",
+  EDIT: "bg-primary/10 text-primary dark:text-primary",
   DELETE: "bg-red-500/10 text-red-500 dark:text-red-400",
   SYNC: "bg-purple-500/10 text-purple-500 dark:text-purple-400",
   PRINT: "bg-amber-500/10 text-amber-500 dark:text-amber-400",
@@ -33,8 +33,8 @@ const actionColors: Record<string, string> = {
 
 const actionBg: Record<string, string> = {
   CREATE: "bg-emerald-500",
-  UPDATE: "bg-blue-500",
-  EDIT: "bg-blue-500",
+  UPDATE: "bg-primary",
+  EDIT: "bg-primary",
   DELETE: "bg-red-500",
   SYNC: "bg-purple-500",
   PRINT: "bg-amber-500",

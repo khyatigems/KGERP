@@ -363,7 +363,7 @@ export function EbayExport({
 
             {/* Template Preview */}
             {settings.useTemplate && (
-              <div className="space-y-2 p-4 border rounded-lg bg-blue-50">
+              <div className="space-y-2 p-4 border rounded-lg bg-primary/10">
                 <h4 className="font-medium text-sm">eBay Template Preview</h4>
                 <p className="text-xs text-muted-foreground">
                   The export will include a formatted HTML description with:

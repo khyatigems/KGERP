@@ -1,10 +1,30 @@
+"use client";
+
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+
+type LogoVariant = "auto" | "light" | "dark";
 
 interface LogoProps {
   className?: string;
+  variant?: LogoVariant;
 }
 
-export function Logo({ className }: LogoProps) {
+/**
+ * KhyatiGems brand logo.
+ * - variant="dark"  → white shapes (for dark backgrounds)
+ * - variant="light" → brand navy/red shapes (for light backgrounds)
+ * - variant="auto"  → resolved automatically from the active theme
+ */
+export function Logo({ className, variant = "auto" }: LogoProps) {
+  const { resolvedTheme } = useTheme();
+
+  const resolved = variant === "auto" ? (resolvedTheme === "dark" ? "dark" : "light") : variant;
+  const isDark = resolved === "dark";
+
+  const navy = isDark ? "#FFFFFF" : "#181547";
+  const red = isDark ? "#FFFFFF" : "#D03837";
+
   return (
     <svg
       version="1.1"
@@ -15,20 +35,20 @@ export function Logo({ className }: LogoProps) {
       viewBox="0 0 1000 1000"
       xmlSpace="preserve"
       className={cn("w-full h-full drop-shadow-2xl", className)}
+      style={{ color: isDark ? "#FFFFFF" : "#181547" }}
     >
       <style type="text/css">
         {`
-          .st0{fill:#181547;}
-          .st1{fill:#D03837;}
-          .st2{fill:#FFFFFF;}
+          .st2{fill:${navy};}
+          .st-facet{fill:${red};}
         `}
       </style>
       <g>
         <g>
           <polygon className="st2" points="391.3,256.3 300.9,375.7 420.8,256.3" />
           <polygon className="st2" points="465.1,256.3 374.7,375.7 494.6,256.3" />
-          <polygon className="st2" points="608.7,256.3 699.1,375.7 579.2,256.3" />
-          <polygon className="st2" points="534.9,256.3 625.3,375.7 505.4,256.3" />
+          <polygon className="st-facet" points="608.7,256.3 699.1,375.7 579.2,256.3" />
+          <polygon className="st-facet" points="534.9,256.3 625.3,375.7 505.4,256.3" />
         </g>
         <polygon
           className="st2"

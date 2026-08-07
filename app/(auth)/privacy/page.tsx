@@ -17,7 +17,7 @@ export default function PrivacyPage() {
       <div className="space-y-10">
         <section>
           <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <Database className="h-5 w-5 text-blue-600" />
+            <Database className="h-5 w-5 text-primary" />
             Information We Collect
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
@@ -53,7 +53,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <Eye className="h-5 w-5 text-blue-600" />
+            <Eye className="h-5 w-5 text-primary" />
             How We Use Your Information
           </h2>
           <ul className="list-disc pl-5 space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <Lock className="h-5 w-5 text-blue-600" />
+            <Lock className="h-5 w-5 text-primary" />
             Data Security
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
@@ -89,7 +89,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <Camera className="h-5 w-5 text-blue-600" />
+            <Camera className="h-5 w-5 text-primary" />
             Your Profile Photo
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -99,7 +99,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <Globe className="h-5 w-5 text-blue-600" />
+            <Globe className="h-5 w-5 text-primary" />
             Third-Party Services
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold mb-3">Contact</h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             For privacy-related questions, contact{" "}
-            <a href="mailto:privacy@khyatigems.com" className="text-blue-600 hover:underline">
+            <a href="mailto:privacy@khyatigems.com" className="text-primary hover:underline">
               privacy@khyatigems.com
             </a>.
           </p>

@@ -70,7 +70,7 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
   const severityConfig = {
     critical: { badge: "bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/20" },
     warning: { badge: "bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/20" },
-    info: { badge: "bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20" },
+    info: { badge: "bg-primary/10 text-primary dark:text-primary border-primary/20" },
   };
 
   return (

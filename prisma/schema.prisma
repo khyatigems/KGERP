@@ -19,6 +19,8 @@ model User {
   avatar             String?
   avatarUrl          String?
   avatarHistory      String?   @default("[]")
+  themePreference    String?   @default("default")
+  premiumMode        Boolean?  @default(false)
   lastLogin          DateTime?
   lastPasswordChange DateTime?
   forceLogoutBefore  DateTime?

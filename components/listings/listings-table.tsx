@@ -490,7 +490,7 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
                         href={listing.listingUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 underline"
+                        className="text-primary underline"
                       >
                         Link
                       </a>
@@ -572,7 +572,7 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
                                         href={selectedListing.listingUrl} 
                                         target="_blank" 
                                         rel="noopener noreferrer" 
-                                        className="text-blue-600 hover:underline flex items-center gap-1"
+                                        className="text-primary hover:underline flex items-center gap-1"
                                     >
                                         <ExternalLink className="h-3.5 w-3.5" />
                                         {selectedListing.listingUrl.length > 60 ? selectedListing.listingUrl.substring(0, 60) + "..." : selectedListing.listingUrl}
@@ -599,7 +599,7 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
                                         return (
                                             <div key={i} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
                                                 <div className="flex items-center gap-2">
-                                                    <div className={`w-2 h-2 rounded-full ${isFirst ? "bg-blue-500" : "bg-muted-foreground/40"}`} />
+                                                    <div className={`w-2 h-2 rounded-full ${isFirst ? "bg-primary" : "bg-muted-foreground/40"}`} />
                                                     <span className="font-mono font-medium">{formatCurrency(h.price, selectedListing.currency || "INR")}</span>
                                                     {diff !== null && Math.abs(diff) > 0.001 && (
                                                         <span className={`text-xs font-medium ${diff > 0 ? "text-green-600" : "text-red-600"}`}>

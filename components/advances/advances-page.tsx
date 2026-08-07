@@ -237,10 +237,10 @@ export function AdvancesPage({ advances, customers, companySettings }: AdvancesP
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Adjusted Amount</CardTitle>
-            <ArrowDownRight className="h-4 w-4 text-blue-500" />
+            <ArrowDownRight className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold text-primary">
               {formatCurrency(totalAdjusted)}
             </div>
             <p className="text-xs text-muted-foreground">Used against invoices</p>
@@ -325,7 +325,7 @@ export function AdvancesPage({ advances, customers, companySettings }: AdvancesP
                           {advance.remainingAmount === 0 ? (
                             <Badge variant="secondary">Fully Adjusted</Badge>
                           ) : advance.adjustedAmount > 0 ? (
-                            <Badge variant="outline" className="bg-blue-50">
+                            <Badge variant="outline" className="bg-primary/10">
                               Partially Used
                             </Badge>
                           ) : (

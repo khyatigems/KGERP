@@ -242,7 +242,7 @@ export function InventoryStats({ searchParams }: { searchParams: Record<string, 
             <div className="text-2xl font-bold">{data?.overallTotalItems ?? data?.totalItems ?? "—"}</div>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
               <span className="text-emerald-600 dark:text-emerald-300">In Stock: {overallStatusSummary.inStock}</span>
-              <span className="text-blue-600 dark:text-blue-300">Sold: {overallStatusSummary.sold}</span>
+              <span className="text-primary dark:text-primary">Sold: {overallStatusSummary.sold}</span>
               <span className="text-amber-600 dark:text-amber-300">Reserved: {overallStatusSummary.reserved}</span>
               <span className="text-violet-600 dark:text-violet-300">Memo: {overallStatusSummary.memo}</span>
             </div>

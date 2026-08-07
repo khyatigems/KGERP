@@ -17,6 +17,7 @@ import { ListingManager } from "./listing-manager";
 import { LabelPrintDialog } from "./label-print-dialog";
 import { toast } from "sonner";
 import { updateInventoryStatus } from "@/app/(dashboard)/inventory/actions";
+import { useGlobalLoader } from "@/components/global-loader-provider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +55,7 @@ interface InventoryActionsProps {
 
 export function InventoryActions({ item, canManageAttentionVisibility }: InventoryActionsProps) {
   const router = useRouter();
+  const { showLoader } = useGlobalLoader();
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<"IN_STOCK" | "RESERVED" | "MEMO">("RESERVED");
@@ -106,7 +108,7 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuItem asChild>
-            <Link href={`/inventory/${item.id}`}>
+            <Link href={`/inventory/${item.id}`} onClick={() => showLoader()}>
               <Eye className="mr-2 h-4 w-4" /> View Details
             </Link>
           </DropdownMenuItem>
@@ -127,7 +129,7 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
           {item.status === "IN_STOCK" && (
             <>
               <DropdownMenuItem asChild>
-                <Link href={`/inventory/${item.id}/edit`}>
+                <Link href={`/inventory/${item.id}/edit`} onClick={() => showLoader()}>
                   <Pencil className="mr-2 h-4 w-4" /> Edit
                 </Link>
               </DropdownMenuItem>
@@ -150,12 +152,12 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
                 <Clock className="mr-2 h-4 w-4" /> Mark as Memo
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href={`/sales/new?inventoryId=${item.id}`}>
+                <Link href={`/sales/new?inventoryId=${item.id}`} onClick={() => showLoader()}>
                   <IndianRupee className="mr-2 h-4 w-4" /> Mark as Sold
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href={`/quotes/new?inventoryId=${item.id}`}>
+                <Link href={`/quotes/new?inventoryId=${item.id}`} onClick={() => showLoader()}>
                   <FileText className="mr-2 h-4 w-4" /> Create Quotation
                 </Link>
               </DropdownMenuItem>

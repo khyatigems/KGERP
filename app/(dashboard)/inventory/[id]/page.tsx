@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import { Activity, Pencil, CheckCircle, XCircle, Circle } from "lucide-react";
-import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +11,7 @@ import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { GciCertButton } from "@/components/inventory/gci-cert-button";
 import type { InventoryMedia } from "@prisma/client";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { LoadingLink } from "@/components/ui/loading-link";
 
 // ISR: Revalidate every 60 seconds for near-instant page loads
 // Page is cached and refreshed in background
@@ -318,12 +318,12 @@ export default async function InventoryDetailPage({
                 </div>
                 <div className="hidden gap-2 md:flex">
                     <Button variant="outline" asChild>
-                        <Link href={`/inventory/${id}/edit`}>
+                        <LoadingLink href={`/inventory/${id}/edit`}>
                             <Pencil className="mr-2 h-4 w-4" /> Edit
-                        </Link>
+                        </LoadingLink>
                     </Button>
                     <Button variant="outline" asChild>
-                        <Link href="/inventory">Back to Inventory</Link>
+                        <LoadingLink href="/inventory">Back to Inventory</LoadingLink>
                     </Button>
                 </div>
             </div>
@@ -595,9 +595,9 @@ export default async function InventoryDetailPage({
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Vendor:</span> 
                             {detailedItem.vendorId ? (
-                              <Link href={`/vendors/${detailedItem.vendorId}`} className="font-medium text-blue-600 hover:underline">
+                              <LoadingLink href={`/vendors/${detailedItem.vendorId}`} className="font-medium text-primary hover:underline">
                                   {vendor?.name || "Unknown Vendor"}
-                              </Link>
+                              </LoadingLink>
                             ) : (
                               <span className="font-medium">{vendor?.name || "Unknown Vendor"}</span>
                             )}
@@ -643,15 +643,15 @@ export default async function InventoryDetailPage({
                                 
                                 <div className={`mt-1.5 h-5 w-5 rounded-full shrink-0 flex items-center justify-center z-10 ${
                                     log.actionType === 'CREATE' ? 'bg-green-100 text-green-600' :
-                                    log.actionType === 'EDIT' ? 'bg-blue-100 text-blue-600' :
+                                    log.actionType === 'EDIT' ? 'bg-primary/15 text-primary' :
                                     log.actionType === 'SALE' ? 'bg-purple-100 text-purple-600' :
                                     log.actionType === 'SALES_RETURN' ? 'bg-amber-100 text-amber-700' :
                                     log.actionType === 'QUOTATION' ? 'bg-indigo-100 text-indigo-600' :
-                                    log.actionType === 'DELETE' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
+                                    log.actionType === 'DELETE' ? 'bg-red-100 text-red-600' : 'bg-muted/15 text-muted-foreground'
                                 }`}>
                                     <div className={`h-2 w-2 rounded-full ${
                                         log.actionType === 'CREATE' ? 'bg-green-600' :
-                                        log.actionType === 'EDIT' ? 'bg-blue-600' :
+                                        log.actionType === 'EDIT' ? 'bg-primary' :
                                         log.actionType === 'SALE' ? 'bg-purple-600' :
                                         log.actionType === 'SALES_RETURN' ? 'bg-amber-700' :
                                         log.actionType === 'QUOTATION' ? 'bg-indigo-600' :

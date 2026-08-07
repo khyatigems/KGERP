@@ -131,7 +131,7 @@ export function Topbar({ user }: TopbarProps) {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header className="flex h-16 items-center gap-4 border-b border-border bg-background px-6">
+    <header className="flex h-16 items-center gap-4 border-b border-border bg-background px-6 premium-topbar">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" className="shrink-0 lg:hidden">

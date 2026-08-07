@@ -112,7 +112,7 @@ export function SerialLedgerTable({
                   <TableCell>
                     <Badge variant="outline" className={
                         serial.status === "ACTIVE" ? "bg-green-50 text-green-700 border-green-200" :
-                        serial.status === "REPRINTED" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                        serial.status === "REPRINTED" ? "bg-primary/10 text-primary border-primary/20" :
                         serial.status === "CANCELLED" ? "bg-red-50 text-red-700 border-red-200" :
                         "bg-gray-100"
                     }>

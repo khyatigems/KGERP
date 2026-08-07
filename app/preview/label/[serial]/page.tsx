@@ -181,7 +181,7 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
                              href={certNo} 
                              target="_blank" 
                              rel="noopener noreferrer"
-                             className="inline-flex items-center gap-0.5 text-blue-600 hover:underline font-semibold"
+                              className="inline-flex items-center gap-0.5 text-primary hover:underline font-semibold"
                            >
                              View Cert <ExternalLink className="h-2 w-2" />
                            </a>
@@ -230,7 +230,7 @@ export default async function PreviewLabelPage({ params }: PreviewLabelPageProps
               <div className="w-[110px] relative flex flex-col items-center justify-center border-l border-gray-100 bg-gray-50/50 px-2 py-2">
                 <div className="text-center w-full mb-1">
                   <div className="text-[7px] text-gray-500 uppercase tracking-wider mb-0.5">Serial No</div>
-                  <div className="font-mono font-bold text-[11px] text-blue-700 tracking-wide break-all">
+                  <div className="font-mono font-bold text-[11px] text-primary tracking-wide break-all">
                     {serialNumber}
                   </div>
                 </div>

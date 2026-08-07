@@ -76,7 +76,7 @@ export default async function LoginPage() {
                 <FadeIn key={f.title} delay={500 + i * 80} direction="up">
                   <div className="group p-3 rounded-lg bg-white/5 backdrop-blur border border-white/10 hover:bg-white/10 hover:border-indigo-400/30 transition-all duration-300">
                     <div className="relative">
-                      <f.icon className="h-4 w-4 text-blue-400 mb-1.5 transition-transform group-hover:scale-110" />
+                      <f.icon className="h-4 w-4 text-primary/80 mb-1.5 transition-transform group-hover:scale-110" />
                     </div>
                     <p className="text-sm font-medium">{f.title}</p>
                     <p className="text-xs text-slate-400">{f.desc}</p>
@@ -148,8 +148,8 @@ export default async function LoginPage() {
             <div className="px-6 sm:px-12 pb-6">
               <div className="max-w-sm mx-auto lg:mx-0 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3.5">
                 <div className="flex items-start gap-2.5">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950">
-                    <Sparkles className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20">
+                    <Sparkles className="h-3 w-3 text-primary dark:text-primary/80" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5">
@@ -161,7 +161,7 @@ export default async function LoginPage() {
                     <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{latestWhatsNew.message}</p>
                     {olderWhatsNew.length > 0 && (
                       <details className="mt-1.5 group">
-                        <summary className="text-[11px] text-blue-600 dark:text-blue-400 cursor-pointer hover:underline list-none flex items-center gap-1">
+                        <summary className="text-[11px] text-primary dark:text-primary/80 cursor-pointer hover:underline list-none flex items-center gap-1">
                           <span className="group-open:rotate-90 transition-transform">▸</span>
                           {olderWhatsNew.length} earlier update{olderWhatsNew.length !== 1 ? "s" : ""}
                         </summary>

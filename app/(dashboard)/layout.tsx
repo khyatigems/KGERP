@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { SidebarProvider } from "@/components/layout/sidebar-context";
+import { SidebarGridClient } from "@/components/layout/sidebar-grid-client";
 import { auth } from "@/lib/auth";
 import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema, ensurePasswordResetSchema } from "@/lib/prisma";
 import { getPermissionsForRole } from "@/lib/permissions";
@@ -47,16 +49,20 @@ export default async function DashboardLayout({
   let allowedNavModules: string[] = [];
 
   if (session?.user?.id) {
-    await ensureUserRoleIdColumn();
-    await ensureAvatarWhatsNewSchema();
-    await ensurePasswordResetSchema();
+    await Promise.all([
+      ensureUserRoleIdColumn(),
+      ensureAvatarWhatsNewSchema(),
+      ensurePasswordResetSchema(),
+      ensureRbacSchema(),
+    ]);
     const supports = await hasUserRoleIdColumn();
-    await ensureRbacSchema();
-    const hasRbacTables =
-      (await hasTable("UserPermission")) &&
-      (await hasTable("Role")) &&
-      (await hasTable("Permission")) &&
-      (await hasTable("RolePermission"));
+    const [hasUserPermissionTable, hasRoleTable, hasPermissionTable, hasRolePermissionTable] = await Promise.all([
+      hasTable("UserPermission"),
+      hasTable("Role"),
+      hasTable("Permission"),
+      hasTable("RolePermission"),
+    ]);
+    const hasRbacTables = hasUserPermissionTable && hasRoleTable && hasPermissionTable && hasRolePermissionTable;
 
     const dbUser = supports && hasRbacTables
       ? ((await (prisma.user as any).findUnique({
@@ -143,17 +149,19 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="grid min-h-screen w-full lg:grid-cols-[250px_1fr]">
-      <div className="hidden border-r lg:block bg-sidebar border-sidebar-border">
-        <Sidebar allowedModules={allowedNavModules} />
-      </div>
-      <div className="flex flex-col">
-        <Topbar user={user}
-        />
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background sass-enter">
-          {children}
-        </main>
-      </div>
-    </div>
+    <SidebarProvider>
+      <SidebarGridClient>
+        <div className="hidden border-r lg:block bg-sidebar border-sidebar-border premium-sidebar">
+          <Sidebar allowedModules={allowedNavModules} />
+        </div>
+        <div className="flex flex-col">
+          <Topbar user={user}
+          />
+          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background sass-enter">
+            {children}
+          </main>
+        </div>
+      </SidebarGridClient>
+    </SidebarProvider>
   );
 }

@@ -259,7 +259,6 @@ export function PricingSection({ form, vendors, categories, gemstones }: Pricing
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="IN_STOCK">In Stock</SelectItem>
-                  <SelectItem value="SOLD">Sold</SelectItem>
                   <SelectItem value="RESERVED">Reserved</SelectItem>
                   <SelectItem value="MEMO">Memo</SelectItem>
                 </SelectContent>

@@ -45,12 +45,12 @@ export function GciCertButton({ inventoryId, certificateNo, lab, certificationUr
     // If it's already a GCI certificate, show status
     if (lab === 'GCI' && certificateNo) {
         return (
-            <div className="mt-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
+            <div className="mt-2 p-2 bg-primary/10 border border-primary/10 rounded-md">
                 <div className="flex items-center gap-2 mb-1">
-                    <ShieldCheck className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">GCI Certified</span>
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium text-foreground">GCI Certified</span>
                 </div>
-                <div className="text-xs text-blue-700 font-mono mb-2">{certificateNo}</div>
+                <div className="text-xs text-primary font-mono mb-2">{certificateNo}</div>
                 {certificationUrl && (
                     <Button variant="outline" size="sm" className="w-full h-7 text-xs bg-white" asChild>
                         <Link href={certificationUrl} target="_blank">
@@ -104,7 +104,7 @@ export function GciCertButton({ inventoryId, certificateNo, lab, certificationUr
                 }} 
                 disabled={isPending}
                 size="sm"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="w-full bg-primary hover:bg-primary/90 text-white"
             >
                 {isPending ? (
                     <>

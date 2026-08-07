@@ -41,7 +41,7 @@ export function QuotesCardList({ data }: QuotesCardListProps) {
                     quote.status === "PENDING_APPROVAL" ? "bg-amber-500 hover:bg-amber-600 text-white" :
                     quote.status === "APPROVED" ? "bg-green-600 hover:bg-green-700" :
                     quote.status === "ACCEPTED" ? "bg-teal-600 hover:bg-teal-700" :
-                    quote.status === "CONVERTED" ? "bg-indigo-600 hover:bg-indigo-700" :
+                    quote.status === "CONVERTED" ? "bg-primary hover:bg-primary/90" :
                     undefined
                 }
             >

@@ -8,7 +8,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto rounded-md border dark:border-[#2A2A2A] dark:bg-[#121212]"
+      className="relative w-full overflow-x-auto rounded-md border dark:border-border dark:bg-card"
     >
       <table
         data-slot="table"
@@ -23,7 +23,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b dark:[&_tr]:border-[#2A2A2A]", className)}
+      className={cn("[&_tr]:border-b dark:[&_tr]:border-border", className)}
       {...props}
     />
   )
@@ -44,7 +44,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
     <tfoot
       data-slot="table-footer"
       className={cn(
-        "bg-muted/50 border-t font-medium [&>tr]:last:border-b-0 dark:bg-[#121212] dark:border-[#2A2A2A]",
+        "bg-muted/50 border-t font-medium [&>tr]:last:border-b-0 dark:bg-card dark:border-border",
         className
       )}
       {...props}
@@ -57,7 +57,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted dark:bg-[#1E1E1E] dark:hover:bg-[#2A2A2A] dark:data-[state=selected]:bg-[#2A2A2A] dark:border-[#2A2A2A] sass-enter",
+        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted dark:bg-card dark:hover:bg-accent dark:data-[state=selected]:bg-accent dark:border-border sass-enter",
         className
       )}
       {...props}
@@ -70,7 +70,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 dark:text-gray-400",
+        "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 dark:text-muted-foreground",
         className
       )}
       {...props}
@@ -83,7 +83,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-4 align-middle [&:has([role=checkbox])]:pr-0 dark:text-gray-200",
+        "p-4 align-middle [&:has([role=checkbox])]:pr-0 dark:text-card-foreground",
         className
       )}
       {...props}

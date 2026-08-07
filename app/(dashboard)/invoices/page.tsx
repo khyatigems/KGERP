@@ -42,19 +42,19 @@ function InvoiceTable({ invoices, title, icon: Icon, type }: {
   const isExport = type === "EXPORT";
 
   return (
-    <div className={`rounded-md border ${isExport ? 'border-blue-200' : ''}`}>
-      <div className={`px-4 py-3 border-b ${isExport ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
-        <h2 className={`text-lg font-semibold flex items-center gap-2 ${isExport ? 'text-blue-800' : 'text-gray-800'}`}>
-          <Icon className={`h-5 w-5 ${isExport ? 'text-blue-600' : 'text-gray-600'}`} />
+    <div className={`rounded-md border ${isExport ? 'border-primary/20' : ''}`}>
+      <div className={`px-4 py-3 border-b ${isExport ? 'bg-primary/10 border-primary/20' : 'bg-muted/50'}`}>
+        <h2 className={`text-lg font-semibold flex items-center gap-2 ${isExport ? 'text-foreground' : 'text-foreground'}`}>
+          <Icon className={`h-5 w-5 ${isExport ? 'text-primary' : 'text-muted-foreground'}`} />
           {title}
-          <Badge variant={isExport ? "default" : "secondary"} className={isExport ? "bg-blue-600" : ""}>
+          <Badge variant={isExport ? "default" : "secondary"} className={isExport ? "bg-primary" : ""}>
             {invoices.length}
           </Badge>
         </h2>
       </div>
       <Table>
         <TableHeader>
-          <TableRow className={isExport ? 'bg-blue-50/50' : ''}>
+          <TableRow className={isExport ? 'bg-primary/8' : ''}>
             <TableHead>Invoice #</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Date</TableHead>
@@ -89,15 +89,15 @@ function InvoiceTable({ invoices, title, icon: Icon, type }: {
             const isExportInvoice = invoice.invoiceType === "EXPORT_INVOICE";
 
             return (
-              <TableRow key={invoice.id} className={isExportInvoice ? 'bg-blue-50/30 hover:bg-blue-50/50' : ''}>
+              <TableRow key={invoice.id} className={isExportInvoice ? 'bg-primary/5 hover:bg-primary/8' : ''}>
                 <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                 <TableCell>
                   {isExportInvoice ? (
-                    <Badge variant="outline" className="border-blue-300 text-blue-700 bg-blue-50">
+                    <Badge variant="outline" className="border-primary/30 text-primary bg-primary/10">
                       <Globe className="h-3 w-3 mr-1" /> EXPORT
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="border-gray-300 text-gray-700 bg-gray-50">
+                    <Badge variant="outline" className="border-gray-300 text-gray-700 bg-muted/50">
                       <Receipt className="h-3 w-3 mr-1" /> TAX
                     </Badge>
                   )}
@@ -150,7 +150,7 @@ export default async function InvoicesPage() {
           <Badge variant="secondary" className="px-3 py-1">
             <Receipt className="h-4 w-4 mr-1" /> TAX: {taxInvoices.length}
           </Badge>
-          <Badge className="bg-blue-600 px-3 py-1">
+          <Badge className="bg-primary px-3 py-1">
             <Globe className="h-4 w-4 mr-1" /> EXPORT: {exportInvoices.length}
           </Badge>
         </div>
@@ -158,7 +158,7 @@ export default async function InvoicesPage() {
 
       {invoices.length === 0 ? (
         <div className="rounded-md border">
-          <div className="h-24 flex items-center justify-center text-gray-500">
+          <div className="h-24 flex items-center justify-center text-muted-foreground">
             No invoices found.
           </div>
         </div>

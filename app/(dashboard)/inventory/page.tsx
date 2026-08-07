@@ -1,6 +1,5 @@
 import { Metadata } from "next";
 import { Plus, Upload } from "lucide-react";
-import Link from "next/link";
 import { Suspense } from "react";
 import { prisma, hasTable } from "@/lib/prisma";
 import { cachedMasters } from "@/lib/cache";
@@ -67,16 +66,9 @@ function buildInventoryWhere(
       OR: [
         { sku: { contains: query } },
         { itemName: { contains: query } },
-        { internalName: { contains: query } },
         { category: { contains: query } },
         { gemType: { contains: query } },
         { color: { contains: query } },
-        { dimensionsMm: { contains: query } },
-        { standardSize: { contains: query } },
-        { certificateNo: { contains: query } },
-        { certificateNumber: { contains: query } },
-        { notes: { contains: query } },
-        { beadSizeLabel: { contains: query } } as Prisma.InventoryWhereInput,
       ],
     });
   }
@@ -537,7 +529,7 @@ export default async function InventoryPage({
             <span className="text-sm font-medium text-foreground">Filtered by: {activeFilterLabel}</span>
             <span className="text-xs text-muted-foreground">({data.totalItems} items)</span>
           </div>
-          <Link href="/inventory" className="text-xs text-primary hover:underline">Clear filter</Link>
+          <LoadingLink href="/inventory" className="text-xs text-primary hover:underline">Clear filter</LoadingLink>
         </div>
       )}
 

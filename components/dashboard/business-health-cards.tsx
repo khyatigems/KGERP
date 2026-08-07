@@ -37,9 +37,9 @@ export function BusinessHealthCards({ data }: BusinessHealthProps) {
       value: `${salesThisMonth}`,
       sub: salesThisMonth > 0 ? "Items sold this month" : "No sales yet",
       icon: TrendingUp,
-      accent: "from-blue-500/20 to-blue-500/5",
-      iconColor: "text-blue-400",
-      iconBg: "bg-blue-500/10",
+      accent: "from-primary/20 to-primary/5",
+      iconColor: "text-primary",
+      iconBg: "bg-primary/10",
       href: "/sales",
     },
     {

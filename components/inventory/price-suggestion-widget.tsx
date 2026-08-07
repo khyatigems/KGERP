@@ -28,7 +28,7 @@ interface PriceSuggestionWidgetProps {
 
 const matchConfig: Record<string, { label: string; color: string; icon: typeof Layers }> = {
   exact: { label: "Same category + gemstone + vendor", color: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: Layers },
-  close: { label: "Same category + gemstone", color: "text-blue-700 bg-blue-50 border-blue-200", icon: Layers },
+  close: { label: "Same category + gemstone", color: "text-primary bg-primary/10 border-primary/20", icon: Layers },
   broad: { label: "Same category only", color: "text-amber-700 bg-amber-50 border-amber-200", icon: TrendingUp },
   none: { label: "No data", color: "text-gray-500 bg-gray-50 border-gray-200", icon: AlertCircle },
 };
@@ -239,14 +239,14 @@ export function PriceSuggestionWidget({ form, categories, gemstones }: PriceSugg
 
   return (
     <>
-      <div className="rounded-lg border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 space-y-3 transition-all duration-300">
-        <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
+      <div className="rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-white p-4 space-y-3 transition-all duration-300">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Lightbulb className="h-4 w-4" />
           Price Suggestion
           <div className="ml-auto flex items-center gap-2">
-            {loading && <Loader2 className="h-3 w-3 animate-spin text-blue-500" />}
+            {loading && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
             {canFetch && (
-              <Button type="button" size="sm" variant="outline" onClick={checkPrice} className="h-6 text-[11px] px-2 py-0 border-blue-300 text-blue-700 hover:bg-blue-100 gap-1">
+              <Button type="button" size="sm" variant="outline" onClick={checkPrice} className="h-6 text-[11px] px-2 py-0 border-primary/30 text-primary hover:bg-primary/15 gap-1">
                 <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
                 {hasSuggestion || fetchComplete ? "Refresh" : "Check Price"}
               </Button>
@@ -305,7 +305,7 @@ export function PriceSuggestionWidget({ form, categories, gemstones }: PriceSugg
               </span>
 
               <span className="text-gray-500">Samples</span>
-              <button type="button" onClick={handleOpenSamples} className="text-right tabular-nums text-blue-600 hover:text-blue-800 underline underline-offset-2 inline-flex items-center justify-end gap-1 cursor-pointer">
+              <button type="button" onClick={handleOpenSamples} className="text-right tabular-nums text-primary hover:text-primary underline underline-offset-2 inline-flex items-center justify-end gap-1 cursor-pointer">
                 {suggestion.sampleCount}
                 <ExternalLink className="h-3 w-3" />
               </button>
@@ -316,7 +316,7 @@ export function PriceSuggestionWidget({ form, categories, gemstones }: PriceSugg
                 <span>Confidence</span>
                 <span>{confidencePct}%</span>
               </div>
-              <div className="h-2 rounded-full bg-blue-100 overflow-hidden">
+              <div className="h-2 rounded-full bg-primary/15 overflow-hidden">
                 <div className={cn("h-full rounded-full transition-all duration-700 ease-out", barColor)} style={{ width: `${confidencePct}%` }} />
               </div>
             </div>
@@ -327,7 +327,7 @@ export function PriceSuggestionWidget({ form, categories, gemstones }: PriceSugg
                 {matchContent.label}
               </span>
               {!hasApplied && suggestion.suggestedSellingRate != null && (
-                <Button type="button" size="sm" variant="default" onClick={handleApply} className="h-7 text-xs gap-1 bg-blue-600 hover:bg-blue-700 text-white">
+                <Button type="button" size="sm" variant="default" onClick={handleApply} className="h-7 text-xs gap-1 bg-primary hover:bg-primary/90 text-white">
                   <Check className="h-3 w-3" /> Apply
                 </Button>
               )}

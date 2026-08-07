@@ -22,6 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             visibleToasts={4}
             toastOptions={{
               className: "sass-enter",
+              unstyled: false,
             }}
           />
         </GlobalLoaderProvider>

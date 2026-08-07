@@ -294,6 +294,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const latestPaymentDate = (invoice.payments || [])
     .slice()
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
+  const isExportInvoice = invoice.invoiceType === "EXPORT_INVOICE" || invoice.invoiceType === "EXPORT";
 
   const creditNotes = await (async () => {
     try {
@@ -349,6 +350,17 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
     date: getInvoiceDisplayDate(invoice),
+    invoiceType: isExportInvoice ? "EXPORT_INVOICE" : "TAX_INVOICE",
+    invoiceCurrency: (invoice.invoiceCurrency || companySettings?.defaultCurrency || "INR") as "INR" | "USD" | "EUR" | "GBP",
+    conversionRate: invoice.conversionRate || undefined,
+    totalInrValue: invoice.totalInrValue || undefined,
+    iecCode: invoice.iecCode || companySettings?.companyIec || undefined,
+    exportType: invoice.exportType as "LUT" | "BOND" | "PAYMENT" | "DDP" | undefined,
+    countryOfDestination: invoice.countryOfDestination || undefined,
+    portOfDispatch: invoice.portOfDispatch || undefined,
+    modeOfTransport: invoice.modeOfTransport as "AIR" | "COURIER" | "HAND_DELIVERY" | undefined,
+    courierPartner: invoice.courierPartner || undefined,
+    trackingId: invoice.trackingId || undefined,
     documentTitle: isReplacement ? "REPLACEMENT INVOICE" : undefined,
     documentRightTag: isReplacement ? "REPLACEMENT" : undefined,
     documentNumberLabel: isReplacement ? "Replacement #" : undefined,
@@ -402,9 +414,11 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
         quantity: 1,
         displayQty: qtyLabel,
         unitPrice: displayOptions.showPrice ? item.basePrice : 0,
+        usdPrice: isExportInvoice ? (item.usdPrice || 0) : undefined,
         gstRate: item.gstRate,
         gstAmount: item.calculatedGst,
-        total: item.finalTotal
+        total: item.finalTotal,
+        discountAmount: item.discountAmount || 0,
       };
     }),
     grossTotal: gstCalc.grossTotal,
@@ -422,6 +436,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     paidAt: isReplacement ? undefined : (latestPaymentDate || primarySale.saleDate || undefined),
     paymentBreakdown: isReplacement ? [] : paymentBreakdownRows,
     terms: invoiceSettings?.terms || undefined,
+    exportTerms: invoiceSettings?.exportTerms || undefined,
     notes: [invoiceSettings?.footerNotes, invoice.notes || "", creditNoteText ? `Credit Note(s): ${creditNoteText}` : ""].filter(Boolean).join("\n") || undefined,
     signatureUrl: invoiceSettings?.digitalSignatureUrl || undefined,
     bankDetails: isReplacement ? undefined : (paymentSettings?.bankEnabled ? {
@@ -558,7 +573,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
                   {invoice.quotationId && (
                       <div className="flex justify-between">
                           <span className="text-muted-foreground">From Quotation</span>
-                          <Link href={`/quotes/${invoice.quotationId}`} className="text-blue-600 hover:underline">
+                          <Link href={`/quotes/${invoice.quotationId}`} className="text-primary hover:underline">
                               View Quote
                           </Link>
                       </div>
@@ -701,7 +716,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
 
       {/* Payment Details Footer */}
       {(paymentSettings?.upiEnabled || paymentSettings?.bankEnabled || (paymentSettings?.razorpayEnabled && paymentSettings?.razorpayButtonId && !isPaid)) && (
-          <div className="bg-gray-50 px-10 py-6 border border-gray-200 rounded-lg flex gap-8">
+          <div className="bg-muted/50 px-10 py-6 border border-gray-200 rounded-lg flex gap-8">
                 {paymentSettings?.upiEnabled && paymentSettings.upiId && (
                     <div className="flex items-center gap-4">
                         <div className="bg-white p-2 rounded shadow-sm">
@@ -712,7 +727,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
                                 size={80}
                             />
                         </div>
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-muted-foreground">
                             <p className="font-bold text-gray-900 mb-1">Scan to Pay</p>
                             <p>UPI ID: {paymentSettings.upiId}</p>
                             {paymentSettings.upiPayeeName && <p>Payee: {paymentSettings.upiPayeeName}</p>}
@@ -721,7 +736,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
                 )}
 
                 {paymentSettings?.bankEnabled && (
-                    <div className="text-xs text-gray-600 border-l border-gray-200 pl-8">
+                    <div className="text-xs text-muted-foreground border-l border-gray-200 pl-8">
                         <p className="font-bold text-gray-900 mb-1 uppercase tracking-wide">Bank Details</p>
                         <div className="space-y-0.5">
                             <p><span className="font-medium">Bank:</span> {paymentSettings.bankName}</p>

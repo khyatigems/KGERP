@@ -551,7 +551,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
     conversionRate: (invoice as { conversionRate?: number }).conversionRate || undefined,
     totalInrValue: (invoice as { totalInrValue?: number }).totalInrValue || undefined,
     iecCode: (invoice as { iecCode?: string }).iecCode || companySettings?.companyIec || undefined,
-    exportType: (invoice as { exportType?: string }).exportType as "LUT" | "BOND" | "PAYMENT" | undefined || companySettings?.defaultExportType as "LUT" | "BOND" | "PAYMENT" | undefined,
+    exportType: (invoice as { exportType?: string }).exportType as "LUT" | "BOND" | "PAYMENT" | "DDP" | undefined || companySettings?.defaultExportType as "LUT" | "BOND" | "PAYMENT" | "DDP" | undefined,
     countryOfDestination: (invoice as { countryOfDestination?: string }).countryOfDestination || undefined,
     portOfDispatch: (invoice as { portOfDispatch?: string }).portOfDispatch || companySettings?.defaultPort || undefined,
     modeOfTransport: (invoice as { modeOfTransport?: string }).modeOfTransport as "AIR" | "COURIER" | "HAND_DELIVERY" | undefined,
@@ -633,40 +633,40 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
 
             {/* Export Details - Only show for Export Invoices */}
             {isExportInvoice && (
-            <div className="px-10 py-4 bg-blue-50/50 border-b border-blue-100 relative z-10">
+            <div className="px-10 py-4 bg-primary/8 border-b border-primary/10 relative z-10">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                        <span className="text-xs font-semibold text-blue-600 uppercase">IEC Code</span>
+                        <span className="text-xs font-semibold text-primary uppercase">IEC Code</span>
                         <p className="font-medium text-gray-900">{(invoice as { iecCode?: string }).iecCode || companySettings?.companyIec || "-"}</p>
                     </div>
                     <div>
-                        <span className="text-xs font-semibold text-blue-600 uppercase">Export Type</span>
+                        <span className="text-xs font-semibold text-primary uppercase">Export Type</span>
                         <p className="font-medium text-gray-900">{(invoice as { exportType?: string }).exportType || companySettings?.defaultExportType || "-"}</p>
                     </div>
                     <div>
-                        <span className="text-xs font-semibold text-blue-600 uppercase">Currency</span>
+                        <span className="text-xs font-semibold text-primary uppercase">Currency</span>
                         <p className="font-medium text-gray-900">{(invoice as { invoiceCurrency?: string }).invoiceCurrency || companySettings?.defaultCurrency || "INR"}</p>
                     </div>
                     <div>
-                        <span className="text-xs font-semibold text-blue-600 uppercase">Country</span>
+                        <span className="text-xs font-semibold text-primary uppercase">Country</span>
                         <p className="font-medium text-gray-900">{(invoice as { countryOfDestination?: string }).countryOfDestination || "-"}</p>
                     </div>
                     <div>
-                        <span className="text-xs font-semibold text-blue-600 uppercase">Port of Dispatch</span>
+                        <span className="text-xs font-semibold text-primary uppercase">Port of Dispatch</span>
                         <p className="font-medium text-gray-900">{(invoice as { portOfDispatch?: string }).portOfDispatch || companySettings?.defaultPort || "-"}</p>
                     </div>
                     <div>
-                        <span className="text-xs font-semibold text-blue-600 uppercase">Transport Mode</span>
+                        <span className="text-xs font-semibold text-primary uppercase">Transport Mode</span>
                         <p className="font-medium text-gray-900">{(invoice as { modeOfTransport?: string }).modeOfTransport || "-"}</p>
                     </div>
                     <div>
-                        <span className="text-xs font-semibold text-blue-600 uppercase">Tracking ID</span>
+                        <span className="text-xs font-semibold text-primary uppercase">Tracking ID</span>
                         <p className="font-medium text-gray-900">{(invoice as { trackingId?: string }).trackingId || "-"}</p>
                     </div>
                     {(primarySale as { orderId?: string | null }).orderId && (
-                    <div className="col-span-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 flex items-center gap-3">
-                        <span className="text-xs font-semibold text-blue-700 uppercase tracking-widest">Platform Order ID</span>
-                        <p className="font-bold text-blue-900 font-mono text-base">{(primarySale as { orderId?: string | null }).orderId}</p>
+                    <div className="col-span-2 bg-primary/10 border border-primary/20 rounded-lg px-4 py-2 flex items-center gap-3">
+                        <span className="text-xs font-semibold text-primary uppercase tracking-widest">Platform Order ID</span>
+                        <p className="font-bold text-gray-900 font-mono text-base">{(primarySale as { orderId?: string | null }).orderId}</p>
                     </div>
                     )}
                 </div>
@@ -756,7 +756,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                                         return (
                                           <>
                                             <span>•</span>
-                                            <a href={certificateUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                                            <a href={certificateUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                                               <Button variant="link" className="h-auto p-0 text-xs">View Certificate</Button>
                                             </a>
                                           </>
@@ -887,7 +887,7 @@ export default async function PublicInvoicePage({ params, searchParams }: { para
                           <>
                             <div className="border-t border-slate-900 pt-3 flex justify-between items-end">
                               <span className="text-sm font-bold text-gray-900 uppercase">Total ({invoiceCurrency})</span>
-                              <span className="text-2xl font-bold text-blue-700">{formatForeignCurrency(totalUsdFromSales)}</span>
+                              <span className="text-2xl font-bold text-primary">{formatForeignCurrency(totalUsdFromSales)}</span>
                             </div>
                           </>
                         ) : (

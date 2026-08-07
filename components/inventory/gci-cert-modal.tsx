@@ -61,7 +61,7 @@ export function GciCertModal({ inventoryId, trigger, onSuccess }: GciCertModalPr
         {trigger || (
           <Button 
             size="sm"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+            className="w-full bg-primary hover:bg-primary/90 text-white"
           >
             <ShieldCheck className="mr-2 h-3 w-3" />
             Generate GCI Cert
@@ -129,7 +129,7 @@ export function GciCertModal({ inventoryId, trigger, onSuccess }: GciCertModalPr
           <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
             Cancel
           </Button>
-          <Button onClick={handleGenerate} disabled={isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+          <Button onClick={handleGenerate} disabled={isPending} className="bg-primary hover:bg-primary/90 text-white">
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

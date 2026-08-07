@@ -336,8 +336,8 @@ export function CategoryImageEditor({
             )}
           </div>
 
-          <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-900 dark:text-blue-100">
+          <div className="bg-primary/10 dark:bg-primary/10 p-4 rounded-lg border border-primary/20 dark:border-primary/20">
+            <p className="text-sm text-foreground dark:text-primary/80">
               <strong>💡 Tip:</strong> Upload images to a CDN (like Cloudinary,
               AWS S3, or ImageKit) and paste the public URL here. Images should
               be 1440px wide and 400-600px tall for best results.

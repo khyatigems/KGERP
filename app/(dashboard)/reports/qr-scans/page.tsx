@@ -236,7 +236,7 @@ export default async function QrScansReportPage({ searchParams }: { searchParams
                       </TableCell>
                       <TableCell>
                         {isStaff ? (
-                          <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+                          <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10">
                             <User className="w-3 h-3 mr-1" /> Staff
                           </Badge>
                         ) : (

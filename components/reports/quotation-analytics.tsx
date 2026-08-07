@@ -49,7 +49,7 @@ export function QuotationAnalytics({ data }: { data: QuotationData }) {
             <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{data.conversionRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold text-primary">{data.conversionRate.toFixed(1)}%</div>
           </CardContent>
         </Card>
         <Card>

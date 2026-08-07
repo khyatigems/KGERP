@@ -41,14 +41,14 @@ const initialPaymentSchema = z.object({
 const saleSchema = z.object({
   invoiceType: z.enum(["TAX_INVOICE", "EXPORT_INVOICE"]).default("TAX_INVOICE"),
   iecCode: z.string().optional(),
-  exportType: z.enum(["LUT", "BOND", "PAYMENT"]).optional(),
+  exportType: z.enum(["LUT", "BOND", "PAYMENT", "DDP"]).optional(),
   countryOfDestination: z.string().optional(),
   portOfDispatch: z.string().optional(),
   modeOfTransport: z.enum(["AIR", "COURIER", "HAND_DELIVERY"]).optional(),
   courierPartner: z.string().optional(),
   trackingId: z.string().optional(),
   platformOrderId: z.string().optional(),
-  invoiceCurrency: z.enum(["INR", "USD", "EUR", "GBP"]).default("INR"),
+  invoiceCurrency: z.enum(["INR", "USD", "EUR", "GBP", "AUD", "CAD", "SGD", "AED", "JPY", "CHF", "CNY", "HKD", "NZD", "SAR", "QAR", "KWD", "ZAR", "THB", "MYR"]).default("INR"),
   conversionRate: z.coerce.number().min(0).optional(),
   totalInrValue: z.coerce.number().min(0).optional(),
   items: z.array(saleItemSchema).min(1, "Select at least one item"),
@@ -81,8 +81,9 @@ const saleSchema = z.object({
   initialPayments: z.array(initialPaymentSchema).optional().default([]),
   couponCode: z.string().optional(),
   loyaltyRedeemAmount: z.coerce.number().min(0).optional().default(0),
-  discountType: z.enum(["none", "flat", "coupon"]).optional().default("none"),
+  discountType: z.enum(["none", "flat", "percent", "coupon"]).optional().default("none"),
   flatDiscount: z.coerce.number().min(0).optional().default(0),
+  percentDiscount: z.coerce.number().min(0).max(100).optional().default(0),
 });
 
 function generateInvoiceToken() {
@@ -461,18 +462,23 @@ export async function createSale(prevState: unknown, formData: FormData) {
             couponToRedeemId = c.id;
           }
 
-          // Calculate flat discount amount for invoice-level discount
-          const flatDiscountAmount = data.discountType === "flat" ? (data.flatDiscount || 0) : 0;
+           // Calculate invoice-level discount amounts.
+           const flatDiscountAmount = data.discountType === "flat" ? (data.flatDiscount || 0) : 0;
+           const percentDiscountRate = data.discountType === "percent" ? (data.percentDiscount || 0) : 0;
+           const percentDiscountAmount = Math.min(
+             subtotalAfterItemDiscount,
+             (subtotalAfterItemDiscount * percentDiscountRate) / 100,
+           );
 
           // Mutual-exclusion: line-level discount and invoice-level discount cannot be combined.
           const hasLineDiscount = data.items.some((i) => Number(i.discount || 0) > 0);
-          if (hasLineDiscount && (flatDiscountAmount > 0 || couponDiscount > 0)) {
+           if (hasLineDiscount && (flatDiscountAmount > 0 || percentDiscountAmount > 0 || couponDiscount > 0)) {
             throw new Error("Product line discount already applied. Remove it before applying invoice level discount.");
           }
 
-          // Invoice-level flat discount is display-only (informational) and must NOT reduce payable total.
-          // Only coupon discount affects payable total.
-          const adjustedInvoiceTotal = Math.max(0, subtotalAfterItemDiscount - couponDiscount);
+           // Flat discount remains informational for compatibility. Percentage and
+           // coupon discounts reduce the payable amount.
+           const adjustedInvoiceTotal = Math.max(0, subtotalAfterItemDiscount - percentDiscountAmount - couponDiscount);
           const inputLoyaltyRedeem = Math.max(0, Number(data.loyaltyRedeemAmount || 0));
           let loyaltyRedeemAmount = 0;
           let loyaltyPointsUsed = 0;
@@ -528,9 +534,8 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
           const token = generateInvoiceToken();
 
-          // Persisted discountTotal should reflect discounts that actually reduce payable total.
-          // Flat discount is display-only and excluded from discountTotal.
-          const totalDiscountAmount = totalItemDiscount + couponDiscount;
+           // Persisted discountTotal reflects discounts that reduce the payable total.
+           const totalDiscountAmount = totalItemDiscount + percentDiscountAmount + couponDiscount;
           
           // Build displayOptions with invoice discount info
           let displayOptionsObj: Record<string, unknown> = {};
@@ -544,15 +549,24 @@ export async function createSale(prevState: unknown, formData: FormData) {
           
           // Add invoice discount to displayOptions so it shows on the invoice.
           // Flat discount is display-only and must NOT affect total calculations.
-          if (flatDiscountAmount > 0) {
+           if (flatDiscountAmount > 0) {
             displayOptionsObj = {
               ...displayOptionsObj,
               invoiceDiscountType: "AMOUNT",
               invoiceDiscountValue: flatDiscountAmount,
               showInvoiceDiscount: true,
-              invoiceDiscountAffectsTotal: false
-            };
-          }
+               invoiceDiscountAffectsTotal: false
+             };
+           }
+           if (percentDiscountAmount > 0) {
+             displayOptionsObj = {
+               ...displayOptionsObj,
+               invoiceDiscountType: "PERCENT",
+               invoiceDiscountValue: percentDiscountRate,
+               showInvoiceDiscount: true,
+               invoiceDiscountAffectsTotal: true,
+             };
+           }
           
           const finalDisplayOptions = JSON.stringify(displayOptionsObj);
 

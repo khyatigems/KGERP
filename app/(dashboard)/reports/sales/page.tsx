@@ -20,64 +20,68 @@ export default async function SalesReportPage({ searchParams }: SalesReportPageP
   const fromDate = params.from ? startOfDay(parseISO(params.from)) : defaultFrom;
   const toDate = params.to ? endOfDay(parseISO(params.to)) : endOfDay(today);
 
-  // 2. Fetch Sales Data
-  const sales = await prisma.sale.findMany({
-    where: {
-      saleDate: {
-        gte: fromDate,
-        lte: toDate,
-      },
-    },
-    include: {
-      inventory: {
-        select: {
-          category: true,
-          sku: true,
-          gemType: true,
-          stoneType: true
+  // 2. Fetch export rows and pre-aggregated analytics together. The export
+  // remains capped to keep a very large report from exhausting server memory.
+  const [sales, summaryRows, monthlyRows, categoryRows] = await Promise.all([
+    prisma.sale.findMany({
+      where: { saleDate: { gte: fromDate, lte: toDate } },
+      include: {
+        inventory: {
+          select: { category: true, sku: true, gemType: true, stoneType: true },
         },
       },
-    },
-    orderBy: {
-      saleDate: "asc",
-    },
-  });
+      orderBy: { saleDate: "asc" },
+      take: 5000,
+    }),
+    prisma.$queryRaw<Array<{ revenue: number | bigint; profit: number | bigint; count: number | bigint }>>`
+      SELECT COALESCE(SUM("netAmount"), 0) AS revenue,
+             COALESCE(SUM("profit"), 0) AS profit,
+             COUNT(*) AS count
+      FROM "Sale"
+      WHERE "saleDate" >= ${fromDate} AND "saleDate" <= ${toDate}
+    `.catch(() => [{ revenue: 0, profit: 0, count: 0 }]),
+    prisma.$queryRaw<Array<{ month: string; revenue: number | bigint; profit: number | bigint; count: number | bigint }>>`
+      SELECT strftime('%Y-%m', "saleDate") AS month,
+             COALESCE(SUM("netAmount"), 0) AS revenue,
+             COALESCE(SUM("profit"), 0) AS profit,
+             COUNT(*) AS count
+      FROM "Sale"
+      WHERE "saleDate" >= ${fromDate} AND "saleDate" <= ${toDate}
+      GROUP BY month
+      ORDER BY month ASC
+    `.catch(() => []),
+    prisma.$queryRaw<Array<{ name: string; value: number | bigint }>>`
+      SELECT COALESCE(NULLIF(i."category", ''), 'Uncategorized') AS name,
+             COUNT(*) AS value
+      FROM "Sale" s
+      LEFT JOIN "Inventory" i ON s."inventoryId" = i."id"
+      WHERE s."saleDate" >= ${fromDate} AND s."saleDate" <= ${toDate}
+      GROUP BY name
+      ORDER BY value DESC
+      LIMIT 5
+    `.catch(() => []),
+  ]);
 
   // 3. Aggregate Data for Analytics
-  const totalRevenue = sales.reduce((sum, sale) => sum + sale.netAmount, 0);
-  const totalProfit = sales.reduce((sum, sale) => sum + (sale.profit || 0), 0);
-  const totalSales = sales.length;
+  const summary = summaryRows[0] || { revenue: 0, profit: 0, count: 0 };
+  const totalRevenue = Number(summary.revenue) || 0;
+  const totalProfit = Number(summary.profit) || 0;
+  const totalSales = Number(summary.count) || 0;
   const averageOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
 
-  // Monthly Trend (Dynamic based on range)
-  const monthlyTrendMap = new Map<string, { revenue: number; profit: number; count: number }>();
-  
-  sales.forEach((sale) => {
-    const monthKey = format(sale.saleDate, "MMM yyyy");
-    const current = monthlyTrendMap.get(monthKey) || { revenue: 0, profit: 0, count: 0 };
-    monthlyTrendMap.set(monthKey, {
-      revenue: current.revenue + sale.netAmount,
-      profit: current.profit + (sale.profit || 0),
-      count: current.count + 1,
-    });
-  });
-
-  const monthlyTrend = Array.from(monthlyTrendMap.entries()).map(([month, data]) => ({
-    month,
-    ...data,
+  // The database performs the large aggregations; only the small result sets
+  // are converted for the chart components.
+  const monthlyTrend = monthlyRows.map((row) => ({
+    month: format(parseISO(`${row.month}-01`), "MMM yyyy"),
+    revenue: Number(row.revenue) || 0,
+    profit: Number(row.profit) || 0,
+    count: Number(row.count) || 0,
   }));
 
-  // Category Distribution
-  const categoryMap = new Map<string, number>();
-  sales.forEach((sale) => {
-    const category = sale.inventory?.category || "Uncategorized";
-    categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
-  });
-
-  const categoryDistribution = Array.from(categoryMap.entries())
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 5); // Top 5 categories
+  const categoryDistribution = categoryRows.map((row) => ({
+    name: row.name,
+    value: Number(row.value) || 0,
+  }));
 
   const analyticsData = {
     totalRevenue,

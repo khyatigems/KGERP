@@ -269,7 +269,7 @@ export default async function PurchaseDetailPage({
                     <div key={log.id} className="flex gap-3">
                         <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${
                             log.actionType === 'CREATE' ? 'bg-green-500' :
-                            log.actionType === 'EDIT' ? 'bg-blue-500' :
+                            log.actionType === 'EDIT' ? 'bg-primary' :
                             log.actionType === 'DELETE' ? 'bg-red-500' : 'bg-gray-500'
                         }`} />
                         <div className="space-y-1">

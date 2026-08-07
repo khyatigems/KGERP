@@ -20,7 +20,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const colorMap: Record<string, { darkBg: string; darkBorder: string; darkText: string; lightBg: string; lightBorder: string; lightText: string }> = {
   yellow: { darkBg: "dark:bg-amber-900/20", darkBorder: "dark:border-amber-700/30", darkText: "dark:text-amber-200", lightBg: "bg-amber-50", lightBorder: "border-amber-200", lightText: "text-amber-800" },
-  blue: { darkBg: "dark:bg-blue-900/20", darkBorder: "dark:border-blue-700/30", darkText: "dark:text-blue-200", lightBg: "bg-blue-50", lightBorder: "border-blue-200", lightText: "text-blue-800" },
+  blue: { darkBg: "dark:bg-primary/10", darkBorder: "dark:border-primary/20", darkText: "dark:text-primary", lightBg: "bg-primary/10", lightBorder: "border-primary/20", lightText: "text-primary" },
   green: { darkBg: "dark:bg-emerald-900/20", darkBorder: "dark:border-emerald-700/30", darkText: "dark:text-emerald-200", lightBg: "bg-emerald-50", lightBorder: "border-emerald-200", lightText: "text-emerald-800" },
   purple: { darkBg: "dark:bg-purple-900/20", darkBorder: "dark:border-purple-700/30", darkText: "dark:text-purple-200", lightBg: "bg-purple-50", lightBorder: "border-purple-200", lightText: "text-purple-800" },
   pink: { darkBg: "dark:bg-pink-900/20", darkBorder: "dark:border-pink-700/30", darkText: "dark:text-pink-200", lightBg: "bg-pink-50", lightBorder: "border-pink-200", lightText: "text-pink-800" },

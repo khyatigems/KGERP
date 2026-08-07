@@ -54,17 +54,18 @@ import { useRouter } from "next/navigation";
 import { Inventory } from "@prisma/client";
 import { useSearchParams } from "next/navigation";
 import { Select as UISelect, SelectContent as UISelectContent, SelectItem as UISelectItem, SelectTrigger as UISelectTrigger, SelectValue as UISelectValue } from "@/components/ui/select";
+import { CURRENCY_OPTIONS } from "@/lib/pricing/currency";
 
 const formSchema = z.object({
   invoiceType: z.enum(["TAX_INVOICE", "EXPORT_INVOICE"]).default("TAX_INVOICE"),
   iecCode: z.string().optional(),
-  exportType: z.enum(["LUT", "BOND", "PAYMENT"]).default("LUT"),
+  exportType: z.enum(["LUT", "BOND", "PAYMENT", "DDP"]).default("LUT"),
   countryOfDestination: z.string().optional(),
   portOfDispatch: z.string().optional(),
   modeOfTransport: z.enum(["AIR", "COURIER", "HAND_DELIVERY"]).optional(),
   courierPartner: z.string().optional(),
   trackingId: z.string().optional(),
-  invoiceCurrency: z.enum(["INR", "USD", "EUR", "GBP"]).default("INR"),
+  invoiceCurrency: z.enum(["INR", "USD", "EUR", "GBP", "AUD", "CAD", "SGD", "AED", "JPY", "CHF", "CNY", "HKD", "NZD", "SAR", "QAR", "KWD", "ZAR", "THB", "MYR"]).default("INR"),
   conversionRate: z.coerce.number().min(0).optional(),
   totalInrValue: z.coerce.number().min(0).optional(),
   items: z.array(z.object({
@@ -549,8 +550,8 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
             {currentInvoiceType === "EXPORT_INVOICE" && (
               <>
                 {/* Export Details Section */}
-                <div className="rounded-md border p-4 space-y-4 bg-blue-50/50">
-                  <h4 className="font-medium text-sm text-blue-900">Export Details</h4>
+                <div className="rounded-md border p-4 space-y-4 bg-primary/10">
+                  <h4 className="font-medium text-sm text-primary">Export Details</h4>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
@@ -578,11 +579,12 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                                 <SelectValue placeholder="Select export type" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="LUT">LUT (Letter of Undertaking)</SelectItem>
-                              <SelectItem value="BOND">Bond</SelectItem>
-                              <SelectItem value="PAYMENT">Payment of IGST</SelectItem>
-                            </SelectContent>
+                             <SelectContent>
+                               <SelectItem value="LUT">LUT (Letter of Undertaking)</SelectItem>
+                               <SelectItem value="BOND">Bond</SelectItem>
+                               <SelectItem value="PAYMENT">Payment of IGST</SelectItem>
+                               <SelectItem value="DDP">DDP (Delivered Duty Paid)</SelectItem>
+                             </SelectContent>
                           </Select>
                           <FormMessage />
                         </FormItem>
@@ -688,12 +690,11 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
                                 <SelectValue placeholder="Select currency" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="INR">INR (₹)</SelectItem>
-                              <SelectItem value="USD">USD ($)</SelectItem>
-                              <SelectItem value="EUR">EUR (€)</SelectItem>
-                              <SelectItem value="GBP">GBP (£)</SelectItem>
-                            </SelectContent>
+                             <SelectContent>
+                               {CURRENCY_OPTIONS.map((currency) => (
+                                 <SelectItem key={currency.code} value={currency.code}>{currency.label}</SelectItem>
+                               ))}
+                             </SelectContent>
                           </Select>
                           <FormMessage />
                         </FormItem>

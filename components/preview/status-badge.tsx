@@ -35,8 +35,8 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         return {
           label: "On Memo",
           icon: Clock,
-          className: "bg-blue-50 text-blue-700 border-blue-200 ring-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]",
-          iconClass: "text-blue-600"
+          className: "bg-primary/10 text-primary border-primary/20 ring-primary/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]",
+          iconClass: "text-primary"
         };
       default:
         return {

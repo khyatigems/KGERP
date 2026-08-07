@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, RotateCcw, ShoppingBag, Truck, Users, BarChart3, CreditCard, UserCog, Settings, Wallet, Image as ImageIcon, LayoutDashboard, AlertTriangle } from "lucide-react";
+import { Home, Diamond, Globe, Tag, PackageCheck, FileText, ShoppingCart, RotateCcw, ShoppingBag, Truck, Users, BarChart3, UserCog, Settings, Wallet, Image as ImageIcon, LayoutDashboard, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
+import { useSidebar } from "./sidebar-context";
 
 export const navItems = [
   { href: "/", label: "Dashboard", icon: Home, module: "dashboard" },
@@ -36,6 +37,7 @@ interface SidebarContentProps {
 export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: SidebarContentProps) {
   const pathname = usePathname();
   const { showLoader } = useGlobalLoader();
+  const { collapsed, toggleCollapsed } = useSidebar();
 
   const handleNavigation = (href: string) => {
     if (onNavigate) onNavigate();
@@ -46,15 +48,47 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
   };
 
   return (
-    <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border text-sidebar-foreground">
-      <div className="flex h-14 items-center border-b border-sidebar-border px-6 lg:h-15 justify-between">
-        <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={() => handleNavigation("/")}>
-          <span className="text-lg tracking-tight">KhyatiGems™ ERP</span>
+    <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border text-sidebar-foreground premium-sidebar">
+      <div
+        className={cn(
+          "flex items-center border-b border-sidebar-border",
+          collapsed ? "h-20 flex-col justify-center gap-1 px-3" : "h-14 lg:h-15 flex-row justify-between px-6"
+        )}
+      >
+        <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={() => handleNavigation("/")} title="KhyatiGems™ ERP">
+          {collapsed ? (
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <Diamond className="h-5 w-5" />
+            </span>
+          ) : (
+            <span className="text-lg tracking-tight">KhyatiGems™ ERP</span>
+          )}
         </Link>
-        <ThemeToggle />
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label="Expand sidebar"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-all duration-200 hidden lg:flex"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        ) : (
+          <div className="hidden lg:flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label="Collapse sidebar"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-all duration-200"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
       <div className="flex-1 overflow-auto py-4">
-        <nav className="grid items-start px-2 text-sm font-medium gap-1">
+        <nav className={cn("grid items-start text-sm font-medium gap-1", collapsed ? "px-1.5" : "px-2")}>
           {navItems.map((item) => {
             if (!allowedModules.includes("ALL") && item.module !== "dashboard" && !allowedModules.includes(item.module)) {
               return null;
@@ -66,20 +100,25 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
                 key={item.href}
                 href={item.href}
                 onClick={() => handleNavigation(item.href)}
+                title={item.label}
                 className={cn(
-                  "group flex items-center gap-3 rounded-md px-3 py-3 transition-all duration-200",
+                  "group flex items-center rounded-md transition-all duration-200",
+                  collapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-3",
                   isActive 
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground border-l-4 border-primary pl-2" 
-                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground hover:pl-4"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground border-l-4 border-primary gem-facet-glow" 
+                    : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+                  !collapsed && isActive && "premium-nav-active pl-2",
+                  !collapsed && !isActive && "hover:pl-4"
                 )}
               >
-                <item.icon className={cn("h-4 w-4 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
-                {item.label}
+                <item.icon className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                {!collapsed && item.label}
               </Link>
             );
           })}
         </nav>
       </div>
+
     </div>
   );
 }

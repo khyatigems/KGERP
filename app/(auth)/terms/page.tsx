@@ -17,7 +17,7 @@ export default function TermsPage() {
       <div className="space-y-10">
         <section>
           <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <FileText className="h-5 w-5 text-blue-600" />
+            <FileText className="h-5 w-5 text-primary" />
             1. Acceptance of Terms
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -27,7 +27,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <Gem className="h-5 w-5 text-blue-600" />
+            <Gem className="h-5 w-5 text-primary" />
             2. Purpose of the Platform
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
@@ -46,7 +46,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <UserCheck className="h-5 w-5 text-blue-600" />
+            <UserCheck className="h-5 w-5 text-primary" />
             3. Acceptable Use
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">You agree to:</p>
@@ -110,7 +110,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
-            <Scale className="h-5 w-5 text-blue-600" />
+            <Scale className="h-5 w-5 text-primary" />
             8. Limitation of Liability
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -136,7 +136,7 @@ export default function TermsPage() {
           <h2 className="text-xl font-semibold mb-3">11. Contact</h2>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             For questions about these terms, contact{" "}
-            <a href="mailto:legal@khyatigems.com" className="text-blue-600 hover:underline">
+            <a href="mailto:legal@khyatigems.com" className="text-primary hover:underline">
               legal@khyatigems.com
             </a>.
           </p>

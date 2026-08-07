@@ -12,6 +12,7 @@ import type {
   MarketplaceProfileConfig,
 } from "@/lib/pricing/types";
 import { PRICING_STATUS_LABELS, PRICING_STATUS_COLORS } from "@/lib/pricing/constants";
+import { CURRENCY_OPTIONS } from "@/lib/pricing/currency";
 import {
   saveMarketplaceProfile,
   duplicateMarketplaceProfile,
@@ -223,8 +224,8 @@ export function MarketplaceSettingsForm({ initialProfiles }: MarketplaceSettings
                     <Select value={active.currency} onValueChange={(v) => updateProfile({ currency: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {["INR", "USD", "EUR", "GBP", "AUD", "CAD", "SGD", "AED", "JPY"].map((c) => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        {CURRENCY_OPTIONS.map((currency) => (
+                          <SelectItem key={currency.code} value={currency.code}>{currency.code}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

@@ -177,9 +177,9 @@ export function AttentionRequired({ data }: AttentionRequiredProps) {
       hover: "hover:bg-orange-500/5",
     },
     info: {
-      dot: "bg-blue-500",
-      badge: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-      hover: "hover:bg-blue-500/5",
+      dot: "bg-primary",
+      badge: "bg-primary/10 text-primary border-primary/20",
+      hover: "hover:bg-primary/5",
     },
     success: {
       dot: "bg-emerald-500",

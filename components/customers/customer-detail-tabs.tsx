@@ -177,7 +177,7 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
                 {recentInvoices.map((inv) => (
                   <div key={inv.id as string} className="flex justify-between items-start border-b pb-4 last:border-0 last:pb-0">
                     <div>
-                      <Link href={`/invoices/${inv.id}`} className="font-medium text-blue-600 hover:underline">
+                      <Link href={`/invoices/${inv.id}`} className="font-medium text-primary hover:underline">
                         {inv.invoiceNumber as string}
                       </Link>
                       <div className="text-sm text-muted-foreground mt-1">

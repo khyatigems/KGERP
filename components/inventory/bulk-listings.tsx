@@ -34,12 +34,12 @@ import {
 
 // Supported platforms
 const PLATFORMS = [
-  { id: "ebay", name: "eBay", color: "bg-blue-500" },
+  { id: "ebay", name: "eBay", color: "bg-primary" },
   { id: "amazon", name: "Amazon", color: "bg-orange-500" },
   { id: "etsy", name: "Etsy", color: "bg-orange-400" },
   { id: "shopify", name: "Shopify", color: "bg-green-500" },
   { id: "instagram", name: "Instagram", color: "bg-pink-500" },
-  { id: "facebook", name: "Facebook", color: "bg-blue-600" },
+  { id: "facebook", name: "Facebook", color: "bg-primary" },
   { id: "website", name: "Website", color: "bg-purple-500" },
   { id: "other", name: "Other", color: "bg-gray-500" },
 ];
@@ -47,7 +47,7 @@ const PLATFORMS = [
 // Listing status options
 const LISTING_STATUSES = [
   { id: "active", name: "Active", color: "bg-green-500" },
-  { id: "sold", name: "Sold", color: "bg-blue-500" },
+  { id: "sold", name: "Sold", color: "bg-primary" },
   { id: "reserved", name: "Reserved", color: "bg-yellow-500" },
   { id: "ended", name: "Ended", color: "bg-red-500" },
   { id: "draft", name: "Draft", color: "bg-gray-500" },

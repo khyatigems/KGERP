@@ -48,7 +48,7 @@ function SearchForm({ defaultValue }: { defaultValue: string }) {
             href="/sales" 
             className="absolute right-3 top-1/2 -translate-y-1/2"
           >
-            <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+            <X className="h-4 w-4 text-gray-400 hover:text-muted-foreground" />
           </Link>
         )}
       </div>
@@ -390,7 +390,7 @@ export default async function SalesPage({
               <ChevronLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-muted-foreground">
             Page {currentPage} of {totalPages}
           </span>
           <Button
@@ -434,19 +434,19 @@ export default async function SalesPage({
     const isReplacement = type === "REPLACEMENT";
 
     return (
-      <div className={`rounded-md border ${isExport ? 'border-blue-200' : isReplacement ? 'border-amber-200' : ''}`}>
-        <div className={`px-4 py-3 border-b ${isExport ? 'bg-blue-50 border-blue-200' : isReplacement ? 'bg-amber-50 border-amber-200' : 'bg-gray-50'}`}>
-          <h2 className={`text-lg font-semibold flex items-center gap-2 ${isExport ? 'text-blue-800' : isReplacement ? 'text-amber-800' : 'text-gray-800'}`}>
-            <Icon className={`h-5 w-5 ${isExport ? 'text-blue-600' : isReplacement ? 'text-amber-600' : 'text-gray-600'}`} />
+      <div className={`rounded-md border ${isExport ? 'border-primary/20' : isReplacement ? 'border-amber-200' : ''}`}>
+        <div className={`px-4 py-3 border-b ${isExport ? 'bg-primary/10 border-primary/20' : isReplacement ? 'bg-amber-50 border-amber-200' : 'bg-muted/50'}`}>
+          <h2 className={`text-lg font-semibold flex items-center gap-2 ${isExport ? 'text-foreground' : isReplacement ? 'text-amber-800' : 'text-foreground'}`}>
+            <Icon className={`h-5 w-5 ${isExport ? 'text-primary' : isReplacement ? 'text-amber-600' : 'text-muted-foreground'}`} />
             {title}
-            <Badge variant={isExport ? "default" : isReplacement ? "secondary" : "secondary"} className={isExport ? "bg-blue-600" : isReplacement ? "bg-amber-600" : ""}>
+            <Badge variant={isExport ? "default" : isReplacement ? "secondary" : "secondary"} className={isExport ? "bg-primary" : isReplacement ? "bg-amber-600" : ""}>
               {totalItems}
             </Badge>
           </h2>
         </div>
         <Table>
           <TableHeader>
-            <TableRow className={isExport ? 'bg-blue-50/50' : isReplacement ? 'bg-amber-50/50' : ''}>
+            <TableRow className={isExport ? 'bg-primary/8' : isReplacement ? 'bg-amber-50/50' : ''}>
               <TableHead>Date</TableHead>
               <TableHead>Invoice #</TableHead>
               <TableHead>Type</TableHead>
@@ -467,7 +467,7 @@ export default async function SalesPage({
               return (
                 <TableRow 
                   key={sale.id} 
-                  className={isExportInvoice ? 'bg-blue-50/30 hover:bg-blue-50/50' : isReplacement ? 'bg-amber-50/30 hover:bg-amber-50/50' : ''}
+                  className={isExportInvoice ? 'bg-primary/5 hover:bg-primary/8' : isReplacement ? 'bg-amber-50/30 hover:bg-amber-50/50' : ''}
                 >
                   <TableCell>{formatDate(sale.saleDate)}</TableCell>
                   <TableCell className="font-medium">
@@ -475,7 +475,7 @@ export default async function SalesPage({
                   </TableCell>
                   <TableCell>
                     {isExportInvoice ? (
-                      <Badge variant="outline" className="border-blue-300 text-blue-700 bg-blue-50">
+                      <Badge variant="outline" className="border-primary/30 text-primary bg-primary/10">
                         <Globe className="h-3 w-3 mr-1" /> EXPORT
                       </Badge>
                     ) : isReplacement ? (
@@ -483,7 +483,7 @@ export default async function SalesPage({
                         <RefreshCw className="h-3 w-3 mr-1" /> REPLACEMENT
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="border-gray-300 text-gray-700 bg-gray-50">
+                      <Badge variant="outline" className="border-gray-300 text-gray-700 bg-muted/50">
                         <Receipt className="h-3 w-3 mr-1" /> TAX
                       </Badge>
                     )}
@@ -563,7 +563,7 @@ export default async function SalesPage({
               <Badge variant="secondary" className="px-3 py-1">
                 <Receipt className="h-4 w-4 mr-1" /> TAX: {taxResult.totalItems}
               </Badge>
-              <Badge className="bg-blue-600 px-3 py-1">
+              <Badge className="bg-primary px-3 py-1">
                 <Globe className="h-4 w-4 mr-1" /> EXPORT: {exportResult.totalItems}
               </Badge>
               <Badge className="bg-amber-600 px-3 py-1">
@@ -600,7 +600,7 @@ export default async function SalesPage({
         <div className="flex items-center gap-4">
           <SearchForm defaultValue={searchQueryRaw} />
           {searchQueryRaw && (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-muted-foreground">
               Found <span className="font-semibold">{taxResult.totalItems + exportResult.totalItems + replacementResult.totalItems}</span> result{(taxResult.totalItems + exportResult.totalItems + replacementResult.totalItems) !== 1 ? 's' : ''} for &quot;<span className="font-medium">{searchQuery}</span>&quot;
             </div>
           )}

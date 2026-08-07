@@ -22,7 +22,7 @@ interface SyncStats {
 }
 
 const platformColors: Record<string, { color: string; bg: string }> = {
-  ebay: { color: "text-blue-500 dark:text-blue-400", bg: "bg-blue-500/10" },
+  ebay: { color: "text-primary dark:text-primary", bg: "bg-primary/10" },
   etsy: { color: "text-orange-500 dark:text-orange-400", bg: "bg-orange-500/10" },
   amazon: { color: "text-amber-500 dark:text-amber-400", bg: "bg-amber-500/10" },
   website: { color: "text-emerald-500 dark:text-emerald-400", bg: "bg-emerald-500/10" },
@@ -109,7 +109,7 @@ export function MarketplaceSyncHealth() {
                     <XCircle className="h-3 w-3 text-red-500/50" /> {platform.failed ?? 0}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-blue-500/50" /> {platform.pending ?? 0}
+                    <Clock className="h-3 w-3 text-primary/50" /> {platform.pending ?? 0}
                   </span>
                   {(platform.conflicts ?? 0) > 0 && (
                     <span className="flex items-center gap-1">

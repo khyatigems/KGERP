@@ -122,7 +122,7 @@ export default async function VendorDetailPage({
               {vendor.email && (
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  <a href={`mailto:${vendor.email}`} className="text-blue-600 hover:underline">
+                  <a href={`mailto:${vendor.email}`} className="text-primary hover:underline">
                     {vendor.email}
                   </a>
                 </div>

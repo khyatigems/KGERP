@@ -1,6 +1,7 @@
 "use client";
 
 import { Logo } from "@/components/ui/logo";
+import { AnimatedGem } from "@/components/ui/animated-gem";
 import { LiveClock } from "./live-clock";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -16,8 +17,11 @@ export function DashboardHeader({ dbConnection, onRefresh, name }: DashboardHead
   return (
     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 rounded-xl border border-border bg-card p-4 md:p-5 sass-enter gem-fade-in gem-shimmer-border">
       <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+        <div className="relative flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 gem-facet-glow">
            <Logo className="h-7 w-7 text-primary" />
+           <span className="absolute -top-1.5 -right-1.5 text-primary">
+             <AnimatedGem size={14} />
+           </span>
         </div>
         <div>
           <div className="text-foreground">

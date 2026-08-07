@@ -405,7 +405,7 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
                                                                     href={listing.listingUrl} 
                                                                     target="_blank" 
                                                                     rel="noopener noreferrer" 
-                                                                    className="text-xs text-blue-600 hover:underline truncate max-w-[250px]"
+                                                                    className="text-xs text-primary hover:underline truncate max-w-[250px]"
                                                                     title={listing.listingUrl}
                                                                 >
                                                                     {listing.listingUrl.length > 40 ? listing.listingUrl.substring(0, 40) + "..." : listing.listingUrl}

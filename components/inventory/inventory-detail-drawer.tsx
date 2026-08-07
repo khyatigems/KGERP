@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -8,8 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDate } from "@/lib/utils";
 import { formatInrCurrency, formatInrNumber } from "@/lib/number-formatting";
+import { generateInfographicPng, type InfographicTheme, type InfographicSize, INFOGRAPHIC_SIZES, INFOGRAPHIC_BACKGROUNDS } from "@/lib/infographic-generator";
+import { InfographicTemplate } from "@/components/inventory/infographic-template";
+import { Download, ChevronDown } from "lucide-react";
+import { useGlobalLoader } from "@/components/global-loader-provider";
 
 type DrawerMedia = { id: string; type: string; mediaUrl: string; isPrimary: boolean };
 type DrawerItem = {
@@ -41,12 +46,14 @@ type DrawerItem = {
   stockLocation?: string | null;
   certificates?: Array<{ name: string; remarks?: string | null }>;
   certificateNumber?: string | null;
+  certificateLab?: string | null;
   certificateUrl?: string | null;
   collection?: string | null;
   rashis?: string[];
   notes?: string | null;
   additionalDetails?: string | null;
   certificateComments?: string | null;
+  companyBranding?: { logoUrl?: string | null; companyName?: string | null } | null;
   createdAt?: string;
   updatedAt?: string;
   media?: DrawerMedia[];
@@ -84,7 +91,13 @@ export function InventoryDetailDrawer({
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<DrawerItem | null>(null);
   const [activeMedia, setActiveMedia] = useState<string | null>(null);
+  const [infographicTheme, setInfographicTheme] = useState<InfographicTheme>("dark");
+  const [infographicSize, setInfographicSize] = useState<InfographicSize>(INFOGRAPHIC_SIZES[0]);
+  const [infographicBackground, setInfographicBackground] = useState("none");
+  const [generatingInfographic, setGeneratingInfographic] = useState(false);
+  const infographicRef = useRef<HTMLDivElement>(null);
   const lastIdRef = useRef<string | null>(null);
+  const { showLoader } = useGlobalLoader();
 
   useEffect(() => {
     if (!open) return;
@@ -127,6 +140,23 @@ export function InventoryDetailDrawer({
 
   const media = useMemo(() => data?.media || [], [data]);
   const mainImage = activeMedia || media.find((m) => m.isPrimary)?.mediaUrl || media[0]?.mediaUrl || null;
+
+  const handleDownloadInfographic = useCallback(
+    async (theme: InfographicTheme) => {
+      if (!infographicRef.current || !data) return;
+      setInfographicTheme(theme);
+      setGeneratingInfographic(true);
+      try {
+        await new Promise((r) => setTimeout(r, 100));
+        await generateInfographicPng(infographicRef.current, data.sku, theme, infographicSize);
+      } catch (err) {
+        console.error("Failed to generate infographic:", err);
+      } finally {
+        setGeneratingInfographic(false);
+      }
+    },
+    [data, infographicSize]
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -343,7 +373,7 @@ export function InventoryDetailDrawer({
                         <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
                           log.actionType === "CREATE" || log.actionType === "LABEL_PRINT" ? "bg-emerald-500" :
                           log.actionType === "STATUS_CHANGE" ? "bg-amber-500" :
-                          log.actionType === "EDIT" ? "bg-blue-500" :
+                           log.actionType === "EDIT" ? "bg-primary" :
                           "bg-gray-400"
                         }`} />
                         <div className="flex-1 min-w-0">
@@ -367,19 +397,108 @@ export function InventoryDetailDrawer({
           <div className="flex items-center justify-between gap-2">
             {data?.id ? (
               <Button asChild variant="outline">
-                <Link href={`/inventory/${data.id}/edit`}>Edit Item</Link>
+                <Link href={`/inventory/${data.id}/edit`} onClick={() => showLoader()}>Edit Item</Link>
               </Button>
             ) : (
               <Button variant="outline" disabled>
                 Edit Item
               </Button>
             )}
-            <Button variant="secondary" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
+            <div className="flex gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!data || generatingInfographic}
+                  >
+                    <Download className="h-4 w-4 mr-1" />
+                    {generatingInfographic ? "Generating..." : "Download"}
+                    <ChevronDown className="h-3 w-3 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Size</DropdownMenuLabel>
+                  {INFOGRAPHIC_SIZES.map((s) => (
+                    <DropdownMenuItem
+                      key={s.id}
+                      onClick={() => setInfographicSize(s)}
+                      className={infographicSize.id === s.id ? "bg-accent" : ""}
+                    >
+                      {s.label}
+                      <span className="ml-auto text-xs text-muted-foreground">{s.width}×{s.height}</span>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Background</DropdownMenuLabel>
+                  {INFOGRAPHIC_BACKGROUNDS.map((bg) => (
+                    <DropdownMenuItem
+                      key={bg.id}
+                      onClick={() => setInfographicBackground(bg.id)}
+                      className={infographicBackground === bg.id ? "bg-accent" : ""}
+                    >
+                      {bg.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Theme</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => handleDownloadInfographic("dark")}>
+                    Dark Theme
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownloadInfographic("light")}>
+                    Light Theme
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="secondary" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+            </div>
           </div>
         </SheetFooter>
       </SheetContent>
+
+      {/* Hidden infographic template for image generation */}
+      {data && (
+        <div
+          style={{
+            position: "fixed",
+            left: -9999,
+            top: 0,
+            pointerEvents: "none",
+            zIndex: -1,
+          }}
+        >
+          <div ref={infographicRef}>
+            <InfographicTemplate
+              data={{
+                sku: data.sku,
+                itemName: data.itemName,
+                image: mainImage,
+                category: data.category,
+                gemType: data.gemType,
+                shape: data.shape,
+                color: data.color,
+                cut: data.cut,
+                transparency: data.transparency,
+                treatment: data.treatment,
+                origin: data.origin,
+                weightValue: data.weightValue,
+                weightUnit: data.weightUnit,
+                weightRatti: data.weightRatti,
+                dimensionsMm: data.dimensionsMm,
+                certifications: data.certificates?.map((c) => c.name) || [],
+                certificateLab: data.certificateLab || null,
+                logoUrl: data.companyBranding?.logoUrl || null,
+                companyName: data.companyBranding?.companyName || "KhyatiGems",
+              }}
+              theme={infographicTheme}
+              size={infographicSize}
+              background={infographicBackground}
+            />
+          </div>
+        </div>
+      )}
     </Sheet>
   );
 }

@@ -4,9 +4,9 @@ type Props = {
 
 export default function ContactSupport({ email }: Props) {
   return (
-    <div className="text-center text-sm text-gray-600">
+    <div className="text-center text-sm text-muted-foreground">
       Need help?{" "}
-      <a href={`mailto:${email}`} className="text-blue-600 font-medium">
+      <a href={`mailto:${email}`} className="text-primary font-medium">
         Contact Support
       </a>
     </div>

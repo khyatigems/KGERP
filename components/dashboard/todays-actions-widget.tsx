@@ -24,9 +24,9 @@ export function TodaysActionsWidget({ data }: { data: TodaysActionsData }) {
             label: "Quotations Sent", 
             count: data.quotations, 
             icon: Send, 
-            color: "text-blue-600 dark:text-blue-400", 
-            bg: "bg-blue-100/50 dark:bg-blue-500/10",
-            labelColor: "text-blue-700 dark:text-blue-300"
+            color: "text-primary dark:text-primary", 
+            bg: "bg-primary/15 dark:bg-primary/10",
+            labelColor: "text-primary dark:text-primary/70"
         },
         { 
             label: "Labels Printed", 

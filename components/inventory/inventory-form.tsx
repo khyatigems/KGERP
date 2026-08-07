@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useGlobalLoader } from "@/components/global-loader-provider";
 import type { InventoryMedia } from "@prisma/client";
 import {
   AlertDialog,
@@ -31,6 +32,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formSchema, type FormInputValues, type FormValues, type InventoryFormProps } from "./inventory-form.types";
 import { BasicInfoSection } from "./inventory-basic-info";
+import { InventoryCompletenessPanel } from "./inventory-completeness-panel";
+import { getInventoryCompleteness } from "@/lib/inventory-completeness";
+import { InventorySaveProgressToast } from "./inventory-save-progress-toast";
 
 const FileUpload = dynamic(
   () => import("@/components/inventory/file-upload").then((mod) => mod.FileUpload),
@@ -70,6 +74,7 @@ const NotesSection = dynamic(() => import("./inventory-notes").then((m) => m.Not
 
 export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], origins = [], initialData, categoryHsnMap }: InventoryFormProps) {
   const router = useRouter();
+  const { showLoader } = useGlobalLoader();
   const [isPending, setIsPending] = useState(false);
   const [skuPreview, setSkuPreview] = useState<string>("");
   const [isSkuPreviewOpen, setIsSkuPreviewOpen] = useState(false);
@@ -197,11 +202,11 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     if (!String(data.category || "").trim()) fastErrors.push({ field: "category", message: "Category is required" });
 
     const mode = String(data.pricingMode || "");
+    const w = Number(data.weightValue || 0);
+    if (!(w > 0)) fastErrors.push({ field: "weightValue", message: "Weight is required and must be greater than 0" });
     if (mode === "PER_CARAT") {
-      const w = Number(data.weightValue || 0);
       const pr = Number(data.purchaseRatePerCarat || 0);
       const sr = Number(data.sellingRatePerCarat || 0);
-      if (!(w > 0)) fastErrors.push({ field: "weightValue", message: "Weight is required for per-carat pricing" });
       if (!(pr > 0)) fastErrors.push({ field: "purchaseRatePerCarat", message: "Purchase Rate is required" });
       if (!(sr > 0)) fastErrors.push({ field: "sellingRatePerCarat", message: "Selling Rate is required" });
     } else if (mode === "PER_RATTI") {
@@ -235,10 +240,20 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     setIsPending(true);
     setDuplicateWarning(null);
 
-    const optimisticToastId =
-      !ignoreDuplicates
-        ? toast.loading(initialData ? "Saving inventory..." : "Creating inventory...", { duration: Infinity })
-        : null;
+    const completeness = getInventoryCompleteness(data as unknown as Parameters<typeof getInventoryCompleteness>[0]);
+    const SAVE_TOAST_ID = "inventory-save-progress";
+
+    const optimisticToastId = toast.custom(
+      () => (
+        <InventorySaveProgressToast
+          itemName={String(data.itemName || "")}
+          completeness={completeness}
+          status="saving"
+          isUpdate={!!initialData}
+        />
+      ),
+      { id: SAVE_TOAST_ID, duration: Infinity }
+    );
 
     // Map PER_RATTI form fields to PER_CARAT DB columns (reuse same column)
     if (data.pricingMode === "PER_RATTI") {
@@ -277,18 +292,21 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
       console.log(`[inventory-save] ${initialData ? "update" : "create"} finished in ${Math.round(Number(t1) - Number(t0))}ms`);
 
       if (result?.success) {
-        const msg = result.message || (initialData ? "Inventory updated successfully!" : "Inventory created & added to label cart!");
-        if (optimisticToastId != null) {
-          try { toast.dismiss(optimisticToastId); } catch {}
-        }
-
         const skuStr = isCreatedInventoryResult(result) ? result.sku : "";
-        const toastMsg = skuStr
-          ? initialData
-            ? `Inventory updated: ${skuStr}`
-            : `Inventory created: ${skuStr}`
-          : msg;
-        toast.success(toastMsg, { duration: 2500 });
+
+        // Transition the animated save toast to success state
+        toast.custom(
+          () => (
+            <InventorySaveProgressToast
+              itemName={String(data.itemName || "")}
+              sku={skuStr || undefined}
+              completeness={completeness}
+              status="success"
+              isUpdate={!!initialData}
+            />
+          ),
+          { id: SAVE_TOAST_ID, duration: 3000 }
+        );
 
         const created = !initialData && isCreatedInventoryResult(result) ? result : null;
 
@@ -374,7 +392,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         }
 
         if (shouldRedirect) {
-          router.replace("/inventory");
+          // Give the animated toast ~1.8s to animate its success state before navigating away.
+          setTimeout(() => { showLoader(); router.replace("/inventory"); }, 1800);
           return;
         } else {
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -405,7 +424,17 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         if (optimisticToastId != null) {
           try { toast.dismiss(optimisticToastId); } catch {}
         }
-        toast.error(errorMsg);
+        toast.custom(
+          () => (
+            <InventorySaveProgressToast
+              itemName={String(data.itemName || "")}
+              completeness={completeness}
+              status="error"
+              errorMessage={errorMsg}
+            />
+          ),
+          { id: SAVE_TOAST_ID, duration: 5000 }
+        );
         if (result.errors) {
           console.error("Form errors:", result.errors);
         }
@@ -415,7 +444,17 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
         try { toast.dismiss(optimisticToastId); } catch {}
       }
       console.error(error);
-      toast.error("An unexpected error occurred.");
+      toast.custom(
+        () => (
+          <InventorySaveProgressToast
+            itemName={String(data?.itemName || "")}
+            completeness={completeness}
+            status="error"
+            errorMessage="An unexpected error occurred."
+          />
+        ),
+        { id: SAVE_TOAST_ID, duration: 5000 }
+      );
     } finally {
       setIsPending(false);
     }
@@ -476,6 +515,12 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
     if (!parsed.success) {
       console.warn("[inventory-form] validation blocked save", parsed.error.flatten().fieldErrors);
       handleValidationErrors(parsed.error as z.ZodError<FormInputValues>);
+      return;
+    }
+
+    const completeness = getInventoryCompleteness(parsed.data as unknown as Parameters<typeof getInventoryCompleteness>[0]);
+    if (completeness.coreMissing.length > 0) {
+      toast.error(`Missing required fields: ${completeness.coreMissing.join(", ")}`);
       return;
     }
 
@@ -553,6 +598,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
                 )}
               />
             </div>
+
+            <InventoryCompletenessPanel form={form} />
 
             <NotesSection key={`notes-${formResetKey}`} form={form} skuPreview={skuPreview} />
           </div>

@@ -5,8 +5,9 @@ import { buildEbayHtmlDescription } from "@/lib/ebay-description";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { analyzePricing } from "@/lib/pricing/engine";
-import { getDefaultProfile } from "@/lib/pricing/db";
+import { ensurePricingEngineSchema } from "@/lib/prisma";
 import { PRICING_STATUS_LABELS } from "@/lib/pricing/constants";
+import type { FeeCharge, MarginType } from "@/lib/pricing/types";
 import ExcelJS from "exceljs";
 
 export async function GET(req: NextRequest) {
@@ -93,8 +94,13 @@ export async function GET(req: NextRequest) {
       : allItems;
 
     // Pricing analysis (planning only) — always computed for opportunity exports.
-    // Uses the default marketplace fee schedule.
-    const pricingProfile = await getDefaultProfile();
+    // Bypass unstable_cache to ensure charges are fresh.
+    await ensurePricingEngineSchema();
+    const profiles = await prisma.marketplaceProfile.findMany({
+      where: { isActive: true, isDefault: true },
+      include: { charges: { orderBy: { sortOrder: "asc" } } },
+    });
+    const pricingProfile = profiles[0];
     const pricingMap = new Map<string, { msp: number; mrp: number; status: string; expectedProfit: number; profitPct: number; marginPct: number }>();
     if (pricingProfile) {
       for (const item of exportItems) {
@@ -102,9 +108,18 @@ export async function GET(req: NextRequest) {
         const a = analyzePricing({
           purchasePrice: Number(b.costPrice) || 0,
           sellingPrice: Number(b.sellingPrice) || 0,
-          charges: pricingProfile.charges,
-          marginType: pricingProfile.marginType,
-          marginValue: pricingProfile.marginValue,
+          charges: (pricingProfile.charges || []).map((c: any): FeeCharge => ({
+            id: String(c.id),
+            chargeKey: String(c.chargeKey) as FeeCharge["chargeKey"],
+            name: String(c.name),
+            enabled: Boolean(c.enabled),
+            amountType: c.amountType as FeeCharge["amountType"],
+            amount: Number(c.amount) || 0,
+            countryCode: c.countryCode ? String(c.countryCode) : null,
+            sortOrder: Number(c.sortOrder) || 0,
+          })),
+          marginType: pricingProfile.marginType as MarginType,
+          marginValue: Number(pricingProfile.marginValue) || 0,
         });
         pricingMap.set(String(b.inventoryId || ""), {
           msp: a.msp,

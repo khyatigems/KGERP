@@ -17,7 +17,7 @@ export default function HelpPage() {
       <div className="space-y-10">
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <HelpCircle className="h-5 w-5 text-blue-600" />
+            <HelpCircle className="h-5 w-5 text-primary" />
             Getting Started
           </h2>
           <div className="space-y-4">
@@ -44,13 +44,13 @@ export default function HelpPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Package className="h-5 w-5 text-blue-600" />
+            <Package className="h-5 w-5 text-primary" />
             Core Modules
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4">
               <div className="flex items-center gap-2 mb-1.5">
-                <Package className="h-4 w-4 text-blue-600" />
+                <Package className="h-4 w-4 text-primary" />
                 <h3 className="font-medium">Inventory</h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -59,7 +59,7 @@ export default function HelpPage() {
             </div>
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4">
               <div className="flex items-center gap-2 mb-1.5">
-                <Tag className="h-4 w-4 text-blue-600" />
+                <Tag className="h-4 w-4 text-primary" />
                 <h3 className="font-medium">Listings</h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -68,7 +68,7 @@ export default function HelpPage() {
             </div>
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4">
               <div className="flex items-center gap-2 mb-1.5">
-                <FileText className="h-4 w-4 text-blue-600" />
+                <FileText className="h-4 w-4 text-primary" />
                 <h3 className="font-medium">Quotations & Invoices</h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -77,7 +77,7 @@ export default function HelpPage() {
             </div>
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4">
               <div className="flex items-center gap-2 mb-1.5">
-                <Printer className="h-4 w-4 text-blue-600" />
+                <Printer className="h-4 w-4 text-primary" />
                 <h3 className="font-medium">Labels & Packaging</h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -86,7 +86,7 @@ export default function HelpPage() {
             </div>
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4">
               <div className="flex items-center gap-2 mb-1.5">
-                <BarChart3 className="h-4 w-4 text-blue-600" />
+                <BarChart3 className="h-4 w-4 text-primary" />
                 <h3 className="font-medium">Reports</h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -95,7 +95,7 @@ export default function HelpPage() {
             </div>
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-4">
               <div className="flex items-center gap-2 mb-1.5">
-                <Users className="h-4 w-4 text-blue-600" />
+                <Users className="h-4 w-4 text-primary" />
                 <h3 className="font-medium">Vendors & Customers</h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -107,7 +107,7 @@ export default function HelpPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Book className="h-5 w-5 text-blue-600" />
+            <Book className="h-5 w-5 text-primary" />
             Quick Tips
           </h2>
           <ul className="list-disc pl-5 space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
@@ -122,7 +122,7 @@ export default function HelpPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Shield className="h-5 w-5 text-blue-600" />
+            <Shield className="h-5 w-5 text-primary" />
             Roles & Permissions
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
@@ -149,7 +149,7 @@ export default function HelpPage() {
 
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Mail className="h-5 w-5 text-blue-600" />
+            <Mail className="h-5 w-5 text-primary" />
             Contact Support
           </h2>
           <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-5 space-y-2 text-sm">

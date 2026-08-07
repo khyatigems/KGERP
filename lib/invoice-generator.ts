@@ -24,14 +24,14 @@ export interface InvoiceData {
   // Export invoice fields
   invoiceType?: "TAX_INVOICE" | "EXPORT_INVOICE";
   iecCode?: string;
-  exportType?: "LUT" | "BOND" | "PAYMENT";
+  exportType?: "LUT" | "BOND" | "PAYMENT" | "DDP";
   countryOfDestination?: string;
   portOfDispatch?: string;
   modeOfTransport?: "AIR" | "COURIER" | "HAND_DELIVERY";
   courierPartner?: string;
   trackingId?: string;
   platformOrderId?: string;
-  invoiceCurrency?: "INR" | "USD" | "EUR" | "GBP";
+  invoiceCurrency?: import("@/lib/pricing/currency").CurrencyCode;
   conversionRate?: number;
   totalInrValue?: number;
   company: {
@@ -584,8 +584,12 @@ export async function generateInvoicePDF(data: InvoiceData) {
     
     if (isExportInvoice) {
       const usd = item.usdPrice || 0;
+      const discountUsd = data.conversionRate && data.conversionRate > 0
+        ? (item.discountAmount || 0) / data.conversionRate
+        : 0;
+      const netUsd = Math.max(0, usd * qty - discountUsd);
       const displayPrice = usd > 0 ? `${data.invoiceCurrency || "USD"} ${usd.toFixed(2)}` : formatCurrencyPDF(item.unitPrice);
-      const displayAmount = usd > 0 ? `${data.invoiceCurrency || "USD"} ${usd.toFixed(2)}` : formatCurrencyPDF(amount);
+      const displayAmount = usd > 0 ? `${data.invoiceCurrency || "USD"} ${netUsd.toFixed(2)}` : formatCurrencyPDF(amount);
       return [
         index + 1,
         itemText,
@@ -750,8 +754,16 @@ export async function generateInvoicePDF(data: InvoiceData) {
   }
 
   const totalUsdValue = isExportInvoice
-    ? data.items.reduce((sum, item) => sum + (item.usdPrice || 0), 0)
+    ? data.items.reduce((sum, item) => {
+        const discountUsd = data.conversionRate && data.conversionRate > 0
+          ? (item.discountAmount || 0) / data.conversionRate
+          : 0;
+        return sum + Math.max(0, (item.usdPrice || 0) * (item.quantity || 1) - discountUsd);
+      }, 0)
     : 0;
+  const exportTotalUsd = isExportInvoice && data.conversionRate && data.conversionRate > 0
+    ? data.total / data.conversionRate
+    : totalUsdValue;
   const taxableTotal = data.items.reduce((sum, item) => sum + (item.unitPrice * (item.quantity || 1)), 0);
   const taxRate = taxableTotal > 0 ? (data.tax * 100) / taxableTotal : 0;
   const halfRate = taxRate / 2;
@@ -768,9 +780,9 @@ export async function generateInvoicePDF(data: InvoiceData) {
   
   // For export invoices, show both USD and INR amounts in words
   if (isExportInvoice) {
-    const usdAmount = totalUsdValue > 0 ? totalUsdValue : (data.total / (data.conversionRate || 1));
+     const usdAmount = exportTotalUsd;
     const usdWords = convertNumberToWords(usdAmount, data.invoiceCurrency || "USD");
-    const inrAmount = data.total; // Original INR amount
+     const inrAmount = data.total; // Original INR amount
     const inrWords = convertNumberToWords(inrAmount, "INR");
     
     doc.text(`Total amount (in words): ${usdWords}`, margin, wordsY + 4);
@@ -788,17 +800,29 @@ export async function generateInvoicePDF(data: InvoiceData) {
   doc.setFont(fontFamily, "normal");
   doc.setFontSize(8);
   if (typeof data.grossTotal === "number" && Number.isFinite(data.grossTotal) && data.discount > 0) {
-    doc.text("Gross Amount", totalsX, totalsY);
-    writeAmountRight(formatCurrencyPDF(data.grossTotal), pageWidth - margin, totalsY);
-    totalsY += 4;
+     doc.text("Gross Amount", totalsX, totalsY);
+     writeAmountRight(
+       isExportInvoice
+         ? `${data.invoiceCurrency || "USD"} ${(data.grossTotal / (data.conversionRate || 1)).toFixed(2)}`
+         : formatCurrencyPDF(data.grossTotal),
+       pageWidth - margin,
+       totalsY,
+     );
+     totalsY += 4;
 
-    doc.text("Discount", totalsX, totalsY);
-    writeAmountRight(`-${formatCurrencyPDF(data.discount)}`, pageWidth - margin, totalsY);
+     doc.text("Discount", totalsX, totalsY);
+     writeAmountRight(
+       isExportInvoice
+         ? `-${data.invoiceCurrency || "USD"} ${(data.discount / (data.conversionRate || 1)).toFixed(2)}`
+         : `-${formatCurrencyPDF(data.discount)}`,
+       pageWidth - margin,
+       totalsY,
+     );
     totalsY += 4;
   }
 
   if (isExportInvoice) {
-    const usdTaxable = totalUsdValue > 0 ? totalUsdValue : (data.total / (data.conversionRate || 1));
+     const usdTaxable = exportTotalUsd;
     doc.text(`Taxable Amount (${data.invoiceCurrency || "USD"})`, totalsX, totalsY);
     writeAmountRight(`${data.invoiceCurrency || "USD"} ${usdTaxable.toFixed(2)}`, pageWidth - margin, totalsY);
     totalsY += 4;
@@ -823,7 +847,7 @@ export async function generateInvoicePDF(data: InvoiceData) {
       doc.setFont(fontFamily, "normal");
       doc.setFontSize(7);
       doc.setTextColor(100, 100, 100);
-      const inrTotal = usdTaxable * data.conversionRate;
+       const inrTotal = data.total;
       doc.text(`(INR ${inrTotal.toFixed(2)})`, totalsX + 15, totalsY);
       doc.setTextColor(0);
       totalsY += 4;

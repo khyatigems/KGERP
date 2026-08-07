@@ -84,8 +84,8 @@ const inventorySchema = z.object({
   certificateCodeIds: z.string().optional().transform(val => val ? val.split(',').filter(Boolean) : []),
   shape: z.string().optional(),
   dimensionsMm: z.string().optional(),
-  weightValue: z.coerce.number().min(0, "Weight must be non-negative"),
-  weightUnit: z.string(),
+  weightValue: z.coerce.number().min(0.001, "Weight must be greater than 0"),
+  weightUnit: z.enum(["cts", "gms"]).default("cts"),
   treatment: z.string().optional(),
   origin: z.string().optional(),
   fluorescence: z.string().optional(),
@@ -107,16 +107,39 @@ const inventorySchema = z.object({
   
   // Bracelet Attributes
   braceletType: z.string().optional(),
-  beadSizeMm: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.coerce.number().optional()),
+  beadSizeMm: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.coerce.number().min(0, "Bead size cannot be negative").optional()),
   beadSize: z.string().max(32).optional(),
   beadSizeLabel: z.string().max(32).optional(),
-  beadCount: z.coerce.number().optional(),
-  holeSizeMm: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.coerce.number().optional()),
-  innerCircumferenceMm: z.coerce.number().optional(),
+  beadCount: z.coerce.number().min(0, "Bead count cannot be negative").optional(),
+  holeSizeMm: z.preprocess((v) => (v === "" || v === null ? undefined : v), z.coerce.number().min(0, "Hole size cannot be negative").optional()),
+  innerCircumferenceMm: z.coerce.number().min(0, "Circumference cannot be negative").optional(),
   standardSize: z.string().optional(),
   
   // Logic Flags
   ignoreDuplicates: z.coerce.boolean().optional(),
+}).superRefine((values, ctx) => {
+  if (values.pricingMode === "PER_CARAT") {
+    if (values.purchaseRatePerCarat == null || values.purchaseRatePerCarat <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["purchaseRatePerCarat"], message: "Purchase rate per carat must be greater than 0" });
+    }
+    if (values.sellingRatePerCarat == null || values.sellingRatePerCarat <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sellingRatePerCarat"], message: "Selling rate per carat must be greater than 0" });
+    }
+  } else if (values.pricingMode === "PER_RATTI") {
+    if (values.purchaseRatePerCarat == null || values.purchaseRatePerCarat <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["purchaseRatePerCarat"], message: "Purchase rate per ratti must be greater than 0" });
+    }
+    if (values.sellingRatePerCarat == null || values.sellingRatePerCarat <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sellingRatePerCarat"], message: "Selling rate per ratti must be greater than 0" });
+    }
+  } else {
+    if (values.flatPurchaseCost == null || values.flatPurchaseCost <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatPurchaseCost"], message: "Flat purchase cost must be greater than 0" });
+    }
+    if (values.flatSellingPrice == null || values.flatSellingPrice <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatSellingPrice"], message: "Flat selling price must be greater than 0" });
+    }
+  }
 });
 
 type InventoryImportRow = {
@@ -367,7 +390,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               beadSizeMm,
               beadSizeLabel: beadSizeLabelNormalized ?? null,
               beadCount: data.beadCount,
-              // holeSizeMm: data.holeSizeMm, // Commented out due to Prisma Client lock
+              holeSizeMm: data.holeSizeMm,
               innerCircumferenceMm: data.innerCircumferenceMm,
               standardSize: data.standardSize,
           };
@@ -459,7 +482,7 @@ export async function updateInventory(
   const perm = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
   if (!perm.success) return { message: perm.message };
 
-  const session = await auth();
+  const session = perm.session;
   if (!session) {
     return { message: "Unauthorized" };
   }
@@ -514,8 +537,13 @@ export async function updateInventory(
       : (beadSizeLabelNormalized ? parseBeadSizeMm(beadSizeLabelNormalized) : undefined);
 
   // --- Integrity Checks ---
+  // Run independent checks together so remote Turso latency is paid once.
+  const [allowLoss, duplicates] = await Promise.all([
+    isLossSaleAllowed(),
+    data.ignoreDuplicates ? Promise.resolve([]) : checkDuplicateSku(data.gemstoneCodeId, data.weightValue, id),
+  ]);
+
   // 1. Loss Sale Check
-  const allowLoss = await isLossSaleAllowed();
   if (!allowLoss && sellingPrice < costPrice - 0.01) {
       return { 
           message: "Selling price cannot be less than cost price (Settings restricted).",
@@ -527,9 +555,7 @@ export async function updateInventory(
   }
 
   // 2. Duplicate SKU Check (Exclude current ID)
-  if (!data.ignoreDuplicates) {
-    const duplicates = await checkDuplicateSku(data.gemstoneCodeId, data.weightValue, id);
-    if (duplicates.length > 0) {
+  if (duplicates.length > 0) {
         // For updates, we might want to be more lenient or just warn?
         // But prompt says "Detect duplicate-like SKUs".
         // We'll block for now to ensure integrity.
@@ -540,7 +566,6 @@ export async function updateInventory(
             },
             isDuplicateWarning: true
         };
-    }
   }
   // --- End Integrity Checks ---
 
@@ -588,6 +613,7 @@ export async function updateInventory(
       beadSizeMm,
       beadSizeLabel: beadSizeLabelNormalized ?? null,
       beadCount: data.beadCount,
+      holeSizeMm: data.holeSizeMm,
       innerCircumferenceMm: data.innerCircumferenceMm,
       standardSize: data.standardSize,
     };
@@ -675,23 +701,24 @@ export async function updateInventory(
         }
     }
 
-    // Ensure at least one media is primary
-    const hasPrimary = await prisma.inventoryMedia.findFirst({
-        where: { inventoryId: id, isPrimary: true }
-    });
+    // Check both conditions together, then update only when necessary.
+    const [hasPrimary, firstMedia] = await Promise.all([
+      prisma.inventoryMedia.findFirst({
+        where: { inventoryId: id, isPrimary: true },
+        select: { id: true },
+      }),
+      prisma.inventoryMedia.findFirst({
+        where: { inventoryId: id },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      }),
+    ]);
 
-    if (!hasPrimary) {
-        const firstMedia = await prisma.inventoryMedia.findFirst({
-            where: { inventoryId: id },
-            orderBy: { createdAt: 'asc' }
-        });
-        
-        if (firstMedia) {
-            await prisma.inventoryMedia.update({
-                where: { id: firstMedia.id },
-                data: { isPrimary: true }
-            });
-        }
+    if (!hasPrimary && firstMedia) {
+      await prisma.inventoryMedia.update({
+        where: { id: firstMedia.id },
+        data: { isPrimary: true },
+      });
     }
 
   } catch (e) {
@@ -735,6 +762,27 @@ export async function importInventory(rows: InventoryImportRow[]) {
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         try {
+            // Core field validation before any DB work
+            if (!row.itemName || !String(row.itemName).trim()) {
+                errors.push({ row: i + 1, error: "Item name is required" });
+                continue;
+            }
+            const weightValue = Number(row.weightValue) || 0;
+            if (!(weightValue > 0)) {
+                errors.push({ row: i + 1, error: `Weight must be greater than 0 (got '${row.weightValue}')` });
+                continue;
+            }
+            const importMode = row.pricingMode === "FLAT" ? "FLAT" : "PER_CARAT";
+            if (importMode === "FLAT") {
+                if (!(Number(row.flatPurchaseCost) > 0) || !(Number(row.flatSellingPrice) > 0)) {
+                    errors.push({ row: i + 1, error: "FLAT pricing requires cost & selling price > 0" });
+                    continue;
+                }
+            } else if (!(Number(row.purchaseRatePerCarat) > 0) || !(Number(row.sellingRatePerCarat) > 0)) {
+                errors.push({ row: i + 1, error: "Per-carat pricing requires purchase & selling rate > 0" });
+                continue;
+            }
+
             // Basic validation and transformation
             const vendor = await prisma.vendor.findFirst({
                 where: { name: { contains: row.vendorName || "" } }
@@ -751,15 +799,14 @@ export async function importInventory(rows: InventoryImportRow[]) {
             let sellingPrice = 0;
 
             if (pricingMode === "PER_CARAT") {
-                purchaseCost = (Number(row.weightValue) || 0) * (Number(row.purchaseRatePerCarat) || 0);
-                sellingPrice = (Number(row.weightValue) || 0) * (Number(row.sellingRatePerCarat) || 0);
+                purchaseCost = weightValue * (Number(row.purchaseRatePerCarat) || 0);
+                sellingPrice = weightValue * (Number(row.sellingRatePerCarat) || 0);
             } else {
                 purchaseCost = Number(row.flatPurchaseCost) || 0;
                 sellingPrice = Number(row.flatSellingPrice) || 0;
             }
 
             await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-                const weightValue = Number(row.weightValue) || 0;
                 const weightUnit = row.weightUnit || "cts";
 
                 // Resolve Master Codes
@@ -929,6 +976,18 @@ export async function bulkUpdateInventory(
           "fluorescence", "origin", "shape", "treatment", "transparency"
         ];
         if (allowedFields.includes(key)) {
+          if (key === "pricingMode" && !["PER_CARAT", "PER_RATTI", "FLAT"].includes(String(value))) {
+            return { error: `Invalid pricingMode '${value}'` };
+          }
+          if (key === "status" && !["IN_STOCK", "RESERVED", "MEMO"].includes(String(value))) {
+            return { error: `Invalid status '${value}'` };
+          }
+          if (key === "vendorId" && (typeof value !== "string" || !value.trim())) {
+            return { error: "vendorId must be a non-empty id" };
+          }
+          if (typeof value === "string" && !value.trim()) {
+            return { error: `Field '${key}' cannot be empty` };
+          }
           simpleUpdates[key] = value;
         }
       }
@@ -995,7 +1054,7 @@ export async function updateInventoryStatus(
   const perm = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
   if (!perm.success) return { message: perm.message };
 
-  const session = await auth();
+  const session = perm.session;
   if (!session?.user) return { message: "Unauthorized" };
 
   const raw = Object.fromEntries(formData.entries());

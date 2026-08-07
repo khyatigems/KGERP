@@ -16,12 +16,13 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { CURRENCY_OPTIONS, type CurrencyCode } from "@/lib/pricing/currency";
 
 interface ExportSettings {
   enableExportInvoice: boolean;
-  defaultExportType: "LUT" | "BOND" | "PAYMENT";
+  defaultExportType: "LUT" | "BOND" | "PAYMENT" | "DDP";
   companyIec: string;
-  defaultCurrency: "USD" | "EUR" | "GBP" | "INR";
+  defaultCurrency: CurrencyCode;
   defaultPort: string;
   swiftCode: string;
 }
@@ -109,7 +110,7 @@ export function ExportSettingsForm() {
           <Label htmlFor="defaultExportType">Default Export Type</Label>
           <Select
             value={settings.defaultExportType}
-            onValueChange={(value: "LUT" | "BOND" | "PAYMENT") =>
+             onValueChange={(value: "LUT" | "BOND" | "PAYMENT" | "DDP") =>
               setSettings({ ...settings, defaultExportType: value })
             }
           >
@@ -117,10 +118,11 @@ export function ExportSettingsForm() {
               <SelectValue placeholder="Select export type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="LUT">LUT (Letter of Undertaking)</SelectItem>
-              <SelectItem value="BOND">Bond</SelectItem>
-              <SelectItem value="PAYMENT">Payment of IGST</SelectItem>
-            </SelectContent>
+               <SelectItem value="LUT">LUT (Letter of Undertaking)</SelectItem>
+               <SelectItem value="BOND">Bond</SelectItem>
+               <SelectItem value="PAYMENT">Payment of IGST</SelectItem>
+               <SelectItem value="DDP">DDP (Delivered Duty Paid)</SelectItem>
+             </SelectContent>
           </Select>
           <p className="text-sm text-muted-foreground">
             Default export type for new export invoices
@@ -148,19 +150,18 @@ export function ExportSettingsForm() {
           <Label htmlFor="defaultCurrency">Default Currency</Label>
           <Select
             value={settings.defaultCurrency}
-            onValueChange={(value: "USD" | "EUR" | "GBP" | "INR") =>
-              setSettings({ ...settings, defaultCurrency: value })
+             onValueChange={(value: CurrencyCode) =>
+               setSettings({ ...settings, defaultCurrency: value })
             }
           >
             <SelectTrigger id="defaultCurrency">
               <SelectValue placeholder="Select currency" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="USD">USD ($) - US Dollar</SelectItem>
-              <SelectItem value="EUR">EUR (€) - Euro</SelectItem>
-              <SelectItem value="GBP">GBP (£) - British Pound</SelectItem>
-              <SelectItem value="INR">INR (₹) - Indian Rupee</SelectItem>
-            </SelectContent>
+             <SelectContent>
+               {CURRENCY_OPTIONS.map((currency) => (
+                 <SelectItem key={currency.code} value={currency.code}>{currency.label}</SelectItem>
+               ))}
+             </SelectContent>
           </Select>
           <p className="text-sm text-muted-foreground">
             Default currency for export invoices

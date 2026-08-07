@@ -42,8 +42,8 @@ export const formSchema = z.object({
   color: z.string().optional(),
   shape: z.string().optional(),
   dimensionsMm: z.string().optional(),
-  weightValue: z.coerce.number().min(0, "Weight must be non-negative"),
-  weightUnit: z.string().default("cts"),
+  weightValue: z.coerce.number().min(0.001, "Weight must be greater than 0"),
+  weightUnit: z.enum(["cts", "gms"]).default("cts"),
   weightRatti: z.coerce.number().optional(),
   treatment: z.string().optional(),
   origin: z.string().optional(),
@@ -62,7 +62,7 @@ export const formSchema = z.object({
   notes: z.string().optional(),
   description: z.string().optional(),
   certificateComments: z.string().optional(),
-  status: z.enum(["IN_STOCK", "SOLD", "RESERVED", "MEMO"]).optional().default("IN_STOCK"),
+  status: z.enum(["IN_STOCK", "RESERVED", "MEMO"]).optional().default("IN_STOCK"),
   stockLocation: z.string().optional(),
   mediaUrl: z.string().url().optional().or(z.literal("")),
   mediaUrls: z.array(z.string()).optional(),
@@ -74,10 +74,10 @@ export const formSchema = z.object({
   rashiCodeIds: z.array(z.string()).optional(),
   cutCodeId: z.string().optional(),
   braceletType: z.string().optional(),
-  beadSizeMm: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().optional()),
-  beadCount: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().int().optional()),
-  holeSizeMm: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().optional()),
-  innerCircumferenceMm: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().optional()),
+  beadSizeMm: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().min(0, "Bead size cannot be negative").optional()),
+  beadCount: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().int().min(0, "Bead count cannot be negative").optional()),
+  holeSizeMm: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().min(0, "Hole size cannot be negative").optional()),
+  innerCircumferenceMm: z.preprocess((val) => (val === "" ? undefined : typeof val === "string" ? Number(val) || undefined : val), z.number().min(0, "Circumference cannot be negative").optional()),
   standardSize: z.string().optional(),
   beadSize: z.string().max(32).optional().transform(v => (v || "").trim() || undefined),
   braceletSize: z.string().optional(),
@@ -106,12 +106,23 @@ export const formSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["sellingRatePerRatti"], message: "Selling rate per ratti is required" });
     }
   } else {
-    // For FLAT pricing, ensure values are >= 0 (0 is allowed as a valid price)
-    if (values.flatPurchaseCost === undefined || values.flatPurchaseCost === null || values.flatPurchaseCost < 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatPurchaseCost"], message: "Flat purchase cost is required" });
+    // For FLAT pricing, ensure values are strictly > 0
+    if (values.flatPurchaseCost === undefined || values.flatPurchaseCost === null || values.flatPurchaseCost <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatPurchaseCost"], message: "Flat purchase cost must be greater than 0" });
     }
-    if (values.flatSellingPrice === undefined || values.flatSellingPrice === null || values.flatSellingPrice < 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatSellingPrice"], message: "Flat selling price is required" });
+    if (values.flatSellingPrice === undefined || values.flatSellingPrice === null || values.flatSellingPrice <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["flatSellingPrice"], message: "Flat selling price must be greater than 0" });
+    }
+  }
+
+  if (values.dimensionsMm && values.dimensionsMm.trim()) {
+    const valid = /^\d+(\.\d+)?\s*[xX]\s*\d+(\.\d+)?(\s*[xX]\s*\d+(\.\d+)?)?$/.test(values.dimensionsMm);
+    if (!valid) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["dimensionsMm"],
+        message: "Dimensions should look like 8.5 x 6.2 x 4.1",
+      });
     }
   }
 });
@@ -145,7 +156,7 @@ export type FormInputValues = {
   notes?: string | undefined;
   description?: string | undefined;
   certificateComments?: string | undefined;
-  status?: "IN_STOCK" | "SOLD" | "RESERVED" | "MEMO" | undefined;
+  status?: "IN_STOCK" | "RESERVED" | "MEMO" | undefined;
   stockLocation?: string | undefined;
   mediaUrl?: string | undefined;
   mediaUrls?: string[] | undefined;

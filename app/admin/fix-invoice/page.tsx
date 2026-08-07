@@ -57,7 +57,7 @@ export default function FixInvoicePage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-primary text-white py-2 rounded hover:bg-primary/90 disabled:opacity-50"
         >
           {loading ? "Fixing..." : "Fix Invoice"}
         </button>

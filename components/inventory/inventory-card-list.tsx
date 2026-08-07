@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { InventoryActions } from "./inventory-actions";
 import { InventoryCardMedia } from "./inventory-card-media";
+import { ExternalLink } from "lucide-react";
 import type { Inventory, InventoryMedia } from "@prisma/client";
 
 interface InventoryItem extends Inventory {
@@ -24,7 +25,12 @@ export function InventoryCardList({ data, canManageAttentionVisibility }: Invent
           ? (item.sellingRatePerCarat || 0) * (item.weightRatti || 0)
           : item.flatSellingPrice || 0;
         
-        const certificateText = item.certificates?.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ") || item.certification;
+        const certNames = item.certificates?.map(c => c.remarks ? `${c.name} (${c.remarks})` : c.name).join(", ");
+        const rawCert = String(item.certification || "").trim();
+        const certUrl = /^https?:\/\//i.test(rawCert) ? rawCert : null;
+        const hasCertProvider = !!certNames;
+        const hasCertNo = !!(item.certificateNo && String(item.certificateNo).trim());
+        const hasCertNum = !!(item.certificateNumber && String(item.certificateNumber).trim());
 
         return (
           <div key={item.id} className="flex items-start gap-4 rounded-lg border bg-card p-4 shadow-sm">
@@ -42,10 +48,28 @@ export function InventoryCardList({ data, canManageAttentionVisibility }: Invent
                         {item.beadCount && <span>Count: {item.beadCount}</span>}
                     </div>
                   )}
-                  {certificateText && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                        Cert: <span className="font-medium text-foreground">{certificateText}</span>
-                    </p>
+                  {(hasCertProvider || certUrl || hasCertNo || hasCertNum) && (
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      {(hasCertProvider || hasCertNo || hasCertNum) && (
+                        <p className="text-xs text-muted-foreground">
+                          {hasCertProvider ? (
+                            <span>{certNames} {hasCertNo && `#${String(item.certificateNo).trim()}`}</span>
+                          ) : (
+                            <span>{String(item.certificateNo || item.certificateNumber || "").trim()}</span>
+                          )}
+                        </p>
+                      )}
+                      {certUrl && (
+                        <a
+                          href={certUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-primary underline hover:no-underline"
+                        >
+                          View Certificate <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
                   )}
                 </div>
                 <InventoryActions item={item} canManageAttentionVisibility={canManageAttentionVisibility} />

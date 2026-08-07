@@ -49,7 +49,7 @@ export function CustomerLoyaltyLedger({ customerId, customerName }: CustomerLoya
       case "REDEEM":
         return <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">Redeemed</Badge>;
       case "ADJUST":
-        return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">Adjusted</Badge>;
+        return <Badge className="bg-primary/15 text-primary dark:bg-primary/15 dark:text-primary/70">Adjusted</Badge>;
       default:
         return <Badge variant="secondary">{type}</Badge>;
     }
@@ -90,7 +90,7 @@ export function CustomerLoyaltyLedger({ customerId, customerName }: CustomerLoya
           <p className="text-red-500 mb-4">{error}</p>
           <button
             onClick={fetchLedger}
-            className="text-sm text-blue-600 hover:underline flex items-center gap-2 mx-auto"
+            className="text-sm text-primary hover:underline flex items-center gap-2 mx-auto"
           >
             <RefreshCw className="h-4 w-4" />
             Retry
@@ -149,7 +149,7 @@ export function CustomerLoyaltyLedger({ customerId, customerName }: CustomerLoya
                       {entry.invoiceNumber ? (
                         <Link
                           href={`/invoices/${entry.invoiceId}`}
-                          className="text-blue-600 hover:underline font-medium"
+                          className="text-primary hover:underline font-medium"
                         >
                           {entry.invoiceNumber}
                         </Link>

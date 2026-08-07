@@ -146,7 +146,7 @@ export default function EditUserForm({ user, roles }: { user: EditableUser, role
                           onClick={() => handleSelectFromHistory(url)}
                           className={cn(
                             "relative aspect-square rounded-full overflow-hidden border-2 transition-all",
-                            isCurrentUrl(url) ? "border-blue-600 scale-105" : "border-gray-200 hover:border-blue-400"
+                            isCurrentUrl(url) ? "border-primary scale-105" : "border-gray-200 hover:border-primary/50"
                           )}
                         >
                           <Avatar className="h-full w-full rounded-full">
@@ -154,7 +154,7 @@ export default function EditUserForm({ user, roles }: { user: EditableUser, role
                             <AvatarFallback>...</AvatarFallback>
                           </Avatar>
                           {isCurrentUrl(url) && (
-                            <div className="absolute inset-0 bg-blue-600/20 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                               <Check className="h-4 w-4 text-white drop-shadow" />
                             </div>
                           )}

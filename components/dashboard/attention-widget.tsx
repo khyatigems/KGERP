@@ -132,10 +132,10 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
             count: visibleMissingCertifications.length,
             icon: <ShieldAlert className="h-4 w-4" />,
             color: "blue",
-            bgClass: "bg-blue-50 dark:bg-blue-950/20",
-            borderClass: "border-blue-200 dark:border-blue-800",
-            textClass: "text-blue-700 dark:text-blue-300",
-            badgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+            bgClass: "bg-primary/10 dark:bg-primary/10",
+            borderClass: "border-primary/20 dark:border-primary/20",
+            textClass: "text-primary dark:text-primary/70",
+            badgeClass: "bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary/70",
         }] : []),
         ...(visibleMissingImages.length > 0 ? [{
             key: "missingImages" as const,
@@ -308,12 +308,12 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                                         {cat.key === "missingCertifications" && visibleMissingCertifications.map(item => (
                                             <Link href={`/inventory/${item.id}`} key={item.id} className="flex items-center justify-between px-3 py-2.5 text-sm hover:bg-muted/50 group">
                                                 <div className="flex items-center gap-2 min-w-0">
-                                                    <ShieldAlert className="h-4 w-4 text-blue-500 shrink-0" />
+                                                     <ShieldAlert className="h-4 w-4 text-primary shrink-0" />
                                                     <span className="font-semibold text-foreground group-hover:underline truncate">{item.sku}</span>
                                                     <span className="text-muted-foreground truncate">- {item.itemName}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">
+                                                     <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold">
                                                         {item.lab ? `${item.lab} MISSING` : "MISSING CERT"}
                                                     </span>
                                                     <Button

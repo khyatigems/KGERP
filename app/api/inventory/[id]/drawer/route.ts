@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma, ensureActivityLogSchema } from "@/lib/prisma";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { getCompanyBranding } from "@/lib/company";
 
 
 export async function GET(
@@ -35,23 +36,26 @@ export async function GET(
 
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const activityLogs = await prisma.activityLog.findMany({
-    where: {
-      entityType: "Inventory",
-      entityId: id,
-    },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-    select: {
-      id: true,
-      actionType: true,
-      action: true,
-      details: true,
-      description: true,
-      userName: true,
-      createdAt: true,
-    },
-  }).catch(() => []);
+  const [activityLogs, branding] = await Promise.all([
+    prisma.activityLog.findMany({
+      where: {
+        entityType: "Inventory",
+        entityId: id,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        actionType: true,
+        action: true,
+        details: true,
+        description: true,
+        userName: true,
+        createdAt: true,
+      },
+    }).catch(() => []),
+    getCompanyBranding(),
+  ]);
 
   return NextResponse.json({
     id: item.id,
@@ -87,10 +91,15 @@ export async function GET(
     certificates: item.certificates || [],
     certificateNo: item.certificateNo,
     certificateNumber: item.certificateNumber,
+    certificateLab: item.certificateLab || item.lab || null,
     collection: item.collectionCode?.name || null,
     rashis: item.rashis?.map((r) => r.name) || [],
     notes: item.notes,
     certificateComments: item.certificateComments,
+    companyBranding: {
+      logoUrl: branding.logoUrl,
+      companyName: branding.companyName,
+    },
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     media: (item.media || []).map((m) => ({

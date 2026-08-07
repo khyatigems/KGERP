@@ -300,7 +300,7 @@ export function AvatarUploadModal({
               onClick={() => setActiveTab("upload")}
               className={cn(
                 "flex-1 py-2 text-sm font-medium border-b-2 transition-colors",
-                activeTab === "upload" ? "border-blue-600 text-blue-600" : "border-transparent text-muted-foreground hover:text-foreground"
+                activeTab === "upload" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >Upload</button>
             <button
@@ -308,7 +308,7 @@ export function AvatarUploadModal({
               onClick={() => setActiveTab("history")}
               className={cn(
                 "flex-1 py-2 text-sm font-medium border-b-2 transition-colors",
-                activeTab === "history" ? "border-blue-600 text-blue-600" : "border-transparent text-muted-foreground hover:text-foreground"
+                activeTab === "history" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >History {history.length > 0 && `(${history.length})`}</button>
             <button
@@ -316,7 +316,7 @@ export function AvatarUploadModal({
               onClick={() => setActiveTab("preset")}
               className={cn(
                 "flex-1 py-2 text-sm font-medium border-b-2 transition-colors",
-                activeTab === "preset" ? "border-blue-600 text-blue-600" : "border-transparent text-muted-foreground hover:text-foreground"
+                activeTab === "preset" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >Preset</button>
           </div>
@@ -388,7 +388,7 @@ export function AvatarUploadModal({
                         onClick={() => setCropShape(s)}
                         className={cn(
                           "h-7 w-7 border-2 transition-all",
-                          cropShape === s ? "border-blue-600 bg-blue-50" : "border-gray-300"
+                          cropShape === s ? "border-primary bg-primary/10" : "border-gray-300"
                         )}
                         style={{
                           borderRadius: s === "circle" ? "50%" : s === "rounded" ? "6px" : "0",
@@ -431,7 +431,7 @@ export function AvatarUploadModal({
                       type="button"
                       onClick={handleSaveUpload}
                       disabled={uploading}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      className="flex-1 bg-primary hover:bg-primary/90"
                     >{uploading ? "Uploading..." : "Save"}</Button>
                   </div>
                 </div>
@@ -451,14 +451,14 @@ export function AvatarUploadModal({
                       type="button"
                       onClick={() => handleSelectFromHistory(url)}
                       disabled={uploading}
-                      className="group relative aspect-square rounded-full overflow-hidden border-2 border-gray-200 hover:border-blue-500 transition-colors disabled:opacity-50"
+                      className="group relative aspect-square rounded-full overflow-hidden border-2 border-gray-200 hover:border-primary transition-colors disabled:opacity-50"
                     >
                       <Avatar className="h-full w-full rounded-full">
                         <AvatarImage src={url} />
                         <AvatarFallback>...</AvatarFallback>
                       </Avatar>
                       {currentAvatar === url && (
-                        <div className="absolute inset-0 bg-blue-600/20 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                           <Check className="h-6 w-6 text-white drop-shadow" />
                         </div>
                       )}
@@ -490,7 +490,7 @@ export function AvatarUploadModal({
                       } finally { setUploading(false); }
                     }}
                     disabled={uploading}
-                    className="aspect-square rounded-full overflow-hidden border-2 border-blue-500 hover:border-blue-600 disabled:opacity-50"
+                    className="aspect-square rounded-full overflow-hidden border-2 border-primary hover:border-primary disabled:opacity-50"
                   >
                     <div className="h-full w-full" dangerouslySetInnerHTML={{ __html: currentSvgAvatar }} />
                   </button>
@@ -503,7 +503,7 @@ export function AvatarUploadModal({
         </div>
 
         {(currentAvatar || currentSvgAvatar) && (
-          <div className="border-t bg-gray-50 dark:bg-gray-900 px-6 py-3 flex justify-between">
+          <div className="border-t bg-muted/50 dark:bg-gray-900 px-6 py-3 flex justify-between">
             <span className="text-xs text-muted-foreground">Profile photo</span>
             <button
               type="button"

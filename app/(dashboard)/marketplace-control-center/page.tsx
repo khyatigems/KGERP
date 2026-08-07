@@ -168,7 +168,7 @@ export default async function MarketplaceControlCenterPage({
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-blue-600" />
+                  <Globe className="h-4 w-4 text-primary" />
                   Active Marketplace Listings
                 </CardTitle>
               </CardHeader>

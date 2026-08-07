@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { SidebarProvider } from "@/components/layout/sidebar-context";
+import { SidebarGridClient } from "@/components/layout/sidebar-grid-client";
 import { auth } from "@/lib/auth";
 import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema } from "@/lib/prisma";
 import { Permission } from "@/lib/permissions";
@@ -109,16 +111,18 @@ export default async function ErpLayout({
   }
 
   return (
-    <div className="grid min-h-screen w-full lg:grid-cols-[250px_1fr]">
-      <div className="hidden border-r lg:block bg-sidebar border-sidebar-border">
-        <Sidebar allowedModules={allowedNavModules} />
-      </div>
-      <div className="flex flex-col">
-        <Topbar user={user} />
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background sass-enter">
-          {children}
-        </main>
-      </div>
-    </div>
+    <SidebarProvider>
+      <SidebarGridClient>
+        <div className="hidden border-r lg:block bg-sidebar border-sidebar-border">
+          <Sidebar allowedModules={allowedNavModules} />
+        </div>
+        <div className="flex flex-col">
+          <Topbar user={user} />
+          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background sass-enter">
+            {children}
+          </main>
+        </div>
+      </SidebarGridClient>
+    </SidebarProvider>
   );
 }
