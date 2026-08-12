@@ -1,5 +1,7 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { AnimatedGem } from "./animated-gem";
@@ -11,8 +13,17 @@ interface AppLogoLoaderProps {
   progress?: number | null;
 }
 
+function useBrowserReady() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+}
+
 export function AppLogoLoader({ className, fullscreen = true, label, progress = null }: AppLogoLoaderProps) {
   const pct = typeof progress === "number" ? Math.min(100, Math.max(0, progress)) : null;
+  const browserReady = useBrowserReady();
 
   const content = (
     <div className={cn("flex flex-col items-center justify-center gap-8", className)}>
@@ -90,8 +101,8 @@ export function AppLogoLoader({ className, fullscreen = true, label, progress = 
   );
 
   if (fullscreen) {
-    return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/95 backdrop-blur-xl animate-fade-in-loader animate-in fade-in">
+    const overlay = (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/95 backdrop-blur-xl animate-fade-in-loader">
         {/* Subtle ambient background gradients */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/[0.03] blur-[120px] rounded-full" />
@@ -101,6 +112,11 @@ export function AppLogoLoader({ className, fullscreen = true, label, progress = 
         <div className="relative z-10">{content}</div>
       </div>
     );
+
+    if (browserReady) {
+      return createPortal(overlay, document.body);
+    }
+    return null;
   }
 
   return content;
