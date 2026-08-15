@@ -75,6 +75,14 @@ export const metadata: Metadata = {
 
 const ITEMS_PER_PAGE = 50;
 
+function parseMulti(value: string | undefined): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
 function buildInventoryWhere(
   params: SearchParams,
   options: { strictRelations: boolean }
@@ -96,45 +104,50 @@ function buildInventoryWhere(
   }
 
   if (params.status && params.status !== "ALL") direct.status = params.status;
-  if (params.vendorId && params.vendorId !== "ALL") direct.vendorId = params.vendorId;
 
-  if (params.category && params.category !== "ALL") {
+  const vendorIds = parseMulti(params.vendorId).filter((v) => v !== "ALL");
+  if (vendorIds.length > 0) direct.vendorId = { in: vendorIds };
+
+  const categories = parseMulti(params.category).filter((v) => v !== "ALL");
+  if (categories.length > 0) {
     if (options.strictRelations) {
       and.push({
         OR: [
-          { category: params.category },
-          { categoryCode: { is: { name: params.category } } },
+          { category: { in: categories } },
+          { categoryCode: { is: { name: { in: categories } } } },
         ],
       });
     } else {
-      direct.category = params.category;
+      direct.category = { in: categories };
     }
   }
 
-  if (params.gemType && params.gemType !== "ALL") {
+  const gemTypes = parseMulti(params.gemType).filter((v) => v !== "ALL");
+  if (gemTypes.length > 0) {
     if (options.strictRelations) {
       and.push({
         OR: [
-          { gemType: params.gemType },
-          { gemstoneCode: { is: { name: params.gemType } } },
+          { gemType: { in: gemTypes } },
+          { gemstoneCode: { is: { name: { in: gemTypes } } } },
         ],
       });
     } else {
-      direct.gemType = params.gemType;
+      direct.gemType = { in: gemTypes };
     }
   }
 
-  if (params.color && params.color !== "ALL") {
+  const colors = parseMulti(params.color).filter((v) => v !== "ALL");
+  if (colors.length > 0) {
     if (options.strictRelations) {
       and.push({
         OR: [
-          { color: params.color },
-          { colorCodeId: params.color },
-          { colorCode: { is: { name: params.color } } },
+          { color: { in: colors } },
+          { colorCodeId: { in: colors } },
+          { colorCode: { is: { name: { in: colors } } } },
         ],
       });
     } else {
-      direct.OR = [{ color: params.color }, { colorCodeId: params.color }];
+      direct.OR = [{ color: { in: colors } }, { colorCodeId: { in: colors } }];
     }
   }
 

@@ -50,11 +50,7 @@ export async function GET(request: NextRequest) {
 
   const sp = request.nextUrl.searchParams;
   const q = (sp.get("q") || sp.get("query") || "").trim();
-  const category = (sp.get("category") || "").trim();
-  const gemType = (sp.get("gemType") || "").trim();
-  const color = (sp.get("color") || "").trim();
   const status = (sp.get("status") || "").trim();
-  const vendorId = (sp.get("vendorId") || "").trim();
   const weightRange = (sp.get("weightRange") || "").trim();
   const mode = (sp.get("mode") || "full").trim().toLowerCase();
 
@@ -63,13 +59,27 @@ export async function GET(request: NextRequest) {
   const createdFrom = toDate(sp.get("createdFrom"));
   const createdTo = toDate(sp.get("createdTo"));
 
+  const parseMulti = (key: string) =>
+    (sp.get(key) || "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
   const where: Prisma.InventoryWhereInput = {};
 
   if (status) where.status = status;
-  if (category) where.category = category;
-  if (gemType) where.gemType = gemType;
-  if (color) where.color = color;
-  if (vendorId) where.vendorId = vendorId;
+
+  const categories = parseMulti("category");
+  if (categories.length > 0) where.category = { in: categories };
+
+  const gemTypes = parseMulti("gemType");
+  if (gemTypes.length > 0) where.gemType = { in: gemTypes };
+
+  const colors = parseMulti("color");
+  if (colors.length > 0) where.color = { in: colors };
+
+  const vendorIds = parseMulti("vendorId");
+  if (vendorIds.length > 0) where.vendorId = { in: vendorIds };
 
   if (weightRange) {
     const [min, max] = weightRange.split("-");
@@ -187,7 +197,7 @@ export async function GET(request: NextRequest) {
     ],
   } as unknown as Prisma.InventoryWhereInput;
 
-  const cacheKey = JSON.stringify({ q, category, gemType, color, status, vendorId, weightRange, minPrice, maxPrice, createdFrom: createdFrom?.toISOString(), createdTo: createdTo?.toISOString(), mode });
+  const cacheKey = JSON.stringify({ q, categories, gemTypes, colors, status, vendorIds, weightRange, minPrice, maxPrice, createdFrom: createdFrom?.toISOString(), createdTo: createdTo?.toISOString(), mode });
 
   const getQuick = cacheQuery(
     async () => {

@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { TrendingUp, Boxes, CircleDollarSign, Percent, Activity, Package, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ReceiptIndianRupee, QrCode, ListChecks, Gift } from "lucide-react";
+import { TrendingUp, Boxes, CircleDollarSign, Percent, Activity, Package, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ReceiptIndianRupee, QrCode, ListChecks, Gift, ImageOff } from "lucide-react";
 import Link from "next/link";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { formatCurrency } from "@/lib/utils";
@@ -355,6 +355,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         { title: "Inventory Aging", description: "Days-in-stock buckets and capital lock visibility", icon: Package, href: "/reports/inventory-aging", allowed: true },
         { title: "Capital Rotation", description: "Sell-cycle and money velocity intelligence", icon: TrendingUp, href: "/reports/capital-rotation", allowed: true },
         { title: "Certificate Checklist", description: "SKU-wise missing fields for certificate readiness", icon: ListChecks, href: "/reports/certificate-readiness", allowed: true },
+        { title: "Missing Image & Certificate", description: "SKUs pending image or certificate by category/gem/color", icon: ImageOff, href: "/reports/missing-media", allowed: true },
         { title: "Customer Intelligence", description: "Repeat customer behavior and ticket-size analytics", icon: TrendingUp, href: "/reports/customer-intelligence", allowed: ["ADMIN", "SUPER_ADMIN"].includes(session.user.role) },
         { title: "Loyalty Points Report", description: "Detailed breakdown of loyalty points earned and redeemed.", icon: Gift, href: "/reports/loyalty-points", allowed: true },
         { title: "Discount Usage Report", description: "Analysis of discount coupons and their impact on sales.", icon: Percent, href: "/reports/discount-usage", allowed: true },
@@ -363,7 +364,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         { title: "QR Scans Report", description: "Track QR code usage and scan activity", icon: QrCode, href: "/reports/qr-scans", allowed: true }
     ];
     const reportModules = [
-        { title: "Inventory Intelligence", color: "text-primary", description: "Track stock performance and aging.", links: [{ label: "Inventory Summary", href: "/reports/inventory" }, { label: "Inventory Aging", href: "/reports/inventory-aging" }, { label: "Vendor Inventory", href: "/reports/vendor-inventory" }, { label: "Category Stock", href: "/reports/category-stock" }] },
+        { title: "Inventory Intelligence", color: "text-primary", description: "Track stock performance and aging.", links: [{ label: "Inventory Summary", href: "/reports/inventory" }, { label: "Inventory Aging", href: "/reports/inventory-aging" }, { label: "Vendor Inventory", href: "/reports/vendor-inventory" }, { label: "Category Stock", href: "/reports/category-stock" }, { label: "Missing Image & Certificate", href: "/reports/missing-media" }] },
         { title: "Sales Performance", color: "text-green-600", description: "Understand product sales velocity.", links: [{ label: "Sales Report", href: "/reports/sales" }, { label: "Turnover Report", href: "/reports/turnover-report" }, { label: "Top Categories", href: "/reports/top-categories" }, { label: "Sales Cycle", href: "/reports/sales-cycle" }] },
         { title: "Financial Reports", color: "text-yellow-600", description: "Revenue and profitability analytics.", links: [{ label: "Profit & Margins", href: "/reports/profit" }, { label: "Payments", href: "/reports/payments" }, { label: "Invoice Analytics", href: "/reports/invoices" }, { label: "Expenses", href: "/reports/expenses" }] },
         { title: "Vendor Intelligence", color: "text-purple-600", description: "Track supplier performance.", links: [{ label: "Vendor Purchases", href: "/reports/vendor-purchases" }, { label: "Vendor Inventory", href: "/reports/vendor-inventory" }, { label: "Vendor Dependency", href: "/reports/vendor-dependency" }] },

@@ -70,6 +70,14 @@ const EXPORT_FIELDS: Record<string, { label: string; getter: (item: Record<strin
   updatedAt: { label: "Updated At", getter: (i) => i.updatedAt ? new Date(i.updatedAt as string).toISOString().split("T")[0] : "" },
 };
 
+function parseMulti(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
 function buildFilterWhere(sp: URLSearchParams): Prisma.InventoryWhereInput {
   const and: Prisma.InventoryWhereInput[] = [];
   const direct: Prisma.InventoryWhereInput = {};
@@ -99,10 +107,19 @@ function buildFilterWhere(sp: URLSearchParams): Prisma.InventoryWhereInput {
   }
 
   if (status && status !== "ALL") direct.status = status;
-  if (vendorId && vendorId !== "ALL") direct.vendorId = vendorId;
-  if (category && category !== "ALL") direct.category = category;
-  if (gemType && gemType !== "ALL") direct.gemType = gemType;
-  if (color && color !== "ALL") direct.color = color;
+
+  const vendorIds = parseMulti(vendorId).filter((v) => v !== "ALL");
+  if (vendorIds.length > 0) direct.vendorId = { in: vendorIds };
+
+  const categories = parseMulti(category).filter((v) => v !== "ALL");
+  if (categories.length > 0) direct.category = { in: categories };
+
+  const gemTypes = parseMulti(gemType).filter((v) => v !== "ALL");
+  if (gemTypes.length > 0) direct.gemType = { in: gemTypes };
+
+  const colors = parseMulti(color).filter((v) => v !== "ALL");
+  if (colors.length > 0) direct.color = { in: colors };
+
   if (collectionId && collectionId !== "ALL") direct.collectionCodeId = collectionId;
   if (rashiId && rashiId !== "ALL") {
     and.push({ rashis: { some: { id: rashiId } } });

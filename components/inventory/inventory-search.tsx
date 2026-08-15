@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
 import { X } from "lucide-react";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 
@@ -77,6 +78,32 @@ export function InventorySearch({
     [colors]
   );
 
+  const categoryLabelLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    uniqueCategories.forEach((c) => map.set(c.name, c.name));
+    return map;
+  }, [uniqueCategories]);
+  const gemstoneLabelLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    uniqueGemstones.forEach((g) => map.set(g.name, g.name));
+    return map;
+  }, [uniqueGemstones]);
+  const colorLabelLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    uniqueColors.forEach((c) => map.set(c.id, c.name));
+    return map;
+  }, [uniqueColors]);
+  const vendorLabelLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    vendors.forEach((v) => map.set(v.id, v.name));
+    return map;
+  }, [vendors]);
+
+  const getMultiValues = (key: string) => {
+    const raw = searchParams.get(key)?.toString();
+    return raw ? raw.split(",").filter(Boolean) : [];
+  };
+
   useEffect(() => {
     return () => {
       if (applyTimerRef.current !== null) window.clearTimeout(applyTimerRef.current);
@@ -117,6 +144,20 @@ export function InventorySearch({
     });
   };
 
+  const handleMultiChange = (key: string, values: string[]) => {
+    const params = new URLSearchParams(searchParams);
+    if (values.length > 0) {
+      params.set(key, values.join(","));
+    } else {
+      params.delete(key);
+    }
+    params.delete("page");
+    pulseApply();
+    startTransition(() => {
+      replace(`${pathname}?${params.toString()}`, { scroll: false });
+    });
+  };
+
   const handleClear = () => {
     setQueryValue("");
     pulseApply();
@@ -128,9 +169,22 @@ export function InventorySearch({
 
   const removeParam = (key: string) => {
     const params = new URLSearchParams(searchParams);
-    params.delete(key);
+    const queryKey = key.split(":")[0];
+    const multiValue = key.split(":")[1];
+    if (key === "query") {
+      setQueryValue("");
+      params.delete("query");
+    } else if (multiValue) {
+      const values = getMultiValues(queryKey).filter((v) => v !== multiValue);
+      if (values.length > 0) {
+        params.set(queryKey, values.join(","));
+      } else {
+        params.delete(queryKey);
+      }
+    } else {
+      params.delete(key);
+    }
     params.delete("page");
-    if (key === "query") setQueryValue("");
     pulseApply();
     startTransition(() => {
       replace(params.toString() ? `${pathname}?${params.toString()}` : pathname, { scroll: false });
@@ -141,18 +195,26 @@ export function InventorySearch({
     const chips: Array<{ key: string; label: string }> = [];
     const q = (searchParams.get("query") || "").trim();
     const status = searchParams.get("status");
-    const vendorId = searchParams.get("vendorId");
-    const category = searchParams.get("category");
-    const gemType = searchParams.get("gemType");
-    const color = searchParams.get("color");
+    const vendorIdValues = getMultiValues("vendorId");
+    const categoryValues = getMultiValues("category");
+    const gemTypeValues = getMultiValues("gemType");
+    const colorValues = getMultiValues("color");
     const collectionId = searchParams.get("collectionId");
 
     if (q) chips.push({ key: "query", label: `Search: ${q}` });
     if (status) chips.push({ key: "status", label: `Status: ${status.replaceAll("_", " ")}` });
-    if (vendorId) chips.push({ key: "vendorId", label: `Vendor: ${vendors.find((v) => v.id === vendorId)?.name || vendorId}` });
-    if (category) chips.push({ key: "category", label: `Category: ${category}` });
-    if (gemType) chips.push({ key: "gemType", label: `Gem: ${gemType}` });
-    if (color) chips.push({ key: "color", label: `Color: ${color}` });
+    vendorIdValues.forEach((v) =>
+      chips.push({ key: `vendorId:${v}`, label: `Vendor: ${vendorLabelLookup.get(v) || v}` })
+    );
+    categoryValues.forEach((c) =>
+      chips.push({ key: `category:${c}`, label: `Category: ${categoryLabelLookup.get(c) || c}` })
+    );
+    gemTypeValues.forEach((g) =>
+      chips.push({ key: `gemType:${g}`, label: `Gem: ${gemstoneLabelLookup.get(g) || g}` })
+    );
+    colorValues.forEach((c) =>
+      chips.push({ key: `color:${c}`, label: `Color: ${colorLabelLookup.get(c) || c}` })
+    );
     if (collectionId) chips.push({ key: "collectionId", label: `Collection: ${collections.find((c) => c.id === collectionId)?.name || collectionId}` });
     return chips;
   })();
@@ -199,65 +261,33 @@ export function InventorySearch({
             </SelectContent>
         </Select>
 
-        <Select
-            value={searchParams.get("vendorId")?.toString() || "ALL"}
-            onValueChange={(val) => handleFilterChange("vendorId", val)}
-        >
-            <SelectTrigger>
-            <SelectValue placeholder="Vendor" />
-            </SelectTrigger>
-            <SelectContent>
-            <SelectItem value="ALL">All Vendors</SelectItem>
-            {vendors.map((v) => (
-                <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-            ))}
-            </SelectContent>
-        </Select>
+        <MultiSelectFilter
+            options={vendors.map((v) => ({ value: v.id, label: v.name }))}
+            selected={getMultiValues("vendorId")}
+            onChange={(values) => handleMultiChange("vendorId", values)}
+            placeholder="Vendor"
+        />
 
-        <Select
-            value={searchParams.get("category")?.toString() || "ALL"}
-            onValueChange={(val) => handleFilterChange("category", val)}
-        >
-            <SelectTrigger>
-            <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-            <SelectItem value="ALL">All Categories</SelectItem>
-            {uniqueCategories.map((c) => (
-                <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-            ))}
-            </SelectContent>
-        </Select>
+        <MultiSelectFilter
+            options={uniqueCategories.map((c) => ({ value: c.name, label: c.name }))}
+            selected={getMultiValues("category")}
+            onChange={(values) => handleMultiChange("category", values)}
+            placeholder="Category"
+        />
 
-         <Select
-            value={searchParams.get("gemType")?.toString() || "ALL"}
-            onValueChange={(val) => handleFilterChange("gemType", val)}
-        >
-            <SelectTrigger>
-            <SelectValue placeholder="Gem Type" />
-            </SelectTrigger>
-            <SelectContent>
-            <SelectItem value="ALL">All Gems</SelectItem>
-            {uniqueGemstones.map((g) => (
-                <SelectItem key={g.id} value={g.name}>{g.name}</SelectItem>
-            ))}
-            </SelectContent>
-        </Select>
+         <MultiSelectFilter
+            options={uniqueGemstones.map((g) => ({ value: g.name, label: g.name }))}
+            selected={getMultiValues("gemType")}
+            onChange={(values) => handleMultiChange("gemType", values)}
+            placeholder="Gem Type"
+        />
 
-         <Select
-            value={searchParams.get("color")?.toString() || "ALL"}
-            onValueChange={(val) => handleFilterChange("color", val)}
-        >
-            <SelectTrigger>
-            <SelectValue placeholder="Color" />
-            </SelectTrigger>
-            <SelectContent>
-            <SelectItem value="ALL">All Colors</SelectItem>
-            {uniqueColors.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-            </SelectContent>
-        </Select>
+         <MultiSelectFilter
+            options={uniqueColors.map((c) => ({ value: c.id, label: c.name }))}
+            selected={getMultiValues("color")}
+            onChange={(values) => handleMultiChange("color", values)}
+            placeholder="Color"
+        />
 
          <Select
             value={searchParams.get("collectionId")?.toString() || "ALL"}
