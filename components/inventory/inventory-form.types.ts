@@ -199,6 +199,7 @@ export interface InventoryFormProps {
   certificates?: CodeRow[];
   origins?: string[];
   initialData?: InventoryWithExtras & { media: InventoryMedia[]; rashiCodes?: { id: string }[] };
+  copyData?: InventoryWithExtras & { media: InventoryMedia[]; rashiCodes?: { id: string }[] };
   categoryHsnMap?: Record<string, string>;
 }
 

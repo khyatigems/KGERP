@@ -72,7 +72,7 @@ const NotesSection = dynamic(() => import("./inventory-notes").then((m) => m.Not
   loading: () => <div className="rounded-lg border bg-card/50 p-5 space-y-4 animate-pulse"><div className="h-6 w-16 bg-muted rounded" /><div className="h-40 bg-muted rounded" /></div>,
 });
 
-export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], origins = [], initialData, categoryHsnMap }: InventoryFormProps) {
+export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], origins = [], initialData, copyData, categoryHsnMap }: InventoryFormProps) {
   const router = useRouter();
   const { showLoader } = useGlobalLoader();
   const [isPending, setIsPending] = useState(false);
@@ -88,62 +88,64 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
   const itemNameInputRef = useRef<HTMLInputElement | null>(null);
   const createDefaultsRef = useRef<FormValues | null>(null);
 
+  const source = copyData || initialData;
+
   const form = useForm<FormInputValues>({
     resolver: zodResolver(formSchema) as unknown as Resolver<FormInputValues>,
     defaultValues: {
-      sku: initialData?.sku || "",
-      itemName: initialData?.itemName || "",
-      internalName: initialData?.internalName || "",
-      category: initialData?.category || initialData?.categoryCode?.name || categories[0]?.name || "",
-      gemType: initialData?.gemType || initialData?.gemstoneCode?.name || "",
-      color: initialData?.color || initialData?.colorCode?.name || "",
-      shape: initialData?.shape || "",
-      dimensionsMm: initialData?.dimensionsMm || "",
-      weightValue: initialData?.weightValue || 0,
-      weightUnit: initialData?.weightUnit || "cts",
-      weightRatti: initialData?.weightRatti || 0,
-      treatment: initialData?.treatment || "None",
-      certification: initialData?.certification || "None",
-      certificateCodeIds: initialData?.certificates?.map(c => c.id) || [],
-      transparency: initialData?.transparency || "",
-      origin: initialData?.origin || "",
-      fluorescence: initialData?.fluorescence || "",
-      vendorId: initialData?.vendorId || "",
-      pricingMode: (initialData?.pricingMode as "PER_CARAT" | "PER_RATTI" | "FLAT") || "PER_CARAT",
-      purchaseRatePerCarat: initialData?.purchaseRatePerCarat || 0,
-      sellingRatePerCarat: initialData?.sellingRatePerCarat || 0,
-      purchaseRatePerRatti: initialData?.pricingMode === "PER_RATTI" ? (initialData?.purchaseRatePerCarat || 0) : 0,
-      sellingRatePerRatti: initialData?.pricingMode === "PER_RATTI" ? (initialData?.sellingRatePerCarat || 0) : 0,
-      flatPurchaseCost: initialData?.flatPurchaseCost || 0,
-      flatSellingPrice: initialData?.flatSellingPrice || 0,
-      mediaUrl: initialData?.media?.[0]?.mediaUrl || "",
-      mediaUrls: initialData?.media?.map((m: InventoryMedia) => m.mediaUrl) || [],
-      notes: initialData?.notes || "",
-      description: initialData?.description || "",
-      stockLocation: initialData?.stockLocation || "",
-      collectionCodeId: initialData?.collectionCodeId || "",
-      rashiCodeIds: initialData?.rashiCodes?.map((r: { id: string }) => r.id) || [],
-      braceletType: initialData?.braceletType || "",
-      beadSizeMm: initialData?.beadSizeMm ?? "",
-      beadSize: initialData?.beadSizeLabel || (initialData?.beadSizeMm ? `${initialData.beadSizeMm}mm` : ""),
-      beadCount: initialData?.beadCount ?? "",
-      holeSizeMm: initialData?.holeSizeMm ?? "",
-      innerCircumferenceMm: initialData?.innerCircumferenceMm ?? "",
-      standardSize: initialData?.standardSize || "",
+      sku: copyData ? "" : (initialData?.sku || ""),
+      itemName: source?.itemName || "",
+      internalName: source?.internalName || "",
+      category: source?.category || source?.categoryCode?.name || categories[0]?.name || "",
+      gemType: source?.gemType || source?.gemstoneCode?.name || "",
+      color: source?.color || source?.colorCode?.name || "",
+      shape: source?.shape || "",
+      dimensionsMm: source?.dimensionsMm || "",
+      weightValue: source?.weightValue || 0,
+      weightUnit: source?.weightUnit || "cts",
+      weightRatti: source?.weightRatti || 0,
+      treatment: source?.treatment || "None",
+      certification: source?.certification || "None",
+      certificateCodeIds: source?.certificates?.map(c => c.id) || [],
+      transparency: source?.transparency || "",
+      origin: source?.origin || "",
+      fluorescence: source?.fluorescence || "",
+      vendorId: source?.vendorId || "",
+      pricingMode: (source?.pricingMode as "PER_CARAT" | "PER_RATTI" | "FLAT") || "PER_CARAT",
+      purchaseRatePerCarat: source?.purchaseRatePerCarat || 0,
+      sellingRatePerCarat: source?.sellingRatePerCarat || 0,
+      purchaseRatePerRatti: source?.pricingMode === "PER_RATTI" ? (source?.purchaseRatePerCarat || 0) : 0,
+      sellingRatePerRatti: source?.pricingMode === "PER_RATTI" ? (source?.sellingRatePerCarat || 0) : 0,
+      flatPurchaseCost: source?.flatPurchaseCost || 0,
+      flatSellingPrice: source?.flatSellingPrice || 0,
+      mediaUrl: source?.media?.[0]?.mediaUrl || "",
+      mediaUrls: source?.media?.map((m: InventoryMedia) => m.mediaUrl) || [],
+      notes: source?.notes || "",
+      description: source?.description || "",
+      stockLocation: source?.stockLocation || "",
+      collectionCodeId: source?.collectionCodeId || "",
+      rashiCodeIds: source?.rashiCodes?.map((r: { id: string }) => r.id) || [],
+      braceletType: source?.braceletType || "",
+      beadSizeMm: source?.beadSizeMm ?? "",
+      beadSize: source?.beadSizeLabel || (source?.beadSizeMm ? `${source.beadSizeMm}mm` : ""),
+      beadCount: source?.beadCount ?? "",
+      holeSizeMm: source?.holeSizeMm ?? "",
+      innerCircumferenceMm: source?.innerCircumferenceMm ?? "",
+      standardSize: source?.standardSize || "",
       categoryCodeId:
-        initialData?.categoryCodeId ||
-        (categories.find((c) => c.name === (initialData?.category || ""))?.id ??
+        source?.categoryCodeId ||
+        (categories.find((c) => c.name === (source?.category || ""))?.id ??
           ""),
       gemstoneCodeId:
-        initialData?.gemstoneCodeId ||
-        (gemstones.find((g) => g.name === (initialData?.gemType || ""))?.id ??
+        source?.gemstoneCodeId ||
+        (gemstones.find((g) => g.name === (source?.gemType || ""))?.id ??
           ""),
       colorCodeId:
-        initialData?.colorCodeId ||
-        (colors.find((c) => c.name === (initialData?.color || ""))?.id ??
+        source?.colorCodeId ||
+        (colors.find((c) => c.name === (source?.color || ""))?.id ??
           ""),
-      cutCodeId: initialData?.cutCodeId || "",
-      hsnCode: initialData?.hsnCode || "",
+      cutCodeId: source?.cutCodeId || "",
+      hsnCode: source?.hsnCode || "",
     },
   });
 

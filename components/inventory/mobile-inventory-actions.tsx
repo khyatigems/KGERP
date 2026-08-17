@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Pencil, IndianRupee, FileText } from "lucide-react";
+import { Pencil, IndianRupee, FileText, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 
@@ -22,6 +22,11 @@ export function MobileInventoryActions({ id, status }: MobileInventoryActionsPro
       <Button variant="outline" size="sm" className="flex-1 mx-1" asChild>
         <Link href={`/inventory/${id}/edit`} onClick={() => showLoader()}>
           <Pencil className="mr-2 h-4 w-4" /> Edit
+        </Link>
+      </Button>
+      <Button variant="outline" size="sm" className="flex-1 mx-1" asChild>
+        <Link href={`/inventory/${id}/copy`} onClick={() => showLoader()}>
+          <Copy className="mr-2 h-4 w-4" /> Copy
         </Link>
       </Button>
       <Button variant="outline" size="sm" className="flex-1 mx-1" asChild>

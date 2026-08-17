@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, MoreHorizontal, Pencil, IndianRupee, FileText, Globe, Printer, EyeOff, EyeIcon, Lock, Clock } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, IndianRupee, FileText, Globe, Printer, EyeOff, EyeIcon, Lock, Clock, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -110,6 +110,11 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
           <DropdownMenuItem asChild>
             <Link href={`/inventory/${item.id}`} onClick={() => showLoader()}>
               <Eye className="mr-2 h-4 w-4" /> View Details
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/inventory/${item.id}/copy`} onClick={() => showLoader()}>
+              <Copy className="mr-2 h-4 w-4" /> Copy
             </Link>
           </DropdownMenuItem>
               {canManageAttentionVisibility && (

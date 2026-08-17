@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
-import { Activity, Pencil, CheckCircle, XCircle, Circle } from "lucide-react";
+import { Activity, Pencil, CheckCircle, XCircle, Circle, Copy } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -320,6 +320,11 @@ export default async function InventoryDetailPage({
                     <Button variant="outline" asChild>
                         <LoadingLink href={`/inventory/${id}/edit`}>
                             <Pencil className="mr-2 h-4 w-4" /> Edit
+                        </LoadingLink>
+                    </Button>
+                    <Button variant="outline" asChild>
+                        <LoadingLink href={`/inventory/${id}/copy`}>
+                            <Copy className="mr-2 h-4 w-4" /> Copy
                         </LoadingLink>
                     </Button>
                     <Button variant="outline" asChild>
