@@ -21,6 +21,7 @@ export async function GET(request: Request) {
         sku: true,
         itemName: true,
         shape: true,
+        gemType: true,
         weightValue: true,
         weightUnit: true,
         dimensionsMm: true,
@@ -51,7 +52,9 @@ export async function GET(request: Request) {
       dimensions: item.dimensionsMm || item.measurements || item.beadSizeLabel || (item.beadSizeMm ? `${item.beadSizeMm}mm` : ''),
       certification: item.certification || item.certificateLab || item.lab || '',
       origin: item.origin || item.originCountry || '',
-      gemType: item.shape || '',
+      gemType: item.gemType || '',
+      shape: item.shape || '',
+      color: item.color || '',
     });
   }
 
@@ -60,6 +63,9 @@ export async function GET(request: Request) {
         sku: true,
         imageUrl: true,
         category: true,
+        gemType: true,
+        shape: true,
+        color: true,
         updatedAt: true,
         media: {
           select: {
@@ -95,6 +101,9 @@ export async function GET(request: Request) {
         erpThumbnailUrl: primaryImage,
         erpSyncStatus: primaryImage ? 'synced' : 'pending',
         category: item.category || '',
+        gemType: item.gemType || '',
+        shape: item.shape || '',
+        color: item.color || '',
         lastSyncTimestamp: imageMedia[0]?.createdAt?.toISOString() || item.updatedAt?.toISOString() || null
       };
     });
