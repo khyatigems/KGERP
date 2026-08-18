@@ -37,15 +37,17 @@ export async function GET(req: NextRequest) {
       `SELECT i."id" AS "inventoryId", i."sku", i."itemName", i."internalName", i."category",
               i."gemType", i."weightValue", i."weightUnit", i."carats",
               i."costPrice", i."sellingPrice", i."status", i."imageUrl",
-              i."certificateNo", i."certification",
+              i."certificateNo", i."certificateNumber", i."certification",
               i."dimensionsMm", i."stockLocation", i."hsn_code" AS "hsnCode",
               i."shape", i."color", i."origin", i."treatment", i."transparency",
               i."braceletType", i."beadSizeMm", i."beadCount",
               i."standardSize",
               i."flatPurchaseCost", i."purchaseRatePerCarat",
-              l."platform", l."listingUrl"
+              l."platform", l."listingUrl",
+              COALESCE(m."mediaCount", 0) AS "mediaCount"
        FROM "Inventory" i
        LEFT JOIN "Listing" l ON l."inventoryId" = i."id" AND UPPER(l."status") IN ('ACTIVE', 'LISTED')
+       LEFT JOIN (SELECT "inventoryId", COUNT(*) AS "mediaCount" FROM "InventoryMedia" GROUP BY "inventoryId") m ON m."inventoryId" = i."id"
        ${whereClause}
        ORDER BY i."sku" ASC`,
       ...values
@@ -208,8 +210,8 @@ export async function GET(req: NextRequest) {
     };
 
     const isReady = (b: Record<string, unknown>) => {
-      const hasImage = !!(b.imageUrl);
-      const hasCert = !!(b.certificateNo && String(b.certificateNo).trim()) || !!(b.certification && String(b.certification).trim());
+      const hasImage = !!(b.imageUrl) || (Number(b.mediaCount) || 0) > 0;
+      const hasCert = !!(b.certificateNo && String(b.certificateNo).trim()) || !!(b.certificateNumber && String(b.certificateNumber).trim());
       return { hasImage, hasCert, ready: hasImage && hasCert };
     };
 
