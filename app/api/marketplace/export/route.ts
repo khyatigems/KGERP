@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       `SELECT i."id" AS "inventoryId", i."sku", i."itemName", i."internalName", i."category",
               i."gemType", i."weightValue", i."weightUnit", i."carats",
               i."costPrice", i."sellingPrice", i."status", i."imageUrl",
-              i."certificateNo", i."certificateNumber", i."certification",
+              i."certificateNo", i."certificate_number", i."certification",
               i."dimensionsMm", i."stockLocation", i."hsn_code" AS "hsnCode",
               i."shape", i."color", i."origin", i."treatment", i."transparency",
               i."braceletType", i."beadSizeMm", i."beadCount",
@@ -211,7 +211,7 @@ export async function GET(req: NextRequest) {
 
     const isReady = (b: Record<string, unknown>) => {
       const hasImage = !!(b.imageUrl) || (Number(b.mediaCount) || 0) > 0;
-      const hasCert = !!(b.certificateNo && String(b.certificateNo).trim()) || !!(b.certificateNumber && String(b.certificateNumber).trim());
+      const hasCert = !!(b.certificateNo && String(b.certificateNo).trim()) || !!(b.certificate_number && String(b.certificate_number).trim());
       return { hasImage, hasCert, ready: hasImage && hasCert };
     };
 
