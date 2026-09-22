@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
@@ -14,18 +15,21 @@ interface AnalyticsWidgetsProps {
   types: AnalyticsData[];
 }
 
-const COLORS = ["#181547", "#D03837", "#FFBB28", "#FF8042", "#8884d8"];
+function getChartColors(count: number): string[] {
+  const colors: string[] = [];
+  for (let i = 1; i <= count; i++) {
+    colors.push(`var(--chart-${i > 5 ? ((i - 1) % 5) + 1 : i})`);
+  }
+  return colors;
+}
 
-type TooltipPayload = { value: number; payload: AnalyticsData };
-type TooltipProps = { active?: boolean; payload?: TooltipPayload[]; label?: string };
-
-function CustomTooltip({ active, payload, label }: TooltipProps) {
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; payload?: AnalyticsData }>; label?: string }) {
   if (!active || !payload || payload.length === 0) return null;
   const first = payload[0];
   const sales = typeof first.value === "number" ? first.value : 0;
   const qty = first.payload?.count ?? 0;
   return (
-    <div className="bg-white dark:bg-zinc-800 p-2 border border-border shadow-md rounded-md text-xs">
+    <div className="bg-card dark:bg-zinc-800 p-2 border border-border shadow-md rounded-md text-xs">
       <p className="font-semibold">{label}</p>
       <p className="text-primary">Sales: ₹{sales.toLocaleString("en-IN")}</p>
       <p className="text-muted-foreground">Qty: {qty}</p>
@@ -34,6 +38,14 @@ function CustomTooltip({ active, payload, label }: TooltipProps) {
 }
 
 export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
+  const [categoryColors, setCategoryColors] = useState<string[]>([]);
+  const [typeColors, setTypeColors] = useState<string[]>([]);
+
+  useEffect(() => {
+    setCategoryColors(getChartColors(categories.length));
+    setTypeColors(getChartColors(types.length));
+  }, [categories.length, types.length]);
+
   return (
     <div className="sass-enter grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card>
@@ -50,7 +62,7 @@ export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} animationDuration={800} animationEasing="ease-out">
                     {categories.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={categoryColors[index] || `var(--chart-${(index % 5) + 1})`} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -78,7 +90,7 @@ export function AnalyticsWidgets({ categories, types }: AnalyticsWidgetsProps) {
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]} animationDuration={800} animationEasing="ease-out">
                     {types.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={typeColors[index] || `var(--chart-${(index % 5) + 1})`} />
                     ))}
                   </Bar>
                 </BarChart>

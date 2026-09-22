@@ -106,6 +106,9 @@ export interface InvoiceData {
 }
 
 const loadImageMeta = (url: string): Promise<{ dataUrl: string; width: number; height: number }> => {
+  if (typeof window === "undefined" && typeof document === "undefined") {
+    return loadImageMetaNode(url);
+  }
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "Anonymous";
@@ -130,6 +133,37 @@ const loadImageMeta = (url: string): Promise<{ dataUrl: string; width: number; h
     img.src = url;
   });
 };
+
+/**
+ * Node/server image loader: fetches the image and converts it to a PNG data URL
+ * using the `canvas` package (already a dependency). Used when generating the
+ * invoice PDF server-side (e.g. for email attachments).
+ */
+const imageMetaCache = new Map<string, { dataUrl: string; width: number; height: number }>();
+
+async function loadImageMetaNode(url: string): Promise<{ dataUrl: string; width: number; height: number }> {
+  const cached = imageMetaCache.get(url);
+  if (cached) return cached;
+
+  const { createCanvas, loadImage } = await import("canvas");
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to load image at ${url} (HTTP ${response.status})`);
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const img = await loadImage(buffer);
+  const canvas = createCanvas(img.width, img.height);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  const pngBuffer = await canvas.toBuffer("image/png");
+  const result = {
+    dataUrl: `data:image/png;base64,${pngBuffer.toString("base64")}`,
+    width: img.width,
+    height: img.height,
+  };
+  imageMetaCache.set(url, result);
+  return result;
+}
 
 const formatCurrencyPDF = (amount: number | undefined | null) => {
   if (amount === undefined || amount === null || isNaN(amount)) return "₹0.00";
@@ -260,7 +294,9 @@ function normalizeAddressText(input: string) {
     .trim();
 }
 
-export async function generateInvoicePDF(data: InvoiceData) {
+export async function generateInvoicePDF(data: InvoiceData, output?: "blob"): Promise<Blob>;
+export async function generateInvoicePDF(data: InvoiceData, output: "arraybuffer"): Promise<ArrayBuffer>;
+export async function generateInvoicePDF(data: InvoiceData, output: "blob" | "arraybuffer" = "blob") {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -1103,5 +1139,8 @@ export async function generateInvoicePDF(data: InvoiceData) {
   doc.setFontSize(5.5);
   doc.text(`Thank you for Shopping with ${data.company.name}.`, margin, signatureY + 20);
 
+  if (output === "arraybuffer") {
+    return doc.output("arraybuffer");
+  }
   return doc.output("blob");
 }

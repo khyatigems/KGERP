@@ -9,10 +9,9 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
-const LEGACY_DESKTOP_APP_TOKEN = "KHYATI_MEDIA_SYNC_SECRET_2026";
 
 function getDesktopAppToken() {
-  return process.env.KHYATI_MEDIA_SYNC_TOKEN || process.env.MEDIA_UPLOAD_TOKEN || LEGACY_DESKTOP_APP_TOKEN;
+  return process.env.KHYATI_MEDIA_SYNC_TOKEN || process.env.MEDIA_UPLOAD_TOKEN || "";
 }
 
 export async function POST(req: NextRequest) {

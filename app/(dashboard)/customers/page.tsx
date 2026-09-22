@@ -71,9 +71,9 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   }>>(`
     SELECT 
       s.customerId,
-      SUM(s.netAmount) as totalRevenue,
-      COUNT(DISTINCT s.invoiceId) as orderCount,
-      MAX(i.totalAmount) as highestOrder,
+      CAST(SUM(s.netAmount) AS REAL) as totalRevenue,
+      CAST(COUNT(DISTINCT s.invoiceId) AS INTEGER) as orderCount,
+      CAST(MAX(i.totalAmount) AS REAL) as highestOrder,
       MAX(i.invoiceDate) as lastOrderDate
     FROM "Sale" s
     JOIN "Invoice" i ON s.invoiceId = i.id

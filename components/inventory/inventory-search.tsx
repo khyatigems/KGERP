@@ -3,43 +3,47 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
-import { X } from "lucide-react";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Search, X, SlidersHorizontal, RotateCcw,
+} from "lucide-react";
 import { useGlobalLoader } from "@/components/global-loader-provider";
+import { cn } from "@/lib/utils";
 
 function useDebouncedCallback(callback: (value: string) => void, delay: number) {
   const timeoutRef = useRef<number | null>(null);
-
   const debounced = useCallback(
     (value: string) => {
-      if (timeoutRef.current !== null) {
-        window.clearTimeout(timeoutRef.current);
-      }
-      timeoutRef.current = window.setTimeout(() => {
-        callback(value);
-      }, delay);
+      if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = window.setTimeout(() => callback(value), delay);
     },
     [callback, delay]
   );
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current !== null) {
-        window.clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
+  useEffect(() => () => { if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current); }, []);
   return debounced;
 }
+
+const STATUS_OPTIONS = [
+  { value: "ALL", label: "All" },
+  { value: "IN_STOCK", label: "In Stock" },
+  { value: "SOLD", label: "Sold" },
+  { value: "RESERVED", label: "Reserved" },
+  { value: "MEMO", label: "Memo" },
+];
+
+const WEIGHT_OPTIONS = [
+  { value: "ALL", label: "All Weights" },
+  { value: "0-1", label: "0 – 1 ct" },
+  { value: "1-3", label: "1 – 3 ct" },
+  { value: "3-5", label: "3 – 5 ct" },
+  { value: "5-10", label: "5 – 10 ct" },
+  { value: "10-plus", label: "10+ ct" },
+];
 
 export function InventorySearch({
   vendors,
@@ -60,10 +64,11 @@ export function InventorySearch({
   const pathname = usePathname();
   const { replace } = useRouter();
   const { showLoader } = useGlobalLoader();
-  const [isApplying, setIsApplying] = useState(false);
   const [queryValue, setQueryValue] = useState(searchParams.get("query")?.toString() || "");
   const [isPending, startTransition] = useTransition();
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const applyTimerRef = useRef<number | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
 
   const uniqueCategories = useMemo(
     () => categories.filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i),
@@ -78,37 +83,12 @@ export function InventorySearch({
     [colors]
   );
 
-  const categoryLabelLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    uniqueCategories.forEach((c) => map.set(c.name, c.name));
-    return map;
-  }, [uniqueCategories]);
-  const gemstoneLabelLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    uniqueGemstones.forEach((g) => map.set(g.name, g.name));
-    return map;
-  }, [uniqueGemstones]);
-  const colorLabelLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    uniqueColors.forEach((c) => map.set(c.id, c.name));
-    return map;
-  }, [uniqueColors]);
-  const vendorLabelLookup = useMemo(() => {
-    const map = new Map<string, string>();
-    vendors.forEach((v) => map.set(v.id, v.name));
-    return map;
-  }, [vendors]);
-
   const getMultiValues = (key: string) => {
     const raw = searchParams.get(key)?.toString();
     return raw ? raw.split(",").filter(Boolean) : [];
   };
 
-  useEffect(() => {
-    return () => {
-      if (applyTimerRef.current !== null) window.clearTimeout(applyTimerRef.current);
-    };
-  }, []);
+  useEffect(() => () => { if (applyTimerRef.current !== null) window.clearTimeout(applyTimerRef.current); }, []);
 
   const pulseApply = () => {
     setIsApplying(true);
@@ -116,74 +96,7 @@ export function InventorySearch({
     applyTimerRef.current = window.setTimeout(() => setIsApplying(false), 450);
   };
 
-  const handleSearch = useDebouncedCallback((term: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (term) {
-      params.set("query", term);
-    } else {
-      params.delete("query");
-    }
-    params.delete("page");
-    pulseApply();
-    startTransition(() => {
-      replace(`${pathname}?${params.toString()}`, { scroll: false });
-    });
-  }, 180);
-
-  const handleFilterChange = (key: string, value: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (value && value !== "ALL") {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-    params.delete("page");
-    pulseApply();
-    startTransition(() => {
-      replace(`${pathname}?${params.toString()}`, { scroll: false });
-    });
-  };
-
-  const handleMultiChange = (key: string, values: string[]) => {
-    const params = new URLSearchParams(searchParams);
-    if (values.length > 0) {
-      params.set(key, values.join(","));
-    } else {
-      params.delete(key);
-    }
-    params.delete("page");
-    pulseApply();
-    startTransition(() => {
-      replace(`${pathname}?${params.toString()}`, { scroll: false });
-    });
-  };
-
-  const handleClear = () => {
-    setQueryValue("");
-    pulseApply();
-    showLoader();
-    startTransition(() => {
-      replace(pathname, { scroll: false });
-    });
-  };
-
-  const removeParam = (key: string) => {
-    const params = new URLSearchParams(searchParams);
-    const queryKey = key.split(":")[0];
-    const multiValue = key.split(":")[1];
-    if (key === "query") {
-      setQueryValue("");
-      params.delete("query");
-    } else if (multiValue) {
-      const values = getMultiValues(queryKey).filter((v) => v !== multiValue);
-      if (values.length > 0) {
-        params.set(queryKey, values.join(","));
-      } else {
-        params.delete(queryKey);
-      }
-    } else {
-      params.delete(key);
-    }
+  const navigate = (params: URLSearchParams) => {
     params.delete("page");
     pulseApply();
     startTransition(() => {
@@ -191,168 +104,235 @@ export function InventorySearch({
     });
   };
 
-  const activeChips = (() => {
+  const handleSearch = useDebouncedCallback((term: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (term) params.set("query", term); else params.delete("query");
+    navigate(params);
+  }, 180);
+
+  const setParam = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (value && value !== "ALL") params.set(key, value); else params.delete(key);
+    navigate(params);
+  };
+
+  const setMultiParam = (key: string, values: string[]) => {
+    const params = new URLSearchParams(searchParams);
+    if (values.length > 0) params.set(key, values.join(",")); else params.delete(key);
+    navigate(params);
+  };
+
+  const removeParam = (key: string) => {
+    const params = new URLSearchParams(searchParams);
+    const [queryKey, multiValue] = key.split(":");
+    if (multiValue) {
+      const values = getMultiValues(queryKey).filter((v) => v !== multiValue);
+      if (values.length > 0) params.set(queryKey, values.join(",")); else params.delete(queryKey);
+    } else {
+      params.delete(queryKey);
+    }
+    navigate(params);
+  };
+
+  const clearAll = () => {
+    setQueryValue("");
+    showLoader();
+    startTransition(() => replace(pathname, { scroll: false }));
+  };
+
+  const currentStatus = searchParams.get("status")?.toString() || "ALL";
+
+  // Count active filters (excluding search query)
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (searchParams.get("status")) count++;
+    if (getMultiValues("vendorId").length > 0) count++;
+    if (getMultiValues("category").length > 0) count++;
+    if (getMultiValues("gemType").length > 0) count++;
+    if (getMultiValues("color").length > 0) count++;
+    if (searchParams.get("collectionId")) count++;
+    if (searchParams.get("rashiId")) count++;
+    if (searchParams.get("weightRange")) count++;
+    return count;
+  }, [searchParams]);
+
+  // Build chips
+  const activeChips = useMemo(() => {
     const chips: Array<{ key: string; label: string }> = [];
     const q = (searchParams.get("query") || "").trim();
     const status = searchParams.get("status");
-    const vendorIdValues = getMultiValues("vendorId");
-    const categoryValues = getMultiValues("category");
-    const gemTypeValues = getMultiValues("gemType");
-    const colorValues = getMultiValues("color");
-    const collectionId = searchParams.get("collectionId");
 
-    if (q) chips.push({ key: "query", label: `Search: ${q}` });
-    if (status) chips.push({ key: "status", label: `Status: ${status.replaceAll("_", " ")}` });
-    vendorIdValues.forEach((v) =>
+    if (q) chips.push({ key: "query", label: `Search: "${q}"` });
+    if (status) chips.push({ key: "status", label: `Status: ${STATUS_OPTIONS.find(s => s.value === status)?.label || status}` });
+
+    const vendorLabelLookup = new Map(vendors.map((v) => [v.id, v.name]));
+    getMultiValues("vendorId").forEach((v) =>
       chips.push({ key: `vendorId:${v}`, label: `Vendor: ${vendorLabelLookup.get(v) || v}` })
     );
-    categoryValues.forEach((c) =>
-      chips.push({ key: `category:${c}`, label: `Category: ${categoryLabelLookup.get(c) || c}` })
+    const catLabelLookup = new Map(uniqueCategories.map((c) => [c.name, c.name]));
+    getMultiValues("category").forEach((c) =>
+      chips.push({ key: `category:${c}`, label: `Category: ${catLabelLookup.get(c) || c}` })
     );
-    gemTypeValues.forEach((g) =>
-      chips.push({ key: `gemType:${g}`, label: `Gem: ${gemstoneLabelLookup.get(g) || g}` })
+    const gemLabelLookup = new Map(uniqueGemstones.map((g) => [g.name, g.name]));
+    getMultiValues("gemType").forEach((g) =>
+      chips.push({ key: `gemType:${g}`, label: `Gem: ${gemLabelLookup.get(g) || g}` })
     );
-    colorValues.forEach((c) =>
+    const colorLabelLookup = new Map(uniqueColors.map((c) => [c.id, c.name]));
+    getMultiValues("color").forEach((c) =>
       chips.push({ key: `color:${c}`, label: `Color: ${colorLabelLookup.get(c) || c}` })
     );
+    const collectionId = searchParams.get("collectionId");
     if (collectionId) chips.push({ key: "collectionId", label: `Collection: ${collections.find((c) => c.id === collectionId)?.name || collectionId}` });
+    const rashiId = searchParams.get("rashiId");
+    if (rashiId) chips.push({ key: "rashiId", label: `Rashi: ${rashis.find((r) => r.id === rashiId)?.name || rashiId}` });
+    const weight = searchParams.get("weightRange");
+    if (weight) chips.push({ key: "weightRange", label: `Weight: ${WEIGHT_OPTIONS.find(w => w.value === weight)?.label || weight}` });
     return chips;
-  })();
+  }, [searchParams, vendors, uniqueCategories, uniqueGemstones, uniqueColors, collections, rashis]);
 
   return (
-    <div className={`space-y-4 transition-all duration-300 ${isApplying || isPending ? "opacity-90" : "opacity-100"}`}>
-      {(isApplying || isPending) && (
-        <div className="h-1 w-full rounded-full bg-muted overflow-hidden border">
-          <div className="h-full w-2/3 bg-gradient-to-r from-primary via-blue-500 to-primary animate-in fade-in duration-300" />
+    <div className="space-y-3">
+      {/* ── Row 1: Search + Status toggles + Advanced filter + Clear ── */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search SKU, name, category..."
+              className="pl-9 h-10"
+              value={queryValue}
+              onChange={(e) => { setQueryValue(e.target.value); handleSearch(e.target.value); }}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {/* Advanced Filters Popover */}
+            <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-10 gap-2 relative">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span className="hidden sm:inline">Filters</span>
+                  {activeFilterCount > 0 && (
+                    <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] rounded-full" variant="default">
+                      {activeFilterCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[360px] p-4" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold">Filters</h4>
+                    {activeFilterCount > 0 && (
+                      <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearAll}>
+                        <RotateCcw className="h-3 w-3 mr-1" /> Reset all
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Category</label>
+                    <MultiSelectFilter
+                      options={uniqueCategories.map((c) => ({ value: c.name, label: c.name }))}
+                      selected={getMultiValues("category")}
+                      onChange={(values) => setMultiParam("category", values)}
+                      placeholder="Category"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Gem Type</label>
+                    <MultiSelectFilter
+                      options={uniqueGemstones.map((g) => ({ value: g.name, label: g.name }))}
+                      selected={getMultiValues("gemType")}
+                      onChange={(values) => setMultiParam("gemType", values)}
+                      placeholder="Gem Type"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Color</label>
+                    <MultiSelectFilter
+                      options={uniqueColors.map((c) => ({ value: c.id, label: c.name }))}
+                      selected={getMultiValues("color")}
+                      onChange={(values) => setMultiParam("color", values)}
+                      placeholder="Color"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Vendor</label>
+                    <MultiSelectFilter
+                      options={vendors.map((v) => ({ value: v.id, label: v.name }))}
+                      selected={getMultiValues("vendorId")}
+                      onChange={(values) => setMultiParam("vendorId", values)}
+                      placeholder="Vendor"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Weight Range</label>
+                    <MultiSelectFilter
+                      options={WEIGHT_OPTIONS.filter(w => w.value !== "ALL")}
+                      selected={searchParams.get("weightRange") ? [searchParams.get("weightRange")!] : []}
+                      onChange={(values) => setParam("weightRange", values[0] || "ALL")}
+                      placeholder="Weight"
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Clear All */}
+            {activeChips.length > 0 && (
+              <Button variant="ghost" size="sm" className="h-10 gap-1.5 text-muted-foreground hover:text-foreground" onClick={clearAll}>
+                <X className="h-4 w-4" />
+                <span className="hidden sm:inline">Clear</span>
+              </Button>
+            )}
+          </div>
         </div>
-      )}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <Input
-          placeholder="Search SKU, Name, or Category..."
-          className="flex-1"
-          value={queryValue}
-          onChange={(e) => {
-            const value = e.target.value;
-            setQueryValue(value);
-            handleSearch(value);
-          }}
-        />
-        {(searchParams.toString().length > 0) && (
-          <Button variant="ghost" onClick={handleClear} className="px-2 lg:px-3">
-            <X className="mr-2 h-4 w-4" />
-            Clear All Filters
-          </Button>
-        )}
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Select
-            value={searchParams.get("status")?.toString() || "ALL"}
-            onValueChange={(val) => handleFilterChange("status", val)}
-        >
-            <SelectTrigger>
-            <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-            <SelectItem value="ALL">All Status</SelectItem>
-            <SelectItem value="IN_STOCK">In Stock</SelectItem>
-            <SelectItem value="SOLD">Sold</SelectItem>
-            <SelectItem value="RESERVED">Reserved</SelectItem>
-            <SelectItem value="MEMO">Memo</SelectItem>
-            </SelectContent>
-        </Select>
 
-        <MultiSelectFilter
-            options={vendors.map((v) => ({ value: v.id, label: v.name }))}
-            selected={getMultiValues("vendorId")}
-            onChange={(values) => handleMultiChange("vendorId", values)}
-            placeholder="Vendor"
-        />
-
-        <MultiSelectFilter
-            options={uniqueCategories.map((c) => ({ value: c.name, label: c.name }))}
-            selected={getMultiValues("category")}
-            onChange={(values) => handleMultiChange("category", values)}
-            placeholder="Category"
-        />
-
-         <MultiSelectFilter
-            options={uniqueGemstones.map((g) => ({ value: g.name, label: g.name }))}
-            selected={getMultiValues("gemType")}
-            onChange={(values) => handleMultiChange("gemType", values)}
-            placeholder="Gem Type"
-        />
-
-         <MultiSelectFilter
-            options={uniqueColors.map((c) => ({ value: c.id, label: c.name }))}
-            selected={getMultiValues("color")}
-            onChange={(values) => handleMultiChange("color", values)}
-            placeholder="Color"
-        />
-
-         <Select
-            value={searchParams.get("collectionId")?.toString() || "ALL"}
-            onValueChange={(val) => handleFilterChange("collectionId", val)}
-        >
-            <SelectTrigger>
-            <SelectValue placeholder="Collection" />
-            </SelectTrigger>
-            <SelectContent>
-            <SelectItem value="ALL">All Collections</SelectItem>
-            {collections.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-            ))}
-            </SelectContent>
-        </Select>
-
-         <Select
-            value={searchParams.get("rashiId")?.toString() || "ALL"}
-            onValueChange={(val) => handleFilterChange("rashiId", val)}
-        >
-            <SelectTrigger>
-            <SelectValue placeholder="Rashi" />
-            </SelectTrigger>
-            <SelectContent>
-            <SelectItem value="ALL">All Rashis</SelectItem>
-            {rashis.map((r) => (
-                <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-            ))}
-            </SelectContent>
-        </Select>
-
-        <Select
-            value={searchParams.get("weightRange")?.toString() || "ALL"}
-            onValueChange={(val) => handleFilterChange("weightRange", val)}
-        >
-            <SelectTrigger>
-            <SelectValue placeholder="Weight Range" />
-            </SelectTrigger>
-            <SelectContent>
-            <SelectItem value="ALL">All Weights</SelectItem>
-            <SelectItem value="0-1">0 - 1 cts</SelectItem>
-            <SelectItem value="1-3">1 - 3 cts</SelectItem>
-            <SelectItem value="3-5">3 - 5 cts</SelectItem>
-            <SelectItem value="5-10">5 - 10 cts</SelectItem>
-            <SelectItem value="10-plus">10+ cts</SelectItem>
-            </SelectContent>
-        </Select>
-
+        {/* Status toggle pills */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {STATUS_OPTIONS.map((opt) => {
+            const isActive = currentStatus === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setParam("status", opt.value)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border",
+                  isActive
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-background text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                )}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {activeChips.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+      {/* ── Row 2: Active filter chips ── */}
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
           {activeChips.map((c) => (
             <button
               key={c.key}
               type="button"
-              className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground hover:bg-muted/30"
+              className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs text-foreground hover:bg-primary/10 transition-colors"
               onClick={() => removeParam(c.key)}
             >
-              <span className="text-foreground">{c.label}</span>
-              <X className="h-3 w-3" />
+              {c.label}
+              <X className="h-3 w-3 text-muted-foreground" />
             </button>
           ))}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

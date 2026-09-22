@@ -142,6 +142,47 @@ export type { ActivityLog } from '@prisma/client'
 let checkedUserRoleIdColumn: boolean | null = null;
 let checkUserRoleIdColumnPromise: Promise<boolean> | null = null;
 
+let ensuringPerformanceIndexes = false;
+let ensuredPerformanceIndexes = false;
+let ensurePerformanceIndexesPromise: Promise<void> | null = null;
+
+export async function ensurePerformanceIndexes(): Promise<void> {
+  if (ensuredPerformanceIndexes) return;
+  if (ensuringPerformanceIndexes && ensurePerformanceIndexesPromise) return ensurePerformanceIndexesPromise;
+  ensuringPerformanceIndexes = true;
+  ensurePerformanceIndexesPromise = (async () => {
+    try {
+      const indexes = [
+        `CREATE INDEX IF NOT EXISTS "Quotation_status_idx" ON "Quotation"("status")`,
+        `CREATE INDEX IF NOT EXISTS "Quotation_status_validUntil_idx" ON "Quotation"("status", "validUntil")`,
+        `CREATE INDEX IF NOT EXISTS "Quotation_status_createdAt_idx" ON "Quotation"("status", "createdAt")`,
+        `CREATE INDEX IF NOT EXISTS "Quotation_createdAt_idx" ON "Quotation"("createdAt")`,
+        `CREATE INDEX IF NOT EXISTS "Invoice_status_idx" ON "Invoice"("status")`,
+        `CREATE INDEX IF NOT EXISTS "Invoice_status_paymentStatus_idx" ON "Invoice"("status", "paymentStatus")`,
+        `CREATE INDEX IF NOT EXISTS "Invoice_status_paymentStatus_dueDate_idx" ON "Invoice"("status", "paymentStatus", "dueDate")`,
+        `CREATE INDEX IF NOT EXISTS "Invoice_createdAt_idx" ON "Invoice"("createdAt")`,
+        `CREATE INDEX IF NOT EXISTS "Invoice_dueDate_idx" ON "Invoice"("dueDate")`,
+        `CREATE INDEX IF NOT EXISTS "Listing_status_idx" ON "Listing"("status")`,
+        `CREATE INDEX IF NOT EXISTS "Listing_status_platform_idx" ON "Listing"("status", "platform")`,
+        `CREATE INDEX IF NOT EXISTS "Listing_createdAt_idx" ON "Listing"("createdAt")`,
+        `CREATE INDEX IF NOT EXISTS "Sale_paymentStatus_idx" ON "Sale"("paymentStatus")`,
+        `CREATE INDEX IF NOT EXISTS "Sale_saleDate_paymentStatus_idx" ON "Sale"("saleDate", "paymentStatus")`,
+        `CREATE INDEX IF NOT EXISTS "Vendor_status_idx" ON "Vendor"("status")`,
+        `CREATE INDEX IF NOT EXISTS "Expense_paymentStatus_idx" ON "Expense"("paymentStatus")`,
+      ];
+      for (const sql of indexes) {
+        await prisma.$executeRawUnsafe(sql).catch(() => {});
+      }
+    } catch {
+    } finally {
+      ensuredPerformanceIndexes = true;
+      ensuringPerformanceIndexes = false;
+      ensurePerformanceIndexesPromise = null;
+    }
+  })();
+  return ensurePerformanceIndexesPromise;
+}
+
 let checkedTables: Map<string, boolean> | null = null;
 let checkTablesPromise: Promise<Map<string, boolean>> | null = null;
 
@@ -246,6 +287,8 @@ export async function ensureRbacSchema(): Promise<void> {
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL
         );
+      `);
+      await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "Permission" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "module" TEXT NOT NULL,
@@ -255,24 +298,28 @@ export async function ensureRbacSchema(): Promise<void> {
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL
         );
+      `);
+      await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "RolePermission" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "roleId" TEXT NOT NULL,
           "permissionId" TEXT NOT NULL
         );
+      `);
+      await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "UserPermission" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "userId" TEXT NOT NULL,
           "permissionId" TEXT NOT NULL,
           "allow" INTEGER NOT NULL
         );
-        CREATE UNIQUE INDEX IF NOT EXISTS "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId","permissionId");
-        CREATE UNIQUE INDEX IF NOT EXISTS "UserPermission_userId_permissionId_key" ON "UserPermission"("userId","permissionId");
-        CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId");
-        CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");
-        CREATE INDEX IF NOT EXISTS "UserPermission_userId_idx" ON "UserPermission"("userId");
-        CREATE INDEX IF NOT EXISTS "UserPermission_permissionId_idx" ON "UserPermission"("permissionId");
       `);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId","permissionId");`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "UserPermission_userId_permissionId_key" ON "UserPermission"("userId","permissionId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserPermission_userId_idx" ON "UserPermission"("userId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserPermission_permissionId_idx" ON "UserPermission"("permissionId");`);
     } catch {
     } finally {
       if (checkedTables) {

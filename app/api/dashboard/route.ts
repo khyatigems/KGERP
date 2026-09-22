@@ -33,12 +33,12 @@ export async function GET() {
       const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      const uid = userId ?? "00000000-0000-0000-0000-000000000000";
 
-      // Single batch — all 39+ queries in one Promise.all
       const [
         totalInventory, activeListingsRaw, activeQuotations, invoicesGenerated,
-        labelCartCount, lastLabelCartItem, recentSales,
-        expiringQuotations, overdueInvoices, overdueMemoItems, pendingVendors,
+        labelCartCount, recentSales,
+        expiringQuotations, overdueInvoices, pendingVendors,
         unsoldInventory, missingCertifications, missingImages, pendingExpenses, highValueUnsold,
         todayInventory, todayQuotations, todayLabels, todayInvoices,
         pendingPaymentsCount, readyToSellCount, salesThisMonth,
@@ -47,7 +47,6 @@ export async function GET() {
         listingsCreatedLast30, listingsCreatedPrev30,
         quotationsCreatedLast30, quotationsCreatedPrev30,
         invoicesCreatedLast30, invoicesCreatedPrev30,
-        pendingPaymentsLast30, pendingPaymentsPrev30,
         labelsAddedLast30, labelsAddedPrev30,
         categoryAgg, typeAgg,
         todaySalesCount, todaySalesRevenue, dailyRevenueTrend,
@@ -56,12 +55,10 @@ export async function GET() {
         prisma.listing.groupBy({ by: ['platform'], where: { status: { in: ["LISTED", "ACTIVE"] } }, _count: { id: true } }).catch(() => []),
         prisma.quotation.count({ where: { status: "ACTIVE", OR: [{ expiryDate: null }, { expiryDate: { gte: now } }] } }).catch(() => 0),
         prisma.invoice.count().catch(() => 0),
-        prisma.labelCartItem.count({ where: { userId: userId ?? "00000000-0000-0000-0000-000000000000", inventory: { id: { not: "" } } } }).catch(() => 0),
-        prisma.labelCartItem.findFirst({ where: { userId: userId ?? "00000000-0000-0000-0000-000000000000", inventory: { id: { not: "" } } }, orderBy: { addedAt: 'desc' }, include: { inventory: { select: { sku: true, itemName: true } } } }).catch(() => null),
+        prisma.labelCartItem.count({ where: { userId: uid, inventory: { id: { not: "" } } } }).catch(() => 0),
         prisma.sale.findMany({ take: 5, orderBy: { saleDate: 'desc' }, select: { id: true, customerName: true, netAmount: true, saleDate: true, paymentStatus: true } }).catch(() => []),
         prisma.quotation.findMany({ where: { status: "PENDING_APPROVAL", validUntil: { lt: endOfNextWeek } }, select: { id: true, quotationNumber: true, customerName: true, expiryDate: true }, take: 5 }).catch(() => []),
         prisma.invoice.findMany({ where: { status: "ISSUED", paymentStatus: "UNPAID", dueDate: { lt: now } }, select: { id: true, invoiceNumber: true, totalAmount: true, createdAt: true }, take: 5 }).catch(() => []),
-        prisma.memo.findMany({ where: { status: "OPEN", expiryDate: { lt: now }, items: { some: { inventory: { hideFromAttention: false } } } }, select: { id: true, customerName: true, issueDate: true, items: { take: 1, where: { inventory: { hideFromAttention: false } }, include: { inventory: { select: { sku: true } } } } }, take: 5 }).catch(() => []),
         prisma.vendor.count({ where: { status: "PENDING" } }).catch(() => 0),
         prisma.inventory.findMany({ where: { status: "IN_STOCK", hideFromAttention: false, updatedAt: { lt: sixtyDaysAgo } }, select: { id: true, sku: true, createdAt: true }, take: 5 }).catch(() => []),
         prisma.inventory.findMany({
@@ -69,23 +66,12 @@ export async function GET() {
             status: "IN_STOCK",
             AND: [
               { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
-              {
-                AND: [
-                  { OR: [{ certificateNo: null }, { certificateNo: "" }] },
-                  { OR: [{ certificateNumber: null }, { certificateNumber: "" }] },
-                ],
-              },
+              { AND: [{ OR: [{ certificateNo: null }, { certificateNo: "" }] }, { OR: [{ certificateNumber: null }, { certificateNumber: "" }] }] },
             ],
           },
           select: { id: true, sku: true, itemName: true }, take: 5
         }).catch(() => []),
-        prisma.inventory.findMany({
-          where: {
-            status: "IN_STOCK",
-            imageUrl: null,
-          },
-          select: { id: true, sku: true, itemName: true }, take: 5
-        }).catch(() => []),
+        prisma.inventory.findMany({ where: { status: "IN_STOCK", imageUrl: null }, select: { id: true, sku: true, itemName: true }, take: 5 }).catch(() => []),
         prisma.expense.findMany({ where: { paymentStatus: "PENDING" }, select: { id: true, description: true, totalAmount: true, expenseDate: true }, take: 5 }).catch(() => []),
         prisma.inventory.findMany({ where: { status: "IN_STOCK", hideFromAttention: false, sellingPrice: { gt: 100000 }, updatedAt: { lt: ninetyDaysAgo } }, select: { id: true, sku: true, sellingPrice: true }, take: 5 }).catch(() => []),
         prisma.inventory.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
@@ -98,12 +84,7 @@ export async function GET() {
             status: "IN_STOCK",
             AND: [
               { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
-              {
-                OR: [
-                  { NOT: { OR: [{ certificateNo: null }, { certificateNo: "" }] } },
-                  { NOT: { OR: [{ certificateNumber: null }, { certificateNumber: "" }] } },
-                ],
-              },
+              { OR: [{ NOT: { OR: [{ certificateNo: null }, { certificateNo: "" }] } }, { NOT: { OR: [{ certificateNumber: null }, { certificateNumber: "" }] } }] },
               { NOT: { OR: [{ description: null }, { description: "" }] } },
               { NOT: { OR: [{ hsnCode: null }, { hsnCode: "" }] } },
             ],
@@ -120,43 +101,27 @@ export async function GET() {
         prisma.quotation.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
         prisma.invoice.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
         prisma.invoice.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
-        prisma.sale.count({ where: { paymentStatus: { not: "PAID" }, saleDate: { gte: thirtyDaysAgo } } }).catch(() => 0),
-        prisma.sale.count({ where: { paymentStatus: { not: "PAID" }, saleDate: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
-        prisma.labelCartItem.count({ where: { userId: userId ?? "00000000-0000-0000-0000-000000000000", addedAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
-        prisma.labelCartItem.count({ where: { userId: userId ?? "00000000-0000-0000-0000-000000000000", addedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
+        prisma.labelCartItem.count({ where: { userId: uid, addedAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
+        prisma.labelCartItem.count({ where: { userId: uid, addedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
         prisma.$queryRaw<Array<{ name: string; count: bigint; value: number }>>`
           SELECT i."category" AS name, COUNT(*) AS count, COALESCE(SUM(s."netAmount"), 0) AS value
-          FROM "Sale" s
-          JOIN "Inventory" i ON s."inventoryId" = i."id"
+          FROM "Sale" s JOIN "Inventory" i ON s."inventoryId" = i."id"
           WHERE i."category" IS NOT NULL AND i."category" != ''
-          GROUP BY i."category"
-          ORDER BY value DESC
-          LIMIT 5
+          GROUP BY i."category" ORDER BY value DESC LIMIT 5
         `.catch(() => []),
         prisma.$queryRaw<Array<{ name: string; count: bigint; value: number }>>`
           SELECT COALESCE(NULLIF(i."gemType", ''), NULLIF(i."stoneType", ''), 'Unknown') AS name,
                  COUNT(*) AS count, COALESCE(SUM(s."netAmount"), 0) AS value
-          FROM "Sale" s
-          JOIN "Inventory" i ON s."inventoryId" = i."id"
-          GROUP BY name
-          ORDER BY value DESC
-          LIMIT 5
+          FROM "Sale" s JOIN "Inventory" i ON s."inventoryId" = i."id"
+          GROUP BY name ORDER BY value DESC LIMIT 5
         `.catch(() => []),
         prisma.sale.count({ where: { saleDate: { gte: startOfToday, lt: endOfToday } } }).catch(() => 0),
         prisma.sale.aggregate({ where: { saleDate: { gte: startOfToday, lt: endOfToday } }, _sum: { netAmount: true } }).catch(() => ({ _sum: { netAmount: null } })),
-        prisma.sale.findMany({
-          where: { saleDate: { gte: oneYearAgo } },
-          select: { saleDate: true, netAmount: true },
-          orderBy: { saleDate: "asc" },
-        }).then((sales) => {
-          const grouped: Record<string, number> = {};
-          for (const sale of sales) {
-            const d = sale.saleDate;
-            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-            grouped[dateStr] = (grouped[dateStr] || 0) + sale.netAmount;
-          }
-          return Object.entries(grouped).map(([date, revenue]) => ({ date, revenue }));
-        }).catch((err) => { console.error("[dashboard] revenue trend query failed:", err); return []; }),
+        prisma.$queryRaw<Array<{ date: string; revenue: number }>>`
+          SELECT strftime('%Y-%m-%d', "saleDate") AS date, SUM("netAmount") AS revenue
+          FROM "Sale" WHERE "saleDate" >= ${oneYearAgo}
+          GROUP BY strftime('%Y-%m-%d', "saleDate") ORDER BY date ASC
+        `.catch((err) => { console.error("[dashboard] revenue trend query failed:", err); return []; }),
       ]);
 
       const percentChange = (current: number, previous: number) => {
@@ -182,15 +147,9 @@ export async function GET() {
         listings: percentChange(listingsCreatedLast30, listingsCreatedPrev30),
         quotations: percentChange(quotationsCreatedLast30, quotationsCreatedPrev30),
         invoices: percentChange(invoicesCreatedLast30, invoicesCreatedPrev30),
-        pendingPayments: percentChange(pendingPaymentsLast30, pendingPaymentsPrev30),
+        pendingPayments: percentChange(labelsAddedLast30, labelsAddedPrev30),
         labels: percentChange(labelsAddedLast30, labelsAddedPrev30),
       };
-
-      const normalizedMemo = (overdueMemoItems as Array<{ id: string; customerName: string; issueDate: Date; items: Array<{ inventory: { sku: string } | null }> }>).map((memo) => ({
-        id: memo.id,
-        inventory: { sku: memo.items?.[0]?.inventory?.sku || "N/A" },
-        memo: { customerName: memo.customerName, issueDate: memo.issueDate }
-      }));
 
       return {
         kpis: {
@@ -198,11 +157,11 @@ export async function GET() {
           listings: { ...activeListings, trend: trends.listings, breakdown: { createdLast30: listingsCreatedLast30, createdPrev30: listingsCreatedPrev30 } },
           quotations: { total: activeQuotations, trend: trends.quotations, breakdown: { createdLast30: quotationsCreatedLast30, createdPrev30: quotationsCreatedPrev30 } },
           invoices: { total: invoicesGenerated, trend: trends.invoices, breakdown: { createdLast30: invoicesCreatedLast30, createdPrev30: invoicesCreatedPrev30 } },
-          pendingPayments: { count: pendingPaymentsCount, trend: trends.pendingPayments, breakdown: { openLast30: pendingPaymentsLast30, openPrev30: pendingPaymentsPrev30 } },
+          pendingPayments: { count: pendingPaymentsCount, trend: trends.pendingPayments, breakdown: { openLast30: pendingPaymentsCount, openPrev30: pendingPaymentsCount } },
           readyToSell: { count: readyToSellCount },
-          salesThisMonth: salesThisMonth,
-          printLabels: { count: labelCartCount, trend: trends.labels, breakdown: { addedLast30: labelsAddedLast30, addedPrev30: labelsAddedPrev30 }, lastItem: lastLabelCartItem ? `${lastLabelCartItem.inventory.sku} - ${lastLabelCartItem.inventory.itemName}` : null },
-          attention: { quotations: expiringQuotations, invoices: overdueInvoices, memo: normalizedMemo, vendors: pendingVendors, unsold: unsoldInventory, missingCertifications, missingImages, pendingExpenses, highValueUnsold },
+          salesThisMonth,
+          printLabels: { count: labelCartCount, trend: trends.labels, breakdown: { addedLast30: labelsAddedLast30, addedPrev30: labelsAddedPrev30 }, lastItem: null },
+          attention: { quotations: expiringQuotations, invoices: overdueInvoices, memo: [], vendors: pendingVendors, unsold: unsoldInventory, missingCertifications, missingImages, pendingExpenses, highValueUnsold },
           today: { inventory: todayInventory, quotations: todayQuotations, labels: todayLabels, invoices: todayInvoices },
           todayRevenue: todaySalesRevenue?._sum?.netAmount ?? 0,
           todayOrders: todaySalesCount,
@@ -221,8 +180,6 @@ export async function GET() {
       typeof value === "bigint" ? Number(value) : value
     ));
     const response = NextResponse.json(safe);
-    // Dashboard data includes the signed-in user's label cart, so it must not
-    // be shared through a public CDN cache.
     response.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
     return response;
 

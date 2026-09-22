@@ -29,6 +29,7 @@ export default auth((req) => {
     pathname.startsWith("/api/serials/verify") ||
     pathname.startsWith("/api/skus") ||
     pathname.startsWith("/api/auth") || // Removed root "/" from public, as it's dashboard
+    pathname.startsWith("/api/ebay/account-deletion") || // eBay webhook — must be publicly accessible
     pathname.startsWith("/invoice"); // Make invoice pages public
 
   // 1. Handle Public Routes
@@ -59,5 +60,9 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Static assets must bypass auth middleware so logged-out users (e.g. on
+  // /login) always receive images/fonts instead of a login redirect.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|map|txt|xml|woff|woff2|ttf)$).*)",
+  ],
 };

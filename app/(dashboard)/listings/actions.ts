@@ -8,6 +8,11 @@ import { auth } from "@/lib/auth";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
+import { syncListingsForPlatform } from "@/lib/marketplace/sync-listings";
+import { syncOrdersForPlatform } from "@/lib/marketplace/sync-orders";
+import { normalizePlatform } from "@/lib/marketplace/types";
+import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/marketplace/feature-flags";
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 
 type PrismaWithListing = typeof prisma & {
   listing: {
@@ -119,4 +124,36 @@ export async function updateListingStatus(
   }
 
   revalidatePath("/listings");
+}
+
+export async function syncListingsAction(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const platform = normalizePlatform(formData.get("platform") as string) || "ETSY";
+  const platformFlag = platform === "EBAY" ? FEATURE_FLAG_KEYS.ebaySync : FEATURE_FLAG_KEYS.etsySync;
+  const platformEnabled = await getFeatureFlag(platformFlag);
+  if (!platformEnabled) throw new Error(`${platform} sync is disabled`);
+
+  const master = await getFeatureFlag(FEATURE_FLAG_KEYS.marketplaceApiSync);
+  if (!master) throw new Error("Marketplace API sync is disabled");
+
+  await ensureMarketplaceFoundationSchema();
+  return syncListingsForPlatform(platform, { limit: 250 });
+}
+
+export async function syncOrdersAction(formData: FormData) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const platform = normalizePlatform(formData.get("platform") as string) || "ETSY";
+  const platformFlag = platform === "EBAY" ? FEATURE_FLAG_KEYS.ebaySync : FEATURE_FLAG_KEYS.etsySync;
+  const platformEnabled = await getFeatureFlag(platformFlag);
+  if (!platformEnabled) throw new Error(`${platform} sync is disabled`);
+
+  const master = await getFeatureFlag(FEATURE_FLAG_KEYS.marketplaceApiSync);
+  if (!master) throw new Error("Marketplace API sync is disabled");
+
+  await ensureMarketplaceFoundationSchema();
+  return syncOrdersForPlatform(platform, { limit: 250 });
 }

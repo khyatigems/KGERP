@@ -11,6 +11,8 @@ import { ArrowLeft, ExternalLink, History, FileClock } from "lucide-react";
 import { PaymentStatusSelect } from "@/components/invoices/payment-status-select";
 import { PaymentHistory } from "@/components/invoices/payment-history";
 import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
+import { EmailDocumentButton } from "@/components/invoice/email-document-button";
+import { CommunicationTimeline } from "@/components/communication/communication-timeline";
 import { UPIQr } from "@/components/invoice/upi-qr";
 import { InvoiceData } from "@/lib/invoice-generator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -71,12 +73,12 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     where: { id },
     include: {
       sales: {
-        include: { inventory: { include: { certificates: true } } }
+        include: { inventory: { include: { certificates: true } }, customer: true }
       },
       legacySale: {
-        include: { inventory: { include: { certificates: true } } }
+        include: { inventory: { include: { certificates: true } }, customer: true }
       },
-      quotation: true,
+      quotation: { include: { customer: true } },
       versions: {
         orderBy: { versionNumber: "desc" }
       },
@@ -160,6 +162,17 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
     return <div>Invalid Invoice: No linked sales found.</div>;
   }
 
+  // Resolve the customer from the live Customer record (via the sale or quotation
+  // link), falling back to the denormalized snapshot fields on the sale.
+  const linkedCustomer = primarySale.customer ?? invoice.quotation?.customer ?? null;
+  const resolvedCustomer = {
+    name: linkedCustomer?.name || primarySale.customerName || "Walk-in Customer",
+    email: linkedCustomer?.email || primarySale.customerEmail || "",
+    phone: linkedCustomer?.phone || primarySale.customerPhone || "",
+    city: linkedCustomer?.city || primarySale.customerCity || "",
+    address: linkedCustomer?.address || primarySale.customerAddress || "",
+  };
+
   // Calculate totals
   const subtotal = salesItems.reduce((sum, item) => sum + item.salePrice, 0);
   const baseDiscount = salesItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
@@ -196,7 +209,8 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   const packagingSettings = await packagingPrisma.gpisSettings.findFirst();
   const categoryHsnMap = parseCategoryHsnJson(packagingSettings?.categoryHsnJson);
 
-  const displayLogo = companySettings?.quotationLogoUrl || companySettings?.logoUrl;
+  // Prefer PNG logo URLs (node-canvas can't decode WebP server-side).
+  const displayLogo = companySettings?.invoiceLogoUrl || companySettings?.logoUrl || companySettings?.quotationLogoUrl;
 
   // Parse GST Rates
   let gstRates: Record<string, string> = {};
@@ -377,15 +391,15 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
       logoUrl: displayLogo || undefined,
     },
     customer: {
-      name: primarySale.customerName || "Walk-in Customer",
+      name: resolvedCustomer.name,
       customerCode: customerCode || undefined,
-      address: primarySale.customerAddress || primarySale.customerCity || "",
-      phone: primarySale.customerPhone || "",
-      email: primarySale.customerEmail || "",
+      address: resolvedCustomer.address || resolvedCustomer.city || "",
+      phone: resolvedCustomer.phone,
+      email: resolvedCustomer.email,
     },
-    billingAddress: (primarySale as { billingAddress?: string | null }).billingAddress || primarySale.customerAddress || primarySale.customerCity || "",
-    shippingAddress: (primarySale as { shippingAddress?: string | null }).shippingAddress || (primarySale as { billingAddress?: string | null }).billingAddress || primarySale.customerAddress || primarySale.customerCity || "",
-    placeOfSupply: (primarySale as { placeOfSupply?: string | null }).placeOfSupply || primarySale.customerCity || primarySale.customerAddress || "-",
+    billingAddress: (primarySale as { billingAddress?: string | null }).billingAddress || resolvedCustomer.address || resolvedCustomer.city || "",
+    shippingAddress: (primarySale as { shippingAddress?: string | null }).shippingAddress || (primarySale as { billingAddress?: string | null }).billingAddress || resolvedCustomer.address || resolvedCustomer.city || "",
+    placeOfSupply: (primarySale as { placeOfSupply?: string | null }).placeOfSupply || resolvedCustomer.city || resolvedCustomer.address || "-",
     items: processedItems.map((item) => {
       const qtyLabel = item.inventory.weightRatti
         ? `${item.inventory.weightRatti} Ratti`
@@ -526,6 +540,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
               </Button>
             )}
             <DownloadPdfButton data={pdfData} />
+            <EmailDocumentButton invoiceId={invoice.id} />
         </div>
       </div>
 
@@ -544,19 +559,19 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
               <CardContent className="space-y-2 text-sm">
                   <div className="flex justify-between">
                       <span className="text-muted-foreground">Name</span>
-                      <span className="font-medium">{primarySale.customerName}</span>
+                      <span className="font-medium">{resolvedCustomer.name}</span>
                   </div>
                   <div className="flex justify-between">
                       <span className="text-muted-foreground">Mobile</span>
-                      <span className="font-medium">{primarySale.customerPhone || "-"}</span>
+                      <span className="font-medium">{resolvedCustomer.phone || "-"}</span>
                   </div>
                   <div className="flex justify-between">
                       <span className="text-muted-foreground">Email</span>
-                      <span className="font-medium">{primarySale.customerEmail || "-"}</span>
+                      <span className="font-medium">{resolvedCustomer.email || "-"}</span>
                   </div>
                   <div className="flex justify-between">
                       <span className="text-muted-foreground">City</span>
-                      <span className="font-medium">{primarySale.customerCity || "-"}</span>
+                      <span className="font-medium">{resolvedCustomer.city || "-"}</span>
                   </div>
               </CardContent>
           </Card>
@@ -748,6 +763,8 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
                 )}
           </div>
       )}
+
+      <CommunicationTimeline orderId={invoice.id} />
     </div></AnimatedPage>
   );
 }

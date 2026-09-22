@@ -1,21 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
-import { BusinessHealthCards } from "./business-health-cards";
-import { MarketplaceOverview } from "./marketplace-overview";
-import { QuickNotes } from "./quick-notes";
-import { ActivityFeed } from "./activity-feed";
-import { RevenueTrend } from "./revenue-trend";
-import { InventoryHealth } from "./inventory-health";
-import { MarketplaceSyncHealth } from "./marketplace-sync-health";
-import { WorkQueue } from "./work-queue";
-import { TopSellingCategories } from "./top-selling-categories";
-import { TopSellingGemTypes } from "./top-selling-gem-types";
-import { AppLogoLoader } from "@/components/ui/app-logo-loader";
+import { LottieLoader } from "@/components/ui/lottie";
 import { useGlobalLoader } from "@/components/global-loader-provider";
-import { DashboardHeader } from "./dashboard-header";
+import { DashboardGrid, useDashboardLayout, DraggableWidgetConfig } from "./draggable-dashboard";
+import { useSession } from "next-auth/react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -25,6 +16,10 @@ export function DashboardView({ name }: { name?: string | null }) {
     revalidateOnFocus: true,
   });
   const { showLoader, hideLoader } = useGlobalLoader();
+  const { data: session } = useSession();
+  const userId = session?.user?.id ?? "default-user";
+
+  const { layout, saveLayout, isLoaded } = useDashboardLayout(userId);
 
   useEffect(() => {
     const onStorageChange = (event: StorageEvent) => {
@@ -52,13 +47,98 @@ export function DashboardView({ name }: { name?: string | null }) {
     }
   };
 
+  // Compute defaultWidgets with useMemo BEFORE early returns to maintain hooks order
+  const revenueTrend = data?.kpis?.revenueTrend || [];
+  const defaultWidgets: DraggableWidgetConfig[] = useMemo(() => {
+    if (!data || data.error || !data.kpis) return [] as DraggableWidgetConfig[];
+    return [
+      { id: "header", title: "Dashboard Header", disabled: false, defaultOrder: 0 },
+      { id: "health", title: "Business Health", defaultOrder: 1 },
+      { id: "marketplace-activity", title: "Marketplace & Activity", defaultOrder: 2 },
+      { id: "revenue-inventory", title: "Revenue & Inventory", defaultOrder: 3 },
+      { id: "categories-workqueue", title: "Categories & Work Queue", defaultOrder: 4 },
+      { id: "sync-gemtypes", title: "Sync & Gem Types", defaultOrder: 5 },
+      { id: "notes", title: "Quick Notes", defaultOrder: 6 },
+      { id: "matched-pairs", title: "Matched Pairs & Sets", defaultOrder: 7 },
+    ];
+  }, [data]);
+
+  // Merge loaded layout with defaults to ensure all widgets are present and header is never disabled
+  const widgets = useMemo(() => {
+    if (!isLoaded) return defaultWidgets;
+    if (!Array.isArray(layout) || layout.length === 0) return defaultWidgets;
+    
+    // Use layout order as the source of truth
+    const layoutIds = new Set(layout.map(w => w.id));
+    
+    // Build widget map from defaults (for fallback data)
+    const defaultMap = new Map(defaultWidgets.map(w => [w.id, w]));
+    
+    // Use layout order, merging with defaults for any missing fields
+    const merged = layout.map(w => ({
+      ...defaultMap.get(w.id),  // defaults as base
+      ...w,                     // override with layout values
+      disabled: w.id === "header" ? false : (w.disabled ?? false),
+    }));
+    
+    // Append any new widgets from defaults that aren't in the saved layout yet
+    for (const dw of defaultWidgets) {
+      if (!layoutIds.has(dw.id)) {
+        merged.push(dw);
+      }
+    }
+    
+    return merged;
+  }, [layout, defaultWidgets, isLoaded]);
+
+  const handleReorder = (newWidgets: DraggableWidgetConfig[]) => {
+    saveLayout(newWidgets);
+  };
+
+  // Data needed by widget renderers
+  const renderData = useMemo(() => ({
+    header: {
+      dbConnection: data?.dbConnection,
+      onRefresh: handleRefresh,
+      name,
+    },
+    health: {
+      todayOrders: data?.kpis?.todayOrders ?? 0,
+      listings: data?.kpis?.listings,
+      inventory: data?.kpis?.inventory,
+      labelCart: data?.kpis?.printLabels,
+      quotations: data?.kpis?.quotations,
+      readyToSell: data?.kpis?.readyToSell,
+      salesThisMonth: data?.kpis?.salesThisMonth ?? 0,
+    },
+    "marketplace-activity": {
+      listings: data?.kpis?.listings || { total: 0 },
+    },
+    "revenue-inventory": {
+      revenueTrend,
+    },
+    "categories-workqueue": {
+      categories: data?.analytics?.bestSellingCategories,
+      attention: data?.kpis?.attention,
+      todayActions: data?.kpis?.today,
+      pendingPayments: data?.kpis?.pendingPayments,
+      todayOrders: data?.kpis?.todayOrders,
+    },
+    "sync-gemtypes": {
+      gemTypes: data?.analytics?.bestSellingTypes,
+    },
+    notes: {},
+    "matched-pairs": {},
+  }), [data, handleRefresh, name, revenueTrend]);
+
+  // Early returns AFTER all hooks
   if (error) return (
     <div className="rounded-xl border border-border bg-card p-6">
       <p className="text-red-500 dark:text-red-400 text-sm">Failed to load dashboard data.</p>
       <Button onClick={handleRefresh} variant="outline" size="sm" className="mt-3">Retry</Button>
     </div>
   );
-  if (isLoading) return <AppLogoLoader fullscreen={true} label="Loading Dashboard..." />;
+  if (isLoading) return <LottieLoader variant="dashboard" fullscreen={true} label="Loading Dashboard..." />;
   if (!data || data.error || !data.kpis) {
     return (
       <div className="rounded-xl border border-border bg-card p-6">
@@ -68,64 +148,12 @@ export function DashboardView({ name }: { name?: string | null }) {
     );
   }
 
-  const revenueTrend = data.kpis.revenueTrend || [];
-
   return (
-    <div className="flex flex-col gap-4">
-      <DashboardHeader
-        dbConnection={data.dbConnection}
-        onRefresh={handleRefresh}
-        name={name}
-      />
-
-      <BusinessHealthCards
-        data={{
-          todayOrders: data.kpis.todayOrders ?? 0,
-          listings: data.kpis.listings,
-          inventory: data.kpis.inventory,
-          labelCart: data.kpis.printLabels,
-          quotations: data.kpis.quotations,
-          readyToSell: data.kpis.readyToSell,
-          salesThisMonth: data.kpis.salesThisMonth ?? 0,
-        }}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-7">
-          <MarketplaceOverview listings={data.kpis.listings || { total: 0 }} />
-        </div>
-        <div className="lg:col-span-5">
-          <ActivityFeed />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RevenueTrend data={revenueTrend} />
-        <InventoryHealth />
-      </div>
-
-      {/* ROW 3.5: Top Categories (if data) + Work Queue (always) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {data.analytics?.bestSellingCategories?.length > 0 && (
-          <TopSellingCategories data={data.analytics.bestSellingCategories} />
-        )}
-        <WorkQueue
-          attention={data.kpis.attention}
-          todayActions={data.kpis.today}
-          pendingPayments={data.kpis.pendingPayments}
-          todayOrders={data.kpis.todayOrders}
-        />
-      </div>
-
-      {/* ROW 4: Marketplace Sync (if data) + Top Gem Types (if data) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <MarketplaceSyncHealth />
-        {data.analytics?.bestSellingTypes?.length > 0 && (
-          <TopSellingGemTypes data={data.analytics.bestSellingTypes} />
-        )}
-      </div>
-
-      <QuickNotes />
-    </div>
+    <DashboardGrid
+      widgets={widgets}
+      onReorder={handleReorder}
+      onResize={saveLayout}
+      renderData={renderData}
+    />
   );
 }

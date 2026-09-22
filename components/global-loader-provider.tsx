@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, Suspense, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, Suspense, useRef, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Toaster } from "sonner";
 import { AppLogoLoader } from "@/components/ui/app-logo-loader";
@@ -25,12 +25,16 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const shouldCompleteRef = useRef(false);
-  const minDurationMs = 1500;
+  const minDurationMs = 200;
 
-  const currentUrl = (() => {
+  const currentUrl = useMemo(() => {
     const qs = searchParams.toString();
     return qs ? `${pathname}?${qs}` : pathname;
-  })();
+  }, [pathname, searchParams]);
+
+  const isDashboardRoute = useMemo(() => {
+    return pathname === "/" || pathname.startsWith("/dashboard") || pathname.startsWith("/inventory") || pathname.startsWith("/sales") || pathname.startsWith("/customers") || pathname.startsWith("/vendors");
+  }, [pathname]);
 
   useEffect(() => {
     if (!isLoading) return;
@@ -100,7 +104,7 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
     <GlobalLoaderContext.Provider value={{ isLoading, setIsLoading, showLoader, hideLoader }}>
       {children}
       <TopLoader isLoading={isLoading} progress={progress} />
-      {isLoading && <AppLogoLoader label={null} progress={progress} />}
+      {isLoading && <AppLogoLoader label={null} progress={progress} variant={isDashboardRoute ? "lottie" : "default"} />}
       <Toaster
         richColors
         expand

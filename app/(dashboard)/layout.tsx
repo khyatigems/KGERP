@@ -6,8 +6,42 @@ import { Topbar } from "@/components/layout/topbar";
 import { SidebarProvider } from "@/components/layout/sidebar-context";
 import { SidebarGridClient } from "@/components/layout/sidebar-grid-client";
 import { auth } from "@/lib/auth";
-import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema, ensurePasswordResetSchema } from "@/lib/prisma";
+import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema, ensurePasswordResetSchema, ensurePerformanceIndexes } from "@/lib/prisma";
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { getPermissionsForRole } from "@/lib/permissions";
+import { SmartNotificationsProvider } from "@/components/ui/smart-notifications";
+
+const SCHEMA_CACHE_TTL = 5 * 60 * 1000;
+let schemaCache: { result: boolean; expiresAt: number } | null = null;
+let rbacTablesCache: { hasRbac: boolean; expiresAt: number } | null = null;
+
+async function ensureAllSchemasCached() {
+  const now = Date.now();
+  if (schemaCache && schemaCache.expiresAt > now) return;
+  await Promise.all([
+    ensureUserRoleIdColumn(),
+    ensureAvatarWhatsNewSchema(),
+    ensurePasswordResetSchema(),
+    ensureRbacSchema(),
+    ensureMarketplaceFoundationSchema(),
+    ensurePerformanceIndexes(),
+  ]);
+  schemaCache = { result: true, expiresAt: now + SCHEMA_CACHE_TTL };
+}
+
+async function checkRbacTablesCached() {
+  const now = Date.now();
+  if (rbacTablesCache && rbacTablesCache.expiresAt > now) return rbacTablesCache.hasRbac;
+  const [a, b, c, d] = await Promise.all([
+    hasTable("UserPermission"),
+    hasTable("Role"),
+    hasTable("Permission"),
+    hasTable("RolePermission"),
+  ]);
+  const hasRbac = a && b && c && d;
+  rbacTablesCache = { hasRbac, expiresAt: now + SCHEMA_CACHE_TTL };
+  return hasRbac;
+}
 
 type DashboardUser = {
   name?: string | null;
@@ -49,20 +83,9 @@ export default async function DashboardLayout({
   let allowedNavModules: string[] = [];
 
   if (session?.user?.id) {
-    await Promise.all([
-      ensureUserRoleIdColumn(),
-      ensureAvatarWhatsNewSchema(),
-      ensurePasswordResetSchema(),
-      ensureRbacSchema(),
-    ]);
+    await ensureAllSchemasCached();
     const supports = await hasUserRoleIdColumn();
-    const [hasUserPermissionTable, hasRoleTable, hasPermissionTable, hasRolePermissionTable] = await Promise.all([
-      hasTable("UserPermission"),
-      hasTable("Role"),
-      hasTable("Permission"),
-      hasTable("RolePermission"),
-    ]);
-    const hasRbacTables = hasUserPermissionTable && hasRoleTable && hasPermissionTable && hasRolePermissionTable;
+    const hasRbacTables = await checkRbacTablesCached();
 
     const dbUser = supports && hasRbacTables
       ? ((await (prisma.user as any).findUnique({
@@ -150,18 +173,20 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <SidebarGridClient>
-        <div className="hidden border-r lg:block bg-sidebar border-sidebar-border premium-sidebar">
-          <Sidebar allowedModules={allowedNavModules} />
-        </div>
-        <div className="flex flex-col">
-          <Topbar user={user}
-          />
-          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background sass-enter">
-            {children}
-          </main>
-        </div>
-      </SidebarGridClient>
+      <SmartNotificationsProvider>
+        <SidebarGridClient>
+          <div className="hidden border-r lg:block bg-sidebar border-sidebar-border premium-sidebar">
+            <Sidebar allowedModules={allowedNavModules} />
+          </div>
+          <div className="flex flex-col">
+            <Topbar user={user}
+            />
+            <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background sass-enter">
+              {children}
+            </main>
+          </div>
+        </SidebarGridClient>
+      </SmartNotificationsProvider>
     </SidebarProvider>
   );
 }

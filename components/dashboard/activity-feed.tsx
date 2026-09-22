@@ -5,6 +5,7 @@ import { Activity, ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { InlineLottieState } from "@/components/ui/lottie";
 
 interface ActivityLog {
   id: string;
@@ -114,9 +115,7 @@ export function ActivityFeed() {
             );
           })
         ) : (
-          <div className="text-center py-8 text-xs text-muted-foreground">
-            No recent activity
-          </div>
+          <InlineLottieState variant="noData" title="No recent activity" description="Activity will appear here when events occur" className="py-8" />
         )}
       </div>
 

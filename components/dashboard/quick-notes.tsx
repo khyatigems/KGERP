@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { StickyNote, Plus, Loader2, Edit3, Trash2 } from "lucide-react";
+import { StickyNote, Plus, Edit3, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { InlineLottieState, InlineLottieSpinner } from "@/components/ui/lottie";
 
 interface Note {
   id: string;
@@ -102,7 +103,7 @@ export function QuickNotes() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-4"><Loader2 className="animate-spin h-4 w-4 text-muted-foreground" /></div>
+        <InlineLottieSpinner size={20} className="mx-auto" />
       ) : (
         <div className="space-y-2">
           {isAdding && (
@@ -133,7 +134,7 @@ export function QuickNotes() {
           )}
 
           {sortedNotes.length === 0 && !isAdding && (
-            <p className="text-center text-xs text-muted-foreground py-3">No notes yet. Click + to add one.</p>
+            <InlineLottieState variant="empty" title="No notes yet" description="Click + to add your first note" size="sm" className="py-2" />
           )}
 
           {sortedNotes.map((note) => {

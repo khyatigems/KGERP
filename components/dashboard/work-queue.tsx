@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/lottie";
 
 interface AttentionData {
   quotations?: Array<{ id: string }>;
@@ -93,13 +94,12 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
       </div>
 
       {items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
-            <CheckCircle2 className="h-5 w-5 text-emerald-500 dark:text-emerald-400" />
-          </div>
-          <p className="text-sm font-medium text-foreground">All clear</p>
-          <p className="text-xs text-muted-foreground mt-1">No tasks need attention right now</p>
-        </div>
+        <EmptyState
+          title="All clear"
+          description="No tasks need attention right now"
+          size="md"
+          className="py-4"
+        />
       ) : (
         <div className="space-y-1">
           {items.map((item) => {

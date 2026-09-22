@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const LEGACY_DESKTOP_APP_TOKEN = "KHYATI_MEDIA_SYNC_SECRET_2026";
-
 export function getExtensionApiToken() {
   return (
     process.env.KHYATI_MARKETPLACE_EXTENSION_TOKEN ||
     process.env.KHYATI_MEDIA_SYNC_TOKEN ||
     process.env.MEDIA_UPLOAD_TOKEN ||
-    LEGACY_DESKTOP_APP_TOKEN
+    ""
   );
 }
 

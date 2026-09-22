@@ -29,7 +29,7 @@ function toPrice(value: string | number | undefined) {
 
 function mappingResponse(listing: {
   id: string;
-  inventoryId: string;
+  inventoryId: string | null;
   platform: string;
   externalId: string | null;
   listingUrl: string | null;
@@ -39,15 +39,17 @@ function mappingResponse(listing: {
   status: string;
   createdAt: Date;
   updatedAt: Date;
-  inventory: { sku: string; itemName: string };
+  listingSku?: string | null;
+  marketplaceTitle?: string | null;
+  inventory: { sku: string; itemName: string } | null;
 }) {
   return {
     mapping: {
       id: listing.id,
       mappingId: listing.id,
       productId: listing.inventoryId,
-      sku: listing.inventory.sku,
-      productName: listing.inventory.itemName,
+      sku: listing.inventory?.sku || listing.listingSku || "",
+      productName: listing.inventory?.itemName || listing.marketplaceTitle || "",
       marketplace: listing.platform.toLowerCase(),
       listingId: listing.externalId || "",
       listingUrl: listing.listingUrl || "",
@@ -128,7 +130,7 @@ export async function POST(request: NextRequest) {
     logActivity({
       entityType: "Listing",
       entityId: listing.id,
-      entityIdentifier: `${platform} - ${listing.inventory.sku}`,
+      entityIdentifier: `${platform} - ${listing.inventory?.sku || listing.listingSku || ""}`,
       actionType: "CREATE",
       newData: listing,
       source: "EXTENSION",
@@ -136,9 +138,9 @@ export async function POST(request: NextRequest) {
     logMarketplaceActivity({
       entityType: "Inventory",
       entityId: productId,
-      entityIdentifier: listing.inventory.sku,
+      entityIdentifier: listing.inventory?.sku || listing.listingSku || "",
       actionType: "LISTING_LINKED",
-      details: `${platform} listing linked for ${listing.inventory.sku}`,
+      details: `${platform} listing linked for ${listing.inventory?.sku || listing.listingSku || ""}`,
       source: "EXTENSION",
       metadata: { platform, listingId: listing.id, listingUrl: listing.listingUrl || null },
     }),

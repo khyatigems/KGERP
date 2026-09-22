@@ -3,12 +3,13 @@
 import { useState, useCallback } from "react";
 import ExcelJS from "exceljs";
 import { Button } from "@/components/ui/button";
+import { Download, DollarSign } from "lucide-react";
+import { ExportButton } from "@/components/ui/lottie";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Download, Loader2, DollarSign } from "lucide-react";
 
 interface AuditRow {
   sku: string; itemName: string; category: string; gemType: string;
@@ -374,12 +375,12 @@ export function MarketplacePriceAuditExport() {
               <p className="text-xs text-muted-foreground">Leave blank to use the configured currency rate.</p>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
-            <Button onClick={handleExport} disabled={loading}>
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : <><Download className="mr-2 h-4 w-4" /> Download Excel</>}
-            </Button>
-          </DialogFooter>
+<DialogFooter>
+             <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancel</Button>
+             <ExportButton loading={loading} onClick={handleExport} disabled={loading} className="gap-2">
+               {loading ? "Generating..." : "Download Excel"}
+             </ExportButton>
+           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

@@ -9,6 +9,7 @@ import { MobileInventoryActions } from "@/components/inventory/mobile-inventory-
 import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { GciCertButton } from "@/components/inventory/gci-cert-button";
+import { EmailCertificateButton } from "@/components/inventory/email-certificate-button";
 import type { InventoryMedia } from "@prisma/client";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { LoadingLink } from "@/components/ui/loading-link";
@@ -327,6 +328,9 @@ export default async function InventoryDetailPage({
                             <Copy className="mr-2 h-4 w-4" /> Copy
                         </LoadingLink>
                     </Button>
+                    {detailedItem.status === "SOLD" && (
+                        <EmailCertificateButton inventoryId={detailedItem.id} />
+                    )}
                     <Button variant="outline" asChild>
                         <LoadingLink href="/inventory">Back to Inventory</LoadingLink>
                     </Button>

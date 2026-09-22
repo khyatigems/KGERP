@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
-const LEGACY_DESKTOP_APP_TOKEN = 'KHYATI_MEDIA_SYNC_SECRET_2026';
-
 function getDesktopAppToken() {
-  return process.env.KHYATI_MEDIA_SYNC_TOKEN || process.env.MEDIA_UPLOAD_TOKEN || LEGACY_DESKTOP_APP_TOKEN;
+  return process.env.KHYATI_MEDIA_SYNC_TOKEN || process.env.MEDIA_UPLOAD_TOKEN || '';
 }
 
 export async function GET(request: Request) {

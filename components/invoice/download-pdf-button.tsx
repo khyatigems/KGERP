@@ -1,7 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Download, Loader2 } from "lucide-react";
+import { ExportButton } from "@/components/ui/lottie";
 import { generateInvoicePDF, InvoiceData } from "@/lib/invoice-generator";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
@@ -35,9 +34,13 @@ export function DownloadPdfButton({ data }: { data: InvoiceData }) {
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={handleDownload} disabled={loading} className="print:hidden">
-       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-       Download PDF
-    </Button>
+    <ExportButton
+      size="sm"
+      loading={loading}
+      onClick={handleDownload}
+      className="gap-2 print:hidden"
+    >
+      Download PDF
+    </ExportButton>
   );
 }

@@ -3,6 +3,7 @@
 import { FolderOpen, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface CategoryData {
   name: string;
@@ -42,6 +43,7 @@ export function TopSellingCategories({ data }: TopSellingCategoriesProps) {
       <div className="space-y-2.5">
         {data.map((item, i) => {
           const pct = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
+          const colorVar = `var(--chart-${(i % 5) + 1})`;
           return (
             <div key={item.name} className="group">
               <div className="flex items-center justify-between mb-1">
@@ -56,8 +58,8 @@ export function TopSellingCategories({ data }: TopSellingCategoriesProps) {
               </div>
               <div className="h-1.5 rounded-full bg-border overflow-hidden ml-6">
                 <div
-                  className="h-full rounded-full bg-violet-500 dark:bg-violet-400 transition-all duration-500"
-                  style={{ width: `${pct}%` }}
+                  className={cn("h-full rounded-full transition-all duration-500")}
+                  style={{ width: `${pct}%`, backgroundColor: colorVar }}
                 />
               </div>
             </div>

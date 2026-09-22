@@ -51,6 +51,9 @@ export async function PUT(
     }
 
     const targetInventoryId = body.productId || existing.inventoryId;
+    if (!targetInventoryId) {
+      return NextResponse.json({ message: "ERP product not found" }, { status: 404 });
+    }
 
     const inventory = await prisma.inventory.findUnique({
       where: { id: targetInventoryId },

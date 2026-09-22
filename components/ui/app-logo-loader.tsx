@@ -5,12 +5,15 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { AnimatedGem } from "./animated-gem";
+import { LottieLoader } from "@/components/ui/lottie";
+import { isPremiumMode } from "@/components/ui/lottie/animations";
 
 interface AppLogoLoaderProps {
   className?: string;
   fullscreen?: boolean;
   label?: string | null;
   progress?: number | null;
+  variant?: "default" | "lottie";
 }
 
 function useBrowserReady() {
@@ -21,11 +24,29 @@ function useBrowserReady() {
   );
 }
 
-export function AppLogoLoader({ className, fullscreen = true, label, progress = null }: AppLogoLoaderProps) {
+function useLottieEnabled() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => {
+      if (typeof window === "undefined") return false;
+      return process.env.NEXT_PUBLIC_LOTTIE_ENABLED === "true" && isPremiumMode();
+    },
+    () => false,
+  );
+}
+
+export function AppLogoLoader({ 
+  className, 
+  fullscreen = true, 
+  label, 
+  progress = null, 
+  variant = "default" 
+}: AppLogoLoaderProps) {
   const pct = typeof progress === "number" ? Math.min(100, Math.max(0, progress)) : null;
   const browserReady = useBrowserReady();
+  const lottieEnabled = useLottieEnabled();
 
-  const content = (
+  const defaultContent = (
     <div className={cn("flex flex-col items-center justify-center gap-8", className)}>
       {/* Logo with multi-layer glow */}
       <div className="relative w-28 h-28 md:w-36 md:h-36">
@@ -100,6 +121,19 @@ export function AppLogoLoader({ className, fullscreen = true, label, progress = 
     </div>
   );
 
+  if (lottieEnabled && variant === "lottie") {
+    const loaderVariant = label?.includes("Dashboard") ? "dashboard" : "global";
+    return (
+      <LottieLoader
+        variant={loaderVariant as "global" | "dashboard"}
+        fullscreen={fullscreen}
+        label={label}
+        progress={progress}
+        className={className}
+      />
+    );
+  }
+
   if (fullscreen) {
     const overlay = (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/95 backdrop-blur-xl animate-fade-in-loader">
@@ -109,7 +143,7 @@ export function AppLogoLoader({ className, fullscreen = true, label, progress = 
           <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-primary/[0.02] blur-[100px] rounded-full" />
         </div>
         {/* Content */}
-        <div className="relative z-10">{content}</div>
+        <div className="relative z-10">{defaultContent}</div>
       </div>
     );
 
@@ -119,5 +153,5 @@ export function AppLogoLoader({ className, fullscreen = true, label, progress = 
     return null;
   }
 
-  return content;
+  return defaultContent;
 }

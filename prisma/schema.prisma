@@ -43,6 +43,10 @@ model User {
   vouchers                   Voucher[]
   journalEntries             JournalEntry[]
   followUps                  FollowUp[]
+  createdPairs               InventoryPair[]      @relation("PairCreatedBy")
+  confirmedPairs             InventoryPair[]      @relation("PairConfirmedBy")
+  createdSets                InventorySet[]       @relation("SetCreatedBy")
+  confirmedSets              InventorySet[]       @relation("SetConfirmedBy")
 
   @@index([roleId])
 }
@@ -229,6 +233,8 @@ model Vendor {
   updatedAt   DateTime    @updatedAt
   purchases   Purchase[]
   inventories Inventory[]
+
+  @@index([status])
 }
 
 model Customer {
@@ -392,6 +398,9 @@ model Inventory {
   labelCartItems       LabelCartItem[]
   packagingCartItems   PackagingCartItem[]
   serializedUnits      SerializedUnit[]
+  pairsAsA             InventoryPair[]         @relation("PairA")
+  pairsAsB             InventoryPair[]         @relation("PairB")
+  setItems             InventorySetItem[]
 
   @@index([purchaseId])
   @@index([status])
@@ -415,6 +424,73 @@ model Inventory {
   @@index([status, color])
   @@index([status, vendorId])
   @@index([gemstoneCodeId, weightValue, status])
+  // Matched pairs/set indexes
+  @@index([status, gemType, color, shape, carats])
+  @@index([status, gemType, clarity, cut, carats])
+}
+
+model InventoryPair {
+  id              String   @id @default(uuid())
+  inventoryIdA    String
+  inventoryIdB    String
+  matchType       String   @default("PAIR") // PAIR | SET_3 | SET_4
+  score           Int
+  matchDetails    String
+  status          String   @default("SUGGESTED") // SUGGESTED | CONFIRMED | REJECTED | SOLD_AS_PAIR
+  suggestedPrice  Float?
+  createdById     String?
+  confirmedById   String?
+  createdAt       DateTime @default(now())
+  confirmedAt     DateTime?
+  soldAt          DateTime?
+
+  inventoryA      Inventory @relation("PairA", fields: [inventoryIdA], references: [id], onDelete: Cascade)
+  inventoryB      Inventory @relation("PairB", fields: [inventoryIdB], references: [id], onDelete: Cascade)
+  createdBy       User?     @relation("PairCreatedBy", fields: [createdById], references: [id])
+  confirmedBy     User?     @relation("PairConfirmedBy", fields: [confirmedById], references: [id])
+
+  @@unique([inventoryIdA, inventoryIdB])
+  @@index([inventoryIdA])
+  @@index([inventoryIdB])
+  @@index([status])
+  @@index([matchType])
+  @@index([createdAt])
+}
+
+model InventorySet {
+  id              String   @id @default(uuid())
+  name            String?
+  matchType       String   // SET_3 | SET_4
+  itemCount       Int
+  score           Int
+  matchDetails    String
+  status          String   @default("SUGGESTED")
+  suggestedPrice  Float?
+  createdById     String?
+  confirmedById   String?
+  createdAt       DateTime @default(now())
+  confirmedAt     DateTime?
+  soldAt          DateTime?
+
+  items           InventorySetItem[]
+  createdBy       User?    @relation("SetCreatedBy", fields: [createdById], references: [id])
+  confirmedBy     User?    @relation("SetConfirmedBy", fields: [confirmedById], references: [id])
+
+  @@index([status])
+  @@index([matchType])
+  @@index([createdAt])
+}
+
+model InventorySetItem {
+  id           String         @id @default(uuid())
+  setId        String
+  inventoryId  String
+  position     Int
+  set          InventorySet   @relation(fields: [setId], references: [id], onDelete: Cascade)
+  inventory    Inventory      @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, position])
+  @@index([inventoryId])
 }
 
 model InventoryMedia {
@@ -468,7 +544,7 @@ model PurchaseItem {
 
 model Listing {
   id           String                @id @default(uuid())
-  inventoryId  String
+  inventoryId  String?
   platform     String
   externalId   String?
   listedPrice  Float
@@ -479,10 +555,27 @@ model Listing {
   updatedAt    DateTime              @updatedAt
   listingUrl   String?
   listingRef   String?
-  inventory    Inventory             @relation(fields: [inventoryId], references: [id])
+  listingSku           String?
+  marketplaceTitle     String?
+  marketplacePrice     Float?
+  marketplaceQuantity  Int?
+  marketplaceViews     Int?
+  marketplaceFavorites Int?
+  marketplaceOrders    Int?
+  marketplaceShopName  String?
+  syncStatus           String?
+  syncError            String?
+  lastSyncedAt         DateTime?
+  rawMetadata          String?
+  inventory    Inventory?             @relation(fields: [inventoryId], references: [id])
   priceHistory ListingPriceHistory[]
 
   @@index([inventoryId])
+  @@index([listingSku])
+  @@index([syncStatus])
+  @@index([status])
+  @@index([status, platform])
+  @@index([createdAt])
 }
 
 model ListingPriceHistory {
@@ -579,6 +672,10 @@ model Sale {
   internalHandlingCost   Float   @default(0)
   internalOtherCharges   Float   @default(0)
   internalCostTotal      Float   @default(0)
+  listedSku              String?
+  fulfillmentSku         String?
+  fulfillmentReason      String?
+  marketplaceOrderItemId String?
   customer           Customer?                   @relation(fields: [customerId], references: [id])
   inventory          Inventory                   @relation(fields: [inventoryId], references: [id])
   invoice            Invoice?                    @relation("NewInvoice", fields: [invoiceId], references: [id])
@@ -588,6 +685,8 @@ model Sale {
   @@index([customerId])
   @@index([inventoryId])
   @@index([saleDate])
+  @@index([saleDate, paymentStatus])
+  @@index([paymentStatus])
   @@index([invoiceId])
   @@index([legacyInvoiceId])
 }
@@ -642,6 +741,10 @@ model Quotation {
   @@index([customerId])
   @@index([createdById])
   @@index([approvedById])
+  @@index([status])
+  @@index([status, validUntil])
+  @@index([status, createdAt])
+  @@index([createdAt])
 }
 
 model QuotationItem {
@@ -707,6 +810,11 @@ model Invoice {
 
   @@index([quotationId])
   @@index([paymentStatus])
+  @@index([status])
+  @@index([status, paymentStatus])
+  @@index([status, paymentStatus, dueDate])
+  @@index([createdAt])
+  @@index([dueDate])
 }
 
 // Separate table for Export Invoices - keeps invoice numbers in same sequence
@@ -1212,6 +1320,7 @@ model Expense {
   @@index([categoryId])
   @@index([createdById])
   @@index([expenseDate])
+  @@index([paymentStatus])
 }
 
 model Account {
@@ -1545,4 +1654,155 @@ model CurrencyRate {
   rateToInr Float    @default(0)
   isBase    Boolean  @default(false)
   updatedAt DateTime @updatedAt
+}
+
+model MarketplaceConnection {
+  id              String    @id @default(uuid())
+  marketplace     String    @unique
+  name            String?
+  authType        String    @default("OAUTH2")
+  clientId        String?
+  tokenRef        String?
+  status          String    @default("DISCONNECTED")
+  scopes          String?
+  lastConnectedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([marketplace])
+  @@index([status])
+}
+
+model MarketplaceSyncLog {
+  id             String    @id @default(uuid())
+  marketplace    String
+  syncType       String
+  status         String    @default("RUNNING")
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  recordsScanned Int       @default(0)
+  recordsCreated Int       @default(0)
+  recordsUpdated Int       @default(0)
+  recordsSkipped Int       @default(0)
+  recordsFailed  Int       @default(0)
+  errorDetails   String?
+  triggeredBy    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([marketplace, syncType])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model MarketplaceOrder {
+  id                 String                @id @default(uuid())
+  marketplace        String
+  marketplaceOrderId String
+  orderNumber        String?
+  marketplaceShopName String?
+  status             String                @default("IMPORTED")
+  buyerName          String?
+  buyerEmail         String?
+  buyerCountry       String?
+  buyerCity          String?
+  buyerState         String?
+  buyerZip           String?
+  trackingCode       String?
+  carrier            String?
+  orderTotal         Float?
+  currency           String                @default("USD")
+  orderDate          DateTime?
+  rawMetadata        String?
+  lastSyncedAt       DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  items              MarketplaceOrderItem[]
+
+  @@unique([marketplace, marketplaceOrderId])
+  @@index([marketplace])
+  @@index([status])
+  @@index([orderDate])
+}
+
+model MarketplaceOrderItem {
+  id                 String            @id @default(uuid())
+  orderId            String
+  marketplaceItemId  String?
+  listedSku          String?
+  listedTitle        String?
+  quantity           Int               @default(1)
+  unitPrice          Float?
+  currency           String            @default("USD")
+  fulfillmentSku     String?
+  fulfillmentReason  String?
+  inventoryId        String?
+  status             String            @default("PENDING")
+  rawMetadata        String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  order              MarketplaceOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, marketplaceItemId])
+  @@index([orderId])
+  @@index([listedSku])
+  @@index([fulfillmentSku])
+  @@index([inventoryId])
+}
+
+model Document {
+  id                String    @id @default(uuid())
+  customerId        String?
+  orderId           String?
+  saleId            String?
+  invoiceId         String?
+  type              String
+  fileName          String
+  mimeType          String    @default("application/pdf")
+  sizeBytes         Int?
+  storageProvider   String    @default("CLOUDINARY")
+  storageRef        String?
+  certificateNumber String?
+  status            String    @default("READY")
+  errorMessage      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([orderId])
+  @@index([saleId])
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([type])
+  @@index([certificateNumber])
+}
+
+model EmailLog {
+  id                String    @id @default(uuid())
+  customerId        String?
+  orderId           String?
+  templateKey       String?
+  recipient         String
+  cc                String?
+  bcc               String?
+  subject           String
+  bodyRef           String?
+  emailType         String?
+  direction         String    @default("OUTBOUND")
+  provider          String?
+  providerMessageId String?
+  status            String    @default("DRAFT")
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  failedAt          DateTime?
+  errorMessage      String?
+  attachmentsJson   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([customerId])
+  @@index([orderId])
+  @@index([status])
+  @@index([providerMessageId])
+  @@index([createdAt])
 }

@@ -33,9 +33,11 @@ interface EngagementMetric {
 }
 
 type EnrichedListing = Listing & {
-  inventory: { sku: string; itemName: string };
+  inventory: { sku: string; itemName: string } | null;
   priceHistory: { price: number; changedAt: Date }[];
   latestMetric: EngagementMetric | null;
+  profitMargin: number | null;
+  profitAmount: number | null;
 };
 
 interface ListingsTableProps {
@@ -91,7 +93,7 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
     const dateMatch = (!start || itemDate >= start) && (!end || itemDate <= end);
     const platformMatch = platformFilter === "ALL" || !platformFilter || item.platform === platformFilter;
     const statusMatch = statusFilter === "ALL" || !statusFilter || item.status === statusFilter;
-    const skuMatch = !skuSearch || item.inventory.sku.toLowerCase().includes(skuSearch.toLowerCase());
+    const skuMatch = !skuSearch || (item.inventory ? item.inventory.sku : item.listingSku || item.externalId || "").toLowerCase().includes(skuSearch.toLowerCase());
 
     return dateMatch && platformMatch && statusMatch && skuMatch;
   });
@@ -181,8 +183,8 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
         const watchers = platform === "EBAY" ? (m?.currentWatches || 0) : 0;
         const favourites = platform === "ETSY" ? (m?.currentFavourites || 0) : 0;
         return {
-          SKU: item.inventory.sku,
-          Item: item.inventory.itemName,
+          SKU: item.inventory?.sku || item.listingSku || item.externalId || "Unlinked",
+          Item: item.inventory?.itemName || "Orphan listing",
           Platform: item.platform,
           Currency: item.currency || "INR",
           "Original Price": original,
@@ -382,10 +384,12 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
               <TableHead>SKU</TableHead>
               <TableHead>Item</TableHead>
               <TableHead>Platform</TableHead>
+              <TableHead>Shop</TableHead>
               <TableHead>Listed Price</TableHead>
               {showEngagement && <TableHead className="text-right">Views</TableHead>}
               {showEngagement && <TableHead className="text-right">Watchers / Favourites</TableHead>}
               {showEngagement && <TableHead className="text-right">Last Synced</TableHead>}
+              <TableHead className="text-right">Profit</TableHead>
               <TableHead>Listed Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Link / Ref</TableHead>
@@ -394,7 +398,7 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showEngagement ? 11 : 8} className="h-24 text-center">
+                <TableCell colSpan={showEngagement ? 13 : 10} className="h-24 text-center">
                   No listings found matching your filters.
                 </TableCell>
               </TableRow>
@@ -413,11 +417,19 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
                       />
                   </TableCell>
                   <TableCell className="font-mono">
-                    {listing.inventory.sku}
+                    {listing.inventory?.sku || listing.listingSku || listing.externalId || "—"}
                   </TableCell>
-                  <TableCell>{listing.inventory.itemName}</TableCell>
+                  <TableCell>
+                    {listing.inventory?.itemName || listing.marketplaceTitle || "Orphan listing"}
+                    {(!listing.inventoryId || listing.syncStatus === "UNKNOWN_SKU") && (
+                      <Badge className="ml-2 bg-amber-500/15 text-amber-700 border-amber-500/30">Reconcile</Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{listing.platform}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {listing.marketplaceShopName || "—"}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
@@ -468,13 +480,22 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
                       {relativeTime(listing.latestMetric?.lastSyncedAt)}
                     </TableCell>
                   )}
+                  <TableCell className="text-right tabular-nums">
+                    {listing.profitMargin == null ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      <span className={`font-semibold ${listing.profitMargin >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {listing.profitMargin >= 0 ? "+" : ""}{listing.profitMargin.toFixed(0)}%
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {formatDate(listing.listedDate)}
                   </TableCell>
                   <TableCell>
                     <Badge
                       variant={
-                        listing.status === "LISTED" || listing.status === "ACTIVE"
+                        ["LISTED", "ACTIVE"].includes(listing.status)
                           ? "default"
                           : listing.status === "SOLD"
                           ? "secondary"
@@ -536,11 +557,11 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
                         <div className="grid grid-cols-2 gap-3 text-sm">
                             <div>
                                 <span className="text-muted-foreground text-xs">SKU</span>
-                                <p className="font-mono font-medium">{selectedListing.inventory.sku}</p>
+                                <p className="font-mono font-medium">{selectedListing.inventory?.sku || selectedListing.listingSku || selectedListing.externalId || "Unlinked"}</p>
                             </div>
                             <div>
                                 <span className="text-muted-foreground text-xs">Item</span>
-                                <p className="font-medium">{selectedListing.inventory.itemName}</p>
+                                <p className="font-medium">{selectedListing.inventory?.itemName || "Orphan listing"}</p>
                             </div>
                             <div>
                                 <span className="text-muted-foreground text-xs">Platform</span>

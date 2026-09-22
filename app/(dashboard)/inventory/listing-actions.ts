@@ -143,7 +143,7 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
         await logActivity({
             entityType: "Listing",
             entityId: id,
-            entityIdentifier: `${updated.platform} - ${existing.inventory.sku}`,
+            entityIdentifier: `${updated.platform} - ${existing.inventory?.sku || existing.listingSku || ""}`,
             actionType: "EDIT",
             oldData: existing,
             newData: updated,
@@ -151,10 +151,10 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
 
         await logMarketplaceActivity({
             entityType: "Inventory",
-            entityId: existing.inventoryId,
-            entityIdentifier: existing.inventory.sku,
+            entityId: existing.inventoryId || existing.id,
+            entityIdentifier: existing.inventory?.sku || existing.listingSku || "",
             actionType: "LISTING_UPDATED",
-            details: `${updated.platform} listing updated for ${existing.inventory.sku}`,
+            details: `${updated.platform} listing updated for ${existing.inventory?.sku || existing.listingSku || ""}`,
             userId: session.user?.id,
             userName: session.user?.name || session.user?.email || "Unknown",
             source: "WEB",
@@ -162,7 +162,7 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
         });
 
         revalidatePath("/inventory");
-        revalidatePath(`/inventory/${existing.inventoryId}`);
+        if (existing.inventoryId) revalidatePath(`/inventory/${existing.inventoryId}`);
         revalidatePath("/listings");
         return { success: true, listing: updated };
     } catch (error) {
@@ -206,17 +206,17 @@ export async function deleteListing(id: string) {
         await logActivity({
             entityType: "Listing",
             entityId: id,
-            entityIdentifier: `${existing.platform} - ${existing.inventory.sku}`,
+            entityIdentifier: `${existing.platform} - ${existing.inventory?.sku || existing.listingSku || ""}`,
             actionType: "DELETE",
             oldData: existing,
         });
 
         await logMarketplaceActivity({
             entityType: "Inventory",
-            entityId: existing.inventoryId,
-            entityIdentifier: existing.inventory.sku,
+            entityId: existing.inventoryId || existing.id,
+            entityIdentifier: existing.inventory?.sku || existing.listingSku || "",
             actionType: "LISTING_REMOVED",
-            details: `${existing.platform} listing removed for ${existing.inventory.sku}`,
+            details: `${existing.platform} listing removed for ${existing.inventory?.sku || existing.listingSku || ""}`,
             userId: session.user?.id,
             userName: session.user?.name || session.user?.email || "Unknown",
             source: "WEB",
@@ -224,7 +224,7 @@ export async function deleteListing(id: string) {
         });
 
         revalidatePath("/inventory");
-        revalidatePath(`/inventory/${existing.inventoryId}`);
+        if (existing.inventoryId) revalidatePath(`/inventory/${existing.inventoryId}`);
         revalidatePath("/listings");
         return { success: true };
     } catch (error) {
@@ -258,7 +258,7 @@ export async function updateListingsStatus(ids: string[], status: string) {
             await logActivity({
                 entityType: "Listing",
                 entityId: listing.id,
-                entityIdentifier: `${listing.platform} - ${listing.inventory.sku}`,
+                entityIdentifier: `${listing.platform} - ${listing.inventory?.sku || listing.listingSku || ""}`,
                 actionType: "EDIT",
                 oldData: { status: listing.status },
                 newData: { status },
@@ -266,10 +266,10 @@ export async function updateListingsStatus(ids: string[], status: string) {
 
             await logMarketplaceActivity({
                 entityType: "Inventory",
-                entityId: listing.inventoryId,
-                entityIdentifier: listing.inventory.sku,
+                entityId: listing.inventoryId || listing.id,
+                entityIdentifier: listing.inventory?.sku || listing.listingSku || "",
                 actionType: "LISTING_UPDATED",
-                details: `${listing.platform} listing status changed to ${status} for ${listing.inventory.sku}`,
+                details: `${listing.platform} listing status changed to ${status} for ${listing.inventory?.sku || listing.listingSku || ""}`,
                 userId: session.user?.id,
                 userName: session.user?.name || session.user?.email || "Unknown",
                 source: "WEB",
@@ -310,17 +310,17 @@ export async function deleteListings(ids: string[]) {
             await logActivity({
                 entityType: "Listing",
                 entityId: listing.id,
-                entityIdentifier: `${listing.platform} - ${listing.inventory.sku}`,
+                entityIdentifier: `${listing.platform} - ${listing.inventory?.sku || listing.listingSku || ""}`,
                 actionType: "DELETE",
                 oldData: listing,
             });
 
             await logMarketplaceActivity({
                 entityType: "Inventory",
-                entityId: listing.inventoryId,
-                entityIdentifier: listing.inventory.sku,
+                entityId: listing.inventoryId || listing.id,
+                entityIdentifier: listing.inventory?.sku || listing.listingSku || "",
                 actionType: "LISTING_REMOVED",
-                details: `${listing.platform} listing removed for ${listing.inventory.sku}`,
+                details: `${listing.platform} listing removed for ${listing.inventory?.sku || listing.listingSku || ""}`,
                 userId: session.user?.id,
                 userName: session.user?.name || session.user?.email || "Unknown",
                 source: "WEB",

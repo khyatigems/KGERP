@@ -19,6 +19,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { AvatarUploadModal } from "@/components/ui/avatar-upload/avatar-upload-modal";
+import { CommandPaletteTrigger } from "@/components/ui/command-palette";
 
 const routeTitles: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -131,51 +132,52 @@ export function Topbar({ user }: TopbarProps) {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header className="flex h-16 items-center gap-4 border-b border-border bg-background px-6 premium-topbar">
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="shrink-0 lg:hidden">
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Toggle navigation menu</span>
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-62.5 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <SheetDescription className="sr-only">
-            Mobile navigation menu
-          </SheetDescription>
-          <SidebarContent onNavigate={() => setOpen(false)} />
-        </SheetContent>
-      </Sheet>
-      
-      <div className="flex flex-col flex-1 gap-0.5">
-        <h1 className="font-semibold text-xl tracking-tight text-foreground hidden md:block">
-          {currentTitle}
-        </h1>
+    <CommandPaletteTrigger>
+      <header className="flex h-16 items-center gap-4 border-b border-border bg-background px-6 premium-topbar">
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0 lg:hidden">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle navigation menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-62.5 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+            <SheetDescription className="sr-only">
+              Mobile navigation menu
+            </SheetDescription>
+            <SidebarContent onNavigate={() => setOpen(false)} />
+          </SheetContent>
+        </Sheet>
         
-        {/* Breadcrumbs */}
-        {breadcrumbs.length > 0 && (
-          <nav className="hidden md:flex items-center text-xs text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors" onClick={() => { if (pathname !== "/") showLoader(); }}>
-              <Home className="h-3 w-3" />
-            </Link>
-            {breadcrumbs.map((crumb) => (
-              <div key={crumb.href} className="flex items-center">
-                <ChevronRight className="h-3 w-3 mx-1" />
-                {crumb.isLast ? (
-                  <span className="font-medium text-foreground">{crumb.label}</span>
-                ) : (
-                  <Link href={crumb.href} className="hover:text-foreground transition-colors" onClick={() => showLoader()}>
-                    {crumb.label}
-                  </Link>
-                )}
-              </div>
-            ))}
-          </nav>
-        )}
-      </div>
+        <div className="flex flex-col flex-1 gap-0.5">
+          <h1 className="font-semibold text-xl tracking-tight text-foreground hidden md:block">
+            {currentTitle}
+          </h1>
+          
+          {/* Breadcrumbs */}
+          {breadcrumbs.length > 0 && (
+            <nav className="hidden md:flex items-center text-xs text-muted-foreground">
+              <Link href="/" className="hover:text-foreground transition-colors" onClick={() => { if (pathname !== "/") showLoader(); }}>
+                <Home className="h-3 w-3" />
+              </Link>
+              {breadcrumbs.map((crumb) => (
+                <div key={crumb.href} className="flex items-center">
+                  <ChevronRight className="h-3 w-3 mx-1" />
+                  {crumb.isLast ? (
+                    <span className="font-medium text-foreground">{crumb.label}</span>
+                  ) : (
+                    <Link href={crumb.href} className="hover:text-foreground transition-colors" onClick={() => showLoader()}>
+                      {crumb.label}
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </nav>
+          )}
+        </div>
 
-      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
          <span className="font-semibold text-lg md:hidden">KhyatiGems™</span>
          
          <DropdownMenu>
@@ -243,5 +245,6 @@ export function Topbar({ user }: TopbarProps) {
         onRemove={handleRemoveAvatar}
       />
     </header>
-  );
+  </CommandPaletteTrigger>
+);
 }

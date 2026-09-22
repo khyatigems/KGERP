@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { cacheQuery } from "@/lib/cache";
-
+import { withCache } from "@/lib/simple-cache";
 
 type PrismaRecord = Record<string, unknown>;
 type PackagingSettingsRow = { categoryHsnJson?: string | null };
@@ -44,9 +44,9 @@ const toDate = (value: string | null) => {
 };
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // Allow dashboard widgets to load stats for authenticated users
+  try {
+    const session = await auth();
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const sp = request.nextUrl.searchParams;
   const q = (sp.get("q") || sp.get("query") || "").trim();
@@ -167,7 +167,10 @@ export async function GET(request: NextRequest) {
     media: { none: {} },
   } as unknown as Prisma.InventoryWhereInput;
 
-  const categoryHsnMap = parseCategoryHsnJson((await packagingPrisma.gpisSettings.findFirst())?.categoryHsnJson ?? null);
+  const categoryHsnMap = await withCache("gpis:categoryHsn", 300_000, async () => {
+    const raw = (await packagingPrisma.gpisSettings.findFirst())?.categoryHsnJson ?? null;
+    return parseCategoryHsnJson(raw);
+  });
   const mappedCategories = Object.keys(categoryHsnMap).filter(Boolean);
 
   const hsnFieldWhere = {
@@ -372,4 +375,9 @@ export async function GET(request: NextRequest) {
 
   const payload = await getFull();
   return NextResponse.json(payload);
+
+  } catch (err) {
+    console.error("[inventory/stats] error:", err);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+  }
 }

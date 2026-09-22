@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/utils";
 import { CustomerReceivables } from "@/components/customers/customer-receivables";
 import { CustomerLoyaltyLedger } from "@/components/customers/customer-loyalty-ledger";
 import { CustomerAdvances } from "@/components/customers/customer-advances";
+import { CommunicationTimeline } from "@/components/communication/communication-timeline";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,7 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
       <TabsList>
         <TabsTrigger value="profile">Profile & Summary</TabsTrigger>
         <TabsTrigger value="timeline">Purchase Timeline</TabsTrigger>
+        <TabsTrigger value="communication">Communication</TabsTrigger>
         <TabsTrigger value="receivables">Receivables</TabsTrigger>
         <TabsTrigger value="advances">Advances</TabsTrigger>
         <TabsTrigger value="loyalty">Loyalty Points</TabsTrigger>
@@ -201,6 +203,10 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
 
       <TabsContent value="receivables">
         <CustomerReceivables customerId={customer.id} customerName={customer.name} />
+      </TabsContent>
+
+      <TabsContent value="communication">
+        <CommunicationTimeline customerId={customer.id} />
       </TabsContent>
 
       <TabsContent value="advances">

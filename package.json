@@ -41,10 +41,14 @@
     "postinstall": "node scripts/prisma-generate.mjs"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
     "@imagekit/next": "^2.1.4",
     "@imagekit/nodejs": "^7.3.0",
     "@libsql/client": "0.8.1",
+    "@lottiefiles/react-lottie-player": "^3.6.0",
     "@prisma/adapter-libsql": "5.22.0",
     "@prisma/client": "5.22.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
