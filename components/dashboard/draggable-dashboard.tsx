@@ -35,7 +35,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
-type WidgetRenderer = (props: Record<string, unknown>) => React.ReactNode;
+type WidgetRenderer = (props: any) => React.ReactNode;
 
 const widgetRegistry: Record<string, WidgetRenderer> = {
   header: (props) => <DashboardHeader {...props} />,
@@ -436,7 +436,7 @@ export function DashboardGrid({
         </SortableContext>
 
         <DragOverlay>
-          {({ activatorEvent, active }) => {
+          {((({ activatorEvent, active }: { activatorEvent: any; active: any }) => {
             const activeId = active?.id;
             if (!activatorEvent || !activeId) return null;
             const activeItem = items.find(i => i.id === activeId);
@@ -450,7 +450,7 @@ export function DashboardGrid({
                 <div className="min-h-[80px]">{renderWidget(activeItem)}</div>
               </div>
             );
-          }}
+          }) as any)}
         </DragOverlay>
       </DndContext>
 

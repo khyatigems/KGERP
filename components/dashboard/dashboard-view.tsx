@@ -84,7 +84,7 @@ export function DashboardView({ name }: { name?: string | null }) {
     // Append any new widgets from defaults that aren't in the saved layout yet
     for (const dw of defaultWidgets) {
       if (!layoutIds.has(dw.id)) {
-        merged.push(dw);
+        merged.push({ ...dw, disabled: dw.disabled ?? false });
       }
     }
     
@@ -152,7 +152,6 @@ export function DashboardView({ name }: { name?: string | null }) {
     <DashboardGrid
       widgets={widgets}
       onReorder={handleReorder}
-      onResize={saveLayout}
       renderData={renderData}
     />
   );
