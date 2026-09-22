@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client"
 import { PrismaLibSQL } from "@prisma/adapter-libsql"
 import { createClient } from "@libsql/client"
-import crypto from "crypto";
 
 const isProd = process.env.NODE_ENV === "production";
 
