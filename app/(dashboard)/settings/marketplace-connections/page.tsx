@@ -4,6 +4,8 @@ import { getConnectionStatus } from "@/lib/marketplace/oauth";
 import { getFeatureFlags, type FeatureFlagKey } from "@/lib/marketplace/feature-flags";
 import { MarketplaceConnectionsClient } from "./marketplace-connections-client";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Marketplace Connections",
   robots: { index: false, follow: false },
