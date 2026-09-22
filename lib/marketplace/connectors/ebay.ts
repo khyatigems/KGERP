@@ -146,10 +146,11 @@ export class EbayConnector implements MarketplaceConnector {
     return data.access_token;
   }
 
-  private async getHeaders(token: string): Promise<Record<string, string>> {
+  private getHeaders(token: string): Record<string, string> {
     return {
       ...bearerAuth(token),
       Accept: "application/json",
+      "Accept-Language": "en-US",
       "Content-Language": "en-US",
     };
   }
