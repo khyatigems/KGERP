@@ -1,4 +1,4 @@
-import { httpJson, bearerAuth } from "@/lib/marketplace/http";
+import { httpJson, bearerAuth, httpRequest, HttpError } from "@/lib/marketplace/http";
 import type { MarketplaceConnector } from "@/lib/marketplace/connector";
 import type {
   NormalizedListing,
@@ -46,6 +46,7 @@ function bases() {
     sandbox,
     authBase: sandbox ? "https://auth.sandbox.ebay.com" : "https://auth.ebay.com",
     apiBase: sandbox ? "https://api.sandbox.ebay.com" : "https://api.ebay.com",
+    findingBase: sandbox ? "https://svcs.sandbox.ebay.com" : "https://svcs.ebay.com",
   };
 }
 
@@ -155,74 +156,91 @@ export class EbayConnector implements MarketplaceConnector {
     };
   }
 
-  async fetchListings(params: ListingSyncParams = {}): Promise<NormalizedListing[]> {
+  private async getSellerId(): Promise<string> {
     const token = await this.getAccessToken();
-    const headers = await this.getHeaders(token);
     const { apiBase } = bases();
-
-    const pageSize = params.limit && params.limit > 0 ? params.limit : 100;
-    const offset = params.offset || 0;
-
-    const inventory = await httpJson<{ inventoryItems?: any[] }>(
-      `${apiBase}/sell/inventory/v1/inventory_item?limit=${pageSize}&offset=${offset}`,
-      { headers }
-    );
-
-    const offers = await httpJson<{ offers?: any[] }>(
-      `${apiBase}/sell/inventory/v1/offer?limit=${pageSize}&offset=0`,
-      { headers }
-    ).catch(() => ({ offers: [] as any[] }));
-
-    const offerBySku = new Map<string, any>();
-    for (const offer of offers.offers || []) {
-      if (offer?.sku) offerBySku.set(String(offer.sku), offer);
+    try {
+      const data = await httpJson<any>(
+        `${apiBase}/sell/account/v1/user`,
+        { headers: this.getHeaders(token) }
+      );
+      return data?.userId || "";
+    } catch (err) {
+      console.error("[ebay] Failed to get seller ID:", err);
+      return "";
     }
-
-    const listings: NormalizedListing[] = [];
-    for (const item of inventory.inventoryItems || []) {
-      const sku = item?.sku ? String(item.sku) : null;
-      const offer = sku ? offerBySku.get(sku) : undefined;
-      listings.push(this.normalizeListing(item, offer));
-    }
-    return listings;
   }
 
-  private normalizeListing(item: any, offer: any): NormalizedListing {
-    const product = item?.product || {};
-    const pricing = offer?.pricingSummary?.price || {};
-    const listing = offer?.listing || {};
-    const images = Array.isArray(product?.imageUrls) ? product.imageUrls.map(String) : [];
-    const aspects = product?.aspects || {};
-    const attributes: Record<string, string> = {};
-    for (const key of Object.keys(aspects)) {
-      const value = aspects[key];
-      attributes[key] = Array.isArray(value) ? value.join(", ") : String(value ?? "");
+  async fetchListings(params: ListingSyncParams = {}): Promise<NormalizedListing[]> {
+    const sellerId = await this.getSellerId();
+    if (!sellerId) {
+      console.warn("[ebay] Could not determine seller ID, skipping listing sync");
+      return [];
     }
+
+    const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 50) : 50;
+    const page = Math.floor((params.offset || 0) / pageSize) + 1;
+
+    const { findingBase } = bases();
+    const url = new URL(`${findingBase}/services/search/FindingAPI/v1`);
+    url.searchParams.set("OPERATION-NAME", "findItemsAdvanced");
+    url.searchParams.set("SERVICE-VERSION", "1.0.0");
+    url.searchParams.set("SECURITY-APPNAME", this.clientId);
+    url.searchParams.set("GLOBAL-ID", "EBAY-US");
+    url.searchParams.set("RESPONSE-DATA-FORMAT", "JSON");
+    url.searchParams.set("REST-PAYLOAD", "");
+    url.searchParams.set("sellerId", sellerId);
+    url.searchParams.set("paginationInput.entriesPerPage", String(pageSize));
+    url.searchParams.set("paginationInput.pageNumber", String(page));
+
+    const data = await httpJson<any>(url.toString(), { method: "GET" });
+
+    const result = data?.findItemsAdvancedResponse?.[0]?.searchResult?.[0];
+    const items: any[] = result?.item || [];
+    const totalCount = Number(result?.["@count"] || 0);
+
+    console.log(`[ebay] Finding API: seller=${sellerId}, page=${page}, items=${totalCount}`);
+
+    return items.map((item: any) => this.normalizeFindingItem(item));
+  }
+
+  private normalizeFindingItem(item: any): NormalizedListing {
+    const price = item?.currentPrice?.[0];
+    const condition = item?.condition?.[0];
+    const images: string[] = [];
+    if (item?.galleryURL?.[0]) images.push(item.galleryURL[0]);
+    if (item?.pictureURLSuperSize?.[0]) images.push(item.pictureURLSuperSize[0]);
 
     return {
       marketplace: "EBAY",
-      listingId: listing?.listingId ? String(listing.listingId) : (item?.sku ? String(item.sku) : ""),
-      listingSku: item?.sku ? String(item.sku) : null,
-      title: product?.title ? String(product.title) : null,
-      description: product?.description ? String(product.description) : null,
-      price: pricing?.value != null ? Number(pricing.value) : null,
-      currency: pricing?.currency ? String(pricing.currency) : null,
-      quantity: offer?.availableQuantity != null ? Number(offer.availableQuantity) : (item?.availability?.shipToLocationQuantity != null ? Number(item.availability.shipToLocationQuantity) : null),
-      status: offer?.status ? String(offer.status) : null,
-      listingUrl: listing?.listingUrl ? String(listing.listingUrl) : null,
-      category: null,
+      listingId: String(item?.itemId?.[0] || ""),
+      listingSku: item?.sku?.[0] ? String(item.sku[0]) : null,
+      title: item?.title?.[0] ? String(item.title[0]) : null,
+      description: null,
+      price: price?.__value__ != null ? Number(price.__value__) : null,
+      currency: price?.__currencyId__ ? String(price.__currencyId__) : null,
+      quantity: item?.quantity?.[0] != null ? Number(item.quantity[0]) : null,
+      status: item?.listingStatus?.[0] ? String(item.listingStatus[0]) : null,
+      listingUrl: item?.viewItemURL?.[0] ? String(item.viewItemURL[0]) : null,
+      category: item?.primaryCategory?.[0]?.categoryName?.[0]
+        ? String(item.primaryCategory[0].categoryName[0])
+        : null,
       images,
-      attributes,
-      views: item?.soldQuantity != null || offer?.soldQuantity != null ? null : null,
-      favorites: null,
-      orders: offer?.soldQuantity != null ? Number(offer.soldQuantity) : (item?.soldQuantity != null ? Number(item.soldQuantity) : null),
-      raw: { item, offer },
+      attributes: condition?.[0]?.conditionDisplayName?.[0]
+        ? { Condition: String(condition[0].conditionDisplayName[0]) }
+        : {},
+      views: item?.hitCount?.[0] != null ? Number(item.hitCount[0]) : null,
+      favorites: item?.watchCount?.[0] != null ? Number(item.watchCount[0]) : null,
+      orders: item?.sellingStatus?.[0]?.quantitySold?.[0] != null
+        ? Number(item.sellingStatus[0].quantitySold[0])
+        : null,
+      raw: item,
     };
   }
 
   async fetchOrders(params: OrderSyncParams = {}): Promise<NormalizedOrder[]> {
     const token = await this.getAccessToken();
-    const headers = await this.getHeaders(token);
+    const headers = this.getHeaders(token);
     const { apiBase } = bases();
 
     const pageSize = params.limit && params.limit > 0 ? params.limit : 50;
