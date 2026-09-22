@@ -40,6 +40,43 @@ function isSandbox(): boolean {
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   const challengeCode = request.nextUrl.searchParams.get("challenge_code");
+  const testMode = request.nextUrl.searchParams.get("test");
+
+  // Debug/test mode: compute hash for a test challenge code so we can verify locally
+  if (testMode) {
+    const verificationToken = getVerificationToken();
+    const host = request.headers.get("host") || "unknown";
+    const proto = request.headers.get("x-forwarded-proto") || "https";
+    const actualUrl = `${proto}://${host}${ENDPOINT_PATH}`;
+
+    const testCode = "test_challenge_12345";
+    const urls = [
+      actualUrl,
+      PRIMARY_ENDPOINT_URL,
+      REDIRECTED_ENDPOINT_URL,
+    ];
+
+    const results: Record<string, string> = {};
+    for (const url of [...new Set(urls)]) {
+      const h = crypto.createHash("sha256");
+      h.update(testCode);
+      h.update(verificationToken || "MISSING");
+      h.update(url);
+      results[url] = h.digest("hex");
+    }
+
+    return NextResponse.json({
+      debug: true,
+      host,
+      actualUrl,
+      hasToken: Boolean(verificationToken),
+      tokenLength: verificationToken?.length || 0,
+      tokenFirstChars: verificationToken ? verificationToken.substring(0, 8) + "..." : "MISSING",
+      testChallengeCode: testCode,
+      computedHashes: results,
+    }, { status: 200 });
+  }
+
   if (!challengeCode) {
     return NextResponse.json({ error: "Missing challenge_code" }, { status: 400 });
   }
@@ -61,7 +98,6 @@ export async function GET(request: NextRequest) {
     challengeCode,
     host,
     endpointUrl,
-    hasToken: Boolean(verificationToken),
     tokenLength: verificationToken.length,
   });
 
