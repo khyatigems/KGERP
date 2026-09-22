@@ -39,24 +39,31 @@ interface ListingsViewProps {
   orders?: MarketplaceOrderRow[];
 }
 
-function SyncButton({ 
-  label, 
-  onClick, 
-  disabled = false 
-}: { 
-  label: string; 
-  onClick: () => void; 
+function SyncButton({
+  label,
+  onClick,
+  disabled = false,
+  variant = "default",
+}: {
+  label: string;
+  onClick: () => void;
   disabled?: boolean;
+  variant?: "default" | "outline";
 }) {
   const [isPending, startTransition] = useTransition();
-  
+
+  const baseClass = "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+  const variantClass = variant === "outline"
+    ? "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+    : "bg-primary text-primary-foreground hover:bg-primary/90";
+
   return (
     <button
       onClick={() => {
         startTransition(() => onClick());
       }}
       disabled={disabled || isPending}
-      className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      className={`${baseClass} ${variantClass}`}
     >
       {isPending ? (
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -69,22 +76,24 @@ function SyncButton({
 }
 
 export function ListingsView({ listings, orders = [] }: ListingsViewProps) {
-  // Check if any listing has engagement data
   const hasMetrics = listings.some((l) => l.latestMetric !== null);
 
-  const [syncing, setSyncing] = useState<"listings" | "orders" | null>(null);
-  
-  const handleSync = async (type: "listings" | "orders") => {
-    setSyncing(type);
+  const [syncing, setSyncing] = useState<string | null>(null);
+
+  const handleSync = async (type: "listings" | "orders", platform: "EBAY" | "ETSY") => {
+    const key = `${platform}-${type}`;
+    setSyncing(key);
     try {
+      const fd = new FormData();
+      fd.set("platform", platform);
       if (type === "listings") {
-        await syncListingsAction(new FormData());
+        await syncListingsAction(fd);
       } else {
-        await syncOrdersAction(new FormData());
+        await syncOrdersAction(fd);
       }
-      toast.success(`Sync completed successfully`);
+      toast.success(`${platform} ${type} sync completed`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Sync failed");
+      toast.error(error instanceof Error ? error.message : `${platform} sync failed`);
     } finally {
       setSyncing(null);
     }
@@ -94,20 +103,33 @@ export function ListingsView({ listings, orders = [] }: ListingsViewProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Listings Management</h1>
-        <div className="flex items-center gap-2">
-          <SyncButton 
-            label="Sync Listings" 
-            onClick={() => handleSync("listings")}
-            disabled={syncing === "listings"}
+        <div className="flex flex-wrap items-center gap-2">
+          <SyncButton
+            label="eBay Listings"
+            onClick={() => handleSync("listings", "EBAY")}
+            disabled={syncing !== null}
           />
           <SyncButton
-            label="Sync Orders"
-            onClick={() => handleSync("orders")}
-            disabled={syncing === "orders"}
+            label="eBay Orders"
+            onClick={() => handleSync("orders", "EBAY")}
+            disabled={syncing !== null}
+            variant="outline"
+          />
+          <div className="h-6 w-px bg-border" />
+          <SyncButton
+            label="Etsy Listings"
+            onClick={() => handleSync("listings", "ETSY")}
+            disabled={syncing !== null}
+          />
+          <SyncButton
+            label="Etsy Orders"
+            onClick={() => handleSync("orders", "ETSY")}
+            disabled={syncing !== null}
+            variant="outline"
           />
         </div>
       </div>
-      
+
       <Tabs defaultValue="active" className="space-y-4">
         <TabsList>
           <TabsTrigger value="active">Active Listings</TabsTrigger>

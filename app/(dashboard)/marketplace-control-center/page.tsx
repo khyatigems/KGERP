@@ -202,49 +202,8 @@ export default async function MarketplaceControlCenterPage({
                   <div className="flex items-center gap-1">
                     <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-600">Opportunity</Badge>
                     <span className="text-xs">Marketplace price exceeds ERP by 15%+</span>
-          </div>
-
-          {needsPreparationRows.length > 0 && (
-            <div className="space-y-2 mt-6">
-              <h3 className="text-lg font-semibold text-amber-600">⚠️ Needs Preparation ({needsPreparationRows.length})</h3>
-              <p className="text-xs text-muted-foreground">These items are not listed on any platform and need image + certificate before listing.</p>
-              <div className="rounded-md border bg-card">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Product Name</TableHead>
-                      <TableHead>Missing</TableHead>
-                      <TableHead>Image</TableHead>
-                      <TableHead>Certificate</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {needsPreparationRows.slice(0, 50).map((row) => (
-                      <TableRow key={row.inventoryId}>
-                        <TableCell className="font-medium">{row.sku}</TableCell>
-                        <TableCell>{row.productName}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {row.missingPlatforms.map((p) => (
-                              <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {row.hasImage ? <Badge variant="default" className="bg-emerald-500 text-[10px]">✅</Badge> : <Badge variant="destructive" className="text-[10px]">Missing</Badge>}
-                        </TableCell>
-                        <TableCell>
-                          {row.hasCertificate ? <Badge variant="default" className="bg-emerald-500 text-[10px]">✅</Badge> : <Badge variant="destructive" className="text-[10px]">Missing</Badge>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
-        </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -293,6 +252,47 @@ export default async function MarketplaceControlCenterPage({
               </CardContent>
             </Card>
           </div>
+
+          {needsPreparationRows.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-amber-600">⚠️ Needs Preparation ({needsPreparationRows.length})</h3>
+              <p className="text-xs text-muted-foreground">These items are not listed on any platform and need image + certificate before listing.</p>
+              <div className="rounded-md border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Product Name</TableHead>
+                      <TableHead>Missing</TableHead>
+                      <TableHead>Image</TableHead>
+                      <TableHead>Certificate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {needsPreparationRows.slice(0, 50).map((row) => (
+                      <TableRow key={row.inventoryId}>
+                        <TableCell className="font-medium">{row.sku}</TableCell>
+                        <TableCell>{row.productName}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {row.missingPlatforms.map((p) => (
+                              <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {row.hasImage ? <Badge variant="default" className="bg-emerald-500 text-[10px]">✅</Badge> : <Badge variant="destructive" className="text-[10px]">Missing</Badge>}
+                        </TableCell>
+                        <TableCell>
+                          {row.hasCertificate ? <Badge variant="default" className="bg-emerald-500 text-[10px]">✅</Badge> : <Badge variant="destructive" className="text-[10px]">Missing</Badge>}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
