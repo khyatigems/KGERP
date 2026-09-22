@@ -5,12 +5,6 @@ import { logActivity } from "@/lib/activity-logger";
 
 const ENDPOINT_PATH = "/api/ebay/account-deletion";
 
-// Primary endpoint URL (must match what's configured in eBay Developer Portal).
-// If erp.khyatigems.com redirects to kgerp.vercel.app, eBay follows the redirect
-// and uses the FINAL URL in its hash. We detect this dynamically below.
-const PRIMARY_ENDPOINT_URL = "https://www.erp.khyatigems.com/api/ebay/account-deletion";
-const REDIRECTED_ENDPOINT_URL = "https://kgerp.vercel.app/api/ebay/account-deletion";
-
 function env(name: string): string {
   return (process.env[name] || "").trim();
 }
@@ -40,43 +34,6 @@ function isSandbox(): boolean {
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   const challengeCode = request.nextUrl.searchParams.get("challenge_code");
-  const testMode = request.nextUrl.searchParams.get("test");
-
-  // Debug/test mode: compute hash for a test challenge code so we can verify locally
-  if (testMode) {
-    const verificationToken = getVerificationToken();
-    const host = request.headers.get("host") || "unknown";
-    const proto = request.headers.get("x-forwarded-proto") || "https";
-    const actualUrl = `${proto}://${host}${ENDPOINT_PATH}`;
-
-    const testCode = "test_challenge_12345";
-    const urls = [
-      actualUrl,
-      PRIMARY_ENDPOINT_URL,
-      REDIRECTED_ENDPOINT_URL,
-    ];
-
-    const results: Record<string, string> = {};
-    for (const url of [...new Set(urls)]) {
-      const h = crypto.createHash("sha256");
-      h.update(testCode);
-      h.update(verificationToken || "MISSING");
-      h.update(url);
-      results[url] = h.digest("hex");
-    }
-
-    return NextResponse.json({
-      debug: true,
-      host,
-      actualUrl,
-      hasToken: Boolean(verificationToken),
-      tokenLength: verificationToken?.length || 0,
-      tokenFirstChars: verificationToken ? verificationToken.substring(0, 8) + "..." : "MISSING",
-      testChallengeCode: testCode,
-      computedHashes: results,
-    }, { status: 200 });
-  }
-
   if (!challengeCode) {
     return NextResponse.json({ error: "Missing challenge_code" }, { status: 400 });
   }
@@ -87,9 +44,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
 
-  // Derive the endpoint URL from the actual request host.
-  // When erp.khyatigems.com redirects to kgerp.vercel.app, eBay follows the
-  // redirect and computes its hash with the final URL. We must match it.
+  // Derive the endpoint URL from the actual request host so the hash matches
+  // what eBay computes (eBay uses the URL it sends the challenge to).
   const host = request.headers.get("host") || "www.erp.khyatigems.com";
   const proto = request.headers.get("x-forwarded-proto") || "https";
   const endpointUrl = `${proto}://${host}${ENDPOINT_PATH}`;
@@ -107,7 +63,7 @@ export async function GET(request: NextRequest) {
   hash.update(endpointUrl);
   const challengeResponse = hash.digest("hex");
 
-  console.log("[ebay-mpn] Challenge response sent for endpoint:", endpointUrl);
+  console.log("[ebay-mpn] Challenge verified successfully");
 
   return NextResponse.json({ challengeResponse });
 }
