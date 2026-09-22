@@ -4,7 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-logger";
 
 const ENDPOINT_PATH = "/api/ebay/account-deletion";
-const ENDPOINT_URL = "https://www.erp.khyatigems.com/api/ebay/account-deletion";
+
+// Primary endpoint URL (must match what's configured in eBay Developer Portal).
+// If erp.khyatigems.com redirects to kgerp.vercel.app, eBay follows the redirect
+// and uses the FINAL URL in its hash. We detect this dynamically below.
+const PRIMARY_ENDPOINT_URL = "https://www.erp.khyatigems.com/api/ebay/account-deletion";
+const REDIRECTED_ENDPOINT_URL = "https://kgerp.vercel.app/api/ebay/account-deletion";
 
 function env(name: string): string {
   return (process.env[name] || "").trim();
@@ -45,10 +50,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
 
-  const endpointUrl = ENDPOINT_URL;
+  // Derive the endpoint URL from the actual request host.
+  // When erp.khyatigems.com redirects to kgerp.vercel.app, eBay follows the
+  // redirect and computes its hash with the final URL. We must match it.
+  const host = request.headers.get("host") || "www.erp.khyatigems.com";
+  const proto = request.headers.get("x-forwarded-proto") || "https";
+  const endpointUrl = `${proto}://${host}${ENDPOINT_PATH}`;
 
   console.log("[ebay-mpn] Challenge received:", {
     challengeCode,
+    host,
     endpointUrl,
     hasToken: Boolean(verificationToken),
     tokenLength: verificationToken.length,
