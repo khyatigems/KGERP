@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-logger";
 
+const ENDPOINT_PATH = "/api/ebay/account-deletion";
 const ENDPOINT_URL = "https://www.erp.khyatigems.com/api/ebay/account-deletion";
 
 function env(name: string): string {
@@ -44,13 +45,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
 
+  const endpointUrl = ENDPOINT_URL;
+
+  console.log("[ebay-mpn] Challenge received:", {
+    challengeCode,
+    endpointUrl,
+    hasToken: Boolean(verificationToken),
+    tokenLength: verificationToken.length,
+  });
+
   const hash = crypto.createHash("sha256");
   hash.update(challengeCode);
   hash.update(verificationToken);
-  hash.update(ENDPOINT_URL);
+  hash.update(endpointUrl);
   const challengeResponse = hash.digest("hex");
 
-  console.log("[ebay-mpn] Challenge verified successfully");
+  console.log("[ebay-mpn] Challenge response sent for endpoint:", endpointUrl);
 
   return NextResponse.json({ challengeResponse });
 }
