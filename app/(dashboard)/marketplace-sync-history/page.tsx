@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { RetryMarketplaceSyncButton } from "@/components/marketplace/retry-sync-button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -37,7 +38,7 @@ export default async function MarketplaceSyncHistoryPage() {
         <h2 className="text-sm font-semibold">Sync jobs</h2>
         <div className="overflow-x-auto rounded-md border">
           <Table>
-            <TableHeader><TableRow><TableHead>Created</TableHead><TableHead>Marketplace</TableHead><TableHead>Shop</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead><TableHead>Progress</TableHead><TableHead>Records</TableHead><TableHead>Error</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Created</TableHead><TableHead>Marketplace</TableHead><TableHead>Shop</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead><TableHead>Progress</TableHead><TableHead>Records</TableHead><TableHead>Error</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
             <TableBody>
               {jobs.map((job) => (
                 <TableRow key={job.id}>
@@ -49,9 +50,10 @@ export default async function MarketplaceSyncHistoryPage() {
                   <TableCell>{job.progressStep}{job.progressDetail ? ` · ${job.progressDetail}` : ""}</TableCell>
                   <TableCell>{job.recordsScanned} scanned · {job.recordsCreated} created · {job.recordsUpdated} updated · {job.recordsFailed} failed</TableCell>
                   <TableCell className="max-w-[320px] whitespace-normal text-xs text-destructive">{job.errorDetails || "—"}</TableCell>
+                  <TableCell>{job.status === "FAILED" || job.status === "PARTIAL" ? <RetryMarketplaceSyncButton jobIds={[job.id]} label="Retry" /> : "—"}</TableCell>
                 </TableRow>
               ))}
-              {jobs.length === 0 && <TableRow><TableCell colSpan={8} className="h-20 text-center text-muted-foreground">No sync jobs yet.</TableCell></TableRow>}
+              {jobs.length === 0 && <TableRow><TableCell colSpan={9} className="h-20 text-center text-muted-foreground">No sync jobs yet.</TableCell></TableRow>}
             </TableBody>
           </Table>
         </div>

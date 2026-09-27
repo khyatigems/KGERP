@@ -31,6 +31,6 @@ Register the OAuth callback URL `/api/integrations/marketplace/oauth/callback` w
 
 ## Sync worker
 
-Vercel runs `/api/cron/marketplace/sync` every minute. The worker handles bounded pages and records progress in the database; manual sync actions also kick off an initial bounded batch. The scheduled endpoint requires `CRON_SECRET` in production.
+Marketplace does not use a Vercel cron. Manual actions enqueue durable jobs, and the Marketplace progress monitor drives bounded worker requests while the operator's browser is open. Progress survives navigation and refresh; reopening Marketplace resumes queued jobs from the saved cursor. If the browser/device is offline, jobs remain queued until an operator returns and resumes them. A manual Retry action creates a new attempt for failed/partial shops.
 
-The minute schedule requires a Vercel plan that supports subdaily cron jobs. If the deployment plan does not support it, use an external scheduler to call the protected cron endpoint; do not move full sync work into the browser request.
+This works on Vercel Hobby without violating its daily cron limit and avoids tying the full sync to one browser request. If sync must continue unattended after every browser closes, configure an external scheduler or use a Vercel plan that supports frequent cron executions; the protected `/api/cron/marketplace/sync` endpoint remains available for that purpose and requires `CRON_SECRET` in production.

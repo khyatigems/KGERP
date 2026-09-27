@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-
-const STORAGE_KEY = "marketplace-sync-batches";
+import { RetryMarketplaceSyncButton } from "@/components/marketplace/retry-sync-button";
+import { forgetMarketplaceSyncBatch, readMarketplaceSyncBatches } from "@/components/marketplace/sync-client";
 
 type SyncJob = {
   id: string;
@@ -18,28 +18,17 @@ type SyncJob = {
   recordsSkipped: number;
   recordsFailed: number;
   errorDetails: string | null;
+  updatedAt: string;
   marketplaceShop: { marketplace: string; name: string };
 };
 
-function readBatches(): string[] {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-export function rememberMarketplaceSyncBatch(batchId: string) {
-  const batches = readBatches();
-  if (!batches.includes(batchId)) localStorage.setItem(STORAGE_KEY, JSON.stringify([...batches, batchId]));
-  window.dispatchEvent(new CustomEvent("marketplace-sync-batch", { detail: { batchId } }));
-}
-
 export function MarketplaceSyncToastMonitor() {
-  const [batches, setBatches] = useState<string[]>(() => typeof window === "undefined" ? [] : readBatches());
+  const [batches, setBatches] = useState<string[]>(() => typeof window === "undefined" ? [] : readMarketplaceSyncBatches());
   const [jobsByBatch, setJobsByBatch] = useState<Record<string, SyncJob[]>>({});
   const [finishedBatches, setFinishedBatches] = useState<string[]>([]);
+  const workerInFlight = useRef(false);
+  const workerKickFailures = useRef(0);
+  const nextWorkerKickAt = useRef(0);
 
   useEffect(() => {
     const handleBatch = (event: Event) => {
@@ -55,6 +44,7 @@ export function MarketplaceSyncToastMonitor() {
     if (!pendingBatches.length) return;
     let cancelled = false;
     const poll = async () => {
+      let hasQueuedJobs = false;
       for (const batchId of pendingBatches) {
         try {
           const response = await fetch(`/api/integrations/marketplace/sync?batchId=${encodeURIComponent(batchId)}`, { cache: "no-store" });
@@ -62,6 +52,11 @@ export function MarketplaceSyncToastMonitor() {
           const payload = await response.json() as { jobs: SyncJob[] };
           if (!cancelled) {
             const jobs = payload.jobs || [];
+            if (jobs.some((job) => {
+              if (job.status === "QUEUED") return true;
+              if (job.status !== "PROCESSING") return false;
+              return Date.now() - new Date(job.updatedAt).getTime() > 2 * 60 * 1000;
+            })) hasQueuedJobs = true;
             setJobsByBatch((current) => ({ ...current, [batchId]: jobs }));
             if (jobs.length && jobs.every((job) => !["QUEUED", "PROCESSING"].includes(job.status))) {
               setFinishedBatches((current) => current.includes(batchId) ? current : [...current, batchId]);
@@ -69,6 +64,21 @@ export function MarketplaceSyncToastMonitor() {
           }
         } catch {
           // Keep the batch visible and try again on the next polling cycle.
+        }
+      }
+      if (hasQueuedJobs && !workerInFlight.current && !cancelled && Date.now() >= nextWorkerKickAt.current) {
+        workerInFlight.current = true;
+        try {
+          const response = await fetch("/api/integrations/marketplace/sync/process", { method: "POST" });
+          if (!response.ok) throw new Error(`Worker returned ${response.status}`);
+          workerKickFailures.current = 0;
+          nextWorkerKickAt.current = 0;
+        } catch {
+          workerKickFailures.current += 1;
+          const delayMs = Math.min(30_000, 1_000 * (2 ** Math.min(workerKickFailures.current, 5)));
+          nextWorkerKickAt.current = Date.now() + delayMs;
+        } finally {
+          workerInFlight.current = false;
         }
       }
     };
@@ -96,8 +106,8 @@ export function MarketplaceSyncToastMonitor() {
             </div>
             <Button variant="ghost" size="sm" onClick={() => {
               toast.dismiss(id);
-              const remaining = readBatches().filter((value) => value !== batchId);
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(remaining));
+              forgetMarketplaceSyncBatch(batchId);
+              const remaining = readMarketplaceSyncBatches();
               setBatches(remaining);
             }}>Close</Button>
           </div>
@@ -124,6 +134,13 @@ export function MarketplaceSyncToastMonitor() {
               ))}
             </div>
           </details>
+          {failed > 0 && (
+            <div className="mt-2 flex justify-end">
+              <RetryMarketplaceSyncButton
+                jobIds={jobs.filter((job) => job.status === "FAILED" || job.status === "PARTIAL").map((job) => job.id)}
+              />
+            </div>
+          )}
         </div>
       ), { id: toastId, duration: Infinity, position: "bottom-right" });
     }

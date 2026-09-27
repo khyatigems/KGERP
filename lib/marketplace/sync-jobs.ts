@@ -6,7 +6,7 @@ import { syncOrdersForPlatform } from "@/lib/marketplace/sync-orders";
 
 const PAGE_SIZE = 25;
 const MAX_ATTEMPTS = 3;
-const STALE_AFTER_MS = 10 * 60 * 1000;
+const STALE_AFTER_MS = 2 * 60 * 1000;
 
 export async function enqueueMarketplaceSyncJobs(input: {
   shopIds: string[];

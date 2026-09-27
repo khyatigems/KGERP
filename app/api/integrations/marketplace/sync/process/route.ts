@@ -13,7 +13,7 @@ export async function POST() {
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
-    const result = await processQueuedMarketplaceSyncJobs(5);
+    const result = await processQueuedMarketplaceSyncJobs(1);
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error("Immediate marketplace sync worker kick failed", error);

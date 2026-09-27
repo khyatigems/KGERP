@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { rememberMarketplaceSyncBatch } from "@/components/marketplace/sync-toast-monitor";
+import { rememberMarketplaceSyncBatch } from "@/components/marketplace/sync-client";
 
 export interface MarketplaceShopOption {
   id: string;

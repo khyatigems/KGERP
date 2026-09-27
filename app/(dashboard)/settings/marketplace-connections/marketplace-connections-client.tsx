@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { FeatureFlagKey } from "@/lib/marketplace/feature-flags";
-import { rememberMarketplaceSyncBatch } from "@/components/marketplace/sync-toast-monitor";
+import { rememberMarketplaceSyncBatch } from "@/components/marketplace/sync-client";
 
 interface Connection {
   id: string;
