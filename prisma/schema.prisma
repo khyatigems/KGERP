@@ -519,6 +519,7 @@ model Purchase {
   items         Inventory[]
   vendor        Vendor?        @relation(fields: [vendorId], references: [id])
   purchaseItems PurchaseItem[]
+  payments      PurchasePayment[]
 
   @@index([vendorId])
 }
@@ -538,6 +539,25 @@ model PurchaseItem {
   totalCost   Float
   notes       String?
   purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+}
+
+model PurchasePayment {
+  id           String   @id @default(uuid())
+  purchaseId   String
+  amount       Float
+  date         DateTime @default(now())
+  method       String
+  reference    String?
+  chequeNumber String?
+  bankName     String?
+  chequePayee  String?
+  chequeDate   DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@index([purchaseId])
 }

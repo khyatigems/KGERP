@@ -29,7 +29,7 @@ const routeTitles: Record<string, string> = {
   "/packaging": "Packaging Identity",
   "/quotes": "Quotation Management",
   "/sales": "Sales & Orders",
-  "/purchases": "Purchase Orders",
+  "/purchases": "Purchase Register",
   "/vendors": "Vendor Management",
   "/reports": "Business Reports",
   "/reports/qr-scans": "QR Scan Analytics",

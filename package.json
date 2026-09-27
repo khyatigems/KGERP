@@ -10,6 +10,7 @@
     "migrate:backup": "node scripts/migration/turso-backup.mjs",
     "migrate:validate": "node scripts/migration/turso-validate.mjs",
     "migrate:deploy:safe": "node scripts/migration/turso-safe-deploy.mjs",
+    "backfill:purchase-payments": "node scripts/backfill-historical-purchase-payments.mjs",
     "patch:sale-columns": "node scripts/patch-sale-columns.mjs",
     "start": "next start",
     "lint": "eslint",

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil, Activity } from "lucide-react";
+import { Pencil, Activity, CalendarDays, CreditCard, Hash, Wallet } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { updatePurchaseInvoice, deletePurchaseAction } from "../actions";
+import { deletePurchaseAction } from "../actions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 
 type PurchasePageProps = {
@@ -44,6 +44,9 @@ export default async function PurchaseDetailPage({
         select: { name: true },
       },
       purchaseItems: true,
+      payments: {
+        orderBy: { date: "asc" },
+      },
     },
   });
 
@@ -62,29 +65,31 @@ export default async function PurchaseDetailPage({
   // Using explicit type to match the expected structure in JSX
   let logs: {
     id: string;
-    entityType: string;
-    actionType: string;
-    entityIdentifier: string;
+    entityType: string | null;
+    actionType: string | null;
+    entityIdentifier: string | null;
     userName: string | null;
-    timestamp: Date;
-    source: string;
+    createdAt: Date;
+    source: string | null;
     fieldChanges: string | null;
   }[] = [];
 
   try {
     const activityClient = (prisma as typeof prisma & {
       activityLog?: {
-        findMany: (args: { where: { entityType: string; entityId: string }; orderBy: { timestamp: string } }) => Promise<typeof logs>;
+        findMany: (args: { where: { OR: Array<{ entityType: string; entityId: string } | { entityType: string; entityIdentifier: string }> }; orderBy: { createdAt: string } }) => Promise<typeof logs>;
       };
     }).activityLog;
     
     if (activityClient) {
         logs = await activityClient.findMany({
             where: {
-                entityType: "Purchase",
-                entityId: purchaseId
+                OR: [
+                  { entityType: "Purchase", entityId: purchaseId },
+                  { entityType: "Purchase", entityIdentifier: purchase.invoiceNo || "" },
+                ],
             },
-            orderBy: { timestamp: "desc" },
+            orderBy: { createdAt: "desc" },
         });
     }
   } catch (error) {
@@ -97,11 +102,8 @@ export default async function PurchaseDetailPage({
     (sum: number, item) => sum + item.totalCost,
     0
   );
-
-  async function updateInvoiceAction(formData: FormData) {
-    "use server";
-    await updatePurchaseInvoice(formData);
-  }
+  const paidAmount = purchase.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const outstandingAmount = Math.max(0, totalCost - paidAmount);
 
   return (
     <AnimatedPage>
@@ -112,7 +114,7 @@ export default async function PurchaseDetailPage({
             Purchase Details
           </h1>
           <p className="text-sm text-muted-foreground">
-            Invoice {purchase.invoiceNo || "Not set"} ·{" "}
+            Purchase {purchase.invoiceNo || "Not set"} ·{" "}
             {formatDate(purchase.purchaseDate)}
           </p>
         </div>
@@ -144,7 +146,8 @@ export default async function PurchaseDetailPage({
           <h2 className="text-sm font-medium text-muted-foreground">
             Vendor
           </h2>
-          <p className="text-lg font-semibold">
+          <p className="flex items-center gap-2 text-lg font-semibold">
+            <Wallet className="h-4 w-4 text-muted-foreground" />
             {purchase.vendor?.name || "Unknown"}
           </p>
         </div>
@@ -155,7 +158,8 @@ export default async function PurchaseDetailPage({
           {/* <p className="text-sm">
             Mode: {purchase.paymentMode || "Not set"}
           </p> */}
-          <p className="text-sm">
+          <p className="flex items-center gap-2 text-sm">
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
             Status:{" "}
             <Badge variant="outline">
               {purchase.paymentStatus || "PENDING"}
@@ -166,41 +170,72 @@ export default async function PurchaseDetailPage({
           <h2 className="text-sm font-medium text-muted-foreground">
             Totals
           </h2>
-          <p className="text-2xl font-bold">
+          <p className="flex items-center gap-2 text-2xl font-bold">
+            <CalendarDays className="h-5 w-5 text-muted-foreground" />
             {formatCurrency(totalCost)}
           </p>
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 text-card-foreground shadow">
-        <h2 className="mb-4 text-lg font-semibold">
-          Invoice Number
-        </h2>
-        <form action={updateInvoiceAction} className="flex flex-wrap items-end gap-4">
-          <input
-            type="hidden"
-            name="purchaseId"
-            value={purchase.id}
-          />
-          <div className="space-y-2">
-            <label
-              htmlFor="invoiceNo"
-              className="text-sm font-medium"
-            >
-              Invoice No
-            </label>
-            <input
-              id="invoiceNo"
-              name="invoiceNo"
-              defaultValue={purchase.invoiceNo || ""}
-              placeholder="KGP-0001"
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            />
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Paid to vendor</p>
+          <p className="mt-1 text-xl font-semibold text-emerald-600">{formatCurrency(paidAmount)}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Outstanding</p>
+          <p className="mt-1 text-xl font-semibold">{formatCurrency(outstandingAmount)}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Payment entries</p>
+          <p className="mt-1 text-xl font-semibold">{purchase.payments.length}</p>
+        </div>
+      </div>
+
+      {purchase.payments.length > 0 && (
+        <div className="rounded-xl border bg-card text-card-foreground shadow">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-lg font-semibold">Vendor Payments</h2>
           </div>
-          <Button type="submit">
-            Save
-          </Button>
-        </form>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Reference / Cheque</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {purchase.payments.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell>{formatDate(payment.date)}</TableCell>
+                    <TableCell><Badge variant="outline">{payment.method.replaceAll("_", " ")}</Badge></TableCell>
+                    <TableCell className="font-medium">{formatCurrency(payment.amount)}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {payment.reference || payment.chequeNumber || "-"}
+                      {payment.method === "CHEQUE" && payment.bankName ? ` · ${payment.bankName}` : ""}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-5 text-card-foreground shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-emerald-500/15 p-2 text-emerald-600">
+            <Hash className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Purchase reference</p>
+            <p className="text-2xl font-bold tracking-tight text-emerald-700 dark:text-emerald-400">{purchase.invoiceNo || "Not assigned"}</p>
+          </div>
+          <Badge className="ml-auto" variant="outline">Read-only record</Badge>
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card text-card-foreground shadow">
@@ -218,6 +253,7 @@ export default async function PurchaseDetailPage({
                 <TableHead>Qty</TableHead>
                 <TableHead>Cost/Unit</TableHead>
                 <TableHead>Total</TableHead>
+                <TableHead>Remarks</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -238,6 +274,7 @@ export default async function PurchaseDetailPage({
                   <TableCell>
                     {formatCurrency(item.totalCost)}
                   </TableCell>
+                  <TableCell className="max-w-56 whitespace-pre-line text-muted-foreground">{item.notes || "-"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -274,11 +311,11 @@ export default async function PurchaseDetailPage({
                         }`} />
                         <div className="space-y-1">
                             <p className="text-sm">
-                                <span className="font-medium">{log.userName}</span> {log.actionType.toLowerCase()}d this purchase
-                                {log.source !== 'WEB' && <span className="text-xs text-muted-foreground ml-2">via {log.source}</span>}
+                              <span className="font-medium">{log.userName || "System"}</span> {(log.actionType || "UPDATED").toLowerCase()} this purchase
+                              {log.source && log.source !== 'WEB' && <span className="text-xs text-muted-foreground ml-2">via {log.source}</span>}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                {log.timestamp.toLocaleString()}
+                                {log.createdAt.toLocaleString()}
                             </p>
                             {log.fieldChanges && (
                                 <div className="text-xs bg-muted p-2 rounded mt-1 font-mono">

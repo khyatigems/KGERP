@@ -52,7 +52,7 @@ export function PurchaseSearch() {
       <div className="relative flex-1">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search invoice, vendor, items..."
+          placeholder="Search purchase no., vendor, items..."
           className="pl-8"
           onChange={(e) => handleSearch(e.target.value)}
           defaultValue={query}

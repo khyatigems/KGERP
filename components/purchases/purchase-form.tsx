@@ -34,7 +34,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createPurchase, updatePurchase } from "@/app/(dashboard)/purchases/actions";
-import { quickCreateVendor } from "@/app/(dashboard)/vendors/actions";
 
 // --- Constants ---
 
@@ -73,16 +72,27 @@ const formSchema = z.object({
   vendorId: z.string().min(1, "Vendor is required"),
   purchaseDate: z.string(),
   invoiceNo: z.string().optional(),
-  paymentMode: z.string().optional(),
-  paymentStatus: z.string().default("PENDING"),
   remarks: z.string().optional(),
   items: z.array(purchaseItemSchema).min(1, "Add at least one item"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
+type PaymentDraft = {
+    amount: number;
+    method: "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE";
+    date: string;
+    reference: string;
+    chequeNumber: string;
+    bankName: string;
+    chequePayee: string;
+    chequeDate: string;
+};
 
 interface PurchaseFormProps {
   vendors: { id: string; name: string }[];
+  categories?: { id: string; name: string; code?: string | null }[];
+  gemstones?: { id: string; name: string; code?: string | null }[];
+  colors?: { id: string; name: string; code?: string | null }[];
   suggestedInvoiceNo?: string;
   initialData?: {
     id: string;
@@ -114,12 +124,14 @@ function PurchaseItemRow({
     index, 
     form, 
     remove, 
-    isSingle 
+    isSingle,
+    categories,
 }: { 
     index: number; 
     form: UseFormReturn<FormValues>; 
     remove: (index: number) => void; 
     isSingle: boolean; 
+    categories: { id: string; name: string; code?: string | null }[];
 }) {
     const category = useWatch({ control: form.control, name: `items.${index}.category` });
     const shape = useWatch({ control: form.control, name: `items.${index}.shape` });
@@ -184,24 +196,30 @@ function PurchaseItemRow({
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel className={index !== 0 ? "sr-only md:not-sr-only" : ""}>Category</FormLabel>
-                            <Select onValueChange={(val) => handleCategoryChange(val)} defaultValue={field.value}>
+                            <Select onValueChange={(val) => handleCategoryChange(val)} value={field.value || ""}>
                                 <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Category" />
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    <SelectItem value="Loose Gemstone">Loose Gemstone</SelectItem>
-                                    <SelectItem value="Bracelet">Bracelet</SelectItem>
-                                    <SelectItem value="Ring">Ring</SelectItem>
-                                    <SelectItem value="Pendant">Pendant</SelectItem>
-                                    <SelectItem value="Figure / Idol">Figure / Idol</SelectItem>
-                                    <SelectItem value="Seven Chakra">Seven Chakra</SelectItem>
-                                    <SelectItem value="Chips">Chips</SelectItem>
-                                    <SelectItem value="Beads">Beads</SelectItem>
-                                    <SelectItem value="Mixed Lot">Mixed Lot</SelectItem>
-                                    <SelectItem value="Raw / Rough">Raw / Rough</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
+                                    {categories.length > 0 ? categories.map((c) => (
+                                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                                    )) : (
+                                        <>
+                                            <SelectItem value="Loose Gemstone">Loose Gemstone</SelectItem>
+                                            <SelectItem value="Bracelet">Bracelet</SelectItem>
+                                            <SelectItem value="Ring">Ring</SelectItem>
+                                            <SelectItem value="Pendant">Pendant</SelectItem>
+                                            <SelectItem value="Figure / Idol">Figure / Idol</SelectItem>
+                                            <SelectItem value="Seven Chakra">Seven Chakra</SelectItem>
+                                            <SelectItem value="Chips">Chips</SelectItem>
+                                            <SelectItem value="Beads">Beads</SelectItem>
+                                            <SelectItem value="Mixed Lot">Mixed Lot</SelectItem>
+                                            <SelectItem value="Raw / Rough">Raw / Rough</SelectItem>
+                                            <SelectItem value="Other">Other</SelectItem>
+                                        </>
+                                    )}
                                 </SelectContent>
                             </Select>
                             <FormMessage />
@@ -390,6 +408,22 @@ function PurchaseItemRow({
                     )}
                 />
             </div>
+
+            <div className="md:col-span-12">
+              <FormField
+                control={form.control}
+                name={`items.${index}.remarks`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Item Remarks</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Item-specific remarks" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
             {/* Delete & Total Display */}
             <div className="md:col-span-12 flex justify-between items-center pt-2 border-t mt-2">
@@ -422,15 +456,10 @@ function PurchaseItemRow({
 
 // --- Main Export ---
 
-export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: PurchaseFormProps) {
+export function PurchaseForm({ vendors, categories = [], initialData, suggestedInvoiceNo }: PurchaseFormProps) {
   const [isPending, setIsPending] = useState(false);
-  const [vendorModalOpen, setVendorModalOpen] = useState(false);
-  const [newVendorName, setNewVendorName] = useState("");
-  const [newVendorPhone, setNewVendorPhone] = useState("");
-  const [newVendorEmail, setNewVendorEmail] = useState("");
-  const [newVendorType, setNewVendorType] = useState("General");
-  const [creatingVendor, setCreatingVendor] = useState(false);
-  const [vendorList, setVendorList] = useState(vendors);
+    const [paymentOpen, setPaymentOpen] = useState(false);
+    const [payments, setPayments] = useState<PaymentDraft[]>([]);
   const router = useRouter();
 
   const defaultValues: FormValues = initialData
@@ -438,8 +467,6 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
         vendorId: initialData.vendorId,
         purchaseDate: new Date(initialData.purchaseDate).toISOString().split("T")[0],
         invoiceNo: initialData.invoiceNo || "",
-        paymentMode: initialData.paymentMode || "BANK_TRANSFER",
-        paymentStatus: initialData.paymentStatus || "PENDING",
         remarks: initialData.remarks || "",
         items: initialData.items.map((item) => ({
           itemName: item.itemName,
@@ -459,13 +486,11 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
     vendorId: "",
     purchaseDate: new Date().toISOString().split("T")[0],
     invoiceNo: suggestedInvoiceNo || "",
-    paymentMode: "BANK_TRANSFER",
-    paymentStatus: "PENDING",
     remarks: "",
     items: [
         { 
             itemName: "",
-            category: "",
+            category: categories[0]?.name || "",
             quantity: 0, 
             costPerUnit: 0, 
             totalCost: 0, 
@@ -485,13 +510,21 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
   });
 
   async function onSubmit(data: FormValues) {
+        if (!initialData) {
+            setPayments((current) => current.length ? current : [{ amount: totalValue, method: "CASH", date: new Date().toISOString().split("T")[0], reference: "", chequeNumber: "", bankName: "", chequePayee: "", chequeDate: "" }]);
+            setPaymentOpen(true);
+            return;
+        }
+        await savePurchase(data, []);
+    }
+
+    async function savePurchase(data: FormValues, purchasePayments: PaymentDraft[]) {
     setIsPending(true);
     const formData = new FormData();
     formData.append("vendorId", data.vendorId);
     formData.append("purchaseDate", data.purchaseDate);
     if (data.invoiceNo) formData.append("invoiceNo", data.invoiceNo);
-    if (data.paymentMode) formData.append("paymentMode", data.paymentMode);
-    if (data.paymentStatus) formData.append("paymentStatus", data.paymentStatus);
+    formData.append("payments", JSON.stringify(purchasePayments));
     if (data.remarks) formData.append("remarks", data.remarks);
     
     formData.append("items", JSON.stringify(data.items));
@@ -525,41 +558,43 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
     }
   }
 
-  const handleQuickCreateVendor = async () => {
-    if (!newVendorName.trim()) {
-      toast.error("Vendor name is required");
-      return;
+    async function confirmPayment() {
+        const data = form.getValues();
+        const paidAmount = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        if (paidAmount > totalValue) {
+            toast.error("Payment total cannot exceed the purchase total");
+            return;
+        }
+        for (const payment of payments) {
+            if (["UPI", "BANK_TRANSFER"].includes(payment.method) && !payment.reference.trim()) {
+                toast.error("Reference number is required for UPI and bank transfer");
+                return;
+            }
+            if (payment.method === "CHEQUE" && (!payment.chequeNumber || !payment.bankName || !payment.chequePayee || !payment.chequeDate)) {
+                toast.error("Complete all cheque details before saving");
+                return;
+            }
+        }
+        setPaymentOpen(false);
+        await savePurchase(data, payments);
     }
-    setCreatingVendor(true);
-    try {
-      const result = await quickCreateVendor({
-        name: newVendorName.trim(),
-        phone: newVendorPhone.trim(),
-        email: newVendorEmail.trim(),
-        vendorType: newVendorType,
-      });
-      if (result.success && result.vendor) {
-        toast.success(`Vendor "${result.vendor.name}" created`);
-        setVendorList(prev => [...prev, result.vendor!]);
-        form.setValue("vendorId", result.vendor.id);
-        setVendorModalOpen(false);
-        setNewVendorName("");
-        setNewVendorPhone("");
-        setNewVendorEmail("");
-        setNewVendorType("General");
-      } else {
-        toast.error(result.message || "Failed to create vendor");
-      }
-    } catch {
-      toast.error("Something went wrong");
-    } finally {
-      setCreatingVendor(false);
-    }
-  };
+
+  const totalValue = form.watch("items")?.reduce((sum, item) => sum + Number(item.totalCost || 0), 0) || 0;
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <div className="rounded-xl border bg-muted/30 p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Purchase reference</p>
+            <h3 className="text-lg font-semibold">{suggestedInvoiceNo || "Auto-generated"}</h3>
+          </div>
+          <div className="text-right">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Total</p>
+            <p className="text-xl font-bold text-emerald-600">₹{totalValue.toLocaleString("en-IN")}</p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium">{initialData ? "Edit Purchase" : "Purchase Details"}</h3>
@@ -570,95 +605,29 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Vendor</FormLabel>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Vendor" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {vendorList.map((v) => (
-                            <SelectItem key={v.id} value={v.id}>
-                              {v.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => setVendorModalOpen(true)} title="Add New Vendor">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Vendor" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {vendors.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <div className="flex gap-3 text-xs text-muted-foreground">
                     <Link href="/vendors" className="hover:text-primary flex items-center gap-1">
                       View All Vendors <ExternalLink className="h-3 w-3" />
-                    </Link>
-                    <Link href="/settings/codes" className="hover:text-primary flex items-center gap-1">
-                      Vendor Codes <ExternalLink className="h-3 w-3" />
                     </Link>
                   </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            {/* Quick Create Vendor Modal */}
-            <Dialog open={vendorModalOpen} onOpenChange={setVendorModalOpen}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Vendor</DialogTitle>
-                  <DialogDescription>
-                    Create a vendor quickly to use in this purchase.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <FormLabel>Vendor Name</FormLabel>
-                    <Input
-                      value={newVendorName}
-                      onChange={e => setNewVendorName(e.target.value)}
-                      placeholder="ABC Gems Ltd"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <FormLabel>Phone</FormLabel>
-                      <Input
-                        value={newVendorPhone}
-                        onChange={e => setNewVendorPhone(e.target.value)}
-                        placeholder="+91..."
-                      />
-                    </div>
-                    <div>
-                      <FormLabel>Email</FormLabel>
-                      <Input
-                        value={newVendorEmail}
-                        onChange={e => setNewVendorEmail(e.target.value)}
-                        placeholder="vendor@example.com"
-                        type="email"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <FormLabel>Type</FormLabel>
-                    <Input
-                      value={newVendorType}
-                      onChange={e => setNewVendorType(e.target.value)}
-                      placeholder="e.g. Wholesaler, Cutter"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setVendorModalOpen(false)}>Cancel</Button>
-                    <Button onClick={handleQuickCreateVendor} disabled={creatingVendor}>
-                      {creatingVendor && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Create Vendor
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
 
             <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -674,67 +643,12 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="invoiceNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Invoice No</FormLabel>
-                      <FormControl>
-                        <Input placeholder="KGP-001" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="paymentMode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment Mode</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Mode" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                          <SelectItem value="CASH">Cash</SelectItem>
-                          <SelectItem value="UPI">UPI</SelectItem>
-                          <SelectItem value="CREDIT">Credit</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="paymentStatus"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="PAID">Paid</SelectItem>
-                          <SelectItem value="PENDING">Pending</SelectItem>
-                          <SelectItem value="PARTIAL">Partial</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="col-span-2 rounded-md border p-4 text-sm text-muted-foreground">
+                  Payment confirmation is completed after clicking Create Purchase.
+                </div>
             </div>
 
             <FormField
@@ -782,6 +696,7 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
                         form={form} 
                         remove={remove} 
                         isSingle={fields.length === 1}
+                        categories={categories}
                     />
                 ))}
             </div>
@@ -797,6 +712,35 @@ export function PurchaseForm({ vendors, initialData, suggestedInvoiceNo }: Purch
             </Button>
         </div>
       </form>
+            <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Confirm Vendor Payment</DialogTitle>
+                        <DialogDescription>Record the payment made now. You can split it across multiple methods.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {payments.map((payment, index) => (
+                            <div key={index} className="grid grid-cols-1 gap-3 rounded-md border p-4 md:grid-cols-4">
+                                <Input type="number" placeholder="Amount" value={payment.amount} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, amount: Number(event.target.value) } : row))} />
+                                <Select value={payment.method} onValueChange={(method: PaymentDraft["method"]) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, method } : row))}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="CASH">Cash</SelectItem>
+                                        <SelectItem value="UPI">UPI</SelectItem>
+                                        <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                                        <SelectItem value="CHEQUE">Cheque</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Input type="date" value={payment.date} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, date: event.target.value } : row))} />
+                                {payment.method !== "CASH" && payment.method !== "CHEQUE" && <Input placeholder="Reference number" value={payment.reference} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, reference: event.target.value } : row))} />}
+                                {payment.method === "CHEQUE" && <div className="md:col-span-4 grid grid-cols-1 gap-3 md:grid-cols-4"><Input placeholder="Cheque number" value={payment.chequeNumber} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, chequeNumber: event.target.value } : row))} /><Input placeholder="Bank name" value={payment.bankName} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, bankName: event.target.value } : row))} /><Input placeholder="Cheque payable to" value={payment.chequePayee} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, chequePayee: event.target.value } : row))} /><Input type="date" value={payment.chequeDate} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, chequeDate: event.target.value } : row))} /></div>}
+                            </div>
+                        ))}
+                        <Button type="button" variant="outline" onClick={() => setPayments((rows) => [...rows, { amount: 0, method: "CASH", date: new Date().toISOString().split("T")[0], reference: "", chequeNumber: "", bankName: "", chequePayee: "", chequeDate: "" }])}><Plus className="mr-2 h-4 w-4" /> Add Payment Method</Button>
+                        <div className="flex justify-end"><Button type="button" onClick={confirmPayment} disabled={isPending}>{isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm & Create Purchase</Button></div>
+                    </div>
+                </DialogContent>
+            </Dialog>
     </Form>
   );
 }

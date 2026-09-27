@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
+import { getNextPurchaseNumber } from "@/lib/purchase-numbering";
 
 const purchaseItemSchema = z.object({
   itemName: z.string().min(1, "Item name required"),
@@ -23,6 +24,18 @@ const purchaseItemSchema = z.object({
   remarks: z.string().optional(),
 });
 
+const purchasePaymentSchema = z.object({
+  amount: z.coerce.number().positive(),
+  method: z.enum(["CASH", "UPI", "BANK_TRANSFER", "CHEQUE"]),
+  date: z.coerce.date(),
+  reference: z.string().optional(),
+  chequeNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  chequePayee: z.string().optional(),
+  chequeDate: z.coerce.date().optional(),
+  notes: z.string().optional(),
+});
+
 const purchaseSchema = z.object({
   vendorId: z.string().uuid("Vendor required"),
   purchaseDate: z.coerce.date(),
@@ -30,6 +43,7 @@ const purchaseSchema = z.object({
   paymentMode: z.string().optional(),
   paymentStatus: z.string().optional(),
   remarks: z.string().optional(),
+  payments: z.array(purchasePaymentSchema).optional().default([]),
   items: z.array(purchaseItemSchema).min(1, "Add at least one item"),
 });
 
@@ -65,41 +79,53 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
 
   const data = parsed.data;
 
+  for (const payment of data.payments) {
+    if (["UPI", "BANK_TRANSFER"].includes(payment.method) && !payment.reference?.trim()) {
+      return { message: "Reference number is required for UPI and bank transfer payments" };
+    }
+    if (payment.method === "CHEQUE" && (!payment.chequeNumber || !payment.bankName || !payment.chequePayee || !payment.chequeDate)) {
+      return { message: "Cheque number, bank name, payee and cheque date are required" };
+    }
+  }
+
   // Calculate total amount
   const totalAmount = data.items.reduce((sum, item) => sum + item.totalCost, 0);
 
   try {
     const purchase = await prisma.$transaction(async (tx) => {
-        const prefix = "KGP-";
         const inputInvoiceNo = (data.invoiceNo || "").trim();
-        let invoiceNo = inputInvoiceNo;
-        if (!invoiceNo) {
-          const existing = await tx.purchase.findMany({
-            where: { invoiceNo: { startsWith: prefix } },
-            select: { invoiceNo: true },
-          });
-          let max = 0;
-          for (const row of existing) {
-            const rawNo = (row.invoiceNo || "").trim();
-            if (!rawNo.startsWith(prefix)) continue;
-            const n = Number(rawNo.slice(prefix.length));
-            if (Number.isFinite(n) && n > max) max = n;
-          }
-          const next = max + 1;
-          invoiceNo = `${prefix}${String(next).padStart(3, "0")}`;
-        }
+        const invoiceNo = inputInvoiceNo || (await getNextPurchaseNumber());
 
+        const paidAmount = data.payments.reduce((sum, payment) => sum + payment.amount, 0);
+        const paymentStatus = paidAmount >= totalAmount ? "PAID" : paidAmount > 0 ? "PARTIAL" : "PENDING";
         const p = await tx.purchase.create({
             data: {
                 vendorId: data.vendorId,
                 purchaseDate: data.purchaseDate,
                 invoiceNo,
-                paymentMode: data.paymentMode,
-                paymentStatus: data.paymentStatus || "PENDING",
+                paymentMode: data.payments[0]?.method,
+                paymentStatus,
                 notes: data.remarks,
                 totalAmount,
             }
         });
+
+        if (data.payments.length > 0) {
+          await tx.purchasePayment.createMany({
+            data: data.payments.map((payment) => ({
+              purchaseId: p.id,
+              amount: payment.amount,
+              date: payment.date,
+              method: payment.method,
+              reference: payment.reference,
+              chequeNumber: payment.chequeNumber,
+              bankName: payment.bankName,
+              chequePayee: payment.chequePayee,
+              chequeDate: payment.chequeDate,
+              notes: payment.notes,
+            })),
+          });
+        }
 
         const itemsData = data.items.map(item => {
              const weightValue = item.quantity;

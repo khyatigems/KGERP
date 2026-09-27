@@ -290,7 +290,7 @@ export function CompanySettingsForm({ initialData }: { initialData?: Partial<Com
             <FormItem>
               <FormLabel>Address</FormLabel>
               <FormControl>
-                <Textarea placeholder="123 Main St, City, State" className="min-h-[100px]" {...field} />
+                <Textarea placeholder="123 Main St, City, State" className="min-h-25" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
