@@ -583,11 +583,13 @@ model Listing {
   marketplaceFavorites Int?
   marketplaceOrders    Int?
   marketplaceShopName  String?
+  marketplaceShopId   String?
   syncStatus           String?
   syncError            String?
   lastSyncedAt         DateTime?
   rawMetadata          String?
   inventory    Inventory?             @relation(fields: [inventoryId], references: [id])
+  marketplaceShop MarketplaceShop?      @relation(fields: [marketplaceShopId], references: [id], onDelete: SetNull)
   priceHistory ListingPriceHistory[]
 
   @@index([inventoryId])
@@ -596,6 +598,7 @@ model Listing {
   @@index([status])
   @@index([status, platform])
   @@index([createdAt])
+  @@index([marketplaceShopId, externalId])
 }
 
 model ListingPriceHistory {
@@ -1678,7 +1681,8 @@ model CurrencyRate {
 
 model MarketplaceConnection {
   id              String    @id @default(uuid())
-  marketplace     String    @unique
+  marketplace     String
+  externalAccountId String?
   name            String?
   authType        String    @default("OAUTH2")
   clientId        String?
@@ -1688,9 +1692,31 @@ model MarketplaceConnection {
   lastConnectedAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  shops           MarketplaceShop[]
 
   @@index([marketplace])
   @@index([status])
+  @@unique([marketplace, externalAccountId])
+}
+
+model MarketplaceShop {
+  id              String                @id @default(uuid())
+  connectionId    String
+  marketplace     String
+  externalShopId  String
+  name            String
+  status          String                @default("CONNECTED")
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  connection      MarketplaceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  listings        Listing[]
+  orders          MarketplaceOrder[]
+  syncLogs        MarketplaceSyncLog[]
+  syncJobs        MarketplaceSyncJob[]
+
+  @@unique([marketplace, externalShopId])
+  @@index([connectionId, status])
+  @@index([marketplace, status])
 }
 
 model MarketplaceSyncLog {
@@ -1707,12 +1733,61 @@ model MarketplaceSyncLog {
   recordsFailed  Int       @default(0)
   errorDetails   String?
   triggeredBy    String?
+  marketplaceShopId String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  marketplaceShop MarketplaceShop? @relation(fields: [marketplaceShopId], references: [id], onDelete: SetNull)
 
   @@index([marketplace, syncType])
   @@index([status])
   @@index([startedAt])
+  @@index([marketplaceShopId, syncType, startedAt])
+}
+
+model MarketplaceSyncJob {
+  id                String         @id @default(uuid())
+  marketplaceShopId String
+  syncType          String
+  status            String         @default("QUEUED")
+  progressStep      String         @default("Queued")
+  progressDetail    String?
+  cursor            String?
+  recordsScanned    Int            @default(0)
+  recordsCreated    Int            @default(0)
+  recordsUpdated    Int            @default(0)
+  recordsSkipped    Int            @default(0)
+  recordsFailed     Int            @default(0)
+  attempts          Int            @default(0)
+  errorDetails      String?
+  requestedById     String?
+  requestedBy       String?
+  batchId           String?
+  startedAt         DateTime?
+  endedAt           DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  marketplaceShop   MarketplaceShop @relation(fields: [marketplaceShopId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([batchId])
+  @@index([marketplaceShopId, syncType, createdAt])
+}
+
+model EbayWebhookNotification {
+  id              String   @id @default(uuid())
+  notificationId  String   @unique
+  topic           String
+  ebayUserId      String?
+  ebayUsername    String?
+  signatureValid  Boolean  @default(false)
+  status          String   @default("RECEIVED")
+  receivedAt      DateTime @default(now())
+  processedAt     DateTime?
+  errorDetails    String?
+
+  @@index([topic, receivedAt])
+  @@index([ebayUserId])
+  @@index([status])
 }
 
 model MarketplaceOrder {
@@ -1721,6 +1796,7 @@ model MarketplaceOrder {
   marketplaceOrderId String
   orderNumber        String?
   marketplaceShopName String?
+  marketplaceShopId   String?
   status             String                @default("IMPORTED")
   buyerName          String?
   buyerEmail         String?
@@ -1738,11 +1814,13 @@ model MarketplaceOrder {
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
   items              MarketplaceOrderItem[]
+  marketplaceShop    MarketplaceShop?       @relation(fields: [marketplaceShopId], references: [id], onDelete: SetNull)
 
-  @@unique([marketplace, marketplaceOrderId])
+  @@unique([marketplaceShopId, marketplace, marketplaceOrderId])
   @@index([marketplace])
   @@index([status])
   @@index([orderDate])
+  @@index([marketplaceShopId, marketplaceOrderId])
 }
 
 model MarketplaceOrderItem {

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { httpJson, bearerAuth } from "@/lib/marketplace/http";
 import { prisma } from "@/lib/prisma";
-import type { MarketplaceConnector } from "@/lib/marketplace/connector";
+import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext } from "@/lib/marketplace/connector";
 import type {
   NormalizedListing,
   NormalizedOrder,
@@ -9,7 +9,7 @@ import type {
   ListingSyncParams,
   OrderSyncParams,
 } from "@/lib/marketplace/types";
-import { loadTokens, saveTokens, isEncryptionReady } from "@/lib/marketplace/oauth";
+import { getValidAccessToken, updateTokens, isEncryptionReady } from "@/lib/marketplace/oauth";
 
 const API_BASE = "https://openapi.etsy.com";
 const AUTH_URL = "https://www.etsy.com/oauth/connect";
@@ -73,13 +73,13 @@ export class EtsyConnector implements MarketplaceConnector {
   }
 
   async isConfigured(): Promise<boolean> {
-    return Boolean(this.clientId && this.redirectUri);
+    return Boolean(this.clientId && this.sharedSecret && this.redirectUri);
   }
 
-  getAuthorizationUrl(state: string): string {
+  async getAuthorizationUrl(state: string): Promise<string> {
     const verifier = generateCodeVerifier();
     const challenge = codeChallengeFromVerifier(verifier);
-    void storePkceVerifier(state, verifier);
+    await storePkceVerifier(state, verifier);
     const params = new URLSearchParams({
       response_type: "code",
       redirect_uri: this.redirectUri,
@@ -92,7 +92,7 @@ export class EtsyConnector implements MarketplaceConnector {
     return `${AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeAuthorizationCode(code: string, state?: string): Promise<void> {
+  async exchangeAuthorizationCode(code: string, state?: string): Promise<MarketplaceOAuthResult> {
     if (!(await isEncryptionReady())) {
       throw new Error("Secret encryption key is not configured; cannot store Etsy tokens.");
     }
@@ -111,29 +111,32 @@ export class EtsyConnector implements MarketplaceConnector {
       body: body.toString(),
     });
 
-    await saveTokens(this.platform, {
+    const tokens = {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
       scope: SCOPES,
-    });
+    };
+    const externalAccountId = String(tokens.accessToken.split(".")[0] || "").trim();
+    if (!externalAccountId) throw new Error("Etsy did not return an account ID in the OAuth token.");
+    const shops = await this.getUserShops(tokens.accessToken, await this.getHeaders(tokens.accessToken));
+    return {
+      externalAccountId,
+      accountName: externalAccountId,
+      tokens,
+      shops: shops
+        .filter((shop) => shop?.shop_id)
+        .map((shop) => ({ externalShopId: String(shop.shop_id), name: String(shop.shop_name || shop.shop_id) })),
+    };
   }
 
-  private async getAccessToken(): Promise<string> {
-    const tokens = await loadTokens(this.platform);
-    if (!tokens?.accessToken) {
-      throw new Error("Etsy is not connected. Complete OAuth first.");
-    }
-    if (tokens.expiresAt && new Date(tokens.expiresAt).getTime() - Date.now() > 5 * 60 * 1000) {
-      return tokens.accessToken;
-    }
-    if (!tokens.refreshToken) {
-      throw new Error("Etsy access token expired and no refresh token is available.");
-    }
-    return this.refreshAccessToken(tokens.refreshToken);
+  private async getAccessToken(connectionId: string): Promise<string> {
+    return getValidAccessToken(connectionId, (tokens) =>
+      this.refreshAccessToken(connectionId, tokens.refreshToken!, tokens.scope)
+    );
   }
 
-  private async refreshAccessToken(refreshToken: string): Promise<string> {
+  private async refreshAccessToken(connectionId: string, refreshToken: string, scope?: string | null): Promise<string> {
     const body = new URLSearchParams({
       grant_type: "refresh_token",
       client_id: this.clientId,
@@ -144,11 +147,11 @@ export class EtsyConnector implements MarketplaceConnector {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
     });
-    await saveTokens(this.platform, {
+    await updateTokens(connectionId, {
       accessToken: data.access_token,
       refreshToken: data.refresh_token || refreshToken,
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
-      scope: SCOPES,
+      scope: data.scope || scope || SCOPES,
     });
     return data.access_token;
   }
@@ -171,54 +174,28 @@ export class EtsyConnector implements MarketplaceConnector {
     const data = await httpJson<any>(url, { headers }).catch((e) => {
       const err = e as { message?: string; body?: unknown };
       console.error("[etsy] getUserShops failed:", err.message, err.body ? JSON.stringify(err.body) : "");
-      return {};
+      throw new Error(`Unable to load Etsy shops: ${err.message || "Marketplace API request failed"}`);
     });
     if (Array.isArray(data?.results)) return data.results;
     if (data?.shop_id) return [data];
     return [];
   }
 
-  async fetchListings(params: ListingSyncParams = {}): Promise<NormalizedListing[]> {
-    const token = await this.getAccessToken();
+  async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {
+    const token = await this.getAccessToken(context.connectionId);
     const headers = await this.getHeaders(token);
     const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 100;
     const offset = params.offset || 0;
-
-    // Optional filter so only a specific shop is synced (e.g. ETSY_SHOP_NAME=KhyatiGemsOfficial).
-    const targetShop = env("ETSY_SHOP_NAME").trim().toLowerCase();
-
-    const shops = await this.getUserShops(token, headers);
-
-    for (const shop of shops || []) {
-      console.log(
-        "[etsy] shop: id=", shop?.shop_id, "name=", shop?.shop_name, "userId=", shop?.user_id
-      );
-    }
-
-    const listings: NormalizedListing[] = [];
-    for (const shop of shops || []) {
-      const shopId = shop?.shop_id ? String(shop.shop_id) : null;
-      const shopName = String(shop?.shop_name || "").toLowerCase();
-      if (!shopId) continue;
-      if (targetShop && !shopName.includes(targetShop)) {
-        console.log("[etsy] skipping shop", shopId, shopName, "target:", targetShop);
-        continue;
-      }
-      const data = await httpJson<{ results?: any[]; count?: number }>(
-        `${API_BASE}/v3/application/shops/${shopId}/listings?state=active&limit=${pageSize}&offset=${offset}`,
-        { headers }
-      );
-      console.log(
-        "[etsy] shop", shopId, shopName, "listings count:", data.results?.length, "count:", data.count,
-        "sample:", (data.results || []).slice(0, 3).map((l) => `${l.listing_id} ${l.title}`)
-      );
-      for (const listing of data.results || []) {
-        const normalized = this.normalizeListing(listing);
-        normalized.shopName = shop?.shop_name ?? null;
-        listings.push(normalized);
-      }
-    }
-    return listings;
+    const data = await httpJson<{ results?: any[]; count?: number }>(
+      `${API_BASE}/v3/application/shops/${encodeURIComponent(context.externalShopId)}/listings?state=active&limit=${pageSize}&offset=${offset}`,
+      { headers }
+    );
+    return (data.results || []).map((listing) => ({
+      ...this.normalizeListing(listing),
+      marketplaceShopId: context.shopId,
+      externalShopId: context.externalShopId,
+      shopName: context.shopName,
+    }));
   }
 
   private normalizeListing(listing: any): NormalizedListing {
@@ -248,29 +225,22 @@ export class EtsyConnector implements MarketplaceConnector {
     };
   }
 
-  async fetchOrders(params: OrderSyncParams = {}): Promise<NormalizedOrder[]> {
-    const token = await this.getAccessToken();
+  async fetchOrders(params: OrderSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedOrder[]> {
+    const token = await this.getAccessToken(context.connectionId);
     const headers = await this.getHeaders(token);
     const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 50;
     const offset = params.offset || 0;
 
-    const shops = await this.getUserShops(token, headers);
-
-    const orders: NormalizedOrder[] = [];
-    for (const shop of shops || []) {
-      const shopId = shop?.shop_id ? String(shop.shop_id) : null;
-      if (!shopId) continue;
-      const receipts = await httpJson<{ results?: any[] }>(
-        `${API_BASE}/v3/application/shops/${shopId}/receipts?limit=${pageSize}&offset=${offset}`,
-        { headers }
-      ).catch(() => ({ results: [] as any[] }));
-      for (const receipt of receipts.results || []) {
-        const order = this.normalizeOrder(receipt);
-        order.shopName = shop?.shop_name ?? null;
-        orders.push(order);
-      }
-    }
-    return orders;
+    const receipts = await httpJson<{ results?: any[] }>(
+      `${API_BASE}/v3/application/shops/${encodeURIComponent(context.externalShopId)}/receipts?limit=${pageSize}&offset=${offset}`,
+      { headers }
+    );
+    return (receipts.results || []).map((receipt) => ({
+      ...this.normalizeOrder(receipt),
+      marketplaceShopId: context.shopId,
+      externalShopId: context.externalShopId,
+      shopName: context.shopName,
+    }));
   }
 
   private normalizeOrder(receipt: any): NormalizedOrder {

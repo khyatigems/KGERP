@@ -19,6 +19,7 @@ export interface ListingSyncResult {
   skipped: number;
   failed: number;
   unknownSkus: string[];
+  errors: string[];
 }
 
 /**
@@ -27,34 +28,51 @@ export interface ListingSyncResult {
  * Unmatched SKUs are NOT written (reported for manual resolution).
  */
 export async function syncListingsForPlatform(
-  platform: MarketplacePlatform,
+  shopId: string,
   params: { limit?: number; offset?: number } = {}
 ): Promise<ListingSyncResult> {
+  const shop = await prisma.marketplaceShop.findUnique({
+    where: { id: shopId },
+    include: { connection: true },
+  });
+  if (!shop || shop.status !== "CONNECTED" || shop.connection.status !== "CONNECTED") {
+    throw new Error("Marketplace shop is not connected.");
+  }
+  const platform = shop.marketplace as MarketplacePlatform;
   const connector = getConnector(platform);
   if (!connector) throw new Error(`No connector registered for ${platform}`);
 
-  const logId = await startSyncLog(platform, "LISTINGS");
+  const logId = await startSyncLog(platform, "LISTINGS", "SYSTEM", shop.id);
   const counters = { scanned: 0, created: 0, updated: 0, skipped: 0, failed: 0 };
   const unknownSkus: string[] = [];
+  const errors: string[] = [];
 
   try {
-    const listings = await connector.fetchListings(params);
+    const listings = await connector.fetchListings(params, {
+      connectionId: shop.connectionId,
+      shopId: shop.id,
+      externalShopId: shop.externalShopId,
+      shopName: shop.name,
+    });
     counters.scanned = listings.length;
 
     for (const listing of listings) {
+      if (!listing.listingId) {
+        counters.skipped += 1;
+        continue;
+      }
       try {
         const match = await matchListingToInventory({
           marketplace: listing.marketplace,
+          marketplaceShopId: shop.id,
           listingId: listing.listingId,
           listingSku: listing.listingSku,
         });
 
-        const externalId = listing.listingId || null;
-        const existing = externalId
-          ? await prisma.listing.findFirst({
-              where: { platform: listing.marketplace, externalId },
-            })
-          : null;
+        const externalId = listing.listingId;
+        const existing = await prisma.listing.findFirst({
+          where: { platform: listing.marketplace, marketplaceShopId: shop.id, externalId },
+        });
 
         const inventoryId = match.inventoryId;
         const isOrphan = !inventoryId;
@@ -62,6 +80,7 @@ export async function syncListingsForPlatform(
         const data = {
           inventoryId,
           platform: listing.marketplace,
+          marketplaceShopId: shop.id,
           externalId,
           listedPrice: listing.price ?? 0,
           currency: listing.currency || "USD",
@@ -91,6 +110,8 @@ export async function syncListingsForPlatform(
         if (isOrphan && listing.listingSku) unknownSkus.push(listing.listingSku);
       } catch (error) {
         counters.failed += 1;
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`${listing.listingId}: ${message}`);
         console.error(`[sync-listings] failed for ${platform} ${listing.listingId}:`, error);
       }
     }
@@ -98,8 +119,9 @@ export async function syncListingsForPlatform(
     await finalizeSyncLog(logId, {
       status: counters.failed > 0 ? "PARTIAL" : "SUCCESS",
       counters,
+      errorDetails: errors.length ? errors.slice(0, 20).join("\n").slice(0, 4000) : null,
     });
-    return { ...counters, unknownSkus };
+    return { ...counters, unknownSkus, errors };
   } catch (error) {
     await failSyncLog(logId, error);
     throw error;

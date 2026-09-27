@@ -24,15 +24,20 @@ export interface SkuMatchResult {
  */
 export async function matchListingToInventory(params: {
   marketplace: MarketplacePlatform;
+  marketplaceShopId?: string;
   listingId: string;
   listingSku: string | null;
 }): Promise<SkuMatchResult> {
-  const { marketplace, listingId, listingSku } = params;
+  const { marketplace, marketplaceShopId, listingId, listingSku } = params;
 
   // 1. Known listing relationship
   if (listingId) {
     const existing = await prisma.listing.findFirst({
-      where: { platform: marketplace, externalId: listingId },
+      where: {
+        platform: marketplace,
+        externalId: listingId,
+        ...(marketplaceShopId ? { marketplaceShopId } : {}),
+      },
       select: { id: true, inventoryId: true, inventory: { select: { sku: true } } },
     });
     if (existing) {
@@ -85,12 +90,14 @@ export interface ListingMatchResult {
 }
 
 export async function matchListings(
-  listings: NormalizedListing[]
+  listings: NormalizedListing[],
+  marketplaceShopId?: string
 ): Promise<ListingMatchResult[]> {
   const results: ListingMatchResult[] = [];
   for (const listing of listings) {
     const match = await matchListingToInventory({
       marketplace: listing.marketplace,
+      marketplaceShopId,
       listingId: listing.listingId,
       listingSku: listing.listingSku,
     });

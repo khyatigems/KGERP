@@ -3,6 +3,7 @@ import { ensureMarketplaceMetricsSchema, prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,8 @@ import { AlertTriangle, Globe, ShoppingCart, Activity } from "lucide-react";
 import { MarketplaceExportButton } from "@/components/marketplace-export-button";
 import { MarketplaceNavButton } from "@/components/marketplace-nav-button";
 import { MarketplacePriceAuditExport } from "@/components/marketplace-price-audit-export";
+import { MarketplaceSyncPanel } from "@/components/marketplace/sync-panel";
+import { reconcileInventory } from "@/lib/marketplace/reconciliation";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { analyzePricing, resolvePurchaseCost } from "@/lib/pricing/engine";
 import { getCurrencyRates, getDefaultProfile, getProfiles, isPricingEngineEnabled } from "@/lib/pricing/db";
@@ -20,6 +23,10 @@ import type { MarketplaceProfileConfig, PricingAnalysis } from "@/lib/pricing/ty
 import { OpportunityReportTable, OpportunityReportRowPayload } from "@/components/opportunity-report-table";
 
 export const dynamic = "force-dynamic";
+
+function cutoffDaysAgo(days: number): Date {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+}
 
 export default async function MarketplaceControlCenterPage({
   searchParams: _searchParamsPromise,
@@ -39,9 +46,6 @@ export default async function MarketplaceControlCenterPage({
   const fromParam = typeof searchParams.from === "string" ? searchParams.from : "";
   const toParam = typeof searchParams.to === "string" ? searchParams.to : "";
   const report = typeof searchParams.report === "string" ? searchParams.report : "";
-  const sortBy = typeof searchParams.sortBy === "string" ? searchParams.sortBy : "opportunity";
-  // sortBy param kept for backward compat with old links; only "opportunity" is used now
-
   const data = await getMarketplaceDashboardData({
     category: categoryParam,
     marketplace: marketplaceParam,
@@ -50,6 +54,19 @@ export default async function MarketplaceControlCenterPage({
   });
 
   const audit = await getMarketplaceAuditMetrics();
+
+  const [connectedShops, lastListingsSync, lastOrdersSync, newOrdersCount, syncErrorCount] = await Promise.all([
+    prisma.marketplaceShop.findMany({
+      where: { status: "CONNECTED", connection: { status: "CONNECTED" } },
+      select: { id: true, marketplace: true, name: true },
+      orderBy: [{ marketplace: "asc" }, { name: "asc" }],
+    }),
+    prisma.marketplaceSyncJob.findFirst({ where: { syncType: "LISTINGS" }, orderBy: { updatedAt: "desc" }, include: { marketplaceShop: { select: { name: true, marketplace: true } } } }),
+    prisma.marketplaceSyncJob.findFirst({ where: { syncType: "ORDERS" }, orderBy: { updatedAt: "desc" }, include: { marketplaceShop: { select: { name: true, marketplace: true } } } }),
+    prisma.marketplaceOrder.count({ where: { createdAt: { gte: cutoffDaysAgo(1) } } }),
+    prisma.marketplaceSyncJob.count({ where: { status: { in: ["FAILED", "PARTIAL"] }, createdAt: { gte: cutoffDaysAgo(7) } } }),
+  ]);
+  const reconciliationIssues = report ? [] : await reconcileInventory();
 
   await ensureMarketplaceMetricsSchema();
 
@@ -130,6 +147,32 @@ export default async function MarketplaceControlCenterPage({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Marketplace Control Center</h1>
       </div>
+
+      {!report && (
+        <section className="space-y-4 border-b pb-5">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <Card><CardHeader className="pb-2"><CardTitle className="text-xs font-medium">Connected shops</CardTitle></CardHeader><CardContent><div className="text-2xl font-semibold">{connectedShops.length}</div></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-xs font-medium">New orders · 24h</CardTitle></CardHeader><CardContent><div className="text-2xl font-semibold">{newOrdersCount}</div><Button asChild variant="link" size="sm" className="h-auto p-0"><Link href="/marketplace-orders">View orders</Link></Button></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-xs font-medium">Sync errors · 7d</CardTitle></CardHeader><CardContent><div className="text-2xl font-semibold">{syncErrorCount}</div><Button asChild variant="link" size="sm" className="h-auto p-0"><Link href="/marketplace-sync-history">View history</Link></Button></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-xs font-medium">Open conflicts</CardTitle></CardHeader><CardContent><div className="text-2xl font-semibold">{data.conflictCounts.Pending}</div><Button asChild variant="link" size="sm" className="h-auto p-0"><Link href="/marketplace-conflicts">Review conflicts</Link></Button></CardContent></Card>
+            <Card><CardHeader className="pb-2"><CardTitle className="text-xs font-medium">Reconciliation issues</CardTitle></CardHeader><CardContent><div className="text-2xl font-semibold">{reconciliationIssues.length}</div><Button asChild variant="link" size="sm" className="h-auto p-0"><Link href="/marketplace-reconciliation">Review issues</Link></Button></CardContent></Card>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-md border px-3 py-2 text-sm">
+              <div className="text-xs font-medium text-muted-foreground">Last listing sync</div>
+              <div>{lastListingsSync ? `${lastListingsSync.marketplaceShop.marketplace} · ${lastListingsSync.marketplaceShop.name} · ${lastListingsSync.status} · ${formatDistanceToNow(lastListingsSync.updatedAt, { addSuffix: true })}` : "No listing sync yet"}</div>
+            </div>
+            <div className="rounded-md border px-3 py-2 text-sm">
+              <div className="text-xs font-medium text-muted-foreground">Last order sync</div>
+              <div>{lastOrdersSync ? `${lastOrdersSync.marketplaceShop.marketplace} · ${lastOrdersSync.marketplaceShop.name} · ${lastOrdersSync.status} · ${formatDistanceToNow(lastOrdersSync.updatedAt, { addSuffix: true })}` : "No order sync yet"}</div>
+            </div>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <MarketplaceSyncPanel shops={connectedShops} syncType="LISTINGS" />
+            <MarketplaceSyncPanel shops={connectedShops} syncType="ORDERS" />
+          </div>
+        </section>
+      )}
 
       <form className="flex flex-wrap items-end gap-3" method="get" action="/marketplace-control-center">
         {report ? <input type="hidden" name="report" value={report} /> : null}

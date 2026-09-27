@@ -29,6 +29,7 @@ export default async function ListingsPage() {
 
   await ensureInventoryBraceletSchema();
   const listings = await prisma.listing.findMany({
+    where: { marketplaceShopId: null },
     orderBy: { listedDate: "desc" },
     include: {
       inventory: {
@@ -50,13 +51,6 @@ export default async function ListingsPage() {
 
   // Resolve currency rates for live profit computation
   const rates = await getCurrencyRates().catch(() => ({}));
-
-  // Load marketplace orders (synced receipts) for the Orders tab
-  const orders = await prisma.marketplaceOrder.findMany({
-    orderBy: { orderDate: "desc" },
-    take: 200,
-    include: { items: true },
-  });
 
   // Fetch latest engagement metrics for listings that have inventoryId (from listingOpportunity table)
   const inventoryIds = Array.from(new Set(listings.map((l) => l.inventoryId).filter(Boolean) as string[]));
@@ -118,7 +112,7 @@ export default async function ListingsPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <ListingsView listings={enrichedListings} orders={orders} />
+      <ListingsView listings={enrichedListings} />
     </div>
     </AnimatedPage>
   );

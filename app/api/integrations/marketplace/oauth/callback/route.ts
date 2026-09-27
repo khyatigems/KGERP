@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getConnector } from "@/lib/marketplace/connectors";
 import { normalizePlatform } from "@/lib/marketplace/types";
 import { prisma } from "@/lib/prisma";
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { saveTokens } from "@/lib/marketplace/oauth";
+import { logMarketplaceActivity } from "@/lib/marketplace-control-center";
 
 function getBaseUrl(request: NextRequest): string {
   const proto = request.headers.get("x-forwarded-proto") || "https";
@@ -27,14 +30,22 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const stateRow = await prisma.setting.findUnique({ where: { key: `mp_oauth_state_${state}` } });
+  await ensureMarketplaceFoundationSchema();
+  const stateKey = `mp_oauth_state_${state}`;
+  const stateRow = await prisma.setting.findUnique({ where: { key: stateKey } });
   if (!stateRow?.value) {
     return NextResponse.redirect(
       new URL(`${settingsUrl}?error=${encodeURIComponent("Invalid or expired state")}`, request.nextUrl)
     );
   }
 
-  const platform = normalizePlatform(stateRow.value);
+  let statePayload: { platform?: string; userId?: string };
+  try {
+    statePayload = JSON.parse(stateRow.value);
+  } catch {
+    statePayload = { platform: stateRow.value };
+  }
+  const platform = normalizePlatform(statePayload.platform);
   if (!platform) {
     return NextResponse.redirect(
       new URL(`${settingsUrl}?error=${encodeURIComponent("Invalid state value")}`, request.nextUrl)
@@ -48,11 +59,50 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  try {
-    await connector.exchangeAuthorizationCode(code, state);
-    await prisma.setting.delete({ where: { key: `mp_oauth_state_${state}` } }).catch(() => {});
+  const consumedState = await prisma.setting.deleteMany({ where: { key: stateKey } });
+  if (consumedState.count !== 1) {
     return NextResponse.redirect(
-      new URL(`${settingsUrl}?connected=${platform}`, request.nextUrl)
+      new URL(`${settingsUrl}?error=${encodeURIComponent("OAuth state was already used")}`, request.nextUrl)
+    );
+  }
+
+  try {
+      const result = await connector.exchangeAuthorizationCode(code, state);
+      const connectionId = await saveTokens(
+        platform,
+        result.externalAccountId,
+        result.accountName,
+        result.tokens
+      );
+      for (const shop of result.shops) {
+        await prisma.marketplaceShop.upsert({
+          where: {
+            marketplace_externalShopId: {
+              marketplace: platform,
+              externalShopId: shop.externalShopId,
+            },
+          },
+          create: {
+            connectionId,
+            marketplace: platform,
+            externalShopId: shop.externalShopId,
+            name: shop.name,
+          },
+          update: { connectionId, name: shop.name, status: "CONNECTED" },
+        });
+      }
+      await logMarketplaceActivity({
+        entityType: "MarketplaceConnection",
+        entityId: connectionId,
+        entityIdentifier: `${platform}: ${result.accountName}`,
+        actionType: "SHOP_CONNECTED",
+        details: `${platform} account connected with ${result.shops.length} shop${result.shops.length === 1 ? "" : "s"}`,
+        userId: statePayload.userId,
+        source: "WEB",
+        metadata: { marketplace: platform, shopCount: result.shops.length },
+      });
+    return NextResponse.redirect(
+      new URL(`${settingsUrl}?connected=${platform}&shops=${result.shops.length}`, request.nextUrl)
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

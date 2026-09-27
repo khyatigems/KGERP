@@ -9,25 +9,61 @@ export interface StoredOAuthTokens {
   scope?: string | null;
 }
 
+const refreshInFlight = new Map<string, Promise<string>>();
+
+export async function getValidAccessToken(
+  connectionId: string,
+  refresh: (tokens: StoredOAuthTokens) => Promise<string>
+): Promise<string> {
+  const current = await loadTokens(connectionId);
+  if (!current?.accessToken) throw new Error("Marketplace account is not connected. Complete OAuth first.");
+  if (current.expiresAt && new Date(current.expiresAt).getTime() - Date.now() > 5 * 60 * 1000) {
+    return current.accessToken;
+  }
+  if (!current.refreshToken) throw new Error("Marketplace access token expired and no refresh token is available.");
+
+  const activeRefresh = refreshInFlight.get(connectionId);
+  if (activeRefresh) return activeRefresh;
+
+  const promise = (async () => {
+    const latest = await loadTokens(connectionId);
+    if (!latest?.accessToken) throw new Error("Marketplace account is not connected. Complete OAuth first.");
+    if (latest.expiresAt && new Date(latest.expiresAt).getTime() - Date.now() > 5 * 60 * 1000) {
+      return latest.accessToken;
+    }
+    if (!latest.refreshToken) throw new Error("Marketplace access token expired and no refresh token is available.");
+    return refresh(latest);
+  })();
+  refreshInFlight.set(connectionId, promise);
+  try {
+    return await promise;
+  } finally {
+    if (refreshInFlight.get(connectionId) === promise) refreshInFlight.delete(connectionId);
+  }
+}
+
 export async function isEncryptionReady(): Promise<boolean> {
   return isSecretEncryptionConfigured();
 }
 
 export async function saveTokens(
   platform: MarketplacePlatform,
+  externalAccountId: string,
+  accountName: string | null,
   tokens: StoredOAuthTokens
-): Promise<void> {
+): Promise<string> {
   if (!isSecretEncryptionConfigured()) {
     throw new Error("Secret encryption key is not configured; refusing to store OAuth tokens.");
   }
   const payload = JSON.stringify(tokens);
   const tokenRef = encryptSecret(payload);
 
-  await prisma.marketplaceConnection.upsert({
-    where: { marketplace: platform },
+  const connection = await prisma.marketplaceConnection.upsert({
+    where: { marketplace_externalAccountId: { marketplace: platform, externalAccountId } },
     create: {
       marketplace: platform,
-      name: platform,
+      externalAccountId,
+      name: accountName || externalAccountId,
       authType: "OAUTH2",
       tokenRef,
       status: "CONNECTED",
@@ -35,18 +71,20 @@ export async function saveTokens(
       lastConnectedAt: new Date(),
     },
     update: {
+      name: accountName || externalAccountId,
       tokenRef,
       status: "CONNECTED",
       scopes: tokens.scope || null,
       lastConnectedAt: new Date(),
     },
   });
+  return connection.id;
 }
 
 export async function loadTokens(
-  platform: MarketplacePlatform
+  connectionId: string
 ): Promise<StoredOAuthTokens | null> {
-  const conn = await prisma.marketplaceConnection.findUnique({ where: { marketplace: platform } });
+  const conn = await prisma.marketplaceConnection.findUnique({ where: { id: connectionId } });
   if (!conn?.tokenRef) return null;
   const raw = decryptSecret(conn.tokenRef);
   if (!raw) return null;
@@ -57,25 +95,54 @@ export async function loadTokens(
   }
 }
 
-export async function getConnectionStatus(platform: MarketplacePlatform): Promise<string | null> {
-  const conn = await prisma.marketplaceConnection.findUnique({ where: { marketplace: platform } });
+export async function updateTokens(
+  connectionId: string,
+  tokens: StoredOAuthTokens
+): Promise<void> {
+  if (!isSecretEncryptionConfigured()) {
+    throw new Error("Secret encryption key is not configured; refusing to store OAuth tokens.");
+  }
+  await prisma.marketplaceConnection.update({
+    where: { id: connectionId },
+    data: {
+      tokenRef: encryptSecret(JSON.stringify(tokens)),
+      scopes: tokens.scope || null,
+      status: "CONNECTED",
+    },
+  });
+}
+
+export async function getConnectionStatus(connectionId: string): Promise<string | null> {
+  const conn = await prisma.marketplaceConnection.findUnique({ where: { id: connectionId } });
   return conn?.status ?? null;
 }
 
 export async function setConnectionStatus(
-  platform: MarketplacePlatform,
+  connectionId: string,
   status: string
 ): Promise<void> {
-  await prisma.marketplaceConnection.upsert({
-    where: { marketplace: platform },
-    create: { marketplace: platform, name: platform, authType: "OAUTH2", status },
-    update: { status },
+  await prisma.marketplaceConnection.update({
+    where: { id: connectionId },
+    data: { status },
   });
 }
 
-export async function disconnect(platform: MarketplacePlatform): Promise<void> {
+export async function disconnect(connectionId: string): Promise<void> {
   await prisma.marketplaceConnection.updateMany({
-    where: { marketplace: platform },
+    where: { id: connectionId },
     data: { status: "DISCONNECTED", tokenRef: null, lastConnectedAt: null },
+  });
+  await prisma.marketplaceShop.updateMany({
+    where: { connectionId },
+    data: { status: "DISCONNECTED" },
+  });
+  await prisma.marketplaceSyncJob.updateMany({
+    where: { marketplaceShop: { connectionId }, status: "QUEUED" },
+    data: {
+      status: "CANCELLED",
+      progressStep: "Cancelled",
+      progressDetail: "Marketplace account disconnected",
+      endedAt: new Date(),
+    },
   });
 }

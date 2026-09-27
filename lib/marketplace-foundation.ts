@@ -42,6 +42,7 @@ export async function ensureMarketplaceFoundationSchema(): Promise<void> {
         CREATE TABLE IF NOT EXISTS "MarketplaceConnection" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "marketplace" TEXT NOT NULL,
+          "externalAccountId" TEXT,
           "name" TEXT,
           "authType" TEXT NOT NULL DEFAULT 'OAUTH2',
           "clientId" TEXT,
@@ -53,8 +54,26 @@ export async function ensureMarketplaceFoundationSchema(): Promise<void> {
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceConnection_marketplace_key" ON "MarketplaceConnection"("marketplace");`);
+      await ensureColumnIfMissing("MarketplaceConnection", "externalAccountId", '"externalAccountId" TEXT');
+      await prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "MarketplaceConnection_marketplace_key";`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceConnection_marketplace_externalAccountId_key" ON "MarketplaceConnection"("marketplace", "externalAccountId");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConnection_status_idx" ON "MarketplaceConnection"("status");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "MarketplaceShop" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "connectionId" TEXT NOT NULL,
+          "marketplace" TEXT NOT NULL,
+          "externalShopId" TEXT NOT NULL,
+          "name" TEXT NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'CONNECTED',
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceShop_marketplace_externalShopId_key" ON "MarketplaceShop"("marketplace", "externalShopId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceShop_connectionId_status_idx" ON "MarketplaceShop"("connectionId", "status");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceShop_marketplace_status_idx" ON "MarketplaceShop"("marketplace", "status");`);
 
       await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "MarketplaceSyncLog" (
@@ -71,6 +90,7 @@ export async function ensureMarketplaceFoundationSchema(): Promise<void> {
           "recordsFailed" INTEGER NOT NULL DEFAULT 0,
           "errorDetails" TEXT,
           "triggeredBy" TEXT,
+          "marketplaceShopId" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
@@ -78,6 +98,57 @@ export async function ensureMarketplaceFoundationSchema(): Promise<void> {
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceSyncLog_marketplace_syncType_idx" ON "MarketplaceSyncLog"("marketplace", "syncType");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceSyncLog_status_idx" ON "MarketplaceSyncLog"("status");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceSyncLog_startedAt_idx" ON "MarketplaceSyncLog"("startedAt");`);
+      await ensureColumnIfMissing("MarketplaceSyncLog", "marketplaceShopId", '"marketplaceShopId" TEXT');
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceSyncLog_marketplaceShopId_syncType_startedAt_idx" ON "MarketplaceSyncLog"("marketplaceShopId", "syncType", "startedAt");`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "MarketplaceSyncJob" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "marketplaceShopId" TEXT NOT NULL,
+          "syncType" TEXT NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'QUEUED',
+          "progressStep" TEXT NOT NULL DEFAULT 'Queued',
+          "progressDetail" TEXT,
+          "cursor" TEXT,
+          "recordsScanned" INTEGER NOT NULL DEFAULT 0,
+          "recordsCreated" INTEGER NOT NULL DEFAULT 0,
+          "recordsUpdated" INTEGER NOT NULL DEFAULT 0,
+          "recordsSkipped" INTEGER NOT NULL DEFAULT 0,
+          "recordsFailed" INTEGER NOT NULL DEFAULT 0,
+          "errorDetails" TEXT,
+          "requestedById" TEXT,
+          "requestedBy" TEXT,
+          "batchId" TEXT,
+          "startedAt" DATETIME,
+          "endedAt" DATETIME,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL
+        );
+      `);
+      await ensureColumnIfMissing("MarketplaceSyncJob", "attempts", '"attempts" INTEGER NOT NULL DEFAULT 0');
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceSyncJob_status_createdAt_idx" ON "MarketplaceSyncJob"("status", "createdAt");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceSyncJob_batchId_idx" ON "MarketplaceSyncJob"("batchId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceSyncJob_marketplaceShopId_syncType_createdAt_idx" ON "MarketplaceSyncJob"("marketplaceShopId", "syncType", "createdAt");`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceSyncJob_active_shop_type_key" ON "MarketplaceSyncJob"("marketplaceShopId", "syncType") WHERE "status" IN ('QUEUED', 'PROCESSING');`);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "EbayWebhookNotification" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "notificationId" TEXT NOT NULL,
+          "topic" TEXT NOT NULL,
+          "ebayUserId" TEXT,
+          "ebayUsername" TEXT,
+          "signatureValid" INTEGER NOT NULL DEFAULT 0,
+          "status" TEXT NOT NULL DEFAULT 'RECEIVED',
+          "receivedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "processedAt" DATETIME,
+          "errorDetails" TEXT
+        );
+      `);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "EbayWebhookNotification_notificationId_key" ON "EbayWebhookNotification"("notificationId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "EbayWebhookNotification_topic_receivedAt_idx" ON "EbayWebhookNotification"("topic", "receivedAt");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "EbayWebhookNotification_ebayUserId_idx" ON "EbayWebhookNotification"("ebayUserId");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "EbayWebhookNotification_status_idx" ON "EbayWebhookNotification"("status");`);
 
       await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "MarketplaceOrder" (
@@ -85,6 +156,7 @@ export async function ensureMarketplaceFoundationSchema(): Promise<void> {
           "marketplace" TEXT NOT NULL,
           "marketplaceOrderId" TEXT NOT NULL,
           "orderNumber" TEXT,
+          "marketplaceShopId" TEXT,
           "status" TEXT NOT NULL DEFAULT 'IMPORTED',
           "buyerName" TEXT,
           "buyerEmail" TEXT,
@@ -97,7 +169,9 @@ export async function ensureMarketplaceFoundationSchema(): Promise<void> {
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceOrder_marketplace_marketplaceOrderId_key" ON "MarketplaceOrder"("marketplace", "marketplaceOrderId");`);
+      await ensureColumnIfMissing("MarketplaceOrder", "marketplaceShopId", '"marketplaceShopId" TEXT');
+      await prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "MarketplaceOrder_marketplace_marketplaceOrderId_key";`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceOrder_marketplaceShopId_marketplace_marketplaceOrderId_key" ON "MarketplaceOrder"("marketplaceShopId", "marketplace", "marketplaceOrderId");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceOrder_status_idx" ON "MarketplaceOrder"("status");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceOrder_orderDate_idx" ON "MarketplaceOrder"("orderDate");`);
       await ensureColumnIfMissing("MarketplaceOrder", "marketplaceShopName", '"marketplaceShopName" TEXT');
@@ -205,6 +279,7 @@ export async function ensureMarketplaceFoundationSchema(): Promise<void> {
         ["marketplaceFavorites", '"marketplaceFavorites" INTEGER'],
         ["marketplaceOrders", '"marketplaceOrders" INTEGER'],
         ["marketplaceShopName", '"marketplaceShopName" TEXT'],
+        ["marketplaceShopId", '"marketplaceShopId" TEXT'],
         ["syncStatus", '"syncStatus" TEXT'],
         ["syncError", '"syncError" TEXT'],
         ["lastSyncedAt", '"lastSyncedAt" DATETIME'],
@@ -214,6 +289,8 @@ export async function ensureMarketplaceFoundationSchema(): Promise<void> {
       }
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_listingSku_idx" ON "Listing"("listingSku");`);
       await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_syncStatus_idx" ON "Listing"("syncStatus");`);
+      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_marketplaceShopId_externalId_idx" ON "Listing"("marketplaceShopId", "externalId");`);
+      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Listing_marketplaceShopId_platform_externalId_key" ON "Listing"("marketplaceShopId", "platform", "externalId");`);
 
       for (const [col, def] of [
         ["listedSku", '"listedSku" TEXT'],

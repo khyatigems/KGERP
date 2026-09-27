@@ -29,6 +29,7 @@ interface LogActivityParams<T = Record<string, unknown>> {
   module?: string;
   action?: string;
   referenceId?: string;
+  idempotencyKey?: string;
   description?: string;
   metadata?: Record<string, unknown>;
 
@@ -51,6 +52,7 @@ export async function logActivity<T = Record<string, unknown>>({
   module,
   action,
   referenceId,
+  idempotencyKey,
   description,
   metadata,
   oldData,
@@ -160,16 +162,16 @@ export async function logActivity<T = Record<string, unknown>>({
     const finalAction = action || actionType || "UNKNOWN";
     const finalReferenceId = referenceId || entityIdentifier || entityId;
     // Compute idempotencyKey for LOGIN actions so we can rely on DB-level uniqueness.
-    let finalIdempotencyKey: string | undefined = undefined;
-    if ((finalAction || '').toString().toUpperCase() === 'LOGIN') {
+    let finalIdempotencyKey: string | undefined = idempotencyKey;
+    if (!finalIdempotencyKey && (finalAction || '').toString().toUpperCase() === 'LOGIN') {
       // Bucket by minute so concurrent requests within the same minute share the same key
       const now = new Date();
       const bucket = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
-      finalIdempotencyKey = `auto-login:${bucket.toISOString()}`;
+      finalIdempotencyKey = `auto-login:${finalUserId || "UNKNOWN"}:${bucket.toISOString()}`;
     }
 
     try {
-      await (prisma.activityLog as any).create({
+      await prisma.activityLog.create({
         data: {
           entityType: finalModule,
           entityId: entityId || finalReferenceId,
@@ -192,15 +194,18 @@ export async function logActivity<T = Record<string, unknown>>({
           metadata: finalMetadata,
         },
       });
-    } catch (err: any) {
+    } catch (error: unknown) {
       // Prisma unique constraint error code is P2002; if we hit a unique violation on
       // the idempotency key, ignore since it means another concurrent request already logged it.
-      const msg = String(err?.message || err);
-      if (msg.includes('UNIQUE constraint failed') || (err?.code === 'P2002')) {
+      const message = error instanceof Error ? error.message : String(error);
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String(error.code)
+        : "";
+      if (message.includes("UNIQUE constraint failed") || code === "P2002") {
         // ignore duplicate insert
         return;
       }
-      throw err;
+      throw error;
     }
   } catch (error) {
     console.error("Failed to log activity:", error);

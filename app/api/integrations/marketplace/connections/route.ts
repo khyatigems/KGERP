@@ -5,10 +5,10 @@ import { checkUserPermission, type Permission } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { getConnector, listConnectors } from "@/lib/marketplace/connectors";
 import { getFeatureFlags } from "@/lib/marketplace/feature-flags";
-import { getConnectionStatus, disconnect } from "@/lib/marketplace/oauth";
+import { disconnect } from "@/lib/marketplace/oauth";
 import { prisma } from "@/lib/prisma";
-import type { MarketplacePlatform } from "@/lib/marketplace/types";
 import { normalizePlatform } from "@/lib/marketplace/types";
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 
 async function authorize(request: NextRequest, permission: Permission) {
   const session = await auth();
@@ -24,15 +24,35 @@ export async function GET(request: NextRequest) {
 
   const flags = await getFeatureFlags();
   const connectors = listConnectors();
-  const statuses = await Promise.all(
-    connectors.map(async (c) => ({
-      marketplace: c.platform,
-      configured: await c.isConfigured(),
-      status: await getConnectionStatus(c.platform),
-    }))
-  );
+  await ensureMarketplaceFoundationSchema();
+  const connections = await prisma.marketplaceConnection.findMany({
+    orderBy: [{ marketplace: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      marketplace: true,
+      externalAccountId: true,
+      name: true,
+      status: true,
+      scopes: true,
+      lastConnectedAt: true,
+      shops: {
+        orderBy: { name: "asc" },
+        select: { id: true, marketplace: true, externalShopId: true, name: true, status: true },
+      },
+    },
+  });
+  const configuredByPlatform = new Map(await Promise.all(
+    connectors.map(async (connector) => [connector.platform, await connector.isConfigured()] as const)
+  ));
 
-  return NextResponse.json({ flags, connections: statuses });
+  return NextResponse.json({
+    flags,
+    platforms: connectors.map((connector) => ({
+      marketplace: connector.platform,
+      configured: configuredByPlatform.get(connector.platform) ?? false,
+    })),
+    connections,
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -57,13 +77,14 @@ export async function POST(request: NextRequest) {
   }
 
   const state = `${platform}_${crypto.randomUUID()}`;
+  const statePayload = JSON.stringify({ platform, userId: authz.session.user.id });
   await prisma.setting.upsert({
     where: { key: `mp_oauth_state_${state}` },
-    create: { key: `mp_oauth_state_${state}`, value: platform },
-    update: { value: platform },
+    create: { key: `mp_oauth_state_${state}`, value: statePayload },
+    update: { value: statePayload },
   });
 
-  const authorizationUrl = connector.getAuthorizationUrl(state);
+  const authorizationUrl = await connector.getAuthorizationUrl(state);
   return NextResponse.json({ authorizationUrl, state });
 }
 
@@ -72,11 +93,12 @@ export async function DELETE(request: NextRequest) {
   if (authz.error) return authz.error;
 
   const body = await request.json().catch(() => ({}));
-  const platform = normalizePlatform(body?.marketplace);
-  if (!platform) {
-    return NextResponse.json({ error: "Invalid marketplace" }, { status: 400 });
+  const connectionId = String(body?.connectionId || "").trim();
+  if (!connectionId) {
+    return NextResponse.json({ error: "connectionId is required" }, { status: 400 });
   }
 
-  await disconnect(platform as MarketplacePlatform);
+  await ensureMarketplaceFoundationSchema();
+  await disconnect(connectionId);
   return NextResponse.json({ success: true });
 }

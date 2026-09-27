@@ -35,7 +35,7 @@ export const navGroups = [
     icon: Diamond,
     items: [
       { href: "/inventory", label: "Inventory", icon: Diamond, module: "inventory:view", animKey: "inventory" as NavAnimationKey },
-      { href: "/listings", label: "Listings", icon: Globe, module: "listings:view", animKey: "listings" as NavAnimationKey },
+      { href: "/listings", label: "Listing Tools", icon: Globe, module: "listings:view", animKey: "listings" as NavAnimationKey },
       { href: "/masters/merge", label: "Merge Masters", icon: HardDrive, module: "inventory:manage", animKey: "settings" as NavAnimationKey },
       { href: "/inventory/matched-pairs", label: "Matched Pairs & Sets", icon: Link2, module: "inventory:view", animKey: "matched-pairs" as NavAnimationKey },
     ],
@@ -48,6 +48,9 @@ export const navGroups = [
     items: [
       { href: "/settings/marketplace-connections", label: "Connections", icon: Link2, module: "settings:manage", animKey: "control-center" as NavAnimationKey },
       { href: "/marketplace-control-center", label: "Control Center", icon: LayoutDashboard, module: "listings:view", animKey: "control-center" as NavAnimationKey, badge: "conflicts" },
+      { href: "/marketplace-listings", label: "Listings", icon: Globe, module: "listings:view", animKey: "listings" as NavAnimationKey },
+      { href: "/marketplace-orders", label: "Orders", icon: ShoppingCart, module: "listings:view", animKey: "sales" as NavAnimationKey },
+      { href: "/marketplace-sync-history", label: "Sync History", icon: Activity, module: "listings:view", animKey: "reports" as NavAnimationKey },
       { href: "/marketplace-conflicts", label: "Conflicts", icon: AlertTriangle, module: "listings:view", animKey: "conflicts" as NavAnimationKey },
       { href: "/marketplace-reconciliation", label: "Reconciliation", icon: Scale, module: "listings:view", animKey: "reconciliation" as NavAnimationKey },
     ],
@@ -322,7 +325,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
             type="button"
             onClick={toggleCollapsed}
             aria-label="Expand sidebar"
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-all duration-200 hidden lg:flex"
+            className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-all duration-200 lg:flex"
           >
             <SidebarChevronIcon collapsed={collapsed} />
           </button>

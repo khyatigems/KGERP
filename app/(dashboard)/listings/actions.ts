@@ -8,8 +8,7 @@ import { auth } from "@/lib/auth";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
-import { syncListingsForPlatform } from "@/lib/marketplace/sync-listings";
-import { syncOrdersForPlatform } from "@/lib/marketplace/sync-orders";
+import { enqueueMarketplaceSyncJobs } from "@/lib/marketplace/sync-jobs";
 import { normalizePlatform } from "@/lib/marketplace/types";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/marketplace/feature-flags";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
@@ -139,7 +138,13 @@ export async function syncListingsAction(formData: FormData) {
   if (!master) throw new Error("Marketplace API sync is disabled");
 
   await ensureMarketplaceFoundationSchema();
-  return syncListingsForPlatform(platform, { limit: 250 });
+  const shops = await prisma.marketplaceShop.findMany({ where: { marketplace: platform, status: "CONNECTED", connection: { status: "CONNECTED" } }, select: { id: true } });
+  return enqueueMarketplaceSyncJobs({
+    shopIds: shops.map((shop) => shop.id),
+    syncType: "LISTINGS",
+    requestedById: session.user.id,
+    requestedBy: session.user.name || session.user.email || "Unknown",
+  });
 }
 
 export async function syncOrdersAction(formData: FormData) {
@@ -155,5 +160,11 @@ export async function syncOrdersAction(formData: FormData) {
   if (!master) throw new Error("Marketplace API sync is disabled");
 
   await ensureMarketplaceFoundationSchema();
-  return syncOrdersForPlatform(platform, { limit: 250 });
+  const shops = await prisma.marketplaceShop.findMany({ where: { marketplace: platform, status: "CONNECTED", connection: { status: "CONNECTED" } }, select: { id: true } });
+  return enqueueMarketplaceSyncJobs({
+    shopIds: shops.map((shop) => shop.id),
+    syncType: "ORDERS",
+    requestedById: session.user.id,
+    requestedBy: session.user.name || session.user.email || "Unknown",
+  });
 }

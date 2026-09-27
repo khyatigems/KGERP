@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, Suspense, useRef, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Toaster } from "sonner";
+import { MarketplaceSyncToastMonitor } from "@/components/marketplace/sync-toast-monitor";
 import { AppLogoLoader } from "@/components/ui/app-logo-loader";
 import { TopLoader } from "@/components/ui/top-loader";
 
@@ -103,6 +104,7 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
   return (
     <GlobalLoaderContext.Provider value={{ isLoading, setIsLoading, showLoader, hideLoader }}>
       {children}
+      <MarketplaceSyncToastMonitor />
       <TopLoader isLoading={isLoading} progress={progress} />
       {isLoading && <AppLogoLoader label={null} progress={progress} variant={isDashboardRoute ? "lottie" : "default"} />}
       <Toaster

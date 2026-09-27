@@ -17,6 +17,7 @@ export interface OrderSyncResult {
   updated: number;
   skipped: number;
   failed: number;
+  errors: string[];
 }
 
 /**
@@ -24,17 +25,31 @@ export interface OrderSyncResult {
  * the idempotency key so re-running the sync never duplicates orders or items.
  */
 export async function syncOrdersForPlatform(
-  platform: MarketplacePlatform,
+  shopId: string,
   params: { from?: string; limit?: number; offset?: number } = {}
 ): Promise<OrderSyncResult> {
+  const shop = await prisma.marketplaceShop.findUnique({
+    where: { id: shopId },
+    include: { connection: true },
+  });
+  if (!shop || shop.status !== "CONNECTED" || shop.connection.status !== "CONNECTED") {
+    throw new Error("Marketplace shop is not connected.");
+  }
+  const platform = shop.marketplace as MarketplacePlatform;
   const connector = getConnector(platform);
   if (!connector) throw new Error(`No connector registered for ${platform}`);
 
-  const logId = await startSyncLog(platform, "ORDERS");
+  const logId = await startSyncLog(platform, "ORDERS", "SYSTEM", shop.id);
   const counters = { scanned: 0, created: 0, updated: 0, skipped: 0, failed: 0 };
+  const errors: string[] = [];
 
   try {
-    const orders = await connector.fetchOrders(params);
+    const orders = await connector.fetchOrders(params, {
+      connectionId: shop.connectionId,
+      shopId: shop.id,
+      externalShopId: shop.externalShopId,
+      shopName: shop.name,
+    });
     counters.scanned = orders.length;
 
     for (const order of orders) {
@@ -43,17 +58,17 @@ export async function syncOrdersForPlatform(
         continue;
       }
       try {
-        const existing = await prisma.marketplaceOrder.findUnique({
+        const existing = await prisma.marketplaceOrder.findFirst({
           where: {
-            marketplace_marketplaceOrderId: {
-              marketplace: order.marketplace,
-              marketplaceOrderId: order.orderId,
-            },
+            marketplace: order.marketplace,
+            marketplaceShopId: shop.id,
+            marketplaceOrderId: order.orderId,
           },
         });
 
         const orderData = {
           marketplace: order.marketplace,
+          marketplaceShopId: shop.id,
           marketplaceOrderId: order.orderId,
           orderNumber: order.orderNumber,
           marketplaceShopName: order.shopName ?? null,
@@ -115,6 +130,8 @@ export async function syncOrdersForPlatform(
         }
       } catch (error) {
         counters.failed += 1;
+        const message = error instanceof Error ? error.message : String(error);
+        errors.push(`${order.orderId}: ${message}`);
         console.error(`[sync-orders] failed for ${platform} ${order.orderId}:`, error);
       }
     }
@@ -122,8 +139,9 @@ export async function syncOrdersForPlatform(
     await finalizeSyncLog(logId, {
       status: counters.failed > 0 ? "PARTIAL" : "SUCCESS",
       counters,
+      errorDetails: errors.length ? errors.slice(0, 20).join("\n").slice(0, 4000) : null,
     });
-    return counters;
+    return { ...counters, errors };
   } catch (error) {
     await failSyncLog(logId, error);
     throw error;

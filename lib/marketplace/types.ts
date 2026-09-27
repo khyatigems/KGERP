@@ -20,6 +20,8 @@ export type ListingSyncStatus =
 
 export interface NormalizedListing {
   marketplace: MarketplacePlatform;
+  marketplaceShopId?: string | null;
+  externalShopId?: string | null;
   listingId: string;
   listingSku: string | null;
   shopName?: string | null;
@@ -51,6 +53,8 @@ export interface NormalizedOrderItem {
 
 export interface NormalizedOrder {
   marketplace: MarketplacePlatform;
+  marketplaceShopId?: string | null;
+  externalShopId?: string | null;
   orderId: string;
   orderNumber: string | null;
   shopName?: string | null;
@@ -76,6 +80,11 @@ export interface SyncCursor {
   offset?: number;
 }
 
-export interface ListingSyncParams extends SyncCursor {}
+export type ListingSyncParams = SyncCursor;
 
-export interface OrderSyncParams extends SyncCursor {}
+export type OrderSyncParams = SyncCursor;
+
+export interface MarketplaceShopIdentity {
+  externalShopId: string;
+  name: string;
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-logger";
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 
 const ENDPOINT_PATH = "/api/ebay/account-deletion";
 
@@ -186,7 +187,7 @@ function formatPublicKey(key: string): string {
 }
 
 async function verifySignature(
-  payload: EbayNotificationPayload,
+  rawPayload: string,
   signatureHeader: string
 ): Promise<boolean> {
   const sig = decodeSignatureHeader(signatureHeader);
@@ -202,8 +203,8 @@ async function verifySignature(
   }
 
   try {
-    const verifier = crypto.createVerify("ssl3-sha1");
-    verifier.update(JSON.stringify(payload));
+    const verifier = crypto.createVerify("sha256");
+    verifier.update(rawPayload);
     return verifier.verify(formatPublicKey(publicKeyPem), sig.signature, "base64");
   } catch (err) {
     console.error("[ebay-mpn] Signature verification error:", err);
@@ -211,14 +212,12 @@ async function verifySignature(
   }
 }
 
-// Duplicate detection: track processed notification IDs in-memory
-const processedNotifications = new Set<string>();
-const MAX_PROCESSED_CACHE = 1000;
-
 export async function POST(request: NextRequest) {
   let body: EbayNotificationPayload;
+  let rawPayload: string;
   try {
-    body = await request.json();
+    rawPayload = await request.text();
+    body = JSON.parse(rawPayload) as EbayNotificationPayload;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -231,31 +230,48 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, { status: 204 });
   }
 
-  // Duplicate guard
-  if (notificationId && processedNotifications.has(notificationId)) {
-    console.log("[ebay-mpn] Duplicate notification, already processed:", notificationId);
-    return new NextResponse(null, { status: 204 });
-  }
-
-  // Verify eBay signature if credentials are available
   const signatureHeader = request.headers.get("x-ebay-signature");
   const hasCredentials = Boolean(getEbayClientId() && getEbayClientSecret());
-
-  if (signatureHeader && hasCredentials) {
-    const valid = await verifySignature(body, signatureHeader);
-    if (!valid) {
-      console.warn("[ebay-mpn] Invalid signature for notification:", notificationId);
-      return NextResponse.json({ error: "Invalid signature" }, { status: 412 });
-    }
-  } else if (!hasCredentials) {
-    console.warn(
-      "[ebay-mpn] WARNING: eBay credentials not configured — skipping signature verification. " +
-        "Configure EBAY_CLIENT_ID and EBAY_CLIENT_SECRET to enable verification."
-    );
+  if (!notificationId) return NextResponse.json({ error: "Missing notificationId" }, { status: 400 });
+  if (!signatureHeader || !hasCredentials) {
+    console.error("[ebay-mpn] Rejecting deletion notification because signature verification is unavailable");
+    return NextResponse.json({ error: "Signature verification is required" }, { status: 412 });
+  }
+  const valid = await verifySignature(rawPayload, signatureHeader);
+  if (!valid) {
+    console.warn("[ebay-mpn] Invalid signature for notification:", notificationId);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 412 });
   }
 
   const { notification } = body;
   const { data } = notification;
+
+  await ensureMarketplaceFoundationSchema();
+  try {
+    await prisma.ebayWebhookNotification.create({
+      data: {
+        notificationId,
+        topic,
+        ebayUserId: data.userId || null,
+        ebayUsername: data.username || null,
+        signatureValid: true,
+        status: "RECEIVED",
+      },
+    });
+  } catch (error) {
+    if ((error as { code?: string })?.code !== "P2002") {
+      console.error("[ebay-mpn] Could not persist notification:", error);
+      return NextResponse.json({ error: "Could not persist notification" }, { status: 503 });
+    }
+  }
+
+  const claim = await prisma.ebayWebhookNotification.updateMany({
+    where: { notificationId, status: { in: ["RECEIVED", "FAILED"] } },
+    data: { status: "PROCESSING", errorDetails: null },
+  });
+  if (!claim.count) {
+    return new NextResponse(null, { status: 204 });
+  }
 
   console.log(
     `[ebay-mpn] Received account deletion notification: id=${notificationId}, ` +
@@ -268,6 +284,7 @@ export async function POST(request: NextRequest) {
       entityType: "Security",
       entityId: notificationId || "unknown",
       entityIdentifier: `eBay User: ${data.username || "unknown"}`,
+      idempotencyKey: `ebay-account-deletion:${notificationId}`,
       actionType: "DELETE",
       source: "SYSTEM",
       userName: "eBay MPN Webhook",
@@ -275,7 +292,7 @@ export async function POST(request: NextRequest) {
       description:
         `eBay Marketplace Account Deletion notification received. ` +
         `eBay userId=${data.userId}, username=${data.username}. ` +
-        `No matching ERP user data found to delete (ERP does not store eBay userId).`,
+        `The matching marketplace connection will be disconnected when identified.`,
       metadata: {
         notificationId,
         eventDate: notification.eventDate,
@@ -288,38 +305,48 @@ export async function POST(request: NextRequest) {
     console.error("[ebay-mpn] Failed to log activity:", err);
   }
 
-  // Anonymize buyer PII in MarketplaceOrder records for EBAY platform.
-  // The notification provides eBay userId/username but the ERP only stores
-  // buyerEmail/buyerName from order sync. Since we cannot map eBay userId
-  // to specific orders, we anonymize all EBAY orders' buyer PII to comply.
   try {
-    const anonymized = await prisma.marketplaceOrder.updateMany({
-      where: { marketplace: "EBAY" },
+    const matchingShops = await prisma.marketplaceShop.findMany({
+      where: { marketplace: "EBAY", externalShopId: String(data.userId || "") },
+      select: { connectionId: true },
+    });
+    const accountRows = await prisma.marketplaceConnection.findMany({
+      where: { marketplace: "EBAY", externalAccountId: String(data.userId || "") },
+      select: { id: true },
+    });
+    const connectionIds = Array.from(new Set([
+      ...matchingShops.map((shop) => shop.connectionId),
+      ...accountRows.map((connection) => connection.id),
+    ]));
+    if (connectionIds.length) {
+      await prisma.marketplaceConnection.updateMany({
+        where: { id: { in: connectionIds } },
+        data: { status: "DISCONNECTED", tokenRef: null, lastConnectedAt: null },
+      });
+      await prisma.marketplaceShop.updateMany({
+        where: { connectionId: { in: connectionIds } },
+        data: { status: "DISCONNECTED" },
+      });
+      await prisma.marketplaceSyncJob.updateMany({
+        where: { marketplaceShop: { connectionId: { in: connectionIds } }, status: "QUEUED" },
+        data: { status: "CANCELLED", progressStep: "Cancelled", progressDetail: "eBay account deletion notification received", endedAt: new Date() },
+      });
+    }
+    await prisma.ebayWebhookNotification.update({
+      where: { notificationId },
       data: {
-        buyerName: "[REDACTED]",
-        buyerEmail: "[REDACTED]",
-        buyerCountry: null,
-        buyerCity: null,
-        buyerState: null,
-        buyerZip: null,
-        rawMetadata: null,
+        status: connectionIds.length ? "PROCESSED" : "REVIEW_REQUIRED",
+        processedAt: new Date(),
       },
     });
-
-    if (anonymized.count > 0) {
-      console.log(`[ebay-mpn] Anonymized buyer PII in ${anonymized.count} eBay order(s)`);
-    }
   } catch (err) {
-    console.error("[ebay-mpn] Failed to anonymize order data:", err);
-  }
-
-  // Mark as processed
-  if (notificationId) {
-    processedNotifications.add(notificationId);
-    if (processedNotifications.size > MAX_PROCESSED_CACHE) {
-      const first = processedNotifications.values().next().value;
-      if (first) processedNotifications.delete(first);
-    }
+    const message = err instanceof Error ? err.message : String(err);
+    await prisma.ebayWebhookNotification.update({
+      where: { notificationId },
+      data: { status: "FAILED", errorDetails: message.slice(0, 1000) },
+    }).catch(() => {});
+    console.error("[ebay-mpn] Failed to process account deletion notice:", err);
+    return NextResponse.json({ error: "Could not process notification" }, { status: 503 });
   }
 
   // Acknowledge receipt — eBay expects 200/201/202/204

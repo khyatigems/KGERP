@@ -1,5 +1,5 @@
-import { httpJson, bearerAuth, httpRequest, HttpError } from "@/lib/marketplace/http";
-import type { MarketplaceConnector } from "@/lib/marketplace/connector";
+import { httpJson, bearerAuth } from "@/lib/marketplace/http";
+import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext } from "@/lib/marketplace/connector";
 import type {
   NormalizedListing,
   NormalizedOrder,
@@ -8,28 +8,15 @@ import type {
   OrderSyncParams,
 } from "@/lib/marketplace/types";
 import {
-  loadTokens,
-  saveTokens,
+  getValidAccessToken,
+  updateTokens,
   isEncryptionReady,
 } from "@/lib/marketplace/oauth";
 
 const SCOPES = [
   "https://api.ebay.com/oauth/api_scope",
-  "https://api.ebay.com/oauth/api_scope/sell.inventory",
-  "https://api.ebay.com/oauth/api_scope/sell.inventory.readonly",
-  "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
   "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
-  "https://api.ebay.com/oauth/api_scope/sell.account",
   "https://api.ebay.com/oauth/api_scope/sell.account.readonly",
-  "https://api.ebay.com/oauth/api_scope/sell.marketing",
-  "https://api.ebay.com/oauth/api_scope/sell.marketing.readonly",
-  "https://api.ebay.com/oauth/api_scope/sell.listing",
-  "https://api.ebay.com/oauth/api_scope/sell.listing.read",
-  "https://api.ebay.com/oauth/api_scope/sell.finances",
-  "https://api.ebay.com/oauth/api_scope/sell.reputation",
-  "https://api.ebay.com/oauth/api_scope/sell.reputation.readonly",
-  "https://api.ebay.com/oauth/api_scope/commerce.identity.readonly",
-  "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription",
 ].join(" ");
 
 function env(name: string): string {
@@ -37,7 +24,7 @@ function env(name: string): string {
 }
 
 function isSandbox(): boolean {
-  return env("EBAY_ENVIRONMENT").toLowerCase() !== "production";
+  return env("EBAY_ENVIRONMENT").toLowerCase() === "sandbox";
 }
 
 function bases() {
@@ -67,7 +54,7 @@ export class EbayConnector implements MarketplaceConnector {
     return Boolean(this.clientId && this.clientSecret && this.ruName);
   }
 
-  getAuthorizationUrl(state: string): string {
+  async getAuthorizationUrl(state: string): Promise<string> {
     const { authBase } = bases();
     const params = new URLSearchParams({
       client_id: this.clientId,
@@ -79,7 +66,7 @@ export class EbayConnector implements MarketplaceConnector {
     return `${authBase}/oauth2/authorize?${params.toString()}`;
   }
 
-  async exchangeAuthorizationCode(code: string): Promise<void> {
+  async exchangeAuthorizationCode(code: string): Promise<MarketplaceOAuthResult> {
     if (!(await isEncryptionReady())) {
       throw new Error("Secret encryption key is not configured; cannot store eBay tokens.");
     }
@@ -101,29 +88,33 @@ export class EbayConnector implements MarketplaceConnector {
         body: body.toString(),
       }
     );
-    await saveTokens(this.platform, {
+    const tokens = {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
       scope: data.scope,
+    };
+    const profile = await httpJson<any>(`${apiBase}/sell/account/v1/user`, {
+      headers: this.getHeaders(tokens.accessToken),
     });
+    const externalAccountId = String(profile?.userId || "").trim();
+    if (!externalAccountId) throw new Error("eBay did not return a seller account ID for this authorization.");
+    const accountName = String(profile?.username || profile?.userId || externalAccountId);
+    return {
+      externalAccountId,
+      accountName,
+      tokens,
+      shops: [{ externalShopId: externalAccountId, name: accountName }],
+    };
   }
 
-  private async getAccessToken(): Promise<string> {
-    const tokens = await loadTokens(this.platform);
-    if (!tokens?.accessToken) {
-      throw new Error("eBay is not connected. Complete OAuth first.");
-    }
-    if (tokens.expiresAt && new Date(tokens.expiresAt).getTime() - Date.now() > 5 * 60 * 1000) {
-      return tokens.accessToken;
-    }
-    if (!tokens.refreshToken) {
-      throw new Error("eBay access token expired and no refresh token is available.");
-    }
-    return this.refreshAccessToken(tokens.refreshToken);
+  private async getAccessToken(connectionId: string): Promise<string> {
+    return getValidAccessToken(connectionId, (tokens) =>
+      this.refreshAccessToken(connectionId, tokens.refreshToken!, tokens.scope)
+    );
   }
 
-  private async refreshAccessToken(refreshToken: string): Promise<string> {
+  private async refreshAccessToken(connectionId: string, refreshToken: string, scope?: string | null): Promise<string> {
     const { apiBase } = bases();
     const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64");
     const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken });
@@ -138,11 +129,11 @@ export class EbayConnector implements MarketplaceConnector {
         body: body.toString(),
       }
     );
-    await saveTokens(this.platform, {
+    await updateTokens(connectionId, {
       accessToken: data.access_token,
       refreshToken: data.refresh_token || refreshToken,
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
-      scope: data.scope,
+      scope: data.scope || scope,
     });
     return data.access_token;
   }
@@ -156,27 +147,8 @@ export class EbayConnector implements MarketplaceConnector {
     };
   }
 
-  private async getSellerId(): Promise<string> {
-    const token = await this.getAccessToken();
-    const { apiBase } = bases();
-    try {
-      const data = await httpJson<any>(
-        `${apiBase}/sell/account/v1/user`,
-        { headers: this.getHeaders(token) }
-      );
-      return data?.userId || "";
-    } catch (err) {
-      console.error("[ebay] Failed to get seller ID:", err);
-      return "";
-    }
-  }
-
-  async fetchListings(params: ListingSyncParams = {}): Promise<NormalizedListing[]> {
-    const sellerId = await this.getSellerId();
-    if (!sellerId) {
-      console.warn("[ebay] Could not determine seller ID, skipping listing sync");
-      return [];
-    }
+  async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {
+    const sellerId = context.externalShopId;
 
     const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 50) : 50;
     const page = Math.floor((params.offset || 0) / pageSize) + 1;
@@ -201,7 +173,12 @@ export class EbayConnector implements MarketplaceConnector {
 
     console.log(`[ebay] Finding API: seller=${sellerId}, page=${page}, items=${totalCount}`);
 
-    return items.map((item: any) => this.normalizeFindingItem(item));
+    return items.map((item: any) => ({
+      ...this.normalizeFindingItem(item),
+      marketplaceShopId: context.shopId,
+      externalShopId: context.externalShopId,
+      shopName: context.shopName,
+    }));
   }
 
   private normalizeFindingItem(item: any): NormalizedListing {
@@ -238,8 +215,8 @@ export class EbayConnector implements MarketplaceConnector {
     };
   }
 
-  async fetchOrders(params: OrderSyncParams = {}): Promise<NormalizedOrder[]> {
-    const token = await this.getAccessToken();
+  async fetchOrders(params: OrderSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedOrder[]> {
+    const token = await this.getAccessToken(context.connectionId);
     const headers = this.getHeaders(token);
     const { apiBase } = bases();
 
@@ -254,7 +231,12 @@ export class EbayConnector implements MarketplaceConnector {
       { headers }
     );
 
-    return (data.orders || []).map((order) => this.normalizeOrder(order));
+    return (data.orders || []).map((order) => ({
+      ...this.normalizeOrder(order),
+      marketplaceShopId: context.shopId,
+      externalShopId: context.externalShopId,
+      shopName: context.shopName,
+    }));
   }
 
   private normalizeOrder(order: any): NormalizedOrder {

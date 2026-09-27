@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,18 +12,30 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { FeatureFlagKey } from "@/lib/marketplace/feature-flags";
+import { rememberMarketplaceSyncBatch } from "@/components/marketplace/sync-toast-monitor";
 
 interface Connection {
+  id: string;
+  marketplace: string;
+  externalAccountId: string | null;
+  name: string | null;
+  status: string | null;
+  lastConnectedAt: Date | string | null;
+  shops: Array<{ id: string; externalShopId: string; name: string; status: string }>;
+}
+
+interface PlatformConfig {
   marketplace: string;
   configured: boolean;
-  status: string | null;
 }
 
 export function MarketplaceConnectionsClient({
   flags,
+  platforms,
   connections,
 }: {
   flags: Record<FeatureFlagKey, boolean>;
+  platforms: PlatformConfig[];
   connections: Connection[];
 }) {
   const [pending, startTransition] = useTransition();
@@ -45,13 +57,13 @@ export function MarketplaceConnectionsClient({
     });
   };
 
-  const disconnect = (marketplace: string) => {
+  const disconnect = (connectionId: string) => {
     startTransition(async () => {
       try {
         const res = await fetch("/api/integrations/marketplace/connections", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ marketplace }),
+          body: JSON.stringify({ connectionId }),
         });
         if (!res.ok) throw new Error("Failed to disconnect");
         toast.success("Disconnected");
@@ -62,25 +74,26 @@ export function MarketplaceConnectionsClient({
     });
   };
 
-  const sync = (marketplace: string, syncType: "LISTINGS" | "ORDERS") => {
+  const sync = (shopIds: string[], syncType: "LISTINGS" | "ORDERS") => {
     startTransition(async () => {
-      toast.info(`Syncing ${syncType.toLowerCase()} for ${marketplace}…`);
+      toast.info(`Queueing ${syncType.toLowerCase()} sync for ${shopIds.length} shop${shopIds.length === 1 ? "" : "s"}`);
       try {
         const res = await fetch("/api/integrations/marketplace/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ marketplace, syncType }),
+          body: JSON.stringify({ shopIds, syncType }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Sync failed");
-        toast.success(
-          `Sync complete — ${data.scanned} scanned, ${data.created} created, ${data.updated} updated, ${data.skipped} skipped, ${data.failed} failed`
-        );
+        rememberMarketplaceSyncBatch(data.batchId);
+        void fetch("/api/integrations/marketplace/sync/process", { method: "POST" }).catch(() => null);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Sync failed");
+        toast.error(error instanceof Error ? error.message : "Sync failed", { duration: Infinity });
       }
     });
   };
+
+  const connectAnother = (marketplace: string) => connect(marketplace);
 
   const syncEnabled = flags.marketplaceApiSyncEnabled;
 
@@ -103,54 +116,67 @@ export function MarketplaceConnectionsClient({
         </Card>
       )}
 
-      {connections.map((conn) => {
-        const connected = conn.status === "CONNECTED";
-        const platformEnabled = conn.marketplace === "EBAY" ? flags.ebaySyncEnabled : flags.etsySyncEnabled;
-        return (
-          <Card key={conn.marketplace}>
+      <div className="grid gap-4 md:grid-cols-2">
+        {platforms.map((platform) => (
+          <Card key={platform.marketplace}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-base">{conn.marketplace}</CardTitle>
-                  <CardDescription>
-                    {conn.configured ? "Client credentials configured" : "Missing client credentials"}
-                  </CardDescription>
+                  <CardTitle className="text-base">{platform.marketplace}</CardTitle>
+                  <CardDescription>{platform.configured ? "Application OAuth is ready" : "OAuth credentials are not configured"}</CardDescription>
                 </div>
-                <Badge variant={connected ? "default" : "secondary"}>
-                  {connected ? "Connected" : conn.status || "Disconnected"}
-                </Badge>
+                <Button onClick={() => connectAnother(platform.marketplace)} disabled={pending || !platform.configured}>
+                  Connect another shop
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {connected ? (
-                  <Button variant="outline" onClick={() => disconnect(conn.marketplace)} disabled={pending}>
-                    Disconnect
-                  </Button>
-                ) : (
-                  <Button onClick={() => connect(conn.marketplace)} disabled={pending || !conn.configured}>
-                    Connect via OAuth
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  onClick={() => sync(conn.marketplace, "LISTINGS")}
-                  disabled={pending || !syncEnabled || !platformEnabled}
-                >
-                  Sync Listings
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => sync(conn.marketplace, "ORDERS")}
-                  disabled={pending || !syncEnabled || !platformEnabled}
-                >
-                  Sync Orders
-                </Button>
-              </div>
+              {connections.filter((connection) => connection.marketplace === platform.marketplace).map((connection) => {
+                const connected = connection.status === "CONNECTED";
+                const platformEnabled = connection.marketplace === "EBAY" ? flags.ebaySyncEnabled : flags.etsySyncEnabled;
+                return (
+                  <div key={connection.id} className="border-t pt-3 first:border-0 first:pt-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium">{connection.name || connection.externalAccountId || "Marketplace account"}</div>
+                        <div className="text-xs text-muted-foreground">{connection.externalAccountId || "Legacy connection; reconnect to register its shop"}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={connected ? "default" : "secondary"}>{connection.status || "Disconnected"}</Badge>
+                        <Button variant="outline" size="sm" onClick={() => disconnect(connection.id)} disabled={pending || !connected}>Disconnect</Button>
+                      </div>
+                    </div>
+                    {connection.shops.length ? (
+                      <div className="mt-3 space-y-2">
+                        {connection.shops.map((shop) => (
+                          <div key={shop.id} className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm">{shop.name}</div>
+                              <div className="truncate text-xs text-muted-foreground">Shop ID: {shop.externalShopId}</div>
+                            </div>
+                            <Badge variant={shop.status === "CONNECTED" ? "outline" : "secondary"}>{shop.status}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : connected ? (
+                      <p className="mt-3 text-xs text-amber-700">Reconnect this legacy account to register its shop identity before syncing.</p>
+                    ) : null}
+                    {connection.shops.some((shop) => shop.status === "CONNECTED") && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => sync(connection.shops.filter((shop) => shop.status === "CONNECTED").map((shop) => shop.id), "LISTINGS")} disabled={pending || !syncEnabled || !platformEnabled}>Queue Listings Sync</Button>
+                        <Button variant="outline" size="sm" onClick={() => sync(connection.shops.filter((shop) => shop.status === "CONNECTED").map((shop) => shop.id), "ORDERS")} disabled={pending || !syncEnabled || !platformEnabled}>Queue Orders Sync</Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {!connections.some((connection) => connection.marketplace === platform.marketplace) && (
+                <p className="text-sm text-muted-foreground">No shops connected yet.</p>
+              )}
             </CardContent>
           </Card>
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 }

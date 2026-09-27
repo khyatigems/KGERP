@@ -4,20 +4,36 @@ import type {
   NormalizedOrder,
   ListingSyncParams,
   OrderSyncParams,
+  MarketplaceShopIdentity,
 } from "./types";
+import type { StoredOAuthTokens } from "./oauth";
+
+export interface MarketplaceConnectionContext {
+  connectionId: string;
+  shopId: string;
+  externalShopId: string;
+  shopName: string;
+}
+
+export interface MarketplaceOAuthResult {
+  externalAccountId: string;
+  accountName: string;
+  tokens: StoredOAuthTokens;
+  shops: MarketplaceShopIdentity[];
+}
 
 export interface MarketplaceConnector {
   readonly platform: MarketplacePlatform;
   /** Whether required server-side credentials are configured. */
   isConfigured(): Promise<boolean>;
   /** Build the OAuth authorization URL for a new connection. */
-  getAuthorizationUrl(state: string): string;
+  getAuthorizationUrl(state: string): Promise<string>;
   /** Exchange an authorization code for tokens and persist them (server-side only). */
-  exchangeAuthorizationCode(code: string, state?: string): Promise<void>;
+  exchangeAuthorizationCode(code: string, state?: string): Promise<MarketplaceOAuthResult>;
   /** Fetch normalized listings (idempotent read; no ERP writes). */
-  fetchListings(params?: ListingSyncParams): Promise<NormalizedListing[]>;
+  fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]>;
   /** Fetch normalized orders (idempotent read; no ERP writes). */
-  fetchOrders(params?: OrderSyncParams): Promise<NormalizedOrder[]>;
+  fetchOrders(params: OrderSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedOrder[]>;
 }
 
 const registry = new Map<MarketplacePlatform, MarketplaceConnector>();

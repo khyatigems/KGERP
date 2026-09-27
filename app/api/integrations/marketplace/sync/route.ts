@@ -1,17 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
-import { normalizePlatform } from "@/lib/marketplace/types";
+import { prisma } from "@/lib/prisma";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/marketplace/feature-flags";
-import { syncListingsForPlatform } from "@/lib/marketplace/sync-listings";
-import { syncOrdersForPlatform } from "@/lib/marketplace/sync-orders";
-import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { enqueueMarketplaceSyncJobs } from "@/lib/marketplace/sync-jobs";
+import { logMarketplaceActivity } from "@/lib/marketplace-control-center";
+
+export const dynamic = "force-dynamic";
+
+async function authorize() {
+  const session = await auth();
+  if (!session?.user?.id) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  const allowed = await checkUserPermission(session.user.id, PERMISSIONS.SETTINGS_MANAGE);
+  if (!allowed) return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+  return { session };
+}
+
+export async function GET(request: NextRequest) {
+  const authz = await authorize();
+  if (authz.error) return authz.error;
+  const ids = (request.nextUrl.searchParams.get("ids") || "").split(",").filter(Boolean).slice(0, 100);
+  const batchId = request.nextUrl.searchParams.get("batchId");
+  if (!ids.length && !batchId) return NextResponse.json({ error: "ids or batchId is required" }, { status: 400 });
+  const jobs = await prisma.marketplaceSyncJob.findMany({
+    where: ids.length ? { id: { in: ids } } : { batchId: batchId! },
+    include: { marketplaceShop: { select: { marketplace: true, name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return NextResponse.json({ jobs });
+}
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const allowed = await checkUserPermission(session.user.id, PERMISSIONS.SETTINGS_MANAGE);
-  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const authz = await authorize();
+  if (authz.error) return authz.error;
+  const session = authz.session;
 
   const master = await getFeatureFlag(FEATURE_FLAG_KEYS.marketplaceApiSync);
   if (!master) {
@@ -19,36 +41,47 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const platform = normalizePlatform(body?.marketplace);
   const syncType = String(body?.syncType || "LISTINGS").toUpperCase();
-
-  if (!platform) return NextResponse.json({ error: "Invalid marketplace" }, { status: 400 });
   if (syncType !== "LISTINGS" && syncType !== "ORDERS") {
     return NextResponse.json({ error: "syncType must be LISTINGS or ORDERS" }, { status: 400 });
   }
-
-  const platformFlag =
-    platform === "EBAY" ? FEATURE_FLAG_KEYS.ebaySync : FEATURE_FLAG_KEYS.etsySync;
-  const platformEnabled = await getFeatureFlag(platformFlag);
-  if (!platformEnabled) {
-    return NextResponse.json({ error: `${platform} sync is disabled` }, { status: 403 });
-  }
-
-  await ensureMarketplaceFoundationSchema();
-
   try {
-    const result =
-      syncType === "LISTINGS"
-        ? await syncListingsForPlatform(platform, { limit: body?.limit, offset: body?.offset })
-        : await syncOrdersForPlatform(platform, { from: body?.from, limit: body?.limit, offset: body?.offset });
-    return NextResponse.json({ success: true, ...result });
+    const shopIds = Array.isArray(body?.shopIds)
+      ? body.shopIds.map(String)
+      : body?.shopId ? [String(body.shopId)] : [];
+    if (!shopIds.length) return NextResponse.json({ error: "shopId or shopIds is required" }, { status: 400 });
+    const shops = await prisma.marketplaceShop.findMany({
+      where: { id: { in: shopIds } },
+      select: { id: true, marketplace: true },
+    });
+    if (shops.length !== new Set(shopIds).size) return NextResponse.json({ error: "Unknown marketplace shop" }, { status: 404 });
+    for (const shop of shops) {
+      const flag = shop.marketplace === "EBAY" ? FEATURE_FLAG_KEYS.ebaySync : FEATURE_FLAG_KEYS.etsySync;
+      if (!(await getFeatureFlag(flag))) {
+        return NextResponse.json({ error: `${shop.marketplace} sync is disabled` }, { status: 403 });
+      }
+    }
+
+    const result = await enqueueMarketplaceSyncJobs({
+      shopIds,
+      syncType: syncType as "LISTINGS" | "ORDERS",
+      requestedById: session.user.id,
+      requestedBy: session.user.name || session.user.email || "Unknown",
+    });
+    await logMarketplaceActivity({
+      entityType: "MarketplaceSyncJob",
+      entityId: result.batchId,
+      entityIdentifier: result.batchId,
+      actionType: "SYNC_QUEUED",
+      details: `${syncType.toLowerCase()} sync queued for ${result.jobs.length} shop${result.jobs.length === 1 ? "" : "s"}`,
+      userId: session.user.id,
+      userName: session.user.name || session.user.email || "Unknown",
+      source: "WEB",
+      metadata: { syncType, shopIds, jobIds: result.jobs.map((job) => job.id) },
+    });
+    return NextResponse.json({ success: true, ...result }, { status: 202 });
   } catch (err) {
-    const e = err as { message?: string; body?: unknown; status?: number };
-    const detail = e.body ? JSON.stringify(e.body) : "";
-    console.error("[marketplace-sync] failed:", e.message, detail);
-    return NextResponse.json(
-      { error: detail ? `${e.message} — ${detail}` : (e.message ?? String(err)) },
-      { status: e.status === 403 ? 502 : 500 }
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

@@ -19,7 +19,8 @@ export interface SyncLogFinalize {
 export async function startSyncLog(
   marketplace: MarketplacePlatform,
   syncType: "LISTINGS" | "ORDERS" | "METRICS",
-  triggeredBy = "SYSTEM"
+  triggeredBy = "SYSTEM",
+  marketplaceShopId?: string
 ): Promise<string> {
   const id = crypto.randomUUID();
   await prisma.marketplaceSyncLog.create({
@@ -29,6 +30,7 @@ export async function startSyncLog(
       syncType,
       status: "RUNNING",
       triggeredBy,
+      marketplaceShopId,
       startedAt: new Date(),
     },
   });

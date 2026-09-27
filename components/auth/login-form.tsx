@@ -115,7 +115,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full h-11 rounded-lg bg-gradient-to-b from-[#D9BC7A] to-[#B8964F] text-[#1A1408] font-semibold text-base transition-all duration-300 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full h-11 rounded-lg bg-linear-to-b from-[#D9BC7A] to-[#B8964F] text-[#1A1408] font-semibold text-base transition-all duration-300 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {loading ? (
           <span className="flex items-center justify-center gap-2">
