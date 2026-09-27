@@ -12,15 +12,30 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function MarketplaceConnectionsPage() {
+export default async function MarketplaceConnectionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; connected?: string; shops?: string }>;
+}) {
   const flags = await getFeatureFlags();
   await ensureMarketplaceFoundationSchema();
+  const oauthResult = await searchParams;
   const connectors = listConnectors();
   const platforms = await Promise.all(
-    connectors.map(async (c) => ({
-      marketplace: c.platform,
-      configured: await c.isConfigured(),
-    }))
+    connectors.map(async (connector) => {
+      const missingConfiguration = connector.platform === "EBAY"
+        ? ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET", "EBAY_RU_NAME"].filter((name) => !String(process.env[name] || "").trim())
+        : [
+            !String(process.env.ETSY_CLIENT_ID || process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING || "").trim() ? "ETSY_CLIENT_ID" : "",
+            !String(process.env.ETSY_SHARED_SECRET || process.env.ETSY_API_SECRET || "").trim() ? "ETSY_SHARED_SECRET" : "",
+            !String(process.env.ETSY_REDIRECT_URI || "").trim() ? "ETSY_REDIRECT_URI" : "",
+          ].filter(Boolean);
+      return {
+        marketplace: connector.platform,
+        configured: await connector.isConfigured(),
+        missingConfiguration,
+      };
+    })
   );
   const connections = await prisma.marketplaceConnection.findMany({
     orderBy: [{ marketplace: "asc" }, { createdAt: "asc" }],
@@ -43,6 +58,9 @@ export default async function MarketplaceConnectionsPage() {
       flags={flags as Record<FeatureFlagKey, boolean>}
       platforms={platforms}
       connections={connections}
+      oauthError={oauthResult.error || null}
+      oauthConnected={oauthResult.connected || null}
+      oauthShopCount={Number(oauthResult.shops) || 0}
     />
   );
 }

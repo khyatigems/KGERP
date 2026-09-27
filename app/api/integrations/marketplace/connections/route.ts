@@ -47,10 +47,20 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     flags,
-    platforms: connectors.map((connector) => ({
-      marketplace: connector.platform,
-      configured: configuredByPlatform.get(connector.platform) ?? false,
-    })),
+    platforms: connectors.map((connector) => {
+      const missingConfiguration = connector.platform === "EBAY"
+        ? ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET", "EBAY_RU_NAME"].filter((name) => !String(process.env[name] || "").trim())
+        : [
+            !String(process.env.ETSY_CLIENT_ID || process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING || "").trim() ? "ETSY_CLIENT_ID" : "",
+            !String(process.env.ETSY_SHARED_SECRET || process.env.ETSY_API_SECRET || "").trim() ? "ETSY_SHARED_SECRET" : "",
+            !String(process.env.ETSY_REDIRECT_URI || "").trim() ? "ETSY_REDIRECT_URI" : "",
+          ].filter(Boolean);
+      return {
+        marketplace: connector.platform,
+        configured: configuredByPlatform.get(connector.platform) ?? false,
+        missingConfiguration,
+      };
+    }),
     connections,
   });
 }
@@ -84,8 +94,17 @@ export async function POST(request: NextRequest) {
     update: { value: statePayload },
   });
 
-  const authorizationUrl = await connector.getAuthorizationUrl(state);
-  return NextResponse.json({ authorizationUrl, state });
+  try {
+    const authorizationUrl = await connector.getAuthorizationUrl(state);
+    const parsedUrl = new URL(authorizationUrl);
+    if (parsedUrl.protocol !== "https:") throw new Error("Marketplace authorization URL must use HTTPS.");
+    return NextResponse.json({ authorizationUrl, state });
+  } catch (error) {
+    await prisma.setting.deleteMany({ where: { key: `mp_oauth_state_${state}` } }).catch(() => {});
+    console.error(`[marketplace-oauth] Failed to start ${platform} authorization`, error);
+    const message = error instanceof Error ? error.message : "Unable to create marketplace authorization URL";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function DELETE(request: NextRequest) {

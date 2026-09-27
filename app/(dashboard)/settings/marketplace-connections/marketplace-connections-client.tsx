@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,34 +27,50 @@ interface Connection {
 interface PlatformConfig {
   marketplace: string;
   configured: boolean;
+  missingConfiguration: string[];
 }
 
 export function MarketplaceConnectionsClient({
   flags,
   platforms,
   connections,
+  oauthError,
+  oauthConnected,
+  oauthShopCount,
 }: {
   flags: Record<FeatureFlagKey, boolean>;
   platforms: PlatformConfig[];
   connections: Connection[];
+  oauthError: string | null;
+  oauthConnected: string | null;
+  oauthShopCount: number;
 }) {
   const [pending, startTransition] = useTransition();
+  const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
 
-  const connect = (marketplace: string) => {
-    startTransition(async () => {
-      try {
-        const res = await fetch("/api/integrations/marketplace/connections", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ marketplace }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to start OAuth");
-        window.location.href = data.authorizationUrl;
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to start OAuth");
-      }
-    });
+  useEffect(() => {
+    if (oauthError) toast.error(`Marketplace connection failed: ${oauthError}`, { duration: Infinity });
+    else if (oauthConnected) toast.success(`${oauthConnected} connected${oauthShopCount ? ` · ${oauthShopCount} shop${oauthShopCount === 1 ? "" : "s"} available` : ""}`, { duration: 8000 });
+  }, [oauthError, oauthConnected, oauthShopCount]);
+
+  const connect = async (marketplace: string) => {
+    if (connectingPlatform || pending) return;
+    setConnectingPlatform(marketplace);
+    try {
+      const res = await fetch("/api/integrations/marketplace/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ marketplace }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Failed to start ${marketplace} OAuth (HTTP ${res.status})`);
+      const authorizationUrl = new URL(String(data.authorizationUrl || ""));
+      if (authorizationUrl.protocol !== "https:") throw new Error("Marketplace returned an invalid authorization URL.");
+      window.location.assign(authorizationUrl.toString());
+    } catch (error) {
+      setConnectingPlatform(null);
+      toast.error(error instanceof Error ? error.message : `Failed to start ${marketplace} OAuth`, { duration: Infinity });
+    }
   };
 
   const disconnect = (connectionId: string) => {
@@ -125,12 +141,17 @@ export function MarketplaceConnectionsClient({
                   <CardTitle className="text-base">{platform.marketplace}</CardTitle>
                   <CardDescription>{platform.configured ? "Application OAuth is ready" : "OAuth credentials are not configured"}</CardDescription>
                 </div>
-                <Button onClick={() => connectAnother(platform.marketplace)} disabled={pending || !platform.configured}>
-                  Connect another shop
+                <Button onClick={() => void connectAnother(platform.marketplace)} disabled={pending || Boolean(connectingPlatform) || !platform.configured}>
+                  {connectingPlatform === platform.marketplace ? "Opening OAuth..." : "Connect another shop"}
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              {!platform.configured && (
+                <p className="text-xs text-amber-700">
+                  Missing on the running server: {platform.missingConfiguration.join(", ") || "OAuth configuration"}. Set these in the server environment and restart/redeploy the app.
+                </p>
+              )}
               {connections.filter((connection) => connection.marketplace === platform.marketplace).map((connection) => {
                 const connected = connection.status === "CONNECTED";
                 const platformEnabled = connection.marketplace === "EBAY" ? flags.ebaySyncEnabled : flags.etsySyncEnabled;
