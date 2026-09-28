@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { LogOut, Menu, ChevronRight, Home, User, Camera } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/layout/sidebar";
@@ -20,7 +20,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { AvatarUploadModal } from "@/components/ui/avatar-upload/avatar-upload-modal";
 import { CommandPaletteTrigger } from "@/components/ui/command-palette";
-import { forceLogout } from "@/lib/logout";
 
 const routeTitles: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -115,7 +114,12 @@ export function Topbar({ user }: TopbarProps) {
   };
 
   const handleLogout = async () => {
-    await forceLogout();
+    const res = await fetch("/api/auth/signout", { method: "POST", credentials: "same-origin" });
+    if (res.ok || res.redirected) {
+      window.location.href = "/login";
+    } else {
+      window.location.href = "/login";
+    }
   };
 
   const getBreadcrumbs = () => {

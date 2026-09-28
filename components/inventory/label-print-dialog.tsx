@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { createLabelJob, updateLabelJobStatus } from "@/app/(dashboard)/labels/actions";
 import JsBarcode from "jsbarcode";
 import { getCompanySettings } from "@/app/(dashboard)/settings/company/actions";
-import { forceLogout } from "@/lib/logout";
 
 const AVAILABLE_FIELDS_UI = [
     { id: "itemName", label: "Item Name" },
@@ -279,7 +278,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             if (msg.includes("Session invalid")) {
                 toast.error("Session expired. Redirecting to login...");
                 setTimeout(() => {
-                    forceLogout();
+                    window.location.href = "/login";
                 }, 1500);
             } else {
                 toast.error(msg);
@@ -315,7 +314,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                         value={config.pageSize} 
                                         onValueChange={(v: "TAG" | "A4" | "THERMAL") => handleFormatChange(v)}
                                     >
-                                        <SelectTrigger className="w-[200px]">
+                                        <SelectTrigger className="w-50">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -360,7 +359,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                 </div>
                             </div>
                             
-                            <div className="border rounded-md p-8 bg-muted/20 flex justify-center items-center min-h-[200px]">
+                            <div className="border rounded-md p-8 bg-muted/20 flex justify-center items-center min-h-50">
                                 <div 
                                     className="bg-white border border-gray-300 shadow-sm relative overflow-hidden"
                                     style={{ 
@@ -383,7 +382,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                                 )}
                                                 
                                                 {/* Content (Top Left) */}
-                                                <div className="flex flex-col gap-[2px]" style={{ width: 'calc(100% - 13mm)' }}>
+                                                <div className="flex flex-col gap-0.5" style={{ width: 'calc(100% - 13mm)' }}>
                                                     {/* Item Name */}
                                                     <div className="font-bold text-[9px] truncate leading-none">
                                                         {targets[0].itemName}
@@ -427,7 +426,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                                         ) : (
                                             /* Grid Layout Preview */
                                             <div 
-                                                className="grid gap-2 p-4 bg-white shadow-sm overflow-auto max-h-[400px]"
+                                                className="grid gap-2 p-4 bg-white shadow-sm overflow-auto max-h-100"
                                                 style={{
                                                     gridTemplateColumns: `repeat(${config.cols}, 1fr)`
                                                 }}
