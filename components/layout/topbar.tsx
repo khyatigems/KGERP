@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { AvatarUploadModal } from "@/components/ui/avatar-upload/avatar-upload-modal";
 import { CommandPaletteTrigger } from "@/components/ui/command-palette";
+import { forceLogout } from "@/lib/logout";
 
 const routeTitles: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -111,6 +112,10 @@ export function Topbar({ user }: TopbarProps) {
     await fetch("/api/user/avatar", { method: "DELETE" });
     await update({ avatarUrl: null });
     window.location.reload();
+  };
+
+  const handleLogout = async () => {
+    await forceLogout();
   };
 
   const getBreadcrumbs = () => {
@@ -226,7 +231,7 @@ export function Topbar({ user }: TopbarProps) {
                 <span>Change photo</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut()}>
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

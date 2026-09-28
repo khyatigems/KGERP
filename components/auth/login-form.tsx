@@ -44,78 +44,85 @@ export function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="w-full space-y-5">
       {error && (
-        <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200 shadow-[0_0_20px_rgba(239,68,68,0.12)]">
           {error}
         </div>
       )}
 
-      {/* Email Input */}
-      <div>
-        <label
-          htmlFor="email"
-          className="block text-sm font-medium text-slate-300 mb-1.5"
-        >
-          Email
-        </label>
-        <Input
-          id="email"
-          type="email"
-          name="email"
-          autoComplete="email"
-          required
-          placeholder="name@khyatigems.com"
-          className="w-full h-11 bg-white/5 border-white/10 rounded-lg text-white placeholder:text-slate-500"
-        />
-      </div>
-
-      {/* Password Input */}
-      <div>
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-slate-300 mb-1.5"
-        >
-          Password
-        </label>
-        <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            name="password"
-            autoComplete="current-password"
-            required
-            placeholder="Enter your password"
-            className="w-full h-11 bg-white/5 border-white/10 rounded-lg text-white placeholder:text-slate-500 pr-11"
-          />
-          <button
-            type="button"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-            onClick={() => setShowPassword(!showPassword)}
-            aria-label={showPassword ? "Hide password" : "Show password"}
+      <div className="space-y-4">
+        <div>
+          <label
+            htmlFor="email"
+            className="mb-2 block text-sm font-medium text-slate-200"
           >
-            {showPassword ? (
-              <EyeOff className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
-          </button>
+            Email address
+          </label>
+          <Input
+            id="email"
+            type="email"
+            name="email"
+            autoComplete="email"
+            required
+            placeholder="name@khyatigems.com"
+            className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 text-base text-white placeholder:text-slate-400 shadow-inner shadow-slate-950/30 transition-all duration-200 focus:border-[#D9BC7A]/70 focus:ring-2 focus:ring-[#D9BC7A]/20"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="password"
+            className="mb-2 block text-sm font-medium text-slate-200"
+          >
+            Password
+          </label>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              name="password"
+              autoComplete="current-password"
+              required
+              placeholder="Enter your password"
+              className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 pr-12 text-base text-white placeholder:text-slate-400 shadow-inner shadow-slate-950/30 transition-all duration-200 focus:border-[#D9BC7A]/70 focus:ring-2 focus:ring-[#D9BC7A]/20"
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Remember Me */}
-      <label className="flex items-center gap-2 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          name="rememberMe"
-          className="w-4 h-4 rounded border-white/30 bg-transparent accent-[#D9BC7A]"
-        />
-        <span className="text-slate-300 text-sm">Remember me</span>
-      </label>
+      <div className="flex items-center justify-between gap-3">
+        <label className="flex cursor-pointer items-center gap-2 select-none text-sm text-slate-300">
+          <input
+            type="checkbox"
+            name="rememberMe"
+            className="h-4 w-4 rounded border-white/30 bg-transparent accent-[#D9BC7A]"
+          />
+          Remember me
+        </label>
 
-      {/* Login Button */}
+        <button
+          type="button"
+          className="text-sm font-medium text-[#E8D6A5] transition-colors hover:text-[#F6E7BF]"
+        >
+          Need help?
+        </button>
+      </div>
+
       <button
         type="submit"
         disabled={loading}
-        className="w-full h-11 rounded-lg bg-linear-to-b from-[#D9BC7A] to-[#B8964F] text-[#1A1408] font-semibold text-base transition-all duration-300 hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#D9BC7A] via-[#F1D89C] to-[#B8964F] text-base font-semibold text-[#1A1408] shadow-[0_20px_40px_rgba(217,188,122,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? (
           <span className="flex items-center justify-center gap-2">

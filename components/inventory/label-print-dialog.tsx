@@ -12,9 +12,9 @@ import { generateLabelPDF, LabelConfig, DEFAULT_TAG_CONFIG, DEFAULT_A4_CONFIG, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { createLabelJob, updateLabelJobStatus } from "@/app/(dashboard)/labels/actions";
-import { signOut } from "next-auth/react";
 import JsBarcode from "jsbarcode";
 import { getCompanySettings } from "@/app/(dashboard)/settings/company/actions";
+import { forceLogout } from "@/lib/logout";
 
 const AVAILABLE_FIELDS_UI = [
     { id: "itemName", label: "Item Name" },
@@ -279,7 +279,7 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
             if (msg.includes("Session invalid")) {
                 toast.error("Session expired. Redirecting to login...");
                 setTimeout(() => {
-                    signOut({ callbackUrl: "/login" });
+                    forceLogout();
                 }, 1500);
             } else {
                 toast.error(msg);
