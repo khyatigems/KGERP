@@ -149,7 +149,7 @@ export function MarketplaceConnectionsClient({
             <CardContent className="space-y-3">
               {!platform.configured && (
                 <p className="text-xs text-amber-700">
-                  Missing on the running server: {platform.missingConfiguration.join(", ") || "OAuth configuration"}. Set these in the server environment and restart/redeploy the app.
+                  {platform.missingConfiguration.join(" ") || "OAuth configuration is invalid."} Update the server environment and redeploy the app.
                 </p>
               )}
               {connections.filter((connection) => connection.marketplace === platform.marketplace).map((connection) => {

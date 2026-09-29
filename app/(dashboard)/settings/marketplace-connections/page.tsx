@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { listConnectors } from "@/lib/marketplace/connectors";
+import { getEbayConfigurationError } from "@/lib/marketplace/connectors/ebay";
 import { getFeatureFlags, type FeatureFlagKey } from "@/lib/marketplace/feature-flags";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { prisma } from "@/lib/prisma";
@@ -24,7 +25,7 @@ export default async function MarketplaceConnectionsPage({
   const platforms = await Promise.all(
     connectors.map(async (connector) => {
       const missingConfiguration = connector.platform === "EBAY"
-        ? ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET", "EBAY_RU_NAME"].filter((name) => !String(process.env[name] || "").trim())
+        ? getEbayConfigurationError() ? [getEbayConfigurationError()] : []
         : [
             !String(process.env.ETSY_CLIENT_ID || process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING || "").trim() ? "ETSY_CLIENT_ID" : "",
             !String(process.env.ETSY_SHARED_SECRET || process.env.ETSY_API_SECRET || "").trim() ? "ETSY_SHARED_SECRET" : "",
