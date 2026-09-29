@@ -72,6 +72,7 @@ export async function syncListingsForPlatform(
         const externalId = listing.listingId;
         const existing = await prisma.listing.findFirst({
           where: { platform: listing.marketplace, marketplaceShopId: shop.id, externalId },
+          include: { priceHistory: { take: 1, orderBy: { changedAt: "desc" } } },
         });
 
         const inventoryId = match.inventoryId;
@@ -102,9 +103,23 @@ export async function syncListingsForPlatform(
 
         if (existing) {
           await prisma.listing.update({ where: { id: existing.id }, data });
+          if (listing.price != null && (!existing.priceHistory.length || existing.marketplacePrice !== listing.price)) {
+            await prisma.listingPriceHistory.create({
+              data: {
+                listingId: existing.id,
+                price: listing.price,
+                changedBy: existing.marketplacePrice !== listing.price ? "EBAY_SYNC" : "EBAY_SYNC_INITIAL",
+              },
+            });
+          }
           counters.updated += 1;
         } else {
-          await prisma.listing.create({ data: { ...data, listedDate: new Date() } });
+          const created = await prisma.listing.create({ data: { ...data, listedDate: new Date() } });
+          if (listing.price != null) {
+            await prisma.listingPriceHistory.create({
+              data: { listingId: created.id, price: listing.price, changedBy: "EBAY_SYNC_INITIAL" },
+            });
+          }
           counters.created += 1;
         }
         if (isOrphan && listing.listingSku) unknownSkus.push(listing.listingSku);

@@ -16,7 +16,7 @@ export default async function MarketplaceOrdersPage() {
   if (!permission.success) redirect("/");
   await ensureMarketplaceFoundationSchema();
 
-  const [shops, orders] = await Promise.all([
+  const [shops, orders, syncJobs] = await Promise.all([
     prisma.marketplaceShop.findMany({
       where: { status: "CONNECTED", connection: { status: "CONNECTED" } },
       select: { id: true, marketplace: true, name: true },
@@ -27,7 +27,20 @@ export default async function MarketplaceOrdersPage() {
       take: 500,
       include: { marketplaceShop: { select: { name: true } }, items: true },
     }),
+    prisma.marketplaceSyncJob.findMany({
+      where: { syncType: "ORDERS", status: { in: ["SUCCESS", "PARTIAL"] }, endedAt: { not: null } },
+      orderBy: { endedAt: "desc" }, take: 100,
+      select: { marketplaceShopId: true, endedAt: true },
+    }),
   ]);
+  const lastSyncByShop = new Map<string, Date>();
+  for (const job of syncJobs) if (!lastSyncByShop.has(job.marketplaceShopId) && job.endedAt) lastSyncByShop.set(job.marketplaceShopId, job.endedAt);
+  const orderImage = (raw: string | null) => {
+    try {
+      const value = JSON.parse(raw || "{}");
+      return typeof value.imageUrl === "string" ? value.imageUrl : typeof value.image?.imageUrl === "string" ? value.image.imageUrl : null;
+    } catch { return null; }
+  };
 
   return (
     <div className="space-y-5">
@@ -40,6 +53,10 @@ export default async function MarketplaceOrdersPage() {
       </div>
 
       <MarketplaceSyncPanel shops={shops} syncType="ORDERS" />
+
+      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+        {shops.map((shop) => <div key={shop.id} className="rounded-md border px-3 py-2"><strong>{shop.marketplace} · {shop.name}</strong> · Last orders sync: {lastSyncByShop.get(shop.id)?.toLocaleString() || "Not yet synced"}</div>)}
+      </div>
 
       <div className="overflow-x-auto rounded-md border">
         <Table>
@@ -56,7 +73,7 @@ export default async function MarketplaceOrdersPage() {
                 <TableCell className="font-mono text-xs">{order.marketplaceOrderId}</TableCell>
                 <TableCell>{order.orderNumber || "—"}</TableCell>
                 <TableCell>{order.buyerName || "—"}</TableCell>
-                <TableCell>{order.items.length} · {order.items.map((item) => item.listedSku || item.listedTitle || "—").join(", ")}</TableCell>
+                <TableCell><div className="space-y-1">{order.items.map((item) => <div key={item.id} className="flex items-center gap-2">{orderImage(item.rawMetadata) ? <img src={orderImage(item.rawMetadata)!} alt="Order item" className="h-9 w-9 rounded object-cover" /> : null}<span>{item.listedSku || item.listedTitle || "—"}</span></div>)}</div></TableCell>
                 <TableCell>{order.orderTotal != null ? `${order.currency} ${order.orderTotal}` : "—"}</TableCell>
                 <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
                 <TableCell>{order.orderDate?.toLocaleString() || "—"}</TableCell>
