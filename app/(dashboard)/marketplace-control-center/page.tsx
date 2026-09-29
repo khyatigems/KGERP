@@ -167,10 +167,7 @@ export default async function MarketplaceControlCenterPage({
               <div>{lastOrdersSync ? `${lastOrdersSync.marketplaceShop.marketplace} · ${lastOrdersSync.marketplaceShop.name} · ${lastOrdersSync.status} · ${formatDistanceToNow(lastOrdersSync.updatedAt, { addSuffix: true })}` : "No order sync yet"}</div>
             </div>
           </div>
-          <div className="grid gap-4 xl:grid-cols-2">
-            <MarketplaceSyncPanel shops={connectedShops} syncType="LISTINGS" />
-            <MarketplaceSyncPanel shops={connectedShops} syncType="ORDERS" />
-          </div>
+          <MarketplaceSyncPanel shops={connectedShops} syncTypes={["LISTINGS", "ORDERS"]} />
         </section>
       )}
 

@@ -56,10 +56,6 @@ const statusConfig: Record<string, { color: string; bg: string; label: string }>
   SOLD: { color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", label: "Sold" },
 };
 
-const platformLabel: Record<string, string> = {
-  ebay: "eBay", etsy: "Etsy", amazon: "Amazon", website: "Website", whatsapp: "WhatsApp",
-};
-
 export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
   const { data: syncData } = useSWR<SyncStatsData>("/api/marketplace/stats", fetcher, {
     refreshInterval: 30000,
@@ -126,7 +122,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
         <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Sync Status</span>
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Listing Status</span>
           </div>
           {hasStatusData && (
             <div className="flex flex-wrap gap-2">

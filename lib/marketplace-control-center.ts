@@ -63,6 +63,8 @@ export type MarketplacePortfolioRow = {
   weightUnit: string | null;
   marketplacePrices: Partial<Record<MarketplacePlatform, number>>;
   marketplaceCurrencies: Partial<Record<MarketplacePlatform, string>>;
+  // URLs are optional marketplace metadata; counts must not depend on them.
+  listingCounts: Partial<Record<MarketplacePlatform, number>>;
 };
 
 export type MarketplaceDashboardData = {
@@ -381,7 +383,12 @@ export async function getMarketplaceTimeline(entityId?: string, limit = 12) {
         take: limit,
       })
     : await prisma.activityLog.findMany({
-        where: { module: MARKETPLACE_EVENT_MODULE },
+        where: {
+          module: MARKETPLACE_EVENT_MODULE,
+          // Queueing jobs and connection changes belong in Sync History / the
+          // Connections page, not in the marketplace business timeline.
+          actionType: { notIn: ["SYNC_QUEUED", "SYNC_STARTED", "SYNC_COMPLETED", "SHOP_CONNECTED", "SHOP_DISCONNECTED"] },
+        },
         orderBy: { createdAt: "desc" },
         take: limit,
       });
@@ -461,11 +468,13 @@ export async function getMarketplaceDashboardData(options: {
       weightUnit: row.weightUnit || null,
       marketplacePrices: {} as Partial<Record<MarketplacePlatform, number>>,
       marketplaceCurrencies: {} as Partial<Record<MarketplacePlatform, string>>,
+      listingCounts: {} as Partial<Record<MarketplacePlatform, number>>,
     };
 
     const platform = normalizePlatform(row.platform);
     if (platform) {
       if (!existing.platforms.includes(platform)) existing.platforms.push(platform);
+      existing.listingCounts[platform] = (existing.listingCounts[platform] || 0) + 1;
       if (row.listingUrl) existing.urls[platform] = [...(existing.urls[platform] || []), row.listingUrl];
       // First encounter holds the latest listedDate / price due to ORDER BY l."createdAt" DESC
       if (row.lastListedDate && !existing.lastListedDates[platform]) {
@@ -535,11 +544,11 @@ export async function getMarketplaceDashboardData(options: {
   }
 
   const totalListings = filtered.reduce(
-    (sum, item) => sum + MARKETPLACE_PLATFORMS.reduce((platformSum, platform) => platformSum + (item.urls[platform]?.length || 0), 0),
+    (sum, item) => sum + MARKETPLACE_PLATFORMS.reduce((platformSum, platform) => platformSum + (item.listingCounts[platform] || 0), 0),
     0
   );
   const platformCounts = MARKETPLACE_PLATFORMS.reduce((acc, platform) => {
-    acc[platform] = filtered.reduce((sum, item) => sum + (item.urls[platform]?.length || 0), 0);
+    acc[platform] = filtered.reduce((sum, item) => sum + (item.listingCounts[platform] || 0), 0);
     return acc;
   }, {} as Record<MarketplacePlatform, number>);
 

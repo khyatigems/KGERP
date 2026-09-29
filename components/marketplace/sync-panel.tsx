@@ -15,20 +15,24 @@ export interface MarketplaceShopOption {
 export function MarketplaceSyncPanel({
   shops,
   syncType,
+  syncTypes,
 }: {
   shops: MarketplaceShopOption[];
-  syncType: "LISTINGS" | "ORDERS";
+  syncType?: "LISTINGS" | "ORDERS";
+  syncTypes?: Array<"LISTINGS" | "ORDERS">;
 }) {
   const [pending, setPending] = useState(false);
+  const types: Array<"LISTINGS" | "ORDERS"> = syncTypes?.length ? syncTypes : syncType ? [syncType] : ["LISTINGS"];
+  const isCombined = types.length > 1;
 
-  const queueSync = async (shopIds: string[]) => {
+  const queueSync = async (shopIds: string[], type: "LISTINGS" | "ORDERS") => {
     if (!shopIds.length || pending) return;
     setPending(true);
     try {
       const response = await fetch("/api/integrations/marketplace/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shopIds, syncType }),
+        body: JSON.stringify({ shopIds, syncType: type }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to queue marketplace sync");
@@ -45,13 +49,14 @@ export function MarketplaceSyncPanel({
     <section className="space-y-3 border-b pb-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold">Sync {syncType === "LISTINGS" ? "Listings" : "Orders"}</h2>
+          <h2 className="text-sm font-semibold">{isCombined ? "Marketplace sync" : `Sync ${types[0] === "LISTINGS" ? "Listings" : "Orders"}`}</h2>
           <p className="text-xs text-muted-foreground">Jobs run by shop and retain page-level progress.</p>
         </div>
-        <Button onClick={() => void queueSync(shops.map((shop) => shop.id))} disabled={pending || shops.length === 0}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Sync All {syncType === "LISTINGS" ? "Listings" : "Orders"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {types.map((type) => <Button key={type} onClick={() => void queueSync(shops.map((shop) => shop.id), type)} disabled={pending || shops.length === 0}>
+            <RefreshCw className="mr-2 h-4 w-4" />Sync All {type === "LISTINGS" ? "Listings" : "Orders"}
+          </Button>)}
+        </div>
       </div>
       {shops.length === 0 ? (
         <p className="text-sm text-muted-foreground">No connected marketplace shops. Connect a shop before syncing.</p>
@@ -62,10 +67,11 @@ export function MarketplaceSyncPanel({
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">{shop.marketplace} · {shop.name}</div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => void queueSync([shop.id])} disabled={pending}>
-                <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                Sync this shop
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {types.map((type) => <Button key={type} variant="outline" size="sm" onClick={() => void queueSync([shop.id], type)} disabled={pending}>
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />{isCombined ? `Sync ${type === "LISTINGS" ? "listings" : "orders"}` : "Sync this shop"}
+                </Button>)}
+              </div>
             </div>
           ))}
         </div>

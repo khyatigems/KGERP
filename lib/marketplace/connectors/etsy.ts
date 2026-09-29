@@ -289,15 +289,43 @@ export class EtsyConnector implements MarketplaceConnector {
       `${API_BASE}/v3/application/shops/${encodeURIComponent(context.externalShopId)}/receipts?limit=${pageSize}&offset=${offset}`,
       { headers }
     );
-    return (receipts.results || []).map((receipt) => ({
-      ...this.normalizeOrder(receipt),
-      marketplaceShopId: context.shopId,
-      externalShopId: context.externalShopId,
-      shopName: context.shopName,
+    return Promise.all((receipts.results || []).map(async (receipt) => {
+      const imagesByListing = await this.getReceiptListingImages(
+        context.externalShopId,
+        receipt?.receipt_id,
+        headers
+      ).catch(() => new Map<string, string>());
+      return {
+        ...this.normalizeOrder(receipt, imagesByListing),
+        marketplaceShopId: context.shopId,
+        externalShopId: context.externalShopId,
+        shopName: context.shopName,
+      };
     }));
   }
 
-  private normalizeOrder(receipt: any): NormalizedOrder {
+  /** Etsy receipt transactions do not consistently include images. Load the
+   * listing association for the receipt so each synced order item has one. */
+  private async getReceiptListingImages(
+    shopId: string,
+    receiptId: unknown,
+    headers: Record<string, string>
+  ): Promise<Map<string, string>> {
+    const id = String(receiptId || "").trim();
+    if (!id) return new Map();
+    const data = await httpJson<{ results?: any[] }>(
+      `${API_BASE}/v3/application/shops/${encodeURIComponent(shopId)}/receipts/${encodeURIComponent(id)}/listings?includes=Images&limit=100`,
+      { headers }
+    );
+    const result = new Map<string, string>();
+    for (const listing of data.results || []) {
+      const image = etsyListingImages(listing)[0];
+      if (image && listing?.listing_id != null) result.set(String(listing.listing_id), image);
+    }
+    return result;
+  }
+
+  private normalizeOrder(receipt: any, imagesByListing = new Map<string, string>()): NormalizedOrder {
     const items: NormalizedOrderItem[] = (receipt?.transactions || []).map((tx: any) => ({
       itemId: tx?.transaction_id ? String(tx.transaction_id) : null,
       sku: tx?.sku ? String(tx.sku) : null,
@@ -305,7 +333,9 @@ export class EtsyConnector implements MarketplaceConnector {
       quantity: Number(tx?.quantity || 1),
       unitPrice: moneyValue(tx?.price),
       currency: moneyCurrency(tx?.price),
-      raw: tx,
+      // Retain the image on the item payload; MarketplaceOrderItem already
+      // persists raw source metadata and needs no schema migration for this.
+      raw: { ...tx, imageUrl: imagesByListing.get(String(tx?.listing_id || "")) || tx?.image_url || null },
     }));
 
     return {
@@ -319,8 +349,12 @@ export class EtsyConnector implements MarketplaceConnector {
       buyerCity: receipt?.city ? String(receipt.city) : null,
       buyerState: receipt?.state ? String(receipt.state) : null,
       buyerZip: receipt?.zip ? String(receipt.zip) : null,
-      trackingCode: receipt?.shipments?.[0]?.tracking_code ? String(receipt.shipments[0].tracking_code) : null,
-      carrier: receipt?.shipments?.[0]?.carrier_name ? String(receipt.shipments[0].carrier_name) : null,
+      trackingCode: receipt?.shipments?.[0]?.tracking_code
+        ? String(receipt.shipments[0].tracking_code)
+        : receipt?.tracking_code ? String(receipt.tracking_code) : null,
+      carrier: receipt?.shipments?.[0]?.carrier_name
+        ? String(receipt.shipments[0].carrier_name)
+        : receipt?.carrier_name ? String(receipt.carrier_name) : null,
       orderTotal: moneyValue(receipt?.grandtotal),
       currency: moneyCurrency(receipt?.grandtotal),
       orderDate: receipt?.created_timestamp ? new Date(receipt.created_timestamp * 1000) : null,

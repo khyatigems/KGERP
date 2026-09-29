@@ -20,17 +20,19 @@ export async function GET() {
       recentActivity,
     ] = await Promise.all([
       prisma.$queryRawUnsafe<Array<{ total: number }>>(
-        `SELECT COUNT(*) AS total FROM "Listing" WHERE UPPER("status") IN ('ACTIVE', 'LISTED')`
+        `SELECT COUNT(*) AS total FROM "Listing" WHERE "inventoryId" IS NOT NULL AND UPPER("status") IN ('ACTIVE', 'LISTED')`
       ),
       prisma.$queryRawUnsafe<Array<{ conflictStatus: string; activePlatforms: string | null; currentQuantity: number }>>(
         `SELECT "conflictStatus", "activePlatforms", "currentQuantity" FROM "MarketplaceConflict"`
       ),
       prisma.listing.groupBy({
         by: ["status"],
+        where: { inventoryId: { not: null } },
         _count: { id: true },
       }).catch(() => []),
       prisma.listing.findMany({
         take: 4,
+        where: { inventoryId: { not: null } },
         orderBy: { updatedAt: "desc" },
         include: {
           inventory: { select: { sku: true, itemName: true } },

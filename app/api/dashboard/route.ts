@@ -52,7 +52,10 @@ export async function GET() {
         todaySalesCount, todaySalesRevenue, dailyRevenueTrend,
       ] = await Promise.all([
         prisma.inventory.count({ where: { status: "IN_STOCK" } }).catch(() => 0),
-        prisma.listing.groupBy({ by: ['platform'], where: { status: { in: ["LISTED", "ACTIVE"] } }, _count: { id: true } }).catch(() => []),
+        // Dashboard KPI counts represent ERP-linked listings only. Imported
+        // rows still awaiting SKU mapping are visible in Marketplace Listings,
+        // but must not affect business reporting.
+        prisma.listing.groupBy({ by: ['platform'], where: { status: { in: ["LISTED", "ACTIVE"] }, inventoryId: { not: null } }, _count: { id: true } }).catch(() => []),
         prisma.quotation.count({ where: { status: "ACTIVE", OR: [{ expiryDate: null }, { expiryDate: { gte: now } }] } }).catch(() => 0),
         prisma.invoice.count().catch(() => 0),
         prisma.labelCartItem.count({ where: { userId: uid, inventory: { id: { not: "" } } } }).catch(() => 0),
@@ -95,8 +98,8 @@ export async function GET() {
         prisma.inventory.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
         prisma.sale.count({ where: { saleDate: { gte: thirtyDaysAgo } } }).catch(() => 0),
         prisma.sale.count({ where: { saleDate: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
-        prisma.listing.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
-        prisma.listing.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
+        prisma.listing.count({ where: { inventoryId: { not: null }, createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
+        prisma.listing.count({ where: { inventoryId: { not: null }, createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
         prisma.quotation.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
         prisma.quotation.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),
         prisma.invoice.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),

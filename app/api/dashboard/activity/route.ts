@@ -46,6 +46,10 @@ export async function GET(request: NextRequest) {
         const rows = await prisma.activityLog.findMany({
             where: {
               createdAt: { gte: thirtyDaysAgo },
+              // Sync queueing and shop connection events are operational
+              // telemetry, not dashboard business activity. They remain in
+              // Sync History and Marketplace Control Center.
+              module: { not: "MARKETPLACE" },
               actionType: { notIn: ["PUBLIC_VIEW", "QR_SCAN"] }
             },
             select: { actionType: true, entityType: true },
@@ -66,6 +70,7 @@ export async function GET(request: NextRequest) {
       const logs = await prisma.activityLog.findMany({
           take: 50,
           where: {
+            module: { not: "MARKETPLACE" },
             actionType: { notIn: ["PUBLIC_VIEW", "QR_SCAN"] }
           },
           orderBy: { createdAt: "desc" }
