@@ -22,6 +22,19 @@ export function formatDate(date: Date | string) {
   });
 }
 
+/** Display marketplace timestamps consistently, independent of Vercel's UTC runtime. */
+export function formatMarketplaceDateTime(date: Date | string | null | undefined) {
+  if (!date) return "—";
+  const value = new Date(date);
+  if (Number.isNaN(value.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    timeZone: "Asia/Kolkata",
+    timeZoneName: "short",
+  }).format(value);
+}
+
 export function computeWeightGrams(inv: { weightGrams?: number | null; weightUnit?: string | null; weightValue?: number | null }) {
   if (inv.weightGrams !== null && inv.weightGrams !== undefined && inv.weightGrams > 0) return inv.weightGrams;
   

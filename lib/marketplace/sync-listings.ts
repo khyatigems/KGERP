@@ -25,7 +25,7 @@ export interface ListingSyncResult {
 /**
  * Idempotent marketplace listing sync. Fetches normalized listings from a
  * connector and upserts ERP `Listing` rows keyed by (platform, externalId).
- * Unmatched SKUs are NOT written (reported for manual resolution).
+ * Unmatched SKUs are retained and flagged, but never linked into ERP coverage.
  */
 export async function syncListingsForPlatform(
   shopId: string,
@@ -75,8 +75,8 @@ export async function syncListingsForPlatform(
           include: { priceHistory: { take: 1, orderBy: { changedAt: "desc" } } },
         });
 
-        const inventoryId = match.inventoryId;
-        const isOrphan = !inventoryId;
+        const inventoryId = match.status === "MATCHED" ? match.inventoryId : null;
+        const isOrphan = match.status !== "MATCHED";
 
         const data = {
           inventoryId,
@@ -95,8 +95,8 @@ export async function syncListingsForPlatform(
           marketplaceFavorites: listing.favorites ?? null,
           marketplaceOrders: listing.orders ?? null,
           marketplaceShopName: listing.shopName ?? null,
-          syncStatus: isOrphan ? "UNKNOWN_SKU" : "SYNCED",
-          syncError: null,
+          syncStatus: isOrphan ? match.status : "SYNCED",
+          syncError: isOrphan ? match.reason : null,
           lastSyncedAt: new Date(),
           rawMetadata: safeJson(listing.raw),
         };

@@ -45,7 +45,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       // Navigation
       { id: "go-dashboard", label: "Go to Dashboard", description: "View main dashboard", icon: <LayoutDashboard className="h-4 w-4" />, shortcut: "G D", category: "navigation", action: () => router.push("/") },
       { id: "go-inventory", label: "Go to Inventory", description: "Manage gemstone inventory", icon: <Diamond className="h-4 w-4" />, shortcut: "G I", category: "navigation", action: () => router.push("/inventory") },
-      { id: "go-listings", label: "Go to Listings", description: "Manage marketplace listings", icon: <Globe className="h-4 w-4" />, shortcut: "G L", category: "navigation", action: () => router.push("/listings") },
+      { id: "go-marketplace-listings", label: "Go to Marketplace Listings", description: "View synced marketplace listings", icon: <Globe className="h-4 w-4" />, shortcut: "G L", category: "navigation", action: () => router.push("/marketplace-listings") },
       { id: "go-sales", label: "Go to Sales", description: "View sales and invoices", icon: <ShoppingCart className="h-4 w-4" />, shortcut: "G S", category: "navigation", action: () => router.push("/sales") },
       { id: "go-customers", label: "Go to Customers", description: "Manage customer records", icon: <Users className="h-4 w-4" />, shortcut: "G C", category: "navigation", action: () => router.push("/customers") },
       { id: "go-vendors", label: "Go to Vendors", description: "Manage vendor records", icon: <Truck className="h-4 w-4" />, shortcut: "G V", category: "navigation", action: () => router.push("/vendors") },

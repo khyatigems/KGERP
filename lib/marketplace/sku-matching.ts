@@ -41,6 +41,15 @@ export async function matchListingToInventory(params: {
       select: { id: true, inventoryId: true, inventory: { select: { sku: true } } },
     });
     if (existing) {
+      if (listingSku && existing.inventory?.sku && existing.inventory.sku !== listingSku) {
+        return {
+          status: "MISMATCH",
+          inventoryId: null,
+          inventorySku: existing.inventory.sku,
+          listingId: existing.id,
+          reason: `Marketplace SKU ${listingSku} differs from linked ERP SKU ${existing.inventory.sku}`,
+        };
+      }
       return {
         status: "MATCHED",
         inventoryId: existing.inventoryId,

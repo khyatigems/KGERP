@@ -8,6 +8,7 @@ import { MarketplaceSyncPanel } from "@/components/marketplace/sync-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatMarketplaceDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,7 @@ export default async function MarketplaceOrdersPage() {
       <MarketplaceSyncPanel shops={shops} syncType="ORDERS" />
 
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        {shops.map((shop) => <div key={shop.id} className="rounded-md border px-3 py-2"><strong>{shop.marketplace} · {shop.name}</strong> · Last orders sync: {lastSyncByShop.get(shop.id)?.toLocaleString() || "Not yet synced"}</div>)}
+        {shops.map((shop) => <div key={shop.id} className="rounded-md border px-3 py-2"><strong>{shop.marketplace} · {shop.name}</strong> · Last orders sync: {formatMarketplaceDateTime(lastSyncByShop.get(shop.id))}</div>)}
       </div>
 
       <div className="overflow-x-auto rounded-md border">
@@ -73,11 +74,11 @@ export default async function MarketplaceOrdersPage() {
                 <TableCell className="font-mono text-xs">{order.marketplaceOrderId}</TableCell>
                 <TableCell>{order.orderNumber || "—"}</TableCell>
                 <TableCell>{order.buyerName || "—"}</TableCell>
-                <TableCell><div className="space-y-1">{order.items.map((item) => <div key={item.id} className="flex items-center gap-2">{orderImage(item.rawMetadata) ? <img src={orderImage(item.rawMetadata)!} alt="Order item" className="h-9 w-9 rounded object-cover" /> : null}<span>{item.listedSku || item.listedTitle || "—"}</span></div>)}</div></TableCell>
+                <TableCell><div className="space-y-1">{order.items.map((item) => <div key={item.id} className="flex items-center gap-2">{orderImage(item.rawMetadata) ? <img src={orderImage(item.rawMetadata)!} alt="Order item" className="h-9 w-9 rounded object-cover" /> : null}<span>{item.listedSku || item.listedTitle || "—"}</span>{item.status !== "MATCHED" && <Badge variant="destructive" className="text-[10px]">{item.status}</Badge>}</div>)}</div></TableCell>
                 <TableCell>{order.orderTotal != null ? `${order.currency} ${order.orderTotal}` : "—"}</TableCell>
                 <TableCell><Badge variant="outline">{order.status}</Badge></TableCell>
-                <TableCell>{order.orderDate?.toLocaleString() || "—"}</TableCell>
-                <TableCell>{order.lastSyncedAt?.toLocaleString() || "—"}</TableCell>
+                <TableCell>{formatMarketplaceDateTime(order.orderDate)}</TableCell>
+                <TableCell>{formatMarketplaceDateTime(order.lastSyncedAt)}</TableCell>
               </TableRow>
             ))}
             {orders.length === 0 && <TableRow><TableCell colSpan={10} className="h-24 text-center text-muted-foreground">No marketplace orders synced yet.</TableCell></TableRow>}

@@ -35,7 +35,6 @@ export const navGroups = [
     icon: Diamond,
     items: [
       { href: "/inventory", label: "Inventory", icon: Diamond, module: "inventory:view", animKey: "inventory" as NavAnimationKey },
-      { href: "/listings", label: "Listing Tools", icon: Globe, module: "listings:view", animKey: "listings" as NavAnimationKey },
       { href: "/masters/merge", label: "Merge Masters", icon: HardDrive, module: "inventory:manage", animKey: "settings" as NavAnimationKey },
       { href: "/inventory/matched-pairs", label: "Matched Pairs & Sets", icon: Link2, module: "inventory:view", animKey: "matched-pairs" as NavAnimationKey },
     ],

@@ -110,6 +110,7 @@ export async function syncOrdersForPlatform(
             continue;
           }
 
+          const inventory = item.sku ? await prisma.inventory.findUnique({ where: { sku: item.sku }, select: { id: true } }) : null;
           const itemData = {
             orderId,
             marketplaceItemId: itemId,
@@ -118,6 +119,8 @@ export async function syncOrdersForPlatform(
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             currency: item.currency || order.currency || "USD",
+            inventoryId: inventory?.id || null,
+            status: inventory ? "MATCHED" : item.sku ? "UNKNOWN_SKU" : "NO_SKU",
             rawMetadata: safeJson(item.raw),
           };
 

@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowDown, ArrowUp } from "lucide-react";
+import { formatMarketplaceDateTime } from "@/lib/utils";
+import { MarketplaceListingsExport } from "@/components/marketplace/marketplace-listings-export";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,13 @@ export default async function MarketplaceListingsPage() {
   const lastSyncByShop = new Map<string, Date>();
   for (const job of syncJobs) if (!lastSyncByShop.has(job.marketplaceShopId) && job.endedAt) lastSyncByShop.set(job.marketplaceShopId, job.endedAt);
   const listingImage = (raw: string | null) => raw?.match(/<(?:GalleryURL|PictureURL)>([^<]+)<\/(?:GalleryURL|PictureURL)>/i)?.[1] || null;
+  const exportRows = listings.map((listing) => ({
+    marketplace: listing.platform, shop: listing.marketplaceShop?.name || listing.marketplaceShopName || "—",
+    listingId: listing.externalId || "", sku: listing.inventory?.sku || listing.listingSku || "Unmapped",
+    title: listing.marketplaceTitle || "", price: listing.marketplacePrice == null ? "" : `${listing.currency} ${listing.marketplacePrice}`,
+    quantity: String(listing.marketplaceQuantity ?? ""), status: listing.status, syncStatus: listing.syncStatus || "Imported",
+    lastSynced: formatMarketplaceDateTime(listing.lastSyncedAt), listingUrl: listing.listingUrl || "",
+  }));
 
   return (
     <div className="space-y-5">
@@ -50,13 +59,13 @@ export default async function MarketplaceListingsPage() {
           <h1 className="text-2xl font-semibold">Marketplace Listings</h1>
           <p className="text-sm text-muted-foreground">External listings mapped to ERP products.</p>
         </div>
-        <Button asChild variant="outline"><Link href="/marketplace-orders">Marketplace Orders</Link></Button>
+        <div className="flex gap-2"><MarketplaceListingsExport rows={exportRows} /><Button asChild variant="outline"><Link href="/marketplace-orders">Marketplace Orders</Link></Button></div>
       </div>
 
       <MarketplaceSyncPanel shops={shops} syncType="LISTINGS" />
 
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        {shops.map((shop) => <div key={shop.id} className="rounded-md border px-3 py-2"><strong>{shop.marketplace} · {shop.name}</strong> · Last listings sync: {lastSyncByShop.get(shop.id)?.toLocaleString() || "Not yet synced"}</div>)}
+        {shops.map((shop) => <div key={shop.id} className="rounded-md border px-3 py-2"><strong>{shop.marketplace} · {shop.name}</strong> · Last listings sync: {formatMarketplaceDateTime(lastSyncByShop.get(shop.id))}</div>)}
       </div>
 
       <div className="overflow-x-auto rounded-md border">
@@ -73,17 +82,17 @@ export default async function MarketplaceListingsPage() {
                 <TableCell>{listingImage(listing.rawMetadata) ? <img src={listingImage(listing.rawMetadata)!} alt="Listing" className="h-12 w-12 rounded object-cover" /> : "—"}</TableCell>
                 <TableCell>{listing.platform}</TableCell>
                 <TableCell>{listing.marketplaceShop?.name || listing.marketplaceShopName || "—"}</TableCell>
-                <TableCell className="font-mono text-xs">{listing.externalId || "—"}</TableCell>
+                <TableCell className="font-mono text-xs">{listing.listingUrl ? <a href={listing.listingUrl} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">{listing.externalId || "Open"}</a> : listing.externalId || "—"}</TableCell>
                 <TableCell>{listing.inventory ? <><div>{listing.inventory.sku}</div><div className="text-xs text-muted-foreground">{listing.inventory.itemName}</div></> : listing.listingSku || "Unmapped"}</TableCell>
                 <TableCell className="min-w-72 max-w-md whitespace-normal break-words">{listing.marketplaceTitle || "—"}</TableCell>
                 <TableCell>
                   {listing.marketplacePrice != null ? <div className="flex items-center gap-1">{`${listing.currency} ${listing.marketplacePrice}`}{listing.priceHistory.length > 1 && listing.priceHistory[0].price !== listing.priceHistory[1].price && (listing.priceHistory[0].price > listing.priceHistory[1].price ? <ArrowUp className="h-3.5 w-3.5 text-emerald-500" aria-label="Price increased" /> : <ArrowDown className="h-3.5 w-3.5 text-red-500" aria-label="Price decreased" />)}</div> : "—"}
-                  {listing.priceHistory[0] && <div className="text-[10px] text-muted-foreground">Changed: {listing.priceHistory[0].changedAt.toLocaleString()}</div>}
+                  {listing.priceHistory[0] && <div className="text-[10px] text-muted-foreground">Changed: {formatMarketplaceDateTime(listing.priceHistory[0].changedAt)}</div>}
                 </TableCell>
                 <TableCell>{listing.marketplaceQuantity ?? "—"}</TableCell>
                 <TableCell><Badge variant="outline">{listing.status}</Badge></TableCell>
                 <TableCell><Badge variant={listing.syncStatus === "SYNCED" ? "default" : "secondary"}>{listing.syncStatus || "Imported"}</Badge></TableCell>
-                <TableCell>{listing.lastSyncedAt?.toLocaleString() || "—"}</TableCell>
+                <TableCell>{formatMarketplaceDateTime(listing.lastSyncedAt)}</TableCell>
                 <TableCell className="max-w-65 whitespace-normal text-xs text-destructive">{listing.syncError || "—"}</TableCell>
               </TableRow>
             ))}
