@@ -62,7 +62,26 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
   const pageListings = safePage === page ? listings : await prisma.listing.findMany({ where, orderBy: { createdAt: "desc" }, skip: (safePage - 1) * PAGE_SIZE, take: PAGE_SIZE, include: listingInclude });
   const lastSyncByShop = new Map<string, Date>();
   for (const job of syncJobs) if (!lastSyncByShop.has(job.marketplaceShopId) && job.endedAt) lastSyncByShop.set(job.marketplaceShopId, job.endedAt);
-  const listingImage = (raw: string | null) => raw?.match(/<(?:GalleryURL|PictureURL)>([^<]+)<\/(?:GalleryURL|PictureURL)>/i)?.[1] || null;
+  const listingImage = (raw: string | null) => {
+    // eBay stores XML while Etsy stores its source response as JSON.
+    const ebayImage = raw?.match(/<(?:GalleryURL|PictureURL)>([^<]+)<\/(?:GalleryURL|PictureURL)>/i)?.[1];
+    if (ebayImage) return ebayImage;
+    if (!raw) return null;
+    try {
+      const payload = JSON.parse(raw) as { images?: unknown; Images?: unknown };
+      const images = Array.isArray(payload.images) ? payload.images : Array.isArray(payload.Images) ? payload.Images : [];
+      for (const image of images) {
+        if (!image || typeof image !== "object") continue;
+        const candidate = image as Record<string, unknown>;
+        for (const field of ["url_fullxfull", "url_570xN", "url_170x135", "url"]) {
+          if (typeof candidate[field] === "string" && candidate[field]) return candidate[field];
+        }
+      }
+    } catch {
+      // Raw metadata from older syncs may not be valid JSON.
+    }
+    return null;
+  };
   const exportRows = exportListings.map((listing) => ({
     marketplace: listing.platform, shop: listing.marketplaceShop?.name || listing.marketplaceShopName || "—", listingId: listing.externalId || "", sku: listing.inventory?.sku || listing.listingSku || "Unmapped",
     title: listing.marketplaceTitle || "", price: listing.marketplacePrice == null ? "" : `${listing.currency} ${listing.marketplacePrice}`, quantity: String(listing.marketplaceQuantity ?? ""), status: listing.status,

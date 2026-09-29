@@ -32,6 +32,62 @@ function moneyCurrency(money: any): string | null {
   return money?.currency_code ? String(money.currency_code) : null;
 }
 
+function usableSku(value: unknown): string | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const sku = String(value).trim();
+  return sku || null;
+}
+
+/**
+ * Etsy keeps a listing SKU on an inventory product, rather than on the
+ * listing itself. A legacy direct `sku` is also accepted because saved API
+ * payloads and older responses can use that shape.
+ */
+export function etsyListingSku(listing: any): string | null {
+  const directValues = Array.isArray(listing?.sku) ? listing.sku : [listing?.sku];
+  for (const value of directValues) {
+    const direct = usableSku(value && typeof value === "object" ? value.sku : value);
+    if (direct) return direct;
+  }
+
+  const products = listing?.inventory?.products;
+  if (Array.isArray(products)) {
+    for (const product of products) {
+      const productSku = usableSku(product?.sku);
+      if (productSku) return productSku;
+      for (const offering of Array.isArray(product?.offerings) ? product.offerings : []) {
+        const offeringSku = usableSku(offering?.sku);
+        if (offeringSku) return offeringSku;
+      }
+    }
+  }
+
+  // Some Etsy integrations serialize product inventory directly on `products`.
+  for (const product of Array.isArray(listing?.products) ? listing.products : []) {
+    const productSku = usableSku(product?.sku);
+    if (productSku) return productSku;
+  }
+
+  // Our product descriptions also carry the ERP SKU. Only use an explicitly
+  // labelled value so normal prose can never be accidentally mapped.
+  const description = typeof listing?.description === "string"
+    ? listing.description.replace(/<[^>]*>/g, " ")
+    : "";
+  const labelledSku = description.match(/\bSKU\s*(?:No\.?|Number|Code)?\s*[:#-]\s*([A-Za-z0-9][A-Za-z0-9._/-]{2,80})\b/i);
+  return labelledSku?.[1] || null;
+}
+
+export function etsyListingImages(listing: any): string[] {
+  const candidates = Array.isArray(listing?.images)
+    ? listing.images
+    : Array.isArray(listing?.Images)
+      ? listing.Images
+      : [];
+  return candidates
+    .map((image: any) => image?.url_fullxfull || image?.url_570xN || image?.url_170x135 || image?.url || "")
+    .filter((url: unknown): url is string => typeof url === "string" && url.length > 0);
+}
+
 function base64Url(input: Buffer): string {
   return input.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
@@ -187,7 +243,7 @@ export class EtsyConnector implements MarketplaceConnector {
     const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 100;
     const offset = params.offset || 0;
     const data = await httpJson<{ results?: any[]; count?: number }>(
-      `${API_BASE}/v3/application/shops/${encodeURIComponent(context.externalShopId)}/listings?state=active&limit=${pageSize}&offset=${offset}`,
+      `${API_BASE}/v3/application/shops/${encodeURIComponent(context.externalShopId)}/listings?state=active&includes=Images,Inventory&limit=${pageSize}&offset=${offset}`,
       { headers }
     );
     return (data.results || []).map((listing) => ({
@@ -199,10 +255,8 @@ export class EtsyConnector implements MarketplaceConnector {
   }
 
   private normalizeListing(listing: any): NormalizedListing {
-    const sku = Array.isArray(listing?.sku) && listing.sku.length > 0 ? String(listing.sku[0].sku) : null;
-    const images = Array.isArray(listing?.images)
-      ? listing.images.map((img: any) => img?.url_570xN || img?.url_fullxfull || "").filter(Boolean)
-      : [];
+    const sku = etsyListingSku(listing);
+    const images = etsyListingImages(listing);
 
     return {
       marketplace: "ETSY",
