@@ -49,8 +49,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     flags,
     platforms: connectors.map((connector) => {
-      const missingConfiguration = connector.platform === "EBAY"
-        ? getEbayConfigurationError() ? [getEbayConfigurationError()] : []
+      const ebayConfigurationError = connector.platform === "EBAY" ? getEbayConfigurationError() : null;
+      const missingConfiguration: string[] = connector.platform === "EBAY"
+        ? ebayConfigurationError ? [ebayConfigurationError] : []
         : [
             !String(process.env.ETSY_CLIENT_ID || process.env.ETSY_API_KEY || process.env.ETSY_KEYSTRING || "").trim() ? "ETSY_CLIENT_ID" : "",
             !String(process.env.ETSY_SHARED_SECRET || process.env.ETSY_API_SECRET || "").trim() ? "ETSY_SHARED_SECRET" : "",
