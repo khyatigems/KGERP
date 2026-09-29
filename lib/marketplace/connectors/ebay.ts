@@ -115,18 +115,42 @@ export class EbayConnector implements MarketplaceConnector {
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
       scope: data.scope,
     };
-    const profile = await httpJson<any>(`${apiBase}/sell/account/v1/user`, {
-      headers: this.getHeaders(tokens.accessToken),
-    });
-    const externalAccountId = String(profile?.userId || "").trim();
-    if (!externalAccountId) throw new Error("eBay did not return a seller account ID for this authorization.");
-    const accountName = String(profile?.username || profile?.userId || externalAccountId);
+    const profile = await this.getAuthenticatedSeller(tokens.accessToken, apiBase);
+    const externalAccountId = profile.userId;
+    const accountName = profile.username || externalAccountId;
     return {
       externalAccountId,
       accountName,
       tokens,
       shops: [{ externalShopId: externalAccountId, name: accountName }],
     };
+  }
+
+  /**
+   * The Sell Account API has no /user endpoint. GetUser is the supported
+   * authenticated eBay API call for obtaining the account that granted OAuth.
+   */
+  private async getAuthenticatedSeller(accessToken: string, apiBase: string): Promise<{ userId: string; username: string | null }> {
+    const response = await fetch(`${apiBase}/ws/api.dll`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/xml",
+        "X-EBAY-API-CALL-NAME": "GetUser",
+        "X-EBAY-API-COMPATIBILITY-LEVEL": "1231",
+        "X-EBAY-API-SITEID": "0",
+        "X-EBAY-API-IAF-TOKEN": accessToken,
+      },
+      body: '<?xml version="1.0" encoding="utf-8"?><GetUserRequest xmlns="urn:ebay:apis:eBLBaseComponents"><DetailLevel>ReturnAll</DetailLevel></GetUserRequest>',
+    });
+    const xml = await response.text();
+    const userId = xml.match(/<UserID>([^<]+)<\/UserID>/i)?.[1]?.trim();
+
+    if (!response.ok || !userId) {
+      const ebayMessage = xml.match(/<(?:LongMessage|ShortMessage)>([^<]+)<\/(?:LongMessage|ShortMessage)>/i)?.[1]?.trim();
+      throw new Error(ebayMessage || "eBay did not return a seller account ID after authorization.");
+    }
+
+    return { userId, username: userId };
   }
 
   private async getAccessToken(connectionId: string): Promise<string> {
