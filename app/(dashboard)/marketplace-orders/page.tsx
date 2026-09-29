@@ -84,14 +84,13 @@ export default async function MarketplaceOrdersPage({ searchParams }: { searchPa
     if (order.marketplace === "EBAY") return `https://www.ebay.com/sh/ord/?search=${encodeURIComponent(order.marketplaceOrderId)}`;
     return null;
   };
-  const shipmentStatus = (order: { rawMetadata: string | null; status: string }) => {
+  const shipmentStatus = (order: { rawMetadata: string | null }) => {
     try {
       const raw = JSON.parse(order.rawMetadata || "{}") as RawOrderMetadata;
       const shipment = Array.isArray(raw.shipments) ? raw.shipments[0] : null;
       const providerStatus = shipment?.status || shipment?.shipment_status || shipment?.tracking_status || raw.shipment_status || raw.tracking_status;
       if (providerStatus) return String(providerStatus).replace(/_/g, " ");
       if (raw.was_delivered === true || String(raw.status || "").toLowerCase() === "delivered") return "Delivered";
-      if (raw.was_shipped === true || String(order.status || "").toLowerCase() === "completed") return "Shipped";
     } catch { /* Fall through to the component's neutral state. */ }
     return null;
   };

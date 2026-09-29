@@ -13,7 +13,7 @@ export function OrderTrackingDetails({
   trackingCode: string | null;
   shipmentStatus: string | null;
 }) {
-  const status = shipmentStatus || (trackingCode ? "Shipped" : "Not shipped");
+  const status = shipmentStatus || "Not available from marketplace";
   return (
     <Popover>
       <PopoverTrigger asChild>

@@ -318,10 +318,27 @@ export class EtsyConnector implements MarketplaceConnector {
       { headers }
     );
     const result = new Map<string, string>();
-    for (const listing of data.results || []) {
-      const image = etsyListingImages(listing)[0];
-      if (image && listing?.listing_id != null) result.set(String(listing.listing_id), image);
-    }
+    await Promise.all((data.results || []).map(async (listing) => {
+      try {
+        if (listing?.listing_id == null) return;
+        const listingId = String(listing.listing_id);
+        // getListingsByShopReceipt does not guarantee expanded image payloads.
+        // Fetch the image resource directly so receipt thumbnails are reliable.
+        let image = etsyListingImages(listing)[0];
+        if (!image) {
+          const imageData = await httpJson<{ results?: any[] }>(
+            `${API_BASE}/v3/application/listings/${encodeURIComponent(listingId)}/images?limit=1`,
+            { headers }
+          );
+          image = etsyListingImages({ images: imageData.results })[0];
+        }
+        if (image) result.set(listingId, image);
+      } catch (error) {
+        // One unavailable/deleted listing must not hide images for the rest of
+        // the receipt. The order itself remains safe to sync.
+        console.warn("[etsy] Could not load an order item image:", error);
+      }
+    }));
     return result;
   }
 
