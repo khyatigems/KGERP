@@ -7,6 +7,15 @@ import { saveTokens } from "@/lib/marketplace/oauth";
 import { logMarketplaceActivity } from "@/lib/marketplace-control-center";
 
 function getBaseUrl(request: NextRequest): string {
+  const configuredUrl = (process.env.APP_BASE_URL || process.env.NEXTAUTH_URL || "").trim();
+  if (configuredUrl) {
+    try {
+      const url = new URL(configuredUrl);
+      if (url.protocol === "https:" || url.protocol === "http:") return url.origin;
+    } catch {
+      console.warn("[marketplace-oauth] Ignoring invalid APP_BASE_URL/NEXTAUTH_URL");
+    }
+  }
   const proto = request.headers.get("x-forwarded-proto") || "https";
   const host = request.headers.get("host") || request.nextUrl.host;
   return `${proto}://${host}`;
@@ -16,12 +25,14 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   const error = request.nextUrl.searchParams.get("error");
+  const errorDescription = request.nextUrl.searchParams.get("error_description");
   const baseUrl = getBaseUrl(request);
   const settingsUrl = `${baseUrl}/settings/marketplace-connections`;
 
   if (error) {
+    const message = errorDescription ? `OAuth error: ${error} (${errorDescription})` : `OAuth error: ${error}`;
     return NextResponse.redirect(
-      new URL(`${settingsUrl}?error=${encodeURIComponent(`OAuth error: ${error}`)}`, request.nextUrl)
+      new URL(`${settingsUrl}?error=${encodeURIComponent(message)}`, request.nextUrl)
     );
   }
   if (!code || !state) {

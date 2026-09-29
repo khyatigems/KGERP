@@ -80,6 +80,9 @@ export class EbayConnector implements MarketplaceConnector {
       redirect_uri: this.ruName,
       scope: SCOPES,
       state,
+      // Do not silently reuse an unrelated eBay browser session. Showing the
+      // eBay sign-in/consent screen makes account selection explicit.
+      prompt: "login",
     });
     return `${authBase}/oauth2/authorize?${params.toString()}`;
   }

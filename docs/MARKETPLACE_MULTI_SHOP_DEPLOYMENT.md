@@ -27,7 +27,7 @@ Configure application-level credentials only; do not add per-shop variables:
 - Token encryption: `ERP_SECRET_ENCRYPTION_KEY` with at least 16 characters. Use a stable, high-entropy secret and preserve it across deployments so stored tokens remain decryptable.
 - Scheduled worker authorization: `CRON_SECRET`.
 
-For eBay, open **Application Keys > User Tokens** for the matching environment and configure the generated RuName as follows: the Auth Accepted URL is `https://kgerp.vercel.app/api/integrations/marketplace/oauth/callback`, and the Auth Declined URL is `https://kgerp.vercel.app/settings/marketplace-connections?error=oauth_declined`. Copy that generated RuName—not either URL—into `EBAY_RU_NAME` in Vercel, then redeploy. eBay redirects to the Accept/Declined URL based on that RuName configuration.
+For eBay, use one canonical host across the ERP, eBay Accept URL, and `NEXTAUTH_URL`/`APP_BASE_URL`. For the live ERP that is `https://erp.khyatigems.com`. Open **Application Keys > User Tokens** for the matching environment and configure the generated RuName as follows: the Auth Accepted URL is `https://erp.khyatigems.com/api/integrations/marketplace/oauth/callback`, and the Auth Declined URL is `https://erp.khyatigems.com/settings/marketplace-connections?error=oauth_declined`. Copy that generated RuName—not either URL—into `EBAY_RU_NAME` in Vercel, then redeploy. eBay redirects to the Accept/Declined URL based on that RuName configuration.
 
 For Etsy, register the OAuth callback URL `/api/integrations/marketplace/oauth/callback` with the marketplace application. Etsy must use the exact configured redirect URI.
 
