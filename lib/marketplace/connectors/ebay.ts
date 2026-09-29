@@ -199,7 +199,9 @@ export class EbayConnector implements MarketplaceConnector {
     const page = Math.floor((params.offset || 0) / pageSize) + 1;
 
     const { findingBase } = bases();
-    const url = new URL(`${findingBase}/services/search/FindingAPI/v1`);
+    // The eBay Finding API service is named FindingService. FindingAPI is
+    // not a valid route and eBay returns HTTP 404 before evaluating scopes.
+    const url = new URL(`${findingBase}/services/search/FindingService/v1`);
     url.searchParams.set("OPERATION-NAME", "findItemsAdvanced");
     url.searchParams.set("SERVICE-VERSION", "1.0.0");
     url.searchParams.set("SECURITY-APPNAME", this.clientId);
@@ -218,7 +220,14 @@ export class EbayConnector implements MarketplaceConnector {
 
     console.log(`[ebay] Finding API: seller=${sellerId}, page=${page}, items=${totalCount}`);
 
-    return items.map((item: any) => ({
+    // Defense in depth: Finding is queried by this shop's seller ID, and any
+    // returned seller identity must agree when eBay includes it in the result.
+    const shopListings = items.filter((item: any) => {
+      const itemSellerId = String(item?.sellerInfo?.[0]?.sellerUserName?.[0] || "").trim();
+      return !itemSellerId || itemSellerId.toLowerCase() === sellerId.toLowerCase();
+    });
+
+    return shopListings.map((item: any) => ({
       ...this.normalizeFindingItem(item),
       marketplaceShopId: context.shopId,
       externalShopId: context.externalShopId,
@@ -276,17 +285,54 @@ export class EbayConnector implements MarketplaceConnector {
       { headers }
     );
 
-    return (data.orders || []).map((order) => ({
-      ...this.normalizeOrder(order),
-      marketplaceShopId: context.shopId,
-      externalShopId: context.externalShopId,
-      shopName: context.shopName,
+    // Fulfillment's order search is intrinsically limited to the seller who
+    // granted this connection's OAuth token; it cannot return another shop's
+    // orders. Load package details separately so tracking is kept current.
+    return Promise.all((data.orders || []).map(async (order) => {
+      const tracking = await this.getTrackingDetails(order?.orderId, headers, apiBase);
+      return {
+        ...this.normalizeOrder(order, tracking),
+        marketplaceShopId: context.shopId,
+        externalShopId: context.externalShopId,
+        shopName: context.shopName,
+      };
     }));
   }
 
-  private normalizeOrder(order: any): NormalizedOrder {
+  private async getTrackingDetails(
+    orderId: unknown,
+    headers: Record<string, string>,
+    apiBase: string
+  ): Promise<{ trackingCode: string | null; carrier: string | null }> {
+    const id = String(orderId || "").trim();
+    if (!id) return { trackingCode: null, carrier: null };
+
+    try {
+      const data = await httpJson<{ fulfillments?: Array<{ trackingNumber?: string; shippingCarrierCode?: string }> }>(
+        `${apiBase}/sell/fulfillment/v1/order/${encodeURIComponent(id)}/shipping_fulfillment`,
+        { headers }
+      );
+      const fulfillment = data.fulfillments?.find((entry) => entry.trackingNumber) || data.fulfillments?.[0];
+      return {
+        trackingCode: fulfillment?.trackingNumber ? String(fulfillment.trackingNumber) : null,
+        carrier: fulfillment?.shippingCarrierCode ? String(fulfillment.shippingCarrierCode) : null,
+      };
+    } catch (error) {
+      // An order may not have been shipped yet. Do not fail its complete order
+      // sync merely because eBay has no fulfillment record at this point.
+      console.warn(`[ebay] Could not load tracking for order ${id}:`, error);
+      return { trackingCode: null, carrier: null };
+    }
+  }
+
+  private normalizeOrder(
+    order: any,
+    tracking: { trackingCode: string | null; carrier: string | null }
+  ): NormalizedOrder {
     const total = order?.pricingSummary?.total || {};
     const buyer = order?.buyer || {};
+    const shipTo = order?.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo || {};
+    const address = shipTo?.contactAddress || buyer?.buyerRegistrationAddress?.contactAddress || {};
     const items: NormalizedOrderItem[] = (order?.lineItems || []).map((line: any) => ({
       itemId: line?.lineItemId ? String(line.lineItemId) : null,
       sku: line?.sku ? String(line.sku) : null,
@@ -302,8 +348,14 @@ export class EbayConnector implements MarketplaceConnector {
       orderId: order?.orderId ? String(order.orderId) : "",
       orderNumber: order?.orderId ? String(order.orderId) : null,
       status: order?.orderFulfillmentStatus ? String(order.orderFulfillmentStatus) : null,
-      buyerName: buyer?.username ? String(buyer.username) : null,
+      buyerName: shipTo?.fullName ? String(shipTo.fullName) : buyer?.username ? String(buyer.username) : null,
       buyerEmail: buyer?.email ? String(buyer.email) : null,
+      buyerCountry: address?.countryCode ? String(address.countryCode) : null,
+      buyerCity: address?.city ? String(address.city) : null,
+      buyerState: address?.stateOrProvince ? String(address.stateOrProvince) : null,
+      buyerZip: address?.postalCode ? String(address.postalCode) : null,
+      trackingCode: tracking.trackingCode,
+      carrier: tracking.carrier,
       orderTotal: total?.value != null ? Number(total.value) : null,
       currency: total?.currency ? String(total.currency) : null,
       orderDate: order?.creationDate ? new Date(order.creationDate) : null,
