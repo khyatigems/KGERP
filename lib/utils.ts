@@ -28,8 +28,13 @@ export function formatMarketplaceDateTime(date: Date | string | null | undefined
   const value = new Date(date);
   if (Number.isNaN(value.getTime())) return "—";
   return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "medium",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
     timeZone: "Asia/Kolkata",
     timeZoneName: "short",
   }).format(value);
