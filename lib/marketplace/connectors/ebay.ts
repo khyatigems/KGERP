@@ -193,80 +193,84 @@ export class EbayConnector implements MarketplaceConnector {
   }
 
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {
-    const sellerId = context.externalShopId;
-
-    const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 50) : 50;
+    const token = await this.getAccessToken(context.connectionId);
+    const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 100;
     const page = Math.floor((params.offset || 0) / pageSize) + 1;
+    const { apiBase } = bases();
+    const xml = await this.callTradingApi(
+      "GetMyeBaySelling",
+      token,
+      apiBase,
+      `<GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents"><DetailLevel>ReturnAll</DetailLevel><ActiveList><Include>true</Include><Pagination><EntriesPerPage>${pageSize}</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination></ActiveList></GetMyeBaySellingRequest>`
+    );
+    const items = this.parseTradingItems(xml);
+    console.log(`[ebay] GetMyeBaySelling: shop=${context.externalShopId}, page=${page}, items=${items.length}`);
 
-    const { findingBase } = bases();
-    // The eBay Finding API service is named FindingService. FindingAPI is
-    // not a valid route and eBay returns HTTP 404 before evaluating scopes.
-    const url = new URL(`${findingBase}/services/search/FindingService/v1`);
-    url.searchParams.set("OPERATION-NAME", "findItemsAdvanced");
-    url.searchParams.set("SERVICE-VERSION", "1.0.0");
-    url.searchParams.set("SECURITY-APPNAME", this.clientId);
-    url.searchParams.set("GLOBAL-ID", "EBAY-US");
-    url.searchParams.set("RESPONSE-DATA-FORMAT", "JSON");
-    url.searchParams.set("REST-PAYLOAD", "");
-    url.searchParams.set("sellerId", sellerId);
-    url.searchParams.set("paginationInput.entriesPerPage", String(pageSize));
-    url.searchParams.set("paginationInput.pageNumber", String(page));
-
-    const data = await httpJson<any>(url.toString(), { method: "GET" });
-
-    const result = data?.findItemsAdvancedResponse?.[0]?.searchResult?.[0];
-    const items: any[] = result?.item || [];
-    const totalCount = Number(result?.["@count"] || 0);
-
-    console.log(`[ebay] Finding API: seller=${sellerId}, page=${page}, items=${totalCount}`);
-
-    // Defense in depth: Finding is queried by this shop's seller ID, and any
-    // returned seller identity must agree when eBay includes it in the result.
-    const shopListings = items.filter((item: any) => {
-      const itemSellerId = String(item?.sellerInfo?.[0]?.sellerUserName?.[0] || "").trim();
-      return !itemSellerId || itemSellerId.toLowerCase() === sellerId.toLowerCase();
-    });
-
-    return shopListings.map((item: any) => ({
-      ...this.normalizeFindingItem(item),
+    return items.map((item) => ({
+      ...item,
       marketplaceShopId: context.shopId,
       externalShopId: context.externalShopId,
       shopName: context.shopName,
     }));
   }
 
-  private normalizeFindingItem(item: any): NormalizedListing {
-    const price = item?.currentPrice?.[0];
-    const condition = item?.condition?.[0];
-    const images: string[] = [];
-    if (item?.galleryURL?.[0]) images.push(item.galleryURL[0]);
-    if (item?.pictureURLSuperSize?.[0]) images.push(item.pictureURLSuperSize[0]);
+  private async callTradingApi(callName: string, accessToken: string, apiBase: string, body: string): Promise<string> {
+    const response = await fetch(`${apiBase}/ws/api.dll`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/xml",
+        "X-EBAY-API-CALL-NAME": callName,
+        "X-EBAY-API-COMPATIBILITY-LEVEL": "1231",
+        "X-EBAY-API-SITEID": "0",
+        "X-EBAY-API-IAF-TOKEN": accessToken,
+      },
+      body: `<?xml version="1.0" encoding="utf-8"?>${body}`,
+    });
+    const xml = await response.text();
+    const ebayMessage = xml.match(/<(?:LongMessage|ShortMessage)>([^<]+)<\/(?:LongMessage|ShortMessage)>/i)?.[1]?.trim();
+    if (!response.ok || /<Ack>(?:Failure|PartialFailure)<\/Ack>/i.test(xml)) {
+      throw new Error(ebayMessage || `eBay ${callName} failed (HTTP ${response.status}).`);
+    }
+    return xml;
+  }
 
-    return {
-      marketplace: "EBAY",
-      listingId: String(item?.itemId?.[0] || ""),
-      listingSku: item?.sku?.[0] ? String(item.sku[0]) : null,
-      title: item?.title?.[0] ? String(item.title[0]) : null,
-      description: null,
-      price: price?.__value__ != null ? Number(price.__value__) : null,
-      currency: price?.__currencyId__ ? String(price.__currencyId__) : null,
-      quantity: item?.quantity?.[0] != null ? Number(item.quantity[0]) : null,
-      status: item?.listingStatus?.[0] ? String(item.listingStatus[0]) : null,
-      listingUrl: item?.viewItemURL?.[0] ? String(item.viewItemURL[0]) : null,
-      category: item?.primaryCategory?.[0]?.categoryName?.[0]
-        ? String(item.primaryCategory[0].categoryName[0])
-        : null,
-      images,
-      attributes: condition?.[0]?.conditionDisplayName?.[0]
-        ? { Condition: String(condition[0].conditionDisplayName[0]) }
-        : {},
-      views: item?.hitCount?.[0] != null ? Number(item.hitCount[0]) : null,
-      favorites: item?.watchCount?.[0] != null ? Number(item.watchCount[0]) : null,
-      orders: item?.sellingStatus?.[0]?.quantitySold?.[0] != null
-        ? Number(item.sellingStatus[0].quantitySold[0])
-        : null,
-      raw: item,
+  private parseTradingItems(xml: string): NormalizedListing[] {
+    const decode = (value: string | undefined): string | null => value
+      ? value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim()
+      : null;
+    const tag = (source: string, name: string): string | null => decode(source.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, "i"))?.[1]);
+    const amount = (source: string, name: string): { value: number | null; currency: string | null } => {
+      const matched = source.match(new RegExp(`<${name}[^>]*?(?:currencyID="([^"]+)")?[^>]*>([^<]+)<\\/${name}>`, "i"));
+      return { value: matched?.[2] != null && Number.isFinite(Number(matched[2])) ? Number(matched[2]) : null, currency: matched?.[1] || null };
     };
+    const listings: NormalizedListing[] = [];
+    for (const match of xml.matchAll(/<Item>([\s\S]*?)<\/Item>/gi)) {
+      const item = match[1];
+      const price = amount(item, "CurrentPrice");
+      const listingId = tag(item, "ItemID");
+      if (!listingId) continue;
+      const image = tag(item, "GalleryURL") || tag(item, "PictureURL");
+      listings.push({
+        marketplace: "EBAY",
+        listingId,
+        listingSku: tag(item, "SKU"),
+        title: tag(item, "Title"),
+        description: null,
+        price: price.value,
+        currency: price.currency,
+        quantity: Number(tag(item, "Quantity")) || null,
+        status: tag(item, "ListingStatus") || "ACTIVE",
+        listingUrl: tag(item, "ViewItemURL"),
+        category: tag(item, "CategoryName"),
+        images: image ? [image] : [],
+        attributes: {},
+        views: Number(tag(item, "HitCount")) || null,
+        favorites: Number(tag(item, "WatchCount")) || null,
+        orders: Number(tag(item, "QuantitySold")) || null,
+        raw: item,
+      });
+    }
+    return listings;
   }
 
   async fetchOrders(params: OrderSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedOrder[]> {
