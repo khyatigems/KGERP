@@ -19,6 +19,7 @@ export default async function SettingsCodesPage() {
   const gemstones = await prisma.gemstoneCode.findMany({ orderBy: { name: "asc" } });
   const colors = await prisma.colorCode.findMany({ orderBy: { name: "asc" } });
   const cuts = await prisma.cutCode.findMany({ orderBy: { name: "asc" } });
+  const shapes = await prisma.shapeCode.findMany({ orderBy: { name: "asc" } }).catch(() => []);
   const collections = await prisma.collectionCode.findMany({ orderBy: { name: "asc" } });
   const rashis = await prisma.rashiCode.findMany({ orderBy: { name: "asc" } });
   const certificates = await prisma.certificateCode.findMany({ orderBy: { name: "asc" } });
@@ -34,6 +35,7 @@ export default async function SettingsCodesPage() {
         gemstones={gemstones}
         colors={colors}
         cuts={cuts}
+        shapes={shapes}
         collections={collections}
         rashis={rashis}
         certificates={certificates}

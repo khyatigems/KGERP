@@ -135,6 +135,32 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
   const [expandedGroups, setExpandedGroups] = useState<string[]>(() => 
     navGroups.map(g => g.id)
   );
+  const [pendingConflicts, setPendingConflicts] = useState(0);
+  const canSeeControlCenter =
+    allowedModules.includes("ALL") ||
+    allowedModules.includes("listings:view") ||
+    allowedModules.includes("dashboard");
+  
+  useEffect(() => {
+    if (!canSeeControlCenter) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/marketplace/stats", { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled && typeof json.pendingConflicts === "number") {
+          setPendingConflicts(json.pendingConflicts);
+        }
+      } catch {}
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [canSeeControlCenter]);
   
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -224,9 +250,12 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
         {!collapsed && (
           <>
             <span className="truncate font-medium">{item.label}</span>
-            {item.badge === "conflicts" && (
-              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white animate-pulse">
-                3
+            {item.badge === "conflicts" && pendingConflicts > 0 && (
+              <span
+                title={`${pendingConflicts} open marketplace conflict${pendingConflicts === 1 ? "" : "s"}`}
+                className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white animate-pulse px-1"
+              >
+                {pendingConflicts > 99 ? "99+" : pendingConflicts}
               </span>
             )}
           </>

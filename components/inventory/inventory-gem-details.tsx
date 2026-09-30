@@ -14,16 +14,23 @@ import type { CodeRow, FormInputValues } from "./inventory-form.types";
 const ORIGIN_PRESETS = ["Burma (Myanmar)", "Sri Lanka (Ceylon)", "Kashmir", "Madagascar", "Mozambique", "Thailand", "Colombia", "Zambia"];
 const FLUORESCENCE_PRESETS = ["None", "Faint", "Medium", "Strong", "Very Strong", "Not Applicable"];
 const TREATMENT_PRESETS = ["None", "Untreated", "Heat", "Oil", "Resin", "Irradiation", "Diffusion", "Glass-Filled"];
+const DEFAULT_SHAPES: CodeRow[] = ["Round", "Oval", "Cushion", "Emerald", "Pear", "Marquise", "Heart", "Other"].map((name) => ({
+  id: `default-shape-${name.toLowerCase()}`,
+  name,
+  code: name.slice(0, 4).toUpperCase(),
+  status: "ACTIVE",
+}));
 
 interface GemDetailsSectionProps {
   form: UseFormReturn<FormInputValues>;
   gemstones: CodeRow[];
   colors: CodeRow[];
   cuts: CodeRow[];
+  shapes?: CodeRow[];
   origins?: string[];
 }
 
-export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, origins = [] }: GemDetailsSectionProps) {
+export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, shapes: initialShapes = [], origins = [] }: GemDetailsSectionProps) {
   const [colorsList, setColorsList] = useState(colors);
   const [isAddingColor, setIsAddingColor] = useState(false);
   const [newColorName, setNewColorName] = useState("");
@@ -36,15 +43,31 @@ export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, 
   const [newCutCode, setNewCutCode] = useState("");
   const [isCreatingCut, setIsCreatingCut] = useState(false);
 
+  const [shapesList, setShapesList] = useState<CodeRow[]>(
+    initialShapes.length ? initialShapes : DEFAULT_SHAPES
+  );
+  const [isAddingShape, setIsAddingShape] = useState(false);
+  const [newShapeName, setNewShapeName] = useState("");
+  const [newShapeCode, setNewShapeCode] = useState("");
+  const [isCreatingShape, setIsCreatingShape] = useState(false);
+
   const [useCustomOrigin, setUseCustomOrigin] = useState(false);
   const [useCustomTreatment, setUseCustomTreatment] = useState(false);
   const [useCustomFluorescence, setUseCustomFluorescence] = useState(false);
 
   const gemName = form.watch("gemType");
   const colorName = form.watch("color");
+  const shapeName = form.watch("shape");
   const origin = form.watch("origin");
   const fluorescence = form.watch("fluorescence");
   const treatment = form.watch("treatment");
+
+  const shapeOptions: CodeRow[] = [
+    ...shapesList,
+    ...(shapeName && !shapesList.some((s) => s.name === shapeName)
+      ? [{ id: `current-shape-${shapeName}`, name: shapeName, code: "", status: "ACTIVE" }]
+      : []),
+  ];
 
   const allOrigins = [...new Set([...ORIGIN_PRESETS, ...origins])];
 
@@ -133,6 +156,36 @@ export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, 
       toast.error("Failed to create cut");
     } finally {
       setIsCreatingCut(false);
+    }
+  };
+
+  const handleCreateShape = async () => {
+    if (!newShapeName || !newShapeCode) return;
+    setIsCreatingShape(true);
+    const formData = new FormData();
+    formData.append("name", newShapeName);
+    formData.append("code", newShapeCode);
+    formData.append("status", "ACTIVE");
+    try {
+      const res = await createCode("shapes", formData);
+      if (res.error) {
+        toast.error(res.error);
+      } else if (res.data) {
+        toast.success("Shape added successfully");
+        setShapesList(prev =>
+          [...prev, { ...res.data, code: res.data.code || "", status: "ACTIVE" }]
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
+        form.setValue("shape", res.data.name);
+        setIsAddingShape(false);
+        setNewShapeName("");
+        setNewShapeCode("");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create shape");
+    } finally {
+      setIsCreatingShape(false);
     }
   };
 
@@ -249,22 +302,72 @@ export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, 
             name="shape"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Shape</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <FormLabel className="flex items-center justify-between">
+                  Shape
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                    onClick={() => setIsAddingShape(!isAddingShape)}
+                  >
+                    {isAddingShape ? <X className="w-3 h-3 mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
+                    {isAddingShape ? "Cancel" : "Add Shape"}
+                  </Button>
+                </FormLabel>
+                {isAddingShape && (
+                  <div className="mb-2 p-3 border rounded-md bg-muted/30 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Name</label>
+                        <Input
+                          value={newShapeName}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewShapeName(val);
+                            if (!newShapeCode && val) {
+                              setNewShapeCode(val.slice(0, 4).toUpperCase());
+                            }
+                          }}
+                          placeholder="e.g. Radiant"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Code</label>
+                        <Input
+                          value={newShapeCode}
+                          onChange={(e) => setNewShapeCode(e.target.value.toUpperCase().slice(0, 6))}
+                          placeholder="e.g. RAD"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full h-7 text-xs"
+                      onClick={handleCreateShape}
+                      disabled={!newShapeName || !newShapeCode || isCreatingShape}
+                    >
+                      {isCreatingShape ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                      Save New Shape
+                    </Button>
+                  </div>
+                )}
+                <Select onValueChange={field.onChange} value={field.value || ""}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select shape" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Round">Round</SelectItem>
-                    <SelectItem value="Oval">Oval</SelectItem>
-                    <SelectItem value="Cushion">Cushion</SelectItem>
-                    <SelectItem value="Emerald">Emerald</SelectItem>
-                    <SelectItem value="Pear">Pear</SelectItem>
-                    <SelectItem value="Marquise">Marquise</SelectItem>
-                    <SelectItem value="Heart">Heart</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    {shapeOptions.map((s) => (
+                      <SelectItem key={s.id} value={s.name}>
+                        {s.name}
+                        {s.code ? ` (${s.code})` : ""}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />

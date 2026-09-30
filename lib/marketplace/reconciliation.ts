@@ -36,7 +36,12 @@ export async function reconcileInventory(): Promise<ReconciliationException[]> {
   const soldIds = new Set(soldInventory.map((i) => i.id));
 
   const activeListings = await prisma.listing.findMany({
-    where: { status: { in: ACTIVE_LISTING_STATUSES } },
+    // Canonical marketplace scope: only shop-scoped listings count. Legacy
+    // (shop-null) rows are ignored so pre-migration duplicates are not reported.
+    where: {
+      status: { in: ACTIVE_LISTING_STATUSES },
+      marketplaceShopId: { not: null },
+    },
     select: {
       id: true,
       inventoryId: true,
@@ -48,6 +53,32 @@ export async function reconcileInventory(): Promise<ReconciliationException[]> {
     },
     orderBy: { createdAt: "asc" },
   });
+
+  // Resolve listings that carry a SKU but no inventory link via exact SKU match
+  // (mirrors marketplaceInventoryJoinSql's SKU fallback so reconciliation and
+  // the join-based surfaces agree).
+  const unresolvedSkus = [
+    ...new Set(
+      activeListings
+        .filter((l) => !l.inventoryId && !l.inventory && l.listingSku)
+        .map((l) => l.listingSku as string)
+    ),
+  ];
+  const skuResolvedInventory = unresolvedSkus.length
+    ? await prisma.inventory.findMany({
+        where: { sku: { in: unresolvedSkus } },
+        select: { id: true, sku: true, status: true, pieces: true },
+      })
+    : [];
+  const skuInventoryBySku = new Map(skuResolvedInventory.map((i) => [i.sku, i]));
+
+  const resolveInventory = (listing: {
+    inventoryId: string | null;
+    listingSku: string | null;
+    inventory: { id: string; sku: string | null; status: string; pieces: number } | null;
+  }) =>
+    listing.inventory ??
+    (listing.listingSku ? skuInventoryBySku.get(listing.listingSku) ?? null : null);
 
   // Duplicate listing detection (same platform + externalId)
   const seenListings = new Map<string, number>();
@@ -71,14 +102,15 @@ export async function reconcileInventory(): Promise<ReconciliationException[]> {
 
   // Sold-but-active-listing + quantity mismatch + unknown SKU
   for (const listing of activeListings) {
-    const inv = listing.inventory;
+    const inv = resolveInventory(listing);
+    const effectiveInventoryId = listing.inventoryId ?? inv?.id ?? null;
 
-    if (listing.inventoryId && soldIds.has(listing.inventoryId)) {
+    if (effectiveInventoryId && soldIds.has(effectiveInventoryId)) {
       exceptions.push({
         type: "SOLD_BUT_ACTIVE_LISTING",
         severity: "CRITICAL",
         entityType: "Inventory",
-        entityId: listing.inventoryId,
+        entityId: effectiveInventoryId,
         sku: inv?.sku ?? null,
         marketplace: listing.platform,
         message: `SKU ${inv?.sku ?? "?"} is SOLD in ERP but still has an active ${listing.platform} listing`,
@@ -96,7 +128,7 @@ export async function reconcileInventory(): Promise<ReconciliationException[]> {
         type: "QUANTITY_MISMATCH",
         severity: "WARNING",
         entityType: "Inventory",
-        entityId: listing.inventoryId ?? "",
+        entityId: effectiveInventoryId ?? "",
         sku: inv.sku,
         marketplace: listing.platform,
         message: `Quantity mismatch: ERP ${inv.pieces} vs ${listing.platform} ${listing.marketplaceQuantity}`,
@@ -160,5 +192,22 @@ export async function reconcileInventory(): Promise<ReconciliationException[]> {
     }
   }
 
-  return exceptions;
+  // Collapse identical rows (e.g. two active listings for the same sold SKU
+  // produce the same inventory-level exception).
+  const deduped: ReconciliationException[] = [];
+  const seen = new Set<string>();
+  for (const exception of exceptions) {
+    const key = [
+      exception.type,
+      exception.entityType,
+      exception.entityId,
+      exception.marketplace ?? "",
+      exception.message,
+    ].join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(exception);
+  }
+
+  return deduped;
 }

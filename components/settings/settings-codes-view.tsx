@@ -60,19 +60,21 @@ interface SettingsCodesViewProps {
   gemstones: CodeRow[];
   colors: CodeRow[];
   cuts: CodeRow[];
+  shapes?: CodeRow[];
   collections: CodeRow[];
   rashis: CodeRow[];
   certificates: CodeRow[];
   stateCodes?: CodeRow[];
 }
 
-type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "certificates" | "stateCodes";
+type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "shapes" | "collections" | "rashis" | "certificates" | "stateCodes";
 
 export function SettingsCodesView({
   categories,
   gemstones,
   colors,
   cuts,
+  shapes = [],
   collections,
   rashis,
   certificates,
@@ -93,6 +95,7 @@ export function SettingsCodesView({
           <TabsTrigger value="gemstones">Gemstone Codes</TabsTrigger>
           <TabsTrigger value="colors">Color Codes</TabsTrigger>
           <TabsTrigger value="cuts">Cut Codes</TabsTrigger>
+          <TabsTrigger value="shapes">Shape Codes</TabsTrigger>
           <TabsTrigger value="collections">Collection Codes</TabsTrigger>
           <TabsTrigger value="rashis">Rashi Codes</TabsTrigger>
           <TabsTrigger value="certificates">Certificate Codes</TabsTrigger>
@@ -111,6 +114,8 @@ export function SettingsCodesView({
                 ? colors
                 : activeTab === "cuts"
                 ? cuts
+                : activeTab === "shapes"
+                ? shapes
                 : activeTab === "collections"
                 ? collections
                 : activeTab === "rashis"
@@ -133,6 +138,9 @@ export function SettingsCodesView({
       </TabsContent>
       <TabsContent value="cuts">
         <CodeTable group="cuts" data={cuts} />
+      </TabsContent>
+      <TabsContent value="shapes">
+        <CodeTable group="shapes" data={shapes} />
       </TabsContent>
       <TabsContent value="collections">
         <CodeTable group="collections" data={collections} />
@@ -399,7 +407,7 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add New {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : group === "colors" ? "Color" : group === "cuts" ? "Cut" : group === "collections" ? "Collection" : group === "certificates" ? "Certificate" : "Rashi"} Code</DialogTitle>
+          <DialogTitle>Add New {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : group === "colors" ? "Color" : group === "cuts" ? "Cut" : group === "shapes" ? "Shape" : group === "collections" ? "Collection" : group === "certificates" ? "Certificate" : "Rashi"} Code</DialogTitle>
           <DialogDescription>
             Create a new master code. {group !== "certificates" && "Codes are immutable once created."}
           </DialogDescription>
@@ -408,7 +416,7 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
           <div className="space-y-2">
             <label className="text-sm font-medium">Name</label>
             <Input
-              placeholder={group === "cuts" ? "e.g. Round Brilliant" : group === "certificates" ? "e.g. GIA" : "e.g. Sapphire"}
+              placeholder={group === "cuts" ? "e.g. Round Brilliant" : group === "shapes" ? "e.g. Radiant" : group === "certificates" ? "e.g. GIA" : "e.g. Sapphire"}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -418,7 +426,7 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
               <label className="text-sm font-medium">Code</label>
               <div className="relative">
                   <Input
-                  placeholder={group === "cuts" ? "e.g. RND" : "e.g. SAP"}
+                  placeholder={group === "cuts" ? "e.g. RND" : group === "shapes" ? "e.g. RAD" : "e.g. SAP"}
                   value={code}
                   onChange={handleCodeChange}
                   className={duplicateError ? "border-red-500 pr-10" : "pr-10"}
@@ -527,7 +535,7 @@ function ImportCodesDialog({ group }: { group: CodeGroup }) {
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Import {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : group === "colors" ? "Color" : group === "cuts" ? "Cut" : group === "collections" ? "Collection" : group === "certificates" ? "Certificate" : "Rashi"} Codes</DialogTitle>
+          <DialogTitle>Import {group === "categories" ? "Category" : group === "gemstones" ? "Gemstone" : group === "colors" ? "Color" : group === "cuts" ? "Cut" : group === "shapes" ? "Shape" : group === "collections" ? "Collection" : group === "certificates" ? "Certificate" : "Rashi"} Codes</DialogTitle>
           <DialogDescription>
             Upload a CSV file with headers: <code>name,code,status</code>.
             Duplicates will be skipped.

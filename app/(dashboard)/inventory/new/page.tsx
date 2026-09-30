@@ -23,7 +23,7 @@ export default async function NewInventoryPage() {
     );
   }
 
-  const [vendors, categories, gemstones, colors, collections, rashis, cuts, certificates, originRows] = await Promise.all([
+  const [vendors, categories, gemstones, colors, collections, rashis, cuts, shapes, certificates, originRows] = await Promise.all([
     cachedMasters.getApprovedVendors(prisma)(),
     cachedMasters.getCategories(prisma)(),
     cachedMasters.getGemstones(prisma)(),
@@ -31,6 +31,7 @@ export default async function NewInventoryPage() {
     cachedMasters.getCollections(prisma)(),
     cachedMasters.getRashis(prisma)(),
     cachedMasters.getCuts(prisma)(),
+    cachedMasters.getShapes(prisma)(),
     cachedMasters.getCertificates(prisma)(),
     prisma.$queryRawUnsafe<Array<{ origin: string }>>(`SELECT DISTINCT "origin" FROM "Inventory" WHERE "origin" IS NOT NULL AND "origin" <> '' ORDER BY "origin"`),
   ]);
@@ -67,6 +68,7 @@ export default async function NewInventoryPage() {
             collections={collections}
             rashis={rashis}
             cuts={cuts}
+            shapes={shapes}
             certificates={certificates}
             origins={origins}
             categoryHsnMap={categoryHsnMap}

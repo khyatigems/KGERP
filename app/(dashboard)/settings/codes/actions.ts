@@ -10,7 +10,7 @@ import { z } from "zod";
 
 const codePattern = /^[A-Z0-9]{1,6}$/;
 
-export type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "certificates" | "stateCodes";
+export type CodeGroup = "categories" | "gemstones" | "colors" | "cuts" | "collections" | "rashis" | "certificates" | "stateCodes" | "shapes";
 
 // Schema for other codes (CategoryCode, etc.)
 const createCodeSchema = z.object({
@@ -81,6 +81,9 @@ export async function createCode(group: CodeGroup, formData: FormData) {
   } else if (group === "cuts") {
     existing = await prisma.cutCode.findUnique({ where: { code: code! } });
     existingName = await prisma.cutCode.findUnique({ where: { name } });
+  } else if (group === "shapes") {
+    existing = await prisma.shapeCode.findUnique({ where: { code: code! } });
+    existingName = await prisma.shapeCode.findUnique({ where: { name } });
   } else if (group === "collections") {
     existing = await prisma.collectionCode.findUnique({ where: { code: code! } });
     existingName = await prisma.collectionCode.findUnique({ where: { name } });
@@ -106,6 +109,8 @@ export async function createCode(group: CodeGroup, formData: FormData) {
       created = await prisma.colorCode.create({ data: { name, code: code!, status } });
     } else if (group === "cuts") {
       created = await prisma.cutCode.create({ data: { name, code: code!, status } });
+    } else if (group === "shapes") {
+      created = await prisma.shapeCode.create({ data: { name, code: code!, status } });
     } else if (group === "collections") {
       created = await prisma.collectionCode.create({ data: { name, code: code!, status } });
     } else if (group === "rashis") {
@@ -155,7 +160,7 @@ export async function createCode(group: CodeGroup, formData: FormData) {
   } catch (error) {
     console.error(error);
     const code = (error as unknown as { code?: string }).code;
-    if (code === "P2002") {
+    if (code === "P2002" || code === "SQLITE_CONSTRAINT") {
       return { error: "CODE_ALREADY_EXISTS", message: "This code/name already exists in the system. Duplicate entries are not allowed." };
     }
     return { error: "Failed to create code" };
@@ -192,6 +197,8 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     existing = await prisma.colorCode.findUnique({ where: { id } });
   } else if (group === "cuts") {
     existing = await prisma.cutCode.findUnique({ where: { id } });
+  } else if (group === "shapes") {
+    existing = await prisma.shapeCode.findUnique({ where: { id } });
   } else if (group === "collections") {
     existing = await prisma.collectionCode.findUnique({ where: { id } });
   } else if (group === "rashis") {
@@ -215,6 +222,9 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
     } else if (group === "cuts") {
       const dup = await prisma.cutCode.findFirst({ where: { name, id: { not: id } } });
       if (dup) return { error: "Name already exists" };
+    } else if (group === "shapes") {
+      const dup = await prisma.shapeCode.findFirst({ where: { name, id: { not: id } } });
+      if (dup) return { error: "Name already exists" };
     } else if (group === "collections") {
       const dup = await prisma.collectionCode.findFirst({ where: { name, id: { not: id } } });
       if (dup) return { error: "Name already exists" };
@@ -235,6 +245,8 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
       updated = await prisma.colorCode.update({ where: { id }, data: { name, status } });
     } else if (group === "cuts") {
       updated = await prisma.cutCode.update({ where: { id }, data: { name, status } });
+    } else if (group === "shapes") {
+      updated = await prisma.shapeCode.update({ where: { id }, data: { name, status } });
     } else if (group === "collections") {
       updated = await prisma.collectionCode.update({ where: { id }, data: { name, status } });
     } else if (group === "rashis") {
@@ -270,7 +282,7 @@ export async function updateCode(group: CodeGroup, formData: FormData) {
   } catch (error) {
     console.error(error);
     const code = (error as unknown as { code?: string }).code;
-    if (code === "P2002") return { error: "Name already exists" };
+    if (code === "P2002" || code === "SQLITE_CONSTRAINT") return { error: "Name already exists" };
     return { error: "Failed to update code" };
   }
 }
@@ -312,6 +324,9 @@ export async function setCodeStatus(group: CodeGroup, formData: FormData) {
     } else if (group === "cuts") {
       existing = await prisma.cutCode.findUnique({ where: { id } });
       updated = await prisma.cutCode.update({ where: { id }, data: { status } });
+    } else if (group === "shapes") {
+      existing = await prisma.shapeCode.findUnique({ where: { id } });
+      updated = await prisma.shapeCode.update({ where: { id }, data: { status } });
     } else if (group === "collections") {
       existing = await prisma.collectionCode.findUnique({ where: { id } });
       updated = await prisma.collectionCode.update({ where: { id }, data: { status } });
@@ -451,6 +466,8 @@ export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
       existing = await prisma.colorCode.findUnique({ where: { code: code! } });
     } else if (group === "cuts") {
       existing = await prisma.cutCode.findUnique({ where: { code: code! } });
+    } else if (group === "shapes") {
+      existing = await prisma.shapeCode.findUnique({ where: { code: code! } });
     } else if (group === "collections") {
       existing = await prisma.collectionCode.findUnique({ where: { code: code! } });
     } else if (group === "rashis") {
@@ -471,6 +488,8 @@ export async function importCodes(group: CodeGroup, rows: CsvRow[]) {
         await prisma.colorCode.create({ data: { name, code: code!, status } });
       } else if (group === "cuts") {
         await prisma.cutCode.create({ data: { name, code: code!, status } });
+      } else if (group === "shapes") {
+        await prisma.shapeCode.create({ data: { name, code: code!, status } });
       } else if (group === "collections") {
         await prisma.collectionCode.create({ data: { name, code: code!, status } });
       } else if (group === "rashis") {
@@ -525,6 +544,11 @@ export async function checkCodeDuplicate(group: CodeGroup, code: string) {
 
   if (group === "cuts") {
     const existing = await prisma.cutCode.findUnique({ where: { code: normalized } });
+    return !!existing;
+  }
+
+  if (group === "shapes") {
+    const existing = await prisma.shapeCode.findUnique({ where: { code: normalized } });
     return !!existing;
   }
 

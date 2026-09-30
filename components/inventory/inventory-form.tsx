@@ -72,7 +72,7 @@ const NotesSection = dynamic(() => import("./inventory-notes").then((m) => m.Not
   loading: () => <div className="rounded-lg border bg-card/50 p-5 space-y-4 animate-pulse"><div className="h-6 w-16 bg-muted rounded" /><div className="h-40 bg-muted rounded" /></div>,
 });
 
-export function InventoryForm({ vendors, categories, gemstones, colors, cuts, collections, rashis, certificates = [], origins = [], initialData, copyData, categoryHsnMap }: InventoryFormProps) {
+export function InventoryForm({ vendors, categories, gemstones, colors, cuts, shapes = [], collections, rashis, certificates = [], origins = [], initialData, copyData, categoryHsnMap }: InventoryFormProps) {
   const router = useRouter();
   const { showLoader } = useGlobalLoader();
   const [isPending, setIsPending] = useState(false);
@@ -564,7 +564,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, co
               categoryHsnMap={categoryHsnMap}
             />
 
-            <GemDetailsSection key={`gem-${formResetKey}`} form={form} gemstones={gemstones} colors={colors} cuts={cuts} origins={origins} />
+            <GemDetailsSection key={`gem-${formResetKey}`} form={form} gemstones={gemstones} colors={colors} cuts={cuts} shapes={shapes} origins={origins} />
+
 
             <ClassificationSection form={form} certificates={certificates} collections={collections} />
 

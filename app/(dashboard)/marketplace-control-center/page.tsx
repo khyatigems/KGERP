@@ -111,6 +111,8 @@ export default async function MarketplaceControlCenterPage({
   );
 
   const coverageRows = data.rows;
+  const listedProducts = coverageRows.filter((r) => r.platforms.length > 0).length;
+  const notListedProducts = coverageRows.length - listedProducts;
 
   const opportunityRows = [...coverageRows]
     .filter((r) => r.missingPlatforms.length > 0 && r.readyToList)
@@ -282,14 +284,45 @@ export default async function MarketplaceControlCenterPage({
                   Marketplace Coverage Summary
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-xs space-y-1">
-                <div className="flex justify-between"><span>eBay Only</span><span>{data.coverageSummary.eBayOnly}</span></div>
-                <div className="flex justify-between"><span>Etsy Only</span><span>{data.coverageSummary.etsyOnly}</span></div>
-                <div className="flex justify-between"><span>Amazon Only</span><span>{data.coverageSummary.amazonOnly}</span></div>
-                <div className="flex justify-between"><span>eBay + Etsy</span><span>{data.coverageSummary.ebayEtsy}</span></div>
-                <div className="flex justify-between"><span>eBay + Amazon</span><span>{data.coverageSummary.ebayAmazon}</span></div>
-                <div className="flex justify-between"><span>Etsy + Amazon</span><span>{data.coverageSummary.etsyAmazon}</span></div>
-                <div className="flex justify-between"><span>All Platforms</span><span>{data.coverageSummary.allPlatforms}</span></div>
+              <CardContent className="text-xs space-y-2">
+                <div className="space-y-1 rounded-md bg-muted/50 px-2 py-1.5">
+                  <div className="flex justify-between font-medium">
+                    <span>Active listings</span>
+                    <span>{data.totalListings}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>eBay</span>
+                    <span>{data.platformCounts.EBAY}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Etsy</span>
+                    <span>{data.platformCounts.ETSY}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Amazon</span>
+                    <span>{data.platformCounts.AMAZON}</span>
+                  </div>
+                </div>
+                <div className="flex justify-between font-medium">
+                  <span>Products listed</span>
+                  <span>
+                    {listedProducts} / {data.rows.length}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between"><span>eBay Only</span><span>{data.coverageSummary.eBayOnly}</span></div>
+                  <div className="flex justify-between"><span>Etsy Only</span><span>{data.coverageSummary.etsyOnly}</span></div>
+                  <div className="flex justify-between"><span>Amazon Only</span><span>{data.coverageSummary.amazonOnly}</span></div>
+                  <div className="flex justify-between"><span>eBay + Etsy</span><span>{data.coverageSummary.ebayEtsy}</span></div>
+                  <div className="flex justify-between"><span>eBay + Amazon</span><span>{data.coverageSummary.ebayAmazon}</span></div>
+                  <div className="flex justify-between"><span>Etsy + Amazon</span><span>{data.coverageSummary.etsyAmazon}</span></div>
+                  <div className="flex justify-between"><span>All Platforms</span><span>{data.coverageSummary.allPlatforms}</span></div>
+                  <div className="flex justify-between"><span>Not listed anywhere</span><span>{notListedProducts}</span></div>
+                </div>
+                <div className="border-t pt-1.5 text-[11px] text-muted-foreground">
+                  Listings follow Marketplace → Listings. Products count in-stock inventory, so multiple listings per
+                  product add up to {data.totalListings}.
+                </div>
               </CardContent>
             </Card>
 

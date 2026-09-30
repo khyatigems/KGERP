@@ -184,6 +184,15 @@ model CutCode {
   inventories Inventory[]
 }
 
+model ShapeCode {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model CollectionCode {
   id          String      @id @default(uuid())
   name        String      @unique

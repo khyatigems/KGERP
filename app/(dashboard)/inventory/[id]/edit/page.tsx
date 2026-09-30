@@ -38,6 +38,7 @@ async function getInventoryData(id: string) {
       cachedMasters.getCollections(prisma)(),
       cachedMasters.getRashis(prisma)(),
       cachedMasters.getCuts(prisma)(),
+      cachedMasters.getShapes(prisma)(),
       cachedMasters.getCertificates(prisma)(),
       prisma.$queryRawUnsafe<Array<{ origin: string }>>(`SELECT DISTINCT "origin" FROM "Inventory" WHERE "origin" IS NOT NULL AND "origin" <> '' ORDER BY "origin"`),
     ]);
@@ -70,7 +71,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
     );
   }
 
-  const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts, certificates, originRows] = result.data!;
+  const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts, shapes, certificates, originRows] = result.data!;
   const origins = originRows.map((r: { origin: string }) => r.origin);
 
   const gpisSettings = await (prisma as any).gpisSettings.findFirst();
@@ -119,6 +120,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
             collections={collections}
             rashis={rashis}
             cuts={cuts}
+            shapes={shapes}
             certificates={certificates}
             origins={origins}
             initialData={inventory} 

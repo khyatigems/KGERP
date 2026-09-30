@@ -196,6 +196,7 @@ export interface InventoryFormProps {
   collections: CodeRow[];
   rashis: CodeRow[];
   cuts: CodeRow[];
+  shapes?: CodeRow[];
   certificates?: CodeRow[];
   origins?: string[];
   initialData?: InventoryWithExtras & { media: InventoryMedia[]; rashiCodes?: { id: string }[] };

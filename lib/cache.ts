@@ -144,6 +144,24 @@ export const cachedMasters = {
       ["masters:cuts"]
     ),
 
+  getShapes: (prisma: PrismaClient) =>
+    cacheQuery(
+      async () => {
+        try {
+          return await prisma.shapeCode.findMany({
+            where: { status: "ACTIVE" },
+            orderBy: { name: "asc" },
+            select: { id: true, name: true, code: true, status: true },
+          });
+        } catch {
+          return [];
+        }
+      },
+      ["masters", "shapes"],
+      CACHE_TTLS.MASTERS,
+      ["masters:shapes"]
+    ),
+
   getSettings: (prisma: PrismaClient) =>
     cacheQuery(
       () => prisma.setting.findMany(),
