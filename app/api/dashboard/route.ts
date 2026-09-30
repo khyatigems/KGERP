@@ -52,10 +52,9 @@ export async function GET() {
         todaySalesCount, todaySalesRevenue, dailyRevenueTrend,
       ] = await Promise.all([
         prisma.inventory.count({ where: { status: "IN_STOCK" } }).catch(() => 0),
-        // Dashboard KPI counts represent ERP-linked listings only. Imported
-        // rows still awaiting SKU mapping are visible in Marketplace Listings,
-        // but must not affect business reporting.
-        prisma.listing.groupBy({ by: ['platform'], where: { status: { in: ["LISTED", "ACTIVE"] }, inventoryId: { not: null } }, _count: { id: true } }).catch(() => []),
+        // Count active marketplace listings attached to a marketplace shop;
+        // internal or imported rows without a shop are not platform listings.
+        prisma.listing.groupBy({ by: ['platform'], where: { status: { in: ["LISTED", "ACTIVE"] }, marketplaceShopId: { not: null } }, _count: { id: true } }).catch(() => []),
         prisma.quotation.count({ where: { status: "ACTIVE", OR: [{ expiryDate: null }, { expiryDate: { gte: now } }] } }).catch(() => 0),
         prisma.invoice.count().catch(() => 0),
         prisma.labelCartItem.count({ where: { userId: uid, inventory: { id: { not: "" } } } }).catch(() => 0),

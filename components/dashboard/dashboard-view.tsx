@@ -17,7 +17,7 @@ export function DashboardView({ name }: { name?: string | null }) {
   });
   const { showLoader, hideLoader } = useGlobalLoader();
   const { data: session } = useSession();
-  const userId = session?.user?.id ?? "default-user";
+  const userId = session?.user?.id ?? "";
 
   const { layout, saveLayout, isLoaded } = useDashboardLayout(userId);
 

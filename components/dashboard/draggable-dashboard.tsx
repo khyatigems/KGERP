@@ -80,6 +80,8 @@ import { TopSellingCategories } from "./top-selling-categories";
 import { TopSellingGemTypes } from "./top-selling-gem-types";
 import { QuickNotes } from "./quick-notes";
 import { MatchedPairsWidget } from "./matched-pairs-widget";
+import { getDashboardLayout, saveDashboardLayout } from "@/app/actions/dashboard-layout";
+import { toast } from "sonner";
 
 export interface DraggableWidgetConfig {
   id: string;
@@ -267,7 +269,7 @@ function DraggableWidget({
         </div>
       </div>
 
-      <div className="min-h-[80px]">{children}</div>
+      <div className="min-h-20">{children}</div>
     </div>
   );
 }
@@ -442,12 +444,12 @@ export function DashboardGrid({
             const activeItem = items.find(i => i.id === activeId);
             if (!activeItem) return null;
             return (
-              <div className="rounded-xl border-2 border-primary/40 bg-card p-4 shadow-2xl opacity-90 rotate-[1deg]" style={{ width: 320 }}>
+              <div className="rounded-xl border-2 border-primary/40 bg-card p-4 shadow-2xl opacity-90 rotate-1" style={{ width: 320 }}>
                 <div className="flex items-center gap-2 mb-2">
                   <GripVertical className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium text-foreground">{activeItem.title}</span>
                 </div>
-                <div className="min-h-[80px]">{renderWidget(activeItem)}</div>
+                <div className="min-h-20">{renderWidget(activeItem)}</div>
               </div>
             );
           }) as any)}
@@ -473,28 +475,39 @@ export function useDashboardLayout(userId: string) {
   const [layout, setLayout] = useState<DraggableWidgetConfig[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const loadLayout = useCallback(() => {
+  const loadLayout = useCallback(async () => {
+    if (!userId) {
+      setLayout([]);
+      setIsLoaded(false);
+      return;
+    }
+
     try {
+      const savedLayout = await getDashboardLayout();
+      if (savedLayout?.length) {
+        setLayout(savedLayout);
+        setIsLoaded(true);
+        return;
+      }
+
       const stored = localStorage.getItem(`dashboard-layout-${userId}`);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          setLayout(parsed.map((w: any) => ({
-            id: w.id,
-            title: w.title,
-            disabled: w.id === "header" ? false : w.disabled,
-            defaultOrder: w.defaultOrder,
-            size: w.size || "default",
-          })));
+          const result = await saveDashboardLayout(parsed);
+          if (result.success && result.layout) setLayout(result.layout);
         }
       }
     } catch (e) {
       console.error("Failed to load dashboard layout:", e);
+      toast.error("Failed to load saved dashboard layout");
+    } finally {
+      setIsLoaded(true);
     }
-    setIsLoaded(true);
   }, [userId]);
 
   useEffect(() => {
+    if (!userId) return;
     loadLayout();
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === `dashboard-layout-${userId}`) {
@@ -506,7 +519,7 @@ export function useDashboardLayout(userId: string) {
   }, [loadLayout, userId]);
 
   const saveLayout = useCallback((newLayout: DraggableWidgetConfig[]) => {
-    if (!Array.isArray(newLayout)) {
+    if (!userId || !Array.isArray(newLayout)) {
       console.error("saveLayout received non-array:", newLayout);
       return;
     }
@@ -520,8 +533,19 @@ export function useDashboardLayout(userId: string) {
         size: w.size || "default",
       }));
       localStorage.setItem(`dashboard-layout-${userId}`, JSON.stringify(serializable));
+      void saveDashboardLayout(serializable).then((result) => {
+        if (result.success) {
+          toast.success("Dashboard layout saved");
+        } else {
+          toast.error("Dashboard layout could not be saved to your account");
+        }
+      }).catch((e) => {
+        console.error("Failed to save dashboard layout:", e);
+        toast.error("Dashboard layout could not be saved to your account");
+      });
     } catch (e) {
       console.error("Failed to save dashboard layout:", e);
+      toast.error("Failed to save dashboard layout");
     }
   }, [userId]);
 

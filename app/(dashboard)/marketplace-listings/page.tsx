@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -50,12 +51,13 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
     inventory: { select: { sku: true, itemName: true } },
     priceHistory: { orderBy: { changedAt: "desc" as const }, take: 2, select: { price: true, changedAt: true } },
   };
-  const [shops, total, listings, exportListings, syncJobs] = await Promise.all([
+  const [shops, total, listings, exportListings, syncJobs, databaseClock] = await Promise.all([
     prisma.marketplaceShop.findMany({ where: { status: "CONNECTED", connection: { status: "CONNECTED" } }, select: { id: true, marketplace: true, name: true }, orderBy: [{ marketplace: "asc" }, { name: "asc" }] }),
     prisma.listing.count({ where }),
     prisma.listing.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE, include: listingInclude }),
     prisma.listing.findMany({ where, orderBy: { createdAt: "desc" }, take: 5000, include: { marketplaceShop: { select: { name: true } }, inventory: { select: { sku: true } } } }),
     prisma.marketplaceSyncJob.findMany({ where: { syncType: "LISTINGS", status: { in: ["SUCCESS", "PARTIAL"] }, endedAt: { not: null } }, orderBy: { endedAt: "desc" }, take: 100, select: { marketplaceShopId: true, endedAt: true } }),
+    prisma.$queryRaw<Array<{ nowMs: number }>>`SELECT CAST(strftime('%s', 'now') AS INTEGER) * 1000 AS nowMs`,
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -92,7 +94,7 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
     if (marketplace) next.set("marketplace", marketplace); if (shopId) next.set("shop", shopId); if (status) next.set("status", status); if (match) next.set("match", match); if (query) next.set("q", query);
     next.set("page", String(nextPage)); return `/marketplace-listings?${next.toString()}`;
   };
-  const newSince = Date.now() - 24 * 60 * 60 * 1000;
+  const newSince = Number(databaseClock[0]?.nowMs ?? 0) - 24 * 60 * 60 * 1000;
 
   return <div className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold">Marketplace Listings</h1><p className="text-sm text-muted-foreground">External listings mapped to ERP products.</p></div><div className="flex flex-wrap gap-2"><MarketplaceListingsExport rows={exportRows} /><Button asChild variant="outline"><Link href="/marketplace-orders">Marketplace Orders</Link></Button></div></div>
@@ -107,9 +109,9 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
       <div className="flex gap-2 md:col-span-6"><Button type="submit" size="sm">Apply filters</Button><Button asChild variant="outline" size="sm"><Link href="/marketplace-listings">Clear</Link></Button><span className="self-center text-xs text-muted-foreground">{total} matching listings · exports include all matching rows (up to 5,000).</span></div>
     </form>
     <div className="overflow-x-auto rounded-md border"><Table><TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Marketplace</TableHead><TableHead>Shop</TableHead><TableHead>External Listing ID</TableHead><TableHead>SKU / Product</TableHead><TableHead>Title</TableHead><TableHead>Price</TableHead><TableHead>Quantity</TableHead><TableHead>Status</TableHead><TableHead>Sync status</TableHead><TableHead>Last synced</TableHead><TableHead>Error</TableHead></TableRow></TableHeader><TableBody>
-      {pageListings.map((listing) => { const isNew = listing.createdAt.getTime() >= newSince && (listing.lastSyncedAt?.getTime() || 0) >= newSince; return <TableRow key={listing.id}>
-        <TableCell>{listingImage(listing.rawMetadata) ? <img src={listingImage(listing.rawMetadata)!} alt="Listing" className="h-12 w-12 rounded object-cover" /> : "—"}</TableCell><TableCell>{listing.platform}</TableCell><TableCell>{listing.marketplaceShop?.name || listing.marketplaceShopName || "—"}</TableCell><TableCell className="font-mono text-xs"><div className="flex items-center gap-1">{listing.listingUrl ? <a href={listing.listingUrl} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">{listing.externalId || "Open"}</a> : listing.externalId || "—"}{isNew && <Badge className="bg-emerald-600 text-[10px] hover:bg-emerald-600">NEW</Badge>}</div></TableCell>
-        <TableCell>{listing.inventory ? <><div>{listing.inventory.sku}</div><div className="text-xs text-muted-foreground">{listing.inventory.itemName}</div></> : listing.listingSku || "Unmapped"}</TableCell><TableCell className="min-w-72 max-w-md whitespace-normal break-words">{listing.marketplaceTitle || "—"}</TableCell><TableCell>{listing.marketplacePrice != null ? <div className="flex items-center gap-1">{`${listing.currency} ${listing.marketplacePrice}`}{listing.priceHistory.length > 1 && listing.priceHistory[0].price !== listing.priceHistory[1].price && (listing.priceHistory[0].price > listing.priceHistory[1].price ? <ArrowUp className="h-3.5 w-3.5 text-emerald-500" /> : <ArrowDown className="h-3.5 w-3.5 text-red-500" />)}</div> : "—"}{listing.priceHistory[0] && <div className="text-[10px] text-muted-foreground">Changed: {formatMarketplaceDateTime(listing.priceHistory[0].changedAt)}</div>}</TableCell>
+      {pageListings.map((listing) => { const isNew = listing.createdAt.getTime() >= newSince && (listing.lastSyncedAt?.getTime() || 0) >= newSince; const imageUrl = listingImage(listing.rawMetadata); return <TableRow key={listing.id}>
+        <TableCell>{imageUrl ? <Image src={imageUrl} alt="Listing" width={48} height={48} unoptimized className="h-12 w-12 rounded object-cover" /> : "—"}</TableCell><TableCell>{listing.platform}</TableCell><TableCell>{listing.marketplaceShop?.name || listing.marketplaceShopName || "—"}</TableCell><TableCell className="font-mono text-xs"><div className="flex items-center gap-1">{listing.listingUrl ? <a href={listing.listingUrl} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2">{listing.externalId || "Open"}</a> : listing.externalId || "—"}{isNew && <Badge className="bg-emerald-600 text-[10px] hover:bg-emerald-600">NEW</Badge>}</div></TableCell>
+        <TableCell>{listing.inventory ? <><div>{listing.inventory.sku}</div><div className="text-xs text-muted-foreground">{listing.inventory.itemName}</div></> : listing.listingSku || "Unmapped"}</TableCell><TableCell className="min-w-72 max-w-md whitespace-normal wrap-break-word">{listing.marketplaceTitle || "—"}</TableCell><TableCell>{listing.marketplacePrice != null ? <div className="flex items-center gap-1">{`${listing.currency} ${listing.marketplacePrice}`}{listing.priceHistory.length > 1 && listing.priceHistory[0].price !== listing.priceHistory[1].price && (listing.priceHistory[0].price > listing.priceHistory[1].price ? <ArrowUp className="h-3.5 w-3.5 text-emerald-500" /> : <ArrowDown className="h-3.5 w-3.5 text-red-500" />)}</div> : "—"}{listing.priceHistory[0] && <div className="text-[10px] text-muted-foreground">Changed: {formatMarketplaceDateTime(listing.priceHistory[0].changedAt)}</div>}</TableCell>
         <TableCell>{listing.marketplaceQuantity ?? "—"}</TableCell><TableCell><Badge variant="outline">{listing.status}</Badge></TableCell><TableCell><Badge variant={listing.syncStatus === "SYNCED" ? "default" : "secondary"}>{listing.syncStatus || "Imported"}</Badge></TableCell><TableCell>{formatMarketplaceDateTime(listing.lastSyncedAt)}</TableCell><TableCell className="max-w-65 whitespace-normal text-xs text-destructive">{listing.syncError || "—"}</TableCell>
       </TableRow>; })}
       {pageListings.length === 0 && <TableRow><TableCell colSpan={12} className="h-24 text-center text-muted-foreground">No marketplace listings match these filters.</TableCell></TableRow>}

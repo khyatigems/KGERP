@@ -32,7 +32,10 @@ const purchasePaymentSchema = z.object({
   chequeNumber: z.string().optional(),
   bankName: z.string().optional(),
   chequePayee: z.string().optional(),
-  chequeDate: z.coerce.date().optional(),
+  chequeDate: z.preprocess(
+    (value) => value === "" || value === null ? undefined : value,
+    z.coerce.date().optional(),
+  ),
   notes: z.string().optional(),
 });
 
@@ -52,6 +55,16 @@ const updateInvoiceSchema = z.object({
   invoiceNo: z.string().min(1, "Invoice number is required"),
 });
 
+function parseJsonArray(value: unknown): unknown[] | null {
+  if (typeof value !== "string") return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function createPurchase(prevState: unknown, formData: FormData) {
   const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
   if (!perm.success) return { message: perm.message };
@@ -61,16 +74,12 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
 
   const raw = Object.fromEntries(formData.entries());
   
-  let items: unknown[] = [];
-  if (typeof raw.items === "string") {
-    try {
-      items = JSON.parse(raw.items);
-    } catch {
-      return { message: "Invalid items data" };
-    }
-  }
+  const items = parseJsonArray(raw.items);
+  const payments = parseJsonArray(raw.payments);
+  if (!items) return { message: "Invalid items data" };
+  if (!payments) return { message: "Invalid payments data" };
 
-  const payload = { ...raw, items };
+  const payload = { ...raw, items, payments };
   const parsed = purchaseSchema.safeParse(payload);
 
   if (!parsed.success) {
@@ -182,16 +191,12 @@ export async function updatePurchase(id: string, prevState: unknown, formData: F
 
   const raw = Object.fromEntries(formData.entries());
   
-  let items: unknown[] = [];
-  if (typeof raw.items === "string") {
-    try {
-      items = JSON.parse(raw.items);
-    } catch {
-      return { message: "Invalid items data" };
-    }
-  }
+  const items = parseJsonArray(raw.items);
+  const payments = parseJsonArray(raw.payments);
+  if (!items) return { message: "Invalid items data" };
+  if (!payments) return { message: "Invalid payments data" };
 
-  const payload = { ...raw, items };
+  const payload = { ...raw, items, payments };
   const parsed = purchaseSchema.safeParse(payload);
 
   if (!parsed.success) {

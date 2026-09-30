@@ -543,9 +543,11 @@ export function PurchaseForm({ vendors, categories = [], initialData, suggestedI
         } else if (result && 'message' in result) {
             toast.error(result.message);
         } else if (result && 'errors' in result) {
-            // Handle server-side validation errors if needed
             console.error(result.errors);
-            toast.error("Validation failed");
+            const validationErrors = Object.values(result.errors)
+                .flat()
+                .filter((message): message is string => typeof message === "string");
+            toast.error(validationErrors.join("; ") || "Validation failed");
         }
     } catch (error) {
         if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
