@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { prisma } from "@/lib/prisma";
+import { prisma, executeDdlBatch } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-logger";
 import { toInr, type CurrencyRates } from "@/lib/pricing/currency";
 import { getCurrencyRates } from "@/lib/pricing/db";
@@ -139,8 +139,8 @@ export async function ensureMarketplaceControlCenterSchema(): Promise<void> {
   ensuringMccSchema = true;
   ensureMccSchemaPromise = (async () => {
     try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "MarketplaceConflict" (
+      await executeDdlBatch([
+        `CREATE TABLE IF NOT EXISTS "MarketplaceConflict" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "inventoryId" TEXT NOT NULL,
           "sku" TEXT NOT NULL,
@@ -154,21 +154,18 @@ export async function ensureMarketplaceControlCenterSchema(): Promise<void> {
           "resolutionNote" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_inventoryId_idx" ON "MarketplaceConflict"("inventoryId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_sku_idx" ON "MarketplaceConflict"("sku");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_status_idx" ON "MarketplaceConflict"("conflictStatus");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_createdAt_idx" ON "MarketplaceConflict"("createdAt");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceConflict_inventory_status_idx" ON "MarketplaceConflict"("inventoryId", "conflictStatus");`);
-
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_inventoryId_status_idx" ON "Listing"("inventoryId", "status");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_platform_status_idx" ON "Listing"("platform", "status");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Listing_inventory_platform_idx" ON "Listing"("inventoryId", "platform");`);
-
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_entityId_idx" ON "ActivityLog"("entityId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_actionType_idx" ON "ActivityLog"("actionType");`);
+        );`,
+        `CREATE INDEX IF NOT EXISTS "MarketplaceConflict_inventoryId_idx" ON "MarketplaceConflict"("inventoryId");`,
+        `CREATE INDEX IF NOT EXISTS "MarketplaceConflict_sku_idx" ON "MarketplaceConflict"("sku");`,
+        `CREATE INDEX IF NOT EXISTS "MarketplaceConflict_status_idx" ON "MarketplaceConflict"("conflictStatus");`,
+        `CREATE INDEX IF NOT EXISTS "MarketplaceConflict_createdAt_idx" ON "MarketplaceConflict"("createdAt");`,
+        `CREATE INDEX IF NOT EXISTS "MarketplaceConflict_inventory_status_idx" ON "MarketplaceConflict"("inventoryId", "conflictStatus");`,
+        `CREATE INDEX IF NOT EXISTS "Listing_inventoryId_status_idx" ON "Listing"("inventoryId", "status");`,
+        `CREATE INDEX IF NOT EXISTS "Listing_platform_status_idx" ON "Listing"("platform", "status");`,
+        `CREATE INDEX IF NOT EXISTS "Listing_inventory_platform_idx" ON "Listing"("inventoryId", "platform");`,
+        `CREATE INDEX IF NOT EXISTS "ActivityLog_entityId_idx" ON "ActivityLog"("entityId");`,
+        `CREATE INDEX IF NOT EXISTS "ActivityLog_actionType_idx" ON "ActivityLog"("actionType");`,
+      ]);
     } catch {
       // Idempotent by design; swallow so safe deploys never break.
     } finally {

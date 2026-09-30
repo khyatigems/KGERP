@@ -47,15 +47,17 @@ const globalForPrisma = global as unknown as {
 const isLibsql = !!tursoDatabaseUrl || databaseUrl.startsWith("libsql:") || databaseUrl.startsWith("https:")
 
 // Configure adapter only when using LibSQL (Turso)
-const adapter = isLibsql
-  ? new PrismaLibSQL(
-      (() => {
-        const source = tursoDatabaseUrl || databaseUrl;
-        const { url, authToken } = parseLibsqlCredentials(source);
-        return createClient({ url, authToken });
-      })()
-    )
-  : null
+// The raw client is kept so idempotent schema work can be sent as a single
+// batch (one network round trip) instead of one round trip per statement.
+const libsqlClient = isLibsql
+  ? (() => {
+      const source = tursoDatabaseUrl || databaseUrl;
+      const { url, authToken } = parseLibsqlCredentials(source);
+      return createClient({ url, authToken });
+    })()
+  : null;
+
+const adapter = libsqlClient ? new PrismaLibSQL(libsqlClient) : null
 
 // Check for stale client in development (missing new models like 'expense')
 if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
@@ -134,6 +136,115 @@ const prismaBase =
 
 export const prisma = prismaBase;
 
+export type DdlArg = string | number | boolean | null;
+export type DdlStatement = string | { sql: string; args?: DdlArg[] };
+
+/**
+ * Executes a list of statements in a single network round trip.
+ *
+ * The dashboard layout and many routes call idempotent "ensure schema" helpers
+ * (CREATE TABLE/INDEX IF NOT EXISTS ...). Running those one statement at a
+ * time over remote Turso costs ~30-40ms per statement, which added up to
+ * several seconds of blocking work before the first byte of a page. Sending
+ * them as one libsql batch keeps the exact same statements but costs a single
+ * round trip.
+ *
+ * Returns true when the batch path ran, false when the caller must fall back
+ * to statement-by-statement execution. Never throws.
+ */
+async function runSqlBatch(statements: DdlStatement[], mode: "read" | "write"): Promise<boolean> {
+  if (!statements.length) return true;
+  if (!libsqlClient) return false;
+  try {
+    await libsqlClient.batch(
+      statements.map((s) => (typeof s === "string" ? { sql: s, args: [] } : { sql: s.sql, args: s.args ?? [] })),
+      mode
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Runs idempotent DDL statements as one round trip. If the batch is rejected
+ * (e.g. a single statement fails), every statement is replayed individually
+ * with errors swallowed — exactly the previous behaviour, so nothing that
+ * worked before can start breaking.
+ */
+export async function executeDdlBatch(statements: DdlStatement[]): Promise<void> {
+  if (!statements.length) return;
+  if (await runSqlBatch(statements, "write")) return;
+  for (const statement of statements) {
+    try {
+      if (typeof statement === "string") {
+        await prismaBase.$executeRawUnsafe(statement);
+      } else {
+        await prismaBase.$executeRawUnsafe(statement.sql, ...(statement.args ?? []));
+      }
+    } catch {
+      // Idempotent by design — one failing statement must not break the app.
+    }
+  }
+}
+
+/** Runs a set of read statements as one round trip (falls back to sequential). */
+export async function executeReadBatch<T = Record<string, unknown>>(statements: string[]): Promise<T[][]> {
+  if (!statements.length) return [];
+  if (libsqlClient) {
+    try {
+      const results = await libsqlClient.batch(
+        statements.map((sql) => ({ sql, args: [] })),
+        "read"
+      );
+      return results.map((r) => r.rows as unknown as T[]);
+    } catch {
+      // fall through to sequential reads
+    }
+  }
+  const out: T[][] = [];
+  for (const sql of statements) {
+    try {
+      out.push((await prismaBase.$queryRawUnsafe<T[]>(sql)) as T[]);
+    } catch {
+      out.push([] as T[]);
+    }
+  }
+  return out;
+}
+
+/**
+ * Batched replacement for repeated `PRAGMA table_info` probes: one round trip
+ * for every table instead of one round trip per column check.
+ */
+export async function getMissingColumns(checks: Array<[string, string]>): Promise<Set<string>> {
+  const tables = Array.from(new Set(checks.map(([table]) => table)));
+  const results = await executeReadBatch<{ name: string }>(
+    tables.map((table) => `PRAGMA table_info("${table}")`)
+  );
+  const columnsByTable = new Map<string, Set<string>>();
+  tables.forEach((table, index) => {
+    columnsByTable.set(table, new Set((results[index] || []).map((column) => column.name)));
+  });
+  const missing = new Set<string>();
+  for (const [table, column] of checks) {
+    if (!columnsByTable.get(table)?.has(column)) missing.add(`${table}.${column}`);
+  }
+  return missing;
+}
+
+/** Builds `ALTER TABLE ... ADD COLUMN` statements for the given missing columns. */
+export function buildAddColumnStatements(checks: Array<[string, string, string]>, missing: Set<string>): DdlStatement[] {
+  const statements: DdlStatement[] = [];
+  for (const [table, column, definition] of checks) {
+    if (missing.has(`${table}.${column}`)) {
+      statements.push(`ALTER TABLE "${table}" ADD COLUMN ${definition};`);
+    }
+  }
+  return statements;
+}
+
+
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 export type { ActivityLog } from '@prisma/client'
@@ -169,9 +280,8 @@ export async function ensurePerformanceIndexes(): Promise<void> {
         `CREATE INDEX IF NOT EXISTS "Vendor_status_idx" ON "Vendor"("status")`,
         `CREATE INDEX IF NOT EXISTS "Expense_paymentStatus_idx" ON "Expense"("paymentStatus")`,
       ];
-      for (const sql of indexes) {
-        await prisma.$executeRawUnsafe(sql).catch(() => {});
-      }
+      // One round trip instead of one per index (idempotent, same statements).
+      await executeDdlBatch(indexes);
     } catch {
     } finally {
       ensuredPerformanceIndexes = true;
@@ -253,10 +363,13 @@ export async function ensureUserRoleIdColumn(): Promise<void> {
       if (!has) {
         try {
           await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN "roleId" TEXT;`);
-        } catch {}
+          // The column now exists — skip the second PRAGMA probe.
+          checkedUserRoleIdColumn = true;
+        } catch {
+          checkedUserRoleIdColumn = null;
+          await hasUserRoleIdColumn();
+        }
       }
-      checkedUserRoleIdColumn = null;
-      await hasUserRoleIdColumn();
     } catch {
     } finally {
       ensuredUserRoleId = true;
@@ -277,18 +390,16 @@ export async function ensureRbacSchema(): Promise<void> {
   ensuringRbac = true;
   ensureRbacPromise = (async () => {
     try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "Role" (
+      await executeDdlBatch([
+        `CREATE TABLE IF NOT EXISTS "Role" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "name" TEXT NOT NULL UNIQUE,
           "isSystem" INTEGER NOT NULL DEFAULT 0,
           "isActive" INTEGER NOT NULL DEFAULT 1,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL
-        );
-      `);
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "Permission" (
+        );`,
+        `CREATE TABLE IF NOT EXISTS "Permission" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "module" TEXT NOT NULL,
           "action" TEXT NOT NULL,
@@ -296,29 +407,25 @@ export async function ensureRbacSchema(): Promise<void> {
           "description" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL
-        );
-      `);
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "RolePermission" (
+        );`,
+        `CREATE TABLE IF NOT EXISTS "RolePermission" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "roleId" TEXT NOT NULL,
           "permissionId" TEXT NOT NULL
-        );
-      `);
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "UserPermission" (
+        );`,
+        `CREATE TABLE IF NOT EXISTS "UserPermission" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "userId" TEXT NOT NULL,
           "permissionId" TEXT NOT NULL,
           "allow" INTEGER NOT NULL
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId","permissionId");`);
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "UserPermission_userId_permissionId_key" ON "UserPermission"("userId","permissionId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserPermission_userId_idx" ON "UserPermission"("userId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "UserPermission_permissionId_idx" ON "UserPermission"("permissionId");`);
+        );`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS "RolePermission_roleId_permissionId_key" ON "RolePermission"("roleId","permissionId");`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS "UserPermission_userId_permissionId_key" ON "UserPermission"("userId","permissionId");`,
+        `CREATE INDEX IF NOT EXISTS "RolePermission_roleId_idx" ON "RolePermission"("roleId");`,
+        `CREATE INDEX IF NOT EXISTS "RolePermission_permissionId_idx" ON "RolePermission"("permissionId");`,
+        `CREATE INDEX IF NOT EXISTS "UserPermission_userId_idx" ON "UserPermission"("userId");`,
+        `CREATE INDEX IF NOT EXISTS "UserPermission_permissionId_idx" ON "UserPermission"("permissionId");`,
+      ]);
     } catch {
     } finally {
       if (checkedTables) {
@@ -345,8 +452,8 @@ export async function ensureActivityLogSchema(): Promise<void> {
   ensuringActivityLog = true;
   ensureActivityLogPromise = (async () => {
     try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "ActivityLog" (
+      await executeDdlBatch([
+        `CREATE TABLE IF NOT EXISTS "ActivityLog" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "entityType" TEXT,
           "entityId" TEXT,
@@ -366,39 +473,34 @@ export async function ensureActivityLogSchema(): Promise<void> {
           "description" TEXT,
           "metadata" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
+        );`,
+      ]);
 
+      const columnChecks: Array<[string, string, string]> = [
+        ["ActivityLog", "module", '"module" TEXT'],
+        ["ActivityLog", "action", '"action" TEXT'],
+        ["ActivityLog", "referenceId", '"referenceId" TEXT'],
+        ["ActivityLog", "description", '"description" TEXT'],
+        ["ActivityLog", "metadata", '"metadata" TEXT'],
+        ["ActivityLog", "userEmail", '"userEmail" TEXT'],
+        ["ActivityLog", "ipAddress", '"ipAddress" TEXT'],
+        ["ActivityLog", "userAgent", '"userAgent" TEXT'],
+        ["ActivityLog", "source", '"source" TEXT'],
+        ["ActivityLog", "fieldChanges", '"fieldChanges" TEXT'],
+        ["ActivityLog", "details", '"details" TEXT'],
+        ["ActivityLog", "idempotencyKey", '"idempotencyKey" TEXT'],
+      ];
       try {
-        const cols = await prisma.$queryRawUnsafe<Array<{ name: string }>>(`PRAGMA table_info("ActivityLog")`);
-        const set = new Set((cols || []).map((c) => c.name));
-        const add = async (name: string, type: string) => {
-          if (set.has(name)) return;
-          try {
-            await prisma.$executeRawUnsafe(`ALTER TABLE "ActivityLog" ADD COLUMN "${name}" ${type};`);
-          } catch {}
-        };
-        await add("module", "TEXT");
-        await add("action", "TEXT");
-        await add("referenceId", "TEXT");
-        await add("description", "TEXT");
-        await add("metadata", "TEXT");
-        await add("userEmail", "TEXT");
-        await add("ipAddress", "TEXT");
-        await add("userAgent", "TEXT");
-        await add("source", "TEXT");
-        await add("fieldChanges", "TEXT");
-        await add("details", "TEXT");
-        await add("idempotencyKey", "TEXT");
-      } catch {}
-
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_userId_idx" ON "ActivityLog"("userId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_module_idx" ON "ActivityLog"("module");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_createdAt_idx" ON "ActivityLog"("createdAt");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_entityId_idx" ON "ActivityLog"("entityId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ActivityLog_entityType_entityId_idx" ON "ActivityLog"("entityType", "entityId");`);
-      try {
-        await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "ActivityLog_user_action_idempotency_key_unique" ON "ActivityLog"("userId","actionType","idempotencyKey");`);
+        const missing = await getMissingColumns(columnChecks.map(([table, column]) => [table, column]));
+        await executeDdlBatch([
+          ...buildAddColumnStatements(columnChecks, missing),
+          `CREATE INDEX IF NOT EXISTS "ActivityLog_userId_idx" ON "ActivityLog"("userId");`,
+          `CREATE INDEX IF NOT EXISTS "ActivityLog_module_idx" ON "ActivityLog"("module");`,
+          `CREATE INDEX IF NOT EXISTS "ActivityLog_createdAt_idx" ON "ActivityLog"("createdAt");`,
+          `CREATE INDEX IF NOT EXISTS "ActivityLog_entityId_idx" ON "ActivityLog"("entityId");`,
+          `CREATE INDEX IF NOT EXISTS "ActivityLog_entityType_entityId_idx" ON "ActivityLog"("entityType", "entityId");`,
+          `CREATE UNIQUE INDEX IF NOT EXISTS "ActivityLog_user_action_idempotency_key_unique" ON "ActivityLog"("userId","actionType","idempotencyKey");`,
+        ]);
       } catch {}
     } catch {
     } finally {
@@ -421,8 +523,8 @@ export async function ensureFollowUpSchema(): Promise<void> {
   ensuringFollowUp = true;
   ensureFollowUpPromise = (async () => {
     try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "FollowUp" (
+      await executeDdlBatch([
+        `CREATE TABLE IF NOT EXISTS "FollowUp" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "invoiceId" TEXT NOT NULL,
           "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -431,10 +533,10 @@ export async function ensureFollowUpSchema(): Promise<void> {
           "promisedDate" DATETIME,
           "createdBy" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FollowUp_invoiceId_idx" ON "FollowUp"("invoiceId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FollowUp_createdBy_idx" ON "FollowUp"("createdBy");`);
+        );`,
+        `CREATE INDEX IF NOT EXISTS "FollowUp_invoiceId_idx" ON "FollowUp"("invoiceId");`,
+        `CREATE INDEX IF NOT EXISTS "FollowUp_createdBy_idx" ON "FollowUp"("createdBy");`,
+      ]);
     } catch {
     } finally {
       if (checkedTables) checkedTables.set("FollowUp", true);
@@ -449,13 +551,6 @@ export async function ensureFollowUpSchema(): Promise<void> {
 let ensuringInvoiceSupport = false;
 let ensuredInvoiceSupport = false;
 let ensureInvoiceSupportPromise: Promise<void> | null = null;
-
-async function tableHasColumn(tableName: string, columnName: string): Promise<boolean> {
-  const columns = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
-    `PRAGMA table_info("${tableName}")`
-  );
-  return Array.isArray(columns) && columns.some((col) => col.name === columnName);
-}
 
 async function invoiceSupportColumnsMissing(): Promise<boolean> {
   const checks: Array<[string, string]> = [
@@ -494,12 +589,8 @@ async function invoiceSupportColumnsMissing(): Promise<boolean> {
     ["PaymentSettings", "swiftCode"],
   ];
 
-  for (const [table, column] of checks) {
-    if (!(await tableHasColumn(table, column))) {
-      return true;
-    }
-  }
-  return false;
+  const missing = await getMissingColumns(checks);
+  return missing.size > 0;
 }
 
 export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
@@ -517,8 +608,8 @@ export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
     try {
       await ensureFollowUpSchema();
 
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "Payment" (
+      await executeDdlBatch([
+        `CREATE TABLE IF NOT EXISTS "Payment" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "invoiceId" TEXT NOT NULL,
           "amount" REAL NOT NULL,
@@ -529,24 +620,18 @@ export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
           "recordedBy" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Payment_invoiceId_idx" ON "Payment"("invoiceId");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "InvoiceVersion" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "Payment_invoiceId_idx" ON "Payment"("invoiceId");`,
+        `CREATE TABLE IF NOT EXISTS "InvoiceVersion" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "invoiceId" TEXT NOT NULL,
           "versionNumber" INTEGER NOT NULL,
           "reason" TEXT,
           "snapshot" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "InvoiceVersion_invoiceId_idx" ON "InvoiceVersion"("invoiceId");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "SalesReturn" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "InvoiceVersion_invoiceId_idx" ON "InvoiceVersion"("invoiceId");`,
+        `CREATE TABLE IF NOT EXISTS "SalesReturn" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "invoiceId" TEXT NOT NULL,
           "returnNumber" TEXT NOT NULL UNIQUE,
@@ -561,25 +646,19 @@ export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
           "remarks" TEXT,
           "createdById" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SalesReturn_invoiceId_idx" ON "SalesReturn"("invoiceId");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "SalesReturnItem" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "SalesReturn_invoiceId_idx" ON "SalesReturn"("invoiceId");`,
+        `CREATE TABLE IF NOT EXISTS "SalesReturnItem" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "salesReturnId" TEXT NOT NULL,
           "inventoryId" TEXT NOT NULL,
           "quantity" INTEGER NOT NULL DEFAULT 1,
           "sellingPrice" REAL NOT NULL,
           "resaleable" INTEGER NOT NULL DEFAULT 1
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SalesReturnItem_salesReturnId_idx" ON "SalesReturnItem"("salesReturnId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SalesReturnItem_inventoryId_idx" ON "SalesReturnItem"("inventoryId");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "CreditNote" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "SalesReturnItem_salesReturnId_idx" ON "SalesReturnItem"("salesReturnId");`,
+        `CREATE INDEX IF NOT EXISTS "SalesReturnItem_inventoryId_idx" ON "SalesReturnItem"("inventoryId");`,
+        `CREATE TABLE IF NOT EXISTS "CreditNote" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "customerId" TEXT,
           "invoiceId" TEXT,
@@ -594,96 +673,59 @@ export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
           "balanceAmount" REAL NOT NULL,
           "isActive" INTEGER NOT NULL DEFAULT 1,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CreditNote_customerId_idx" ON "CreditNote"("customerId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CreditNote_invoiceId_idx" ON "CreditNote"("invoiceId");`);
+        );`,
+        `CREATE INDEX IF NOT EXISTS "CreditNote_customerId_idx" ON "CreditNote"("customerId");`,
+        `CREATE INDEX IF NOT EXISTS "CreditNote_invoiceId_idx" ON "CreditNote"("invoiceId");`,
+      ]);
 
-      await ensureColumnIfMissing("Invoice", "invoiceType", '"invoiceType" TEXT DEFAULT "TAX"');
-      await ensureColumnIfMissing("Invoice", "iecCode", '"iecCode" TEXT');
-      await ensureColumnIfMissing("Invoice", "exportType", '"exportType" TEXT');
-      await ensureColumnIfMissing(
-        "Invoice",
-        "countryOfDestination",
-        '"countryOfDestination" TEXT'
+      const invoiceSupportColumnChecks: Array<[string, string, string]> = [
+        ["Invoice", "invoiceType", '"invoiceType" TEXT DEFAULT "TAX"'],
+        ["Invoice", "iecCode", '"iecCode" TEXT'],
+        ["Invoice", "exportType", '"exportType" TEXT'],
+        ["Invoice", "countryOfDestination", '"countryOfDestination" TEXT'],
+        ["Invoice", "portOfDispatch", '"portOfDispatch" TEXT'],
+        ["Invoice", "modeOfTransport", '"modeOfTransport" TEXT'],
+        ["Invoice", "courierPartner", '"courierPartner" TEXT'],
+        ["Invoice", "trackingId", '"trackingId" TEXT'],
+        ["Invoice", "invoiceCurrency", '"invoiceCurrency" TEXT'],
+        ["Invoice", "conversionRate", '"conversionRate" REAL'],
+        ["Invoice", "totalInrValue", '"totalInrValue" REAL'],
+        ["Invoice", "totalUsdValue", '"totalUsdValue" REAL'],
+        ["CompanySettings", "invoicePrefix", '"invoicePrefix" TEXT'],
+        ["CompanySettings", "invoicingStartNumber", '"invoicingStartNumber" INTEGER'],
+        ["CompanySettings", "invoiceLogoUrl", '"invoiceLogoUrl" TEXT'],
+        ["CompanySettings", "quotationLogoUrl", '"quotationLogoUrl" TEXT'],
+        ["CompanySettings", "logoUrl", '"logoUrl" TEXT'],
+        ["CompanySettings", "skuViewLogoUrl", '"skuViewLogoUrl" TEXT'],
+        ["CompanySettings", "otherDocsLogoUrl", '"otherDocsLogoUrl" TEXT'],
+        ["CompanySettings", "address", '"address" TEXT'],
+        ["CompanySettings", "email", '"email" TEXT'],
+        ["CompanySettings", "phone", '"phone" TEXT'],
+        ["CompanySettings", "website", '"website" TEXT'],
+        ["CompanySettings", "gstin", '"gstin" TEXT'],
+        ["CompanySettings", "enableExportInvoice", '"enableExportInvoice" INTEGER NOT NULL DEFAULT 0'],
+        ["CompanySettings", "defaultExportType", '"defaultExportType" TEXT'],
+        ["CompanySettings", "companyIec", '"companyIec" TEXT'],
+        ["CompanySettings", "defaultCurrency", '"defaultCurrency" TEXT'],
+        ["CompanySettings", "defaultPort", '"defaultPort" TEXT'],
+        ["CompanySettings", "swiftCode", '"swiftCode" TEXT'],
+        ["CompanySettings", "termsAndConditions", '"termsAndConditions" TEXT'],
+        ["CompanySettings", "createdAt", '"createdAt" DATETIME'],
+        ["CompanySettings", "updatedAt", '"updatedAt" DATETIME'],
+        ["PaymentSettings", "swiftCode", '"swiftCode" TEXT'],
+        ["InvoiceSettings", "exportTerms", '"exportTerms" TEXT'],
+        ["Sale", "usdPrice", '"usdPrice" REAL'],
+      ];
+      const missingInvoiceSupportColumns = await getMissingColumns(
+        invoiceSupportColumnChecks.map(([table, column]): [string, string] => [table, column])
       );
-      await ensureColumnIfMissing("Invoice", "portOfDispatch", '"portOfDispatch" TEXT');
-      await ensureColumnIfMissing(
-        "Invoice",
-        "modeOfTransport",
-        '"modeOfTransport" TEXT'
-      );
-      await ensureColumnIfMissing("Invoice", "courierPartner", '"courierPartner" TEXT');
-      await ensureColumnIfMissing("Invoice", "trackingId", '"trackingId" TEXT');
-      await ensureColumnIfMissing("Invoice", "invoiceCurrency", '"invoiceCurrency" TEXT');
-      await ensureColumnIfMissing("Invoice", "conversionRate", '"conversionRate" REAL');
-      await ensureColumnIfMissing("Invoice", "totalInrValue", '"totalInrValue" REAL');
-      await ensureColumnIfMissing("CompanySettings", "invoicePrefix", '"invoicePrefix" TEXT');
-      await ensureColumnIfMissing(
-        "CompanySettings",
-        "invoicingStartNumber",
-        '"invoicingStartNumber" INTEGER'
-      );
-      await ensureColumnIfMissing("CompanySettings", "invoiceLogoUrl", '"invoiceLogoUrl" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "quotationLogoUrl", '"quotationLogoUrl" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "logoUrl", '"logoUrl" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "skuViewLogoUrl", '"skuViewLogoUrl" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "otherDocsLogoUrl", '"otherDocsLogoUrl" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "address", '"address" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "email", '"email" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "phone", '"phone" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "website", '"website" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "gstin", '"gstin" TEXT');
-      await ensureColumnIfMissing(
-        "CompanySettings",
-        "enableExportInvoice",
-        '"enableExportInvoice" INTEGER NOT NULL DEFAULT 0'
-      );
-      await ensureColumnIfMissing("CompanySettings", "defaultExportType", '"defaultExportType" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "companyIec", '"companyIec" TEXT');
-      await ensureColumnIfMissing("CompanySettings", "defaultCurrency", '"defaultCurrency" TEXT');
-      await ensureColumnIfMissing(
-        "CompanySettings",
-        "defaultPort",
-        '"defaultPort" TEXT'
-      );
-      await ensureColumnIfMissing(
-        "CompanySettings",
-        "swiftCode",
-        '"swiftCode" TEXT'
-      );
-      await ensureColumnIfMissing(
-        "CompanySettings",
-        "termsAndConditions",
-        '"termsAndConditions" TEXT'
-      );
-      await ensureColumnIfMissing(
-        "CompanySettings",
-        "createdAt",
-        '"createdAt" DATETIME'
-      );
-      await ensureColumnIfMissing(
-        "CompanySettings",
-        "updatedAt",
-        '"updatedAt" DATETIME'
-      );
-      await prisma.$executeRawUnsafe(
-        'UPDATE "CompanySettings" SET "createdAt" = COALESCE("createdAt", CURRENT_TIMESTAMP)'
-      );
-      await prisma.$executeRawUnsafe(
-        'UPDATE "CompanySettings" SET "updatedAt" = COALESCE("updatedAt", CURRENT_TIMESTAMP)'
-      );
-      await ensureColumnIfMissing(
-        "PaymentSettings",
-        "swiftCode",
-        '"swiftCode" TEXT'
-      );
-      // Add exportTerms to InvoiceSettings for export invoice specific terms
-      await ensureColumnIfMissing("InvoiceSettings", "exportTerms", '"exportTerms" TEXT');
+      await executeDdlBatch([
+        ...buildAddColumnStatements(invoiceSupportColumnChecks, missingInvoiceSupportColumns),
+        'UPDATE "CompanySettings" SET "createdAt" = COALESCE("createdAt", CURRENT_TIMESTAMP)',
+        'UPDATE "CompanySettings" SET "updatedAt" = COALESCE("updatedAt", CURRENT_TIMESTAMP)',
 
-      // Ensure CustomerAdvance and CustomerAdvanceAdjustment tables exist
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "CustomerAdvance" (
+        // Ensure CustomerAdvance and CustomerAdvanceAdjustment tables exist
+        `CREATE TABLE IF NOT EXISTS "CustomerAdvance" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "customerId" TEXT NOT NULL,
           "amount" REAL NOT NULL,
@@ -695,31 +737,20 @@ export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
           "remainingAmount" REAL NOT NULL DEFAULT 0,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `).catch(() => null);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerAdvance_customerId_idx" ON "CustomerAdvance"("customerId");`).catch(() => null);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "CustomerAdvanceAdjustment" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "CustomerAdvance_customerId_idx" ON "CustomerAdvance"("customerId");`,
+        `CREATE TABLE IF NOT EXISTS "CustomerAdvanceAdjustment" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "advanceId" TEXT NOT NULL,
           "saleId" TEXT NOT NULL,
           "amountUsed" REAL NOT NULL,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `).catch(() => null);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerAdvanceAdjustment_advanceId_idx" ON "CustomerAdvanceAdjustment"("advanceId");`).catch(() => null);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerAdvanceAdjustment_saleId_idx" ON "CustomerAdvanceAdjustment"("saleId");`).catch(() => null);
+        );`,
+        `CREATE INDEX IF NOT EXISTS "CustomerAdvanceAdjustment_advanceId_idx" ON "CustomerAdvanceAdjustment"("advanceId");`,
+        `CREATE INDEX IF NOT EXISTS "CustomerAdvanceAdjustment_saleId_idx" ON "CustomerAdvanceAdjustment"("saleId");`,
 
-      // Ensure Sale.usdPrice column exists
-      await ensureColumnIfMissing("Sale", "usdPrice", '"usdPrice" REAL');
-
-      // Ensure Invoice.totalUsdValue column exists
-      await ensureColumnIfMissing("Invoice", "totalUsdValue", '"totalUsdValue" REAL');
-
-      // Ensure ExportInvoice table exists (used by export invoice flow)
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "ExportInvoice" (
+        // Ensure ExportInvoice table exists (used by export invoice flow)
+        `CREATE TABLE IF NOT EXISTS "ExportInvoice" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "invoiceId" TEXT NOT NULL UNIQUE,
           "customsDeclarationNumber" TEXT,
@@ -735,10 +766,10 @@ export async function ensureInvoiceSupportSchema(force = false): Promise<void> {
           "preCarriagePort" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `).catch(() => null);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExportInvoice_invoiceId_idx" ON "ExportInvoice"("invoiceId");`).catch(() => null);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ExportInvoice_customsDeclarationNumber_idx" ON "ExportInvoice"("customsDeclarationNumber");`).catch(() => null);
+        );`,
+        `CREATE INDEX IF NOT EXISTS "ExportInvoice_invoiceId_idx" ON "ExportInvoice"("invoiceId");`,
+        `CREATE INDEX IF NOT EXISTS "ExportInvoice_customsDeclarationNumber_idx" ON "ExportInvoice"("customsDeclarationNumber");`,
+      ]);
     } catch {
     } finally {
       if (checkedTables) {
@@ -762,16 +793,16 @@ export async function ensureSalesReturnReplacementSchema(): Promise<void> {
   ensuringSalesReturnReplacement = true;
   ensureSalesReturnReplacementPromise = (async () => {
     try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "SalesReturnReplacement" (
+      await executeDdlBatch([
+        `CREATE TABLE IF NOT EXISTS "SalesReturnReplacement" (
           "salesReturnId" TEXT NOT NULL PRIMARY KEY,
           "invoiceId" TEXT NOT NULL,
           "memoId" TEXT,
           "createdBy" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SalesReturnReplacement_invoiceId_idx" ON "SalesReturnReplacement"("invoiceId");`);
+        );`,
+        `CREATE INDEX IF NOT EXISTS "SalesReturnReplacement_invoiceId_idx" ON "SalesReturnReplacement"("invoiceId");`,
+      ]);
     } catch {
     } finally {
       if (checkedTables) checkedTables.set("SalesReturnReplacement", true);
@@ -811,8 +842,8 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
   ensuringBillfreePhase1 = true;
   ensureBillfreePhase1Promise = (async () => {
     try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "OfferBanner" (
+      await executeDdlBatch([
+        `CREATE TABLE IF NOT EXISTS "OfferBanner" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "title" TEXT NOT NULL,
           "subtitle" TEXT,
@@ -827,13 +858,10 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
           "endDate" DATETIME,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "OfferBanner_displayOn_idx" ON "OfferBanner"("displayOn");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "OfferBanner_isActive_idx" ON "OfferBanner"("isActive");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "Coupon" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "OfferBanner_displayOn_idx" ON "OfferBanner"("displayOn");`,
+        `CREATE INDEX IF NOT EXISTS "OfferBanner_isActive_idx" ON "OfferBanner"("isActive");`,
+        `CREATE TABLE IF NOT EXISTS "Coupon" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "code" TEXT NOT NULL UNIQUE,
           "type" TEXT NOT NULL,
@@ -848,27 +876,21 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
           "isActive" INTEGER NOT NULL DEFAULT 1,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Coupon_code_idx" ON "Coupon"("code");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Coupon_isActive_idx" ON "Coupon"("isActive");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "CouponRedemption" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "Coupon_code_idx" ON "Coupon"("code");`,
+        `CREATE INDEX IF NOT EXISTS "Coupon_isActive_idx" ON "Coupon"("isActive");`,
+        `CREATE TABLE IF NOT EXISTS "CouponRedemption" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "couponId" TEXT NOT NULL,
           "invoiceId" TEXT,
           "customerId" TEXT,
           "discountAmount" REAL NOT NULL DEFAULT 0,
           "redeemedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CouponRedemption_couponId_idx" ON "CouponRedemption"("couponId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CouponRedemption_invoiceId_idx" ON "CouponRedemption"("invoiceId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CouponRedemption_customerId_idx" ON "CouponRedemption"("customerId");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "LoyaltyLedger" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "CouponRedemption_couponId_idx" ON "CouponRedemption"("couponId");`,
+        `CREATE INDEX IF NOT EXISTS "CouponRedemption_invoiceId_idx" ON "CouponRedemption"("invoiceId");`,
+        `CREATE INDEX IF NOT EXISTS "CouponRedemption_customerId_idx" ON "CouponRedemption"("customerId");`,
+        `CREATE TABLE IF NOT EXISTS "LoyaltyLedger" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "customerId" TEXT NOT NULL,
           "invoiceId" TEXT,
@@ -877,13 +899,10 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
           "rupeeValue" REAL NOT NULL DEFAULT 0,
           "remarks" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "LoyaltyLedger_customerId_idx" ON "LoyaltyLedger"("customerId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "LoyaltyLedger_invoiceId_idx" ON "LoyaltyLedger"("invoiceId");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "MessageTemplate" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "LoyaltyLedger_customerId_idx" ON "LoyaltyLedger"("customerId");`,
+        `CREATE INDEX IF NOT EXISTS "LoyaltyLedger_invoiceId_idx" ON "LoyaltyLedger"("invoiceId");`,
+        `CREATE TABLE IF NOT EXISTS "MessageTemplate" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "key" TEXT NOT NULL UNIQUE,
           "title" TEXT NOT NULL,
@@ -892,11 +911,8 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
           "isActive" INTEGER NOT NULL DEFAULT 1,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "CustomerCampaignLog" (
+        );`,
+        `CREATE TABLE IF NOT EXISTS "CustomerCampaignLog" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "customerId" TEXT NOT NULL,
           "eventType" TEXT NOT NULL,
@@ -906,24 +922,18 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
           "status" TEXT NOT NULL,
           "openedAt" DATETIME,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerCampaignLog_customerId_idx" ON "CustomerCampaignLog"("customerId");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CustomerCampaignLog_eventType_idx" ON "CustomerCampaignLog"("eventType");`);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "CustomerProfileExtra" (
+        );`,
+        `CREATE INDEX IF NOT EXISTS "CustomerCampaignLog_customerId_idx" ON "CustomerCampaignLog"("customerId");`,
+        `CREATE INDEX IF NOT EXISTS "CustomerCampaignLog_eventType_idx" ON "CustomerCampaignLog"("eventType");`,
+        `CREATE TABLE IF NOT EXISTS "CustomerProfileExtra" (
           "customerId" TEXT NOT NULL PRIMARY KEY,
           "dateOfBirth" DATETIME,
           "anniversaryDate" DATETIME,
           "communicationOptIn" INTEGER NOT NULL DEFAULT 1,
           "preferredLanguage" TEXT,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "InvoicePromotionSettings" (
+        );`,
+        `CREATE TABLE IF NOT EXISTS "InvoicePromotionSettings" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "dobRewardAmount" REAL NOT NULL DEFAULT 0,
           "anniversaryRewardAmount" REAL NOT NULL DEFAULT 0,
@@ -931,10 +941,8 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
           "enableReferralCta" INTEGER NOT NULL DEFAULT 0,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "LoyaltySettings" (
+        );`,
+        `CREATE TABLE IF NOT EXISTS "LoyaltySettings" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "pointsPerRupee" REAL NOT NULL DEFAULT 0.01,
           "redeemRupeePerPoint" REAL NOT NULL DEFAULT 1,
@@ -945,67 +953,35 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
           "expiryDays" INTEGER,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
+        );`,
+      ]);
 
-      await ensureColumnIfMissing("Customer", "stateCode", '"stateCode" TEXT');
-      await ensureColumnIfMissing("Customer", "countryCode", '"countryCode" TEXT');
-      await ensureColumnIfMissing(
-        "Customer",
-        "isInternational",
-        '"isInternational" INTEGER NOT NULL DEFAULT 0'
-      );
-      await ensureColumnIfMissing("Invoice", "invoiceType", '"invoiceType" TEXT DEFAULT "TAX"');
-      await ensureColumnIfMissing("Invoice", "iecCode", '"iecCode" TEXT');
-      await ensureColumnIfMissing("Invoice", "exportType", '"exportType" TEXT');
-      await ensureColumnIfMissing(
-        "Invoice",
-        "countryOfDestination",
-        '"countryOfDestination" TEXT'
-      );
-      await ensureColumnIfMissing("Invoice", "portOfDispatch", '"portOfDispatch" TEXT');
-      await ensureColumnIfMissing(
-        "Invoice",
-        "modeOfTransport",
-        '"modeOfTransport" TEXT'
-      );
-      await ensureColumnIfMissing("Invoice", "courierPartner", '"courierPartner" TEXT');
-      await ensureColumnIfMissing("Invoice", "trackingId", '"trackingId" TEXT');
-      await ensureColumnIfMissing("Invoice", "invoiceCurrency", '"invoiceCurrency" TEXT');
-      await ensureColumnIfMissing(
-        "Invoice",
-        "conversionRate",
-        '"conversionRate" REAL'
-      );
-      await ensureColumnIfMissing("Invoice", "totalInrValue", '"totalInrValue" REAL');
-      await ensureColumnIfMissing("Customer", "dateOfBirth", '"dateOfBirth" DATETIME');
-      await ensureColumnIfMissing("Customer", "anniversaryDate", '"anniversaryDate" DATETIME');
-      await ensureColumnIfMissing(
-        "Customer",
-        "communicationOptIn",
-        '"communicationOptIn" INTEGER NOT NULL DEFAULT 1'
-      );
-      await ensureColumnIfMissing("Customer", "preferredLanguage", '"preferredLanguage" TEXT');
-      await ensureColumnIfMissing(
-        "LoyaltySettings",
-        "dobProfilePoints",
-        '"dobProfilePoints" REAL NOT NULL DEFAULT 0'
-      );
-      await ensureColumnIfMissing(
-        "LoyaltySettings",
-        "anniversaryProfilePoints",
-        '"anniversaryProfilePoints" REAL NOT NULL DEFAULT 0'
-      );
-      await ensureColumnIfMissing(
-        "CouponRedemption",
-        "discountAmount",
-        '"discountAmount" REAL NOT NULL DEFAULT 0'
-      );
-      await ensureColumnIfMissing(
-        "CouponRedemption",
-        "redeemedAt",
-        '"redeemedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP'
-      );
+      const columnChecks: Array<[string, string, string]> = [
+        ["Customer", "stateCode", '"stateCode" TEXT'],
+        ["Customer", "countryCode", '"countryCode" TEXT'],
+        ["Customer", "isInternational", '"isInternational" INTEGER NOT NULL DEFAULT 0'],
+        ["Invoice", "invoiceType", '"invoiceType" TEXT DEFAULT "TAX"'],
+        ["Invoice", "iecCode", '"iecCode" TEXT'],
+        ["Invoice", "exportType", '"exportType" TEXT'],
+        ["Invoice", "countryOfDestination", '"countryOfDestination" TEXT'],
+        ["Invoice", "portOfDispatch", '"portOfDispatch" TEXT'],
+        ["Invoice", "modeOfTransport", '"modeOfTransport" TEXT'],
+        ["Invoice", "courierPartner", '"courierPartner" TEXT'],
+        ["Invoice", "trackingId", '"trackingId" TEXT'],
+        ["Invoice", "invoiceCurrency", '"invoiceCurrency" TEXT'],
+        ["Invoice", "conversionRate", '"conversionRate" REAL'],
+        ["Invoice", "totalInrValue", '"totalInrValue" REAL'],
+        ["Customer", "dateOfBirth", '"dateOfBirth" DATETIME'],
+        ["Customer", "anniversaryDate", '"anniversaryDate" DATETIME'],
+        ["Customer", "communicationOptIn", '"communicationOptIn" INTEGER NOT NULL DEFAULT 1'],
+        ["Customer", "preferredLanguage", '"preferredLanguage" TEXT'],
+        ["LoyaltySettings", "dobProfilePoints", '"dobProfilePoints" REAL NOT NULL DEFAULT 0'],
+        ["LoyaltySettings", "anniversaryProfilePoints", '"anniversaryProfilePoints" REAL NOT NULL DEFAULT 0'],
+        ["CouponRedemption", "discountAmount", '"discountAmount" REAL NOT NULL DEFAULT 0'],
+        ["CouponRedemption", "redeemedAt", '"redeemedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP'],
+      ];
+      const missing = await getMissingColumns(columnChecks.map(([table, column]) => [table, column]));
+      await executeDdlBatch(buildAddColumnStatements(columnChecks, missing));
     } catch {
     } finally {
       if (checkedTables) {
@@ -1029,16 +1005,22 @@ export async function ensureAvatarWhatsNewSchema(): Promise<void> {
   ensuringAvatarWhatsNew = true;
   ensureAvatarWhatsNewPromise = (async () => {
     try {
-      await ensureColumnIfMissing("User", "avatarUrl", '"avatarUrl" TEXT');
-      await ensureColumnIfMissing("User", "avatarHistory", '"avatarHistory" TEXT DEFAULT \'[]\'');
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "WhatsNewEntry" (
+      const avatarColumnChecks: Array<[string, string, string]> = [
+        ["User", "avatarUrl", '"avatarUrl" TEXT'],
+        ["User", "avatarHistory", '"avatarHistory" TEXT DEFAULT \'[]\''],
+      ];
+      const missingAvatarColumns = await getMissingColumns(
+        avatarColumnChecks.map(([table, column]): [string, string] => [table, column])
+      );
+      await executeDdlBatch([
+        ...buildAddColumnStatements(avatarColumnChecks, missingAvatarColumns),
+        `CREATE TABLE IF NOT EXISTS "WhatsNewEntry" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "message" TEXT NOT NULL,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `).catch(() => null);
+        );`,
+      ]);
     } catch {
     } finally {
       ensuredAvatarWhatsNew = true;
@@ -1133,8 +1115,8 @@ export async function ensureMarketplaceMetricsSchema(): Promise<void> {
   ensuringMarketplaceMetrics = true;
   ensureMarketplaceMetricsPromise = (async () => {
     try {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "ListingMetricSnapshot" (
+      await executeDdlBatch([
+        `CREATE TABLE IF NOT EXISTS "ListingMetricSnapshot" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "inventoryId" TEXT NOT NULL,
           "marketplace" TEXT NOT NULL,
@@ -1149,11 +1131,8 @@ export async function ensureMarketplaceMetricsSchema(): Promise<void> {
           "rawPayload" TEXT,
           "source" TEXT NOT NULL,
           CONSTRAINT "ListingMetricSnapshot_inventoryId_fkey" FOREIGN KEY ("inventoryId") REFERENCES "Inventory" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-        );
-      `).catch(() => null);
-
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "ListingOpportunity" (
+        );`,
+        `CREATE TABLE IF NOT EXISTS "ListingOpportunity" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "inventoryId" TEXT NOT NULL,
           "marketplace" TEXT NOT NULL,
@@ -1166,44 +1145,15 @@ export async function ensureMarketplaceMetricsSchema(): Promise<void> {
           "currency" TEXT NOT NULL DEFAULT 'USD',
           "lastSyncedAt" DATETIME,
           "updatedAt" DATETIME NOT NULL
-        );
-      `).catch(() => null);
-
-      try {
-        await prisma.$executeRawUnsafe(
-          `DROP INDEX IF EXISTS "ListingOpportunity_inventoryId_key";`
-        );
-      } catch {}
-      try {
-        await prisma.$executeRawUnsafe(
-          `CREATE UNIQUE INDEX IF NOT EXISTS "ListingOpportunity_inventoryId_marketplace_key" ON "ListingOpportunity"("inventoryId", "marketplace");`
-        );
-      } catch {}
-      try {
-        await prisma.$executeRawUnsafe(
-          `CREATE INDEX IF NOT EXISTS "ListingMetricSnapshot_inventoryId_capturedAt_idx" ON "ListingMetricSnapshot"("inventoryId", "capturedAt");`
-        );
-      } catch {}
-      try {
-        await prisma.$executeRawUnsafe(
-          `CREATE INDEX IF NOT EXISTS "ListingMetricSnapshot_marketplace_capturedAt_idx" ON "ListingMetricSnapshot"("marketplace", "capturedAt");`
-        );
-      } catch {}
-      try {
-        await prisma.$executeRawUnsafe(
-          `CREATE UNIQUE INDEX IF NOT EXISTS "ListingMetricSnapshot_inventoryId_marketplace_externalId_capt_key" ON "ListingMetricSnapshot"("inventoryId", "marketplace", "externalId", "capturedAt");`
-        );
-      } catch {}
-      try {
-        await prisma.$executeRawUnsafe(
-          `CREATE INDEX IF NOT EXISTS "ListingOpportunity_marketplace_externalId_idx" ON "ListingOpportunity"("marketplace", "externalId");`
-        );
-      } catch {}
-      try {
-        await prisma.$executeRawUnsafe(
-          `CREATE INDEX IF NOT EXISTS "ListingOpportunity_lastSyncedAt_idx" ON "ListingOpportunity"("lastSyncedAt");`
-        );
-      } catch {}
+        );`,
+        `DROP INDEX IF EXISTS "ListingOpportunity_inventoryId_key";`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS "ListingOpportunity_inventoryId_marketplace_key" ON "ListingOpportunity"("inventoryId", "marketplace");`,
+        `CREATE INDEX IF NOT EXISTS "ListingMetricSnapshot_inventoryId_capturedAt_idx" ON "ListingMetricSnapshot"("inventoryId", "capturedAt");`,
+        `CREATE INDEX IF NOT EXISTS "ListingMetricSnapshot_marketplace_capturedAt_idx" ON "ListingMetricSnapshot"("marketplace", "capturedAt");`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS "ListingMetricSnapshot_inventoryId_marketplace_externalId_capt_key" ON "ListingMetricSnapshot"("inventoryId", "marketplace", "externalId", "capturedAt");`,
+        `CREATE INDEX IF NOT EXISTS "ListingOpportunity_marketplace_externalId_idx" ON "ListingOpportunity"("marketplace", "externalId");`,
+        `CREATE INDEX IF NOT EXISTS "ListingOpportunity_lastSyncedAt_idx" ON "ListingOpportunity"("lastSyncedAt");`,
+      ]);
     } catch {
     } finally {
       if (checkedTables) {
@@ -1228,55 +1178,8 @@ export async function ensurePricingEngineSchema(): Promise<void> {
   ensuringPricingEngine = true;
   ensurePricingEnginePromise = (async () => {
     try {
-      // MarketplaceProfile
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "MarketplaceProfile" (
-          "id" TEXT NOT NULL PRIMARY KEY,
-          "name" TEXT NOT NULL,
-          "displayName" TEXT NOT NULL,
-          "currency" TEXT NOT NULL DEFAULT 'INR',
-          "isActive" INTEGER NOT NULL DEFAULT 1,
-          "isDefault" INTEGER NOT NULL DEFAULT 0,
-          "marginType" TEXT NOT NULL DEFAULT 'PERCENT',
-          "marginValue" REAL NOT NULL DEFAULT 0,
-          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceProfile_name_key" ON "MarketplaceProfile"("name");`);
-
-      // MarketplaceCharge
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "MarketplaceCharge" (
-          "id" TEXT NOT NULL PRIMARY KEY,
-          "profileId" TEXT NOT NULL,
-          "chargeKey" TEXT NOT NULL,
-          "name" TEXT NOT NULL,
-          "enabled" INTEGER NOT NULL DEFAULT 1,
-          "amountType" TEXT NOT NULL DEFAULT 'PERCENT',
-          "amount" REAL NOT NULL DEFAULT 0,
-          "countryCode" TEXT,
-          "sortOrder" INTEGER NOT NULL DEFAULT 0,
-          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "MarketplaceCharge_profileId_fkey" FOREIGN KEY ("profileId") REFERENCES "MarketplaceProfile" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "MarketplaceCharge_profileId_idx" ON "MarketplaceCharge"("profileId");`);
-
-      // CurrencyRate
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "CurrencyRate" (
-          "id" TEXT NOT NULL PRIMARY KEY,
-          "code" TEXT NOT NULL,
-          "rateToInr" REAL NOT NULL DEFAULT 0,
-          "isBase" INTEGER NOT NULL DEFAULT 0,
-          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-      await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "CurrencyRate_code_key" ON "CurrencyRate"("code");`);
-
-      // Invoice internal cost columns
+      // Invoice/Sale internal cost columns (checked in one round trip below)
+      const pricingColumnChecks: Array<[string, string, string]> = [];
       for (const col of [
         "internalShippingCost",
         "internalPackagingCost",
@@ -1285,16 +1188,13 @@ export async function ensurePricingEngineSchema(): Promise<void> {
         "internalOtherCharges",
         "internalCostTotal",
       ]) {
-        await ensureColumnIfMissing("Invoice", col, `"${col}" REAL NOT NULL DEFAULT 0`);
-        await ensureColumnIfMissing("Sale", col, `"${col}" REAL NOT NULL DEFAULT 0`);
+        pricingColumnChecks.push(["Invoice", col, `"${col}" REAL NOT NULL DEFAULT 0`]);
+        pricingColumnChecks.push(["Sale", col, `"${col}" REAL NOT NULL DEFAULT 0`]);
       }
-      await ensureColumnIfMissing("Sale", "actualProfit", '"actualProfit" REAL');
-
-      // Performance indexes
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_origin_idx" ON "Inventory"("origin");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_hsnCode_idx" ON "Inventory"("hsn_code");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_hideFromAttention_idx" ON "Inventory"("hideFromAttention");`);
-      await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_status_sellingPrice_idx" ON "Inventory"("status", "sellingPrice");`);
+      pricingColumnChecks.push(["Sale", "actualProfit", '"actualProfit" REAL']);
+      const missingPricingColumns = await getMissingColumns(
+        pricingColumnChecks.map(([table, column]): [string, string] => [table, column])
+      );
 
       // Seed marketplace profiles
       const profiles: Array<[string, string, string, number, number]> = [
@@ -1306,18 +1206,11 @@ export async function ensurePricingEngineSchema(): Promise<void> {
         ["WHOLESALE", "Wholesale", "INR", 0, 0],
         ["OFFLINE", "Offline Sales", "INR", 0, 0],
       ];
-      for (const [name, displayName, currency, isDefault, marginValue] of profiles) {
-        await prisma.$executeRawUnsafe(
-          `INSERT OR IGNORE INTO "MarketplaceProfile" ("id", "name", "displayName", "currency", "isActive", "isDefault", "marginType", "marginValue", "createdAt", "updatedAt")
+      const profileInserts: DdlStatement[] = profiles.map(([name, displayName, currency, isDefault, marginValue]) => ({
+        sql: `INSERT OR IGNORE INTO "MarketplaceProfile" ("id", "name", "displayName", "currency", "isActive", "isDefault", "marginType", "marginValue", "createdAt", "updatedAt")
            VALUES (?, ?, ?, ?, 1, ?, 'PERCENT', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-          crypto.randomUUID(),
-          name,
-          displayName,
-          currency,
-          isDefault,
-          marginValue
-        );
-      }
+        args: [crypto.randomUUID(), name, displayName, currency, isDefault, marginValue],
+      }));
 
       // Seed currency rates (INR base)
       const currencies: Array<[string, number, number]> = [
@@ -1341,28 +1234,75 @@ export async function ensurePricingEngineSchema(): Promise<void> {
         ["THB", 0, 0],
         ["MYR", 0, 0],
       ];
-      for (const [code, rateToInr, isBase] of currencies) {
-        await prisma.$executeRawUnsafe(
-          `INSERT OR IGNORE INTO "CurrencyRate" ("id", "code", "rateToInr", "isBase", "updatedAt")
+      const currencyInserts: DdlStatement[] = currencies.map(([code, rateToInr, isBase]) => ({
+        sql: `INSERT OR IGNORE INTO "CurrencyRate" ("id", "code", "rateToInr", "isBase", "updatedAt")
            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-          crypto.randomUUID(),
-          code,
-          rateToInr,
-          isBase
-        );
-      }
+        args: [crypto.randomUUID(), code, rateToInr, isBase],
+      }));
 
-      // Feature flags / defaults
-      await prisma.$executeRawUnsafe(
-        `INSERT OR IGNORE INTO "Setting" ("id", "key", "value", "description", "updatedAt")
+      await executeDdlBatch([
+        // MarketplaceProfile
+        `CREATE TABLE IF NOT EXISTS "MarketplaceProfile" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "displayName" TEXT NOT NULL,
+          "currency" TEXT NOT NULL DEFAULT 'INR',
+          "isActive" INTEGER NOT NULL DEFAULT 1,
+          "isDefault" INTEGER NOT NULL DEFAULT 0,
+          "marginType" TEXT NOT NULL DEFAULT 'PERCENT',
+          "marginValue" REAL NOT NULL DEFAULT 0,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS "MarketplaceProfile_name_key" ON "MarketplaceProfile"("name");`,
+        // MarketplaceCharge
+        `CREATE TABLE IF NOT EXISTS "MarketplaceCharge" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "profileId" TEXT NOT NULL,
+          "chargeKey" TEXT NOT NULL,
+          "name" TEXT NOT NULL,
+          "enabled" INTEGER NOT NULL DEFAULT 1,
+          "amountType" TEXT NOT NULL DEFAULT 'PERCENT',
+          "amount" REAL NOT NULL DEFAULT 0,
+          "countryCode" TEXT,
+          "sortOrder" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "MarketplaceCharge_profileId_fkey" FOREIGN KEY ("profileId") REFERENCES "MarketplaceProfile" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+        );`,
+        `CREATE INDEX IF NOT EXISTS "MarketplaceCharge_profileId_idx" ON "MarketplaceCharge"("profileId");`,
+        // CurrencyRate
+        `CREATE TABLE IF NOT EXISTS "CurrencyRate" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "code" TEXT NOT NULL,
+          "rateToInr" REAL NOT NULL DEFAULT 0,
+          "isBase" INTEGER NOT NULL DEFAULT 0,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS "CurrencyRate_code_key" ON "CurrencyRate"("code");`,
+        // Invoice / Sale internal cost columns
+        ...buildAddColumnStatements(pricingColumnChecks, missingPricingColumns),
+        // Performance indexes
+        `CREATE INDEX IF NOT EXISTS "Inventory_origin_idx" ON "Inventory"("origin");`,
+        `CREATE INDEX IF NOT EXISTS "Inventory_hsnCode_idx" ON "Inventory"("hsn_code");`,
+        `CREATE INDEX IF NOT EXISTS "Inventory_hideFromAttention_idx" ON "Inventory"("hideFromAttention");`,
+        `CREATE INDEX IF NOT EXISTS "Inventory_status_sellingPrice_idx" ON "Inventory"("status", "sellingPrice");`,
+        // Seed marketplace profiles
+        ...profileInserts,
+        // Seed currency rates (INR base)
+        ...currencyInserts,
+        // Feature flags / defaults
+        {
+          sql: `INSERT OR IGNORE INTO "Setting" ("id", "key", "value", "description", "updatedAt")
          VALUES (?, 'default_marketplace', 'ETSY', 'Marketplace profile used for single-row MSP/MRP planning in the Opportunity Report', CURRENT_TIMESTAMP)`,
-        crypto.randomUUID()
-      );
-      await prisma.$executeRawUnsafe(
-        `INSERT OR IGNORE INTO "Setting" ("id", "key", "value", "description", "updatedAt")
+          args: [crypto.randomUUID()],
+        },
+        {
+          sql: `INSERT OR IGNORE INTO "Setting" ("id", "key", "value", "description", "updatedAt")
          VALUES (?, 'pricing_engine_enabled', 'false', 'Enables the pricing analysis view in the Opportunity Report', CURRENT_TIMESTAMP)`,
-        crypto.randomUUID()
-      );
+          args: [crypto.randomUUID()],
+        },
+      ]);
     } catch (e) {
       console.error("ensurePricingEngineSchema failed:", e);
     } finally {

@@ -230,7 +230,23 @@ function buildInventoryWhere(
 }
 
 async function getInventoryData(params: SearchParams) {
-  const session = await auth();
+  // Start independent work up front so auth, table probes and the query overlap.
+  const sessionPromise = auth();
+  const tableFlagsPromise = Promise.all([
+    hasTable("InventoryMedia"),
+    hasTable("CategoryCode"),
+    hasTable("GemstoneCode"),
+    hasTable("ColorCode"),
+    hasTable("CutCode"),
+    hasTable("CollectionCode"),
+    hasTable("RashiCode"),
+    hasTable("_InventoryToRashiCode"),
+    hasTable("CertificateCode"),
+    hasTable("_CertificateCodeToInventory"),
+    hasTable("Vendor"),
+  ]);
+
+  const session = await sessionPromise;
   const userId = session?.user?.id;
 
   let canView = false;
@@ -284,19 +300,7 @@ async function getInventoryData(params: SearchParams) {
     canCertificateCode,
     canCertificateToInventory,
     canVendor,
-  ] = await Promise.all([
-    hasTable("InventoryMedia"),
-    hasTable("CategoryCode"),
-    hasTable("GemstoneCode"),
-    hasTable("ColorCode"),
-    hasTable("CutCode"),
-    hasTable("CollectionCode"),
-    hasTable("RashiCode"),
-    hasTable("_InventoryToRashiCode"),
-    hasTable("CertificateCode"),
-    hasTable("_CertificateCodeToInventory"),
-    hasTable("Vendor"),
-  ]);
+  ] = await tableFlagsPromise;
 
   const canRashi = canRashiCode && canInventoryToRashi;
   const canCertificate = canCertificateCode && canCertificateToInventory;
@@ -439,6 +443,7 @@ async function getInventoryData(params: SearchParams) {
     rashis,
     certificates,
     cuts,
+    originRows,
   ] = await Promise.all([
     canCategoryCode ? cachedMasters.getCategories(prisma)() : Promise.resolve([]),
     canGemstoneCode ? cachedMasters.getGemstones(prisma)() : Promise.resolve([]),
@@ -448,9 +453,9 @@ async function getInventoryData(params: SearchParams) {
     canRashi ? cachedMasters.getRashis(prisma)() : Promise.resolve([]),
     canCertificate ? cachedMasters.getCertificates(prisma)() : Promise.resolve([]),
     canCutCode ? cachedMasters.getCuts(prisma)() : Promise.resolve([]),
+    cachedMasters.getOrigins(prisma)(),
   ]);
 
-  const originRows = await cachedMasters.getOrigins(prisma)();
   const origins = originRows.map((r) => r.origin);
 
   const inventory = removeDuplicates(rows, "id");

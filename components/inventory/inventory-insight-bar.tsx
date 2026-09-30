@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatInrNumber } from "@/lib/number-formatting";
 
@@ -19,7 +20,14 @@ const fetcher = async (url: string) => {
 
 export function InventoryInsightBar() {
   const searchParams = useSearchParams();
-  const qs = searchParams.toString();
+  // Must match InventoryStats' URL byte-for-byte so SWR serves both from one request.
+  const qs = useMemo(() => {
+    const params = new URLSearchParams();
+    searchParams.forEach((value, key) => {
+      if (value) params.set(key, value);
+    });
+    return params.toString();
+  }, [searchParams]);
   const url = `/api/inventory/stats?mode=full${qs ? `&${qs}` : ""}`;
   const { data } = useSWR<InventoryStatsResponse>(url, fetcher, {
     revalidateOnFocus: false,
