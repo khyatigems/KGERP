@@ -50,6 +50,32 @@ export async function matchListingToInventory(params: {
           reason: `Marketplace SKU ${listingSku} differs from linked ERP SKU ${existing.inventory.sku}`,
         };
       }
+      if (existing.inventoryId && existing.inventory) {
+        return {
+          status: "MATCHED",
+          inventoryId: existing.inventoryId,
+          inventorySku: existing.inventory.sku,
+          listingId: existing.id,
+          reason: "Known marketplace listing relationship",
+        };
+      }
+      // Known listing row that was never linked to an ERP product: repair the
+      // link from the exact SKU instead of returning the stale null reference.
+      if (listingSku) {
+        const linked = await prisma.inventory.findUnique({
+          where: { sku: listingSku },
+          select: { id: true, sku: true },
+        });
+        if (linked) {
+          return {
+            status: "MATCHED",
+            inventoryId: linked.id,
+            inventorySku: linked.sku,
+            listingId: existing.id,
+            reason: "Known marketplace listing relationship repaired via exact SKU match",
+          };
+        }
+      }
       return {
         status: "MATCHED",
         inventoryId: existing.inventoryId,

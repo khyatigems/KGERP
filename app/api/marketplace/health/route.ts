@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCurrencyRates } from "@/lib/pricing/db";
 import { toInr } from "@/lib/pricing/currency";
+import { marketplaceInventoryJoinSql, MARKETPLACE_LISTING_SCOPE_SQL } from "@/lib/marketplace-control-center";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 30;
@@ -22,17 +23,18 @@ export async function GET(req: NextRequest) {
     const MARGIN_THRESHOLD = 1.00; // Critical below 100%
     const OPPORTUNITY_THRESHOLD = 0.50;
 
-    const rows = await prisma.$queryRawUnsafe<
-      Array<{
-        sku: string;
-        itemName: string;
-        platform: string;
-        listedPrice: number;
-        currency: string;
-        sellingPrice: number;
-        costPrice: number;
-      }>
-    >(`
+    const [rows, activeListingRows] = await Promise.all([
+      prisma.$queryRawUnsafe<
+        Array<{
+          sku: string;
+          itemName: string;
+          platform: string;
+          listedPrice: number;
+          currency: string;
+          sellingPrice: number;
+          costPrice: number;
+        }>
+      >(`
       SELECT
         i."sku",
         i."itemName",
@@ -42,9 +44,15 @@ export async function GET(req: NextRequest) {
         i."sellingPrice",
         i."costPrice"
       FROM "Listing" l
-      JOIN "Inventory" i ON i."id" = l."inventoryId"
-      WHERE UPPER(l."status") IN ('ACTIVE', 'LISTED')
-    `);
+      ${marketplaceInventoryJoinSql("INNER")}
+      WHERE ${MARKETPLACE_LISTING_SCOPE_SQL}
+    `),
+      prisma.$queryRawUnsafe<Array<{ total: number }>>(
+        `SELECT COUNT(*) AS total FROM "Listing" WHERE "marketplaceShopId" IS NOT NULL AND UPPER("status") IN ('ACTIVE', 'LISTED')`
+      ),
+    ]);
+
+    const activeListingTotal = Number(activeListingRows[0]?.total || 0);
 
     let priceAlertCount = 0;
     let lowMarginCount = 0;
@@ -81,7 +89,8 @@ export async function GET(req: NextRequest) {
       opportunityCount,
       marginThreshold: 100,
       opportunityThreshold: 50,
-      totalListings: rows.length,
+      totalListings: activeListingTotal,
+      pricedListings: rows.length,
     });
   } catch (error) {
     console.error("[marketplace/health] Error:", error);
@@ -93,6 +102,7 @@ export async function GET(req: NextRequest) {
       marginThreshold: 0.05,
       opportunityThreshold: 0.15,
       totalListings: 0,
+      pricedListings: 0,
     });
   }
 }

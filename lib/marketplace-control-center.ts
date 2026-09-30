@@ -8,6 +8,36 @@ export const MARKETPLACE_PLATFORMS = ["EBAY", "ETSY", "AMAZON"] as const;
 export const ACTIVE_LISTING_STATUSES = ["ACTIVE", "LISTED"] as const;
 export const MARKETPLACE_EVENT_MODULE = "MARKETPLACE";
 
+/**
+ * Single source of truth for "which rows are marketplace listings".
+ *
+ * Every marketplace metric must be derived from the rows that appear on
+ * Marketplaces -> Listings, i.e. `Listing.marketplaceShopId IS NOT NULL`.
+ * Rows with a NULL shop are the legacy "Catalog Listing Tools" entries and
+ * must never be counted anywhere in the marketplace dashboards.
+ *
+ * The fragment expects `l` to be the alias of the `Listing` table.
+ */
+export const MARKETPLACE_LISTING_SCOPE_SQL = `l."marketplaceShopId" IS NOT NULL AND UPPER(l."status") IN ('ACTIVE', 'LISTED')`;
+
+/**
+ * Joins `Listing` (aliased `l`) to its ERP `Inventory` row (aliased `i`).
+ *
+ * Listings synced before the product link was persisted can still carry only
+ * `listingSku`, so an exact SKU match is used as a fallback. `Inventory.sku`
+ * is unique, therefore this join can never fan out into duplicate rows.
+ */
+export function marketplaceInventoryJoinSql(kind: "INNER" | "LEFT" = "INNER"): string {
+  return `${kind} JOIN "Inventory" i ON (
+    i."id" = l."inventoryId"
+    OR (
+      l."inventoryId" IS NULL
+      AND l."listingSku" IS NOT NULL
+      AND UPPER(TRIM(l."listingSku")) = UPPER(TRIM(i."sku"))
+    )
+  )`;
+}
+
 export type MarketplacePlatform = (typeof MARKETPLACE_PLATFORMS)[number];
 export type MarketplaceConflictStatus = "Pending" | "Reviewed" | "Resolved";
 
@@ -404,6 +434,100 @@ export async function getMarketplaceTimeline(entityId?: string, limit = 12) {
   })) as MarketplaceTimelineRow[];
 }
 
+/** Human readable marketplace name for dashboard labels and activity text. */
+export function platformDisplay(raw: string | null | undefined): string {
+  const key = String(raw || "").toUpperCase();
+  return key === "EBAY" ? "eBay" : key === "ETSY" ? "Etsy" : key === "AMAZON" ? "Amazon" : String(raw || "-");
+}
+
+/**
+ * Activity of the legacy "Catalog Listing Tools" surface. Those events belong
+ * to the old /listings page and must not appear on marketplace dashboards
+ * unless the event actually references a live marketplace listing.
+ */
+const LEGACY_LISTING_TOOL_ACTIONS = new Set(["LISTING_LINKED", "LISTING_UPDATED", "LISTING_REMOVED"]);
+
+function listingIdFromMetadata(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { listingId?: unknown };
+    return typeof parsed?.listingId === "string" && parsed.listingId ? parsed.listingId : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Recent activity that belongs to Marketplaces -> Listings: marketplace
+ * conflicts, connection/sync milestones, and listing events that reference a
+ * live marketplace listing. Legacy catalog listing churn is filtered out, and
+ * listing sync jobs are merged in so the feed always reflects what the
+ * listings page actually did last.
+ */
+export async function getMarketplaceActivityFeed(limit = 10): Promise<MarketplaceTimelineRow[]> {
+  await ensureMarketplaceControlCenterSchema();
+
+  const [activityRows, marketplaceListingRows, syncJobs] = await Promise.all([
+    prisma.activityLog.findMany({
+      where: {
+        module: MARKETPLACE_EVENT_MODULE,
+        actionType: { notIn: ["SYNC_QUEUED", "SYNC_STARTED", "SYNC_COMPLETED", "SHOP_CONNECTED", "SHOP_DISCONNECTED"] },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 250,
+    }),
+    prisma.listing.findMany({
+      where: { marketplaceShopId: { not: null } },
+      select: { id: true },
+    }),
+    prisma.marketplaceSyncJob.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 25,
+      include: { marketplaceShop: { select: { marketplace: true, name: true } } },
+    }),
+  ]);
+
+  const marketplaceListingIds = new Set(marketplaceListingRows.map((row) => row.id));
+  const activity: MarketplaceTimelineRow[] = [];
+
+  for (const row of activityRows) {
+    if (LEGACY_LISTING_TOOL_ACTIONS.has(row.actionType || "")) {
+      const listingId = listingIdFromMetadata(row.metadata);
+      if (!listingId || !marketplaceListingIds.has(listingId)) continue;
+    }
+    activity.push({
+      id: row.id,
+      actionType: row.actionType || row.action || "UNKNOWN",
+      userName: row.userName,
+      source: row.source,
+      details: row.description || row.details,
+      entityIdentifier: row.entityIdentifier,
+      createdAt: row.createdAt,
+    });
+  }
+
+  // One entry per sync type + status + shop so a burst of identical jobs does
+  // not flood the feed; the newest run of each kind wins.
+  const seenSyncKeys = new Set<string>();
+  for (const job of syncJobs) {
+    const key = `${job.syncType}|${job.status}|${job.marketplaceShopId}`;
+    if (seenSyncKeys.has(key)) continue;
+    seenSyncKeys.add(key);
+    activity.push({
+      id: job.id,
+      actionType: `SYNC_${job.status}`,
+      userName: job.requestedBy || "System",
+      source: "SYNC",
+      details: `${job.syncType} sync ${job.status.toLowerCase()} · ${platformDisplay(job.marketplaceShop.marketplace)} · ${job.marketplaceShop.name}`,
+      entityIdentifier: job.marketplaceShop.name,
+      createdAt: job.endedAt || job.updatedAt,
+    });
+  }
+
+  activity.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return activity.slice(0, limit);
+}
+
 export async function getMarketplaceDashboardData(options: {
   category?: string;
   marketplace?: string;
@@ -436,7 +560,8 @@ export async function getMarketplaceDashboardData(options: {
             i."costPrice", i."sellingPrice", i."purchaseRatePerCarat", i."flatPurchaseCost", i."weightValue", i."weightUnit",
             l."platform", l."listingUrl", l."createdAt" AS "lastListedDate", l."listedPrice", l."currency"
      FROM "Inventory" i
-     LEFT JOIN "Listing" l ON l."inventoryId" = i."id" AND UPPER(l."status") IN ('ACTIVE', 'LISTED')
+     LEFT JOIN "Listing" l ON (l."inventoryId" = i."id" OR (l."inventoryId" IS NULL AND l."listingSku" IS NOT NULL AND UPPER(TRIM(l."listingSku")) = UPPER(TRIM(i."sku"))))
+       AND ${MARKETPLACE_LISTING_SCOPE_SQL}
      WHERE i."status" != 'SOLD'
      ORDER BY i."sku" ASC, l."platform" ASC, l."createdAt" DESC`
   );
@@ -543,14 +668,22 @@ export async function getMarketplaceDashboardData(options: {
     }
   }
 
-  const totalListings = filtered.reduce(
-    (sum, item) => sum + MARKETPLACE_PLATFORMS.reduce((platformSum, platform) => platformSum + (item.listingCounts[platform] || 0), 0),
-    0
+  // Active listing totals come straight from the Marketplace -> Listings rows
+  // (not from the inventory portfolio), so the widget always matches that page.
+  const listingScopeRows = await prisma.$queryRawUnsafe<Array<{ platform: string | null; total: number }>>(
+    `SELECT "platform", COUNT(*) AS total FROM "Listing"
+     WHERE "marketplaceShopId" IS NOT NULL AND UPPER("status") IN ('ACTIVE', 'LISTED')
+     GROUP BY "platform"`
   );
   const platformCounts = MARKETPLACE_PLATFORMS.reduce((acc, platform) => {
-    acc[platform] = filtered.reduce((sum, item) => sum + (item.listingCounts[platform] || 0), 0);
+    acc[platform] = 0;
     return acc;
   }, {} as Record<MarketplacePlatform, number>);
+  for (const row of listingScopeRows) {
+    const platform = normalizePlatform(row.platform);
+    if (platform) platformCounts[platform] += Number(row.total || 0);
+  }
+  const totalListings = platformCounts.EBAY + platformCounts.ETSY + platformCounts.AMAZON;
 
   const conflictRows = await prisma.$queryRawUnsafe<Array<{ conflictStatus: string; total: number }>>(
     `SELECT "conflictStatus", COUNT(*) AS total FROM "MarketplaceConflict" GROUP BY "conflictStatus"`
@@ -592,7 +725,7 @@ export async function getMarketplaceDashboardData(options: {
     else if (key === "AMAZON+EBAY+ETSY") coverageSummary.allPlatforms += 1;
   }
 
-  const recentActivity = await getMarketplaceTimeline(undefined, 10);
+  const recentActivity = await getMarketplaceActivityFeed(10);
   return { totalListings, platformCounts, conflictCounts, criticalConflicts, coverageSummary, recentActivity, rows: filtered };
 }
 
@@ -649,8 +782,8 @@ export async function getMarketplaceAuditMetrics(rates?: CurrencyRates): Promise
     SELECT l."platform", l."listingUrl", l."listedPrice", COALESCE(l."currency",'USD') AS "currency", l."listedDate",
            i."sellingPrice", i."costPrice", i."sku", i."itemName", i."category"
     FROM "Listing" l
-    INNER JOIN "Inventory" i ON i."id" = l."inventoryId"
-    WHERE UPPER(l."status") IN ('ACTIVE', 'LISTED')
+    ${marketplaceInventoryJoinSql("INNER")}
+    WHERE ${MARKETPLACE_LISTING_SCOPE_SQL}
   `);
 
   const items = rows.map((r) => {

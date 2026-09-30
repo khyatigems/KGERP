@@ -66,6 +66,11 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
   });
 
   const platformOrder = ["eBay", "Etsy", "Amazon", "Website", "WhatsApp"];
+  const platformParamByLabel: Record<string, string> = {
+    eBay: "EBAY",
+    Etsy: "ETSY",
+    Amazon: "AMAZON",
+  };
   const listingMap = listings as unknown as Record<string, number | undefined>;
   const totalListings = listings.total ?? 0;
   const hasConflicts = syncData && ((syncData.pendingConflicts ?? 0) > 0 || (syncData.criticalConflicts ?? 0) > 0);
@@ -86,7 +91,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
           </div>
         </div>
         <Link
-          href="/marketplace-control-center"
+          href="/marketplace-listings"
           className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors"
         >
           Manage <ExternalLink className="h-3 w-3" />
@@ -97,10 +102,11 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
         {platformOrder.map((key) => {
           const count = listingMap[key] ?? 0;
           const cfg = platformConfig[key] ?? { color: "text-muted-foreground", bg: "bg-muted" };
+          const platformFilter = platformParamByLabel[key];
           return (
             <Link
               key={key}
-              href="/marketplace-control-center"
+              href={platformFilter ? `/marketplace-listings?marketplace=${platformFilter}` : "/marketplace-listings"}
               className={cn(
                 "flex flex-col items-center justify-center rounded-lg border border-border p-3 text-center transition-all duration-150",
                 count > 0
@@ -166,7 +172,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Link
-              href="/marketplace-control-center?priceStatus=below_selling"
+              href="/marketplace-control-center#pricing-alerts"
               className="flex items-center gap-2 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-2.5 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
             >
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-red-100 dark:bg-red-900/50">
@@ -179,7 +185,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
             </Link>
 
             <Link
-              href="/marketplace-control-center?filter=lowMargin"
+              href="/marketplace-control-center#margin-health"
               className="flex items-center gap-2 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-2.5 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
             >
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-amber-100 dark:bg-amber-900/50">
@@ -192,7 +198,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
             </Link>
 
             <Link
-              href="/marketplace-control-center?report=revenue_leakage"
+              href="/marketplace-control-center#revenue-leakage"
               className="flex items-center gap-2 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-2.5 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
             >
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-red-100 dark:bg-red-900/50">

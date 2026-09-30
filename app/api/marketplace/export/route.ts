@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { ensureMarketplaceControlCenterSchema, normalizePlatform, MARKETPLACE_PLATFORMS } from "@/lib/marketplace-control-center";
+import { ensureMarketplaceControlCenterSchema, normalizePlatform, MARKETPLACE_PLATFORMS, marketplaceInventoryJoinSql, MARKETPLACE_LISTING_SCOPE_SQL } from "@/lib/marketplace-control-center";
 import { buildEbayHtmlDescription } from "@/lib/ebay-description";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
               l."platform", l."listingUrl",
               COALESCE(m."mediaCount", 0) AS "mediaCount"
        FROM "Inventory" i
-       LEFT JOIN "Listing" l ON l."inventoryId" = i."id" AND UPPER(l."status") IN ('ACTIVE', 'LISTED')
+       LEFT JOIN "Listing" l ON (l."inventoryId" = i."id" OR (l."inventoryId" IS NULL AND l."listingSku" IS NOT NULL AND UPPER(TRIM(l."listingSku")) = UPPER(TRIM(i."sku")))) AND ${MARKETPLACE_LISTING_SCOPE_SQL}
        LEFT JOIN (SELECT "inventoryId", COUNT(*) AS "mediaCount" FROM "InventoryMedia" GROUP BY "inventoryId") m ON m."inventoryId" = i."id"
        ${whereClause}
        ORDER BY i."sku" ASC`,
@@ -424,10 +424,6 @@ export async function GET(req: NextRequest) {
         engagementFilterConditions.push(`UPPER(l."platform") = ?`);
         engagementFilterValues.push(marketplace.toUpperCase());
       }
-      const engagementWhere = engagementFilterConditions.length
-        ? `WHERE ${engagementFilterConditions.join(" AND ")}`
-        : "";
-
       const allListings = await prisma.$queryRawUnsafe<Array<{
         id: string;
         inventoryId: string;
@@ -439,11 +435,11 @@ export async function GET(req: NextRequest) {
         sku: string;
         itemName: string;
       }>>(
-        `SELECT l."id", l."inventoryId", l."platform", l."externalId", l."listedPrice", l."currency", l."status",
+        `SELECT l."id", i."id" AS "inventoryId", l."platform", l."externalId", l."listedPrice", l."currency", l."status",
                 i."sku", i."itemName"
          FROM "Listing" l
-         INNER JOIN "Inventory" i ON i."id" = l."inventoryId"
-         ${engagementWhere}
+         ${marketplaceInventoryJoinSql("INNER")}
+         WHERE ${MARKETPLACE_LISTING_SCOPE_SQL}${engagementFilterConditions.length ? ` AND ${engagementFilterConditions.join(" AND ")}` : ""}
          ORDER BY i."sku" ASC, l."platform" ASC`,
         ...engagementFilterValues
       );

@@ -1,4 +1,4 @@
-import { ensureMarketplaceControlCenterSchema, getMarketplaceDashboardData, getMarketplaceAuditMetrics, MarketplacePortfolioRow, MarketplacePlatform } from "@/lib/marketplace-control-center";
+import { ensureMarketplaceControlCenterSchema, getMarketplaceDashboardData, getMarketplaceAuditMetrics, MarketplacePortfolioRow, MarketplacePlatform, platformDisplay } from "@/lib/marketplace-control-center";
 import { ensureMarketplaceMetricsSchema, prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,9 +115,6 @@ export default async function MarketplaceControlCenterPage({
   const opportunityRows = [...coverageRows]
     .filter((r) => r.missingPlatforms.length > 0 && r.readyToList)
     .sort((a, b) => b.opportunityScore - a.opportunityScore);
-  const needsPreparationRows = [...coverageRows]
-    .filter((r) => r.missingPlatforms.length > 0 && !r.readyToList)
-    .sort((a, b) => b.opportunityScore - a.opportunityScore);
 
   const belowMspCount = pricingEnabled
     ? opportunityRows.filter((r) => {
@@ -134,6 +131,8 @@ export default async function MarketplaceControlCenterPage({
       perMp: perMarketplaceRows(row),
     }));
 
+  const platformLabel = platformDisplay;
+
   function formatDate(raw: string | null | undefined): string {
     if (!raw) return "";
     const d = new Date(raw);
@@ -144,8 +143,20 @@ export default async function MarketplaceControlCenterPage({
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Marketplace Control Center</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <MarketplaceNavButton href="/marketplace-conflicts" variant="outline" size="sm">
+            View All Conflicts
+          </MarketplaceNavButton>
+          <MarketplaceNavButton href="/marketplace-control-center?report=coverage" variant="outline" size="sm">
+            Coverage Report
+          </MarketplaceNavButton>
+          <MarketplaceNavButton href="/marketplace-control-center?report=opportunity" variant="outline" size="sm">
+            Opportunity Report
+          </MarketplaceNavButton>
+          <MarketplacePriceAuditExport />
+        </div>
       </div>
 
       {!report && (
@@ -160,11 +171,11 @@ export default async function MarketplaceControlCenterPage({
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-md border px-3 py-2 text-sm">
               <div className="text-xs font-medium text-muted-foreground">Last listing sync</div>
-              <div>{lastListingsSync ? `${lastListingsSync.marketplaceShop.marketplace} · ${lastListingsSync.marketplaceShop.name} · ${lastListingsSync.status} · ${formatDistanceToNow(lastListingsSync.updatedAt, { addSuffix: true })}` : "No listing sync yet"}</div>
+              <div>{lastListingsSync ? `${platformLabel(lastListingsSync.marketplaceShop.marketplace)} · ${lastListingsSync.marketplaceShop.name} · ${lastListingsSync.status} · ${formatDistanceToNow(lastListingsSync.updatedAt, { addSuffix: true })}` : "No listing sync yet"}</div>
             </div>
             <div className="rounded-md border px-3 py-2 text-sm">
               <div className="text-xs font-medium text-muted-foreground">Last order sync</div>
-              <div>{lastOrdersSync ? `${lastOrdersSync.marketplaceShop.marketplace} · ${lastOrdersSync.marketplaceShop.name} · ${lastOrdersSync.status} · ${formatDistanceToNow(lastOrdersSync.updatedAt, { addSuffix: true })}` : "No order sync yet"}</div>
+              <div>{lastOrdersSync ? `${platformLabel(lastOrdersSync.marketplaceShop.marketplace)} · ${lastOrdersSync.marketplaceShop.name} · ${lastOrdersSync.status} · ${formatDistanceToNow(lastOrdersSync.updatedAt, { addSuffix: true })}` : "No order sync yet"}</div>
             </div>
           </div>
           <MarketplaceSyncPanel shops={connectedShops} syncTypes={["LISTINGS", "ORDERS"]} />
@@ -218,11 +229,16 @@ export default async function MarketplaceControlCenterPage({
                   <div>eBay: {data.platformCounts.EBAY}</div>
                   <div>Etsy: {data.platformCounts.ETSY}</div>
                   <div>Amazon: {data.platformCounts.AMAZON}</div>
+                  <div className="pt-1">
+                    <Button asChild variant="link" size="sm" className="h-auto p-0">
+                      <Link href="/marketplace-listings">Manage listings</Link>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card id="pricing-alerts">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-orange-500" />
@@ -230,18 +246,30 @@ export default async function MarketplaceControlCenterPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-1 text-sm">
-                  <div className="flex items-center gap-1">
-                    <Badge variant="destructive" className="text-[10px]">Critical</Badge>
-                    <span className="text-xs">Listings below ERP Selling Price</span>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5">
+                      <Badge variant="destructive" className="text-[10px]">Critical</Badge>
+                      <span className="text-xs">Below ERP selling price</span>
+                    </span>
+                    <span className="font-bold">{audit.priceAlerts}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">Warning</Badge>
-                    <span className="text-xs">Listings below margin threshold</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">Warning</Badge>
+                      <span className="text-xs">Margin below 100%</span>
+                    </span>
+                    <span className="font-bold">{audit.lowMargin}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-600">Opportunity</Badge>
-                    <span className="text-xs">Marketplace price exceeds ERP by 15%+</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] border-emerald-500 text-emerald-600">Opportunity</Badge>
+                      <span className="text-xs">Priced 50%+ above ERP</span>
+                    </span>
+                    <span className="font-bold">{audit.opportunities}</span>
+                  </div>
+                  <div className="border-t pt-1.5 text-[11px] text-muted-foreground">
+                    Across {audit.totalListings} priced listings · Leakage ₹{audit.revenueLeakage.toLocaleString("en-IN")}
                   </div>
                 </div>
               </CardContent>
@@ -293,49 +321,8 @@ export default async function MarketplaceControlCenterPage({
             </Card>
           </div>
 
-          {needsPreparationRows.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-amber-600">⚠️ Needs Preparation ({needsPreparationRows.length})</h3>
-              <p className="text-xs text-muted-foreground">These items are not listed on any platform and need image + certificate before listing.</p>
-              <div className="rounded-md border bg-card">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Product Name</TableHead>
-                      <TableHead>Missing</TableHead>
-                      <TableHead>Image</TableHead>
-                      <TableHead>Certificate</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {needsPreparationRows.slice(0, 50).map((row) => (
-                      <TableRow key={row.inventoryId}>
-                        <TableCell className="font-medium">{row.sku}</TableCell>
-                        <TableCell>{row.productName}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {row.missingPlatforms.map((p) => (
-                              <Badge key={p} variant="outline" className="text-[10px]">{p}</Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {row.hasImage ? <Badge variant="default" className="bg-emerald-500 text-[10px]">✅</Badge> : <Badge variant="destructive" className="text-[10px]">Missing</Badge>}
-                        </TableCell>
-                        <TableCell>
-                          {row.hasCertificate ? <Badge variant="default" className="bg-emerald-500 text-[10px]">✅</Badge> : <Badge variant="destructive" className="text-[10px]">Missing</Badge>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
+            <Card id="revenue-leakage">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-red-600">Revenue Leakage</CardTitle>
               </CardHeader>
@@ -347,7 +334,7 @@ export default async function MarketplaceControlCenterPage({
               </CardContent>
             </Card>
 
-            <Card>
+            <Card id="margin-health">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Margin Health</CardTitle>
               </CardHeader>
@@ -375,7 +362,7 @@ export default async function MarketplaceControlCenterPage({
                 <CardTitle className="text-sm font-medium text-emerald-600">Best Marketplace</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-lg font-bold">{audit.bestPlatform}</div>
+                <div className="text-lg font-bold">{platformLabel(audit.bestPlatform)}</div>
                 <div className="text-xs text-muted-foreground mt-1">
                   Profit: ₹{audit.bestPlatformProfit.toLocaleString("en-IN")}<br />
                   Margin: {audit.bestPlatformMargin}%
@@ -390,24 +377,12 @@ export default async function MarketplaceControlCenterPage({
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">{audit.priceAlerts}</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {audit.lowMargin} low margin · {audit.priceAlerts} price alerts
+                  {audit.lowMargin} low margin · {audit.affectedLeakageCount} losing revenue
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="flex items-center gap-4">
-            <MarketplaceNavButton href="/marketplace-conflicts">
-              View All Conflicts
-            </MarketplaceNavButton>
-            <MarketplaceNavButton href="/marketplace-control-center?report=coverage">
-              Coverage Report
-            </MarketplaceNavButton>
-            <MarketplaceNavButton href="/marketplace-control-center?report=opportunity">
-              Opportunity Report
-            </MarketplaceNavButton>
-            <MarketplacePriceAuditExport />
-          </div>
         </>
       ) : report === "coverage" ? (
         <div className="space-y-4">

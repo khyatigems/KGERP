@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCurrencyRates } from "@/lib/pricing/db";
 import { toInr } from "@/lib/pricing/currency";
+import { marketplaceInventoryJoinSql, MARKETPLACE_LISTING_SCOPE_SQL } from "@/lib/marketplace-control-center";
 
 export const dynamic = "force-dynamic";
 
@@ -54,8 +55,8 @@ export async function GET(req: NextRequest) {
          l."status" AS "listingStatus",
          l."listedDate"
         FROM "Listing" l
-        INNER JOIN "Inventory" i ON i."id" = l."inventoryId"
-        WHERE UPPER(l."status") IN ('ACTIVE', 'LISTED')
+        ${marketplaceInventoryJoinSql("INNER")}
+        WHERE ${MARKETPLACE_LISTING_SCOPE_SQL}
         ORDER BY i."sku" ASC, l."platform" ASC`
     );
 
