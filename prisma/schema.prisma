@@ -507,7 +507,7 @@ model InventoryMedia {
 
 model Purchase {
   id            String         @id @default(uuid())
-  invoiceNo     String?
+  invoiceNo     String?        @unique
   purchaseDate  DateTime
   vendorId      String?
   totalAmount   Float

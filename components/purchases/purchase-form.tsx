@@ -86,7 +86,22 @@ type PaymentDraft = {
     bankName: string;
     chequePayee: string;
     chequeDate: string;
+    autoFill?: boolean;
 };
+
+function emptyPayment(amount: number, method: PaymentDraft["method"] = "CASH"): PaymentDraft {
+    return {
+        amount,
+        method,
+        date: new Date().toISOString().split("T")[0],
+        reference: "",
+        chequeNumber: "",
+        bankName: "",
+        chequePayee: "",
+        chequeDate: "",
+        autoFill: true,
+    };
+}
 
 interface PurchaseFormProps {
   vendors: { id: string; name: string }[];
@@ -460,6 +475,7 @@ export function PurchaseForm({ vendors, categories = [], initialData, suggestedI
   const [isPending, setIsPending] = useState(false);
     const [paymentOpen, setPaymentOpen] = useState(false);
     const [payments, setPayments] = useState<PaymentDraft[]>([]);
+    const [balanceConfirmed, setBalanceConfirmed] = useState(false);
   const router = useRouter();
 
   const defaultValues: FormValues = initialData
@@ -510,8 +526,9 @@ export function PurchaseForm({ vendors, categories = [], initialData, suggestedI
   });
 
   async function onSubmit(data: FormValues) {
+        if (isPending) return;
         if (!initialData) {
-            setPayments((current) => current.length ? current : [{ amount: totalValue, method: "CASH", date: new Date().toISOString().split("T")[0], reference: "", chequeNumber: "", bankName: "", chequePayee: "", chequeDate: "" }]);
+            setPayments((current) => current.length ? syncAutoBalance(current) : [emptyPayment(totalValue)]);
             setPaymentOpen(true);
             return;
         }
@@ -523,7 +540,7 @@ export function PurchaseForm({ vendors, categories = [], initialData, suggestedI
     const formData = new FormData();
     formData.append("vendorId", data.vendorId);
     formData.append("purchaseDate", data.purchaseDate);
-    if (data.invoiceNo) formData.append("invoiceNo", data.invoiceNo);
+    if (initialData && data.invoiceNo) formData.append("invoiceNo", data.invoiceNo);
     formData.append("payments", JSON.stringify(purchasePayments));
     if (data.remarks) formData.append("remarks", data.remarks);
     
@@ -561,8 +578,9 @@ export function PurchaseForm({ vendors, categories = [], initialData, suggestedI
   }
 
     async function confirmPayment() {
+        if (isPending) return;
         const data = form.getValues();
-        const paidAmount = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        const paidAmount = allocatedAmount(payments);
         if (paidAmount > totalValue) {
             toast.error("Payment total cannot exceed the purchase total");
             return;
@@ -577,11 +595,98 @@ export function PurchaseForm({ vendors, categories = [], initialData, suggestedI
                 return;
             }
         }
+        const remaining = remainingAmount(payments);
+        if (remaining > 0 && !balanceConfirmed) {
+            setBalanceConfirmed(true);
+            toast.warning(
+                `${formatAmount(remaining)} of ${formatAmount(totalValue)} is not allocated to any payment. ` +
+                "Adjust the amounts or use Auto-fill balance, then confirm again to save as PARTIAL."
+            );
+            return;
+        }
         setPaymentOpen(false);
         await savePurchase(data, payments);
     }
 
   const totalValue = form.watch("items")?.reduce((sum, item) => sum + Number(item.totalCost || 0), 0) || 0;
+
+  const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+  const formatAmount = (value: number) =>
+    round2(value).toLocaleString("en-IN", { style: "currency", currency: "INR" });
+
+  const allocatedAmount = (rows: PaymentDraft[]) =>
+    round2(rows.reduce((sum, row) => sum + Number(row.amount || 0), 0));
+
+  const remainingAmount = (rows: PaymentDraft[]) =>
+    round2(Math.max(0, totalValue - allocatedAmount(rows)));
+
+  // Balance the target row so every row except it adds up to the purchase total.
+  const balanceFor = (rows: PaymentDraft[], target: number) =>
+    round2(
+      Math.max(
+        0,
+        totalValue - rows.reduce((sum, row, i) => (i === target ? sum : sum + Number(row.amount || 0)), 0)
+      )
+    );
+
+  // Keeps the auto-filled row equal to the unpaid balance so split payments
+  // always add up to the purchase total.
+  function syncAutoBalance(rows: PaymentDraft[]): PaymentDraft[] {
+    if (rows.length < 2) return rows;
+    for (let index = rows.length - 1; index >= 0; index--) {
+      if (rows[index].autoFill) {
+        const nextAmount = balanceFor(rows, index);
+        if (round2(Number(rows[index].amount || 0)) === nextAmount) return rows;
+        const next = [...rows];
+        next[index] = { ...next[index], amount: nextAmount };
+        return next;
+      }
+    }
+    return rows;
+  }
+
+  const resetBalanceConfirmation = () => setBalanceConfirmed(false);
+
+  const updatePayment = (index: number, patch: Partial<PaymentDraft>) => {
+    resetBalanceConfirmation();
+    setPayments((rows) =>
+      syncAutoBalance(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)))
+    );
+  };
+
+  const addPaymentRow = () => {
+    resetBalanceConfirmation();
+    setPayments((rows) => {
+      const remaining = remainingAmount(rows);
+      // Only the newest row tracks the unpaid balance.
+      return [...rows.map((row) => ({ ...row, autoFill: false })), emptyPayment(remaining)];
+    });
+  };
+
+  const removePaymentRow = (index: number) => {
+    resetBalanceConfirmation();
+    setPayments((rows) => {
+      const kept = rows.filter((_, i) => i !== index);
+      const withAutoRow = kept.map((row, i) => ({ ...row, autoFill: i === kept.length - 1 }));
+      return syncAutoBalance(withAutoRow);
+    });
+  };
+
+  const autoFillBalance = () => {
+    resetBalanceConfirmation();
+    setPayments((rows) => {
+      if (!rows.length) return rows;
+      const autoIndex = rows.reduce<number | null>((found, row, i) => (row.autoFill ? i : found), null);
+      const target = autoIndex ?? rows.length - 1;
+      const next = [...rows];
+      next[target] = { ...next[target], amount: balanceFor(rows, target), autoFill: true };
+      return next;
+    });
+  };
+
+  const allocated = allocatedAmount(payments);
+  const remaining = remainingAmount(payments);
 
   return (
     <Form {...form}>
@@ -721,10 +826,33 @@ export function PurchaseForm({ vendors, categories = [], initialData, suggestedI
                         <DialogDescription>Record the payment made now. You can split it across multiple methods.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
+                        <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Purchase total</span>
+                                <span className="font-medium">{formatAmount(totalValue)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Allocated</span>
+                                <span className="font-medium">{formatAmount(allocated)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">Remaining</span>
+                                <span className="flex items-center gap-2">
+                                    <span className={remaining > 0 ? "font-semibold text-amber-600" : "font-semibold text-emerald-600"}>
+                                        {formatAmount(remaining)}
+                                    </span>
+                                    {remaining > 0 && payments.length > 1 && (
+                                        <Button type="button" size="sm" variant="outline" onClick={autoFillBalance}>
+                                            Auto-fill balance
+                                        </Button>
+                                    )}
+                                </span>
+                            </div>
+                        </div>
                         {payments.map((payment, index) => (
                             <div key={index} className="grid grid-cols-1 gap-3 rounded-md border p-4 md:grid-cols-4">
-                                <Input type="number" placeholder="Amount" value={payment.amount} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, amount: Number(event.target.value) } : row))} />
-                                <Select value={payment.method} onValueChange={(method: PaymentDraft["method"]) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, method } : row))}>
+                                <Input type="number" step="0.01" min="0" placeholder="Amount" value={payment.amount} onChange={(event) => updatePayment(index, { amount: Number(event.target.value), autoFill: false })} />
+                                <Select value={payment.method} onValueChange={(method: PaymentDraft["method"]) => updatePayment(index, { method })}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="CASH">Cash</SelectItem>
@@ -733,12 +861,19 @@ export function PurchaseForm({ vendors, categories = [], initialData, suggestedI
                                         <SelectItem value="CHEQUE">Cheque</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <Input type="date" value={payment.date} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, date: event.target.value } : row))} />
-                                {payment.method !== "CASH" && payment.method !== "CHEQUE" && <Input placeholder="Reference number" value={payment.reference} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, reference: event.target.value } : row))} />}
-                                {payment.method === "CHEQUE" && <div className="md:col-span-4 grid grid-cols-1 gap-3 md:grid-cols-4"><Input placeholder="Cheque number" value={payment.chequeNumber} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, chequeNumber: event.target.value } : row))} /><Input placeholder="Bank name" value={payment.bankName} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, bankName: event.target.value } : row))} /><Input placeholder="Cheque payable to" value={payment.chequePayee} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, chequePayee: event.target.value } : row))} /><Input type="date" value={payment.chequeDate} onChange={(event) => setPayments((rows) => rows.map((row, i) => i === index ? { ...row, chequeDate: event.target.value } : row))} /></div>}
+                                <Input type="date" value={payment.date} onChange={(event) => updatePayment(index, { date: event.target.value })} />
+                                {payment.method !== "CASH" && payment.method !== "CHEQUE" && <Input placeholder="Reference number" value={payment.reference} onChange={(event) => updatePayment(index, { reference: event.target.value })} />}
+                                {payment.method === "CHEQUE" && <div className="md:col-span-4 grid grid-cols-1 gap-3 md:grid-cols-4"><Input placeholder="Cheque number" value={payment.chequeNumber} onChange={(event) => updatePayment(index, { chequeNumber: event.target.value })} /><Input placeholder="Bank name" value={payment.bankName} onChange={(event) => updatePayment(index, { bankName: event.target.value })} /><Input placeholder="Cheque payable to" value={payment.chequePayee} onChange={(event) => updatePayment(index, { chequePayee: event.target.value })} /><Input type="date" value={payment.chequeDate} onChange={(event) => updatePayment(index, { chequeDate: event.target.value })} /></div>}
+                                {payments.length > 1 && (
+                                    <div className="md:col-span-4 flex justify-end border-t pt-2">
+                                        <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive/90" onClick={() => removePaymentRow(index)}>
+                                            <Trash2 className="h-4 w-4 mr-2" /> Remove payment
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         ))}
-                        <Button type="button" variant="outline" onClick={() => setPayments((rows) => [...rows, { amount: 0, method: "CASH", date: new Date().toISOString().split("T")[0], reference: "", chequeNumber: "", bankName: "", chequePayee: "", chequeDate: "" }])}><Plus className="mr-2 h-4 w-4" /> Add Payment Method</Button>
+                        <Button type="button" variant="outline" onClick={addPaymentRow}><Plus className="mr-2 h-4 w-4" /> Add Payment Method</Button>
                         <div className="flex justify-end"><Button type="button" onClick={confirmPayment} disabled={isPending}>{isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm & Create Purchase</Button></div>
                     </div>
                 </DialogContent>

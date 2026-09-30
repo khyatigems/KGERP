@@ -116,7 +116,7 @@ async function getPurchaseStats(search?: string) {
       count: purchases.length,
       totalAmount,
       paidAmount,
-      pendingAmount: Math.max(0, totalAmount - paidAmount),
+      pendingAmount: Math.max(0, Math.round((totalAmount - paidAmount) * 100) / 100),
       itemCount: purchases.reduce((sum, purchase) => sum + purchase.purchaseItems.length, 0),
       vendorCount: new Set(purchases.map((purchase) => purchase.vendorId).filter(Boolean)).size,
       monthAmount,
@@ -331,8 +331,8 @@ export default async function PurchasesPage({
                     return "₹0.00";
                   }
                 })();
-                const paidAmount = purchase.payments.reduce((sum, payment) => sum + payment.amount, 0);
-                const dueAmount = Math.max(0, totalCost - paidAmount);
+                const paidAmount = Math.round(purchase.payments.reduce((sum, payment) => sum + payment.amount, 0) * 100) / 100;
+                const dueAmount = Math.max(0, Math.round((totalCost - paidAmount) * 100) / 100);
 
                 return (
                   <TableRow key={purchase.id}>

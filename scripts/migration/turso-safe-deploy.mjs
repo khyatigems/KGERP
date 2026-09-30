@@ -399,6 +399,41 @@ function createLibsqlClientOrNull(rawUrl) {
   return createClient({ url, authToken });
 }
 
+function isTransientNetworkError(error) {
+  const text = String(error instanceof Error ? error.message : error);
+  const cause = error instanceof Error && error.cause ? String(error.cause.message || error.cause) : "";
+  const combined = `${text} ${cause}`;
+  return (
+    combined.includes("fetch failed") ||
+    combined.includes("SocketError") ||
+    combined.includes("other side closed") ||
+    combined.includes("ECONNRESET") ||
+    combined.includes("ETIMEDOUT") ||
+    combined.includes("socket hang up")
+  );
+}
+
+// The Turso socket can be closed by the server while backup/validation child
+// steps run; retry once on a fresh connection instead of failing the deploy.
+async function withNetworkRetry(label, fn, attempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientNetworkError(error) || attempt === attempts) throw error;
+      process.stdout.write(
+        `[safe-deploy] transient network error during ${label} (attempt ${attempt}/${attempts}): ${
+          error instanceof Error ? error.message : error
+        }\n`
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+  throw lastError;
+}
+
 async function getAppliedLibsqlMigrations(client) {
   try {
     const result = await client.execute("SELECT migration_name FROM _prisma_migrations");
@@ -493,10 +528,10 @@ async function run() {
   if (libsqlClient) {
     process.stdout.write("[safe-deploy] ensure runtime schema (libsql)\n");
     if (process.env.RUN_SAFE_MIGRATIONS === "true") {
-      await ensureRuntimeSchema(libsqlClient);
+      await withNetworkRetry("runtime schema check", () => ensureRuntimeSchema(libsqlClient));
     } else {
       try {
-        await ensureRuntimeSchema(libsqlClient);
+        await withNetworkRetry("runtime schema check", () => ensureRuntimeSchema(libsqlClient));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         process.stdout.write(`[safe-deploy] runtime schema check skipped due to error (RUN_SAFE_MIGRATIONS is not true): ${message}\n`);
@@ -513,7 +548,14 @@ async function run() {
   runStep("pre-migration validation snapshot", "node scripts/migration/turso-validate.mjs");
   try {
     if (libsqlClient) {
-      await applyLibsqlMigrations(libsqlClient);
+      // Open a fresh connection: the one created above idles while the backup and
+      // validation child steps run and the server may have closed that socket.
+      const applyClient = createLibsqlClientOrNull(getDatabaseUrl());
+      try {
+        await withNetworkRetry("apply migrations", () => applyLibsqlMigrations(applyClient));
+      } finally {
+        await applyClient?.close?.();
+      }
     } else {
       runStep("apply prisma migrations", "npx prisma migrate deploy");
     }
@@ -529,5 +571,8 @@ run().catch((error) => {
   const combined = String(error?.output || "");
   if (combined) process.stderr.write(combined);
   console.error(error instanceof Error ? error.message : String(error));
+  if (error instanceof Error && error.stack) console.error(error.stack);
+  const cause = error instanceof Error ? error.cause : undefined;
+  if (cause) console.error("cause:", cause instanceof Error ? cause.stack || cause.message : cause);
   process.exit(1);
 });

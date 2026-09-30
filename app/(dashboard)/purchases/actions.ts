@@ -65,6 +65,12 @@ function parseJsonArray(value: unknown): unknown[] | null {
   }
 }
 
+// Money is stored/compared at 2 decimals so float noise never shows a
+// purchase as PARTIAL with a ₹0.00 due amount.
+function round2(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 export async function createPurchase(prevState: unknown, formData: FormData) {
   const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
   if (!perm.success) return { message: perm.message };
@@ -98,14 +104,29 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
   }
 
   // Calculate total amount
-  const totalAmount = data.items.reduce((sum, item) => sum + item.totalCost, 0);
+  const totalAmount = round2(data.items.reduce((sum, item) => sum + item.totalCost, 0));
 
   try {
     const purchase = await prisma.$transaction(async (tx) => {
         const inputInvoiceNo = (data.invoiceNo || "").trim();
-        const invoiceNo = inputInvoiceNo || (await getNextPurchaseNumber());
+        let invoiceNo = inputInvoiceNo || (await getNextPurchaseNumber());
 
-        const paidAmount = data.payments.reduce((sum, payment) => sum + payment.amount, 0);
+        // Never store two purchases under the same number. A stale form (browser
+        // back button, second tab) can submit a number that already exists, so
+        // fall back to the next free number instead of duplicating the entry.
+        for (let attempt = 0; attempt <= 5; attempt++) {
+          const clash = await tx.purchase.findFirst({
+            where: { invoiceNo },
+            select: { id: true },
+          });
+          if (!clash) break;
+          if (attempt === 5) {
+            throw new Error(`Purchase number ${invoiceNo} is already in use`);
+          }
+          invoiceNo = await getNextPurchaseNumber();
+        }
+
+        const paidAmount = round2(data.payments.reduce((sum, payment) => sum + payment.amount, 0));
         const paymentStatus = paidAmount >= totalAmount ? "PAID" : paidAmount > 0 ? "PARTIAL" : "PENDING";
         const p = await tx.purchase.create({
             data: {
@@ -204,7 +225,7 @@ export async function updatePurchase(id: string, prevState: unknown, formData: F
   }
 
   const data = parsed.data;
-  const totalAmount = data.items.reduce((sum, item) => sum + item.totalCost, 0);
+  const totalAmount = round2(data.items.reduce((sum, item) => sum + item.totalCost, 0));
 
   try {
     const purchase = await prisma.$transaction(async (tx) => {
