@@ -60,7 +60,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
   });
 
   const marketplaceTiles = [
-    { key: "EBAY", label: "eBay", count: listings.eBay ?? 0, marketplace: "EBAY" },
+    { key: "EBAY", label: "eBay", count: listings.eBay ?? 0, marketplace: "EBAY", shopId: undefined as string | undefined },
     ...(listings.shops ?? [])
       .filter((shop) => shop.marketplace.toUpperCase() === "ETSY")
       .map((shop) => ({

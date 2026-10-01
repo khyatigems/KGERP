@@ -146,18 +146,21 @@ export async function GET() {
       const platformMapping: Record<string, string> = {
         WEBSITE: 'Website', AMAZON: 'Amazon', EBAY: 'eBay', ETSY: 'Etsy', WHATSAPP: 'WhatsApp'
       };
-      const activeListings = activeListingsRaw.reduce((acc: Record<string, number>, curr: { platform: string; _count: { id: number } }) => {
+      const activeListingsByPlatform = activeListingsRaw.reduce((acc: Record<string, number>, curr: { platform: string; _count: { id: number } }) => {
         const key = platformMapping[curr.platform.toUpperCase()] || curr.platform;
         acc[key] = (acc[key] || 0) + curr._count.id;
         acc.total = (acc.total || 0) + curr._count.id;
         return acc;
       }, { total: 0 } as Record<string, number>);
-      activeListings.shops = activeMarketplaceShops.map((shop) => ({
-        id: shop.id,
-        name: shop.name,
-        marketplace: shop.marketplace,
-        count: shop._count.listings,
-      }));
+      const activeListings = {
+        ...activeListingsByPlatform,
+        shops: activeMarketplaceShops.map((shop) => ({
+          id: shop.id,
+          name: shop.name,
+          marketplace: shop.marketplace,
+          count: shop._count.listings,
+        })),
+      };
 
       const prevInStockApprox = Math.max(0, totalInventory - inventoryAddedLast30 + salesLast30);
       const netInventoryChange = inventoryAddedLast30 - salesLast30;
