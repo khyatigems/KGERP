@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { httpJson, bearerAuth } from "@/lib/marketplace/http";
 import { prisma } from "@/lib/prisma";
-import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext } from "@/lib/marketplace/connector";
+import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext, EtsyOAuthAppProfile, MarketplaceOAuthContext } from "@/lib/marketplace/connector";
 import type {
   NormalizedListing,
   NormalizedOrder,
@@ -15,9 +15,64 @@ const API_BASE = "https://openapi.etsy.com";
 const AUTH_URL = "https://www.etsy.com/oauth/connect";
 const TOKEN_URL = "https://api.etsy.com/v3/public/oauth/token";
 const SCOPES = "listings_r transactions_r shops_r";
+const ETSY_APP_PROFILES: EtsyOAuthAppProfile[] = [
+  "ETSY_SELLER_LEGACY",
+  "ETSY_SECONDARY",
+  "ETSY_PERSONAL",
+  "ETSY_COMMERCIAL",
+];
+
+export interface EtsyAppCredentials {
+  clientId: string;
+  sharedSecret: string;
+  redirectUri: string;
+}
 
 function env(name: string): string {
   return (process.env[name] || "").trim();
+}
+
+/** Unknown/missing legacy values deliberately resolve to the existing app. */
+export function normalizeEtsyAppProfile(value: unknown): EtsyOAuthAppProfile {
+  return ETSY_APP_PROFILES.includes(value as EtsyOAuthAppProfile)
+    ? value as EtsyOAuthAppProfile
+    : "ETSY_SELLER_LEGACY";
+}
+
+export function isEtsyAppProfile(value: unknown): value is EtsyOAuthAppProfile {
+  return typeof value === "string" && ETSY_APP_PROFILES.includes(value as EtsyOAuthAppProfile);
+}
+
+/**
+ * App credentials are process configuration, never connection data. Personal
+ * and Commercial profiles are intentionally unavailable until approved
+ * credentials are explicitly added; silently falling back would be unsafe.
+ */
+export function resolveEtsyCredentials(profile: EtsyOAuthAppProfile): EtsyAppCredentials {
+  if (profile === "ETSY_SELLER_LEGACY") {
+    return {
+      clientId: env("ETSY_CLIENT_ID") || env("ETSY_API_KEY") || env("ETSY_KEYSTRING"),
+      sharedSecret: env("ETSY_SHARED_SECRET") || env("ETSY_API_SECRET"),
+      redirectUri: env("ETSY_REDIRECT_URI"),
+    };
+  }
+  if (profile === "ETSY_SECONDARY") {
+    return {
+      clientId: env("ETSY_SECONDARY_CLIENT_ID"),
+      sharedSecret: env("ETSY_SECONDARY_SHARED_SECRET"),
+      redirectUri: env("ETSY_SECONDARY_REDIRECT_URI"),
+    };
+  }
+  throw new Error(`${profile} has no configured Etsy credential set.`);
+}
+
+export async function isEtsyProfileConfigured(profile: EtsyOAuthAppProfile): Promise<boolean> {
+  try {
+    const credentials = resolveEtsyCredentials(profile);
+    return Boolean(credentials.clientId && credentials.sharedSecret && credentials.redirectUri);
+  } catch {
+    return false;
+  }
 }
 
 function moneyValue(money: any): number | null {
@@ -118,29 +173,29 @@ async function consumePkceVerifier(state: string): Promise<string | null> {
 export class EtsyConnector implements MarketplaceConnector {
   readonly platform = "ETSY" as const;
 
-  private get clientId() {
-    return env("ETSY_CLIENT_ID") || env("ETSY_API_KEY") || env("ETSY_KEYSTRING");
-  }
-  private get sharedSecret() {
-    return env("ETSY_SHARED_SECRET") || env("ETSY_API_SECRET") || "";
-  }
-  private get redirectUri() {
-    return env("ETSY_REDIRECT_URI");
+  private credentials(profile: EtsyOAuthAppProfile): EtsyAppCredentials {
+    const credentials = resolveEtsyCredentials(profile);
+    if (!credentials.clientId || !credentials.sharedSecret || !credentials.redirectUri) {
+      throw new Error(`${profile} is not configured with Etsy client credentials.`);
+    }
+    return credentials;
   }
 
   async isConfigured(): Promise<boolean> {
-    return Boolean(this.clientId && this.sharedSecret && this.redirectUri);
+    return isEtsyProfileConfigured("ETSY_SELLER_LEGACY");
   }
 
-  async getAuthorizationUrl(state: string): Promise<string> {
+  async getAuthorizationUrl(state: string, context?: MarketplaceOAuthContext): Promise<string> {
+    const profile = normalizeEtsyAppProfile(context?.appProfile);
+    const credentials = this.credentials(profile);
     const verifier = generateCodeVerifier();
     const challenge = codeChallengeFromVerifier(verifier);
     await storePkceVerifier(state, verifier);
     const params = new URLSearchParams({
       response_type: "code",
-      redirect_uri: this.redirectUri,
+      redirect_uri: credentials.redirectUri,
       scope: SCOPES,
-      client_id: this.clientId,
+      client_id: credentials.clientId,
       state,
       code_challenge: challenge,
       code_challenge_method: "S256",
@@ -148,18 +203,21 @@ export class EtsyConnector implements MarketplaceConnector {
     return `${AUTH_URL}?${params.toString()}`;
   }
 
-  async exchangeAuthorizationCode(code: string, state?: string): Promise<MarketplaceOAuthResult> {
+  async exchangeAuthorizationCode(code: string, state?: string, context?: MarketplaceOAuthContext): Promise<MarketplaceOAuthResult> {
     if (!(await isEncryptionReady())) {
       throw new Error("Secret encryption key is not configured; cannot store Etsy tokens.");
     }
     const verifier = state ? await consumePkceVerifier(state) : null;
+    if (!verifier) throw new Error("Missing or already-used Etsy PKCE verifier.");
+    const profile = normalizeEtsyAppProfile(context?.appProfile);
+    const credentials = this.credentials(profile);
     const body = new URLSearchParams({
       grant_type: "authorization_code",
-      client_id: this.clientId,
-      redirect_uri: this.redirectUri,
+      client_id: credentials.clientId,
+      redirect_uri: credentials.redirectUri,
       code,
     });
-    if (verifier) body.set("code_verifier", verifier);
+    body.set("code_verifier", verifier);
 
     const data = await httpJson<Record<string, any>>(TOKEN_URL, {
       method: "POST",
@@ -175,7 +233,7 @@ export class EtsyConnector implements MarketplaceConnector {
     };
     const externalAccountId = String(tokens.accessToken.split(".")[0] || "").trim();
     if (!externalAccountId) throw new Error("Etsy did not return an account ID in the OAuth token.");
-    const shops = await this.getUserShops(tokens.accessToken, await this.getHeaders(tokens.accessToken));
+    const shops = await this.getUserShops(tokens.accessToken, this.getHeaders(tokens.accessToken, credentials));
     return {
       externalAccountId,
       accountName: externalAccountId,
@@ -187,15 +245,26 @@ export class EtsyConnector implements MarketplaceConnector {
   }
 
   private async getAccessToken(connectionId: string): Promise<string> {
+    const profile = await this.getConnectionProfile(connectionId);
     return getValidAccessToken(connectionId, (tokens) =>
-      this.refreshAccessToken(connectionId, tokens.refreshToken!, tokens.scope)
+      this.refreshAccessToken(connectionId, tokens.refreshToken!, tokens.scope, profile)
     );
   }
 
-  private async refreshAccessToken(connectionId: string, refreshToken: string, scope?: string | null): Promise<string> {
+  private async getConnectionProfile(connectionId: string): Promise<EtsyOAuthAppProfile> {
+    const connection = await prisma.marketplaceConnection.findUnique({
+      where: { id: connectionId },
+      select: { marketplace: true, oauthAppProfile: true },
+    });
+    if (!connection || connection.marketplace !== "ETSY") throw new Error("Etsy connection was not found.");
+    return normalizeEtsyAppProfile(connection.oauthAppProfile);
+  }
+
+  private async refreshAccessToken(connectionId: string, refreshToken: string, scope: string | null | undefined, profile: EtsyOAuthAppProfile): Promise<string> {
+    const credentials = this.credentials(profile);
     const body = new URLSearchParams({
       grant_type: "refresh_token",
-      client_id: this.clientId,
+      client_id: credentials.clientId,
       refresh_token: refreshToken,
     });
     const data = await httpJson<Record<string, any>>(TOKEN_URL, {
@@ -212,8 +281,8 @@ export class EtsyConnector implements MarketplaceConnector {
     return data.access_token;
   }
 
-  private async getHeaders(token: string): Promise<Record<string, string>> {
-    const apiKey = this.sharedSecret ? `${this.clientId}:${this.sharedSecret}` : this.clientId;
+  private getHeaders(token: string, credentials: EtsyAppCredentials): Record<string, string> {
+    const apiKey = `${credentials.clientId}:${credentials.sharedSecret}`;
     return {
       ...bearerAuth(token),
       "x-api-key": apiKey,
@@ -239,7 +308,7 @@ export class EtsyConnector implements MarketplaceConnector {
 
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {
     const token = await this.getAccessToken(context.connectionId);
-    const headers = await this.getHeaders(token);
+    const headers = this.getHeaders(token, this.credentials(await this.getConnectionProfile(context.connectionId)));
     const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 100;
     const offset = params.offset || 0;
     const data = await httpJson<{ results?: any[]; count?: number }>(
@@ -281,7 +350,7 @@ export class EtsyConnector implements MarketplaceConnector {
 
   async fetchOrders(params: OrderSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedOrder[]> {
     const token = await this.getAccessToken(context.connectionId);
-    const headers = await this.getHeaders(token);
+    const headers = this.getHeaders(token, this.credentials(await this.getConnectionProfile(context.connectionId)));
     const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 50;
     const offset = params.offset || 0;
 

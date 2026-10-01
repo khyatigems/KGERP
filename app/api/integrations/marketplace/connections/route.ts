@@ -10,6 +10,9 @@ import { disconnect } from "@/lib/marketplace/oauth";
 import { prisma } from "@/lib/prisma";
 import { normalizePlatform } from "@/lib/marketplace/types";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { isEtsyAppProfile, isEtsyProfileConfigured, normalizeEtsyAppProfile } from "@/lib/marketplace/connectors/etsy";
+
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
 async function authorize(request: NextRequest, permission: Permission) {
   const session = await auth();
@@ -77,6 +80,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid marketplace" }, { status: 400 });
   }
 
+  const rawAppProfile = body?.appProfile;
+  const requestedAppProfile = platform === "ETSY"
+    ? normalizeEtsyAppProfile(rawAppProfile)
+    : undefined;
+  if (platform === "ETSY" && rawAppProfile != null && !isEtsyAppProfile(rawAppProfile)) {
+    return NextResponse.json({ error: "Invalid Etsy app profile" }, { status: 400 });
+  }
+
   const connector = getConnector(platform);
   if (!connector) {
     return NextResponse.json({ error: `No connector for ${platform}` }, { status: 400 });
@@ -88,9 +99,18 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  if (platform === "ETSY" && !(await isEtsyProfileConfigured(requestedAppProfile!))) {
+    return NextResponse.json({ error: `${requestedAppProfile} is not configured with a legitimate Etsy application.` }, { status: 400 });
+  }
 
   const state = `${platform}_${crypto.randomUUID()}`;
-  const statePayload = JSON.stringify({ platform, userId: authz.session.user.id });
+  const statePayload = JSON.stringify({
+    platform,
+    userId: authz.session.user.id,
+    appProfile: requestedAppProfile,
+    pkceKey: platform === "ETSY" ? `etsy_pkce_${state}` : undefined,
+    expiresAt: new Date(Date.now() + OAUTH_STATE_TTL_MS).toISOString(),
+  });
   await prisma.setting.upsert({
     where: { key: `mp_oauth_state_${state}` },
     create: { key: `mp_oauth_state_${state}`, value: statePayload },
@@ -98,7 +118,7 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const authorizationUrl = await connector.getAuthorizationUrl(state);
+    const authorizationUrl = await connector.getAuthorizationUrl(state, { appProfile: requestedAppProfile });
     const parsedUrl = new URL(authorizationUrl);
     if (parsedUrl.protocol !== "https:") throw new Error("Marketplace authorization URL must use HTTPS.");
     return NextResponse.json({ authorizationUrl, state });

@@ -1694,6 +1694,9 @@ model MarketplaceConnection {
   externalAccountId String?
   name            String?
   authType        String    @default("OAUTH2")
+  // Identifies the server-side Etsy credential set used for this OAuth grant.
+  // Secrets remain exclusively in environment variables.
+  oauthAppProfile String?
   clientId        String?
   tokenRef        String?
   status          String    @default("DISCONNECTED")

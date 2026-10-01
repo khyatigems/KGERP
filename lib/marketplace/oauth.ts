@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { encryptSecret, decryptSecret, isSecretEncryptionConfigured } from "@/lib/security/secret-store";
 import type { MarketplacePlatform } from "@/lib/marketplace/types";
+import type { EtsyOAuthAppProfile } from "@/lib/marketplace/connector";
 
 export interface StoredOAuthTokens {
   accessToken: string;
@@ -50,7 +51,8 @@ export async function saveTokens(
   platform: MarketplacePlatform,
   externalAccountId: string,
   accountName: string | null,
-  tokens: StoredOAuthTokens
+  tokens: StoredOAuthTokens,
+  options: { oauthAppProfile?: EtsyOAuthAppProfile } = {}
 ): Promise<string> {
   if (!isSecretEncryptionConfigured()) {
     throw new Error("Secret encryption key is not configured; refusing to store OAuth tokens.");
@@ -65,9 +67,11 @@ export async function saveTokens(
       externalAccountId,
       name: accountName || externalAccountId,
       authType: "OAUTH2",
+      oauthAppProfile: platform === "ETSY" ? options.oauthAppProfile || "ETSY_SELLER_LEGACY" : null,
       tokenRef,
       status: "CONNECTED",
       scopes: tokens.scope || null,
+      ...(platform === "ETSY" && options.oauthAppProfile ? { oauthAppProfile: options.oauthAppProfile } : {}),
       lastConnectedAt: new Date(),
     },
     update: {

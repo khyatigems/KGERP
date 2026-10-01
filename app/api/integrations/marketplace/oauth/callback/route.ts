@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { saveTokens } from "@/lib/marketplace/oauth";
 import { logMarketplaceActivity } from "@/lib/marketplace-control-center";
+import { isEtsyAppProfile, normalizeEtsyAppProfile } from "@/lib/marketplace/connectors/etsy";
 
 function getBaseUrl(request: NextRequest): string {
   const configuredUrl = (process.env.APP_BASE_URL || process.env.NEXTAUTH_URL || "").trim();
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  let statePayload: { platform?: string; userId?: string };
+  let statePayload: { platform?: string; userId?: string; appProfile?: string; pkceKey?: string; expiresAt?: string };
   try {
     statePayload = JSON.parse(stateRow.value);
   } catch {
@@ -61,6 +62,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       new URL(`${settingsUrl}?error=${encodeURIComponent("Invalid state value")}`, request.nextUrl)
     );
+  }
+  const appProfile = platform === "ETSY" ? normalizeEtsyAppProfile(statePayload.appProfile) : undefined;
+  if (platform === "ETSY" && (!isEtsyAppProfile(statePayload.appProfile) || statePayload.pkceKey !== `etsy_pkce_${state}`)) {
+    return NextResponse.redirect(new URL(`${settingsUrl}?error=${encodeURIComponent("Invalid Etsy authorization context")}`, request.nextUrl));
+  }
+  if (!statePayload.expiresAt || Number.isNaN(Date.parse(statePayload.expiresAt)) || Date.parse(statePayload.expiresAt) <= Date.now()) {
+    await prisma.setting.deleteMany({ where: { key: stateKey } }).catch(() => {});
+    return NextResponse.redirect(new URL(`${settingsUrl}?error=${encodeURIComponent("OAuth state expired; reconnect and try again")}`, request.nextUrl));
   }
 
   const connector = getConnector(platform);
@@ -78,12 +87,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-      const result = await connector.exchangeAuthorizationCode(code, state);
+      const result = await connector.exchangeAuthorizationCode(code, state, { appProfile });
       const connectionId = await saveTokens(
         platform,
         result.externalAccountId,
         result.accountName,
-        result.tokens
+        result.tokens,
+        { oauthAppProfile: appProfile }
       );
       for (const shop of result.shops) {
         await prisma.marketplaceShop.upsert({

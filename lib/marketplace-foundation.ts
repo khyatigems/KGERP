@@ -18,6 +18,7 @@ const FEATURE_FLAGS: Array<[string, string]> = [
 // and then applied â€” 3 round trips total instead of one per statement.
 const COLUMN_CHECKS: Array<[string, string, string]> = [
   ["MarketplaceConnection", "externalAccountId", '"externalAccountId" TEXT'],
+  ["MarketplaceConnection", "oauthAppProfile", '"oauthAppProfile" TEXT'],
   ["MarketplaceSyncLog", "marketplaceShopId", '"marketplaceShopId" TEXT'],
   ["MarketplaceSyncJob", "attempts", '"attempts" INTEGER NOT NULL DEFAULT 0'],
   ["MarketplaceOrder", "marketplaceShopId", '"marketplaceShopId" TEXT'],
@@ -58,6 +59,7 @@ const CREATE_STATEMENTS: string[] = [
     "externalAccountId" TEXT,
     "name" TEXT,
     "authType" TEXT NOT NULL DEFAULT 'OAUTH2',
+    "oauthAppProfile" TEXT,
     "clientId" TEXT,
     "tokenRef" TEXT,
     "status" TEXT NOT NULL DEFAULT 'DISCONNECTED',
@@ -268,6 +270,10 @@ export async function ensureMarketplaceFoundationSchema(): Promise<void> {
       const missing = await getMissingColumns(COLUMN_CHECKS.map(([table, column]) => [table, column]));
       await executeDdlBatch([
         ...buildAddColumnStatements(COLUMN_CHECKS, missing),
+        // Preserve legacy Etsy grants as-is while making their app identity
+        // explicit. This never reads or rewrites tokenRef values.
+        `UPDATE "MarketplaceConnection" SET "oauthAppProfile" = 'ETSY_SELLER_LEGACY'
+         WHERE "marketplace" = 'ETSY' AND "oauthAppProfile" IS NULL;`,
         ...INDEX_AND_SEED_STATEMENTS,
       ]);
     } catch (e) {

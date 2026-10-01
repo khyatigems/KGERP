@@ -20,6 +20,7 @@ interface Connection {
   externalAccountId: string | null;
   name: string | null;
   status: string | null;
+  oauthAppProfile?: string | null;
   lastConnectedAt: Date | string | null;
   shops: Array<{ id: string; externalShopId: string; name: string; status: string }>;
 }
@@ -28,6 +29,7 @@ interface PlatformConfig {
   marketplace: string;
   configured: boolean;
   missingConfiguration: string[];
+  appProfiles?: Partial<Record<"ETSY_SELLER_LEGACY" | "ETSY_SECONDARY", boolean>>;
 }
 
 export function MarketplaceConnectionsClient({
@@ -53,14 +55,14 @@ export function MarketplaceConnectionsClient({
     else if (oauthConnected) toast.success(`${oauthConnected} connected${oauthShopCount ? ` · ${oauthShopCount} shop${oauthShopCount === 1 ? "" : "s"} available` : ""}`, { duration: 8000 });
   }, [oauthError, oauthConnected, oauthShopCount]);
 
-  const connect = async (marketplace: string) => {
+  const connect = async (marketplace: string, appProfile?: string) => {
     if (connectingPlatform || pending) return;
     setConnectingPlatform(marketplace);
     try {
       const res = await fetch("/api/integrations/marketplace/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ marketplace }),
+        body: JSON.stringify({ marketplace, appProfile }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Failed to start ${marketplace} OAuth (HTTP ${res.status})`);
@@ -109,7 +111,7 @@ export function MarketplaceConnectionsClient({
     });
   };
 
-  const connectAnother = (marketplace: string) => connect(marketplace);
+  const connectAnother = (marketplace: string, appProfile?: string) => connect(marketplace, appProfile);
 
   const syncEnabled = flags.marketplaceApiSyncEnabled;
 
@@ -141,7 +143,7 @@ export function MarketplaceConnectionsClient({
                   <CardTitle className="text-base">{platform.marketplace}</CardTitle>
                   <CardDescription>{platform.configured ? "Application OAuth is ready" : "OAuth credentials are not configured"}</CardDescription>
                 </div>
-                <Button onClick={() => void connectAnother(platform.marketplace)} disabled={pending || Boolean(connectingPlatform) || !platform.configured}>
+                <Button onClick={() => void connectAnother(platform.marketplace, platform.marketplace === "ETSY" ? "ETSY_SELLER_LEGACY" : undefined)} disabled={pending || Boolean(connectingPlatform) || !platform.configured}>
                   {connectingPlatform === platform.marketplace ? "Opening OAuth..." : "Connect another shop"}
                 </Button>
               </div>
@@ -152,6 +154,11 @@ export function MarketplaceConnectionsClient({
                   {platform.missingConfiguration.join(" ") || "OAuth configuration is invalid."} Update the server environment and redeploy the app.
                 </p>
               )}
+              {platform.marketplace === "ETSY" && (
+                <Button variant="outline" size="sm" onClick={() => void connectAnother("ETSY", "ETSY_SECONDARY")} disabled={pending || Boolean(connectingPlatform) || !platform.appProfiles?.ETSY_SECONDARY}>
+                  Connect with secondary Etsy app
+                </Button>
+              )}
               {connections.filter((connection) => connection.marketplace === platform.marketplace).map((connection) => {
                 const connected = connection.status === "CONNECTED";
                 const platformEnabled = connection.marketplace === "EBAY" ? flags.ebaySyncEnabled : flags.etsySyncEnabled;
@@ -161,6 +168,7 @@ export function MarketplaceConnectionsClient({
                       <div className="min-w-0">
                         <div className="font-medium">{connection.name || connection.externalAccountId || "Marketplace account"}</div>
                         <div className="text-xs text-muted-foreground">{connection.externalAccountId || "Legacy connection; reconnect to register its shop"}</div>
+                        {connection.marketplace === "ETSY" && connection.oauthAppProfile && <div className="text-xs text-muted-foreground">App profile: {connection.oauthAppProfile}</div>}
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={connected ? "default" : "secondary"}>{connection.status || "Disconnected"}</Badge>
