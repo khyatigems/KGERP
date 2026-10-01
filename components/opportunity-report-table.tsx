@@ -53,7 +53,7 @@ export function OpportunityReportTable({ rows, pricingEnabled }: OpportunityRepo
             ) : (
               <>
                 <TableHead>Current Marketplaces</TableHead>
-                <TableHead>Missing Marketplaces</TableHead>
+                <TableHead>Shops to List</TableHead>
                 <TableHead>Opportunity</TableHead>
                 <TableHead>Ready</TableHead>
               </>
@@ -139,11 +139,11 @@ function renderMainCells(
             )}
           </TableCell>
           <TableCell>
-            {row.missingPlatforms.length === 0 ? "None" : (
+            {row.missingShops.length === 0 ? "None" : (
               <div className="flex flex-wrap gap-1">
-                {row.missingPlatforms.map((p) => (
-                  <a key={p} href={`/inventory/${row.inventoryId}`} target="_blank" rel="noopener noreferrer">
-                    <Badge variant="outline" className="cursor-pointer hover:bg-accent text-[10px]">{p}</Badge>
+                {row.missingShops.map((shop) => (
+                  <a key={shop.id} href={`/inventory/${row.inventoryId}`} target="_blank" rel="noopener noreferrer">
+                    <Badge variant="outline" className="cursor-pointer hover:bg-accent text-[10px]">{shop.marketplace} · {shop.name}</Badge>
                   </a>
                 ))}
               </div>
@@ -151,7 +151,7 @@ function renderMainCells(
           </TableCell>
           <TableCell>
             <Badge variant={row.opportunityScore >= 2 ? "destructive" : "secondary"}>
-              {row.opportunityScore} Missing
+              {row.opportunityScore} Shop{row.opportunityScore === 1 ? "" : "s"}
             </Badge>
           </TableCell>
           <TableCell>

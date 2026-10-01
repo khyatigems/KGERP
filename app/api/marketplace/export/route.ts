@@ -36,14 +36,14 @@ export async function GET(req: NextRequest) {
     const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
       `SELECT i."id" AS "inventoryId", i."sku", i."itemName", i."internalName", i."category",
               i."gemType", i."weightValue", i."weightUnit", i."carats",
-              i."costPrice", i."sellingPrice", i."status", i."imageUrl",
+              i."costPrice", i."sellingPrice", i."status", i."pieces", i."imageUrl",
               i."certificateNo", i."certificate_number", i."certification",
               i."dimensionsMm", i."stockLocation", i."hsn_code" AS "hsnCode",
               i."shape", i."color", i."origin", i."treatment", i."transparency",
               i."braceletType", i."beadSizeMm", i."beadCount",
               i."standardSize",
               i."flatPurchaseCost", i."purchaseRatePerCarat",
-              l."platform", l."listingUrl",
+              l."platform", l."listingUrl", l."marketplaceShopId",
               COALESCE(m."mediaCount", 0) AS "mediaCount"
        FROM "Inventory" i
        LEFT JOIN "Listing" l ON (l."inventoryId" = i."id" OR (l."inventoryId" IS NULL AND l."listingSku" IS NOT NULL AND UPPER(TRIM(l."listingSku")) = UPPER(TRIM(i."sku")))) AND ${MARKETPLACE_LISTING_SCOPE_SQL}
@@ -80,18 +80,30 @@ export async function GET(req: NextRequest) {
     const grouped = new Map<string, {
       base: Record<string, unknown>;
       platforms: Set<string>;
+      shopIds: Set<string>;
     }>();
     for (const row of rows) {
       const invId = String(row.inventoryId || "");
-      if (!grouped.has(invId)) { grouped.set(invId, { base: { ...row }, platforms: new Set() }); }
+      if (!grouped.has(invId)) { grouped.set(invId, { base: { ...row }, platforms: new Set(), shopIds: new Set() }); }
       const g = grouped.get(invId)!;
       const p = normalizePlatform(String(row.platform || ""));
       if (p) g.platforms.add(p);
+      if (row.marketplaceShopId) g.shopIds.add(String(row.marketplaceShopId));
     }
 
     const allItems = [...grouped.values()];
+    const connectedShops = (await prisma.marketplaceShop.findMany({
+      where: { status: "CONNECTED", connection: { status: "CONNECTED" } },
+      select: { id: true, marketplace: true, name: true },
+      orderBy: [{ marketplace: "asc" }, { name: "asc" }],
+    })).flatMap((shop) => {
+      const platform = normalizePlatform(shop.marketplace);
+      return platform ? [{ ...shop, marketplace: platform }] : [];
+    });
     const normalizedMarketplace = normalizePlatform(marketplace);
-    const exportItems = normalizedMarketplace
+    const exportItems = report === "opportunity"
+      ? allItems
+      : normalizedMarketplace
       ? allItems.filter((item) => item.platforms.has(normalizedMarketplace))
       : allItems;
 
@@ -214,6 +226,19 @@ export async function GET(req: NextRequest) {
       const hasCert = !!(b.certificateNo && String(b.certificateNo).trim()) || !!(b.certificate_number && String(b.certificate_number).trim());
       return { hasImage, hasCert, ready: hasImage && hasCert };
     };
+    const isSaleable = (b: Record<string, unknown>) => {
+      const status = String(b.status || "").trim().toUpperCase();
+      // A quantity is mandatory for a marketplace action list. This keeps
+      // sold, inactive and zero-stock inventory out even when it has assets.
+      return Number(b.pieces || 0) > 0 && !["SOLD", "INACTIVE", "OUT_OF_STOCK", "SOLD_OUT"].includes(status);
+    };
+    const missingShopsFor = (item: { shopIds: Set<string> }) => connectedShops.filter((shop) => !item.shopIds.has(shop.id));
+    const worksheetName = (shop: { marketplace: string; name: string }, used: Set<string>) => {
+      const base = `${shop.marketplace} - ${shop.name}`.replace(/[\\\\/:*?\[\]]/g, " ").trim().slice(0, 31) || shop.marketplace;
+      let name = base; let suffix = 2;
+      while (used.has(name)) name = `${base.slice(0, 28)} ${suffix++}`;
+      used.add(name); return name;
+    };
 
     const fmtFmt = (v: unknown) => typeof v === "number" ? v : Number(v) || 0;
 
@@ -238,20 +263,19 @@ export async function GET(req: NextRequest) {
     if (report === "opportunity") {
       // ── Filter items ──
       const opportunityItems = exportItems.filter((item) => {
-        if (item.platforms.size >= 3) return false;
-        if (item.platforms.size > 0) return true;
-        return isReady(item.base).ready;
+        const missing = missingShopsFor(item);
+        return missing.length > 0 && (!normalizedMarketplace || missing.some((shop) => shop.marketplace === normalizedMarketplace)) && isSaleable(item.base) && isReady(item.base).ready;
       });
 
       const needsPrepItems = exportItems.filter((item) => {
-        if (item.platforms.size >= 3 || item.platforms.size > 0) return false;
-        return !isReady(item.base).ready;
+        const missing = missingShopsFor(item);
+        return missing.length > 0 && (!normalizedMarketplace || missing.some((shop) => shop.marketplace === normalizedMarketplace)) && isSaleable(item.base) && !isReady(item.base).ready;
       });
 
       // ═══ Sheet 1: Action Plan (SKU × missing platform) ═══
       const ws1 = wb.addWorksheet("Action Plan", { properties: { tabColor: { argb: C.blue } } });
       const h1 = [
-        "SKU", "Product Name", "Category", "Platform to List", "Listed Elsewhere?",
+        "SKU", "Product Name", "Category", "Marketplace", "Shop to List", "Listed Elsewhere?",
         "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)",
         ...PRICING_HEADERS,
         "Priority", "Stock Location", "HSN Code", "eBay Description",
@@ -266,10 +290,9 @@ export async function GET(req: NextRequest) {
         const sp = fmtFmt(b.sellingPrice);
         const pc = pricingCols(String(b.inventoryId || ""));
 
-        for (const mp of MARKETPLACE_PLATFORMS) {
-          if (item.platforms.has(mp)) continue;
+        for (const shop of missingShopsFor(item)) {
           ws1.addRow([
-            b.sku || "", b.itemName || "", b.category || "", mp,
+            b.sku || "", b.itemName || "", b.category || "", shop.marketplace, shop.name,
             item.platforms.size > 0 ? listed : "None",
             ready.hasImage ? "✅" : "❌",
             ready.hasCert ? "✅" : "❌",
@@ -285,19 +308,19 @@ export async function GET(req: NextRequest) {
       }
       autoW(ws1);
       for (let r = 2; r <= ws1.rowCount; r++) {
-        for (const c of [10, 11, 12, 13]) ws1.getCell(r, c).numFmt = "₹ #,##0.00";
-        ws1.getCell(r, 14).numFmt = "0.0"; // Profit %
-        ws1.getCell(r, 15).numFmt = "0.0"; // Margin %
-        ws1.getCell(r, 20).numFmt = "@"; // eBay Description
-        const prio = ws1.getCell(r, 17).value?.toString();
-        if (prio === "HIGH") ws1.getCell(r, 17).font = { bold: true, color: { argb: C.red }, size: 10, name: "Calibri" };
-        else if (prio === "MEDIUM") ws1.getCell(r, 17).font = { color: { argb: C.amber }, size: 10, name: "Calibri" };
+        for (const c of [11, 12, 13, 14]) ws1.getCell(r, c).numFmt = "₹ #,##0.00";
+        ws1.getCell(r, 15).numFmt = "0.0"; // Profit %
+        ws1.getCell(r, 16).numFmt = "0.0"; // Margin %
+        ws1.getCell(r, 21).numFmt = "@"; // eBay Description
+        const prio = ws1.getCell(r, 18).value?.toString();
+        if (prio === "HIGH") ws1.getCell(r, 18).font = { bold: true, color: { argb: C.red }, size: 10, name: "Calibri" };
+        else if (prio === "MEDIUM") ws1.getCell(r, 18).font = { color: { argb: C.amber }, size: 10, name: "Calibri" };
       }
 
       // ═══ Sheet 2: SKU Summary ═══
       const ws2 = wb.addWorksheet("SKU Summary", { properties: { tabColor: { argb: C.emerald } } });
       const h2 = [
-        "SKU", "Product Name", "Category", "Listed On", "Missing Platforms", "Missing Count",
+        "SKU", "Product Name", "Category", "Listed On", "Missing Shops", "Missing Count",
         "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)",
         ...PRICING_HEADERS,
         "Stock Location", "HSN Code", "eBay Description",
@@ -309,7 +332,7 @@ export async function GET(req: NextRequest) {
       for (const item of opportunityItems) {
         const b = item.base;
         const ready = isReady(b);
-        const missing = MARKETPLACE_PLATFORMS.filter((p) => !item.platforms.has(p));
+        const missing = missingShopsFor(item).map((shop) => `${shop.marketplace} · ${shop.name}`);
         const invId = String(b.inventoryId || "");
         const eb = getMetric(invId, "EBAY");
         const et = getMetric(invId, "ETSY");
@@ -351,7 +374,7 @@ export async function GET(req: NextRequest) {
             b.sku || "", b.itemName || "", b.category || "",
             ready.hasImage ? "✅" : "❌ Needs Image",
             ready.hasCert ? "✅" : "❌ Needs Certificate",
-            MARKETPLACE_PLATFORMS.join(", "),
+            missingShopsFor(item).map((shop) => `${shop.marketplace} · ${shop.name}`).join(", "),
             getDesc(b),
           ]);
         }
@@ -359,11 +382,12 @@ export async function GET(req: NextRequest) {
         for (let r = 2; r <= ws3.rowCount; r++) ws3.getCell(r, 7).numFmt = "@";
       }
 
-      // ═══ Sheets 4-6: Per-platform missing ═══
-      for (const mp of MARKETPLACE_PLATFORMS) {
-        const platItems = opportunityItems.filter((item) => !item.platforms.has(mp));
+      // ═══ Per-connected-shop action sheets ═══
+      const usedWorksheetNames = new Set(["Action Plan", "SKU Summary", "Needs Preparation"]);
+      for (const shop of connectedShops) {
+        const platItems = opportunityItems.filter((item) => !item.shopIds.has(shop.id));
         if (!platItems.length) continue;
-        const ws = wb.addWorksheet(mp, { properties: { tabColor: { argb: mp === "EBAY" ? C.blue : mp === "ETSY" ? C.amber : C.emerald } } });
+        const ws = wb.addWorksheet(worksheetName(shop, usedWorksheetNames), { properties: { tabColor: { argb: shop.marketplace === "EBAY" ? C.blue : shop.marketplace === "ETSY" ? C.amber : C.emerald } } });
         const h = [
           "SKU", "Product Name", "Category", "Listed On",
           "Image", "Certificate", "Ready?", "Weight", "Selling Price (INR)",

@@ -95,6 +95,10 @@ export type MarketplacePortfolioRow = {
   marketplaceCurrencies: Partial<Record<MarketplacePlatform, string>>;
   // URLs are optional marketplace metadata; counts must not depend on them.
   listingCounts: Partial<Record<MarketplacePlatform, number>>;
+  /** Connected shop ids that already have an active listing for this SKU. */
+  listedShopIds: string[];
+  /** Connected shops where this SKU can still be listed. */
+  missingShops: Array<{ id: string; marketplace: MarketplacePlatform; name: string }>;
 };
 
 export type MarketplaceDashboardData = {
@@ -552,10 +556,11 @@ export async function getMarketplaceDashboardData(options: {
     weightUnit: string | null;
     listedPrice: number | null;
     currency: string | null;
+    marketplaceShopId: string | null;
   }>>(
     `SELECT i."id" AS "inventoryId", i."sku", i."itemName", i."category", i."status" AS "inventoryStatus", i."pieces", i."createdAt",
             i."costPrice", i."sellingPrice", i."purchaseRatePerCarat", i."flatPurchaseCost", i."weightValue", i."weightUnit",
-            l."platform", l."listingUrl", l."createdAt" AS "lastListedDate", l."listedPrice", l."currency"
+            l."platform", l."listingUrl", l."createdAt" AS "lastListedDate", l."listedPrice", l."currency", l."marketplaceShopId"
      FROM "Inventory" i
      LEFT JOIN "Listing" l ON (l."inventoryId" = i."id" OR (l."inventoryId" IS NULL AND l."listingSku" IS NOT NULL AND UPPER(TRIM(l."listingSku")) = UPPER(TRIM(i."sku"))))
        AND ${MARKETPLACE_LISTING_SCOPE_SQL}
@@ -591,6 +596,8 @@ export async function getMarketplaceDashboardData(options: {
       marketplacePrices: {} as Partial<Record<MarketplacePlatform, number>>,
       marketplaceCurrencies: {} as Partial<Record<MarketplacePlatform, string>>,
       listingCounts: {} as Partial<Record<MarketplacePlatform, number>>,
+      listedShopIds: [],
+      missingShops: [],
     };
 
     const platform = normalizePlatform(row.platform);
@@ -605,6 +612,9 @@ export async function getMarketplaceDashboardData(options: {
       if (row.listedPrice != null && existing.marketplacePrices[platform] == null) {
         existing.marketplacePrices[platform] = Number(row.listedPrice);
         existing.marketplaceCurrencies[platform] = row.currency || "USD";
+      }
+      if (row.marketplaceShopId && !existing.listedShopIds.includes(row.marketplaceShopId)) {
+        existing.listedShopIds.push(row.marketplaceShopId);
       }
     }
 
@@ -628,41 +638,48 @@ export async function getMarketplaceDashboardData(options: {
     return true;
   });
 
+  // Listing coverage must be evaluated per connected shop, not merely per
+  // platform. Two Etsy shops are separate sales channels and each must get a
+  // separate actionable queue.
+  const connectedShops = await prisma.marketplaceShop.findMany({
+    where: { status: "CONNECTED", connection: { status: "CONNECTED" } },
+    select: { id: true, marketplace: true, name: true },
+    orderBy: [{ marketplace: "asc" }, { name: "asc" }],
+  });
+  const actionableShops = connectedShops.flatMap((shop) => {
+    const marketplace = normalizePlatform(shop.marketplace);
+    return marketplace ? [{ id: shop.id, marketplace, name: shop.name }] : [];
+  });
+
+  // Always validate listing readiness. The previous implementation validated
+  // only zero-listing products, allowing partially listed incomplete records
+  // into the opportunity queue.
+  const inventoryChecks = filtered.length
+    ? await prisma.inventory.findMany({
+        where: { id: { in: filtered.map((item) => item.inventoryId) } },
+        select: {
+          id: true, imageUrl: true, certificateNo: true, certificateNumber: true,
+          media: { select: { id: true }, take: 1 },
+        },
+      })
+    : [];
+  const checkMap = new Map(inventoryChecks.map((item) => [item.id, item]));
+
   for (const item of filtered) {
     const activeSet = new Set(item.platforms);
-    item.coveragePercent = Math.round((activeSet.size / MARKETPLACE_PLATFORMS.length) * 100);
+    item.coveragePercent = actionableShops.length
+      ? Math.round((item.listedShopIds.filter((id) => actionableShops.some((shop) => shop.id === id)).length / actionableShops.length) * 100)
+      : 0;
     item.missingPlatforms = MARKETPLACE_PLATFORMS.filter((platform) => !activeSet.has(platform));
-    item.opportunityScore = item.missingPlatforms.length;
+    item.missingShops = actionableShops.filter((shop) => !item.listedShopIds.includes(shop.id));
+    item.opportunityScore = item.missingShops.length;
     item.platforms.sort();
-    // Default: assume ready unless proven otherwise below
-    item.readyToList = item.platforms.length > 0;
-    item.hasImage = false;
-    item.hasCertificate = false;
-  }
-
-  // Batch check image/cert for items with 0 listings
-  const zeroListingItems = filtered.filter((item) => item.platforms.length === 0);
-  if (zeroListingItems.length > 0) {
-    const ids = zeroListingItems.map((item) => item.inventoryId);
-    const checks = await prisma.inventory.findMany({
-      where: { id: { in: ids } },
-      select: {
-        id: true,
-        imageUrl: true,
-        certificateNo: true,
-        certificateNumber: true,
-        media: { select: { id: true }, take: 1 },
-      },
-    });
-    const checkMap = new Map(checks.map((c) => [c.id, c]));
-    for (const item of zeroListingItems) {
-      const c = checkMap.get(item.inventoryId);
-      if (c) {
-        item.hasImage = !!(c.imageUrl) || c.media.length > 0;
-        item.hasCertificate = !!(c.certificateNo && c.certificateNo.trim()) || !!(c.certificateNumber && c.certificateNumber.trim());
-        item.readyToList = item.hasImage && item.hasCertificate;
-      }
-    }
+    const check = checkMap.get(item.inventoryId);
+    item.hasImage = Boolean(check?.imageUrl) || Boolean(check?.media.length);
+    item.hasCertificate = Boolean(check?.certificateNo?.trim()) || Boolean(check?.certificateNumber?.trim());
+    const status = item.inventoryStatus.trim().toUpperCase();
+    const hasSaleableStock = item.pieces > 0 && !["SOLD", "INACTIVE", "OUT_OF_STOCK", "SOLD_OUT"].includes(status);
+    item.readyToList = hasSaleableStock && item.hasImage && item.hasCertificate;
   }
 
   // Active listing totals come straight from the Marketplace -> Listings rows

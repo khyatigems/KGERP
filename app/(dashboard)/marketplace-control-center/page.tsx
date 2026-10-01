@@ -48,7 +48,9 @@ export default async function MarketplaceControlCenterPage({
   const report = typeof searchParams.report === "string" ? searchParams.report : "";
   const data = await getMarketplaceDashboardData({
     category: categoryParam,
-    marketplace: marketplaceParam,
+    // In the opportunity report the marketplace filter means "shop to list
+    // on", not "shop already listed on".
+    marketplace: report === "opportunity" ? "ALL" : marketplaceParam,
     from: fromParam || undefined,
     to: toParam || undefined,
   });
@@ -115,7 +117,8 @@ export default async function MarketplaceControlCenterPage({
   const notListedProducts = coverageRows.length - listedProducts;
 
   const opportunityRows = [...coverageRows]
-    .filter((r) => r.missingPlatforms.length > 0 && r.readyToList)
+    .filter((r) => r.missingShops.length > 0 && r.readyToList)
+    .filter((r) => marketplaceParam === "ALL" || r.missingShops.some((shop) => shop.marketplace === marketplaceParam))
     .sort((a, b) => b.opportunityScore - a.opportunityScore);
 
   const belowMspCount = pricingEnabled
@@ -496,7 +499,7 @@ export default async function MarketplaceControlCenterPage({
               <CardHeader className="pb-1"><CardTitle className="text-xs">Coverage gap</CardTitle></CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{opportunityRows.length}</div>
-                <div className="text-[10px] text-muted-foreground">SKUs with missing marketplaces</div>
+                <div className="text-[10px] text-muted-foreground">Ready SKUs with missing connected shops</div>
               </CardContent>
             </Card>
             <Card>
@@ -527,7 +530,7 @@ export default async function MarketplaceControlCenterPage({
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">
-              Showing SKUs that need listing on at least one platform
+              Showing only saleable, image-ready, certified SKUs missing from at least one connected shop
             </span>
             {pricingEnabled && defaultProfile ? (
               <Badge variant="outline" className="text-[10px]">
