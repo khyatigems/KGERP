@@ -39,7 +39,7 @@
     "test:pdf-generation": "tsx scripts/tests/pdf-generation-and-loyalty.test.ts",
     "test:all": "npm run test:attention && npm run test:invoice && npm run test:reports && npm run test:customers && npm run test:pdf-generation",
     "analytics:daily": "tsx scripts/generate-daily-analytics.ts",
-    "postinstall": "node scripts/prisma-generate.mjs"
+    "postinstall": "node scripts/prisma-generate.mjs && node scripts/patch-lottie-player.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

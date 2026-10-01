@@ -12,12 +12,23 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { InventoryQrDialog } from "./inventory-qr";
-import { ListingManager } from "./listing-manager";
-import { LabelPrintDialog } from "./label-print-dialog";
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { updateInventoryStatus } from "@/app/(dashboard)/inventory/actions";
 import { useGlobalLoader } from "@/components/global-loader-provider";
+
+const InventoryQrDialog = dynamic(
+  () => import("./inventory-qr").then((m) => ({ default: m.InventoryQrDialog })),
+  { ssr: false }
+);
+const ListingManager = dynamic(
+  () => import("./listing-manager").then((m) => ({ default: m.ListingManager })),
+  { ssr: false }
+);
+const LabelPrintDialog = dynamic(
+  () => import("./label-print-dialog").then((m) => ({ default: m.LabelPrintDialog })),
+  { ssr: false }
+);
 import {
   AlertDialog,
   AlertDialogAction,

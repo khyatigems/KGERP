@@ -14,8 +14,13 @@ import { formatInrNumber } from "@/lib/number-formatting";
 import { BulkEditDialog } from "./bulk-edit-dialog";
 import { BulkCertificateDialog } from "./bulk-certificate-dialog";
 import { Edit, ShieldCheck } from "lucide-react";
-import { InventoryDetailDrawer } from "@/components/inventory/inventory-detail-drawer";
+import dynamic from "next/dynamic";
 import { RegenerateEbayButton } from "./regenerate-ebay-button";
+
+const InventoryDetailDrawer = dynamic(
+  () => import("@/components/inventory/inventory-detail-drawer").then((m) => ({ default: m.InventoryDetailDrawer })),
+  { ssr: false }
+);
 
 interface InventoryTableProps {
   data: any[];
@@ -129,7 +134,7 @@ export function InventoryTable({
         </div>
       )}
 
-      <div className="rounded-md border hidden md:block overflow-x-auto">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

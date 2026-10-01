@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,19 +17,26 @@ import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { toast } from "sonner";
 
 export function InventoryQrDialog({ itemName, sku }: { itemName: string, sku: string }) {
+  const [open, setOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
   const [shareUrl, setShareUrl] = useState("");
 
   useEffect(() => {
-    // Points to the public preview page of the inventory item
-    // This allows customers to scan the physical tag and see the item details
-    if (typeof window !== "undefined") {
-        const url = `${window.location.origin}/preview/${sku}?source=qr`;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setShareUrl(url);
-        QRCode.toDataURL(url).then(setQrUrl);
-    }
-  }, [sku]);
+    // Generate only when the dialog is opened: avoids running QR canvas
+    // rendering for every hidden dialog on the inventory list.
+    if (!open || typeof window === "undefined" || qrUrl) return;
+    const url = `${window.location.origin}/preview/${sku}?source=qr`;
+    setShareUrl(url);
+    let cancelled = false;
+    import("qrcode")
+      .then((mod) => {
+        const toDataURL = mod.toDataURL ?? mod.default.toDataURL;
+        return toDataURL(url);
+      })
+      .then((data) => { if (!cancelled) setQrUrl(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [open, sku, qrUrl]);
 
   const handleCopy = () => {
     if (shareUrl) {
@@ -52,7 +58,7 @@ ${shareUrl}
 Please let us know if you require any further assistance.`;
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" title="View QR Code">
           <QrCode className="h-4 w-4" />

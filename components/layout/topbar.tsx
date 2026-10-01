@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -55,35 +55,54 @@ export function Topbar({ user }: TopbarProps) {
   const pathname = usePathname();
   const { showLoader } = useGlobalLoader();
   const { update } = useSession();
+  // `update` gets a new identity whenever session/loading changes in next-auth.
+  // Keeping it out of the effect deps below prevents an infinite refresh loop
+  // (fetch refresh -> update() -> re-render -> effect re-runs -> fetch ...).
+  const updateRef = useRef(update);
+  useEffect(() => {
+    updateRef.current = update;
+  }, [update]);
 
   // Periodically call the refresh endpoint while the page/tab is visible to
   // ensure server-side lastLogin is updated. Uses useEffect and visibility/focus
   // to avoid unnecessary background traffic.
   useEffect(() => {
     let timer: number | undefined;
+    let running = false;
     let mounted = true;
+    let lastRun = 0;
 
     const shouldRun = () => typeof document !== 'undefined' ? document.visibilityState === 'visible' : true;
 
     const run = async () => {
-      if (!mounted) return;
+      if (!mounted || running) return;
       if (!shouldRun()) {
         // retry later
         timer = window.setTimeout(run, 60 * 1000);
         return;
       }
+      running = true;
+      lastRun = Date.now();
       try {
         const res = await fetch('/api/auth/refresh', { cache: 'no-store' });
         if (res.ok) {
-          await update();
+          await updateRef.current();
         }
       } catch {}
+      running = false;
+      if (!mounted) return;
       // schedule next run
       timer = window.setTimeout(run, 10 * 60 * 1000);
     };
 
     run();
-    const onVisibility = () => { if (!timer) run(); };
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastRun < 60 * 1000) return;
+      if (timer) window.clearTimeout(timer);
+      timer = undefined;
+      run();
+    };
     window.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', onVisibility);
 
@@ -93,7 +112,7 @@ export function Topbar({ user }: TopbarProps) {
       window.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', onVisibility);
     };
-  }, [update]);
+  }, []);
 
   const effectiveAvatarUrl = user?.avatarUrl;
   const effectiveHistory = user?.avatarHistory || [];

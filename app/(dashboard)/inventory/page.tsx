@@ -6,9 +6,8 @@ import { cachedMasters } from "@/lib/cache";
 import { Button } from "@/components/ui/button";
 import { InventorySummaryExport } from "@/components/reports/inventory-summary-export";
 import { LoadingLink } from "@/components/ui/loading-link";
-import { InventoryTable } from "@/components/inventory/inventory-table";
+import { InventoryView } from "@/components/inventory/inventory-view";
 import { InventorySearch } from "@/components/inventory/inventory-search";
-import { InventoryCardList } from "@/components/inventory/inventory-card-list";
 import { InventoryStats } from "@/components/inventory/inventory-stats";
 import { InventorySavedToast } from "@/components/inventory/inventory-saved-toast";
 import { InventoryInsightBar } from "@/components/inventory/inventory-insight-bar";
@@ -589,9 +588,7 @@ export default async function InventoryPage({
       )}
 
       <div key={data.filtersKey} className="animate-in fade-in duration-200">
-        <InventoryCardList data={data.inventory} canManageAttentionVisibility={data.canManageAttentionVisibility} />
-
-        <InventoryTable
+        <InventoryView
           data={data.inventory}
           vendors={data.vendors}
           categories={data.categories}

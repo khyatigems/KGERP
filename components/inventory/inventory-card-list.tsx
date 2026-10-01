@@ -17,7 +17,7 @@ interface InventoryCardListProps {
 
 export function InventoryCardList({ data, canManageAttentionVisibility }: InventoryCardListProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 md:hidden">
+    <div className="grid grid-cols-1 gap-4">
       {data.map((item) => {
         const price = item.pricingMode === "PER_CARAT"
           ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
