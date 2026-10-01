@@ -36,7 +36,7 @@ export async function GET() {
       const uid = userId ?? "00000000-0000-0000-0000-000000000000";
 
       const [
-        totalInventory, activeListingsRaw, activeQuotations, invoicesGenerated,
+        totalInventory, activeListingsRaw, activeMarketplaceShops, activeQuotations, invoicesGenerated,
         labelCartCount, recentSales,
         expiringQuotations, overdueInvoices, pendingVendors,
         unsoldInventory, missingCertifications, missingImages, pendingExpenses, highValueUnsold,
@@ -55,6 +55,18 @@ export async function GET() {
         // Count active marketplace listings attached to a marketplace shop;
         // internal or imported rows without a shop are not platform listings.
         prisma.listing.groupBy({ by: ['platform'], where: { status: { in: ["LISTED", "ACTIVE"] }, marketplaceShopId: { not: null } }, _count: { id: true } }).catch(() => []),
+        // Keep connected sales channels separate. Platform aggregation alone
+        // hides the difference between two Etsy shops.
+        prisma.marketplaceShop.findMany({
+          where: { status: "CONNECTED", connection: { status: "CONNECTED" } },
+          select: {
+            id: true,
+            name: true,
+            marketplace: true,
+            _count: { select: { listings: { where: { status: { in: ["LISTED", "ACTIVE"] } } } } },
+          },
+          orderBy: [{ marketplace: "asc" }, { name: "asc" }],
+        }).catch(() => []),
         prisma.quotation.count({ where: { status: "ACTIVE", OR: [{ expiryDate: null }, { expiryDate: { gte: now } }] } }).catch(() => 0),
         prisma.invoice.count().catch(() => 0),
         prisma.labelCartItem.count({ where: { userId: uid, inventory: { id: { not: "" } } } }).catch(() => 0),
@@ -140,6 +152,12 @@ export async function GET() {
         acc.total = (acc.total || 0) + curr._count.id;
         return acc;
       }, { total: 0 } as Record<string, number>);
+      activeListings.shops = activeMarketplaceShops.map((shop) => ({
+        id: shop.id,
+        name: shop.name,
+        marketplace: shop.marketplace,
+        count: shop._count.listings,
+      }));
 
       const prevInStockApprox = Math.max(0, totalInventory - inventoryAddedLast30 + salesLast30);
       const netInventoryChange = inventoryAddedLast30 - salesLast30;

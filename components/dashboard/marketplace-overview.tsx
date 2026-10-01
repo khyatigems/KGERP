@@ -8,10 +8,7 @@ import { cn } from "@/lib/utils";
 interface ListingsData {
   total: number;
   eBay?: number;
-  Etsy?: number;
-  Amazon?: number;
-  Website?: number;
-  WhatsApp?: number;
+  shops?: Array<{ id: string; name: string; marketplace: string; count: number }>;
 }
 
 interface MarketplaceOverviewProps {
@@ -43,9 +40,6 @@ function formatCurrency(amount: number): string {
 const platformConfig: Record<string, { color: string; bg: string }> = {
   eBay: { color: "text-primary dark:text-primary", bg: "bg-primary/10" },
   Etsy: { color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/10" },
-  Amazon: { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
-  Website: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
-  WhatsApp: { color: "text-green-600 dark:text-green-400", bg: "bg-green-500/10" },
 };
 
 const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
@@ -65,13 +59,18 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
     refreshInterval: 30000,
   });
 
-  const platformOrder = ["eBay", "Etsy", "Amazon", "Website", "WhatsApp"];
-  const platformParamByLabel: Record<string, string> = {
-    eBay: "EBAY",
-    Etsy: "ETSY",
-    Amazon: "AMAZON",
-  };
-  const listingMap = listings as unknown as Record<string, number | undefined>;
+  const marketplaceTiles = [
+    { key: "EBAY", label: "eBay", count: listings.eBay ?? 0, marketplace: "EBAY" },
+    ...(listings.shops ?? [])
+      .filter((shop) => shop.marketplace.toUpperCase() === "ETSY")
+      .map((shop) => ({
+        key: shop.id,
+        label: `Etsy · ${shop.name}`,
+        count: shop.count,
+        marketplace: "ETSY",
+        shopId: shop.id,
+      })),
+  ];
   const totalListings = listings.total ?? 0;
   const hasConflicts = syncData && ((syncData.pendingConflicts ?? 0) > 0 || (syncData.criticalConflicts ?? 0) > 0);
   const breakdown = syncData?.listingStatusBreakdown;
@@ -98,18 +97,20 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
         </Link>
       </div>
 
-      <div className="grid grid-cols-5 gap-2">
-        {platformOrder.map((key) => {
-          const count = listingMap[key] ?? 0;
-          const cfg = platformConfig[key] ?? { color: "text-muted-foreground", bg: "bg-muted" };
-          const platformFilter = platformParamByLabel[key];
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {marketplaceTiles.map((tile) => {
+          const cfg = platformConfig[tile.marketplace === "EBAY" ? "eBay" : "Etsy"];
+          const listingHref = tile.shopId
+            ? `/marketplace-listings?marketplace=${tile.marketplace}&shop=${encodeURIComponent(tile.shopId)}`
+            : `/marketplace-listings?marketplace=${tile.marketplace}`;
           return (
             <Link
-              key={key}
-              href={platformFilter ? `/marketplace-listings?marketplace=${platformFilter}` : "/marketplace-listings"}
+              key={tile.key}
+              href={listingHref}
+              title={tile.label}
               className={cn(
-                "flex flex-col items-center justify-center rounded-lg border border-border p-3 text-center transition-all duration-150",
-                count > 0
+                "flex min-w-0 flex-col items-center justify-center rounded-lg border border-border p-3 text-center transition-all duration-150",
+                tile.count > 0
                   ? "hover:border-primary/20 hover:bg-primary/5"
                   : "opacity-40"
               )}
@@ -117,8 +118,8 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
               <div className={cn("flex h-7 w-7 items-center justify-center rounded-md mb-1.5", cfg.bg)}>
                 <Globe className={cn("h-3.5 w-3.5", cfg.color)} />
               </div>
-              <span className="text-lg font-bold text-foreground leading-tight">{count}</span>
-              <span className="text-[10px] text-muted-foreground leading-tight">{key}</span>
+              <span className="text-lg font-bold text-foreground leading-tight">{tile.count}</span>
+              <span className="max-w-full truncate text-[10px] leading-tight text-muted-foreground">{tile.label}</span>
             </Link>
           );
         })}
