@@ -200,7 +200,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-        <Card className="overflow-hidden border-l-4 border-l-violet-500 bg-gradient-to-br from-violet-500/[0.07] to-card">
+        <Card className="overflow-hidden border-l-4 border-l-violet-500 bg-linear-to-br from-violet-500/[0.07] to-card">
           <CardContent className="flex items-start justify-between gap-3 p-4 md:p-5">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Customers</p>
@@ -210,7 +210,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             <span className="rounded-xl bg-violet-500/10 p-2.5 text-violet-600 dark:text-violet-300"><Users className="h-5 w-5" /></span>
           </CardContent>
         </Card>
-        <Card className="overflow-hidden border-l-4 border-l-emerald-500 bg-gradient-to-br from-emerald-500/[0.07] to-card">
+        <Card className="overflow-hidden border-l-4 border-l-emerald-500 bg-linear-to-br from-emerald-500/[0.07] to-card">
           <CardContent className="flex items-start justify-between gap-3 p-4 md:p-5">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
@@ -220,7 +220,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             <span className="rounded-xl bg-emerald-500/10 p-2.5 text-emerald-600 dark:text-emerald-300"><Wallet className="h-5 w-5" /></span>
           </CardContent>
         </Card>
-        <Card className="overflow-hidden border-l-4 border-l-sky-500 bg-gradient-to-br from-sky-500/[0.07] to-card">
+        <Card className="overflow-hidden border-l-4 border-l-sky-500 bg-linear-to-br from-sky-500/[0.07] to-card">
           <CardContent className="flex items-start justify-between gap-3 p-4 md:p-5">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Average Order Value</p>
@@ -230,7 +230,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             <span className="rounded-xl bg-sky-500/10 p-2.5 text-sky-600 dark:text-sky-300"><ShoppingBag className="h-5 w-5" /></span>
           </CardContent>
         </Card>
-        <Card className="overflow-hidden border-l-4 border-l-amber-500 bg-gradient-to-br from-amber-500/[0.07] to-card">
+        <Card className="overflow-hidden border-l-4 border-l-amber-500 bg-linear-to-br from-amber-500/[0.07] to-card">
           <CardContent className="flex items-start justify-between gap-3 p-4 md:p-5">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Repeat Customers</p>
