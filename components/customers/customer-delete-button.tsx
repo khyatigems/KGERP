@@ -3,7 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -30,7 +32,7 @@ type Impact = {
   creditBalance: number;
 };
 
-export function CustomerDeleteButton({ customerId }: { customerId: string }) {
+export function CustomerDeleteButton({ customerId, compact = false }: { customerId: string; compact?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, startLoading] = useTransition();
@@ -97,11 +99,22 @@ export function CustomerDeleteButton({ customerId }: { customerId: string }) {
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>
-        <Button variant="destructive" size="sm" disabled={loading || deleting}>
-          Delete
-        </Button>
-      </AlertDialogTrigger>
+      {compact ? (
+        <DropdownMenuItem
+          onSelect={() => handleOpenChange(true)}
+          disabled={loading || deleting}
+          className="text-destructive focus:text-destructive"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete customer
+        </DropdownMenuItem>
+      ) : (
+        <AlertDialogTrigger asChild>
+          <Button variant="destructive" size="sm" disabled={loading || deleting}>
+            Delete
+          </Button>
+        </AlertDialogTrigger>
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Customer</AlertDialogTitle>
