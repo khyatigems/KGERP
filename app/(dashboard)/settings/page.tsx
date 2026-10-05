@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "./settings-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Settings2, Search, FileText, TicketPercent, MessageSquare, Gift, Image as ImageIcon, Store } from "lucide-react";
+import { Database, Settings2, Search, FileText, TicketPercent, MessageSquare, Gift, Image as ImageIcon, Store, Mail } from "lucide-react";
 import { removeDuplicates } from "@/lib/dedup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LandingPageForm } from "@/components/settings/landing-page-form";
@@ -134,11 +134,21 @@ export default async function SettingsPage() {
               </Card>
             </LoadingLink>
 
+            <LoadingLink href="/settings/email-templates">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader>
+                  <Mail className="h-8 w-8 mb-2 text-primary" />
+                  <CardTitle>Email Templates</CardTitle>
+                  <CardDescription>Connect Zoho Mail and manage invoice/certificate email templates.</CardDescription>
+                </CardHeader>
+              </Card>
+            </LoadingLink>
+
             <LoadingLink href="/settings/message-templates">
               <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
                 <CardHeader>
                   <MessageSquare className="h-8 w-8 mb-2 text-primary" />
-                  <CardTitle>Message Templates</CardTitle>
+                  <CardTitle>WhatsApp Templates</CardTitle>
                   <CardDescription>Manage WhatsApp/Web templates for CRM campaigns.</CardDescription>
                 </CardHeader>
               </Card>

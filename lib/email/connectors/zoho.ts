@@ -43,6 +43,17 @@ export class ZohoMailConnector implements EmailProvider {
     return Boolean(this.clientId && this.clientSecret && this.redirectUri);
   }
 
+  async getConnectedAccount(): Promise<{ email: string; accountId: string } | null> {
+    if (!this.isConfigured()) return null;
+    try {
+      const token = await this.getAccessToken();
+      const account = await this.getAccount(token);
+      return { email: account.primaryEmailAddress, accountId: account.accountId };
+    } catch {
+      return null;
+    }
+  }
+
   getAuthorizationUrl(state: string): string {
     const params = new URLSearchParams({
       scope: SCOPES,

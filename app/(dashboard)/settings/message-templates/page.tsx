@@ -9,7 +9,7 @@ import { MessageTemplatesForm } from "./message-templates-form";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Message Templates | KhyatiGems™ ERP",
+  title: "WhatsApp Templates | KhyatiGems™ ERP",
 };
 
 export default async function MessageTemplatesPage() {
@@ -20,8 +20,8 @@ export default async function MessageTemplatesPage() {
   return (
     <AnimatedPage><div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Message Templates</h1>
-        <p className="text-muted-foreground">Manage WhatsApp templates with placeholders for customer name, loyalty points and coupon references.</p>
+        <h1 className="text-3xl font-bold tracking-tight">WhatsApp Templates</h1>
+        <p className="text-muted-foreground">Manage WhatsApp templates with placeholders for customer name, loyalty points and coupon references. Email templates are managed separately under Email Templates.</p>
       </div>
       <MessageTemplatesForm initial={rows} />
     </div></AnimatedPage>

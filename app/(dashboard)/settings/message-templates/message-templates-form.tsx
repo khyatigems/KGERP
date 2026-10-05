@@ -93,7 +93,7 @@ export function MessageTemplatesForm({ initial }: { initial: MessageTemplateRow[
     <div className="space-y-6">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Create Message Template</CardTitle>
+          <CardTitle className="text-base">Create WhatsApp Template</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -129,7 +129,7 @@ export function MessageTemplatesForm({ initial }: { initial: MessageTemplateRow[
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Templates</CardTitle>
+          <CardTitle className="text-base">WhatsApp Templates</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
         {rows.map((r) => (

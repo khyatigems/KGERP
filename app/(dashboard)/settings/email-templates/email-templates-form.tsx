@@ -45,18 +45,23 @@ export function EmailTemplatesForm({
   zohoStatus,
 }: {
   templates: EmailTemplateViewModel[];
-  zohoStatus?: { configured: boolean; connected: boolean };
+  zohoStatus?: { configured: boolean; connected: boolean; email?: string | null };
 }) {
   return (
     <div className="container mx-auto max-w-4xl space-y-6 p-6">
       {zohoStatus && (
-        <ZohoConnection configured={zohoStatus.configured} connected={zohoStatus.connected} />
+        <ZohoConnection
+          configured={zohoStatus.configured}
+          connected={zohoStatus.connected}
+          email={zohoStatus.email}
+        />
       )}
       <div>
         <h1 className="text-2xl font-bold">Email Templates</h1>
         <p className="text-sm text-muted-foreground">
           Templates used for customer emails (invoice, certificate). Use{" "}
           <code className="rounded bg-muted px-1">{"{{variable}}"}</code> placeholders.
+          WhatsApp templates are managed separately under WhatsApp Templates.
         </p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
           {VARIABLES.map((v) => (
