@@ -5,6 +5,18 @@ export function buildWhatsappUrl(message: string) {
   return `${WHATSAPP_BASE_URL}?text=${encoded}`;
 }
 
+export function normalizeWhatsAppPhone(input: string): string {
+  const digits = String(input || "").replace(/\D/g, "");
+  if (digits.length === 10) return `91${digits}`;
+  if (digits.length === 12 && digits.startsWith("91")) return digits;
+  return digits;
+}
+
+export function buildCustomerWhatsappUrl(phone: string, message: string): string {
+  const normalizedPhone = normalizeWhatsAppPhone(phone);
+  return `${WHATSAPP_BASE_URL}${normalizedPhone}?text=${encodeURIComponent(message)}`;
+}
+
 export function buildQuotationWhatsappMessage(params: {
   quotationUrl: string;
   expiryDate: string; // formatted date string
@@ -30,15 +42,23 @@ export function buildQuotationWhatsappLink(params: {
 export function buildInvoiceWhatsappMessage(params: {
   invoiceUrl: string;
   invoiceNumber: string;
+  customerName?: string;
+  purchaseDate?: string;
+  orderNumber?: string | null;
 }) {
-    return [
-        "Namaste 🙏",
-        "",
-        `Please find your invoice ${params.invoiceNumber} from KhyatiGems™:`,
-        params.invoiceUrl,
-        "",
-        "Thank you for your business!"
-    ].join("\n");
+  return [
+    `Hi ${params.customerName || "there"},`,
+    "",
+    `Thank you for your purchase from KhyatiGems on ${params.purchaseDate || "the date of purchase"}.`,
+    "",
+    `Please find invoice ${params.invoiceNumber} attached. I have downloaded the invoice PDF; please attach it here before sending.`,
+    params.orderNumber ? `Marketplace order reference: ${params.orderNumber}` : "",
+    `Invoice link: ${params.invoiceUrl}`,
+    "",
+    "Thank you for choosing KhyatiGems.",
+    "Warm regards,",
+    "Team KhyatiGems",
+  ].filter(Boolean).join("\n");
 }
 
 export function buildInvoiceWhatsappLink(params: {

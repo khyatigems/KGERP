@@ -46,3 +46,16 @@ export function resolveInventoryCertificateUrl(source: InventoryCertificateSourc
 
   return null;
 }
+
+export function getCertificateVerificationUrl(
+  source: InventoryCertificateSource | null | undefined,
+  certificateNumber: string | null | undefined
+): string | null {
+  const inventoryUrl = resolveInventoryCertificateUrl(source);
+  if (inventoryUrl) return inventoryUrl;
+
+  const number = certificateNumber?.trim();
+  if (!number) return null;
+
+  return `https://gemstonecertificationinstitute.com/track-certificate?certificate_number=${encodeURIComponent(number)}`;
+}

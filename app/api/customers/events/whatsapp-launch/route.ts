@@ -1,37 +1,35 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-logger";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { normalizeWhatsAppPhone, buildCustomerWhatsappUrl } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 
-function normalizePhone(input: string) {
-  const digits = String(input || "").replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.length === 10) return `91${digits}`;
-  if (digits.length === 12 && digits.startsWith("91")) return digits;
-  return digits;
-}
-
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user) return NextResponse.redirect(new URL("/login", req.url));
+  if (!session?.user) return NextResponse.redirect(new URL("/login", req.url), 303);
   if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_VIEW)) {
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL("/", req.url), 303);
   }
 
   await ensureBillfreePhase1Schema();
 
-  const customerId = req.nextUrl.searchParams.get("customerId") || "";
-  const eventType = req.nextUrl.searchParams.get("eventType") || "GENERAL";
-  if (!customerId) return NextResponse.redirect(new URL("/customers/events", req.url));
+  const formData = await req.formData();
+  const customerId = String(formData.get("customerId") || "").trim();
+  const eventTypeValue = String(formData.get("eventType") || "GENERAL").trim().toUpperCase();
+  const eventType = ["BIRTHDAY", "ANNIVERSARY", "GENERAL"].includes(eventTypeValue)
+    ? eventTypeValue
+    : "GENERAL";
+  if (!customerId) return NextResponse.redirect(new URL("/customers/events", req.url), 303);
 
   const customer = await prisma.customer.findUnique({
     where: { id: customerId },
     select: { id: true, name: true, phone: true, whatsappNumber: true },
   });
-  if (!customer) return NextResponse.redirect(new URL("/customers/events", req.url));
+  if (!customer) return NextResponse.redirect(new URL("/customers/events", req.url), 303);
 
   const templateKey = eventType === "BIRTHDAY" ? "birthday_wish" : eventType === "ANNIVERSARY" ? "anniversary_wish" : "general_wish";
   const tmplRows = await prisma.$queryRawUnsafe<Array<{ body: string }>>(
@@ -65,35 +63,38 @@ export async function GET(req: NextRequest) {
     .replaceAll("{points}", String(points.toFixed(2)))
     .replaceAll("{coupon}", couponCode);
 
-  const phone = normalizePhone(customer.whatsappNumber || customer.phone || "");
-  if (!phone) return NextResponse.redirect(new URL("/customers/events?error=no-phone", req.url));
+  const phone = normalizeWhatsAppPhone(customer.whatsappNumber || customer.phone || "");
+  if (!phone) return NextResponse.redirect(new URL("/customers/events?error=no-phone", req.url), 303);
 
   await prisma.$executeRawUnsafe(
-    `INSERT INTO "CustomerCampaignLog" (id, customerId, eventType, channel, templateKey, payload, status, openedAt, createdAt)
-     VALUES (?, ?, ?, 'WHATSAPP_WEB', ?, ?, 'OPENED_IN_WHATSAPP', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    `INSERT INTO "CustomerCampaignLog" (id, customerId, eventType, channel, templateKey, payload, status, openedAt, launchedById, createdAt)
+     VALUES (?, ?, ?, 'WHATSAPP_WEB', ?, ?, 'LAUNCHED', NULL, ?, CURRENT_TIMESTAMP)`,
     crypto.randomUUID(),
     customer.id,
     eventType,
     templateKey,
-    JSON.stringify({ message: body, phone })
-  ).catch(() => {});
+    JSON.stringify({ message: body, phone }),
+    session.user.id
+  );
 
-  await prisma.activityLog.create({
-    data: {
-      entityType: 'CUSTOMER',
-      actionType: 'WHATSAPP_SENT',
-      entityIdentifier: customer.id,
-      userId: session.user.id,
-      userName: session.user.name,
-      details: JSON.stringify({
+  await logActivity({
+    entityType: "Customer",
+    actionType: "WHATSAPP_LAUNCHED",
+    entityId: customer.id,
+    entityIdentifier: customer.id,
+    userId: session.user.id,
+    userName: session.user.name ?? undefined,
+    module: "communication",
+    action: "whatsapp.launch",
+    referenceId: customer.id,
+    metadata: {
         eventType,
         templateKey,
         messageBody: body,
         phone,
-      }),
     },
-  }).catch(() => {});
+  });
 
-  const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(body)}`;
-  return NextResponse.redirect(waUrl);
+  const waUrl = buildCustomerWhatsappUrl(phone, body);
+  return NextResponse.redirect(waUrl, 303);
 }

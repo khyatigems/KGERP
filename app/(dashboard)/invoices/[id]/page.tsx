@@ -11,6 +11,7 @@ import { ArrowLeft, ExternalLink, History, FileClock } from "lucide-react";
 import { PaymentStatusSelect } from "@/components/invoices/payment-status-select";
 import { PaymentHistory } from "@/components/invoices/payment-history";
 import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
+import { InvoiceWhatsAppButton } from "@/components/invoice/invoice-whatsapp-button";
 import { EmailDocumentButton } from "@/components/invoice/email-document-button";
 import { CommunicationTimeline } from "@/components/communication/communication-timeline";
 import { UPIQr } from "@/components/invoice/upi-qr";
@@ -540,6 +541,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
               </Button>
             )}
             <DownloadPdfButton data={pdfData} />
+            <InvoiceWhatsAppButton invoiceId={invoice.id} data={pdfData} />
             <EmailDocumentButton invoiceId={invoice.id} />
         </div>
       </div>

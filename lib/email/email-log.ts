@@ -1,47 +1,76 @@
 import { prisma } from "@/lib/prisma";
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { ensureActivityLogSchema } from "@/lib/prisma";
+import { getUnifiedCommunications } from "@/lib/email/unified-communications";
 
-export interface CommunicationEntry {
-  id: string;
-  direction: "OUTBOUND" | "INBOUND";
-  channel: "EMAIL" | "WHATSAPP" | "NOTE";
-  recipient: string | null;
-  subject: string | null;
-  status: string | null;
-  timestamp: Date;
-}
+export type { CommunicationTimelineEntry as CommunicationEntry } from "@/lib/email/communication-center";
 
-/**
- * Unified communication timeline for a customer or order. Currently returns
- * outbound email history; inbound replies (Phase 14) and other channels can be
- * merged here later.
- */
 export async function getCommunicationTimeline(input: {
   customerId?: string;
   orderId?: string;
   limit?: number;
-}): Promise<CommunicationEntry[]> {
-  const limit = Math.min(Math.max(input.limit || 50, 1), 200);
-
-  const emails = await prisma.emailLog.findMany({
-    where: {
-      ...(input.customerId ? { customerId: input.customerId } : {}),
-      ...(input.orderId ? { orderId: input.orderId } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit,
+}) {
+  const { rows } = await getUnifiedCommunications({
+    customerId: input.customerId,
+    orderId: input.orderId,
+    limit: input.limit,
   });
-
-  return emails.map((e) => ({
-    id: e.id,
-    direction: (e.direction === "INBOUND" ? "INBOUND" : "OUTBOUND") as "OUTBOUND" | "INBOUND",
-    channel: "EMAIL" as const,
-    recipient: e.recipient,
-    subject: e.subject,
-    status: e.status,
-    timestamp: e.createdAt,
+  return rows.map((row) => ({
+    id: row.id,
+    direction: row.direction,
+    channel: row.sourceType === "FOLLOW_UP" ? row.followUpAction || row.channel : row.channel,
+    recipient: row.recipient,
+    subject: row.subject,
+    bodyRef: row.bodyRef,
+    status: row.status,
+    timestamp: row.createdAt,
+    customerId: row.customerId,
+    customerName: row.customerName,
+    orderId: row.orderId,
+    invoiceNumber: row.invoiceNumber,
+    sourceType: row.sourceType,
+    followUpNote: row.followUpNote,
   }));
 }
 
-export async function getEmailLogById(id: string) {
-  return prisma.emailLog.findUnique({ where: { id } });
+export async function getCommunicationDetail(id: string) {
+  await Promise.all([ensureMarketplaceFoundationSchema(), ensureActivityLogSchema()]);
+  const email = await prisma.emailLog.findUnique({ where: { id } });
+  if (!email) return null;
+  const [customer, invoice, conversation, providerEvents, auditEvents] = await Promise.all([
+    email.customerId
+      ? prisma.customer.findUnique({ where: { id: email.customerId }, select: { id: true, name: true } })
+      : null,
+    email.orderId
+      ? prisma.invoice.findUnique({ where: { id: email.orderId }, select: { id: true, invoiceNumber: true } })
+      : null,
+    prisma.emailLog.findMany({
+      where: email.threadId ? { threadId: email.threadId } : { id: email.id },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.emailProviderEvent.findMany({
+      where: { communicationId: email.id },
+      orderBy: { occurredAt: "asc" },
+    }),
+    prisma.activityLog.findMany({
+      where: {
+        OR: [
+          { module: "communication", referenceId: email.id },
+          { entityType: "EmailLog", entityId: email.id },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        action: true,
+        actionType: true,
+        userName: true,
+        userEmail: true,
+        createdAt: true,
+        fieldChanges: true,
+      },
+    }),
+  ]);
+  return { ...email, customer, invoice, conversation, providerEvents, auditEvents };
 }

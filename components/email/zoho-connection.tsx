@@ -44,8 +44,25 @@ export function ZohoConnection({
   const checkInbox = () => {
     startTransition(async () => {
       const result = await pollZohoInboxAction();
-      if (result.error) toast.error(result.error);
-      else toast.success(`Inbox checked — ${result.processed} new message(s) imported`);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      if (result.failed > 0) {
+        toast.error(
+          `${result.error || "Inbox import failed."} ${result.processed} new; ${result.updated} updated; ${result.alreadySynced} already synced.`,
+        );
+        return;
+      }
+      if (result.contentWarning) {
+        toast.warning(
+          `Inbox synced: ${result.processed} new, ${result.updated} updated, ${result.alreadySynced} already synced. ${result.contentWarning}`,
+        );
+        return;
+      }
+      toast.success(
+        `Inbox checked — ${result.processed} new, ${result.updated} updated, ${result.alreadySynced} already synced`,
+      );
     });
   };
 
@@ -140,9 +157,11 @@ export function ZohoConnection({
 
         {connected && (
           <p className="text-xs text-muted-foreground">
-            Emails are sent through the connected Zoho Mail account. Disconnecting
-            clears the stored OAuth tokens — outgoing email will fail until you
-            connect again.
+            Inbox sync requires Zoho folder-read access. If sync reports a folder
+            permission error, choose Reconnect, approve the requested access on
+            Zoho, return here, and check the inbox again. Emails are sent through
+            this connected Zoho account; disconnecting clears its stored OAuth
+            tokens.
           </p>
         )}
       </CardContent>

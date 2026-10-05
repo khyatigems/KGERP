@@ -5,7 +5,7 @@ import {
 } from "@/lib/email/oauth";
 import type { EmailProvider, EmailMessage, EmailSendResult, InboundEmail } from "@/lib/email/types";
 
-const SCOPES = "ZohoMail.accounts.ALL,ZohoMail.messages.ALL";
+const SCOPES = "ZohoMail.accounts.ALL,ZohoMail.messages.ALL,ZohoMail.folders.READ";
 
 // Zoho data center (accounts + mail API). Set ZOHO_DATACENTER=in for India,
 // com (default), eu, com.au, jp, etc. Accounts must match the DC the client
@@ -17,6 +17,120 @@ const MAIL_API = `https://mail.zoho.${ZOHO_DC}/api`;
 
 function env(name: string): string {
   return (process.env[name] || "").trim();
+}
+
+export function formatZohoFromAddress(address: string, displayName = "KhyatiGems"): string {
+  const mailbox = address.match(/<([^<>]+)>/)?.[1]?.trim() || address.trim();
+  const name = displayName.trim() || "KhyatiGems";
+  const quotedName = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"${quotedName}" <${mailbox}>`;
+}
+
+interface ZohoOAuthResponse {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number | string;
+  scope?: string;
+  error?: string;
+  error_description?: string;
+}
+
+interface ZohoInboundMessage {
+  messageId?: unknown;
+  fromAddress?: unknown;
+  subject?: unknown;
+  content?: unknown;
+  summary?: unknown;
+  receivedTime?: unknown;
+  receivedtime?: unknown;
+  inReplyTo?: unknown;
+  references?: unknown;
+  toAddress?: unknown;
+  ccAddress?: unknown;
+}
+
+interface ZohoFolder {
+  folderId?: unknown;
+  folderName?: unknown;
+  folderType?: unknown;
+  name?: unknown;
+}
+
+export function resolveZohoInboxFolderId(folders: unknown): string | null {
+  const values = Array.isArray(folders)
+    ? folders
+    : folders && typeof folders === "object" && !Array.isArray(folders)
+      ? Object.values(folders as Record<string, unknown>).find(Array.isArray) as unknown[] | undefined
+      : undefined;
+  if (!values) return null;
+  const inbox = values.find((entry: unknown) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+    const folder = entry as ZohoFolder;
+    return [folder.folderName, folder.folderType, folder.name]
+      .some((value) => typeof value === "string" && value.trim().toLowerCase() === "inbox");
+  }) as ZohoFolder | undefined;
+  return inbox && (typeof inbox.folderId === "string" || typeof inbox.folderId === "number")
+    ? String(inbox.folderId)
+    : null;
+}
+
+export function parseZohoTimestamp(value: unknown): Date | null {
+  if (typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value))) {
+    const numeric = Number(value);
+    const milliseconds = numeric < 100_000_000_000 ? numeric * 1000 : numeric;
+    const date = new Date(milliseconds);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value !== "string") return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function zohoErrorDetails(body: unknown): string {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return "";
+  const record = body as Record<string, unknown>;
+  const status = record.status && typeof record.status === "object" && !Array.isArray(record.status)
+    ? record.status as Record<string, unknown>
+    : {};
+  const values = [
+    record.code,
+    record.error,
+    status.code,
+    record.description,
+    record.message,
+    status.description,
+  ].filter((value): value is string | number => typeof value === "string" || typeof value === "number");
+  const unique = [...new Set(values.map(String).map((value) => value.trim()).filter(Boolean))];
+  return unique.length ? ` Zoho response: ${unique.join(" — ")}.` : "";
+}
+
+function readMessageContent(value: unknown): { textBody: string | null; htmlBody: string | null } {
+  if (Array.isArray(value)) return readMessageContent(value[0]);
+  if (typeof value === "string") {
+    const content = value.trim();
+    if (!content) return { textBody: null, htmlBody: null };
+    if (/<(?:html|body|div|p|br|table|style|span)\b/i.test(content)) {
+      return { textBody: null, htmlBody: content };
+    }
+    return { textBody: content, htmlBody: null };
+  }
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    const html = record.htmlContent ?? record.htmlBody;
+    const text = record.textContent ?? record.textBody;
+    if (typeof html === "string" || typeof text === "string") {
+      return { textBody: typeof text === "string" ? text : null, htmlBody: typeof html === "string" ? html : null };
+    }
+    return readMessageContent(record.content);
+  }
+  return { textBody: null, htmlBody: null };
+}
+
+function tokenExpiry(expiresIn: number | string | undefined): string | null {
+  const seconds = Number(expiresIn);
+  return Number.isFinite(seconds) && seconds > 0
+    ? new Date(Date.now() + seconds * 1000).toISOString()
+    : null;
 }
 
 /**
@@ -37,6 +151,9 @@ export class ZohoMailConnector implements EmailProvider {
   }
   private get fromAddress() {
     return env("ZOHO_MAIL_FROM");
+  }
+  private get fromName() {
+    return env("ZOHO_MAIL_FROM_NAME") || "KhyatiGems";
   }
 
   isConfigured(): boolean {
@@ -75,7 +192,7 @@ export class ZohoMailConnector implements EmailProvider {
       redirect_uri: this.redirectUri,
       code,
     });
-    const data = await httpJson<Record<string, any>>(TOKEN_URL, {
+    const data = await httpJson<ZohoOAuthResponse>(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
@@ -90,7 +207,7 @@ export class ZohoMailConnector implements EmailProvider {
     await saveZohoOAuthTokens({
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
+      expiresAt: tokenExpiry(data.expires_in),
       scope: data.scope,
     });
   }
@@ -116,15 +233,16 @@ export class ZohoMailConnector implements EmailProvider {
       client_secret: this.clientSecret,
       refresh_token: refreshToken,
     });
-    const data = await httpJson<Record<string, any>>(TOKEN_URL, {
+    const data = await httpJson<ZohoOAuthResponse>(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
     });
+    if (!data.access_token) throw new Error("Zoho token refresh did not return an access token");
     await saveZohoOAuthTokens({
       accessToken: data.access_token,
       refreshToken: data.refresh_token || refreshToken,
-      expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
+      expiresAt: tokenExpiry(data.expires_in),
       scope: data.scope,
     });
     return data.access_token;
@@ -157,10 +275,11 @@ export class ZohoMailConnector implements EmailProvider {
       const headers = await this.getHeaders(token);
       const account = await this.getAccount(token);
       const accountId = account.accountId;
-      const fromAddress = this.fromAddress || account.primaryEmailAddress;
-      if (!fromAddress) {
+      const senderMailbox = this.fromAddress || account.primaryEmailAddress;
+      if (!senderMailbox) {
         return { status: "FAILED", error: "No valid From address (set ZOHO_MAIL_FROM or use the account's primary email)" };
       }
+      const fromAddress = formatZohoFromAddress(senderMailbox, this.fromName);
 
       const attachments: Array<{ storeName: string; attachmentPath: string; attachmentName: string }> = [];
       for (const a of message.attachments ?? []) {
@@ -224,28 +343,77 @@ export class ZohoMailConnector implements EmailProvider {
     const headers = await this.getHeaders(token);
     const account = await this.getAccount(token);
     const accountId = account.accountId;
-    console.log("[zoho] inbox accountId:", accountId);
+    let folderResponse: { data?: unknown };
+    try {
+      folderResponse = await httpJson<{ data?: unknown }>(
+        `${MAIL_API}/accounts/${accountId}/folders`,
+        { headers },
+      );
+    } catch (error) {
+      const status = error && typeof error === "object" && "status" in error
+        ? Number((error as { status?: unknown }).status)
+        : 0;
+      if (status === 401 || status === 403) {
+        const details = error && typeof error === "object" && "body" in error
+          ? zohoErrorDetails((error as { body?: unknown }).body)
+          : "";
+        throw new Error(
+          `Zoho denied access to the folder list (HTTP ${status}). Reconnect Zoho Mail, approve the requested folders:READ permission, and try syncing again.${details}`,
+        );
+      }
+      throw error;
+    }
+    const folderId = resolveZohoInboxFolderId(folderResponse.data);
+    if (!folderId) {
+      throw new Error("Zoho Mail did not return an Inbox folder for the connected account");
+    }
 
-    const data = await httpJson<{ data?: Array<Record<string, any>> }>(
-      `${MAIL_API}/accounts/${accountId}/messages/view?start=1&limit=${limit}`,
+    const data = await httpJson<{ data?: ZohoInboundMessage[] }>(
+      `${MAIL_API}/accounts/${accountId}/messages/view?folderId=${encodeURIComponent(folderId)}&start=1&limit=${limit}`,
       { headers }
     );
 
-    console.log(
-      "[zoho] inbox raw count:",
-      data?.data?.length,
-      "first keys:",
-      data?.data?.[0] ? Object.keys(data.data[0]).join(",") : "none"
-    );
+    if (!Array.isArray(data.data)) {
+      throw new Error("Zoho Mail returned an unexpected response while listing Inbox messages");
+    }
 
-    return (data.data || []).map((m) => ({
-      providerMessageId: m.messageId ? String(m.messageId) : "",
-      from: m.fromAddress ? String(m.fromAddress) : "",
-      subject: m.subject ? String(m.subject) : "(no subject)",
-      textBody: m.content ? String(m.content) : null,
-      htmlBody: null,
-      receivedAt: m.receivedTime ? new Date(m.receivedTime) : new Date(),
-      references: [],
+    return Promise.all(data.data.map(async (m) => {
+      let messageContent = readMessageContent(m.content);
+      if (!messageContent.textBody && !messageContent.htmlBody) {
+        messageContent = readMessageContent(m.summary);
+      }
+      let contentError: string | null = null;
+      if ((!messageContent.textBody && !messageContent.htmlBody) && m.messageId) {
+        try {
+          const detail = await httpJson<{ data?: unknown }>(
+            `${MAIL_API}/accounts/${accountId}/folders/${encodeURIComponent(folderId)}/messages/${encodeURIComponent(String(m.messageId))}/content`,
+            { headers },
+          );
+          messageContent = readMessageContent(detail.data ?? detail);
+        } catch (error) {
+          console.error("[zoho] could not fetch inbound message content:", m.messageId, error);
+          const details = error && typeof error === "object" && "body" in error
+            ? zohoErrorDetails((error as { body?: unknown }).body)
+            : "";
+          contentError = `${error instanceof Error ? error.message : "Zoho message content could not be fetched"}${details}`.slice(0, 500);
+        }
+      }
+      return {
+        providerMessageId: m.messageId ? String(m.messageId) : "",
+        messageId: m.messageId ? String(m.messageId) : "",
+        from: m.fromAddress ? String(m.fromAddress) : "",
+        cc: typeof m.ccAddress === "string"
+          ? m.ccAddress
+          : Array.isArray(m.ccAddress)
+            ? m.ccAddress.map((address) => typeof address === "string" ? address : "").filter(Boolean).join(", ")
+            : null,
+        subject: m.subject ? String(m.subject) : "(no subject)",
+        ...messageContent,
+        contentError,
+        receivedAt: parseZohoTimestamp(m.receivedTime ?? m.receivedtime),
+        inReplyTo: typeof m.inReplyTo === "string" ? m.inReplyTo : null,
+        references: Array.isArray(m.references) ? m.references.map(String) : [],
+      };
     }));
   }
 }

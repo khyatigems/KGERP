@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import Link from "next/link";
 
 interface CommunicationEntry {
   id: string;
@@ -11,14 +12,20 @@ interface CommunicationEntry {
   channel: string;
   recipient: string | null;
   subject: string | null;
+  bodyRef: string | null;
   status: string | null;
   timestamp: string;
+  customerId: string | null;
+  customerName: string | null;
+  orderId: string | null;
+  invoiceNumber: string | null;
 }
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   SENT: "default",
   DELIVERED: "default",
   OPENED: "default",
+  RECEIVED: "default",
   QUEUED: "secondary",
   DRAFT: "secondary",
   FAILED: "destructive",
@@ -34,6 +41,7 @@ export function CommunicationTimeline({
 }) {
   const [entries, setEntries] = useState<CommunicationEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -41,20 +49,20 @@ export function CommunicationTimeline({
     if (customerId) params.set("customerId", customerId);
     if (orderId) params.set("orderId", orderId);
     const qs = params.toString();
-    if (!qs) {
-      setLoading(false);
-      return;
+    if (qs) {
+      fetch(`/api/email/communication?${qs}`)
+        .then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Could not load communications");
+          if (active) setEntries(data.entries || []);
+        })
+        .catch((fetchError: unknown) => {
+          if (active) setError(fetchError instanceof Error ? fetchError.message : "Could not load communications");
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
     }
-
-    fetch(`/api/email/communication?${qs}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (active) setEntries(data.entries || []);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (active) setLoading(false);
-      });
     return () => {
       active = false;
     };
@@ -68,6 +76,8 @@ export function CommunicationTimeline({
       <CardContent>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : error ? (
+          <p role="alert" className="text-sm text-destructive">{error}</p>
         ) : entries.length === 0 ? (
           <p className="text-sm text-muted-foreground">No communication sent yet.</p>
         ) : (
@@ -75,11 +85,26 @@ export function CommunicationTimeline({
             {entries.map((e) => (
               <div key={e.id} className="flex items-start justify-between gap-4 border-b pb-3 last:border-0 last:pb-0">
                 <div className="min-w-0">
-                  <div className="font-medium">{e.subject || "(no subject)"}</div>
+                  <div className="font-medium">
+                    <Link href={`/communication/${e.id}`} className="hover:underline">{e.subject || "(no subject)"}</Link>
+                  </div>
                   <div className="text-sm text-muted-foreground">To: {e.recipient || "-"}</div>
+                  {e.channel === "WHATSAPP" && e.bodyRef && (
+                    <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-xs text-muted-foreground">{e.bodyRef}</p>
+                  )}
                   <div className="text-xs text-muted-foreground mt-1">
                     {e.channel} · {e.direction === "INBOUND" ? "Inbound" : "Outbound"}
                   </div>
+                  {e.invoiceNumber && e.orderId && (
+                    <Link href={`/invoices/${e.orderId}`} className="mt-1 inline-block text-xs text-primary hover:underline">
+                      Invoice #{e.invoiceNumber}
+                    </Link>
+                  )}
+                  {e.customerId && e.customerName && (
+                    <Link href={`/customers/${e.customerId}`} className="ml-3 mt-1 inline-block text-xs text-primary hover:underline">
+                      {e.customerName}
+                    </Link>
+                  )}
                 </div>
                 <div className="shrink-0 text-right">
                   <Badge variant={STATUS_VARIANT[e.status || "DRAFT"] || "outline"}>{e.status || "DRAFT"}</Badge>

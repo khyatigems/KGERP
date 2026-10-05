@@ -33,8 +33,11 @@ export interface EmailTemplateViewModel {
 const VARIABLES = [
   "customer_name",
   "order_number",
+  "order_number_line",
+  "purchase_date",
   "invoice_number",
   "certificate_number",
+  "certificate_verification_url",
   "gemstone_name",
   "carat_weight",
   "company_name",

@@ -8,6 +8,10 @@ import {
   sendCertificateAndInvoiceEmail,
 } from "@/lib/email/email-service";
 import type { EmailAttachment } from "@/lib/email/types";
+import { getInvoiceOrderReference } from "@/lib/email/order-reference";
+import { getCertificateVerificationUrl } from "@/lib/certificate-url";
+import { formatDate } from "@/lib/utils";
+import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 
 export interface SendOrderDocumentsResult {
   success: boolean;
@@ -21,8 +25,11 @@ interface OrderEmailContext {
   customerName: string;
   invoiceNumber: string;
   invoiceId: string;
+  purchaseDate: string;
+  inventoryId: string | null;
   orderNumber: string | null;
   certificateNumber: string | null;
+  certificateVerificationUrl: string | null;
   gemstoneName: string | null;
   customerId: string | null;
 }
@@ -42,15 +49,22 @@ async function loadContext(invoiceId: string): Promise<OrderEmailContext | null>
 
   const first = invoice.sales[0];
   const customer = first?.customer ?? invoice.quotation?.customer ?? null;
+  const marketplaceOrderNumber = await getInvoiceOrderReference(invoice.id);
 
   return {
     customerEmail: customer?.email ?? first?.customerEmail ?? "",
     customerName: customer?.name ?? first?.customerName ?? "Customer",
     invoiceNumber: invoice.invoiceNumber,
     invoiceId: invoice.id,
-    orderNumber: first?.orderId ?? null,
+    purchaseDate: formatDate(getInvoiceDisplayDate(invoice)),
+    inventoryId: first?.inventoryId ?? null,
+    orderNumber: marketplaceOrderNumber || first?.orderId || null,
     certificateNumber:
       first?.inventory?.certificateNumber ?? first?.inventory?.certificateNo ?? null,
+    certificateVerificationUrl: getCertificateVerificationUrl(
+      first?.inventory,
+      first?.inventory?.certificateNumber ?? first?.inventory?.certificateNo ?? null,
+    ),
     gemstoneName: first?.inventory?.itemName ?? null,
     customerId: customer?.id ?? first?.customerId ?? invoice.quotation?.customerId ?? null,
   };
@@ -87,7 +101,13 @@ export async function sendOrderDocumentsEmail(
     const data = await time("Composing email", () => buildInvoiceData(invoiceId));
     if (!data) return { success: false, message: "Could not build invoice data", steps };
     const pdf = await time("Attaching invoice PDF", () => generateInvoicePdfBuffer(data));
-    attachments.push({ fileName: pdf.fileName, mimeType: pdf.mimeType, content: pdf.buffer });
+    attachments.push({
+      fileName: pdf.fileName,
+      mimeType: pdf.mimeType,
+      content: pdf.buffer,
+      sourceType: "INVOICE",
+      sourceId: ctx.invoiceId,
+    });
   }
 
   if (options.includeCertificate) {
@@ -117,6 +137,9 @@ export async function sendOrderDocumentsEmail(
       fileName: `Certificate_${ctx.certificateNumber}.pdf`,
       mimeType: "application/pdf",
       content: certPdf,
+      ...(ctx.inventoryId
+        ? { sourceType: "INVENTORY" as const, sourceId: ctx.inventoryId }
+        : {}),
     });
   }
 
@@ -137,8 +160,10 @@ export async function sendOrderDocumentsEmail(
       sendCertificateAndInvoiceEmail({
         ...base,
         orderNumber: ctx.orderNumber ?? undefined,
+        purchaseDate: ctx.purchaseDate,
         invoiceNumber: ctx.invoiceNumber,
         certificateNumber: ctx.certificateNumber!,
+        certificateVerificationUrl: ctx.certificateVerificationUrl,
         gemstoneName: ctx.gemstoneName ?? undefined,
         invoiceAttachment: attachments[0],
         certificateAttachment: attachments[1],
@@ -149,6 +174,9 @@ export async function sendOrderDocumentsEmail(
       sendCertificateEmail({
         ...base,
         certificateNumber: ctx.certificateNumber!,
+        certificateVerificationUrl: ctx.certificateVerificationUrl,
+        orderNumber: ctx.orderNumber ?? undefined,
+        purchaseDate: ctx.purchaseDate,
         gemstoneName: ctx.gemstoneName ?? undefined,
         certificateAttachment: attachments[0],
       })
@@ -158,6 +186,7 @@ export async function sendOrderDocumentsEmail(
       sendInvoiceEmail({
         ...base,
         orderNumber: ctx.orderNumber ?? undefined,
+        purchaseDate: ctx.purchaseDate,
         invoiceNumber: ctx.invoiceNumber,
         invoiceAttachment: attachments[0],
       })
@@ -195,6 +224,7 @@ export async function sendCertificateEmailForInventory(
   if (!customerEmail) return { success: false, message: "No customer email on the sale" };
 
   const customerName = sale.customer?.name ?? sale.customerName ?? "Customer";
+  const orderNumber = sale.invoiceId ? await getInvoiceOrderReference(sale.invoiceId) : sale.orderId;
   const certificateNumber = inventory.certificateNumber ?? inventory.certificateNo ?? null;
   if (!certificateNumber) {
     return { success: false, message: "CERTIFICATE NOT AVAILABLE — no certificate number on this item" };
@@ -217,13 +247,18 @@ export async function sendCertificateEmailForInventory(
     customerEmail,
     customerName,
     certificateNumber,
+    certificateVerificationUrl: getCertificateVerificationUrl(inventory, certificateNumber),
     gemstoneName: inventory.itemName ?? undefined,
+    orderNumber: orderNumber ?? undefined,
+    purchaseDate: formatDate(sale.saleDate),
     customerId: sale.customerId ?? null,
     orderId: sale.invoiceId ?? null,
     certificateAttachment: {
       fileName: `Certificate_${certificateNumber}.pdf`,
       mimeType: "application/pdf",
       content: certPdf,
+      sourceType: "INVENTORY",
+      sourceId: inventory.id,
     },
   });
 

@@ -528,16 +528,40 @@ export async function ensureFollowUpSchema(): Promise<void> {
           "id" TEXT NOT NULL PRIMARY KEY,
           "invoiceId" TEXT NOT NULL,
           "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "channel" TEXT NOT NULL DEFAULT 'CALL',
           "action" TEXT,
           "note" TEXT,
           "promisedDate" DATETIME,
+          "status" TEXT NOT NULL DEFAULT 'OPEN',
+          "completedAt" DATETIME,
+          "cancelledAt" DATETIME,
+          "rescheduledTo" DATETIME,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "createdBy" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         );`,
         `CREATE INDEX IF NOT EXISTS "FollowUp_invoiceId_idx" ON "FollowUp"("invoiceId");`,
         `CREATE INDEX IF NOT EXISTS "FollowUp_createdBy_idx" ON "FollowUp"("createdBy");`,
       ]);
-    } catch {
+      const columnChecks: Array<[string, string, string]> = [
+        ["FollowUp", "channel", '"channel" TEXT NOT NULL DEFAULT \'CALL\''],
+        ["FollowUp", "status", '"status" TEXT NOT NULL DEFAULT \'OPEN\''],
+        ["FollowUp", "completedAt", '"completedAt" DATETIME'],
+        ["FollowUp", "cancelledAt", '"cancelledAt" DATETIME'],
+        ["FollowUp", "rescheduledTo", '"rescheduledTo" DATETIME'],
+        ["FollowUp", "updatedAt", '"updatedAt" DATETIME'],
+      ];
+      const missing = await getMissingColumns(columnChecks.map(([table, column]) => [table, column]));
+      await executeDdlBatch([
+        ...buildAddColumnStatements(columnChecks, missing),
+        `UPDATE "FollowUp" SET "updatedAt" = CURRENT_TIMESTAMP WHERE "updatedAt" IS NULL;`,
+        `UPDATE "FollowUp" SET "channel" = UPPER("action")
+         WHERE "action" IS NOT NULL AND UPPER("action") IN ('CALL', 'EMAIL', 'WHATSAPP')
+           AND ("channel" IS NULL OR "channel" = 'CALL');`,
+        `CREATE INDEX IF NOT EXISTS "FollowUp_status_date_idx" ON "FollowUp"("status", "date");`,
+      ]);
+    } catch (error) {
+      console.error("[follow-up] Failed to initialize follow-up schema:", error);
     } finally {
       if (checkedTables) checkedTables.set("FollowUp", true);
       ensuredFollowUp = true;
@@ -975,6 +999,8 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
         ["Customer", "anniversaryDate", '"anniversaryDate" DATETIME'],
         ["Customer", "communicationOptIn", '"communicationOptIn" INTEGER NOT NULL DEFAULT 1'],
         ["Customer", "preferredLanguage", '"preferredLanguage" TEXT'],
+        ["CustomerCampaignLog", "launchedById", '"launchedById" TEXT'],
+        ["CustomerCampaignLog", "invoiceId", '"invoiceId" TEXT'],
         ["LoyaltySettings", "dobProfilePoints", '"dobProfilePoints" REAL NOT NULL DEFAULT 0'],
         ["LoyaltySettings", "anniversaryProfilePoints", '"anniversaryProfilePoints" REAL NOT NULL DEFAULT 0'],
         ["CouponRedemption", "discountAmount", '"discountAmount" REAL NOT NULL DEFAULT 0'],
@@ -982,6 +1008,13 @@ export async function ensureBillfreePhase1Schema(): Promise<void> {
       ];
       const missing = await getMissingColumns(columnChecks.map(([table, column]) => [table, column]));
       await executeDdlBatch(buildAddColumnStatements(columnChecks, missing));
+      try {
+        await prisma.$executeRawUnsafe(
+          `CREATE INDEX IF NOT EXISTS "CustomerCampaignLog_invoiceId_idx" ON "CustomerCampaignLog"("invoiceId")`,
+        );
+      } catch (error) {
+        console.error("[schema] Could not create the WhatsApp invoice index:", error);
+      }
     } catch {
     } finally {
       if (checkedTables) {

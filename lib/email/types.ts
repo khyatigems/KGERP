@@ -1,16 +1,21 @@
 export type EmailStatus =
   | "DRAFT"
   | "QUEUED"
+  | "PROCESSING"
   | "SENT"
   | "DELIVERED"
   | "OPENED"
+  | "RECEIVED"
   | "FAILED"
-  | "BOUNCED";
+  | "BOUNCED"
+  | "CANCELLED";
 
 export interface EmailAttachment {
   fileName: string;
   mimeType: string;
   content: Buffer;
+  sourceType?: "INVOICE" | "INVENTORY";
+  sourceId?: string;
 }
 
 export interface EmailMessage {
@@ -21,6 +26,9 @@ export interface EmailMessage {
   cc?: string[];
   bcc?: string[];
   attachments?: EmailAttachment[];
+  inReplyTo?: string;
+  references?: string[];
+  messageId?: string;
 }
 
 export interface EmailSendResult {
@@ -37,15 +45,21 @@ export interface EmailProvider {
 export interface InboundEmail {
   providerMessageId: string;
   from: string;
+  cc?: string | null;
   subject: string;
   textBody: string | null;
   htmlBody: string | null;
-  receivedAt: Date;
+  contentError?: string | null;
+  receivedAt: Date | null;
   references: string[];
+  inReplyTo?: string | null;
+  messageId?: string | null;
 }
 
 export interface InboundEmailResult {
   matchedCustomerId: string | null;
   matchedOrderId: string | null;
   handled: boolean;
+  created?: boolean;
+  updated?: boolean;
 }

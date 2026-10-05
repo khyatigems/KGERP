@@ -46,6 +46,10 @@ export const PERMISSIONS = {
   CUSTOMER_DELETE: "customers:delete",
   CUSTOMER_MANAGE: "customers:manage",
   CUSTOMER_EXPORT: "customers:export",
+
+  // Communications
+  COMMUNICATION_VIEW: "communication:view",
+  COMMUNICATION_MANAGE: "communication:manage",
   
   // Receivables
   RECEIVABLES_VIEW: "receivables:view",

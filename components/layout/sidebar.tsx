@@ -95,7 +95,7 @@ export const navGroups = [
     icon: BarChart3,
     items: [
       { href: "/reports", label: "Reports", icon: BarChart3, module: "reports:view", animKey: "reports" as NavAnimationKey },
-      { href: "/communication", label: "Communication", icon: MessageSquare, module: "communication:view", animKey: "communication" as NavAnimationKey },
+      { href: "/communication", label: "Communication Center", icon: MessageSquare, module: "communication:view", animKey: "communication" as NavAnimationKey, badge: "communication-unread" },
       { href: "/activity-log", label: "Activity Log", icon: Activity, module: "activity:view", animKey: "settings" as NavAnimationKey },
       { href: "/users", label: "Users", icon: UserCog, module: "users:manage", animKey: "users" as NavAnimationKey },
       { href: "/settings", label: "Settings", icon: Settings, module: "settings:manage", animKey: "settings" as NavAnimationKey },
@@ -136,6 +136,10 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
     navGroups.map(g => g.id)
   );
   const [pendingConflicts, setPendingConflicts] = useState(0);
+  const [unreadCommunications, setUnreadCommunications] = useState(0);
+  const canSeeCommunication =
+    allowedModules.includes("ALL") ||
+    allowedModules.includes("communication:view");
   const canSeeControlCenter =
     allowedModules.includes("ALL") ||
     allowedModules.includes("listings:view") ||
@@ -161,6 +165,25 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
       clearInterval(id);
     };
   }, [canSeeControlCenter]);
+
+  useEffect(() => {
+    if (!canSeeCommunication) return;
+    let cancelled = false;
+    const loadUnread = async () => {
+      try {
+        const response = await fetch("/api/email/communication/unread-count", { cache: "no-store" });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (!cancelled && typeof result.unread === "number") setUnreadCommunications(result.unread);
+      } catch {}
+    };
+    void loadUnread();
+    const interval = setInterval(loadUnread, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [canSeeCommunication]);
   
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -256,6 +279,14 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
                 className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white animate-pulse px-1"
               >
                 {pendingConflicts > 99 ? "99+" : pendingConflicts}
+              </span>
+            )}
+            {item.badge === "communication-unread" && unreadCommunications > 0 && (
+              <span
+                title={`${unreadCommunications} unread communication${unreadCommunications === 1 ? "" : "s"}`}
+                className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+              >
+                {unreadCommunications > 99 ? "99+" : unreadCommunications}
               </span>
             )}
           </>

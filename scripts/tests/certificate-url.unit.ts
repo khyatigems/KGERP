@@ -1,4 +1,7 @@
-import { resolveInventoryCertificateUrl } from "@/lib/certificate-url";
+import {
+  getCertificateVerificationUrl,
+  resolveInventoryCertificateUrl,
+} from "@/lib/certificate-url";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
@@ -42,6 +45,20 @@ function run() {
   assert(
     resolveInventoryCertificateUrl(fallbackNull) === null,
     "Should return null when nothing is a valid URL"
+  );
+
+  assert(
+    getCertificateVerificationUrl(base, "GCI2026ABC123") === "https://example.com/cert.pdf",
+    "Certificate email should use the same inventory certificate link as the invoice"
+  );
+  assert(
+    getCertificateVerificationUrl(null, "GCI 2026/ABC") ===
+      "https://gemstonecertificationinstitute.com/track-certificate?certificate_number=GCI%202026%2FABC",
+    "A GCI verification URL should be generated when the inventory has no saved certificate URL"
+  );
+  assert(
+    getCertificateVerificationUrl(null, null) === null,
+    "No verification URL should be generated without a certificate number"
   );
 }
 

@@ -122,7 +122,7 @@ export function MessageTemplatesForm({ initial }: { initial: MessageTemplateRow[
             onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))}
           />
         </div>
-        <div className="text-xs text-muted-foreground">Supported placeholders: {"{name}"}, {"{invoice}"}, {"{invoice_link}"}, {"{link}"}, {"{points}"}, {"{coupon}"}</div>
+        <div className="text-xs text-muted-foreground">Supported placeholders: {"{name}"}, {"{invoice}"}, {"{date}"}, {"{order_number_line}"}, {"{invoice_link}"}, {"{link}"}, {"{points}"}, {"{coupon}"}</div>
         <Button onClick={submit} disabled={isPending}>Create Template</Button>
         </CardContent>
       </Card>

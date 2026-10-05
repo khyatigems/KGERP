@@ -29,6 +29,14 @@ export const resendEmailProvider: EmailProvider = {
       ...(message.text ? { text: message.text } : {}),
       ...(message.cc?.length ? { cc: message.cc } : {}),
       ...(message.bcc?.length ? { bcc: message.bcc } : {}),
+      ...(message.inReplyTo || message.references?.length || message.messageId
+        ? {
+            headers: {
+              ...(message.inReplyTo ? { "In-Reply-To": message.inReplyTo } : {}),
+              ...(message.references?.length ? { References: message.references.join(" ") } : {}),
+            },
+          }
+        : {}),
       ...(message.attachments?.length
         ? {
             attachments: message.attachments.map((a) => ({

@@ -69,7 +69,18 @@ export async function getZohoConnectionStatus() {
 
 export async function pollZohoInboxAction() {
   const perm = await checkPermission(PERMISSIONS.SETTINGS_MANAGE);
-  if (!perm.success) return { processed: 0, error: perm.message ?? "Forbidden" };
+  if (!perm.success) {
+    return {
+      found: 0,
+      processed: 0,
+      updated: 0,
+      alreadySynced: 0,
+      failed: 0,
+      failedErrors: [],
+      contentMissing: 0,
+      error: perm.message ?? "Forbidden",
+    };
+  }
   const result = await pollZohoInbox();
   revalidatePath("/settings/email-templates");
   return result;

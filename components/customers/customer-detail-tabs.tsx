@@ -154,6 +154,43 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
 
         <Card className="mt-4">
           <CardHeader>
+            <CardTitle>WhatsApp Wishes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Open a prepared message in WhatsApp Web, then review and send it there. The timeline records the handoff, not confirmed delivery.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {customer.dateOfBirth && (
+                <form action="/api/customers/events/whatsapp-launch" method="POST" target="_blank">
+                  <input type="hidden" name="customerId" value={customer.id} />
+                  <input type="hidden" name="eventType" value="BIRTHDAY" />
+                  <button type="submit" disabled={customer.communicationOptIn === false || (!customer.whatsappNumber && !customer.phone)} className="rounded-md border px-3 py-2 text-sm transition-all hover:-translate-y-0.5 hover:bg-muted active:scale-95 disabled:cursor-not-allowed disabled:opacity-50">
+                    Prepare Birthday WhatsApp
+                  </button>
+                </form>
+              )}
+              {customer.anniversaryDate && (
+                <form action="/api/customers/events/whatsapp-launch" method="POST" target="_blank">
+                  <input type="hidden" name="customerId" value={customer.id} />
+                  <input type="hidden" name="eventType" value="ANNIVERSARY" />
+                  <button type="submit" disabled={customer.communicationOptIn === false || (!customer.whatsappNumber && !customer.phone)} className="rounded-md border px-3 py-2 text-sm transition-all hover:-translate-y-0.5 hover:bg-muted active:scale-95 disabled:cursor-not-allowed disabled:opacity-50">
+                    Prepare Anniversary WhatsApp
+                  </button>
+                </form>
+              )}
+            </div>
+            {customer.communicationOptIn === false && (
+              <p className="text-xs text-destructive">Customer has opted out of communication.</p>
+            )}
+            {!customer.whatsappNumber && !customer.phone && (
+              <p className="text-xs text-muted-foreground">Add a phone number to prepare a WhatsApp message.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4">
+          <CardHeader>
             <CardTitle>Business (Optional)</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2 md:grid-cols-3 text-sm">

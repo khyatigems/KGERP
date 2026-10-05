@@ -66,12 +66,13 @@ const DEFAULT_TEMPLATES: Array<{ key: string; title: string; body: string; chann
     body: [
       "Dear {name},",
       "",
-      "Thank you for choosing KhyatiGems™. Your invoice {invoice} dated {date} is ready for your records.",
-      "You can review it securely here: {invoice_link}",
-      "If you have any questions or need assistance, simply reply to this message—our team is happy to help.",
+      "Greetings from KhyatiGems. Thank you for your purchase on {date}.",
       "",
-      "Warm regards,",
-      "Team KhyatiGems™"
+      "Please find your invoice {invoice} attached for your records. The invoice PDF has been downloaded; please attach it to this WhatsApp message before sending.",
+      "{order_number_line}",
+      "You can also view your invoice here: {invoice_link}",
+      "",
+      "For assistance, reply to this message or visit www.khyatigems.com."
     ].join("\n"),
     channel: "WHATSAPP_WEB",
   },
@@ -91,6 +92,32 @@ const DEFAULT_TEMPLATES: Array<{ key: string; title: string; body: string; chann
   },
 ];
 
+const PREVIOUS_SALES_INVOICE_BODY = [
+  "Hi {name},",
+  "",
+  "Thank you for your purchase from KhyatiGems on {date}.",
+  "",
+  "Please find invoice {invoice} attached. I have downloaded the invoice PDF; please attach it here before sending.",
+  "{order_number_line}",
+  "Invoice link: {invoice_link}",
+  "",
+  "Thank you for choosing KhyatiGems.",
+  "",
+  "Warm regards,",
+  "Team KhyatiGems"
+].join("\n");
+
+const LEGACY_SALES_INVOICE_BODY = [
+  "Dear {name},",
+  "",
+  "Thank you for choosing KhyatiGems™. Your invoice {invoice} dated {date} is ready for your records.",
+  "You can review it securely here: {invoice_link}",
+  "If you have any questions or need assistance, simply reply to this message—our team is happy to help.",
+  "",
+  "Warm regards,",
+  "Team KhyatiGems™"
+].join("\n");
+
 async function ensureDefaultMessageTemplates() {
   try {
     await ensureBillfreePhase1Schema();
@@ -101,7 +128,20 @@ async function ensureDefaultMessageTemplates() {
     const existingKeys = new Set((existing || []).map((row) => row.key));
 
     for (const template of DEFAULT_TEMPLATES) {
-      if (existingKeys.has(template.key)) continue;
+      if (existingKeys.has(template.key)) {
+        if (template.key === "sales_invoice") {
+          await prisma.$executeRawUnsafe(
+            `UPDATE "MessageTemplate" SET body = ?, updatedAt = CURRENT_TIMESTAMP
+             WHERE key = ? AND channel = ? AND body IN (?, ?)`,
+            template.body,
+            template.key,
+            template.channel,
+            LEGACY_SALES_INVOICE_BODY,
+            PREVIOUS_SALES_INVOICE_BODY,
+          );
+        }
+        continue;
+      }
       await prisma.$executeRawUnsafe(
         `INSERT INTO "MessageTemplate" (id, key, title, body, channel, isActive, createdAt, updatedAt)
          VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)` ,
@@ -180,4 +220,3 @@ export async function toggleMessageTemplate(id: string, active: boolean) {
   revalidatePath("/settings/message-templates");
   return { success: true };
 }
-

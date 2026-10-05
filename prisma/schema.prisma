@@ -941,9 +941,15 @@ model FollowUp {
   id           String    @id
   invoiceId    String
   date         DateTime  @default(now())
+  channel      String    @default("CALL")
   action       String?
   note         String?
   promisedDate DateTime?
+  status       String    @default("OPEN")
+  completedAt  DateTime?
+  cancelledAt  DateTime?
+  rescheduledTo DateTime?
+  updatedAt    DateTime  @updatedAt
   createdById  String?   @map("createdBy")
   createdAt    DateTime  @default(now())
 
@@ -1896,23 +1902,61 @@ model EmailLog {
   bcc               String?
   subject           String
   bodyRef           String?
+  bodyHtml          String?
+  bodyText          String?
+  payloadJson       String?
+  retryHistoryJson  String?
+  idempotencyKey    String?   @unique
+  threadId          String?
+  messageId         String?
+  inReplyTo         String?
+  referencesJson    String?
   emailType         String?
   direction         String    @default("OUTBOUND")
   provider          String?
   providerMessageId String?
   status            String    @default("DRAFT")
+  attemptCount      Int       @default(0)
+  lastAttemptAt     DateTime?
+  nextRetryAt       DateTime?
+  lastError         String?
+  failureCode       String?
+  processingStartedAt DateTime?
+  queuedAt            DateTime?
   sentAt            DateTime?
   deliveredAt       DateTime?
   openedAt          DateTime?
+  bouncedAt         DateTime?
   failedAt          DateTime?
+  cancelledAt       DateTime?
+  isRead            Boolean   @default(true)
+  readAt            DateTime?
   errorMessage      String?
   attachmentsJson   String?
+  receivedAt        DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
   @@index([customerId])
   @@index([orderId])
   @@index([status])
+  @@index([status, nextRetryAt])
+  @@index([threadId, createdAt])
+  @@index([isRead, direction, createdAt])
+  @@index([messageId])
   @@index([providerMessageId])
   @@index([createdAt])
+}
+
+model EmailProviderEvent {
+  id                String   @id
+  eventId           String   @unique
+  communicationId   String
+  providerMessageId String
+  eventType         String
+  occurredAt        DateTime
+  receivedAt        DateTime @default(now())
+
+  @@index([communicationId, occurredAt])
+  @@index([providerMessageId])
 }

@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from "next/link";
 import { CalendarDays, MessageCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,16 +92,14 @@ export default function CustomerEventsClientPage({
                   <span>Last Purchase: {e.lastPurchaseDate ? formatDate(e.lastPurchaseDate) : "-"}</span>
                 </div>
               </div>
-              <Button asChild>
-                <a
-                  href={`/api/customers/events/whatsapp-launch?customerId=${encodeURIComponent(e.customerId)}&eventType=${encodeURIComponent(e.eventType)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
+              <form action="/api/customers/events/whatsapp-launch" method="POST" target="_blank">
+                <input type="hidden" name="customerId" value={e.customerId} />
+                <input type="hidden" name="eventType" value={e.eventType} />
+                <Button type="submit">
                   <MessageCircle className="mr-2 h-4 w-4" />
                   Send WhatsApp
-                </a>
-              </Button>
+                </Button>
+              </form>
             </CardContent>
           </Card>
         ))}

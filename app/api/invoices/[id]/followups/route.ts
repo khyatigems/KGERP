@@ -1,47 +1,100 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-logger";
+import { ensureFollowUpSchema, prisma } from "@/lib/prisma";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 
-export const dynamic = "force-dynamic";
+const CHANNELS = ["CALL", "EMAIL", "WHATSAPP"] as const;
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.RECEIVABLES_VIEW)) {
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.RECEIVABLES_VIEW))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  await ensureFollowUpSchema();
   const { id } = await params;
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; date: string; action: string | null; note: string | null; promisedDate: string | null; createdBy: string | null }>>(
-    `SELECT id, date, action, note, promisedDate, createdBy FROM FollowUp WHERE invoiceId = ? ORDER BY date DESC`,
-    id
-  );
-  return NextResponse.json({ items: rows || [] });
+  const items = await prisma.followUp.findMany({
+    where: { invoiceId: id },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    include: { createdBy: { select: { name: true } } },
+  });
+  return NextResponse.json({
+    items: items.map((item) => ({
+      id: item.id,
+      date: item.date,
+      channel: item.channel,
+      action: item.action,
+      note: item.note,
+      promisedDate: item.promisedDate,
+      status: item.status,
+      completedAt: item.completedAt,
+      cancelledAt: item.cancelledAt,
+      rescheduledTo: item.rescheduledTo,
+      createdBy: item.createdBy?.name ?? null,
+    })),
+  });
 }
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.RECEIVABLES_MANAGE)) {
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.RECEIVABLES_MANAGE))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const { id } = await params;
-  const body = await request.json().catch(() => ({}));
-  const { date, action, note, promisedDate } = body || {};
-  try {
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO FollowUp (id, invoiceId, date, action, note, promisedDate, createdBy, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      crypto.randomUUID(),
-      id,
-      date || new Date().toISOString(),
-      action || null,
-      note || null,
-      promisedDate || null,
-      session.user.id
-    );
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Failed to add follow-up" }, { status: 500 });
+  const body: unknown = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "A valid follow-up is required" }, { status: 400 });
   }
+  const input = body as Record<string, unknown>;
+  const channel = typeof input.action === "string" ? input.action.toUpperCase() : "CALL";
+  if (!CHANNELS.includes(channel as typeof CHANNELS[number])) {
+    return NextResponse.json({ error: "Choose CALL, EMAIL, or WHATSAPP" }, { status: 400 });
+  }
+  const note = typeof input.note === "string" ? input.note.trim() : "";
+  if (note.length > 5000) return NextResponse.json({ error: "Follow-up notes are too long" }, { status: 413 });
+  const date = typeof input.date === "string" ? new Date(input.date) : new Date();
+  const promisedDate = typeof input.promisedDate === "string" && input.promisedDate
+    ? new Date(input.promisedDate)
+    : null;
+  if (Number.isNaN(date.getTime()) || (promisedDate && Number.isNaN(promisedDate.getTime()))) {
+    return NextResponse.json({ error: "Follow-up dates must be valid" }, { status: 400 });
+  }
+
+  await ensureFollowUpSchema();
+  const { id: invoiceId } = await params;
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { id: true } });
+  if (!invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+
+  const followUp = await prisma.followUp.create({
+    data: {
+      id: crypto.randomUUID(),
+      invoiceId,
+      date,
+      channel,
+      action: channel,
+      note: note || null,
+      promisedDate,
+      status: "OPEN",
+      createdById: session.user.id,
+    },
+  });
+  await logActivity({
+    module: "communication",
+    action: "followup.create",
+    entityType: "FollowUp",
+    entityId: followUp.id,
+    referenceId: invoiceId,
+    userId: session.user.id,
+    userName: session.user.name ?? undefined,
+    description: JSON.stringify({ channel, status: "OPEN", invoiceId }),
+  });
+  return NextResponse.json({ success: true, item: followUp }, { status: 201 });
 }
