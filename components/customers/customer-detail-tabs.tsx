@@ -213,25 +213,37 @@ export function CustomerDetailTabs({ customer, stats, recentInvoices }: { custom
               <p className="text-sm text-muted-foreground">No purchase history found.</p>
             ) : (
               <div className="space-y-4">
-                {recentInvoices.map((inv) => (
-                  <div key={inv.id as string} className="flex justify-between items-start border-b pb-4 last:border-0 last:pb-0">
-                    <div>
-                      <Link href={`/invoices/${inv.id}`} className="font-medium text-primary hover:underline">
-                        {inv.invoiceNumber as string}
-                      </Link>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {formatDate((inv.invoiceDate || inv.createdAt) as Date)}
+                {recentInvoices.map((inv) => {
+                  const isExportInvoice = ["EXPORT_INVOICE", "EXPORT"].includes(String(inv.invoiceType).toUpperCase());
+                  const amount = isExportInvoice
+                    ? Number(inv.totalInrValue ?? inv.totalAmount)
+                    : Number(inv.totalAmount);
+                  const saleItems = (inv.sales as Record<string, unknown>[] || [])
+                    .map((sale) => (sale.inventory as Record<string, unknown>)?.itemName as string)
+                    .filter(Boolean);
+                  const legacyItemName = ((inv.legacySale as Record<string, unknown> | null)?.inventory as Record<string, unknown> | undefined)?.itemName as string | undefined;
+
+                  return (
+                    <div key={inv.id as string} className="flex justify-between items-start border-b pb-4 last:border-0 last:pb-0">
+                      <div>
+                        <Link href={`/invoices/${inv.id}`} className="font-medium text-primary hover:underline">
+                          {inv.invoiceNumber as string}
+                        </Link>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {formatDate((inv.invoiceDate || inv.createdAt) as Date)}
+                          {isExportInvoice && <span className="ml-2">Export · INR</span>}
+                        </div>
+                        <div className="text-sm mt-1">
+                          {saleItems.join(", ") || legacyItemName || "No items"}
+                        </div>
                       </div>
-                      <div className="text-sm mt-1">
-                        {((inv.sales as Record<string, unknown>[]) || []).map((s) => (s.inventory as Record<string, unknown>)?.itemName as string).filter(Boolean).join(", ") || "No items"}
+                      <div className="text-right">
+                        <div className="font-semibold">{formatCurrency(amount)}</div>
+                        <Badge variant="outline" className="mt-1">{inv.paymentStatus as string}</Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-semibold">{formatCurrency(inv.totalAmount as number)}</div>
-                      <Badge variant="outline" className="mt-1">{inv.paymentStatus as string}</Badge>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

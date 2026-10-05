@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import crypto from "crypto";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure
 import { CustomerDetailTabs } from "@/components/customers/customer-detail-tabs";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
+import { getCustomerPurchaseStats } from "@/lib/customer-purchase-stats";
 
 export const metadata: Metadata = {
   title: "Customer Details | KhyatiGems™",
@@ -80,32 +80,15 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
     }
   })();
 
-  const rawStatsRow = await prisma.$queryRawUnsafe<Array<{
-    totalRevenue: unknown;
-    orderCount: unknown;
-    highestOrder: unknown;
-  }>>(`
-    SELECT 
-      SUM(s.netAmount) as totalRevenue,
-      COUNT(DISTINCT s.invoiceId) as orderCount,
-      MAX(i.totalAmount) as highestOrder
-    FROM "Sale" s
-    JOIN "Invoice" i ON s.invoiceId = i.id
-    WHERE s.customerId = ? AND s.platform != 'REPLACEMENT'
-  `, id).catch(() => []);
-
-  const toNumber = (val: unknown): number => {
-    if (typeof val === "bigint") return Number(val);
-    if (typeof val === "number") return val;
-    if (typeof val === "string") return Number(val) || 0;
-    return 0;
+  const rawStat = (await getCustomerPurchaseStats(id))[0] || {
+    totalRevenue: 0,
+    orderCount: 0,
+    highestOrder: 0,
   };
-
-  const rawStat = rawStatsRow[0] || { totalRevenue: 0, orderCount: 0, highestOrder: 0 };
   const stat = {
-    totalRevenue: toNumber(rawStat.totalRevenue),
-    orderCount: toNumber(rawStat.orderCount),
-    highestOrder: toNumber(rawStat.highestOrder),
+    totalRevenue: rawStat.totalRevenue,
+    orderCount: rawStat.orderCount,
+    highestOrder: rawStat.highestOrder,
   };
   
   const aov = stat.orderCount > 0 ? stat.totalRevenue / stat.orderCount : 0;
@@ -118,10 +101,20 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
   else if (stat.totalRevenue >= customerSettings.goldThreshold) tier = "Gold";
 
   const recentInvoices = await prisma.invoice.findMany({
-    where: { sales: { some: { customerId: id } }, status: { not: "DRAFT" } },
+    where: {
+      OR: [
+        { sales: { some: { customerId: id } } },
+        { legacySale: { is: { customerId: id } } },
+        { quotation: { is: { customerId: id } } },
+      ],
+      status: { not: "DRAFT" },
+    },
     orderBy: { invoiceDate: "desc" },
     take: 10,
-    include: { sales: { include: { inventory: { select: { itemName: true } } } } },
+    include: {
+      sales: { include: { inventory: { select: { itemName: true } } } },
+      legacySale: { include: { inventory: { select: { itemName: true } } } },
+    },
   });
 
   const loyaltyRows = await prisma.$queryRawUnsafe<Array<{ points: number }>>(

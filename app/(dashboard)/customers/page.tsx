@@ -24,6 +24,7 @@ import { auth } from "@/lib/auth";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { redirect } from "next/navigation";
+import { getCustomerPurchaseStats } from "@/lib/customer-purchase-stats";
 
 export const metadata: Metadata = {
   title: "Customers | KhyatiGems™",
@@ -62,39 +63,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const customerSettingsRow = await prisma.setting.findUnique({ where: { key: "customer_settings" } });
   const customerSettings = customerSettingsRow ? JSON.parse(customerSettingsRow.value) : { platinumThreshold: 100000, goldThreshold: 50000, highValueAov: 25000 };
 
-  const rawCustomerStatsRows = await prisma.$queryRawUnsafe<Array<{
-    customerId: string;
-    totalRevenue: unknown;
-    orderCount: unknown;
-    highestOrder: unknown;
-    lastOrderDate: string;
-  }>>(`
-    SELECT 
-      s.customerId,
-      CAST(SUM(s.netAmount) AS REAL) as totalRevenue,
-      CAST(COUNT(DISTINCT s.invoiceId) AS INTEGER) as orderCount,
-      CAST(MAX(i.totalAmount) AS REAL) as highestOrder,
-      MAX(i.invoiceDate) as lastOrderDate
-    FROM "Sale" s
-    JOIN "Invoice" i ON s.invoiceId = i.id
-    WHERE s.customerId IS NOT NULL AND s.platform != 'REPLACEMENT'
-    GROUP BY s.customerId
-  `).catch(() => []);
-
-  const toNumber = (val: unknown): number => {
-    if (typeof val === "bigint") return Number(val);
-    if (typeof val === "number") return val;
-    if (typeof val === "string") return Number(val) || 0;
-    return 0;
-  };
-
-  const customerStatsRows = rawCustomerStatsRows.map(r => ({
-    customerId: r.customerId,
-    totalRevenue: toNumber(r.totalRevenue),
-    orderCount: toNumber(r.orderCount),
-    highestOrder: toNumber(r.highestOrder),
-    lastOrderDate: r.lastOrderDate,
-  }));
+  const customerStatsRows = await getCustomerPurchaseStats();
 
   const statsMap = new Map<string, { totalRevenue: number; orderCount: number; highestOrder: number; lastOrderDate: string }>();
   let globalRevenue = 0;
