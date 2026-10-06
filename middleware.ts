@@ -25,6 +25,7 @@ export default auth((req) => {
     pathname.startsWith("/login") ||
     pathname.startsWith("/verify") ||
     pathname.startsWith("/preview") ||
+    pathname === "/manifest.webmanifest" || // PWA manifest — never auth-gated (HTML redirect breaks the browser parser)
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/api/serials/verify") ||
     pathname.startsWith("/api/skus") ||

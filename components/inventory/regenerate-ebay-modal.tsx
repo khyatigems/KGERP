@@ -50,15 +50,34 @@ export function RegenerateEbayModal({
 
   const pollTaskStatus = async (taskId: string) => {
     let isFinished = false;
+    let consecutiveFailures = 0;
+    const MAX_RETRIES = 3;
     while (!isFinished) {
       const response = await fetch(
         `/api/inventory/regenerate-ebay?taskId=${encodeURIComponent(taskId)}`
       );
 
       if (!response.ok) {
-        throw new Error("Failed to poll regeneration status");
+        const body = await response.json().catch(() => null);
+        const serverMessage = body?.error || body?.message;
+
+        // 404/5xx can be transient (task row not visible yet on the instance
+        // handling this poll) - retry a few times before giving up.
+        const isTransient = response.status === 404 || response.status >= 500;
+        if (isTransient && consecutiveFailures < MAX_RETRIES) {
+          consecutiveFailures += 1;
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+          continue;
+        }
+
+        throw new Error(
+          serverMessage
+            ? `${serverMessage} (HTTP ${response.status})`
+            : "Failed to poll regeneration status"
+        );
       }
 
+      consecutiveFailures = 0;
       const result = await response.json();
       if (!result.success) {
         throw new Error(result.error || "Failed to read regeneration status");

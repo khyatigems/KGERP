@@ -22,16 +22,18 @@ interface RegenerationTask {
   selectionMode?: "all" | "selected"; // Indicates if regenerating all or selected items
 }
 
+// Row shape returned by getTask(): numeric columns are cast to TEXT so the
+// SQLite driver hands them back as strings instead of unserializable BigInts.
 type RegenerationTaskRow = {
   id: string;
   status: RegenerationTask["status"];
-  total: number;
-  updated: number;
-  failed: number;
-  pending: number;
+  total: string | number;
+  updated: string | number;
+  failed: string | number;
+  pending: string | number;
   errors: string | null;
-  startTime: number;
-  endTime: number | null;
+  startTime: string | number;
+  endTime: string | number | null;
   message: string | null;
   selectedItemIds?: string | null;
   selectionMode?: string | null;
@@ -50,6 +52,14 @@ let regenerationTasksSchemaEnsured = false;
 let regenerationTasksSchemaPromise: Promise<void> | null = null;
 let inventoryDescriptionSchemaEnsured = false;
 let inventoryDescriptionSchemaPromise: Promise<void> | null = null;
+
+// Columns added after the table was first created in existing databases.
+// CREATE TABLE IF NOT EXISTS is a no-op on those databases, so they must be
+// added explicitly with ALTER TABLE (otherwise every INSERT fails).
+const REGENERATION_TASK_EXTRA_COLUMNS: Array<[string, string]> = [
+  ["selectedItemIds", "TEXT"],
+  ["selectionMode", "TEXT"],
+];
 
 async function ensureRegenerationTasksSchema() {
   if (regenerationTasksSchemaEnsured) return;
@@ -73,6 +83,20 @@ async function ensureRegenerationTasksSchema() {
         createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    const columns = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
+      `PRAGMA table_info("regeneration_tasks")`
+    );
+    const existing = new Set((columns || []).map((column) => column.name));
+    for (const [name, type] of REGENERATION_TASK_EXTRA_COLUMNS) {
+      if (!existing.has(name)) {
+        console.log(`[Regenerate] Adding missing column regeneration_tasks.${name}`);
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "regeneration_tasks" ADD COLUMN "${name}" ${type};`
+        );
+      }
+    }
+
     regenerationTasksSchemaEnsured = true;
   })().finally(() => {
     regenerationTasksSchemaPromise = null;
@@ -109,17 +133,17 @@ async function ensureInventoryDescriptionSchema() {
 
 // Helper to interact with regeneration tasks
 async function saveTask(task: RegenerationTask) {
+  // Always keep the task in memory first so polling works even if the DB
+  // write fails (regeneration runs in-process and is short-lived).
+  regenerationTasks.set(task.id, task);
+
   try {
     await ensureRegenerationTasksSchema();
-    console.log(`[Regenerate] Saving task to memory: ${task.id}`);
-    // Save to both in-memory and database for redundancy
-    regenerationTasks.set(task.id, task);
-    console.log(`[Regenerate] Task in memory size: ${regenerationTasks.size}`);
-    
+    console.log(`[Regenerate] Saving task to database: ${task.id}`);
+
     const errorsJson = JSON.stringify(task.errors);
     const selectedItemIdsJson = task.selectedItemIds ? JSON.stringify(task.selectedItemIds) : null;
-    console.log(`[Regenerate] Saving task to database: ${task.id}`);
-    
+
     await prisma.$executeRawUnsafe(
       `INSERT OR REPLACE INTO regeneration_tasks 
        (id, status, total, updated, failed, pending, errors, startTime, endTime, message, selectedItemIds, selectionMode)
@@ -140,9 +164,28 @@ async function saveTask(task: RegenerationTask) {
     console.log(`[Regenerate] Task saved to database: ${task.id}`);
   } catch (error) {
     console.error("[Regenerate] Failed to save task to DB:", error);
-    console.log(`[Regenerate] But task exists in memory: ${task.id}`);
-    // Fallback: keep in memory even if DB save fails
-    regenerationTasks.set(task.id, task);
+    // Retry with the original column set in case the table predates the
+    // selectedItemIds/selectionMode columns and could not be upgraded.
+    try {
+      await prisma.$executeRawUnsafe(
+        `INSERT OR REPLACE INTO regeneration_tasks 
+         (id, status, total, updated, failed, pending, errors, startTime, endTime, message)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        task.id,
+        task.status,
+        task.total,
+        task.updated,
+        task.failed,
+        task.pending,
+        JSON.stringify(task.errors),
+        task.startTime,
+        task.endTime || null,
+        task.message || null
+      );
+      console.log(`[Regenerate] Task saved with base columns: ${task.id}`);
+    } catch (fallbackError) {
+      console.error("[Regenerate] Fallback save failed, task kept in memory only:", fallbackError);
+    }
   }
 }
 
@@ -155,35 +198,58 @@ async function getTask(taskId: string): Promise<RegenerationTask | null> {
       console.log(`[Regenerate] Task found in memory: ${taskId}`);
       return cached;
     }
-    
-    // Try database - use queryRaw to get results
+
+    // Integer columns are cast to TEXT: the SQLite driver returns 64-bit
+    // integers (epoch millis exceed int32) as BigInt, which Prisma cannot
+    // serialize and which used to make every DB read throw.
     const dbResult = await prisma.$queryRawUnsafe<RegenerationTaskRow[]>(
-      `SELECT * FROM regeneration_tasks WHERE id = ?`,
+      `SELECT id, status,
+              CAST(total AS TEXT) AS total,
+              CAST(updated AS TEXT) AS updated,
+              CAST(failed AS TEXT) AS failed,
+              CAST(pending AS TEXT) AS pending,
+              errors,
+              CAST(startTime AS TEXT) AS startTime,
+              CAST(endTime AS TEXT) AS endTime,
+              message, selectedItemIds, selectionMode
+       FROM regeneration_tasks WHERE id = ?`,
       taskId
     );
-    
+
     if (!dbResult || dbResult.length === 0) {
       console.log(`[Regenerate] Task not found in DB: ${taskId}`);
       return null;
     }
-    
+
     const row = dbResult[0];
-    const selectedItemIds = row.selectedItemIds ? JSON.parse(row.selectedItemIds) : undefined;
+    const toNumber = (value: unknown, fallback = 0): number => {
+      const parsed = typeof value === "number" ? value : Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    const parseJson = <T>(value: unknown, fallback: T): T => {
+      if (typeof value !== "string" || !value) return fallback;
+      try {
+        return JSON.parse(value) as T;
+      } catch {
+        return fallback;
+      }
+    };
+
     const task: RegenerationTask = {
       id: row.id,
       status: row.status,
-      total: row.total,
-      updated: row.updated,
-      failed: row.failed,
-      pending: row.pending,
-      errors: typeof row.errors === "string" ? JSON.parse(row.errors || "[]") : [],
-      startTime: row.startTime,
-      endTime: row.endTime ?? undefined,
+      total: toNumber(row.total),
+      updated: toNumber(row.updated),
+      failed: toNumber(row.failed),
+      pending: toNumber(row.pending),
+      errors: parseJson(row.errors, []),
+      startTime: toNumber(row.startTime),
+      endTime: row.endTime === null || row.endTime === undefined ? undefined : toNumber(row.endTime),
       message: row.message ?? undefined,
-      selectedItemIds,
+      selectedItemIds: parseJson<string[] | undefined>(row.selectedItemIds, undefined),
       selectionMode: (row.selectionMode as "all" | "selected") ?? undefined,
     };
-    
+
     // Cache in memory for next lookup
     regenerationTasks.set(taskId, task);
     console.log(`[Regenerate] Task found in DB and cached: ${taskId}`);
@@ -297,7 +363,6 @@ async function processRegenerationBatch(taskId: string) {
     
     if (task.selectedItemIds && task.selectedItemIds.length > 0) {
       // Regenerate selected items only
-      const itemsAlreadyProcessed = task.selectedItemIds.slice(0, processed);
       const remainingItems = task.selectedItemIds.slice(processed, processed + REGENERATION_BATCH_SIZE);
       
       itemsQuery = {
