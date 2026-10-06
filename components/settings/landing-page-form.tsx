@@ -12,9 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, History, RotateCcw, Save } from "lucide-react";
+import { Plus, Trash2, History, RotateCcw, Save, Sparkles, ChevronUp, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
-import { saveLandingPageSettings, getVersions, rollbackVersion, addWhatsNewEntry, getWhatsNewEntries, deleteWhatsNewEntry } from "@/app/(dashboard)/settings/landing-page/actions";
+import { saveLandingPageSettings, getVersions, rollbackVersion, addWhatsNewEntry, getWhatsNewEntries, deleteWhatsNewEntry, generateWhatsNewDraft } from "@/app/(dashboard)/settings/landing-page/actions";
 import { LandingPageSettings, LandingPageVersion } from "@prisma/client";
 
 export type ExtendedLandingPageSettings = Omit<LandingPageSettings, "highlights"> & {
@@ -63,6 +63,7 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
   const [whatsNewEntries, setWhatsNewEntries] = useState<WhatsNewEntry[]>([]);
   const [newWhatsNewMessage, setNewWhatsNewMessage] = useState("");
   const [loadingWhatsNew, setLoadingWhatsNew] = useState(false);
+  const [generatingWhatsNewDraft, setGeneratingWhatsNewDraft] = useState(false);
 
   const form = useForm<ConfigFormValues>({
     resolver: zodResolver(configSchema) as Resolver<ConfigFormValues>,
@@ -103,10 +104,24 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
     form.setValue("highlights", newHighlights);
   };
 
+  const moveHighlight = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= highlights.length) return;
+    const reordered = [...highlights];
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+    form.setValue("highlights", reordered, { shouldDirty: true, shouldValidate: true });
+  };
+
   const onSubmit = async (data: ConfigFormValues) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await saveLandingPageSettings(data as any);
+      const result = await saveLandingPageSettings({
+        subtitle: data.subtitle,
+        accessNotice: data.accessNotice,
+        highlightsEnabled: data.highlightsEnabled,
+        whatsNewEnabled: data.whatsNewEnabled,
+        highlights: data.highlights,
+        whatsNewText: data.whatsNewText,
+      });
       if (result.success) {
         toast.success("Landing page updated successfully.");
       } else {
@@ -120,9 +135,33 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
 
   const loadHistory = async () => {
     setIsLoadingHistory(true);
-    const versions = await getVersions();
-    setHistory(versions);
-    setIsLoadingHistory(false);
+    try {
+      const versions = await getVersions();
+      setHistory(versions);
+    } catch (error) {
+      console.error("Failed to load landing page version history:", error);
+      toast.error("Could not load version history.");
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const draftWhatsNewMessage = async () => {
+    setGeneratingWhatsNewDraft(true);
+    try {
+      const result = await generateWhatsNewDraft();
+      if (result.success) {
+        setNewWhatsNewMessage(result.draft);
+        toast.success("Local draft ready. Review it before adding.");
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error("Failed to draft What's New update:", error);
+      toast.error("Could not draft an update.");
+    } finally {
+      setGeneratingWhatsNewDraft(false);
+    }
   };
 
   const handleRollback = async () => {
@@ -188,18 +227,40 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
                     />
                     <Label>Enable Highlights</Label>
                 </div>
-                <p className="text-xs text-muted-foreground">Short internal capability highlights shown on the login page.</p>
+                <p className="text-xs text-muted-foreground">Use the arrows to change the display order of highlights on the login page. Save to publish the new order.</p>
                 
                 {highlightsEnabled && (
                     <div className="space-y-2">
                         {highlights.map((highlight, index) => (
                             <div key={index} className="flex items-center gap-2">
-                                <span className="text-muted-foreground">•</span>
+                                <span className="w-5 shrink-0 text-center text-xs font-medium text-muted-foreground">{index + 1}</span>
                                 <Input 
                                     value={highlight} 
                                     onChange={(e) => updateHighlight(index, e.target.value)} 
                                     placeholder="Enter highlight text" 
                                 />
+                                <div className="flex shrink-0">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={`Move highlight ${index + 1} up`}
+                                        disabled={index === 0}
+                                        onClick={() => moveHighlight(index, -1)}
+                                    >
+                                        <ChevronUp className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        aria-label={`Move highlight ${index + 1} down`}
+                                        disabled={index === highlights.length - 1}
+                                        onClick={() => moveHighlight(index, 1)}
+                                    >
+                                        <ChevronDown className="h-4 w-4" />
+                                    </Button>
+                                </div>
                                 <Button type="button" variant="ghost" size="icon" onClick={() => removeHighlight(index)}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
@@ -232,12 +293,24 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
                 </div>
                 {whatsNewEnabled && (
                     <div className="space-y-3">
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             <Input
+                                className="min-w-52 flex-1"
                                 value={newWhatsNewMessage}
                                 onChange={(e) => setNewWhatsNewMessage(e.target.value)}
                                 placeholder="What changed? E.g. 'Added bulk invoice printing'"
                             />
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={generatingWhatsNewDraft || loadingWhatsNew}
+                                onClick={draftWhatsNewMessage}
+                                title="Draft from recent ERP activity on this server; no external AI service is used"
+                            >
+                                <Sparkles className="mr-1.5 h-4 w-4" />
+                                {generatingWhatsNewDraft ? "Drafting..." : "Draft locally"}
+                            </Button>
                             <Button
                                 type="button"
                                 size="sm"
@@ -261,6 +334,9 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
                                 <Plus className="h-4 w-4" />
                             </Button>
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                            Creates a short suggestion from recent audit activity. Review it before adding; no data is sent to an AI service.
+                        </p>
                         {whatsNewEntries.length > 0 && (
                             <div className="space-y-1.5 border rounded-md p-3">
                                 {whatsNewEntries.map((entry) => (

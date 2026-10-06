@@ -58,14 +58,9 @@ const widgetRegistry: Record<string, WidgetRenderer> = {
       <WorkQueue {...props} />
     </div>
   ),
-  "sync-gemtypes": (props) => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <MarketplaceSyncHealth />
-      {props.gemTypes?.length > 0 && <TopSellingGemTypes data={props.gemTypes} />}
-    </div>
-  ),
+  "connections-status": () => <ConnectionsStatusWidget />,
   notes: () => <QuickNotes />,
-  "matched-pairs": (props) => <MatchedPairsWidget size={props.size as string} />,
+  "matched-pairs": () => <MatchedPairsSummaryWidget />,
 };
 
 import { DashboardHeader } from "./dashboard-header";
@@ -74,12 +69,11 @@ import { MarketplaceOverview } from "./marketplace-overview";
 import { ActivityFeed } from "./activity-feed";
 import { RevenueTrend } from "./revenue-trend";
 import { InventoryHealth } from "./inventory-health";
-import { MarketplaceSyncHealth } from "./marketplace-sync-health";
 import { WorkQueue } from "./work-queue";
 import { TopSellingCategories } from "./top-selling-categories";
-import { TopSellingGemTypes } from "./top-selling-gem-types";
 import { QuickNotes } from "./quick-notes";
-import { MatchedPairsWidget } from "./matched-pairs-widget";
+import { ConnectionsStatusWidget } from "./connections-status-widget";
+import { MatchedPairsSummaryWidget } from "./matched-pairs-summary-widget";
 import { getDashboardLayout, saveDashboardLayout } from "@/app/actions/dashboard-layout";
 import { toast } from "sonner";
 
@@ -147,7 +141,7 @@ function DraggableWidget({
       ref={setNodeRef}
       style={{ ...style, overflow: "visible" }}
       className={cn(
-        "rounded-xl border bg-card p-4 transition-all duration-200",
+        "premium-card rounded-xl border bg-card p-4 transition-all duration-200",
         isEditMode
           ? "border-dashed border-primary/30 hover:border-primary/60 hover:shadow-md"
           : "border-border hover:shadow-lg hover:border-primary/30",
@@ -228,7 +222,7 @@ function DraggableWidget({
             </div>
           )}
 
-          {!disabled && (
+          {!disabled && onSizeChange && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-7 w-7">

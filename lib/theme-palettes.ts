@@ -14,10 +14,38 @@ export const THEME_PALETTES = [
   { id: "aurora-prism", label: "Aurora Prism", swatch: "#0891b2" },
 ] as const;
 
+export const THEME_PALETTE_OPTIONS = [
+  THEME_PALETTES[0],
+  THEME_PALETTES[7],
+  THEME_PALETTES[8],
+  THEME_PALETTES[9],
+  THEME_PALETTES[10],
+  THEME_PALETTES[11],
+  THEME_PALETTES[6],
+] as const;
+
 export type ThemePalette = (typeof THEME_PALETTES)[number]["id"];
 
 export function isThemePalette(value: unknown): value is ThemePalette {
   return THEME_PALETTES.some((palette) => palette.id === value);
+}
+
+export function getThemePaletteOptionId(palette: ThemePalette) {
+  switch (palette) {
+    case "ocean":
+    case "aurora-prism":
+      return "sapphire-facet";
+    case "emerald":
+      return "emerald-crystal";
+    case "royal":
+      return "amethyst-prism";
+    case "sand":
+      return "citrine-gold";
+    case "rose":
+      return "ruby-luxe";
+    default:
+      return palette;
+  }
 }
 
 const RUNTIME_PALETTE_VARIABLES = [
@@ -28,6 +56,11 @@ const RUNTIME_PALETTE_VARIABLES = [
   "--ring",
   "--sidebar-primary",
   "--sidebar-ring",
+  "--chart-1",
+  "--chart-2",
+  "--chart-3",
+  "--chart-4",
+  "--chart-5",
 ] as const;
 
 export function getThemePaletteVariables(palette: ThemePalette): Record<string, string> {
@@ -42,6 +75,11 @@ export function getThemePaletteVariables(palette: ThemePalette): Record<string, 
     "--ring": swatch,
     "--sidebar-primary": swatch,
     "--sidebar-ring": swatch,
+    "--chart-1": swatch,
+    "--chart-2": `color-mix(in srgb, ${swatch} 68%, #0f766e)`,
+    "--chart-3": `color-mix(in srgb, ${swatch} 68%, #d97706)`,
+    "--chart-4": `color-mix(in srgb, ${swatch} 68%, #7c3aed)`,
+    "--chart-5": `color-mix(in srgb, ${swatch} 68%, #be123c)`,
   };
 }
 

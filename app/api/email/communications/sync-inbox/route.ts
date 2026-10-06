@@ -11,9 +11,15 @@ export async function POST() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const result = await pollZohoInbox();
+  const syncDescription = result.error
+    ? `Inbox synchronization failed: ${result.found} found, ${result.failed} failed`
+    : `Inbox synchronized: ${result.found} found, ${result.processed} imported, ${result.updated} updated, ${result.failed} failed`;
   await logActivity({
     module: "communication",
     action: "inbox.sync",
+    entityType: "Inbox",
+    entityIdentifier: `${result.found} found, ${result.processed} imported, ${result.updated} updated, ${result.failed} failed`,
+    description: syncDescription,
     userId: session.user.id,
     userName: session.user.name ?? undefined,
     metadata: result,

@@ -29,6 +29,15 @@ const actionColors: Record<string, string> = {
   EDIT: "bg-primary/10 text-primary dark:text-primary",
   DELETE: "bg-red-500/10 text-red-500 dark:text-red-400",
   SYNC: "bg-purple-500/10 text-purple-500 dark:text-purple-400",
+  "SYNC PARTIAL": "bg-amber-500/10 text-amber-500 dark:text-amber-400",
+  "SYNC FAILED": "bg-red-500/10 text-red-500 dark:text-red-400",
+  SENT: "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400",
+  SCHEDULED: "bg-primary/10 text-primary",
+  DRAFT: "bg-primary/10 text-primary",
+  OPENED: "bg-primary/10 text-primary",
+  "SEND FAILED": "bg-red-500/10 text-red-500 dark:text-red-400",
+  "PAYMENT RESET": "bg-amber-500/10 text-amber-500 dark:text-amber-400",
+  "PAYMENT UPDATED": "bg-primary/10 text-primary",
   PRINT: "bg-amber-500/10 text-amber-500 dark:text-amber-400",
 };
 
@@ -38,6 +47,12 @@ const actionBg: Record<string, string> = {
   EDIT: "bg-primary",
   DELETE: "bg-red-500",
   SYNC: "bg-purple-500",
+  "SYNC PARTIAL": "bg-amber-500",
+  "SYNC FAILED": "bg-red-500",
+  SENT: "bg-emerald-500",
+  "SEND FAILED": "bg-red-500",
+  "PAYMENT RESET": "bg-amber-500",
+  "PAYMENT UPDATED": "bg-primary",
   PRINT: "bg-amber-500",
 };
 
@@ -98,7 +113,7 @@ export function ActivityFeed() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className={`inline-flex items-center rounded px-1 py-0.5 text-[9px] font-medium uppercase ${actionColor}`}>
-                      {activity.actionType?.replaceAll("_", " ") || "UNKNOWN"}
+                      {activity.actionType?.replaceAll("_", " ") || "ACTIVITY"}
                     </span>
                     <span className="text-xs font-medium text-foreground truncate">
                       {activity.entityType}

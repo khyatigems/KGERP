@@ -18,8 +18,7 @@ export async function GET() {
       return NextResponse.json(notes);
   } catch (error) {
       console.error("Notes fetch error:", error);
-      // Return empty array on error to prevent client-side mapping errors
-      return NextResponse.json([]);
+      return NextResponse.json({ error: "Failed to load dashboard notes" }, { status: 500 });
   }
 }
 

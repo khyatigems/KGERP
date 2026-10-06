@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { StickyNote, Plus, Edit3, Trash2 } from "lucide-react";
+import { StickyNote, Plus, Edit3, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { InlineLottieState, InlineLottieSpinner } from "@/components/ui/lottie";
 
 interface Note {
   id: string;
@@ -17,7 +16,13 @@ interface Note {
   createdAt: string;
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string): Promise<Note[]> => {
+  const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  if (!response.ok) throw new Error(`Failed to load notes (HTTP ${response.status})`);
+  const data: unknown = await response.json();
+  if (!Array.isArray(data)) throw new Error("The notes response was invalid");
+  return data as Note[];
+};
 
 const colorMap: Record<string, { darkBg: string; darkBorder: string; darkText: string; lightBg: string; lightBorder: string; lightText: string }> = {
   yellow: { darkBg: "dark:bg-amber-900/20", darkBorder: "dark:border-amber-700/30", darkText: "dark:text-amber-200", lightBg: "bg-amber-50", lightBorder: "border-amber-200", lightText: "text-amber-800" },
@@ -84,8 +89,6 @@ export function QuickNotes() {
     }
   };
 
-  if (error) return null;
-
   const sortedNotes = notes ? [...notes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [];
 
   return (
@@ -102,8 +105,15 @@ export function QuickNotes() {
         </Button>
       </div>
 
-      {isLoading ? (
-        <InlineLottieSpinner size={20} className="mx-auto" />
+      {error ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+          <p className="text-xs text-destructive">Quick Notes couldn&apos;t load. Check your connection and try again.</p>
+          <Button size="sm" variant="outline" onClick={() => void mutate()} className="h-7 shrink-0 gap-1.5 text-xs">
+            <RefreshCw className="h-3 w-3" /> Retry
+          </Button>
+        </div>
+      ) : isLoading ? (
+        <p className="py-3 text-center text-xs text-muted-foreground">Loading notes...</p>
       ) : (
         <div className="space-y-2">
           {isAdding && (
@@ -134,7 +144,15 @@ export function QuickNotes() {
           )}
 
           {sortedNotes.length === 0 && !isAdding && (
-            <InlineLottieState variant="empty" title="No notes yet" description="Click + to add your first note" size="sm" className="py-2" />
+            <div className="flex items-center gap-3 rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+                <StickyNote className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-xs font-medium text-foreground">No notes yet</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">Select + to add a note for your team.</p>
+              </div>
+            </div>
           )}
 
           {sortedNotes.map((note) => {

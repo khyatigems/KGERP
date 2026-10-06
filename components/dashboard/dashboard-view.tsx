@@ -55,9 +55,9 @@ export function DashboardView({ name }: { name?: string | null }) {
       { id: "header", title: "Dashboard Header", disabled: false, defaultOrder: 0 },
       { id: "health", title: "Business Health", defaultOrder: 1 },
       { id: "marketplace-activity", title: "Marketplace & Activity", defaultOrder: 2 },
-      { id: "revenue-inventory", title: "Revenue & Inventory", defaultOrder: 3 },
-      { id: "categories-workqueue", title: "Categories & Work Queue", defaultOrder: 4 },
-      { id: "sync-gemtypes", title: "Sync & Gem Types", defaultOrder: 5 },
+      { id: "connections-status", title: "Connections & Sync", defaultOrder: 3 },
+      { id: "revenue-inventory", title: "Revenue & Inventory", defaultOrder: 4 },
+      { id: "categories-workqueue", title: "Categories & Work Queue", defaultOrder: 5 },
       { id: "notes", title: "Quick Notes", defaultOrder: 6 },
       { id: "matched-pairs", title: "Matched Pairs & Sets", defaultOrder: 7 },
     ];
@@ -69,22 +69,32 @@ export function DashboardView({ name }: { name?: string | null }) {
     if (!Array.isArray(layout) || layout.length === 0) return defaultWidgets;
     
     // Use layout order as the source of truth
-    const layoutIds = new Set(layout.map(w => w.id));
+    const activeLayout = layout.filter((widget) => widget.id !== "sync-gemtypes");
+    if (activeLayout.length === 0) return defaultWidgets;
+    const layoutIds = new Set(activeLayout.map(w => w.id));
     
     // Build widget map from defaults (for fallback data)
     const defaultMap = new Map(defaultWidgets.map(w => [w.id, w]));
     
     // Use layout order, merging with defaults for any missing fields
-    const merged = layout.map(w => ({
+    const merged = activeLayout.map(w => ({
       ...defaultMap.get(w.id),  // defaults as base
       ...w,                     // override with layout values
       disabled: w.id === "header" ? false : (w.disabled ?? false),
+      size: w.id === "matched-pairs" ? "default" as const : w.size,
     }));
     
     // Append any new widgets from defaults that aren't in the saved layout yet
     for (const dw of defaultWidgets) {
       if (!layoutIds.has(dw.id)) {
-        merged.push({ ...dw, disabled: dw.disabled ?? false });
+        const insertAt = merged.findIndex((widget) => (widget.defaultOrder ?? Number.POSITIVE_INFINITY) >= (dw.defaultOrder ?? Number.POSITIVE_INFINITY));
+        const newWidget = {
+          ...dw,
+          disabled: dw.disabled ?? false,
+          size: dw.id === "matched-pairs" ? "default" as const : dw.size,
+        };
+        if (insertAt === -1) merged.push(newWidget);
+        else merged.splice(insertAt, 0, newWidget);
       }
     }
     
@@ -124,9 +134,7 @@ export function DashboardView({ name }: { name?: string | null }) {
       pendingPayments: data?.kpis?.pendingPayments,
       todayOrders: data?.kpis?.todayOrders,
     },
-    "sync-gemtypes": {
-      gemTypes: data?.analytics?.bestSellingTypes,
-    },
+    "connections-status": {},
     notes: {},
     "matched-pairs": {},
   }), [data, handleRefresh, name, revenueTrend]);

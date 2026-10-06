@@ -3,6 +3,7 @@ import { Shield, Clock, Lock, Globe } from "lucide-react";
 
 import { CompanyLogo } from "@/components/auth/company-logo";
 import { getCompanyBranding } from "@/lib/company";
+import { getLandingPageSettings, getWhatsNewEntries } from "@/app/(dashboard)/settings/landing-page/actions";
 import whiteLogo from "@/public/khyati-gems-icon-white.png";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,28 @@ const TRUST_ITEMS = [
 ];
 
 export default async function LoginPage() {
-  const branding = await getCompanyBranding();
+  const [branding, landingSettings, whatsNewEntries] = await Promise.all([
+    getCompanyBranding(),
+    getLandingPageSettings(),
+    getWhatsNewEntries(),
+  ]);
+  const configuredHighlights: string[] = Array.isArray(landingSettings.highlights)
+    ? landingSettings.highlights.filter((title): title is string => typeof title === "string")
+    : [];
+  const loginHighlights = landingSettings.highlightsEnabled && configuredHighlights.length > 0
+    ? configuredHighlights.map((title) => {
+        const item = TRUST_ITEMS.find((trustItem) => trustItem.title === title);
+        return {
+          title,
+          desc: item?.desc ?? "ERP operations",
+          icon: item?.icon ?? Shield,
+        };
+      })
+    : landingSettings.highlightsEnabled ? TRUST_ITEMS : [];
+  const whatsNewItems = landingSettings.whatsNewEnabled
+    ? whatsNewEntries.map((entry) => entry.message).filter(Boolean)
+    : [];
+  const whatsNewText = landingSettings.whatsNewEnabled ? landingSettings.whatsNewText?.trim() : "";
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#070b12] text-white">
@@ -53,7 +75,7 @@ export default async function LoginPage() {
           <div className="max-w-xl">
             <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 backdrop-blur-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
-              Trusted internal workspace
+              {landingSettings.accessNotice}
             </p>
 
             <h1 className="text-5xl font-black leading-[1.05] tracking-tight text-white xl:text-6xl">
@@ -64,14 +86,14 @@ export default async function LoginPage() {
             </h1>
 
             <p className="mt-5 max-w-lg text-base text-slate-300 xl:text-lg">
-              Centralized inventory, sales, and operations — powered by a secure,
-              role-based platform built for modern gemstone businesses.
+              {landingSettings.subtitle}
             </p>
 
-            <div className="mt-8 grid max-w-xl grid-cols-2 gap-3">
-              {TRUST_ITEMS.map((item) => (
+            {loginHighlights.length > 0 && (
+              <div className="mt-8 grid max-w-xl grid-cols-2 gap-3">
+              {loginHighlights.map((item, index) => (
                 <div
-                  key={item.title}
+                key={`${item.title}-${index}`}
                   className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_10px_30px_rgba(15,23,42,0.35)] backdrop-blur-lg transition-transform duration-200 hover:-translate-y-1"
                 >
                   <item.icon className="mb-3 h-5 w-5 text-[#D9BC7A]" />
@@ -79,7 +101,20 @@ export default async function LoginPage() {
                   <p className="mt-1 text-xs text-slate-300">{item.desc}</p>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
+
+            {(whatsNewText || whatsNewItems.length > 0) && (
+              <div className="mt-5 max-w-xl rounded-2xl border border-[#D9BC7A]/25 bg-[#D9BC7A]/[0.07] p-4 backdrop-blur-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#F3DFA7]">What&apos;s new</p>
+                {whatsNewText && <p className="mt-2 text-sm text-slate-200">{whatsNewText}</p>}
+                {whatsNewItems.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-xs text-slate-300">
+                    {whatsNewItems.slice(0, 3).map((entry, index) => <li key={`${entry}-${index}`}>• {entry}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="text-sm text-slate-400">
@@ -127,7 +162,7 @@ export default async function LoginPage() {
 
             <div className="mt-6 border-t border-white/10 pt-4">
               <p className="text-center text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                Role-based access control • v2.0
+                {landingSettings.accessNotice}
               </p>
             </div>
           </div>

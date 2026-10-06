@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { LogOut, Menu, ChevronRight, Home, User, Camera } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/layout/sidebar";
@@ -20,6 +20,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { AvatarUploadModal } from "@/components/ui/avatar-upload/avatar-upload-modal";
 import { CommandPaletteTrigger } from "@/components/ui/command-palette";
+import { GlobalSearch } from "@/components/layout/global-search";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 const routeTitles: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -52,8 +63,10 @@ interface TopbarProps {
 export function Topbar({ user }: TopbarProps) {
   const [open, setOpen] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
-  const { showLoader } = useGlobalLoader();
+  const { showLoader, hideLoader } = useGlobalLoader();
   const { update } = useSession();
   // `update` gets a new identity whenever session/loading changes in next-auth.
   // Keeping it out of the effect deps below prevents an infinite refresh loop
@@ -133,11 +146,17 @@ export function Topbar({ user }: TopbarProps) {
   };
 
   const handleLogout = async () => {
-    const res = await fetch("/api/auth/signout", { method: "POST", credentials: "same-origin" });
-    if (res.ok || res.redirected) {
-      window.location.href = "/login";
-    } else {
-      window.location.href = "/login";
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    showLoader();
+    try {
+      const result = await signOut({ redirect: false, callbackUrl: "/login" });
+      window.location.replace(result.url || "/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast.error("Could not log out. Please try again.");
+      hideLoader();
+      setIsLoggingOut(false);
     }
   };
 
@@ -161,7 +180,7 @@ export function Topbar({ user }: TopbarProps) {
 
   return (
     <CommandPaletteTrigger>
-      <header className="flex h-16 items-center gap-4 border-b border-border bg-background px-6 premium-topbar">
+      <header className="relative flex h-16 items-center gap-4 border-b border-border bg-background px-6 premium-topbar">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="shrink-0 lg:hidden">
@@ -178,7 +197,7 @@ export function Topbar({ user }: TopbarProps) {
           </SheetContent>
         </Sheet>
         
-        <div className="flex flex-col flex-1 gap-0.5">
+        <div className="flex min-w-0 flex-col gap-0.5 md:w-[30%] md:flex-none">
           <h1 className="font-semibold text-xl tracking-tight text-foreground hidden md:block">
             {currentTitle}
           </h1>
@@ -205,7 +224,9 @@ export function Topbar({ user }: TopbarProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <GlobalSearch />
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
          <span className="font-semibold text-lg md:hidden">KhyatiGems™</span>
          
          <DropdownMenu>
@@ -254,13 +275,31 @@ export function Topbar({ user }: TopbarProps) {
                 <span>Change photo</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
+              <DropdownMenuItem onSelect={() => setLogoutConfirmOpen(true)}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
       </div>
+
+      <AlertDialog open={logoutConfirmOpen} onOpenChange={(nextOpen) => !isLoggingOut && setLogoutConfirmOpen(nextOpen)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Log out of KhyatiGems ERP?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will need to sign in again to access your workspace.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoggingOut}>No, stay signed in</AlertDialogCancel>
+            <Button variant="destructive" onClick={() => void handleLogout()} disabled={isLoggingOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              {isLoggingOut ? "Logging out..." : "Yes, log out"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AvatarUploadModal
         open={avatarModalOpen}

@@ -89,6 +89,10 @@ export async function POST(request: NextRequest) {
       entityType: "EmailLog",
       entityId: result.logId,
       referenceId: result.logId,
+      entityIdentifier: typeof input.subject === "string" && input.subject.trim()
+        ? `Subject: ${input.subject.trim()}`
+        : "Email message",
+      description: result.success ? "Email sent" : "Email delivery failed",
       userId: session.user.id,
       userName: session.user.name ?? undefined,
       metadata: {
