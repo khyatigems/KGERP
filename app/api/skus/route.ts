@@ -6,10 +6,27 @@ function getDesktopAppToken() {
   return process.env.KHYATI_MEDIA_SYNC_TOKEN || process.env.MEDIA_UPLOAD_TOKEN || '';
 }
 
+function getRequestToken(request: Request, searchParams: URLSearchParams) {
+  return (
+    searchParams.get('token') ||
+    request.headers.get('x-media-sync-token') ||
+    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
+    ''
+  );
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const token = searchParams.get('token');
-  if (token !== getDesktopAppToken()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const expectedToken = getDesktopAppToken();
+  if (!expectedToken) {
+    return NextResponse.json(
+      { error: 'Server sync token not configured. Set KHYATI_MEDIA_SYNC_TOKEN in environment variables.' },
+      { status: 503 }
+    );
+  }
+  if (getRequestToken(request, searchParams) !== expectedToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   const sku = searchParams.get('sku');
   if (sku) {
