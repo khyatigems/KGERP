@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 import { RegenerateEbayModal } from "./regenerate-ebay-modal";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -15,13 +15,16 @@ interface RegenerateEbayButtonProps {
   selectedItemIds?: string[]; // For selected items regeneration
 }
 
-export function RegenerateEbayButton({
+type Marketplace = "EBAY" | "ETSY";
+
+function RegenerateDescriptionButton({
   label,
   variant = "outline",
   size = "sm",
   className,
   selectedItemIds,
-}: RegenerateEbayButtonProps) {
+  marketplace,
+}: RegenerateEbayButtonProps & { marketplace: Marketplace }) {
   const [modalOpen, setModalOpen] = useState(false);
   const useDefaultLabel = !label;
 
@@ -38,8 +41,10 @@ export function RegenerateEbayButton({
         disabled={selectedItemIds && selectedItemIds.length === 0}
         title={selectedItemIds && selectedItemIds.length === 0 ? "Select items to regenerate" : undefined}
       >
-        <RefreshCw className="h-4 w-4 transition-transform group-hover:rotate-45" />
-        {useDefaultLabel ? (
+        {marketplace === "ETSY"
+          ? <Sparkles className="h-4 w-4" />
+          : <RefreshCw className="h-4 w-4 transition-transform group-hover:rotate-45" />}
+        {marketplace === "EBAY" && useDefaultLabel ? (
           <span className="inline-flex items-center gap-3">
             <Image
               src="/ebay-logo.svg"
@@ -51,14 +56,23 @@ export function RegenerateEbayButton({
             <span>Descriptions</span>
           </span>
         ) : (
-          label
+          label || (marketplace === "ETSY" ? "Etsy Descriptions" : "Descriptions")
         )}
       </Button>
       <RegenerateEbayModal 
         open={modalOpen} 
         onOpenChange={setModalOpen} 
         selectedItemIds={selectedItemIds}
+        marketplace={marketplace}
       />
     </>
   );
+}
+
+export function RegenerateEbayButton(props: RegenerateEbayButtonProps) {
+  return <RegenerateDescriptionButton {...props} marketplace="EBAY" />;
+}
+
+export function RegenerateEtsyButton(props: RegenerateEbayButtonProps) {
+  return <RegenerateDescriptionButton {...props} marketplace="ETSY" />;
 }

@@ -658,8 +658,13 @@ export async function getMarketplaceDashboardData(options: {
     ? await prisma.inventory.findMany({
         where: { id: { in: filtered.map((item) => item.inventoryId) } },
         select: {
-          id: true, imageUrl: true, certificateNo: true, certificateNumber: true,
-          media: { select: { id: true }, take: 1 },
+          id: true,
+          imageUrl: true,
+          certificateNo: true,
+          certificateNumber: true,
+          description: true,
+          hsnCode: true,
+          media: { where: { type: "IMAGE" }, select: { id: true }, take: 1 },
         },
       })
     : [];
@@ -675,11 +680,13 @@ export async function getMarketplaceDashboardData(options: {
     item.opportunityScore = item.missingShops.length;
     item.platforms.sort();
     const check = checkMap.get(item.inventoryId);
-    item.hasImage = Boolean(check?.imageUrl) || Boolean(check?.media.length);
+    item.hasImage = Boolean(check?.imageUrl?.trim()) || Boolean(check?.media.length);
     item.hasCertificate = Boolean(check?.certificateNo?.trim()) || Boolean(check?.certificateNumber?.trim());
     const status = item.inventoryStatus.trim().toUpperCase();
     const hasSaleableStock = item.pieces > 0 && !["SOLD", "INACTIVE", "OUT_OF_STOCK", "SOLD_OUT"].includes(status);
-    item.readyToList = hasSaleableStock && item.hasImage && item.hasCertificate;
+    const hasRequiredDescription = Boolean(check?.description?.trim());
+    const hasHsnCode = Boolean(check?.hsnCode?.trim());
+    item.readyToList = hasSaleableStock && item.hasImage && item.hasCertificate && hasRequiredDescription && hasHsnCode;
   }
 
   // Active listing totals come straight from the Marketplace -> Listings rows

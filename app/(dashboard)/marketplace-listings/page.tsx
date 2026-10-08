@@ -28,7 +28,7 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
   const params = await searchParams;
   const marketplace = first(params.marketplace) || "";
   const shopId = first(params.shop) || "";
-  const status = first(params.status) || "";
+  const status = first(params.status) ?? "ACTIVE";
   const match = first(params.match) || "";
   const query = (first(params.q) || "").trim();
   const requestedPage = Number(first(params.page) || "1");

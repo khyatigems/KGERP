@@ -6,6 +6,7 @@ import { hasPermission, PERMISSIONS } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { normalizeDateToUtcNoon } from "@/lib/utils";
 import crypto from "crypto";
+import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
 
 export async function createNewCustomer(customerData: {
   name: string;
@@ -363,6 +364,10 @@ export async function createSaleWithNewLogic(saleData: {
           },
         });
       }
+      await markMarketplaceListingsSold(
+        { inventoryIds: saleData.items.map((item) => item.inventoryId) },
+        tx
+      );
 
       return {
         success: true,

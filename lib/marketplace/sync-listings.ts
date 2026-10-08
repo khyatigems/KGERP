@@ -3,6 +3,8 @@ import { getConnector } from "@/lib/marketplace/connectors";
 import { matchListingToInventory } from "@/lib/marketplace/sku-matching";
 import { startSyncLog, finalizeSyncLog, failSyncLog } from "@/lib/marketplace/sync-log";
 import type { MarketplacePlatform } from "@/lib/marketplace/types";
+import { isLiveMarketplaceListing } from "@/lib/marketplace/listing-status";
+import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
 
 function safeJson(value: unknown): string | null {
   try {
@@ -62,17 +64,36 @@ export async function syncListingsForPlatform(
         continue;
       }
       try {
+        const externalId = listing.listingId;
+        const existing = await prisma.listing.findFirst({
+          where: { platform: listing.marketplace, marketplaceShopId: shop.id, externalId },
+          include: { priceHistory: { take: 1, orderBy: { changedAt: "desc" } } },
+        });
+
+        if (existing?.status?.toUpperCase() === "SOLD") {
+          counters.skipped += 1;
+          continue;
+        }
+
+        if (!isLiveMarketplaceListing({ status: listing.status, quantity: listing.quantity })) {
+          if (existing) {
+            await markMarketplaceListingsSold({
+              marketplace: listing.marketplace,
+              marketplaceShopId: shop.id,
+              externalIds: [externalId],
+            });
+            counters.updated += 1;
+          } else {
+            counters.skipped += 1;
+          }
+          continue;
+        }
+
         const match = await matchListingToInventory({
           marketplace: listing.marketplace,
           marketplaceShopId: shop.id,
           listingId: listing.listingId,
           listingSku: listing.listingSku,
-        });
-
-        const externalId = listing.listingId;
-        const existing = await prisma.listing.findFirst({
-          where: { platform: listing.marketplace, marketplaceShopId: shop.id, externalId },
-          include: { priceHistory: { take: 1, orderBy: { changedAt: "desc" } } },
         });
 
         const inventoryId = match.status === "MATCHED" ? match.inventoryId : null;

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { Prisma } from "@prisma/client";
 import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
+import { buildReadyToSellWhere } from "@/lib/inventory-ready-to-sell";
+import { MARKETPLACE_LISTING_SCOPE_SQL, marketplaceInventoryJoinSql } from "@/lib/marketplace-control-center";
 
 
 const toNumber = (value: string | null) => {
@@ -35,6 +37,26 @@ export async function GET(request: NextRequest) {
   const status = (sp.get("status") || "").trim();
   const sort = (sp.get("sort") || "createdAt_desc").trim();
   const includeListings = sp.get("includeListings") === "1";
+  const marketplaceReadyOnly = sp.get("marketplaceReadyOnly") === "1";
+  const listingMarketplace = (sp.get("marketplace") || "").trim().toUpperCase();
+  const listingShopId = (sp.get("shopId") || "").trim();
+  if (listingMarketplace || listingShopId) {
+    if (!["EBAY", "ETSY"].includes(listingMarketplace) || !listingShopId) {
+      return NextResponse.json({ error: "A valid marketplace and connected shop are required for listing eligibility." }, { status: 400 });
+    }
+    const shop = await prisma.marketplaceShop.findFirst({
+      where: {
+        id: listingShopId,
+        marketplace: listingMarketplace,
+        status: "CONNECTED",
+        connection: { status: "CONNECTED" },
+      },
+      select: { id: true },
+    });
+    if (!shop) {
+      return NextResponse.json({ error: "The selected marketplace shop is not connected." }, { status: 404 });
+    }
+  }
 
   const minPrice = toNumber(sp.get("minPrice"));
   const maxPrice = toNumber(sp.get("maxPrice"));
@@ -47,6 +69,22 @@ export async function GET(request: NextRequest) {
   const where: Prisma.InventoryWhereInput = {};
 
   if (status) where.status = status;
+  if (marketplaceReadyOnly) {
+    Object.assign(where, buildReadyToSellWhere());
+  }
+  if (listingMarketplace && listingShopId) {
+    const listedInventory = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT DISTINCT i."id"
+      FROM "Listing" l
+      ${Prisma.raw(marketplaceInventoryJoinSql("INNER"))}
+      WHERE ${Prisma.raw(MARKETPLACE_LISTING_SCOPE_SQL)}
+        AND l."marketplaceShopId" = ${listingShopId}
+        AND UPPER(TRIM(l."platform")) = ${listingMarketplace}
+    `);
+    if (listedInventory.length) {
+      where.id = { notIn: listedInventory.map((row) => row.id) };
+    }
+  }
   if (category) where.category = category;
   if (gemType) where.gemType = gemType;
   if (color) where.color = color;
@@ -117,11 +155,21 @@ export async function GET(request: NextRequest) {
         category: true,
         gemType: true,
         color: true,
+        shape: true,
+        etsyDescription: true,
         pricingMode: true,
         sellingRatePerCarat: true,
-        weightValue: true,
         flatSellingPrice: true,
         sellingPrice: true,
+        weightValue: true,
+        weightUnit: true,
+        imageUrl: true,
+        media: {
+          where: { type: "IMAGE" },
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+          take: 1,
+          select: { mediaUrl: true },
+        },
         status: true,
         createdAt: true,
         ...(includeListings
@@ -135,5 +183,14 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
-  return NextResponse.json({ page, pageSize, total, items });
+  return NextResponse.json({
+    page,
+    pageSize,
+    total,
+    items: items.map((item) => ({
+      ...item,
+      imageUrl: item.imageUrl || item.media[0]?.mediaUrl || null,
+      media: undefined,
+    })),
+  });
 }

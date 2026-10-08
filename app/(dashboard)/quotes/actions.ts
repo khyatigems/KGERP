@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
+import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
 import { generateQuotationToken, generateInvoiceToken } from "@/lib/tokens";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -513,6 +514,7 @@ export async function convertQuotationToInvoice(id: string) {
             where: { id: inv.id },
             data: { status: "SOLD" }
         });
+        await markMarketplaceListingsSold({ inventoryIds: [inv.id] }, tx);
       }
 
       // 5. Update Quotation Status

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { syncListingsForPlatform } from "@/lib/marketplace/sync-listings";
 import { syncOrdersForPlatform } from "@/lib/marketplace/sync-orders";
+import { closeListingsMissingFromActiveSync } from "@/lib/marketplace/close-listings";
 
 const PAGE_SIZE = 25;
 const MAX_ATTEMPTS = 3;
@@ -91,6 +92,9 @@ async function processOneJob(jobId: string) {
     const nextOffset = offset + result.scanned;
     const hasMore = result.scanned >= PAGE_SIZE;
     const totalFailed = job.recordsFailed + result.failed;
+    const closedMissing = !hasMore && totalFailed === 0 && job.syncType === "LISTINGS"
+      ? await closeListingsMissingFromActiveSync(job.marketplaceShopId, job.createdAt)
+      : 0;
     const pageErrors = result.errors.slice(0, 20).join("\n");
     const errorDetails = [job.errorDetails, pageErrors].filter(Boolean).join("\n").slice(0, 4000) || null;
     await prisma.marketplaceSyncJob.update({
@@ -100,11 +104,11 @@ async function processOneJob(jobId: string) {
         progressStep: hasMore ? "Page saved" : totalFailed > 0 ? "Completed with errors" : "Completed",
         progressDetail: hasMore
           ? `${nextOffset} records processed; next page queued`
-          : `${job.recordsScanned + result.scanned} records scanned in total`,
+          : `${job.recordsScanned + result.scanned} records scanned in total${closedMissing ? `; ${closedMissing} sold/ended listing${closedMissing === 1 ? "" : "s"} closed` : ""}`,
         cursor: hasMore ? String(nextOffset) : job.cursor,
         recordsScanned: { increment: result.scanned },
         recordsCreated: { increment: result.created },
-        recordsUpdated: { increment: result.updated },
+        recordsUpdated: { increment: result.updated + closedMissing },
         recordsSkipped: { increment: result.skipped },
         recordsFailed: { increment: result.failed },
         errorDetails,

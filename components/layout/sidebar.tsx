@@ -9,7 +9,7 @@ import {
   RotateCcw, ShoppingBag, Truck, Users, BarChart3, UserCog, Settings, 
   Wallet, LayoutDashboard, AlertTriangle, Scale, 
   Activity, Box, Receipt, MessageSquare, LayoutGrid, HardDrive, 
-  Link2, ChevronRight as ChevronRightIcon
+  Link2, ChevronRight as ChevronRightIcon, ListPlus
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
@@ -48,6 +48,7 @@ export const navGroups = [
       { href: "/settings/marketplace-connections", label: "Connections", icon: Link2, module: "settings:manage", animKey: "control-center" as NavAnimationKey },
       { href: "/marketplace-control-center", label: "Control Center", icon: LayoutDashboard, module: "listings:view", animKey: "control-center" as NavAnimationKey, badge: "conflicts" },
       { href: "/marketplace-listings", label: "Listings", icon: Globe, module: "listings:view", animKey: "listings" as NavAnimationKey },
+      { href: "/marketplace-create-listings", label: "Create Listings", icon: ListPlus, module: "listings:view", animKey: "listings" as NavAnimationKey },
       { href: "/marketplace-orders", label: "Orders", icon: ShoppingCart, module: "listings:view", animKey: "sales" as NavAnimationKey },
       { href: "/marketplace-sync-history", label: "Sync History", icon: Activity, module: "listings:view", animKey: "reports" as NavAnimationKey },
       { href: "/marketplace-conflicts", label: "Conflicts", icon: AlertTriangle, module: "listings:view", animKey: "conflicts" as NavAnimationKey },

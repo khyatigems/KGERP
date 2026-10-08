@@ -12,15 +12,18 @@ export function breakEvenEpsilon(msp: number): number {
 }
 
 /**
- * Resolve the procurement cost for an item. Flat purchase cost takes precedence,
- * otherwise the per-carat rate is multiplied by weight. This is the single shared
- * cost resolution used across planning and financial modules.
+ * Resolve the persisted total procurement cost first. Rate-based fields are
+ * fallbacks for incomplete/legacy records and must not override costPrice,
+ * which already reflects the inventory item's configured weight unit.
  */
 export function resolvePurchaseCost(input: {
+  costPrice?: number | null;
   flatPurchaseCost?: number | null;
   purchaseRatePerCarat?: number | null;
   weightValue?: number | null;
 }): number {
+  const persistedCost = Number(input.costPrice);
+  if (Number.isFinite(persistedCost) && persistedCost > 0) return persistedCost;
   const flat = Number(input.flatPurchaseCost);
   if (Number.isFinite(flat) && flat > 0) return flat;
   const rate = Number(input.purchaseRatePerCarat);

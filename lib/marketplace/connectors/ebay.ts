@@ -1,4 +1,4 @@
-import { httpJson, bearerAuth } from "@/lib/marketplace/http";
+import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
 import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext } from "@/lib/marketplace/connector";
 import type {
   NormalizedListing,
@@ -15,6 +15,7 @@ import {
 
 const SCOPES = [
   "https://api.ebay.com/oauth/api_scope",
+  "https://api.ebay.com/oauth/api_scope/sell.inventory",
   "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
   "https://api.ebay.com/oauth/api_scope/sell.account.readonly",
 ].join(" ");
@@ -159,6 +160,126 @@ export class EbayConnector implements MarketplaceConnector {
     );
   }
 
+  async getCategoryAspects(
+    connectionId: string,
+    categoryPath: string,
+    marketplaceId = "EBAY_US",
+    requestedCategoryId?: string
+  ): Promise<{
+    marketplaceId: string;
+    categoryId: string | null;
+    categoryPath: string | null;
+    suggestions: Array<{ categoryId: string; categoryPath: string }>;
+    requiredAspects: Array<{
+      name: string;
+      mode: string;
+      values: string[];
+      cardinality: string | null;
+    }>;
+    optionalAspects: Array<{
+      name: string;
+      mode: string;
+      values: string[];
+      cardinality: string | null;
+    }>;
+  }> {
+    const token = await this.getAccessToken(connectionId);
+    const headers = this.getHeaders(token);
+    const { apiBase } = bases();
+    const tree = await httpJson<{ categoryTreeId?: number | string }>(
+      `${apiBase}/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=${encodeURIComponent(marketplaceId)}`,
+      { headers }
+    );
+    if (tree.categoryTreeId == null) throw new Error("eBay did not return a category tree for the selected marketplace.");
+
+    const targetName = categoryPath.split(">").at(-1)?.trim();
+    if (!targetName) throw new Error("A category path is required to resolve eBay listing requirements.");
+    const suggestionsResponse = await httpJson<{
+      categorySuggestions?: Array<{
+        category?: { categoryId?: string; categoryName?: string };
+        categoryTreeNode?: {
+          category?: { categoryId?: string; categoryName?: string };
+          categoryTreeNodeAncestors?: Array<{ categoryName?: string }>;
+        };
+      }>;
+    }>(
+      `${apiBase}/commerce/taxonomy/v1/category_tree/${encodeURIComponent(String(tree.categoryTreeId))}/get_category_suggestions?q=${encodeURIComponent(targetName)}`,
+      { headers }
+    );
+    const suggestions = (suggestionsResponse.categorySuggestions || []).flatMap((suggestion) => {
+      const category = suggestion.categoryTreeNode?.category || suggestion.category;
+      if (!category?.categoryId || !category.categoryName) return [];
+      const ancestors = suggestion.categoryTreeNode?.categoryTreeNodeAncestors || [];
+      const path = [...ancestors.map((ancestor) => ancestor.categoryName).filter((name): name is string => Boolean(name)), category.categoryName].join(" > ");
+      return [{ categoryId: String(category.categoryId), categoryPath: path }];
+    });
+    const normalizePath = (value: string) => value.toLowerCase().replace(/\s+/g, " ").replace(/\s*>\s*/g, ">");
+    const exactPathMatch = suggestions.find((suggestion) => normalizePath(suggestion.categoryPath) === normalizePath(categoryPath));
+    const leafMatches = suggestions.filter((suggestion) =>
+      normalizePath(suggestion.categoryPath) === normalizePath(targetName)
+    );
+    const matched = (requestedCategoryId
+      ? suggestions.find((suggestion) => suggestion.categoryId === requestedCategoryId)
+      : undefined) || exactPathMatch || (leafMatches.length === 1 ? leafMatches[0] : undefined);
+    if (requestedCategoryId && !matched) {
+      throw new Error("The selected eBay category was not returned by the current Taxonomy API response.");
+    }
+    if (!matched) {
+      return {
+        marketplaceId,
+        categoryId: null,
+        categoryPath: null,
+        suggestions,
+        requiredAspects: [],
+        optionalAspects: [],
+      };
+    }
+
+    const aspectResponse = await httpJson<{
+      aspects?: Array<{
+        localizedAspectName?: string;
+        aspectConstraint?: {
+          aspectRequired?: boolean;
+          aspectMode?: string;
+          itemToAspectCardinality?: string;
+        };
+        aspectValues?: Array<{ localizedValue?: string }>;
+      }>;
+    }>(
+      `${apiBase}/commerce/taxonomy/v1/category_tree/${encodeURIComponent(String(tree.categoryTreeId))}/get_item_aspects_for_category?category_id=${encodeURIComponent(matched.categoryId)}`,
+      { headers }
+    );
+
+    const aspects = (aspectResponse.aspects || []).map((aspect) => ({
+      name: aspect.localizedAspectName || "Unnamed aspect",
+      mode: aspect.aspectConstraint?.aspectMode || "FREE_TEXT",
+      values: (aspect.aspectValues || [])
+        .map((value) => value.localizedValue)
+        .filter((value): value is string => Boolean(value)),
+      cardinality: aspect.aspectConstraint?.itemToAspectCardinality || null,
+      required: Boolean(aspect.aspectConstraint?.aspectRequired),
+    }));
+
+    return {
+      marketplaceId,
+      categoryId: matched.categoryId,
+      categoryPath: matched.categoryPath,
+      suggestions,
+      requiredAspects: aspects.filter((aspect) => aspect.required).map((aspect) => ({
+        name: aspect.name,
+        mode: aspect.mode,
+        values: aspect.values,
+        cardinality: aspect.cardinality,
+      })),
+      optionalAspects: aspects.filter((aspect) => !aspect.required).map((aspect) => ({
+        name: aspect.name,
+        mode: aspect.mode,
+        values: aspect.values,
+        cardinality: aspect.cardinality,
+      })),
+    };
+  }
+
   private async refreshAccessToken(connectionId: string, refreshToken: string, scope?: string | null): Promise<string> {
     const { apiBase } = bases();
     const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64");
@@ -203,7 +324,7 @@ export class EbayConnector implements MarketplaceConnector {
       apiBase,
       `<GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents"><DetailLevel>ReturnAll</DetailLevel><ActiveList><Include>true</Include><Pagination><EntriesPerPage>${pageSize}</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination></ActiveList></GetMyeBaySellingRequest>`
     );
-    const items = this.parseTradingItems(xml);
+    const items = parseEbayActiveListings(xml);
     console.log(`[ebay] GetMyeBaySelling: shop=${context.externalShopId}, page=${page}, items=${items.length}`);
 
     return items.map((item) => ({
@@ -234,44 +355,6 @@ export class EbayConnector implements MarketplaceConnector {
     return xml;
   }
 
-  private parseTradingItems(xml: string): NormalizedListing[] {
-    const decode = (value: string | undefined): string | null => value
-      ? value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim()
-      : null;
-    const tag = (source: string, name: string): string | null => decode(source.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, "i"))?.[1]);
-    const amount = (source: string, name: string): { value: number | null; currency: string | null } => {
-      const matched = source.match(new RegExp(`<${name}[^>]*?(?:currencyID="([^"]+)")?[^>]*>([^<]+)<\\/${name}>`, "i"));
-      return { value: matched?.[2] != null && Number.isFinite(Number(matched[2])) ? Number(matched[2]) : null, currency: matched?.[1] || null };
-    };
-    const listings: NormalizedListing[] = [];
-    for (const match of xml.matchAll(/<Item>([\s\S]*?)<\/Item>/gi)) {
-      const item = match[1];
-      const price = amount(item, "CurrentPrice");
-      const listingId = tag(item, "ItemID");
-      if (!listingId) continue;
-      const image = tag(item, "GalleryURL") || tag(item, "PictureURL");
-      listings.push({
-        marketplace: "EBAY",
-        listingId,
-        listingSku: tag(item, "SKU"),
-        title: tag(item, "Title"),
-        description: null,
-        price: price.value,
-        currency: price.currency,
-        quantity: Number(tag(item, "Quantity")) || null,
-        status: tag(item, "ListingStatus") || "ACTIVE",
-        listingUrl: tag(item, "ViewItemURL"),
-        category: tag(item, "CategoryName"),
-        images: image ? [image] : [],
-        attributes: {},
-        views: Number(tag(item, "HitCount")) || null,
-        favorites: Number(tag(item, "WatchCount")) || null,
-        orders: Number(tag(item, "QuantitySold")) || null,
-        raw: item,
-      });
-    }
-    return listings;
-  }
 
   async fetchOrders(params: OrderSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedOrder[]> {
     const token = await this.getAccessToken(context.connectionId);
@@ -293,7 +376,7 @@ export class EbayConnector implements MarketplaceConnector {
     // granted this connection's OAuth token; it cannot return another shop's
     // orders. Load package details separately so tracking is kept current.
     return Promise.all((data.orders || []).map(async (order) => {
-      const tracking = await this.getTrackingDetails(order?.orderId, headers, apiBase);
+      const tracking = await this.getTrackingDetails(order, headers, apiBase);
       return {
         ...this.normalizeOrder(order, tracking),
         marketplaceShopId: context.shopId,
@@ -304,28 +387,69 @@ export class EbayConnector implements MarketplaceConnector {
   }
 
   private async getTrackingDetails(
-    orderId: unknown,
+    order: any,
     headers: Record<string, string>,
     apiBase: string
   ): Promise<{ trackingCode: string | null; carrier: string | null }> {
-    const id = String(orderId || "").trim();
-    if (!id) return { trackingCode: null, carrier: null };
+    const id = String(order?.orderId || "").trim();
+    let tracking = extractEbayShipmentTracking(order);
+    if (!id || (tracking.trackingCode && tracking.carrier)) return tracking;
 
+    const fulfillmentHrefs = new Set<unknown>(
+      Array.isArray(order?.fulfillmentHrefs) ? order.fulfillmentHrefs : []
+    );
     try {
-      const data = await httpJson<{ fulfillments?: Array<{ trackingNumber?: string; shippingCarrierCode?: string }> }>(
+      const fulfillments = await this.readJson(
         `${apiBase}/sell/fulfillment/v1/order/${encodeURIComponent(id)}/shipping_fulfillment`,
-        { headers }
+        headers
       );
-      const fulfillment = data.fulfillments?.find((entry) => entry.trackingNumber) || data.fulfillments?.[0];
-      return {
-        trackingCode: fulfillment?.trackingNumber ? String(fulfillment.trackingNumber) : null,
-        carrier: fulfillment?.shippingCarrierCode ? String(fulfillment.shippingCarrierCode) : null,
-      };
+      tracking = mergeEbayTracking(extractEbayShipmentTracking(fulfillments), tracking);
+      if (Array.isArray(fulfillments?.fulfillmentHrefs)) {
+        for (const href of fulfillments.fulfillmentHrefs) fulfillmentHrefs.add(href);
+      }
     } catch (error) {
-      // An order may not have been shipped yet. Do not fail its complete order
-      // sync merely because eBay has no fulfillment record at this point.
-      console.warn(`[ebay] Could not load tracking for order ${id}:`, error);
-      return { trackingCode: null, carrier: null };
+      console.warn(`[ebay] Could not load shipping fulfillments for order ${id}:`, error);
+    }
+
+    if (tracking.trackingCode && tracking.carrier) return tracking;
+
+    for (const href of fulfillmentHrefs) {
+      if (typeof href !== "string" || !href.trim()) continue;
+      let url: URL;
+      try {
+        url = new URL(href, apiBase);
+      } catch {
+        console.warn(`[ebay] Ignoring invalid fulfillment link for order ${id}.`);
+        continue;
+      }
+      if (url.origin !== new URL(apiBase).origin) {
+        console.warn(`[ebay] Ignoring fulfillment link outside the eBay API for order ${id}.`);
+        continue;
+      }
+      try {
+        const fulfillment = await this.readJson(url.toString(), headers);
+        tracking = mergeEbayTracking(extractEbayShipmentTracking(fulfillment), tracking);
+        if (tracking.trackingCode && tracking.carrier) return tracking;
+      } catch (error) {
+        console.warn(`[ebay] Could not load a fulfillment link for order ${id}:`, error);
+      }
+    }
+    return tracking;
+  }
+
+  private async readJson(url: string, headers: Record<string, string>): Promise<any> {
+    const response = await httpRequest(url, { headers });
+    if (response.status === 204) return {};
+    const text = await response.text();
+    if (!text.trim()) return {};
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      throw new Error(
+        `eBay returned invalid JSON while loading fulfillment details: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
@@ -339,6 +463,11 @@ export class EbayConnector implements MarketplaceConnector {
     const address = shipTo?.contactAddress || buyer?.buyerRegistrationAddress?.contactAddress || {};
     const items: NormalizedOrderItem[] = (order?.lineItems || []).map((line: any) => ({
       itemId: line?.lineItemId ? String(line.lineItemId) : null,
+      listingId: line?.legacyItemId
+        ? String(line.legacyItemId)
+        : line?.listing?.legacyItemId
+          ? String(line.listing.legacyItemId)
+          : null,
       sku: line?.sku ? String(line.sku) : null,
       title: line?.title ? String(line.title) : null,
       quantity: Number(line?.quantity || 1),
@@ -367,4 +496,111 @@ export class EbayConnector implements MarketplaceConnector {
       raw: order,
     };
   }
+}
+
+const TRACKING_KEYS = new Set([
+  "trackingnumber",
+  "shipmenttrackingnumber",
+  "trackingcode",
+  "trackingno",
+]);
+const CARRIER_KEYS = new Set([
+  "shippingcarriercode",
+  "shippingcarrierused",
+  "carrier",
+  "carriername",
+  "shippingcarrier",
+]);
+
+export function mergeEbayTracking(
+  ...sources: Array<{ trackingCode: string | null; carrier: string | null }>
+): { trackingCode: string | null; carrier: string | null } {
+  return {
+    trackingCode: sources.find((entry) => entry.trackingCode)?.trackingCode || null,
+    carrier: sources.find((entry) => entry.carrier)?.carrier || null,
+  };
+}
+
+/** Pull tracking from eBay order and shipping-fulfillment payloads, including nested field names. */
+export function extractEbayShipmentTracking(source: unknown): { trackingCode: string | null; carrier: string | null } {
+  const found = { trackingCode: null as string | null, carrier: null as string | null };
+  const visit = (value: unknown) => {
+    if (value == null) return;
+    if (Array.isArray(value)) {
+      for (const entry of value) visit(entry);
+      return;
+    }
+    if (typeof value !== "object") return;
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      const normalized = key.replace(/[\s_-]/g, "").toLowerCase();
+      if (!found.trackingCode && typeof child === "string" && child.trim() && TRACKING_KEYS.has(normalized)) {
+        found.trackingCode = child.trim();
+      }
+      if (!found.carrier && typeof child === "string" && child.trim() && CARRIER_KEYS.has(normalized)) {
+        found.carrier = child.trim();
+      }
+      if (child && typeof child === "object") visit(child);
+    }
+  };
+  visit(source);
+  return found;
+}
+
+function decodeXml(value: string | undefined): string | null {
+  return value
+    ? value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim()
+    : null;
+}
+
+function xmlTag(source: string, name: string): string | null {
+  return decodeXml(source.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, "i"))?.[1]);
+}
+
+function xmlAmount(source: string, name: string): { value: number | null; currency: string | null } {
+  const matched = source.match(new RegExp(`<${name}[^>]*?(?:currencyID="([^"]+)")?[^>]*>([^<]+)<\\/${name}>`, "i"));
+  return {
+    value: matched?.[2] != null && Number.isFinite(Number(matched[2])) ? Number(matched[2]) : null,
+    currency: matched?.[1] || null,
+  };
+}
+
+/** Parse only ActiveList items from GetMyeBaySelling. Draft/sold/unsold lists are ignored. */
+export function parseEbayActiveListings(xml: string): NormalizedListing[] {
+  const activeList = xml.match(/<ActiveList[\s\S]*?<\/ActiveList>/i)?.[0] || "";
+  if (!activeList) return [];
+  const listings: NormalizedListing[] = [];
+  for (const match of activeList.matchAll(/<Item>([\s\S]*?)<\/Item>/gi)) {
+    const item = match[1];
+    const listingId = xmlTag(item, "ItemID");
+    if (!listingId) continue;
+    const quantitySold = Number(xmlTag(item, "QuantitySold")) || 0;
+    const listedQuantity = xmlTag(item, "Quantity") != null ? Number(xmlTag(item, "Quantity")) : null;
+    const availableTag = xmlTag(item, "QuantityAvailable");
+    const quantity = availableTag != null && Number.isFinite(Number(availableTag))
+      ? Number(availableTag)
+      : listedQuantity != null ? Math.max(0, listedQuantity - quantitySold) : null;
+    const status = xmlTag(item, "ListingStatus") || "ACTIVE";
+    const price = xmlAmount(item, "CurrentPrice");
+    const image = xmlTag(item, "GalleryURL") || xmlTag(item, "PictureURL");
+    listings.push({
+      marketplace: "EBAY",
+      listingId,
+      listingSku: xmlTag(item, "SKU"),
+      title: xmlTag(item, "Title"),
+      description: null,
+      price: price.value,
+      currency: price.currency,
+      quantity,
+      status: status.toUpperCase(),
+      listingUrl: xmlTag(item, "ViewItemURL"),
+      category: xmlTag(item, "CategoryName"),
+      images: image ? [image] : [],
+      attributes: {},
+      views: Number(xmlTag(item, "HitCount")) || null,
+      favorites: Number(xmlTag(item, "WatchCount")) || null,
+      orders: quantitySold || null,
+      raw: item,
+    });
+  }
+  return listings;
 }

@@ -79,6 +79,7 @@ async function ensureTable(client, createSql) {
 async function ensureRuntimeSchema(client) {
   await ensureColumn(client, "Inventory", "hideFromAttention", `"hideFromAttention" INTEGER NOT NULL DEFAULT 0`);
   await ensureColumn(client, "Inventory", "productDescription", `"productDescription" TEXT`);
+  await ensureColumn(client, "Inventory", "etsyDescription", `"etsyDescription" TEXT`);
   await client.execute(`UPDATE "Inventory" SET "category"='UNKNOWN' WHERE "category" IS NULL`);
   await ensureColumn(client, "Invoice", "invoiceDate", `"invoiceDate" DATETIME`);
 

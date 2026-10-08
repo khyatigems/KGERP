@@ -126,7 +126,7 @@ function getTitle(product: EbayDescriptionFields) {
   return [product.itemName || "Gemstone Product", weight].filter(Boolean).join(" – ");
 }
 
-function getProductSummary(product: EbayDescriptionFields) {
+function getProductSummary(product: EbayDescriptionFields, includeCertificate: boolean) {
   const parts: string[] = [];
   if (product.sku) {
     parts.push(`SKU: ${product.sku}`);
@@ -148,7 +148,7 @@ function getProductSummary(product: EbayDescriptionFields) {
   if (product.treatment) {
     parts.push(`Treatment: ${product.treatment}`);
   }
-  if (product.certification) {
+  if (includeCertificate && product.certification) {
     parts.push(`Certification: ${getCertificationLabel(product.certification)}`);
   }
 
@@ -192,7 +192,7 @@ function getDetailedDescription(product: EbayDescriptionFields) {
   return summary.join(" ");
 }
 
-function getSpecificAttributes(product: EbayDescriptionFields) {
+function getSpecificAttributes(product: EbayDescriptionFields, includeCertificate: boolean) {
   const rows: Array<[string, string]> = [];
   
   // Add SKU as the first attribute if available
@@ -210,8 +210,10 @@ function getSpecificAttributes(product: EbayDescriptionFields) {
     ["Treatment", normalizeText(product.treatment)],
     ["Origin", normalizeText(product.origin)],
     ["Transparency", normalizeText(product.transparency)],
-    ["Certification", getCertificationLabel(product.certification)],
   );
+  if (includeCertificate) {
+    rows.push(["Certification", getCertificationLabel(product.certification)]);
+  }
 
   if (product.braceletType) {
     rows.push(["Bracelet Type", product.braceletType]);
@@ -320,7 +322,7 @@ function buildSpecialItemSection(product: EbayDescriptionFields) {
     </div>`;
 }
 
-function buildSmartFaqSection(product: EbayDescriptionFields) {
+function buildSmartFaqSection(product: EbayDescriptionFields, includeCertificate: boolean) {
   const faqs: Array<{ question: string; answer: string }> = [];
   const treatment = normalizeText(product.treatment);
   const origin = normalizeText(product.origin);
@@ -351,7 +353,7 @@ function buildSmartFaqSection(product: EbayDescriptionFields) {
     });
   }
 
-  if (product.certification && certification !== "Not specified") {
+  if (includeCertificate && product.certification && certification !== "Not specified") {
     faqs.push({
       question: "Does this item come with certification?",
       answer: `Yes, it includes ${certification.toLowerCase()} certification to verify authenticity.`,
@@ -465,10 +467,10 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
   console.log(`[eBay Description] category="${product.category}" gemType="${product.gemType}" hasComboUrls=${!!options.settings?.categoryGemtypeImageUrls} comboKeys=${Object.keys(options.settings?.categoryGemtypeImageUrls || {}).length}`);
 
   const title = getTitle(product);
-  const summary = getProductSummary(product);
+  const summary = getProductSummary(product, includeCertificate);
   const detailedDescription = getDetailedDescription(product);
   const notes = product.notes?.trim();
-  const specificAttributes = getSpecificAttributes(product);
+  const specificAttributes = getSpecificAttributes(product, includeCertificate);
 
   const specsHtml = includeMeasurements
     ? `<table style="width:100%;border-collapse:separate;border-spacing:0 4px;margin:18px 0 0 0;font-size:15px;">
@@ -526,7 +528,7 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
   
   const trustSectionHtml = buildWhyBuySection();
   const specialItemSectionHtml = buildSpecialItemSection(product);
-  const faqSectionHtml = buildSmartFaqSection(product);
+  const faqSectionHtml = buildSmartFaqSection(product, includeCertificate);
 
   return `<div style="font-family:Inter,Roboto,Arial,sans-serif;max-width:800px;margin:0 auto;background:#fff;border-radius:18px;box-shadow:0 4px 32px #181B4E11;padding:32px 18px 32px 18px;">
       ${logoBlock}

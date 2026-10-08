@@ -319,6 +319,7 @@ model Inventory {
   stoneType            String?                 @map("stone_type")
   description          String?
   productDescription   String?
+  etsyDescription      String?
   pieces               Int                     @default(1)
   weightValue          Float?                  @default(0)
   weightUnit           String?

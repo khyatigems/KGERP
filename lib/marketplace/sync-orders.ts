@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getConnector } from "@/lib/marketplace/connectors";
 import { startSyncLog, finalizeSyncLog, failSyncLog } from "@/lib/marketplace/sync-log";
 import type { MarketplacePlatform } from "@/lib/marketplace/types";
+import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
 
 function safeJson(value: unknown): string | null {
   try {
@@ -79,8 +80,8 @@ export async function syncOrdersForPlatform(
           buyerCity: order.buyerCity ?? null,
           buyerState: order.buyerState ?? null,
           buyerZip: order.buyerZip ?? null,
-          trackingCode: order.trackingCode ?? null,
-          carrier: order.carrier ?? null,
+          trackingCode: order.trackingCode || existing?.trackingCode || null,
+          carrier: order.carrier || existing?.carrier || null,
           orderTotal: order.orderTotal,
           currency: order.currency || "USD",
           orderDate: order.orderDate,
@@ -131,6 +132,20 @@ export async function syncOrdersForPlatform(
             await prisma.marketplaceOrderItem.create({ data: itemData });
           }
         }
+
+        const listingIds = order.items.map((item) => item.listingId).filter((id): id is string => Boolean(id));
+        const inventoryIds = [...new Set(
+          (await prisma.marketplaceOrderItem.findMany({
+            where: { orderId, inventoryId: { not: null } },
+            select: { inventoryId: true },
+          })).map((item) => item.inventoryId).filter((id): id is string => Boolean(id))
+        )];
+        await markMarketplaceListingsSold({
+          marketplace: order.marketplace,
+          marketplaceShopId: shop.id,
+          externalIds: listingIds,
+          inventoryIds,
+        });
       } catch (error) {
         counters.failed += 1;
         const message = error instanceof Error ? error.message : String(error);

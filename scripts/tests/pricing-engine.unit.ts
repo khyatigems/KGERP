@@ -4,6 +4,7 @@ import {
   computeMarketplaceCosts,
   computeMrp,
   computeMsp,
+  resolvePurchaseCost,
   statusFor,
 } from "../../lib/pricing/engine";
 import { toInr, fromInr } from "../../lib/pricing/currency";
@@ -20,6 +21,18 @@ const ch = (overrides: Partial<FeeCharge>): FeeCharge => ({
   sortOrder: 0,
   ...overrides,
 });
+
+{
+  const purchaseCost = resolvePurchaseCost({
+    costPrice: 2731.15,
+    flatPurchaseCost: 0,
+    purchaseRatePerCarat: 30,
+    weightValue: 13,
+  });
+  assert.equal(purchaseCost, 2731.15, "The persisted total cost must take precedence over rate × raw weight.");
+  assert.equal(resolvePurchaseCost({ flatPurchaseCost: 450, purchaseRatePerCarat: 30, weightValue: 13 }), 450);
+  assert.equal(resolvePurchaseCost({ purchaseRatePerCarat: 30, weightValue: 13 }), 390);
+}
 
 // Marketplace costs: flat + percent mix
 {

@@ -18,6 +18,7 @@ interface RegenerateEbayModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedItemIds?: string[]; // Items selected for regeneration
+  marketplace?: "EBAY" | "ETSY";
 }
 
 interface ProgressData {
@@ -40,6 +41,7 @@ export function RegenerateEbayModal({
   open,
   onOpenChange,
   selectedItemIds,
+  marketplace = "EBAY",
 }: RegenerateEbayModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState<ProgressData | null>(null);
@@ -47,6 +49,8 @@ export function RegenerateEbayModal({
   const [isComplete, setIsComplete] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const endpoint = marketplace === "ETSY" ? "/api/inventory/regenerate-etsy" : "/api/inventory/regenerate-ebay";
+  const marketplaceName = marketplace === "ETSY" ? "Etsy" : "eBay";
 
   const pollTaskStatus = async (taskId: string) => {
     let isFinished = false;
@@ -54,7 +58,7 @@ export function RegenerateEbayModal({
     const MAX_RETRIES = 3;
     while (!isFinished) {
       const response = await fetch(
-        `/api/inventory/regenerate-ebay?taskId=${encodeURIComponent(taskId)}`
+        `${endpoint}?taskId=${encodeURIComponent(taskId)}`
       );
 
       if (!response.ok) {
@@ -123,7 +127,7 @@ export function RegenerateEbayModal({
 
     try {
       // Build URL with itemIds if provided
-      const url = new URL("/api/inventory/regenerate-ebay", window.location.origin);
+      const url = new URL(endpoint, window.location.origin);
       if (selectedItemIds && selectedItemIds.length > 0) {
         url.searchParams.set("itemIds", JSON.stringify(selectedItemIds));
       }
@@ -161,7 +165,7 @@ export function RegenerateEbayModal({
       await pollTaskStatus(result.taskId);
     } catch (error) {
       console.error("Regenerate error:", error);
-      const msg = error instanceof Error ? error.message : "Failed to regenerate eBay HTML descriptions";
+      const msg = error instanceof Error ? error.message       : `Failed to regenerate ${marketplaceName} descriptions`;
       toast.error(msg);
     } finally {
       setIsLoading(false);
@@ -175,7 +179,7 @@ export function RegenerateEbayModal({
     setIsCancelling(true);
     try {
       const response = await fetch(
-        `/api/inventory/regenerate-ebay?taskId=${encodeURIComponent(taskId)}`,
+        `${endpoint}?taskId=${encodeURIComponent(taskId)}`,
         {
           method: "DELETE",
           credentials: "same-origin",
@@ -230,12 +234,12 @@ export function RegenerateEbayModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
-            Regenerate eBay HTML Descriptions
+            Regenerate {marketplaceName} Descriptions
           </DialogTitle>
           <DialogDescription>
             {selectedItemIds && selectedItemIds.length > 0
-              ? `This will regenerate HTML descriptions for ${selectedItemIds.length} selected item(s) using the latest eBay settings and category-specific images.`
-              : `This will regenerate HTML descriptions for all inventory items using the latest eBay settings and category-specific images.`}
+              ? `This will regenerate ${marketplace === "ETSY" ? "plain-text" : "HTML"} descriptions for ${selectedItemIds.length} selected item(s).`
+              : `This will regenerate ${marketplace === "ETSY" ? "plain-text" : "HTML"} descriptions for all inventory items.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -245,8 +249,8 @@ export function RegenerateEbayModal({
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 {selectedItemIds && selectedItemIds.length > 0
-                  ? `This operation will regenerate descriptions for ${selectedItemIds.length} selected item(s). It may take a few moments.`
-                  : `This operation will regenerate descriptions for all inventory items. It may take a few moments depending on your inventory size.`}
+                  ? `This operation will regenerate and save Etsy descriptions for ${selectedItemIds.length} selected item(s).`
+                  : `This operation will regenerate and save Etsy descriptions for all inventory items. AI generation can take longer for larger inventories; a factual template is used if AI is unavailable.`}
               </AlertDescription>
             </Alert>
           )}
@@ -306,7 +310,7 @@ export function RegenerateEbayModal({
                 <Alert className="border-green-200 bg-green-50">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <AlertDescription className="text-green-800">
-                    All descriptions have been regenerated successfully.
+                    All {marketplaceName} descriptions have been regenerated successfully.
                   </AlertDescription>
                 </Alert>
               )}

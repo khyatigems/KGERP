@@ -8,6 +8,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
+import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
 import { addToCart } from "@/app/(dashboard)/labels/actions";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, checkUserPermission } from "@/lib/permissions";
@@ -101,6 +102,7 @@ const inventorySchema = z.object({
   hsnCode: z.string().optional(),
   notes: z.string().optional(),
   description: z.string().optional(),
+  etsyDescription: z.string().max(5000).optional(),
   certificateComments: z.string().optional(),
   mediaUrl: z.string().optional().or(z.literal("")),
   mediaUrls: z.array(z.string()).optional(),
@@ -383,6 +385,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               hsnCode: data.hsnCode && data.hsnCode.trim() ? data.hsnCode.trim() : null,
               notes: data.notes,
               description: data.description,
+              etsyDescription: data.etsyDescription,
               certificateComments: data.certificateComments,
               
               // Bracelet Fields
@@ -608,6 +611,7 @@ export async function updateInventory(
       hsnCode: data.hsnCode && data.hsnCode.trim() ? data.hsnCode.trim() : null,
       notes: data.notes,
       description: data.description,
+      etsyDescription: data.etsyDescription,
       certificateComments: data.certificateComments,
       braceletType: data.braceletType,
       beadSizeMm,
@@ -633,6 +637,10 @@ export async function updateInventory(
         oldData: oldInventory,
         newData: updatedInventory,
     }).catch(() => {});
+
+    if (String(updatedInventory.status).toUpperCase() === "SOLD") {
+      markMarketplaceListingsSold({ inventoryIds: [id] }).catch(() => {});
+    }
 
     triggerMarketplaceConflict({
       inventoryId: id,
@@ -1080,6 +1088,9 @@ export async function updateInventoryStatus(
     where: { id: inventoryId },
     data: { status },
   });
+  if (String(status).toUpperCase() === "SOLD") {
+    await markMarketplaceListingsSold({ inventoryIds: [inventoryId] });
+  }
 
   // Fire-and-forget side effects
   logActivity({

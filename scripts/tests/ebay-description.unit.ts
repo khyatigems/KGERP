@@ -48,6 +48,20 @@ assert.ok(htmlWithCertificateUrl.includes("<strong>Certification:</strong> GCI")
 assert.ok(!htmlWithCertificateUrl.includes(certificateUrl));
 assert.ok(!htmlWithCertificateUrl.includes("track-certificate"));
 
+const htmlWithoutCertificate = buildEbayHtmlDescription(
+  {
+    itemName: "Natural Aventurine",
+    category: "Loose Gemstone",
+    gemType: "Aventurine",
+    certification: certificateUrl,
+  },
+  { includeCertificate: false }
+);
+
+assert.ok(!htmlWithoutCertificate.includes("GCI202691BB21B"));
+assert.ok(!htmlWithoutCertificate.includes("Certification:"));
+assert.ok(!htmlWithoutCertificate.includes("Does this item come with certification?"));
+
 const htmlWithIgiGtl = buildEbayHtmlDescription({
   itemName: "Certified Gemstone",
   category: "Loose Gemstone",

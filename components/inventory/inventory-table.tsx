@@ -15,7 +15,7 @@ import { BulkEditDialog } from "./bulk-edit-dialog";
 import { BulkCertificateDialog } from "./bulk-certificate-dialog";
 import { Edit, ShieldCheck } from "lucide-react";
 import dynamic from "next/dynamic";
-import { RegenerateEbayButton } from "./regenerate-ebay-button";
+import { RegenerateEbayButton, RegenerateEtsyButton } from "./regenerate-ebay-button";
 
 const InventoryDetailDrawer = dynamic(
   () => import("@/components/inventory/inventory-detail-drawer").then((m) => ({ default: m.InventoryDetailDrawer })),
@@ -113,6 +113,7 @@ export function InventoryTable({
             ) : null}
           </span>
           <RegenerateEbayButton selectedItemIds={selectedIds} />
+          <RegenerateEtsyButton selectedItemIds={selectedIds} />
           <Button size="sm" onClick={() => {
             const params = new URLSearchParams();
             selectedIds.forEach(id => params.append('id', id));

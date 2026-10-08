@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
+import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
 import { applyCreditNotesOnInvoiceCreation } from "@/lib/invoice-payment";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
@@ -769,6 +770,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   where: { id: itemData.inv.id },
                   data: { status: "SOLD" }
               });
+              await markMarketplaceListingsSold({ inventoryIds: [itemData.inv.id] }, tx);
           }
 
           // Apply existing credit notes of customer (auto-adjust receivable)

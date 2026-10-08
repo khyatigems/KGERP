@@ -13,13 +13,14 @@ import { InventorySavedToast } from "@/components/inventory/inventory-saved-toas
 import { InventoryInsightBar } from "@/components/inventory/inventory-insight-bar";
 import { ComprehensiveExport } from "@/components/inventory/comprehensive-export";
 import { InventoryFilteredExport } from "@/components/inventory/inventory-filtered-export";
-import { RegenerateEbayButton } from "@/components/inventory/regenerate-ebay-button";
+import { RegenerateEbayButton, RegenerateEtsyButton } from "@/components/inventory/regenerate-ebay-button";
 import { BulkListings } from "@/components/inventory/bulk-listings";
 import type { Inventory, Prisma } from "@prisma/client";
 import { removeDuplicates } from "@/lib/dedup";
 import { auth } from "@/lib/auth";
 import { checkUserPermissions, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { buildReadyToSellWhere } from "@/lib/inventory-ready-to-sell";
 
 // Short-lived in-memory cache for the main inventory query (5 seconds)
 // Prevents duplicate queries from InventoryStats + InventoryInsightBar firing simultaneously
@@ -173,20 +174,7 @@ function buildInventoryWhere(
   if (params.filter === "missingImages") {
     and.push({ imageUrl: null, status: "IN_STOCK", media: { none: {} } });
   } else if (params.filter === "readyToSell") {
-    and.push({
-      status: "IN_STOCK",
-      AND: [
-        { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
-        {
-          OR: [
-            { NOT: { OR: [{ certificateNo: null }, { certificateNo: "" }] } },
-            { NOT: { OR: [{ certificateNumber: null }, { certificateNumber: "" }] } },
-          ],
-        },
-        { NOT: { OR: [{ description: null }, { description: "" }] } },
-        { NOT: { OR: [{ hsnCode: null }, { hsnCode: "" }] } },
-      ],
-    } as Prisma.InventoryWhereInput);
+    and.push(buildReadyToSellWhere());
   } else if (params.filter === "missingCertification") {
     and.push({
       status: "IN_STOCK",
@@ -548,6 +536,7 @@ export default async function InventoryPage({
             <InventoryFilteredExport />
           </Suspense>
           <RegenerateEbayButton />
+          <RegenerateEtsyButton />
           <BulkListings inventoryItems={data.inventory.map(item => ({
             id: item.id,
             sku: item.sku,

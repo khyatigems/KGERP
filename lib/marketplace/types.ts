@@ -43,6 +43,7 @@ export interface NormalizedListing {
 
 export interface NormalizedOrderItem {
   itemId: string | null;
+  listingId?: string | null;
   sku: string | null;
   title: string | null;
   quantity: number;

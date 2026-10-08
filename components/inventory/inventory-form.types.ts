@@ -61,6 +61,7 @@ export const formSchema = z.object({
   flatSellingPrice: z.coerce.number().optional(),
   notes: z.string().optional(),
   description: z.string().optional(),
+  etsyDescription: z.string().max(5000).optional(),
   certificateComments: z.string().optional(),
   status: z.enum(["IN_STOCK", "RESERVED", "MEMO"]).optional().default("IN_STOCK"),
   stockLocation: z.string().optional(),
@@ -155,6 +156,7 @@ export type FormInputValues = {
   flatSellingPrice?: number | undefined;
   notes?: string | undefined;
   description?: string | undefined;
+  etsyDescription?: string | undefined;
   certificateComments?: string | undefined;
   status?: "IN_STOCK" | "RESERVED" | "MEMO" | undefined;
   stockLocation?: string | undefined;

@@ -14,13 +14,37 @@ import { getValidAccessToken, updateTokens, isEncryptionReady } from "@/lib/mark
 const API_BASE = "https://openapi.etsy.com";
 const AUTH_URL = "https://www.etsy.com/oauth/connect";
 const TOKEN_URL = "https://api.etsy.com/v3/public/oauth/token";
-const SCOPES = "listings_r transactions_r shops_r";
+const SCOPES = "listings_r listings_w transactions_r shops_r";
 const ETSY_APP_PROFILES: EtsyOAuthAppProfile[] = [
   "ETSY_SELLER_LEGACY",
   "ETSY_SECONDARY",
   "ETSY_PERSONAL",
   "ETSY_COMMERCIAL",
 ];
+type EtsyTaxonomyNode = {
+  taxonomy_id?: string | number;
+  id?: string | number;
+  name?: string;
+  children?: EtsyTaxonomyNode[];
+};
+type EtsyTaxonomyPropertyValue = string | {
+  value_id?: string | number;
+  id?: string | number;
+  name?: string;
+  value?: string;
+};
+type EtsyTaxonomyProperty = {
+  property_id?: string | number;
+  id?: string | number;
+  display_name?: string;
+  name?: string;
+  required?: boolean;
+  is_required?: boolean;
+  possible_values?: EtsyTaxonomyPropertyValue[];
+  supports_variations?: boolean;
+};
+type EtsyShopSection = { shop_section_id?: string | number; id?: string | number; title?: string };
+let sellerTaxonomyCache: { expiresAt: number; nodes: EtsyTaxonomyNode[] } | null = null;
 
 export interface EtsyAppCredentials {
   clientId: string;
@@ -306,6 +330,117 @@ export class EtsyConnector implements MarketplaceConnector {
     return [];
   }
 
+  async getListingPreparationOptions(
+    connectionId: string,
+    externalShopId: string,
+    taxonomyId?: string
+  ): Promise<{
+    categories: Array<{ taxonomyId: string; name: string; path: string }>;
+    sections: Array<{ id: string; title: string }>;
+    sensitivePropertiesExcluded: number;
+    properties: Array<{
+      id: string;
+      name: string;
+      required: boolean;
+      values: Array<{ id: string | null; name: string }>;
+      supportsVariations: boolean;
+    }>;
+  }> {
+    const token = await this.getAccessToken(connectionId);
+    const profile = await this.getConnectionProfile(connectionId);
+    const credentials = this.credentials(profile);
+    const headers = this.getHeaders(token, credentials);
+
+    const taxonomyPromise = async (): Promise<EtsyTaxonomyNode[]> => {
+      if (sellerTaxonomyCache && sellerTaxonomyCache.expiresAt > Date.now()) return sellerTaxonomyCache.nodes;
+      const response = await httpJson<{ results?: EtsyTaxonomyNode[]; taxonomy_nodes?: EtsyTaxonomyNode[] }>(
+        `${API_BASE}/v3/application/seller-taxonomy/nodes`,
+        { headers }
+      );
+      const nodes = Array.isArray(response?.results)
+        ? response.results
+        : Array.isArray(response?.taxonomy_nodes)
+          ? response.taxonomy_nodes
+          : [];
+      if (!nodes.length) throw new Error("Etsy returned an empty seller taxonomy.");
+      sellerTaxonomyCache = { nodes, expiresAt: Date.now() + 60 * 60 * 1000 };
+      return nodes;
+    };
+    const [taxonomyNodes, sectionResponse, propertyResponse] = await Promise.all([
+      taxonomyPromise(),
+      httpJson<{ results?: EtsyShopSection[] }>(
+        `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/sections?limit=100`,
+        { headers }
+      ),
+      taxonomyId
+        ? httpJson<{ results?: EtsyTaxonomyProperty[] }>(
+            `${API_BASE}/v3/application/seller-taxonomy/nodes/${encodeURIComponent(taxonomyId)}/properties`,
+            { headers }
+          )
+        : Promise.resolve({ results: [] }),
+    ]);
+
+    const categories: Array<{ taxonomyId: string; name: string; path: string }> = [];
+    const walk = (nodes: EtsyTaxonomyNode[], parents: string[] = []) => {
+      for (const node of nodes) {
+        const id = node?.taxonomy_id ?? node?.id;
+        const name = typeof node?.name === "string" ? node.name.trim() : "";
+        if (!id || !name) continue;
+        const path = [...parents, name];
+        categories.push({ taxonomyId: String(id), name, path: path.join(" > ") });
+        walk(Array.isArray(node.children) ? node.children : [], path);
+      }
+    };
+    walk(taxonomyNodes);
+    if (!categories.length) {
+      throw new Error("Etsy returned no seller taxonomy categories. Check the Etsy API response and shop authorization.");
+    }
+    if (!Array.isArray(sectionResponse?.results) || (taxonomyId && !Array.isArray(propertyResponse?.results))) {
+      throw new Error("Etsy returned an unexpected response while loading shop sections or category properties.");
+    }
+
+    const rawProperties = Array.isArray(propertyResponse?.results) ? propertyResponse.results : [];
+    const sensitivePropertiesExcluded = rawProperties.filter((property) =>
+      /certific|laboratory|certificate number/i.test(String(property?.display_name || property?.name || ""))
+    ).length;
+    const properties = rawProperties
+      .flatMap((property) => {
+        const id = property?.property_id ?? property?.id;
+        const name = typeof (property?.display_name || property?.name) === "string"
+          ? String(property.display_name || property.name).trim()
+          : "";
+        if (!id || !name || /certific|laboratory|certificate number/i.test(name)) return [];
+        const values = Array.isArray(property?.possible_values)
+          ? property.possible_values
+            .flatMap((value) => {
+              const name = typeof value === "string" ? value : value?.name || value?.value;
+              return typeof name === "string" && name.trim()
+                ? [{ id: value && typeof value === "object" && (value.value_id ?? value.id) != null ? String(value.value_id ?? value.id) : null, name: name.trim() }]
+                : [];
+            })
+          : [];
+        return [{
+          id: String(id),
+          name,
+          required: Boolean(property?.required ?? property?.is_required),
+          values,
+          supportsVariations: Boolean(property?.supports_variations),
+        }];
+      });
+
+    return {
+      categories,
+      sections: (Array.isArray(sectionResponse?.results) ? sectionResponse.results : [])
+        .flatMap((section) => {
+          const id = section?.shop_section_id ?? section?.id;
+          const title = typeof section?.title === "string" ? section.title.trim() : "";
+          return id && title ? [{ id: String(id), title }] : [];
+        }),
+      sensitivePropertiesExcluded,
+      properties,
+    };
+  }
+
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {
     const token = await this.getAccessToken(context.connectionId);
     const headers = this.getHeaders(token, this.credentials(await this.getConnectionProfile(context.connectionId)));
@@ -414,6 +549,7 @@ export class EtsyConnector implements MarketplaceConnector {
   private normalizeOrder(receipt: any, imagesByListing = new Map<string, string>()): NormalizedOrder {
     const items: NormalizedOrderItem[] = (receipt?.transactions || []).map((tx: any) => ({
       itemId: tx?.transaction_id ? String(tx.transaction_id) : null,
+      listingId: tx?.listing_id != null ? String(tx.listing_id) : null,
       sku: tx?.sku ? String(tx.sku) : null,
       title: tx?.title ? String(tx.title) : null,
       quantity: Number(tx?.quantity || 1),

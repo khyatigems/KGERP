@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,12 @@ type InventoryRow = {
   category: string | null;
   gemType: string | null;
   color: string | null;
+  shape: string | null;
+  etsyDescription: string | null;
+  imageUrl: string | null;
   sellingPrice: number | null;
+  weightValue: number | null;
+  weightUnit: string | null;
   status: string;
   createdAt: string;
 };
@@ -41,6 +47,11 @@ type Filters = {
 };
 
 const presetKey = "khyatigems.listing.inventoryFilterPresets";
+
+export function buildMarketplaceTitle(item: Pick<InventoryRow, "itemName" | "weightValue" | "weightUnit">, marketplace: "EBAY" | "ETSY") {
+  const weight = item.weightValue ? `${item.weightValue} ${item.weightUnit || "cts"}` : "";
+  return [item.itemName, weight].filter(Boolean).join(" - ").slice(0, marketplace === "EBAY" ? 80 : 140);
+}
 
 const defaultFilters: Filters = {
   q: "",
@@ -68,9 +79,15 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
 export function InventoryPicker({
   value,
   onSelect,
+  marketplaceReadyOnly = false,
+  marketplace,
+  shopId,
 }: {
   value: string;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, item?: InventoryRow) => void;
+  marketplaceReadyOnly?: boolean;
+  marketplace?: "EBAY" | "ETSY";
+  shopId?: string;
 }) {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const debouncedFilters = useDebouncedValue(filters, 250);
@@ -78,6 +95,7 @@ export function InventoryPicker({
   const [rows, setRows] = useState<InventoryRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<Preset[]>([]);
   const [selectedPreset, setSelectedPreset] = useState("");
@@ -106,21 +124,32 @@ export function InventoryPicker({
     });
     params.set("page", String(page));
     params.set("pageSize", debouncedFilters.pageSize || "25");
+    if (marketplaceReadyOnly) params.set("marketplaceReadyOnly", "1");
+    if (marketplace && shopId) {
+      params.set("marketplace", marketplace);
+      params.set("shopId", shopId);
+    }
     return params.toString();
-  }, [debouncedFilters, page]);
+  }, [debouncedFilters, marketplace, marketplaceReadyOnly, page, shopId]);
 
   useEffect(() => {
     const ac = new AbortController();
     const run = async () => {
       setLoading(true);
+      setError("");
       try {
         const res = await fetch(`/api/inventory/search?${query}`, { signal: ac.signal, cache: "no-store" });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error(`Inventory search failed (HTTP ${res.status}).`);
         const json = await res.json();
         setRows(json.items || []);
         setTotal(Number(json.total || 0));
+      } catch (requestError) {
+        if (ac.signal.aborted) return;
+        setRows([]);
+        setTotal(0);
+        setError(requestError instanceof Error ? requestError.message : "Unable to load inventory.");
       } finally {
-        setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       }
     };
     run();
@@ -158,6 +187,11 @@ export function InventoryPicker({
 
   return (
     <div className="space-y-4">
+      {marketplaceReadyOnly && (
+        <p className="text-xs text-muted-foreground">
+          Showing Ready to Sell inventory not already listed on the selected marketplace shop. Certificate details stay private and are excluded from listing descriptions.
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
         <Input value={filters.q} onChange={(e) => onChange({ q: e.target.value })} placeholder="Search SKU, name, notes..." className="md:col-span-2" />
         <Input value={filters.category} onChange={(e) => onChange({ category: e.target.value })} placeholder="Category" />
@@ -205,7 +239,7 @@ export function InventoryPicker({
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-col gap-2 md:flex-row md:items-center">
           <Select onValueChange={onApplyPreset} value={selectedPreset}>
-            <SelectTrigger className="w-[220px]">
+            <SelectTrigger className="w-55">
               <SelectValue placeholder="Filter presets" />
             </SelectTrigger>
             <SelectContent>
@@ -218,7 +252,7 @@ export function InventoryPicker({
               )}
             </SelectContent>
           </Select>
-          <Input value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Preset name" className="md:w-[200px]" />
+          <Input value={presetName} onChange={(e) => setPresetName(e.target.value)} placeholder="Preset name" className="md:w-50" />
           <Button type="button" variant="secondary" onClick={onSavePreset}>Save Preset</Button>
           <Button type="button" variant="ghost" disabled={!selectedPreset} onClick={() => selectedPreset && onDeletePreset(selectedPreset)}>
             Delete Preset
@@ -244,7 +278,16 @@ export function InventoryPicker({
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.id} className={row.id === value ? "bg-muted/40" : ""}>
-                <TableCell className="font-mono text-xs">{row.sku}</TableCell>
+                <TableCell className="font-mono text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                      {row.imageUrl
+                        ? <Image src={row.imageUrl} alt="" width={48} height={48} unoptimized className="h-12 w-12 object-cover" />
+                        : <span className="text-[10px] text-muted-foreground">No image</span>}
+                    </div>
+                    <span>{row.sku}</span>
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="font-medium">{row.itemName}</div>
                   <div className="text-xs text-muted-foreground">{[row.category, row.gemType, row.color].filter(Boolean).join(" • ")}</div>
@@ -252,7 +295,7 @@ export function InventoryPicker({
                 <TableCell><Badge variant="outline">{row.status}</Badge></TableCell>
                 <TableCell className="text-right">{formatCurrency(row.sellingPrice ?? 0)}</TableCell>
                 <TableCell className="text-right">
-                  <Button type="button" size="sm" onClick={() => onSelect(row.id)} disabled={loading}>
+                  <Button type="button" size="sm" onClick={() => onSelect(row.id, row)} disabled={loading}>
                     {row.id === value ? "Selected" : "Select"}
                   </Button>
                 </TableCell>
@@ -268,6 +311,7 @@ export function InventoryPicker({
           </TableBody>
         </Table>
       </div>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { withCache } from "@/lib/simple-cache";
+import { buildReadyToSellWhere } from "@/lib/inventory-ready-to-sell";
 
 export async function GET() {
   try {
@@ -93,17 +94,7 @@ export async function GET() {
         prisma.labelPrintJob.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
         prisma.invoice.count({ where: { createdAt: { gte: startOfDay } } }).catch(() => 0),
         prisma.sale.count({ where: { paymentStatus: { not: "PAID" } } }).catch(() => 0),
-        prisma.inventory.count({
-          where: {
-            status: "IN_STOCK",
-            AND: [
-              { OR: [{ imageUrl: { not: null } }, { media: { some: {} } }] },
-              { OR: [{ NOT: { OR: [{ certificateNo: null }, { certificateNo: "" }] } }, { NOT: { OR: [{ certificateNumber: null }, { certificateNumber: "" }] } }] },
-              { NOT: { OR: [{ description: null }, { description: "" }] } },
-              { NOT: { OR: [{ hsnCode: null }, { hsnCode: "" }] } },
-            ],
-          },
-        }).catch(() => 0),
+        prisma.inventory.count({ where: buildReadyToSellWhere() }).catch(() => 0),
         prisma.sale.count({ where: { saleDate: { gte: startOfMonth } } }).catch(() => 0),
         prisma.inventory.count({ where: { createdAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
         prisma.inventory.count({ where: { createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } } }).catch(() => 0),

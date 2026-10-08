@@ -18,6 +18,7 @@ interface NotesSectionProps {
 export function NotesSection({ form, skuPreview }: NotesSectionProps) {
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isGeneratingEbayDescription, setIsGeneratingEbayDescription] = useState(false);
+  const [isGeneratingEtsyDescription, setIsGeneratingEtsyDescription] = useState(false);
   const [additionalProductInfo, setAdditionalProductInfo] = useState("");
 
   return (
@@ -198,6 +199,87 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
               </p>
               <FormControl>
                 <Textarea className="min-h-96 font-mono text-sm" placeholder="Paste or generate HTML description for eBay" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="etsyDescription"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex items-center justify-between gap-3">
+                <FormLabel>Etsy plain-text description</FormLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 shrink-0 gap-1.5 text-xs text-muted-foreground"
+                  disabled={isGeneratingEtsyDescription}
+                  onClick={async () => {
+                    const values = form.getValues();
+                    setIsGeneratingEtsyDescription(true);
+                    try {
+                      const response = await fetch("/api/ai/etsy-description", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          inventory: {
+                            itemName: values.itemName,
+                            category: values.category,
+                            gemType: values.gemType,
+                            color: values.color,
+                            shape: values.shape,
+                            dimensionsMm: values.dimensionsMm,
+                            weightValue: values.weightValue,
+                            weightUnit: values.weightUnit,
+                            treatment: values.treatment,
+                            origin: values.origin,
+                            fluorescence: values.fluorescence,
+                            transparency: values.transparency,
+                            hasCertification: Boolean(
+                              (values.certification && values.certification.trim().toLowerCase() !== "none")
+                              || values.certificateComments?.trim()
+                              || values.certificateCodeIds?.length
+                            ),
+                            braceletType: values.braceletType,
+                            beadSizeMm: values.beadSizeMm,
+                            beadCount: values.beadCount,
+                            holeSizeMm: values.holeSizeMm,
+                            innerCircumferenceMm: values.innerCircumferenceMm,
+                            standardSize: values.standardSize,
+                          },
+                        }),
+                      });
+                      const result = await response.json();
+                      if (!response.ok) throw new Error(result.error || "Unable to generate Etsy description.");
+                      if (typeof result.description !== "string" || !result.description.trim()) {
+                        throw new Error("Description generation returned empty text.");
+                      }
+                      form.setValue("etsyDescription", result.description.trim(), { shouldDirty: true });
+                      if (result.warning) {
+                        toast.warning(`${result.warning} Review the text before saving.`);
+                      } else {
+                        toast.success("Etsy description generated. Review it before saving.");
+                      }
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Unable to generate Etsy description.");
+                    } finally {
+                      setIsGeneratingEtsyDescription(false);
+                    }
+                  }}
+                >
+                  {isGeneratingEtsyDescription ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {isGeneratingEtsyDescription ? "Generating..." : "Generate Etsy description"}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Saved separately as plain text on the inventory record. Certificate numbers, lab identifiers, prices, and internal notes are not sent to the description generator.
+              </p>
+              <FormControl>
+                <Textarea className="min-h-48 text-sm" maxLength={5000} placeholder="Generate or write the reusable Etsy description here." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
