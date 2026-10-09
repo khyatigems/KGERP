@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
-import { httpJson, bearerAuth } from "@/lib/marketplace/http";
+import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
 import { prisma } from "@/lib/prisma";
+import { downloadMarketplaceMedia } from "@/lib/marketplace/media-transfer";
 import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext, EtsyOAuthAppProfile, MarketplaceOAuthContext } from "@/lib/marketplace/connector";
 import type {
   NormalizedListing,
@@ -51,6 +52,25 @@ export interface EtsyAppCredentials {
   sharedSecret: string;
   redirectUri: string;
 }
+
+export type EtsyMarketplaceDraftInput = {
+  title: string;
+  description: string;
+  quantity: number;
+  price: number;
+  taxonomyId: string;
+  shopSectionId?: string;
+  whoMade: "I_DID" | "SHOP_MEMBER" | "ANOTHER_COMPANY_OR_PERSON";
+  whenMade: string;
+  isSupply: boolean;
+  tags: string[];
+  categoryAttributes: Array<{
+    propertyId?: string;
+    valueId?: string;
+    value: string;
+  }>;
+  media: Array<{ mediaUrl: string; type: "IMAGE" | "VIDEO" }>;
+};
 
 function env(name: string): string {
   return (process.env[name] || "").trim();
@@ -439,6 +459,109 @@ export class EtsyConnector implements MarketplaceConnector {
       sensitivePropertiesExcluded,
       properties,
     };
+  }
+
+  async getShopCurrencyCode(connectionId: string, externalShopId: string): Promise<string> {
+    const token = await this.getAccessToken(connectionId);
+    const profile = await this.getConnectionProfile(connectionId);
+    const credentials = this.credentials(profile);
+    const shop = await httpJson<{ currency_code?: string }>(
+      `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}`,
+      { headers: this.getHeaders(token, credentials) }
+    );
+    const currencyCode = String(shop.currency_code || "").trim().toUpperCase();
+    if (!currencyCode) throw new Error("Etsy did not return the selected shop's listing currency.");
+    return currencyCode;
+  }
+
+  async createMarketplaceDraft(
+    connectionId: string,
+    externalShopId: string,
+    input: EtsyMarketplaceDraftInput
+  ): Promise<{ listingId: string; uploadedMedia: number; warnings: string[] }> {
+    const token = await this.getAccessToken(connectionId);
+    const profile = await this.getConnectionProfile(connectionId);
+    const credentials = this.credentials(profile);
+    const headers = this.getHeaders(token, credentials);
+    const form = new URLSearchParams({
+      quantity: String(input.quantity),
+      title: input.title,
+      description: input.description,
+      price: input.price.toFixed(2),
+      who_made: input.whoMade === "I_DID" ? "i_did" : input.whoMade === "SHOP_MEMBER" ? "collective" : "someone_else",
+      when_made: input.whenMade.toLowerCase(),
+      taxonomy_id: input.taxonomyId,
+      is_supply: String(input.isSupply),
+    });
+    if (input.shopSectionId) form.set("shop_section_id", input.shopSectionId);
+    input.tags.forEach((tag) => form.append("tags[]", tag));
+
+    const created = await httpJson<{ listing_id?: number | string }>(
+      `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/listings`,
+      {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
+      }
+    );
+    const listingId = String(created.listing_id || "").trim();
+    if (!listingId) throw new Error("Etsy accepted the draft request but did not return a listing ID.");
+
+    const warnings: string[] = [];
+    let uploadedMedia = 0;
+    let imageRank = 0;
+    for (const [index, attribute] of input.categoryAttributes.entries()) {
+      if (!attribute.propertyId) continue;
+      try {
+        const propertyValues = new URLSearchParams();
+        if (attribute.valueId) propertyValues.append("value_ids[]", attribute.valueId);
+        propertyValues.append("values[]", attribute.value);
+        await httpRequest(
+          `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/listings/${encodeURIComponent(listingId)}/properties/${encodeURIComponent(attribute.propertyId)}`,
+          {
+            method: "PUT",
+            headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
+            body: propertyValues.toString(),
+          }
+        );
+      } catch (error) {
+        warnings.push(`Category attribute ${index + 1}: ${error instanceof Error ? error.message : "update failed"}`);
+      }
+    }
+    for (const [index, asset] of input.media.entries()) {
+      try {
+        const file = await downloadMarketplaceMedia(
+          asset.mediaUrl,
+          asset.type,
+          asset.type === "IMAGE" ? 10 * 1024 * 1024 : 100 * 1024 * 1024
+        );
+        const body = new FormData();
+        body.append(
+          asset.type === "IMAGE" ? "image" : "video",
+          new Blob([Uint8Array.from(file.buffer)], { type: file.contentType }),
+          file.fileName
+        );
+        if (asset.type === "IMAGE") {
+          body.append("rank", String(imageRank));
+          imageRank += 1;
+          await httpRequest(
+            `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/listings/${encodeURIComponent(listingId)}/images`,
+            { method: "POST", headers, body }
+          );
+        } else {
+          body.append("name", file.fileName);
+          await httpRequest(
+            `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/listings/${encodeURIComponent(listingId)}/videos`,
+            { method: "POST", headers, body }
+          );
+        }
+        uploadedMedia += 1;
+      } catch (error) {
+        warnings.push(`${asset.type === "IMAGE" ? "Photo" : "Video"} ${index + 1}: ${error instanceof Error ? error.message : "upload failed"}`);
+      }
+    }
+
+    return { listingId, uploadedMedia, warnings };
   }
 
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {

@@ -78,11 +78,13 @@ type PricingGuidance = {
 };
 type SavedDraft = {
   id: string;
+  externalId?: string | null;
   sku: string;
   itemName: string;
   title: string;
   shop: string;
   platform: string;
+  syncError?: string | null;
   price: number;
   currency: string;
   regionalPrices?: { india: number; us: number; global: number } | null;
@@ -823,7 +825,11 @@ export function ListingPreparationClient({
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to save draft.");
-      toast.success("Listing preparation saved as an ERP draft.");
+      if (Array.isArray(payload.warnings) && payload.warnings.length) {
+        toast.warning(`eBay draft ${payload.externalListingId} was created, but some media needs attention: ${payload.warnings.join("; ")}`);
+      } else {
+        toast.success("Unpublished eBay draft created in the selected shop with selected media.");
+      }
       returnToSavedDrafts();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to save draft.");
@@ -873,7 +879,11 @@ export function ListingPreparationClient({
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to save Etsy listing draft.");
-      toast.success("Etsy listing preparation saved in the ERP only; nothing was sent to Etsy.");
+      if (Array.isArray(payload.warnings) && payload.warnings.length) {
+        toast.warning(`Etsy draft ${payload.externalListingId} was created, but some attributes or media need attention: ${payload.warnings.join("; ")}`);
+      } else {
+        toast.success("Unpublished Etsy draft created in the selected shop with selected media.");
+      }
       returnToSavedDrafts();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to save Etsy listing draft.");
@@ -913,11 +923,11 @@ export function ListingPreparationClient({
           </div>
           {marketplace === "EBAY" && selectedShop && !selectedShop.writeReady && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-muted-foreground">
-              This eBay connection does not include the <code className="rounded bg-background px-1 py-0.5">sell.inventory</code> write scope. Reconnect it before API write validation; the local ERP preview below does not call eBay’s listing API.
+              This eBay connection does not include the <code className="rounded bg-background px-1 py-0.5">sell.inventory</code> write scope. Reconnect it before creating marketplace drafts.
             </div>
           )}
           <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-            ERP draft only · publishing requires marketplace API validation
+            Saves an unpublished draft to the selected shop · publish there when ready
           </span>
         </div>
       </div>
@@ -954,7 +964,7 @@ export function ListingPreparationClient({
             <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
               <div className="space-y-1.5">
                 <CardTitle>Saved marketplace drafts <span className="text-sm font-normal text-muted-foreground">({drafts.length})</span></CardTitle>
-                <CardDescription>These are ERP-only saved preparations, not live marketplace listings.</CardDescription>
+                <CardDescription>New drafts are created in the selected marketplace shop. Older ERP-only drafts are identified below.</CardDescription>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={() => setDraftsExpanded((expanded) => !expanded)} aria-expanded={draftsExpanded}>
                 {draftsExpanded ? "Hide drafts" : "View drafts"}
@@ -965,11 +975,11 @@ export function ListingPreparationClient({
               {drafts.length === 0 ? (
                 <div className="rounded-lg border border-dashed px-4 py-8 text-center">
                   <p className="text-sm font-medium">No marketplace drafts yet</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Saved ERP preparations will appear here for review.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Saved marketplace drafts will appear here for review.</p>
                 </div>
               ) : (
                 <div>
-                  <p className="mb-3 text-xs text-muted-foreground">Showing the latest {drafts.length} saved drafts. They cannot yet be resumed or published from this page.</p>
+                  <p className="mb-3 text-xs text-muted-foreground">Review these drafts in the selected eBay or Etsy shop, add any missing details or media there, and publish when ready.</p>
                   <div className="divide-y rounded-lg border">
                   {drafts.map((draft) => (
                     <div key={draft.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
@@ -979,6 +989,10 @@ export function ListingPreparationClient({
                           <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium">{draft.platform}</span>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{draft.itemName} · {draft.sku} · {draft.shop}</p>
+                        {draft.externalId
+                          ? <p className="mt-1 text-[10px] text-muted-foreground">Marketplace draft ID · {draft.externalId}</p>
+                          : <p className="mt-1 text-[10px] text-amber-700">ERP-only draft · not sent to marketplace</p>}
+                        {draft.syncError && <p className="mt-1 max-w-xl text-[10px] text-amber-700">{draft.syncError}</p>}
                       </div>
                       <div className="text-right">
                           {draft.regionalPrices ? (
@@ -1088,17 +1102,18 @@ export function ListingPreparationClient({
                 <>
                 <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4">
                   <p className="text-sm font-semibold">
-                    {etsyShops.length > 0
-                      ? "Etsy is connected for ERP marketplace sync"
-                      : "No connected Etsy shop was found"}
+                    {!selectedShop
+                      ? "Select a connected Etsy shop to check listing access"
+                      : selectedShop.writeReady
+                        ? "Etsy listing-write access is available"
+                        : "Etsy listing-write access is not available"}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    The old “account path unavailable” notice was incorrect. Etsy listing creation requires the <code className="rounded bg-background px-1 py-0.5 text-xs">listings_w</code> OAuth scope, which is now requested for new authorizations.
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
                     {selectedShop?.writeReady
-                      ? "This shop has listing-write access, but category taxonomy, required item attributes, shipping policies, and seller-side validation still need verification before publishing."
-                      : "Reconnect this Etsy account to grant listing-write access. Existing tokens keep their original permissions. Draft preparation can be saved in the ERP, but nothing is sent to Etsy."}
+                      ? <>The selected shop has the <code className="rounded bg-background px-1 py-0.5 text-xs">listings_w</code> permission. Saving creates an unpublished Etsy draft and uploads selected media; this ERP will not publish it.</>
+                      : selectedShop
+                        ? <>The selected shop does not have the <code className="rounded bg-background px-1 py-0.5 text-xs">listings_w</code> permission. Reconnect this shop and approve listing access before creating marketplace drafts.</>
+                        : "Choose the Etsy shop you want to prepare a listing for."}
                   </p>
                 </div>
                 <div className="space-y-4 rounded-xl border p-4">
@@ -1238,7 +1253,7 @@ export function ListingPreparationClient({
                     />
                   </div>
                 ) : (
-                  <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Select an Etsy shop first; inventory already listed in that shop will be excluded.</p>
+                  <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Select an Etsy shop first; inventory already listed or saved as a draft for that shop will be excluded.</p>
                 )}
                 {etsyPreparationOptions?.properties.length ? (
                   <div className="space-y-3 rounded-lg border p-4">
@@ -1349,7 +1364,11 @@ export function ListingPreparationClient({
                           <SelectItem value="2020_2026">2020–2026</SelectItem>
                           <SelectItem value="2010_2019">2010–2019</SelectItem>
                           <SelectItem value="2000_2009">2000–2009</SelectItem>
-                          <SelectItem value="BEFORE_2000">Before 2000</SelectItem>
+                          <SelectItem value="1990s">1990s</SelectItem>
+                          <SelectItem value="1980s">1980s</SelectItem>
+                          <SelectItem value="1970s">1970s</SelectItem>
+                          <SelectItem value="1960s">1960s</SelectItem>
+                          <SelectItem value="before_1960">Before 1960</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1517,7 +1536,7 @@ export function ListingPreparationClient({
                   <div>
                     <Label>6. Etsy listing prices · enter manually <span className="text-destructive">*</span></Label>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      These are intended listing prices, not ERP selling-price defaults. They are saved to this ERP draft only; currency/display details must be confirmed against the Etsy shop before publishing.
+                      These are intended prices, not ERP selling-price defaults. Etsy uses the India amount for INR shops, the US amount for USD shops, or the global amount for other shop currencies, converted using the configured exchange rate.
                     </p>
                   </div>
                   <PricingSummary
@@ -1590,10 +1609,10 @@ export function ListingPreparationClient({
                     <Button
                       type="button"
                       onClick={() => void saveEtsyPriceDraft()}
-                      disabled={busy || !inventoryId || !shopId || !etsyDetailsComplete || !hasSelectedMarketplacePhoto || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global}
+                      disabled={busy || !inventoryId || !shopId || !selectedShop?.writeReady || !etsyDetailsComplete || !hasSelectedMarketplacePhoto || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global}
                     >
                       {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save Etsy listing draft
+                      Create Etsy marketplace draft
                     </Button>
                   </div>
                 </div>
@@ -1642,7 +1661,7 @@ export function ListingPreparationClient({
                       />
                     </div>
                   ) : (
-                    <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Select an eBay shop first; inventory already listed in that shop will be excluded.</p>
+                    <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Select an eBay shop first; inventory already listed or saved as a draft for that shop will be excluded.</p>
                   )}
 
                   <div className="space-y-4 rounded-xl border p-4">
@@ -1791,8 +1810,8 @@ export function ListingPreparationClient({
                         {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Prepare ERP preview
                       </Button>
-                      <Button type="button" className="min-h-10 h-auto w-full whitespace-normal px-3 py-2 text-center leading-tight" onClick={() => void saveDraft()} disabled={busy || !inventoryId || !shopId || !listingTitle.trim() || !hasSelectedMarketplacePhoto || !price || !usdToInr || Number(offerPercent) >= 100 || !aspectValuesValid}>
-                        Save ERP draft
+                      <Button type="button" className="min-h-10 h-auto w-full whitespace-normal px-3 py-2 text-center leading-tight" onClick={() => void saveDraft()} disabled={busy || !inventoryId || !shopId || !selectedShop?.writeReady || !listingTitle.trim() || !hasSelectedMarketplacePhoto || !price || !usdToInr || Number(offerPercent) >= 100 || !aspectValuesValid}>
+                        Create eBay marketplace draft
                       </Button>
                     </div>
                   </div>
@@ -1865,7 +1884,7 @@ export function ListingPreparationClient({
         <Card className="xl:sticky xl:top-4">
           <CardHeader>
             <CardTitle>Preparation review</CardTitle>
-            <CardDescription>ERP preview only; marketplace API validation is not complete.</CardDescription>
+            <CardDescription>Review ERP data before saving an unpublished draft to the selected marketplace shop.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {selectedInventory && (
@@ -1915,7 +1934,7 @@ export function ListingPreparationClient({
                       Discounted {etsyBelowMspRegions.join(", ")} price is below the marketplace MSP.
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground">This checklist prepares an ERP draft only; it does not publish to Etsy.</p>
+                  <p className="text-xs text-muted-foreground">Saving creates an unpublished Etsy draft. Add any missing media or details and publish it from Etsy.</p>
                   {pricingLoading && <p className="text-xs text-muted-foreground">Loading MSP/MRP guidance…</p>}
                   {pricingError && <p role="alert" className="text-xs text-destructive">{pricingError}</p>}
                 </div>
@@ -2096,13 +2115,10 @@ function MarketplaceMediaSelector({
       )}
       {marketplace === "ETSY" ? (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Etsy allows JPG, GIF, or PNG photos (recommended shortest side 2000px, 72 PPI, and under 1 MB) and up to 2 videos. Videos should be 3–15 seconds, up to 60 seconds (Etsy trims longer clips to 15 seconds), under 100 MB, and are published without audio. File metadata is not checked in this ERP draft.
+          Etsy allows JPG, GIF, or PNG photos and up to 2 videos. Selected media is uploaded to the unpublished Etsy draft; add any missing media or details in Etsy before publishing.
         </p>
       ) : (
-        <p className="text-xs leading-relaxed text-muted-foreground">eBay allows up to 24 photos and one product video up to 60 seconds. Draft selection is stored in the ERP; upload to eBay is unavailable until the seller connection grants listing-write access.</p>
-      )}
-      {marketplace === "ETSY" && (
-        <p className="text-xs text-amber-700">Selected media is retained as internal ERP draft metadata only. Etsy media upload is not called by this workflow.</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">eBay allows up to 24 photos and one product video. Selected media is attached to the unpublished offer; add anything missing in Seller Hub before publishing.</p>
       )}
     </div>
   );

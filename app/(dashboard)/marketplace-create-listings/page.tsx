@@ -39,6 +39,16 @@ function getRegionalPrices(rawMetadata: string | null) {
   return null;
 }
 
+function getMarketplaceDraftId(rawMetadata: string | null) {
+  if (!rawMetadata) return null;
+  try {
+    const metadata = JSON.parse(rawMetadata) as { marketplaceDraft?: { id?: string } };
+    return metadata.marketplaceDraft?.id || null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function MarketplaceCreateListingsPage() {
   const permission = await checkPermission(PERMISSIONS.LISTINGS_VIEW);
   if (!permission.success) redirect("/");
@@ -62,7 +72,6 @@ export default async function MarketplaceCreateListingsPage() {
       where: {
         platform: { in: ["EBAY", "ETSY"] },
         marketplaceShopId: { not: null },
-        externalId: null,
         status: "DRAFT",
         syncStatus: "DRAFT",
       },
@@ -87,11 +96,13 @@ export default async function MarketplaceCreateListingsPage() {
     }))}
     drafts={drafts.map((draft) => ({
     id: draft.id,
+    externalId: draft.externalId || getMarketplaceDraftId(draft.rawMetadata),
     sku: draft.inventory?.sku || draft.listingSku || "—",
     itemName: draft.inventory?.itemName || draft.marketplaceTitle || "Unknown item",
     title: draft.marketplaceTitle || draft.inventory?.itemName || draft.listingSku || "Untitled marketplace draft",
     shop: draft.marketplaceShop?.name || draft.marketplaceShopName || `${draft.platform} shop`,
     platform: draft.platform,
+    syncError: draft.syncError,
     price: draft.listedPrice,
     currency: draft.currency,
     regionalPrices: getRegionalPrices(draft.rawMetadata),

@@ -1,4 +1,5 @@
 import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
+import { downloadMarketplaceMedia } from "@/lib/marketplace/media-transfer";
 import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext } from "@/lib/marketplace/connector";
 import type {
   NormalizedListing,
@@ -55,6 +56,27 @@ function bases() {
     findingBase: sandbox ? "https://svcs.sandbox.ebay.com" : "https://svcs.ebay.com",
   };
 }
+
+export type EbayMarketplaceDraftInput = {
+  sku: string;
+  title: string;
+  description: string;
+  categoryId: string;
+  marketplaceId: string;
+  price: number;
+  currency: string;
+  quantity: number;
+  condition: string;
+  aspects: Record<string, string[]>;
+  media: Array<{ mediaUrl: string; type: "IMAGE" | "VIDEO" }>;
+};
+
+type EbayBusinessPolicy = {
+  fulfillmentPolicyId?: string;
+  paymentPolicyId?: string;
+  returnPolicyId?: string;
+  categoryTypes?: Array<{ default?: boolean }>;
+};
 
 export class EbayConnector implements MarketplaceConnector {
   readonly platform = "EBAY" as const;
@@ -311,6 +333,119 @@ export class EbayConnector implements MarketplaceConnector {
       "Accept-Language": "en-US",
       "Content-Language": "en-US",
     };
+  }
+
+  async createMarketplaceDraft(
+    connectionId: string,
+    input: EbayMarketplaceDraftInput
+  ): Promise<{ offerId: string; uploadedMedia: number; warnings: string[] }> {
+    const token = await this.getAccessToken(connectionId);
+    const headers = this.getHeaders(token);
+    const { apiBase } = bases();
+    const [fulfillmentResponse, paymentResponse, returnResponse] = await Promise.all([
+      httpJson<{ fulfillmentPolicies?: EbayBusinessPolicy[] }>(
+        `${apiBase}/sell/account/v1/fulfillment_policy?marketplace_id=${encodeURIComponent(input.marketplaceId)}`,
+        { headers }
+      ),
+      httpJson<{ paymentPolicies?: EbayBusinessPolicy[] }>(
+        `${apiBase}/sell/account/v1/payment_policy?marketplace_id=${encodeURIComponent(input.marketplaceId)}`,
+        { headers }
+      ),
+      httpJson<{ returnPolicies?: EbayBusinessPolicy[] }>(
+        `${apiBase}/sell/account/v1/return_policy?marketplace_id=${encodeURIComponent(input.marketplaceId)}`,
+        { headers }
+      ),
+    ]);
+    const defaultPolicy = (policies: EbayBusinessPolicy[] | undefined) => policies?.find((policy) =>
+      Array.isArray(policy.categoryTypes) && policy.categoryTypes.some((category) => category.default === true)
+    );
+    const fulfillmentPolicy = defaultPolicy(fulfillmentResponse.fulfillmentPolicies);
+    const paymentPolicy = defaultPolicy(paymentResponse.paymentPolicies);
+    const returnPolicy = defaultPolicy(returnResponse.returnPolicies);
+    if (!fulfillmentPolicy?.fulfillmentPolicyId || !paymentPolicy?.paymentPolicyId || !returnPolicy?.returnPolicyId) {
+      throw new Error("Set a default eBay shipping, payment, and return policy for the selected shop before creating a marketplace draft.");
+    }
+
+    const videoIds: string[] = [];
+    const warnings: string[] = [];
+    let uploadedMedia = 0;
+    for (const [index, asset] of input.media.entries()) {
+      if (asset.type === "IMAGE") {
+        uploadedMedia += 1;
+        continue;
+      }
+      try {
+        const file = await downloadMarketplaceMedia(asset.mediaUrl, "VIDEO", 150 * 1024 * 1024);
+        const mediaBase = `${apiBase}/commerce/media/v1`;
+        const createdVideo = await httpRequest(
+          `${mediaBase}/video`,
+          {
+            method: "POST",
+            headers: { ...headers, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: `${input.title} video ${index + 1}`,
+              size: file.buffer.length,
+              classification: "ITEM",
+            }),
+          }
+        );
+        const videoLocation = createdVideo.headers.get("location");
+        const videoId = videoLocation?.split("/").filter(Boolean).pop();
+        if (!videoId) throw new Error("eBay did not return a video ID for the selected product video.");
+        await httpRequest(`${mediaBase}/video/${encodeURIComponent(videoId)}/upload`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/octet-stream" },
+          body: Uint8Array.from(file.buffer),
+        });
+        videoIds.push(videoId);
+        uploadedMedia += 1;
+      } catch (error) {
+        warnings.push(`Video ${index + 1}: ${error instanceof Error ? error.message : "upload failed"}`);
+      }
+    }
+
+    const imageUrls = input.media.filter((asset) => asset.type === "IMAGE").map((asset) => asset.mediaUrl);
+    await httpRequest(
+      `${apiBase}/sell/inventory/v1/inventory_item/${encodeURIComponent(input.sku)}`,
+      {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/json", "Content-Language": "en-US" },
+        body: JSON.stringify({
+          availability: { shipToLocationAvailability: { quantity: input.quantity } },
+          condition: input.condition,
+          product: {
+            title: input.title,
+            description: input.description,
+            imageUrls,
+            videoIds,
+            aspects: input.aspects,
+          },
+        }),
+      }
+    );
+    const offer = await httpJson<{ offerId?: string }>(
+      `${apiBase}/sell/inventory/v1/offer`,
+      {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json", "Content-Language": "en-US" },
+        body: JSON.stringify({
+          sku: input.sku,
+          marketplaceId: input.marketplaceId,
+          format: "FIXED_PRICE",
+          availableQuantity: input.quantity,
+          categoryId: input.categoryId,
+          listingDescription: input.description,
+          listingPolicies: {
+            fulfillmentPolicyId: fulfillmentPolicy.fulfillmentPolicyId,
+            paymentPolicyId: paymentPolicy.paymentPolicyId,
+            returnPolicyId: returnPolicy.returnPolicyId,
+          },
+          pricingSummary: { price: { value: input.price.toFixed(2), currency: input.currency } },
+        }),
+      }
+    );
+    if (!offer.offerId) throw new Error("eBay accepted the offer but did not return a draft ID.");
+    return { offerId: offer.offerId, uploadedMedia, warnings };
   }
 
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {

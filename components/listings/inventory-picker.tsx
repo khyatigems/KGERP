@@ -189,7 +189,7 @@ export function InventoryPicker({
     <div className="space-y-4">
       {marketplaceReadyOnly && (
         <p className="text-xs text-muted-foreground">
-          Showing Ready to Sell inventory not already listed on the selected marketplace shop. Certificate details stay private and are excluded from listing descriptions.
+          Showing Ready to Sell inventory not already listed or saved as a draft for the selected marketplace shop. Certificate details stay private and are excluded from listing descriptions.
         </p>
       )}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-6">

@@ -77,7 +77,10 @@ export async function GET(request: NextRequest) {
       SELECT DISTINCT i."id"
       FROM "Listing" l
       ${Prisma.raw(marketplaceInventoryJoinSql("INNER"))}
-      WHERE ${Prisma.raw(MARKETPLACE_LISTING_SCOPE_SQL)}
+      WHERE (
+          ${Prisma.raw(MARKETPLACE_LISTING_SCOPE_SQL)}
+          OR UPPER(TRIM(l."status")) = 'DRAFT'
+        )
         AND l."marketplaceShopId" = ${listingShopId}
         AND UPPER(TRIM(l."platform")) = ${listingMarketplace}
     `);

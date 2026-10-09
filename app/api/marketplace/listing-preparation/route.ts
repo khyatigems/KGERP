@@ -29,7 +29,6 @@ const requestSchema = z.object({
   title: z.string().trim().min(1).max(140).optional(),
   price: z.coerce.number().positive().optional(),
   currency: z.literal("USD").default("USD"),
-  usdToInr: z.coerce.number().positive().optional(),
   offerPercent: z.coerce.number().min(0).max(99.99).default(0),
   aspectValues: z.array(z.object({
     name: z.string().min(1),
@@ -41,6 +40,7 @@ const requestSchema = z.object({
     us: z.coerce.number().positive(),
     global: z.coerce.number().positive(),
   }).optional(),
+  usdToInr: z.coerce.number().positive().optional(),
   etsyListingDetails: z.object({
     productType: z.enum(["LOOSE_GEMSTONE", "BRACELET"]),
     categoryName: z.string().trim().min(1).max(200),
@@ -87,6 +87,11 @@ function parseJson<T>(value: string | null | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function getMarketplaceDraftId(rawMetadata: string | null): string | null {
+  const metadata = parseJson<{ marketplaceDraft?: { id?: string } }>(rawMetadata, {});
+  return metadata.marketplaceDraft?.id || null;
 }
 
 function listingTitle(item: {
@@ -472,7 +477,13 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
         status: "CONNECTED",
         connection: { status: "CONNECTED" },
       },
-      select: { id: true, name: true, connectionId: true, externalShopId: true },
+      select: {
+        id: true,
+        name: true,
+        connectionId: true,
+        externalShopId: true,
+        connection: { select: { scopes: true } },
+      },
     }),
     prisma.inventory.findUnique({
       where: { id: input.inventoryId },
@@ -513,6 +524,9 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
   ]);
 
   if (!shop) throw new ListingPreparationError("The selected Etsy shop is not connected.", 404);
+  if (!(shop.connection.scopes || "").split(/\s+/).includes("listings_w")) {
+    throw new ListingPreparationError("Reconnect the selected Etsy shop and approve the listings_w permission before creating marketplace drafts.", 403);
+  }
   if (!input.etsyListingDetails.taxonomyId) {
     throw new ListingPreparationError("Choose an Etsy category returned by the Etsy API before saving.", 400);
   }
@@ -632,6 +646,26 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
     throw new ListingPreparationError(`This inventory item already has an active Etsy listing in the selected shop (${activeListing.status}).`, 409);
   }
 
+  const draftMetadata = {
+    source: "MARKETPLACE_LISTING_ENGINE",
+    preparationStatus: "ETSY_MANUAL_REGIONAL_PRICES",
+    descriptionStatus: "MANUALLY_PREPARED",
+    validationStatus: "NOT_VALIDATED",
+    etsyListingDetails: input.etsyListingDetails,
+    offerPercent: input.offerPercent,
+    discountedRegionalPricesInr: {
+      india: Number((input.regionalPrices.india * (1 - input.offerPercent / 100)).toFixed(2)),
+      us: Number((input.regionalPrices.us * (1 - input.offerPercent / 100)).toFixed(2)),
+      global: Number((input.regionalPrices.global * (1 - input.offerPercent / 100)).toFixed(2)),
+    },
+    regionalPrices: {
+      india: { amount: input.regionalPrices.india, currency: "INR" },
+      us: { amount: input.regionalPrices.us, currency: "INR" },
+      global: { amount: input.regionalPrices.global, currency: "INR" },
+    },
+    mediaAssets: selectedMedia.map((asset) => ({ url: asset.mediaUrl, type: asset.type })),
+    note: "This listing is created as an unpublished Etsy draft. Review it in Etsy, add any missing media or details, and publish it there.",
+  };
   const draftData = {
     inventoryId: item.id,
     platform: "ETSY",
@@ -646,26 +680,7 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
     marketplacePrice: input.regionalPrices.india,
     marketplaceQuantity: input.etsyListingDetails.quantity,
     syncStatus: "DRAFT",
-    rawMetadata: JSON.stringify({
-      source: "MARKETPLACE_LISTING_ENGINE",
-      preparationStatus: "ETSY_MANUAL_REGIONAL_PRICES",
-      descriptionStatus: "MANUALLY_PREPARED",
-      validationStatus: "NOT_VALIDATED",
-      etsyListingDetails: input.etsyListingDetails,
-      offerPercent: input.offerPercent,
-      discountedRegionalPricesInr: {
-        india: Number((input.regionalPrices.india * (1 - input.offerPercent / 100)).toFixed(2)),
-        us: Number((input.regionalPrices.us * (1 - input.offerPercent / 100)).toFixed(2)),
-        global: Number((input.regionalPrices.global * (1 - input.offerPercent / 100)).toFixed(2)),
-      },
-      regionalPrices: {
-        india: { amount: input.regionalPrices.india, currency: "INR" },
-        us: { amount: input.regionalPrices.us, currency: "INR" },
-        global: { amount: input.regionalPrices.global, currency: "INR" },
-      },
-      mediaAssets: selectedMedia.map((asset) => ({ url: asset.mediaUrl, type: asset.type })),
-      note: "Manually entered regional prices are in INR. The Etsy shop's existing processing, delivery, and return settings are left to Etsy; this ERP draft is not published.",
-    }),
+    rawMetadata: JSON.stringify(draftMetadata),
   };
 
   const existingDraft = await prisma.listing.findFirst({
@@ -673,26 +688,84 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
       inventoryId: item.id,
       platform: "ETSY",
       marketplaceShopId: shop.id,
-      externalId: null,
       status: "DRAFT",
       syncStatus: "DRAFT",
       rawMetadata: { contains: '"source":"MARKETPLACE_LISTING_ENGINE"' },
     },
-    select: { id: true },
+    select: { id: true, externalId: true },
   });
+  if (existingDraft?.externalId) {
+    throw new ListingPreparationError("An Etsy marketplace draft already exists for this item and shop. Continue editing it in Etsy instead of creating a duplicate.", 409);
+  }
 
+  const etsy = new EtsyConnector();
+  const shopCurrency = await etsy.getShopCurrencyCode(shop.connectionId, shop.externalShopId);
+  const rates = await getCurrencyRates();
+  const shopCurrencyRate = rates[shopCurrency] || 0;
+  const regionalPriceInr = shopCurrency === "INR"
+    ? input.regionalPrices.india
+    : shopCurrency === "USD"
+      ? input.regionalPrices.us
+      : input.regionalPrices.global;
+  const etsyPrice = shopCurrency === "INR"
+    ? regionalPriceInr
+    : shopCurrencyRate > 0
+      ? regionalPriceInr / shopCurrencyRate
+      : null;
+  if (etsyPrice === null || !Number.isFinite(etsyPrice) || etsyPrice <= 0) {
+    throw new ListingPreparationError(
+      `A current INR-per-${shopCurrency} conversion rate is not configured for the selected Etsy shop.`,
+      422
+    );
+  }
+
+  const remoteDraft = await etsy.createMarketplaceDraft(shop.connectionId, shop.externalShopId, {
+    title: input.title || listingTitle(item).slice(0, 140),
+    description: input.etsyListingDetails.description,
+    quantity: input.etsyListingDetails.quantity,
+    price: etsyPrice,
+    taxonomyId: input.etsyListingDetails.taxonomyId,
+    shopSectionId: input.etsyListingDetails.shopSectionId || undefined,
+    whoMade: input.etsyListingDetails.whoMade,
+    whenMade: input.etsyListingDetails.whenMade,
+    isSupply: input.etsyListingDetails.whatIsIt === "SUPPLY_OR_TOOL",
+    tags: input.etsyListingDetails.tags,
+    categoryAttributes: input.etsyListingDetails.categoryAttributes,
+    media: selectedMedia.flatMap((asset) => asset.type === "IMAGE" || asset.type === "VIDEO"
+      ? [{ mediaUrl: asset.mediaUrl, type: asset.type }]
+      : []),
+  });
+  const marketplaceDraftMetadata = {
+    ...draftMetadata,
+    marketplaceDraft: {
+      id: remoteDraft.listingId,
+      state: "DRAFT",
+      uploadedMedia: remoteDraft.uploadedMedia,
+      warnings: remoteDraft.warnings,
+    },
+  };
+  const persistedDraftData = {
+    ...draftData,
+    externalId: remoteDraft.listingId,
+    syncError: remoteDraft.warnings.length ? remoteDraft.warnings.join("; ") : null,
+    rawMetadata: JSON.stringify(marketplaceDraftMetadata),
+  };
   const draft = existingDraft
     ? await prisma.listing.update({
         where: { id: existingDraft.id },
-        data: draftData,
+        data: persistedDraftData,
         select: { id: true },
       })
     : await prisma.listing.create({
-        data: draftData,
+        data: persistedDraftData,
         select: { id: true },
       });
-
-  return { draftId: draft.id, preparationStatus: "ETSY_MANUAL_REGIONAL_PRICES" };
+  return {
+    draftId: draft.id,
+    externalListingId: remoteDraft.listingId,
+    uploadedMedia: remoteDraft.uploadedMedia,
+    warnings: remoteDraft.warnings,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -836,7 +909,7 @@ export async function POST(request: NextRequest) {
         exactCategoryResolved: Boolean(taxonomy.categoryId),
         apiValidationComplete: false,
         publishBlockedReason: taxonomy.categoryId
-          ? "Taxonomy requirements were loaded. Business policies, inventory availability, offer creation, and final seller-account checks still require write-authorized API validation."
+          ? "Taxonomy requirements were loaded. Saving will create an unpublished offer using the shop's default policies; complete any remaining seller checks in eBay before publishing."
           : "The configured template category did not exactly match an eBay Taxonomy suggestion. Select or map the correct category before continuing.",
       });
     }
@@ -855,9 +928,12 @@ export async function POST(request: NextRequest) {
     }
     const ebayShop = await prisma.marketplaceShop.findFirst({
       where: { id: parsed.data.shopId, marketplace: "EBAY", status: "CONNECTED", connection: { status: "CONNECTED" } },
-      select: { connectionId: true },
+      select: { connectionId: true, connection: { select: { scopes: true } } },
     });
     if (!ebayShop) throw new ListingPreparationError("The selected eBay shop is not connected.", 404);
+    if (!(ebayShop.connection.scopes || "").split(/\s+/).includes("https://api.ebay.com/oauth/api_scope/sell.inventory")) {
+      throw new ListingPreparationError("Reconnect the selected eBay shop and approve the sell.inventory permission before creating marketplace drafts.", 403);
+    }
     const taxonomy = await new EbayConnector().getCategoryAspects(
       ebayShop.connectionId,
       prepared.categoryPath,
@@ -905,6 +981,9 @@ export async function POST(request: NextRequest) {
         { error: "This inventory item already has an active eBay listing in the selected shop.", existing: prepared.existing },
         { status: 409 }
       );
+    }
+    if (!prepared.condition) {
+      throw new ListingPreparationError("Choose a valid eBay condition on the inventory item before creating its marketplace draft.", 422);
     }
 
     const draftData = {
@@ -960,16 +1039,52 @@ export async function POST(request: NextRequest) {
         status: "DRAFT",
         rawMetadata: { contains: '"source":"MARKETPLACE_LISTING_ENGINE"' },
       },
-      select: { id: true },
+      select: { id: true, rawMetadata: true },
     });
+    if (existingDraft && getMarketplaceDraftId(existingDraft.rawMetadata)) {
+      throw new ListingPreparationError("An eBay marketplace draft already exists for this item and shop. Continue editing it in Seller Hub instead of creating a duplicate.", 409);
+    }
+    const mediaForMarketplace: Array<{ mediaUrl: string; type: "IMAGE" | "VIDEO" }> = prepared.inventory.mediaAssets.flatMap((asset) =>
+      asset.type === "IMAGE" || asset.type === "VIDEO"
+        ? [{ mediaUrl: asset.mediaUrl, type: asset.type }]
+        : []
+    );
+    const remoteDraft = await new EbayConnector().createMarketplaceDraft(ebayShop.connectionId, {
+      sku: prepared.inventory.sku,
+      title: prepared.title,
+      description: prepared.description,
+      categoryId: taxonomy.categoryId,
+      marketplaceId: taxonomy.marketplaceId,
+      price: parsed.data.price,
+      currency: prepared.currency,
+      quantity: 1,
+      condition: prepared.condition,
+      aspects: Object.fromEntries([...aspectValues.entries()].map(([name, value]) => [name, [value]])),
+      media: mediaForMarketplace,
+    });
+    const draftMetadata = JSON.parse(draftData.rawMetadata) as Record<string, unknown>;
+    const persistedDraftData = {
+      ...draftData,
+      rawMetadata: JSON.stringify({
+        ...draftMetadata,
+        marketplaceDraft: {
+          id: remoteDraft.offerId,
+          state: "UNPUBLISHED",
+          uploadedMedia: remoteDraft.uploadedMedia,
+          warnings: remoteDraft.warnings,
+        },
+        note: "An unpublished eBay offer draft was created. Review it in Seller Hub, add any missing media or details, and publish it there.",
+      }),
+      syncError: remoteDraft.warnings.length ? remoteDraft.warnings.join("; ") : null,
+    };
     const draft = existingDraft
       ? await prisma.listing.update({
           where: { id: existingDraft.id },
-          data: draftData,
+          data: persistedDraftData,
           select: { id: true },
         })
       : await prisma.listing.create({
-          data: draftData,
+          data: persistedDraftData,
           select: { id: true },
         });
 
@@ -986,7 +1101,13 @@ export async function POST(request: NextRequest) {
         })
     ));
 
-    return NextResponse.json({ draftId: draft.id, unresolved: prepared.unresolved });
+    return NextResponse.json({
+      draftId: draft.id,
+      externalListingId: remoteDraft.offerId,
+      uploadedMedia: remoteDraft.uploadedMedia,
+      warnings: remoteDraft.warnings,
+      unresolved: prepared.unresolved,
+    });
   } catch (error) {
     if (error instanceof ListingPreparationError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
