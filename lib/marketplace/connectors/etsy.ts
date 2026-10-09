@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
 import { prisma } from "@/lib/prisma";
+import { makeDraftSettingGroup, resolveDraftSettings, type DraftSettings, type DraftSettingGroup } from "@/lib/marketplace/draft-settings";
 import { resolveOAuthScopes } from "@/lib/marketplace/scopes";
 import { downloadMarketplaceMedia } from "@/lib/marketplace/media-transfer";
 import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext, EtsyOAuthAppProfile, MarketplaceOAuthContext } from "@/lib/marketplace/connector";
@@ -55,6 +56,7 @@ export interface EtsyAppCredentials {
 }
 
 export type EtsyMarketplaceDraftInput = {
+  draftSettings?: DraftSettings;
   title: string;
   description: string;
   quantity: number;
@@ -475,11 +477,38 @@ export class EtsyConnector implements MarketplaceConnector {
     return currencyCode;
   }
 
+  async getDraftSettingGroups(connectionId: string, externalShopId: string): Promise<DraftSettingGroup[]> {
+    const token = await this.getAccessToken(connectionId);
+    const credentials = this.credentials(await this.getConnectionProfile(connectionId));
+    const headers = this.getHeaders(token, credentials);
+    const loadProfiles = async (resource: string, paginated: boolean): Promise<Array<Record<string, unknown>>> => {
+      const profiles: Array<Record<string, unknown>> = [];
+      for (let offset = 0; ; offset += 100) {
+        const data = await httpJson<{ results?: Array<Record<string, unknown>>; count?: number }>(
+          `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/${resource}${paginated ? `?limit=100&offset=${offset}` : ""}`,
+          { headers }
+        );
+        if (!Array.isArray(data.results)) throw new Error(`Etsy returned an unexpected response for ${resource}. Reload shop settings.`);
+        profiles.push(...data.results);
+        if (!paginated || data.results.length < 100 || (data.count != null && profiles.length >= data.count)) break;
+      }
+      return profiles;
+    };
+    const [shipping, processing] = await Promise.all([loadProfiles("shipping-profiles", false), loadProfiles("readiness-state-definitions", true)]);
+    return [
+      makeDraftSettingGroup("shippingProfileId", "Shipping profile", shipping.flatMap((profile) => profile.shipping_profile_id != null
+        ? [{ id: String(profile.shipping_profile_id), name: String(profile.title || `Shipping profile ${profile.shipping_profile_id}`) }] : [])),
+      makeDraftSettingGroup("readinessStateId", "Processing profile", processing.flatMap((profile) => profile.readiness_state_id != null
+        ? [{ id: String(profile.readiness_state_id), name: `${String(profile.readiness_state || "Processing").replaceAll("_", " ")} · ${profile.min_processing_time ?? "?"}–${profile.max_processing_time ?? "?"} ${profile.processing_time_unit || "days"}` }] : [])),
+    ];
+  }
+
   async createMarketplaceDraft(
     connectionId: string,
     externalShopId: string,
     input: EtsyMarketplaceDraftInput
-  ): Promise<{ listingId: string; uploadedMedia: number; warnings: string[] }> {
+  ): Promise<{ listingId: string; uploadedMedia: number; warnings: string[]; draftSettings: DraftSettings }> {
+    const draftSettings = resolveDraftSettings(await this.getDraftSettingGroups(connectionId, externalShopId), input.draftSettings);
     const token = await this.getAccessToken(connectionId);
     const profile = await this.getConnectionProfile(connectionId);
     const credentials = this.credentials(profile);
@@ -493,6 +522,9 @@ export class EtsyConnector implements MarketplaceConnector {
       when_made: input.whenMade.toLowerCase(),
       taxonomy_id: input.taxonomyId,
       is_supply: String(input.isSupply),
+      type: "physical",
+      shipping_profile_id: draftSettings.shippingProfileId!,
+      readiness_state_id: draftSettings.readinessStateId!,
     });
     if (input.shopSectionId) form.set("shop_section_id", input.shopSectionId);
     input.tags.forEach((tag) => form.append("tags[]", tag));
@@ -562,7 +594,7 @@ export class EtsyConnector implements MarketplaceConnector {
       }
     }
 
-    return { listingId, uploadedMedia, warnings };
+    return { listingId, uploadedMedia, warnings, draftSettings };
   }
 
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {

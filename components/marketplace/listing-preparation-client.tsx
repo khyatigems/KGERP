@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { EBAY_TEMPLATE_CATEGORY_PATHS, resolveEbayAspectSuggestion } from "@/lib/marketplace/listing-preparation";
 import { calculateDiscountedInr, isBelowMinimumPrice } from "@/lib/marketplace/price-preview";
+import type { DraftSettingGroup, DraftSettings } from "@/lib/marketplace/draft-settings";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -370,6 +371,11 @@ export function ListingPreparationClient({
   const [inventoryId, setInventoryId] = useState("");
   const [selectedInventory, setSelectedInventory] = useState<SelectedInventory | null>(null);
   const [shopId, setShopId] = useState("");
+  const [shopSettings, setShopSettings] = useState<{ shopId: string; groups: DraftSettingGroup[] } | null>(null);
+  const [draftSettings, setDraftSettings] = useState<DraftSettings>({});
+  const [shopSettingsLoading, setShopSettingsLoading] = useState(false);
+  const [shopSettingsError, setShopSettingsError] = useState("");
+  const [shopSettingsReload, setShopSettingsReload] = useState(0);
   const [template, setTemplate] = useState<"LOOSE_GEMSTONE" | "JEWELRY" | null>(null);
   const [listingTitle, setListingTitle] = useState("");
   const [price, setPrice] = useState("");
@@ -402,6 +408,38 @@ export function ListingPreparationClient({
   selectedMediaRef.current = selectedMediaUrls;
   const activeShops = marketplace === "EBAY" ? ebayShops : marketplace === "ETSY" ? etsyShops : [];
   const selectedShop = activeShops.find((shop) => shop.id === shopId);
+  const shopSettingsReady = Boolean(shopSettings?.shopId === shopId && shopSettings.groups.length
+    && shopSettings.groups.every((group) => group.options.some((option) => option.id === draftSettings[group.key])));
+  useEffect(() => {
+    const controller = new AbortController();
+    setShopSettings(null);
+    setDraftSettings({});
+    setShopSettingsError("");
+    if (!shopId || !marketplace) { setShopSettingsLoading(false); return; }
+    setShopSettingsLoading(true);
+    const load = async () => {
+      try {
+        const response = await fetch("/api/marketplace/listing-preparation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "shopSettings", shopId }),
+          signal: controller.signal,
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Unable to load shop settings.");
+        if (controller.signal.aborted) return;
+        const groups = payload.groups as DraftSettingGroup[];
+        setShopSettings({ shopId, groups });
+        setDraftSettings(Object.fromEntries(groups.map((group) => [group.key, group.selectedId])));
+      } catch (error) {
+        if (!controller.signal.aborted) setShopSettingsError(error instanceof Error ? error.message : "Unable to load shop settings.");
+      } finally {
+        if (!controller.signal.aborted) setShopSettingsLoading(false);
+      }
+    };
+    void load();
+    return () => controller.abort();
+  }, [shopId, marketplace, shopSettingsReload]);
   const discountedPriceInr = calculateDiscountedInr(
     Number(price),
     Number(usdToInr),
@@ -498,6 +536,7 @@ export function ListingPreparationClient({
     && Number(etsyOfferPercent) >= 0
     && Number(etsyOfferPercent) <= 99.99;
   const etsyReviewChecks = [
+    { label: "Shipping and processing profiles selected", complete: shopSettingsReady },
     { label: "Etsy shop selected", complete: marketplace === "ETSY" && Boolean(shopId) },
     { label: "Eligible inventory item selected", complete: Boolean(inventoryId) },
     { label: "Etsy category selected", complete: Boolean(etsyListingDetails.taxonomyId && etsyListingDetails.categoryName.trim()) },
@@ -790,6 +829,7 @@ export function ListingPreparationClient({
   };
 
   const saveDraft = async () => {
+    if (!shopSettingsReady) { toast.error("Load the shop settings and choose each policy before saving."); return; }
     if (marketplace !== "EBAY" || !inventoryId || !shopId || !template || !price || !usdToInr || Number(offerPercent) >= 100) {
       toast.error("Enter a marketplace price, valid INR-per-USD rate, and offer below 100% before saving.");
       return;
@@ -809,6 +849,7 @@ export function ListingPreparationClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "saveDraft",
+          draftSettings,
           inventoryId,
           shopId,
           template,
@@ -838,6 +879,7 @@ export function ListingPreparationClient({
   };
 
   const saveEtsyPriceDraft = async () => {
+    if (!shopSettingsReady) { toast.error("Load the shop settings and choose shipping and processing profiles before saving."); return; }
     if (!inventoryId || !shopId || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global
       || !Number.isFinite(Number(etsyOfferPercent)) || Number(etsyOfferPercent) < 0 || Number(etsyOfferPercent) > 99.99) {
       toast.error("Enter all three Etsy regional prices in INR and a valid discount from 0% to 99.99%.");
@@ -854,6 +896,7 @@ export function ListingPreparationClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "saveEtsyPriceDraft",
+          draftSettings,
           inventoryId,
           shopId,
           title: listingTitle.trim(),
@@ -1097,6 +1140,32 @@ export function ListingPreparationClient({
                 </div>
               </div>
 
+              {shopId && (
+                <div className="space-y-3 rounded-xl border p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold">Shop settings for this draft</p>
+                    <Button type="button" variant="outline" size="sm" disabled={shopSettingsLoading || busy} onClick={() => setShopSettingsReload((value) => value + 1)}>Reload shop settings</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Loaded from the selected shop. Defaults and single available options are preselected; review them before saving.</p>
+                  {shopSettingsLoading && <p className="text-sm text-muted-foreground">Loading policies and profiles…</p>}
+                  {shopSettingsError && <p className="text-sm text-destructive">{shopSettingsError}</p>}
+                  {shopSettings?.shopId === shopId && (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {shopSettings.groups.map((group) => (
+                        <div key={group.key} className="space-y-2">
+                          <Label htmlFor={`draft-setting-${group.key}`}>{group.label} <span className="text-destructive">*</span></Label>
+                          {group.options.length ? (
+                            <Select value={draftSettings[group.key] || ""} onValueChange={(value) => setDraftSettings((previous) => ({ ...previous, [group.key]: value }))}>
+                              <SelectTrigger id={`draft-setting-${group.key}`}><SelectValue placeholder={`Choose ${group.label.toLowerCase()}`} /></SelectTrigger>
+                              <SelectContent>{group.options.map((option) => <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                          ) : <p className="text-xs text-destructive">No {group.label.toLowerCase()} is available. Add one in {marketplace === "EBAY" ? "eBay" : "Etsy"}, then reload shop settings.</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {marketplace === "ETSY" ? (
                 <>
                 <div className={`rounded-xl border p-4 ${selectedShop?.writeReady ? "border-green-500/40 bg-green-500/5" : "border-amber-500/40 bg-amber-500/5"}`}>
@@ -1608,7 +1677,7 @@ export function ListingPreparationClient({
                     <Button
                       type="button"
                       onClick={() => void saveEtsyPriceDraft()}
-                      disabled={busy || !inventoryId || !shopId || !selectedShop?.writeReady || !etsyDetailsComplete || !hasSelectedMarketplacePhoto || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global}
+                      disabled={busy || !shopSettingsReady || !inventoryId || !shopId || !selectedShop?.writeReady || !etsyDetailsComplete || !hasSelectedMarketplacePhoto || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global}
                     >
                       {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Create Etsy marketplace draft
@@ -1814,7 +1883,7 @@ export function ListingPreparationClient({
                         {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Prepare ERP preview
                       </Button>
-                      <Button type="button" className="min-h-10 h-auto w-full whitespace-normal px-3 py-2 text-center leading-tight" onClick={() => void saveDraft()} disabled={busy || !inventoryId || !shopId || !selectedShop?.writeReady || !listingTitle.trim() || !hasSelectedMarketplacePhoto || !price || !usdToInr || Number(offerPercent) >= 100 || !aspectValuesValid}>
+                      <Button type="button" className="min-h-10 h-auto w-full whitespace-normal px-3 py-2 text-center leading-tight" onClick={() => void saveDraft()} disabled={busy || !shopSettingsReady || !inventoryId || !shopId || !selectedShop?.writeReady || !listingTitle.trim() || !hasSelectedMarketplacePhoto || !price || !usdToInr || Number(offerPercent) >= 100 || !aspectValuesValid}>
                         Create eBay marketplace draft
                       </Button>
                     </div>

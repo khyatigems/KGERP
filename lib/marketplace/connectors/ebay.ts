@@ -1,5 +1,6 @@
 import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
 import { downloadMarketplaceMedia } from "@/lib/marketplace/media-transfer";
+import { makeDraftSettingGroup, parseEbayDefaultPolicyIds, resolveDraftSettings, type DraftSettings, type DraftSettingGroup } from "@/lib/marketplace/draft-settings";
 import { EBAY_INVENTORY_WRITE_SCOPE, hasOAuthScope, resolveOAuthScopes } from "@/lib/marketplace/scopes";
 import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext } from "@/lib/marketplace/connector";
 import type {
@@ -60,6 +61,7 @@ function bases() {
 }
 
 export type EbayMarketplaceDraftInput = {
+  draftSettings?: DraftSettings;
   sku: string;
   title: string;
   description: string;
@@ -74,10 +76,11 @@ export type EbayMarketplaceDraftInput = {
 };
 
 type EbayBusinessPolicy = {
+  name?: string;
   fulfillmentPolicyId?: string;
   paymentPolicyId?: string;
   returnPolicyId?: string;
-  categoryTypes?: Array<{ default?: boolean }>;
+  categoryTypes?: Array<{ default?: boolean; name?: string }>;
 };
 
 export class EbayConnector implements MarketplaceConnector {
@@ -364,36 +367,49 @@ export class EbayConnector implements MarketplaceConnector {
     };
   }
 
-  async createMarketplaceDraft(
-    connectionId: string,
-    input: EbayMarketplaceDraftInput
-  ): Promise<{ offerId: string; uploadedMedia: number; warnings: string[] }> {
+  async getDraftSettingGroups(connectionId: string, marketplaceId = "EBAY_US"): Promise<DraftSettingGroup[]> {
     const token = await this.getAccessToken(connectionId);
     const headers = this.getHeaders(token);
     const { apiBase } = bases();
     const [fulfillmentResponse, paymentResponse, returnResponse] = await Promise.all([
       httpJson<{ fulfillmentPolicies?: EbayBusinessPolicy[] }>(
-        `${apiBase}/sell/account/v1/fulfillment_policy?marketplace_id=${encodeURIComponent(input.marketplaceId)}`,
+        `${apiBase}/sell/account/v1/fulfillment_policy?marketplace_id=${encodeURIComponent(marketplaceId)}`,
         { headers }
       ),
       httpJson<{ paymentPolicies?: EbayBusinessPolicy[] }>(
-        `${apiBase}/sell/account/v1/payment_policy?marketplace_id=${encodeURIComponent(input.marketplaceId)}`,
+        `${apiBase}/sell/account/v1/payment_policy?marketplace_id=${encodeURIComponent(marketplaceId)}`,
         { headers }
       ),
       httpJson<{ returnPolicies?: EbayBusinessPolicy[] }>(
-        `${apiBase}/sell/account/v1/return_policy?marketplace_id=${encodeURIComponent(input.marketplaceId)}`,
+        `${apiBase}/sell/account/v1/return_policy?marketplace_id=${encodeURIComponent(marketplaceId)}`,
         { headers }
       ),
     ]);
-    const defaultPolicy = (policies: EbayBusinessPolicy[] | undefined) => policies?.find((policy) =>
-      Array.isArray(policy.categoryTypes) && policy.categoryTypes.some((category) => category.default === true)
-    );
-    const fulfillmentPolicy = defaultPolicy(fulfillmentResponse.fulfillmentPolicies);
-    const paymentPolicy = defaultPolicy(paymentResponse.paymentPolicies);
-    const returnPolicy = defaultPolicy(returnResponse.returnPolicies);
-    if (!fulfillmentPolicy?.fulfillmentPolicyId || !paymentPolicy?.paymentPolicyId || !returnPolicy?.returnPolicyId) {
-      throw new Error("Set a default eBay shipping, payment, and return policy for the selected shop before creating a marketplace draft.");
-    }
+    const preferences = await this.callTradingApi("GetUserPreferences", token, apiBase,
+      '<GetUserPreferencesRequest xmlns="urn:ebay:apis:eBLBaseComponents"><ShowSellerProfilePreferences>true</ShowSellerProfilePreferences></GetUserPreferencesRequest>'
+    ).catch(() => "");
+    const defaults = parseEbayDefaultPolicyIds(preferences);
+    const group = (key: "fulfillmentPolicyId" | "paymentPolicyId" | "returnPolicyId", label: string, policies: EbayBusinessPolicy[] = []) => {
+      const eligible = policies.filter((policy) => !policy.categoryTypes?.length || policy.categoryTypes.some((type) => !type.name || type.name === "ALL_EXCLUDING_MOTORS_VEHICLES"));
+      const options = eligible.flatMap((policy) => policy[key] ? [{ id: policy[key]!, name: policy.name || `${label} ${policy[key]}` }] : []);
+      const legacyDefault = eligible.find((policy) => policy.categoryTypes?.some((type) => type.default))?.[key];
+      return makeDraftSettingGroup(key, label, options, defaults[key] || legacyDefault);
+    };
+    return [
+      group("fulfillmentPolicyId", "Shipping policy", fulfillmentResponse.fulfillmentPolicies),
+      group("paymentPolicyId", "Payment policy", paymentResponse.paymentPolicies),
+      group("returnPolicyId", "Return policy", returnResponse.returnPolicies),
+    ];
+  }
+
+  async createMarketplaceDraft(
+    connectionId: string,
+    input: EbayMarketplaceDraftInput
+  ): Promise<{ offerId: string; uploadedMedia: number; warnings: string[]; draftSettings: DraftSettings }> {
+    const draftSettings = resolveDraftSettings(await this.getDraftSettingGroups(connectionId, input.marketplaceId), input.draftSettings);
+    const token = await this.getAccessToken(connectionId);
+    const headers = this.getHeaders(token);
+    const { apiBase } = bases();
 
     const videoIds: string[] = [];
     const warnings: string[] = [];
@@ -465,16 +481,16 @@ export class EbayConnector implements MarketplaceConnector {
           categoryId: input.categoryId,
           listingDescription: input.description,
           listingPolicies: {
-            fulfillmentPolicyId: fulfillmentPolicy.fulfillmentPolicyId,
-            paymentPolicyId: paymentPolicy.paymentPolicyId,
-            returnPolicyId: returnPolicy.returnPolicyId,
+            fulfillmentPolicyId: draftSettings.fulfillmentPolicyId,
+            paymentPolicyId: draftSettings.paymentPolicyId,
+            returnPolicyId: draftSettings.returnPolicyId,
           },
           pricingSummary: { price: { value: input.price.toFixed(2), currency: input.currency } },
         }),
       }
     );
     if (!offer.offerId) throw new Error("eBay accepted the offer but did not return a draft ID.");
-    return { offerId: offer.offerId, uploadedMedia, warnings };
+    return { offerId: offer.offerId, uploadedMedia, warnings, draftSettings };
   }
 
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {

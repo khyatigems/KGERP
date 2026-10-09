@@ -13,6 +13,7 @@ import { EbayConnector } from "@/lib/marketplace/connectors/ebay";
 import { EtsyConnector } from "@/lib/marketplace/connectors/etsy";
 import { hasOAuthScope } from "@/lib/marketplace/scopes";
 import { HttpError } from "@/lib/marketplace/http";
+import { DraftSettingsError } from "@/lib/marketplace/draft-settings";
 import { MARKETPLACE_LISTING_SCOPE_SQL, marketplaceInventoryJoinSql } from "@/lib/marketplace-control-center";
 import {
   EBAY_TEMPLATE_CATEGORY_PATHS,
@@ -22,7 +23,14 @@ import {
 } from "@/lib/marketplace/listing-preparation";
 
 const requestSchema = z.object({
-  action: z.enum(["prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements"]),
+  action: z.enum(["prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements", "shopSettings"]),
+  draftSettings: z.object({
+    fulfillmentPolicyId: z.string().max(80).optional(),
+    paymentPolicyId: z.string().max(80).optional(),
+    returnPolicyId: z.string().max(80).optional(),
+    shippingProfileId: z.string().max(80).optional(),
+    readinessStateId: z.string().max(80).optional(),
+  }).optional(),
   inventoryId: z.string().uuid().optional(),
   shopId: z.string().min(1),
   template: z.enum(["LOOSE_GEMSTONE", "JEWELRY"]).optional(),
@@ -722,6 +730,7 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
   }
 
   const remoteDraft = await etsy.createMarketplaceDraft(shop.connectionId, shop.externalShopId, {
+    draftSettings: input.draftSettings,
     title: input.title || listingTitle(item).slice(0, 140),
     description: input.etsyListingDetails.description,
     quantity: input.etsyListingDetails.quantity,
@@ -741,6 +750,7 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
     ...draftMetadata,
     marketplaceDraft: {
       id: remoteDraft.listingId,
+      draftSettings: remoteDraft.draftSettings,
       state: "DRAFT",
       uploadedMedia: remoteDraft.uploadedMedia,
       warnings: remoteDraft.warnings,
@@ -789,6 +799,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (parsed.data.action === "shopSettings") {
+      const shop = await prisma.marketplaceShop.findFirst({
+        where: { id: parsed.data.shopId, marketplace: { in: ["EBAY", "ETSY"] }, status: "CONNECTED", connection: { status: "CONNECTED" } },
+        select: { connectionId: true, externalShopId: true, marketplace: true },
+      });
+      if (!shop) throw new ListingPreparationError("The selected marketplace shop is not connected.", 404);
+      const groups = shop.marketplace === "EBAY"
+        ? await new EbayConnector().getDraftSettingGroups(shop.connectionId)
+        : await new EtsyConnector().getDraftSettingGroups(shop.connectionId, shop.externalShopId);
+      return NextResponse.json({ groups });
+    }
     if (parsed.data.action === "etsyRequirements") {
       const shop = await prisma.marketplaceShop.findFirst({
         where: {
@@ -911,7 +932,7 @@ export async function POST(request: NextRequest) {
         exactCategoryResolved: Boolean(taxonomy.categoryId),
         apiValidationComplete: false,
         publishBlockedReason: taxonomy.categoryId
-          ? "Taxonomy requirements were loaded. Saving will create an unpublished offer using the shop's default policies; complete any remaining seller checks in eBay before publishing."
+          ? "Taxonomy requirements were loaded. Saving will create an unpublished offer using the selected shop policies; complete any remaining seller checks in eBay before publishing."
           : "The configured template category did not exactly match an eBay Taxonomy suggestion. Select or map the correct category before continuing.",
       });
     }
@@ -1052,6 +1073,7 @@ export async function POST(request: NextRequest) {
         : []
     );
     const remoteDraft = await new EbayConnector().createMarketplaceDraft(ebayShop.connectionId, {
+      draftSettings: parsed.data.draftSettings,
       sku: prepared.inventory.sku,
       title: prepared.title,
       description: prepared.description,
@@ -1071,6 +1093,7 @@ export async function POST(request: NextRequest) {
         ...draftMetadata,
         marketplaceDraft: {
           id: remoteDraft.offerId,
+          draftSettings: remoteDraft.draftSettings,
           state: "UNPUBLISHED",
           uploadedMedia: remoteDraft.uploadedMedia,
           warnings: remoteDraft.warnings,
@@ -1111,6 +1134,9 @@ export async function POST(request: NextRequest) {
       unresolved: prepared.unresolved,
     });
   } catch (error) {
+    if (error instanceof DraftSettingsError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
     if (error instanceof ListingPreparationError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
