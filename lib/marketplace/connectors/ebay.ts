@@ -1,6 +1,7 @@
 import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
 import { downloadMarketplaceMedia } from "@/lib/marketplace/media-transfer";
 import { buildEbayInventoryDescription } from "@/lib/marketplace/ebay-description-payload";
+import { nonEmptyEbayAspects } from "@/lib/marketplace/inventory-listing-defaults";
 import { makeDraftSettingGroup, parseEbayDefaultPolicyIds, resolveDraftSettings, type DraftSettings, type DraftSettingGroup } from "@/lib/marketplace/draft-settings";
 import { EBAY_INVENTORY_WRITE_SCOPE, hasOAuthScope, resolveOAuthScopes } from "@/lib/marketplace/scopes";
 import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext } from "@/lib/marketplace/connector";
@@ -464,7 +465,7 @@ export class EbayConnector implements MarketplaceConnector {
             description: buildEbayInventoryDescription(input.description, input.title),
             imageUrls,
             videoIds,
-            aspects: input.aspects,
+            aspects: nonEmptyEbayAspects(input.aspects),
           },
         }),
       }

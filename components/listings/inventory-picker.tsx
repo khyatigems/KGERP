@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { inventoryListingDefaults } from "@/lib/marketplace/inventory-listing-defaults";
 
 type InventoryRow = {
   id: string;
@@ -49,8 +50,7 @@ type Filters = {
 const presetKey = "khyatigems.listing.inventoryFilterPresets";
 
 export function buildMarketplaceTitle(item: Pick<InventoryRow, "itemName" | "weightValue" | "weightUnit">, marketplace: "EBAY" | "ETSY") {
-  const weight = item.weightValue ? `${item.weightValue} ${item.weightUnit || "cts"}` : "";
-  return [item.itemName, weight].filter(Boolean).join(" - ").slice(0, marketplace === "EBAY" ? 80 : 140);
+  return inventoryListingDefaults(item, marketplace).title;
 }
 
 const defaultFilters: Filters = {
@@ -187,6 +187,9 @@ export function InventoryPicker({
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        {value ? "An inventory item is selected for this draft." : "Click Select on an inventory row below to load its saved title, description, and photos."}
+      </p>
       {marketplaceReadyOnly && (
         <p className="text-xs text-muted-foreground">
           Showing Ready to Sell inventory not already listed or saved as a draft for the selected marketplace shop. Certificate details stay private and are excluded from listing descriptions.

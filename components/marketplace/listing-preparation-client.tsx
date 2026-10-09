@@ -16,6 +16,7 @@ import { EBAY_TEMPLATE_CATEGORY_PATHS, resolveEbayAspectSuggestion } from "@/lib
 import { calculateDiscountedInr, isBelowMinimumPrice } from "@/lib/marketplace/price-preview";
 import type { DraftSettingGroup, DraftSettings } from "@/lib/marketplace/draft-settings";
 import { areEtsyRequirementsCurrent, loadEtsyCategoryRequirements } from "@/lib/marketplace/etsy-requirements";
+import { inventoryListingDefaults, type InventoryListingSource } from "@/lib/marketplace/inventory-listing-defaults";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -66,6 +67,8 @@ type SelectedInventory = {
   etsyDescription: string | null;
 };
 type PricingGuidance = {
+  inventoryId: string;
+  inventoryDefaults: InventoryListingSource;
   mrp: number;
   msp: number | null;
   purchasePrice: number;
@@ -406,6 +409,8 @@ export function ListingPreparationClient({
   const draftsSectionRef = useRef<HTMLDivElement>(null);
   const listingTitleRef = useRef(listingTitle);
   listingTitleRef.current = listingTitle;
+  const etsyDescriptionRef = useRef(etsyListingDetails.description);
+  etsyDescriptionRef.current = etsyListingDetails.description;
   const selectedMediaRef = useRef(selectedMediaUrls);
   selectedMediaRef.current = selectedMediaUrls;
   const activeShops = marketplace === "EBAY" ? ebayShops : marketplace === "ETSY" ? etsyShops : [];
@@ -452,7 +457,12 @@ export function ListingPreparationClient({
     Number(offerPercent)
   );
   const belowMsp = isBelowMinimumPrice(discountedPriceInr, pricing?.msp ?? null);
-  const selectedMediaAssets = pricing?.mediaAssets.filter((asset) => selectedMediaUrls.includes(asset.mediaUrl)) || [];
+  const inventoryMediaAssets: PricingGuidance["mediaAssets"] = [
+    ...(selectedInventory?.id === inventoryId && selectedInventory.imageUrl
+      ? [{ id: "selected-inventory-image", mediaUrl: selectedInventory.imageUrl, type: "IMAGE" as const }] : []),
+    ...(pricing?.inventoryId === inventoryId ? pricing.mediaAssets : []),
+  ].filter((asset, index, assets) => assets.findIndex((candidate) => candidate.mediaUrl === asset.mediaUrl) === index);
+  const selectedMediaAssets = inventoryMediaAssets.filter((asset) => selectedMediaUrls.includes(asset.mediaUrl));
   const maxMarketplacePhotos = marketplace === "EBAY" ? 24 : 20;
   const maxMarketplaceVideos = marketplace === "EBAY" ? 1 : 2;
   const hasSelectedMarketplacePhoto = selectedMediaAssets.some((asset) => asset.type === "IMAGE");
@@ -593,6 +603,8 @@ export function ListingPreparationClient({
       return;
     }
     const controller = new AbortController();
+    const initialTitle = listingTitleRef.current;
+    const initialDescription = etsyDescriptionRef.current;
     const loadPricing = async () => {
       setPricingLoading(true);
       setPricingError("");
@@ -604,7 +616,17 @@ export function ListingPreparationClient({
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error || "Unable to calculate MSP/MRP.");
+        if (controller.signal.aborted) return;
         setPricing(payload as PricingGuidance);
+        setSelectedInventory((previous) => previous?.id === inventoryId
+          ? { ...previous, ...payload.inventoryDefaults } : previous);
+        const defaults = inventoryListingDefaults(payload.inventoryDefaults as InventoryListingSource, marketplace);
+        setListingTitle((previous) => previous === initialTitle ? defaults.title : previous);
+        if (marketplace === "ETSY") {
+          setEtsyListingDetails((previous) => ({ ...previous,
+            description: previous.description === initialDescription ? defaults.description : previous.description,
+          }));
+        }
         const mediaAssets = payload.mediaAssets as PricingGuidance["mediaAssets"];
         setSelectedMediaUrls(mediaAssets?.filter((asset) => asset.type === "IMAGE").slice(0, 1).map((asset) => asset.mediaUrl) || []);
         if (marketplace === "EBAY" && payload.currencyRate) {
@@ -792,7 +814,7 @@ export function ListingPreparationClient({
       setSelectedMediaUrls((previous) => previous.filter((selected) => selected !== url));
       return;
     }
-    const asset = pricing?.mediaAssets.find((candidate) => candidate.mediaUrl === url);
+    const asset = inventoryMediaAssets.find((candidate) => candidate.mediaUrl === url);
     if (!asset) {
       toast.error("This media file is no longer attached to the selected inventory item.");
       return;
@@ -1270,6 +1292,7 @@ export function ListingPreparationClient({
                         setInventoryId(id);
                         setSelectedInventory(item ? { ...item, id } : null);
                         setListingTitle(item ? buildMarketplaceTitle(item, "ETSY") : "");
+                        setPricing(null);
                         setEtsyPrices({ india: "", us: "", global: "" });
                         setEtsyListingDetails((previous) => ({
                           ...previous,
@@ -1292,7 +1315,7 @@ export function ListingPreparationClient({
                           caratWeight: hasCaratWeight ? String(item?.weightValue) : "",
                           shape: item?.shape || "",
                         });
-                        setSelectedMediaUrls([]);
+                        setSelectedMediaUrls(item?.imageUrl ? [item.imageUrl] : []);
                         setPrepared(null);
                       }}
                     />
@@ -1564,7 +1587,7 @@ export function ListingPreparationClient({
                   )}
                   <MarketplaceMediaSelector
                     marketplace="ETSY"
-                    assets={pricing?.mediaAssets || []}
+                    assets={inventoryMediaAssets}
                     selectedUrls={selectedMediaUrls}
                     onToggle={toggleMarketplaceMedia}
                   />
@@ -1822,7 +1845,7 @@ export function ListingPreparationClient({
                   </div>
                   <MarketplaceMediaSelector
                     marketplace="EBAY"
-                    assets={pricing?.mediaAssets || []}
+                    assets={inventoryMediaAssets}
                     selectedUrls={selectedMediaUrls}
                     onToggle={toggleMarketplaceMedia}
                   />

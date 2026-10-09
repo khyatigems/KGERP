@@ -222,11 +222,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    let pricingLookupFailed = false;
     const [item, selectedProfile, defaultProfile, rates] = await Promise.all([
       prisma.inventory.findUnique({
         where: { id: inventoryId },
         select: {
           id: true,
+          itemName: true,
+          etsyDescription: true,
+          weightUnit: true,
           sellingPrice: true,
           costPrice: true,
           purchaseRatePerCarat: true,
@@ -241,9 +245,9 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-      getProfileByName(marketplace),
-      getDefaultProfile(),
-      getCurrencyRates(),
+      getProfileByName(marketplace).catch(() => { pricingLookupFailed = true; return null; }),
+      getDefaultProfile().catch(() => { pricingLookupFailed = true; return null; }),
+      getCurrencyRates().catch(() => { pricingLookupFailed = true; return {} as Record<string, number>; }),
     ]);
     if (!item) return NextResponse.json({ error: "The selected inventory item could not be found." }, { status: 404 });
 
@@ -272,6 +276,14 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json({
+      inventoryId: item.id,
+      inventoryDefaults: {
+        itemName: item.itemName,
+        etsyDescription: item.etsyDescription,
+        weightValue: item.weightValue,
+        weightUnit: item.weightUnit,
+        imageUrl: mediaAssets.find((asset) => asset.type === "IMAGE")?.mediaUrl || null,
+      },
       marketplace,
       mrp: Number(item.sellingPrice) || 0,
       msp: analysis?.msp ?? null,
@@ -283,7 +295,8 @@ export async function GET(request: NextRequest) {
       currencyRate: marketplace === "EBAY" ? Number(rates.USD) || null : null,
       currencyRateMeaning: "INR per 1 USD",
       pricingEnabled: Boolean(analysis),
-      warning: profile
+      warning: pricingLookupFailed ? "Some pricing guidance could not be loaded. Review pricing before saving."
+        : profile
         ? defaultProfile
           ? `MSP uses the Opportunity Report default pricing profile (${defaultProfile.displayName}) so it matches the ERP opportunity calculations.`
           : "No Opportunity Report default profile is configured. MSP is estimated using the selected marketplace profile."
@@ -974,7 +987,9 @@ export async function POST(request: NextRequest) {
     ].filter((aspect) => isSensitiveEbayCertificateAspect(aspect.name));
     const requiredAspects = taxonomy.requiredAspects.filter((aspect) => !isSensitiveEbayCertificateAspect(aspect.name));
     const optionalAspects = taxonomy.optionalAspects.filter((aspect) => !isSensitiveEbayCertificateAspect(aspect.name));
-    const aspectValues = new Map(parsed.data.aspectValues.map(({ name, value }) => [name, value.trim()]));
+    const aspectValues = new Map(parsed.data.aspectValues
+      .map(({ name, value }) => [name, value.trim()] as const)
+      .filter(([, value]) => value.length > 0));
     const missingAspects = requiredAspects
       .filter((aspect) => !aspectValues.get(aspect.name))
       .map((aspect) => aspect.name);

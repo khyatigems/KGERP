@@ -48,6 +48,8 @@ async function main() {
         const body = JSON.parse(String(init?.body));
         assert.ok(body.product.description.length > 0 && body.product.description.length <= 4000);
         assert.ok(!body.product.description.includes("<style>"));
+        assert.equal(body.product.aspects["California Prop 65 Warning"], undefined);
+        assert.deepEqual(body.product.aspects.Color, ["Blue"]);
         return new Response(null, { status: 204 });
       }
       if (path.endsWith("/offer")) {
@@ -64,7 +66,7 @@ async function main() {
     assert.equal(groups[0].selectedId, "ship-default", "Use seller preferences when REST default flag is absent");
     assert.equal(groups[0].options.length, 2, "Exclude vehicle-only policies");
     const longHtmlDescription = `<style>.listing { color: red; }</style><h1>Test listing</h1><p>${"Gemstone details ".repeat(500)}</p>`;
-    const ebayInput = { sku: "TEST", title: "Test", description: longHtmlDescription, categoryId: "123", marketplaceId: "EBAY_US", price: 20, currency: "USD", quantity: 1, condition: "NEW", aspects: {}, media: [] };
+    const ebayInput = { sku: "TEST", title: "Test", description: longHtmlDescription, categoryId: "123", marketplaceId: "EBAY_US", price: 20, currency: "USD", quantity: 1, condition: "NEW", aspects: { "California Prop 65 Warning": [""], Color: [" Blue "] }, media: [] };
     const result = await ebay.createMarketplaceDraft("ebay-test", ebayInput);
     assert.equal(result.offerId, "test-offer");
     assert.equal(offerCreated, true);
