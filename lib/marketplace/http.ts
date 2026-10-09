@@ -1,12 +1,42 @@
+function responseErrorMessage(body: unknown): string | undefined {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return undefined;
+  const payload = body as Record<string, unknown>;
+  const messages = Array.isArray(payload.errors)
+    ? payload.errors.flatMap((entry: unknown) => {
+        if (!entry || typeof entry !== "object") return [];
+        const error = entry as Record<string, unknown>;
+        const message = typeof error.longMessage === "string" && error.longMessage.trim()
+          ? error.longMessage : error.message;
+        return typeof message === "string" && message.trim() ? [message.trim()] : [];
+      })
+    : [];
+  if (messages.length) return [...new Set(messages)].join("; ");
+  for (const key of ["error_description", "message", "error"]) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
 export class HttpError extends Error {
   status: number;
   body: unknown;
 
   constructor(message: string, status: number, body?: unknown) {
-    super(message);
+    const detail = responseErrorMessage(body);
+    super(detail ? `${message}: ${detail}` : message);
     this.name = "HttpError";
     this.status = status;
     this.body = body;
+  }
+}
+
+async function readErrorBody(response: Response): Promise<unknown> {
+  const text = await response.text().catch(() => "");
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text || undefined;
   }
 }
 
@@ -88,24 +118,14 @@ export async function httpRequest(
         const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
           ? retryAfter * 1000
           : Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt));
-        let body: unknown;
-        try {
-          body = await response.json();
-        } catch {
-          body = await response.text().catch(() => undefined);
-        }
+        const body = await readErrorBody(response);
         lastError = new HttpError(`HTTP ${response.status}`, response.status, body);
         await sleep(waitMs);
         attempt += 1;
         continue;
       }
 
-      let body: unknown;
-      try {
-        body = await response.json();
-      } catch {
-        body = await response.text().catch(() => undefined);
-      }
+      const body = await readErrorBody(response);
       throw new HttpError(`HTTP ${response.status}`, response.status, body);
     } catch (error) {
       clearTimeout(timeout);

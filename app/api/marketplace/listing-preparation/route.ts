@@ -11,6 +11,7 @@ import { getCurrencyRates, getDefaultProfile, getProfileByName } from "@/lib/pri
 import { calculateDiscountedInr } from "@/lib/marketplace/price-preview";
 import { EbayConnector } from "@/lib/marketplace/connectors/ebay";
 import { EtsyConnector } from "@/lib/marketplace/connectors/etsy";
+import { HttpError } from "@/lib/marketplace/http";
 import { MARKETPLACE_LISTING_SCOPE_SQL, marketplaceInventoryJoinSql } from "@/lib/marketplace-control-center";
 import {
   EBAY_TEMPLATE_CATEGORY_PATHS,
@@ -1111,6 +1112,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof ListingPreparationError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    if (error instanceof HttpError) {
+      return NextResponse.json(
+        { error: `Marketplace rejected the listing request. ${error.message}` },
+        { status: error.status === 400 || error.status === 422 ? 422 : 502 }
+      );
     }
     console.error("[marketplace-listing-preparation] Failed:", error);
     return NextResponse.json(
