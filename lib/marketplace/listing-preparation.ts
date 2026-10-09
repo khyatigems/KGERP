@@ -100,3 +100,12 @@ export function resolveEbayCondition(value: string | null | undefined): string |
   if (normalized === "for parts or not working") return "FOR_PARTS_OR_NOT_WORKING";
   return null;
 }
+
+export function resolveEbayAspectSuggestion(
+  aspect: { mode: string; values: string[] },
+  suggestion?: string
+): string {
+  const value = suggestion?.trim() || "";
+  if (!value || aspect.mode !== "SELECTION_ONLY") return value;
+  return aspect.values.find((option) => option.toLowerCase() === value.toLowerCase()) || "";
+}

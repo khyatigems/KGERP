@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { EBAY_TEMPLATE_CATEGORY_PATHS } from "@/lib/marketplace/listing-preparation";
+import { EBAY_TEMPLATE_CATEGORY_PATHS, resolveEbayAspectSuggestion } from "@/lib/marketplace/listing-preparation";
 import { calculateDiscountedInr, isBelowMinimumPrice } from "@/lib/marketplace/price-preview";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
@@ -262,6 +262,7 @@ function EbayAspectField({
   const savedValueConflictsWithInventory = Boolean(
     savedValue
     && suggested
+    && value.trim().toLocaleLowerCase() === suggested.trim().toLocaleLowerCase()
     && savedValue.trim().toLocaleLowerCase() !== suggested.trim().toLocaleLowerCase()
   );
   return (
@@ -306,7 +307,7 @@ function EbayAspectField({
               placeholder={savedValue ? `Saved default: ${savedValue}` : aspect.required ? "Enter required value" : "Optional"}
             />
           )}
-          {savedValue && !savedValueConflictsWithInventory && (
+          {savedValue && (
             <Button type="button" variant="outline" size="sm" onClick={() => {
               onCustomChange(!aspect.values.includes(savedValue));
               onValueChange(savedValue);
@@ -316,7 +317,7 @@ function EbayAspectField({
           )}
           {savedValueConflictsWithInventory && (
             <p className="text-xs text-amber-700">
-              Saved value “{savedValue}” was not applied because inventory says “{suggested}”.
+              Inventory suggests “{suggested}”; saved default is “{savedValue}”. Choose the correct listing value. This notice does not block saving.
             </p>
           )}
         </div>
@@ -328,14 +329,14 @@ function EbayAspectField({
             onChange={(event) => onValueChange(event.target.value)}
             placeholder={savedValue ? `Saved default: ${savedValue}` : aspect.required ? "Enter required value" : "Optional"}
           />
-          {savedValue && !savedValueConflictsWithInventory && (
+          {savedValue && (
             <Button type="button" variant="outline" onClick={() => onValueChange(savedValue)}>
               Use saved
             </Button>
           )}
           {savedValueConflictsWithInventory && (
             <p className="text-xs text-amber-700">
-              Saved value “{savedValue}” was not applied because inventory says “{suggested}”.
+              Inventory suggests “{suggested}”; saved default is “{savedValue}”. Choose the correct listing value. This notice does not block saving.
             </p>
           )}
         </div>
@@ -528,19 +529,17 @@ export function ListingPreparationClient({
   ];
   const etsyPendingChecks = etsyReviewChecks.filter((check) => !check.complete);
   const missingRequiredAspects = taxonomy?.requiredAspects.filter((aspect) => !aspectValues[aspect.name]?.trim()) || [];
+  const invalidSelectionAspects = taxonomy
+    ? [...taxonomy.requiredAspects, ...taxonomy.optionalAspects].filter((aspect) =>
+        aspect.mode === "SELECTION_ONLY"
+        && Boolean(aspectValues[aspect.name]?.trim())
+        && !aspect.values.includes(aspectValues[aspect.name].trim())
+      )
+    : [];
   const aspectValuesValid = Boolean(
     taxonomy?.exactCategoryResolved
     && !missingRequiredAspects.length
-    && taxonomy.requiredAspects.every((aspect) =>
-      aspect.mode !== "SELECTION_ONLY"
-      || !aspectValues[aspect.name]
-      || aspect.values.includes(aspectValues[aspect.name])
-    )
-    && taxonomy.optionalAspects.every((aspect) =>
-      aspect.mode !== "SELECTION_ONLY"
-      || !aspectValues[aspect.name]
-      || aspect.values.includes(aspectValues[aspect.name])
-    )
+    && !invalidSelectionAspects.length
   );
 
   useEffect(() => {
@@ -652,7 +651,7 @@ export function ListingPreparationClient({
       })));
       setAspectValues(Object.fromEntries([...result.requiredAspects, ...result.optionalAspects].map((aspect) => [
         aspect.name,
-        result.erpSuggestions[aspect.name] || result.optionalErpSuggestions[aspect.name] || "",
+        resolveEbayAspectSuggestion(aspect, result.erpSuggestions[aspect.name] || result.optionalErpSuggestions[aspect.name]),
       ])));
       if (!result.exactCategoryResolved) {
         toast.error("Choose the matching eBay category returned by Taxonomy, then check it again.");
@@ -1754,9 +1753,14 @@ export function ListingPreparationClient({
                                   : `${taxonomy.sensitiveAspectsExcluded} optional certificate-detail field(s) were excluded. Certification authority fields remain available with GCI suggested by default; certificate numbers and report identifiers stay private.`}
                               </div>
                             )}
-                            {!aspectValuesValid && taxonomy.requiredAspects.length > 0 && (
+                            {missingRequiredAspects.length > 0 && (
                               <p className="text-xs text-destructive">
-                                Complete the required fields. Missing: {missingRequiredAspects.map((aspect) => aspect.name).join(", ") || "choose a permitted value"}.
+                                Complete the required fields: {missingRequiredAspects.map((aspect) => aspect.name).join(", ")}.
+                              </p>
+                            )}
+                            {invalidSelectionAspects.length > 0 && (
+                              <p className="text-xs text-destructive">
+                                Choose an eBay-provided value or clear optional fields: {invalidSelectionAspects.map((aspect) => aspect.name).join(", ")}.
                               </p>
                             )}
                           </>

@@ -5,6 +5,7 @@ import {
   isEbayCertificationAuthorityAspect,
   isSensitiveEbayCertificateAspect,
   resolveEbayCondition,
+  resolveEbayAspectSuggestion,
   suggestEbayInventoryAspect,
 } from "@/lib/marketplace/listing-preparation";
 
@@ -18,6 +19,10 @@ assert.equal(resolveEbayCondition("New"), "NEW");
 assert.equal(resolveEbayCondition("New with defects"), "NEW_WITH_DEFECTS");
 assert.equal(resolveEbayCondition("used"), null);
 assert.equal(resolveEbayCondition(null), null);
+assert.equal(resolveEbayAspectSuggestion({ mode: "SELECTION_ONLY", values: ["Oval"] }, "Other"), "");
+assert.equal(resolveEbayAspectSuggestion({ mode: "SELECTION_ONLY", values: ["Blue"] }, "blue"), "Blue");
+assert.equal(resolveEbayAspectSuggestion({ mode: "FREE_TEXT", values: ["Oval"] }, "Other"), "Other");
+assert.equal(resolveEbayAspectSuggestion({ mode: "SELECTION_ONLY", values: ["Oval"] }), "");
 
 const inventoryAspectSource = {
   category: "Bracelet",
