@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { ListingPreparationClient } from "@/components/marketplace/listing-preparation-client";
+import { EbayConnector } from "@/lib/marketplace/connectors/ebay";
+import { hasOAuthScope } from "@/lib/marketplace/scopes";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +66,7 @@ export default async function MarketplaceCreateListingsPage() {
         id: true,
         name: true,
         marketplace: true,
+        connectionId: true,
         connection: { select: { scopes: true } },
       },
       orderBy: { name: "asc" },
@@ -83,16 +86,23 @@ export default async function MarketplaceCreateListingsPage() {
       take: 30,
     }),
   ]);
+  const ebayShops = await Promise.all(shops.filter((shop) => shop.marketplace === "EBAY").map(async (shop) => {
+    try {
+      return {
+        id: shop.id,
+        name: shop.name,
+        writeReady: await new EbayConnector().ensureInventoryWriteScope(shop.connectionId, shop.connection.scopes),
+      };
+    } catch {
+      return { id: shop.id, name: shop.name, writeReady: false, writeAccessError: "Unable to verify eBay listing access. Reload to retry, or reconnect if the connection has expired." };
+    }
+  }));
   return <ListingPreparationClient
-    ebayShops={shops.filter((shop) => shop.marketplace === "EBAY").map((shop) => ({
-      id: shop.id,
-      name: shop.name,
-      writeReady: (shop.connection.scopes || "").split(/\s+/).includes("https://api.ebay.com/oauth/api_scope/sell.inventory"),
-    }))}
+    ebayShops={ebayShops}
     etsyShops={shops.filter((shop) => shop.marketplace === "ETSY").map((shop) => ({
       id: shop.id,
       name: shop.name,
-      writeReady: (shop.connection.scopes || "").split(/\s+/).includes("listings_w"),
+      writeReady: hasOAuthScope(shop.connection.scopes, "listings_w"),
     }))}
     drafts={drafts.map((draft) => ({
     id: draft.id,

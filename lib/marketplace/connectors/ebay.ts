@@ -1,5 +1,6 @@
 import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
 import { downloadMarketplaceMedia } from "@/lib/marketplace/media-transfer";
+import { EBAY_INVENTORY_WRITE_SCOPE, hasOAuthScope, resolveOAuthScopes } from "@/lib/marketplace/scopes";
 import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext } from "@/lib/marketplace/connector";
 import type {
   NormalizedListing,
@@ -12,6 +13,7 @@ import {
   getValidAccessToken,
   updateTokens,
   isEncryptionReady,
+  loadTokens,
 } from "@/lib/marketplace/oauth";
 
 const SCOPES = [
@@ -136,7 +138,7 @@ export class EbayConnector implements MarketplaceConnector {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
-      scope: data.scope,
+      scope: resolveOAuthScopes(data.scope, SCOPES),
     };
     const profile = await this.getAuthenticatedSeller(tokens.accessToken, apiBase);
     const externalAccountId = profile.userId;
@@ -321,9 +323,36 @@ export class EbayConnector implements MarketplaceConnector {
       accessToken: data.access_token,
       refreshToken: data.refresh_token || refreshToken,
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
-      scope: data.scope || scope,
+      scope: resolveOAuthScopes(data.scope, scope),
     });
     return data.access_token;
+  }
+
+  async ensureInventoryWriteScope(connectionId: string, storedScope?: string | null): Promise<boolean> {
+    if (storedScope != null) return hasOAuthScope(storedScope, EBAY_INVENTORY_WRITE_SCOPE);
+    // Older connections lost their scope because eBay omits it from token
+    // responses. Ask eBay about the current token instead of assuming access.
+    const accessToken = await this.getAccessToken(connectionId);
+    const tokens = await loadTokens(connectionId);
+    if (!tokens) throw new Error("The eBay connection has no saved OAuth token. Reconnect the shop.");
+    if (tokens.scope != null) return hasOAuthScope(tokens.scope, EBAY_INVENTORY_WRITE_SCOPE);
+    const { apiBase } = bases();
+    const grant = await httpJson<{ active?: boolean; scope?: string }>(
+      `${apiBase}/identity/v1/oauth2/token/introspect`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64")}`,
+        },
+        body: new URLSearchParams({ token: accessToken, token_type_hint: "access_token" }).toString(),
+      }
+    );
+    if (!grant.active || typeof grant.scope !== "string") {
+      throw new Error("eBay could not verify the connection's listing permissions. Reconnect the shop.");
+    }
+    await updateTokens(connectionId, { ...tokens, accessToken, scope: grant.scope });
+    return hasOAuthScope(grant.scope, EBAY_INVENTORY_WRITE_SCOPE);
   }
 
   private getHeaders(token: string): Record<string, string> {

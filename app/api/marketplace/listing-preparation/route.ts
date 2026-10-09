@@ -11,6 +11,7 @@ import { getCurrencyRates, getDefaultProfile, getProfileByName } from "@/lib/pri
 import { calculateDiscountedInr } from "@/lib/marketplace/price-preview";
 import { EbayConnector } from "@/lib/marketplace/connectors/ebay";
 import { EtsyConnector } from "@/lib/marketplace/connectors/etsy";
+import { hasOAuthScope } from "@/lib/marketplace/scopes";
 import { HttpError } from "@/lib/marketplace/http";
 import { MARKETPLACE_LISTING_SCOPE_SQL, marketplaceInventoryJoinSql } from "@/lib/marketplace-control-center";
 import {
@@ -525,7 +526,7 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
   ]);
 
   if (!shop) throw new ListingPreparationError("The selected Etsy shop is not connected.", 404);
-  if (!(shop.connection.scopes || "").split(/\s+/).includes("listings_w")) {
+  if (!hasOAuthScope(shop.connection.scopes, "listings_w")) {
     throw new ListingPreparationError("Reconnect the selected Etsy shop and approve the listings_w permission before creating marketplace drafts.", 403);
   }
   if (!input.etsyListingDetails.taxonomyId) {
@@ -932,7 +933,7 @@ export async function POST(request: NextRequest) {
       select: { connectionId: true, connection: { select: { scopes: true } } },
     });
     if (!ebayShop) throw new ListingPreparationError("The selected eBay shop is not connected.", 404);
-    if (!(ebayShop.connection.scopes || "").split(/\s+/).includes("https://api.ebay.com/oauth/api_scope/sell.inventory")) {
+    if (!(await new EbayConnector().ensureInventoryWriteScope(ebayShop.connectionId, ebayShop.connection.scopes))) {
       throw new ListingPreparationError("Reconnect the selected eBay shop and approve the sell.inventory permission before creating marketplace drafts.", 403);
     }
     const taxonomy = await new EbayConnector().getCategoryAspects(

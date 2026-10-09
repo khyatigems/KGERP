@@ -48,7 +48,7 @@ type PreparedListing = {
   publishBlockedReason: string;
 };
 
-type Shop = { id: string; name: string; writeReady: boolean };
+type Shop = { id: string; name: string; writeReady: boolean; writeAccessError?: string };
 type SelectedInventory = {
   id: string;
   sku: string;
@@ -922,7 +922,7 @@ export function ListingPreparationClient({
           </div>
           {marketplace === "EBAY" && selectedShop && !selectedShop.writeReady && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-muted-foreground">
-              This eBay connection does not include the <code className="rounded bg-background px-1 py-0.5">sell.inventory</code> write scope. Reconnect it before creating marketplace drafts.
+              {selectedShop.writeAccessError || <>This eBay connection does not include the <code className="rounded bg-background px-1 py-0.5">sell.inventory</code> write scope. Reconnect it before creating marketplace drafts.</>}
             </div>
           )}
           <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -1099,7 +1099,7 @@ export function ListingPreparationClient({
 
               {marketplace === "ETSY" ? (
                 <>
-                <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4">
+                <div className={`rounded-xl border p-4 ${selectedShop?.writeReady ? "border-green-500/40 bg-green-500/5" : "border-amber-500/40 bg-amber-500/5"}`}>
                   <p className="text-sm font-semibold">
                     {!selectedShop
                       ? "Select a connected Etsy shop to check listing access"
@@ -1109,7 +1109,7 @@ export function ListingPreparationClient({
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {selectedShop?.writeReady
-                      ? <>The selected shop has the <code className="rounded bg-background px-1 py-0.5 text-xs">listings_w</code> permission. Saving creates an unpublished Etsy draft and uploads selected media; this ERP will not publish it.</>
+                      ? <>This shop is ready to create Etsy drafts. Complete the listing details below, then save your draft with the selected photos and videos. Review and publish it in Etsy.</>
                       : selectedShop
                         ? <>The selected shop does not have the <code className="rounded bg-background px-1 py-0.5 text-xs">listings_w</code> permission. Reconnect this shop and approve listing access before creating marketplace drafts.</>
                         : "Choose the Etsy shop you want to prepare a listing for."}

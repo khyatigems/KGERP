@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
 import { prisma } from "@/lib/prisma";
+import { resolveOAuthScopes } from "@/lib/marketplace/scopes";
 import { downloadMarketplaceMedia } from "@/lib/marketplace/media-transfer";
 import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext, EtsyOAuthAppProfile, MarketplaceOAuthContext } from "@/lib/marketplace/connector";
 import type {
@@ -273,7 +274,7 @@ export class EtsyConnector implements MarketplaceConnector {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
-      scope: SCOPES,
+      scope: resolveOAuthScopes(data.scope, SCOPES),
     };
     const externalAccountId = String(tokens.accessToken.split(".")[0] || "").trim();
     if (!externalAccountId) throw new Error("Etsy did not return an account ID in the OAuth token.");
@@ -320,7 +321,7 @@ export class EtsyConnector implements MarketplaceConnector {
       accessToken: data.access_token,
       refreshToken: data.refresh_token || refreshToken,
       expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null,
-      scope: data.scope || scope || SCOPES,
+      scope: resolveOAuthScopes(data.scope, scope),
     });
     return data.access_token;
   }

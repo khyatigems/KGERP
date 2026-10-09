@@ -70,15 +70,15 @@ export async function saveTokens(
       oauthAppProfile: platform === "ETSY" ? options.oauthAppProfile || "ETSY_SELLER_LEGACY" : null,
       tokenRef,
       status: "CONNECTED",
-      scopes: tokens.scope || null,
-      ...(platform === "ETSY" && options.oauthAppProfile ? { oauthAppProfile: options.oauthAppProfile } : {}),
+      scopes: tokens.scope ?? null,
       lastConnectedAt: new Date(),
     },
     update: {
       name: accountName || externalAccountId,
       tokenRef,
       status: "CONNECTED",
-      scopes: tokens.scope || null,
+      scopes: tokens.scope ?? null,
+      ...(platform === "ETSY" && options.oauthAppProfile ? { oauthAppProfile: options.oauthAppProfile } : {}),
       lastConnectedAt: new Date(),
     },
   });
@@ -110,7 +110,7 @@ export async function updateTokens(
     where: { id: connectionId },
     data: {
       tokenRef: encryptSecret(JSON.stringify(tokens)),
-      scopes: tokens.scope || null,
+      scopes: tokens.scope ?? null,
       status: "CONNECTED",
     },
   });
