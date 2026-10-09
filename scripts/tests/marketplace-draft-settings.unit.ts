@@ -44,11 +44,17 @@ async function main() {
         assert.match(String(init?.body), /ShowSellerProfilePreferences>true/);
         return new Response(preferences);
       }
-      if (path.includes("/inventory_item/")) return new Response(null, { status: 204 });
+      if (path.includes("/inventory_item/")) {
+        const body = JSON.parse(String(init?.body));
+        assert.ok(body.product.description.length > 0 && body.product.description.length <= 4000);
+        assert.ok(!body.product.description.includes("<style>"));
+        return new Response(null, { status: 204 });
+      }
       if (path.endsWith("/offer")) {
         offerCreated = true;
         const body = JSON.parse(String(init?.body));
         assert.deepEqual(body.listingPolicies, { fulfillmentPolicyId: "ship-default", paymentPolicyId: "pay", returnPolicyId: "return" });
+        assert.equal(body.listingDescription, longHtmlDescription, "Keep the complete HTML in the offer");
         return Response.json({ offerId: "test-offer" });
       }
       throw new Error(`Unexpected test request: ${path}`);
@@ -57,7 +63,8 @@ async function main() {
     const groups = await ebay.getDraftSettingGroups("ebay-test");
     assert.equal(groups[0].selectedId, "ship-default", "Use seller preferences when REST default flag is absent");
     assert.equal(groups[0].options.length, 2, "Exclude vehicle-only policies");
-    const ebayInput = { sku: "TEST", title: "Test", description: "Test", categoryId: "123", marketplaceId: "EBAY_US", price: 20, currency: "USD", quantity: 1, condition: "NEW", aspects: {}, media: [] };
+    const longHtmlDescription = `<style>.listing { color: red; }</style><h1>Test listing</h1><p>${"Gemstone details ".repeat(500)}</p>`;
+    const ebayInput = { sku: "TEST", title: "Test", description: longHtmlDescription, categoryId: "123", marketplaceId: "EBAY_US", price: 20, currency: "USD", quantity: 1, condition: "NEW", aspects: {}, media: [] };
     const result = await ebay.createMarketplaceDraft("ebay-test", ebayInput);
     assert.equal(result.offerId, "test-offer");
     assert.equal(offerCreated, true);

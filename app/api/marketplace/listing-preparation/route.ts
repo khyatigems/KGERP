@@ -57,7 +57,9 @@ const requestSchema = z.object({
     taxonomyId: z.string().trim().min(1).max(40).optional(),
     shopSectionId: z.string().trim().max(40).optional(),
     description: z.string().trim().min(1).max(5000),
-    craftType: z.string().trim().min(1).max(100),
+    // Legacy clients may send this; Craft type is validated as a taxonomy
+    // property below, not as a second independent listing field.
+    craftType: z.string().trim().max(100).optional(),
     whoMade: z.enum(["I_DID", "SHOP_MEMBER", "ANOTHER_COMPANY_OR_PERSON"]),
     whatIsIt: z.enum(["FINISHED_PRODUCT", "SUPPLY_OR_TOOL"]),
     whenMade: z.string().trim().min(1).max(40),

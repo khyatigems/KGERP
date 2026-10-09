@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { EBAY_TEMPLATE_CATEGORY_PATHS, resolveEbayAspectSuggestion } from "@/lib/marketplace/listing-preparation";
 import { calculateDiscountedInr, isBelowMinimumPrice } from "@/lib/marketplace/price-preview";
 import type { DraftSettingGroup, DraftSettings } from "@/lib/marketplace/draft-settings";
+import { areEtsyRequirementsCurrent, loadEtsyCategoryRequirements } from "@/lib/marketplace/etsy-requirements";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -97,7 +98,6 @@ type EtsyListingDetails = {
   taxonomyId: string;
   shopSectionId: string;
   description: string;
-  craftType: string;
   whoMade: "I_DID" | "SHOP_MEMBER" | "ANOTHER_COMPANY_OR_PERSON" | "";
   whatIsIt: "FINISHED_PRODUCT" | "SUPPLY_OR_TOOL" | "";
   whenMade: string;
@@ -137,7 +137,6 @@ const EMPTY_ETSY_LISTING_DETAILS: EtsyListingDetails = {
   taxonomyId: "",
   shopSectionId: "",
   description: "",
-  craftType: "",
   whoMade: "",
   whatIsIt: "",
   whenMade: "",
@@ -386,7 +385,10 @@ export function ListingPreparationClient({
   const [etsyPreparationOptions, setEtsyPreparationOptions] = useState<EtsyPreparationOptions | null>(null);
   const [etsyCategorySearch, setEtsyCategorySearch] = useState("");
   const [etsyCategoryAttributesByName, setEtsyCategoryAttributesByName] = useState<Record<string, string>>({});
-  const [etsyRequirementsChecked, setEtsyRequirementsChecked] = useState(false);
+  const [loadedEtsyRequirements, setLoadedEtsyRequirements] = useState<{ shopId: string; taxonomyId: string; inventoryId: string; reload: number } | null>(null);
+  const [etsyRequirementsLoading, setEtsyRequirementsLoading] = useState(false);
+  const [etsyRequirementsError, setEtsyRequirementsError] = useState("");
+  const [etsyRequirementsReload, setEtsyRequirementsReload] = useState(0);
   const [selectedMediaUrls, setSelectedMediaUrls] = useState<string[]>([]);
   const [pricing, setPricing] = useState<PricingGuidance | null>(null);
   const [pricingError, setPricingError] = useState("");
@@ -408,6 +410,10 @@ export function ListingPreparationClient({
   selectedMediaRef.current = selectedMediaUrls;
   const activeShops = marketplace === "EBAY" ? ebayShops : marketplace === "ETSY" ? etsyShops : [];
   const selectedShop = activeShops.find((shop) => shop.id === shopId);
+  const etsyRequirementsChecked = areEtsyRequirementsCurrent(loadedEtsyRequirements, shopId, etsyListingDetails.taxonomyId)
+    && loadedEtsyRequirements?.inventoryId === inventoryId
+    && loadedEtsyRequirements?.reload === etsyRequirementsReload
+    && !etsyRequirementsLoading && !etsyRequirementsError;
   const shopSettingsReady = Boolean(shopSettings?.shopId === shopId && shopSettings.groups.length
     && shopSettings.groups.every((group) => group.options.some((option) => option.id === draftSettings[group.key])));
   useEffect(() => {
@@ -519,7 +525,6 @@ export function ListingPreparationClient({
     && etsyListingDetails.taxonomyId
     && listingTitle.trim()
     && etsyListingDetails.description.trim()
-    && etsyListingDetails.craftType.trim()
     && etsyListingDetails.whoMade
     && etsyListingDetails.whatIsIt
     && etsyListingDetails.whenMade
@@ -540,7 +545,7 @@ export function ListingPreparationClient({
     { label: "Etsy shop selected", complete: marketplace === "ETSY" && Boolean(shopId) },
     { label: "Eligible inventory item selected", complete: Boolean(inventoryId) },
     { label: "Etsy category selected", complete: Boolean(etsyListingDetails.taxonomyId && etsyListingDetails.categoryName.trim()) },
-    { label: "Etsy requirements checked", complete: etsyRequirementsChecked },
+    { label: etsyRequirementsLoading ? "Loading Etsy category requirements" : "Etsy requirements checked", complete: etsyRequirementsChecked },
     {
       label: etsyRequirementsChecked && etsyMissingRequiredProperties.length
         ? `Required attributes: ${etsyMissingRequiredProperties.join(", ")}`
@@ -551,8 +556,7 @@ export function ListingPreparationClient({
     { label: "Plain-text description entered", complete: Boolean(etsyListingDetails.description.trim()) },
     {
       label: "Seller, item, and quantity details complete",
-      complete: Boolean(etsyListingDetails.craftType.trim()
-        && etsyListingDetails.whoMade
+      complete: Boolean(etsyListingDetails.whoMade
         && etsyListingDetails.whatIsIt
         && etsyListingDetails.whenMade
         && Number(etsyListingDetails.quantity) > 0
@@ -704,67 +708,41 @@ export function ListingPreparationClient({
     }
   };
 
-  const checkEtsyRequirements = async () => {
-    if (marketplace !== "ETSY" || !shopId || !etsyListingDetails.productType) return;
-    setBusy(true);
-    try {
-      if (!etsyPreparationOptions?.categories.length) {
-        const response = await fetch("/api/marketplace/listing-preparation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "etsyRequirements", shopId }),
-        });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Unable to load Etsy categories and shop sections.");
-        const options = payload as EtsyPreparationOptions;
-        const preferredCategory = findPreferredEtsyCategory(options.categories, etsyListingDetails.productType);
-        if (!preferredCategory) {
-          setEtsyPreparationOptions(options);
-          throw new Error("Etsy did not return a matching category. Search and select the correct category manually.");
-        }
-        setEtsyPreparationOptions(options);
-        setEtsyListingDetails((previous) => ({
-          ...previous,
-          taxonomyId: preferredCategory.taxonomyId,
-          categoryName: preferredCategory.path,
-        }));
-        setEtsyCategoryAttributesByName({});
-        setEtsyRequirementsChecked(false);
-        toast.success("Etsy categories loaded and a matching category was selected. Choose a shop section if needed, then check requirements.");
-        return;
+  const etsyProductType = etsyListingDetails.productType;
+  const etsyTaxonomyId = etsyListingDetails.taxonomyId;
+  useEffect(() => {
+    if (marketplace !== "ETSY" || !shopId || !etsyProductType) { setEtsyRequirementsLoading(false); return; }
+    if (areEtsyRequirementsCurrent(loadedEtsyRequirements, shopId, etsyTaxonomyId)
+      && loadedEtsyRequirements?.inventoryId === inventoryId
+      && loadedEtsyRequirements?.reload === etsyRequirementsReload) return;
+    const controller = new AbortController();
+    setEtsyRequirementsLoading(true);
+    setEtsyRequirementsError("");
+    const load = async () => {
+      try {
+        const result = await loadEtsyCategoryRequirements<EtsyPreparationOptions>(
+          { shopId, taxonomyId: etsyTaxonomyId, inventoryId },
+          (categories) => findPreferredEtsyCategory(categories, etsyProductType),
+          controller.signal
+        );
+        if (controller.signal.aborted) return;
+        setEtsyPreparationOptions(result.options);
+        setEtsyListingDetails((previous) => ({ ...previous, taxonomyId: result.taxonomyId, categoryName: result.categoryName }));
+        setEtsyCategoryAttributesByName((previous) => Object.fromEntries(result.options.properties.map((property) => {
+          const value = previous[property.name]?.trim() || result.options.propertySuggestions[property.name] || "";
+          const permitted = !property.values.length || property.values.some((option) => option.name === value);
+          return [property.name, permitted ? value : ""];
+        })));
+        setLoadedEtsyRequirements({ shopId, taxonomyId: result.taxonomyId, inventoryId, reload: etsyRequirementsReload });
+      } catch (error) {
+        if (!controller.signal.aborted) setEtsyRequirementsError(error instanceof Error ? error.message : "Unable to load Etsy requirements.");
+      } finally {
+        if (!controller.signal.aborted) setEtsyRequirementsLoading(false);
       }
-      if (!etsyListingDetails.taxonomyId) {
-        throw new Error("Select an Etsy category before checking its listing requirements.");
-      }
-      const response = await fetch("/api/marketplace/listing-preparation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "etsyRequirements",
-          shopId,
-          inventoryId: inventoryId || undefined,
-          etsyTaxonomyId: etsyListingDetails.taxonomyId || undefined,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Unable to load Etsy categories and requirements.");
-      const options = payload as EtsyPreparationOptions;
-      setEtsyPreparationOptions(options);
-      setEtsyRequirementsChecked(true);
-      setEtsyCategoryAttributesByName((previous) => {
-        const next = { ...previous };
-        for (const property of options.properties) {
-          if (!next[property.name]?.trim()) next[property.name] = options.propertySuggestions[property.name] || "";
-        }
-        return next;
-      });
-      toast.success(`Checked Etsy category requirements: ${options.properties.filter((property) => property.required).length} required and ${options.properties.filter((property) => !property.required).length} optional attributes. Inventory suggestions were applied where Etsy permits the values.`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to load Etsy requirements.");
-    } finally {
-      setBusy(false);
-    }
-  };
+    };
+    void load();
+    return () => controller.abort();
+  }, [marketplace, shopId, etsyProductType, etsyTaxonomyId, inventoryId, etsyRequirementsReload, loadedEtsyRequirements]);
 
   useEffect(() => {
     if (!inventoryId || !shopId) return;
@@ -789,7 +767,7 @@ export function ListingPreparationClient({
     setEtsyPreparationOptions(null);
     setEtsyCategorySearch("");
     setEtsyCategoryAttributesByName({});
-    setEtsyRequirementsChecked(false);
+    setLoadedEtsyRequirements(null);
     setSelectedMediaUrls([]);
     setEtsyGemstoneAttributes(EMPTY_ETSY_GEMSTONE_ATTRIBUTES);
     setPricing(null);
@@ -910,7 +888,6 @@ export function ListingPreparationClient({
             ...etsyListingDetails,
             categoryName: etsyListingDetails.categoryName.trim(),
             description: etsyListingDetails.description.trim(),
-            craftType: etsyListingDetails.craftType.trim(),
             productionMethod: etsyListingDetails.productionMethod || undefined,
             tags: etsyTags,
             quantity: Number(etsyListingDetails.quantity),
@@ -1091,7 +1068,7 @@ export function ListingPreparationClient({
                     setEtsyPreparationOptions(null);
                     setEtsyCategorySearch("");
                     setEtsyCategoryAttributesByName({});
-                    setEtsyRequirementsChecked(false);
+                    setLoadedEtsyRequirements(null);
                   }}>
                     <SelectTrigger id="marketplace"><SelectValue placeholder="Select marketplace" /></SelectTrigger>
                     <SelectContent>
@@ -1118,7 +1095,7 @@ export function ListingPreparationClient({
                     setEtsyPreparationOptions(null);
                     setEtsyCategorySearch("");
                     setEtsyCategoryAttributesByName({});
-                    setEtsyRequirementsChecked(false);
+                    setLoadedEtsyRequirements(null);
                     setPricing(null);
                     setPricingError("");
                     setPrepared(null);
@@ -1207,7 +1184,7 @@ export function ListingPreparationClient({
                             shopSectionId: "",
                           }));
                           setEtsyCategoryAttributesByName({});
-                          setEtsyRequirementsChecked(false);
+                          setLoadedEtsyRequirements(null);
                           setEtsyPreparationOptions((previous) => previous ? { ...previous, properties: [] } : previous);
                         }}
                       >
@@ -1241,7 +1218,7 @@ export function ListingPreparationClient({
                             categoryName: category?.path || "",
                           }));
                           setEtsyCategoryAttributesByName({});
-                          setEtsyRequirementsChecked(false);
+                          setLoadedEtsyRequirements(null);
                           setEtsyPreparationOptions((previous) => previous ? { ...previous, properties: [] } : previous);
                         }}
                       >
@@ -1273,10 +1250,11 @@ export function ListingPreparationClient({
                           </Select>
                         </div>
                       )}
-                      <Button type="button" size="sm" variant="outline" onClick={() => void checkEtsyRequirements()} disabled={busy || !shopId || !etsyListingDetails.productType}>
-                        {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {etsyPreparationOptions?.categories.length ? "Check Etsy requirements" : "Load Etsy categories & shop sections"}
+                      <Button type="button" size="sm" variant="outline" onClick={() => setEtsyRequirementsReload((value) => value + 1)} disabled={busy || etsyRequirementsLoading || !shopId || !etsyListingDetails.productType}>
+                        {etsyRequirementsLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {etsyRequirementsLoading ? "Loading Etsy requirements" : "Reload Etsy requirements"}
                       </Button>
+                      {etsyRequirementsError && <p className="text-xs text-destructive">{etsyRequirementsError}</p>}
                     </div>
                   </div>
                 </div>
@@ -1298,7 +1276,6 @@ export function ListingPreparationClient({
                           description: item?.etsyDescription || "",
                         }));
                         setEtsyCategoryAttributesByName({});
-                        setEtsyRequirementsChecked(false);
                         setEtsyPreparationOptions((previous) => previous ? {
                           ...previous,
                           propertySuggestions: {},
@@ -1323,7 +1300,7 @@ export function ListingPreparationClient({
                 ) : (
                   <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Select an Etsy shop first; inventory already listed or saved as a draft for that shop will be excluded.</p>
                 )}
-                {etsyPreparationOptions?.properties.length ? (
+                {etsyRequirementsChecked && etsyPreparationOptions?.properties.length ? (
                   <div className="space-y-3 rounded-lg border p-4">
                     <div>
                       <h3 className="text-sm font-semibold">Etsy category attributes</h3>
@@ -1409,16 +1386,6 @@ export function ListingPreparationClient({
                     <p className="text-xs text-muted-foreground">{etsyListingDetails.description.length}/5000 characters · HTML descriptions are not used on Etsy.</p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="etsy-craft-type">Craft type <span className="text-destructive">*</span></Label>
-                      <Input
-                        id="etsy-craft-type"
-                        value={etsyListingDetails.craftType}
-                        onChange={(event) => setEtsyListingDetails((previous) => ({ ...previous, craftType: event.target.value }))}
-                        placeholder="Enter the Etsy craft type"
-                      />
-                      <p className="text-xs text-muted-foreground">Use the exact craft type option shown for this category in Etsy.</p>
-                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="etsy-when-made">When was it made? <span className="text-destructive">*</span></Label>
                       <Select
