@@ -81,6 +81,7 @@ export default async function MarketplaceDraftsPage() {
     shopId: draft.marketplaceShopId,
     platform: draft.platform,
     syncError: draft.syncError,
+    skuSynced: (() => { try { const saved = JSON.parse(draft.rawMetadata || "{}").marketplaceDraft?.skuSync; return Boolean(saved?.verifiedAt && saved.sku === (draft.inventory?.sku || draft.listingSku)); } catch { return false; } })(),
     price: draft.listedPrice,
     currency: draft.currency,
     regionalPrices: getRegionalPrices(draft.rawMetadata),

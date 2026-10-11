@@ -132,6 +132,12 @@ async function main() {
     assert.deepEqual(etsyDraft.warnings, []);
     assert.deepEqual(await etsy.updateDraftAttributes("etsy-test", "shop-test", "789", etsyInput.categoryAttributes), []);
     const workingEtsyFetch = globalThis.fetch;
+    let skuRepairPuts = 0;
+    globalThis.fetch = async (url, init) => { if (init?.method === "PUT") skuRepairPuts++; return workingEtsyFetch(url, init); };
+    await etsy.saveDraftSku("etsy-test", "789", "TEST-SKU-123");
+    assert.equal(skuRepairPuts, 0, "Already matching SKU must not rewrite Etsy inventory or regional prices");
+    globalThis.fetch = workingEtsyFetch;
+
     let attributePuts = 0;
     globalThis.fetch = async (url, init) => {
       if (String(url).endsWith("/application/listings/789")) return Response.json({ state: "active" });

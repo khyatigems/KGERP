@@ -610,7 +610,10 @@ export class EtsyConnector implements MarketplaceConnector {
     const listing = await httpJson<{ state?: string }>(`${API_BASE}/v3/application/listings/${encodeURIComponent(listingId)}`, { headers });
     if (listing.state !== "draft") throw new Error("This Etsy listing is no longer a draft.");
     const url = `${API_BASE}/v3/application/listings/${encodeURIComponent(listingId)}/inventory`;
-    const products = initial ? [{ sku, property_values: [], offerings: [{ price: initial.price, quantity: initial.quantity, is_enabled: true, readiness_state_id: Number(initial.readinessStateId) }] }] : etsySkuRepairProducts(await httpJson<EtsySkuInventory>(url, { headers }), sku);
+    const existing = initial ? null : await httpJson<EtsySkuInventory>(url, { headers });
+    // A verified match requires no inventory PUT, preserving seller-entered regional prices.
+    if (existing?.products?.length === 1 && existing.products[0].sku === sku) return;
+    const products = initial ? [{ sku, property_values: [], offerings: [{ price: initial.price, quantity: initial.quantity, is_enabled: true, readiness_state_id: Number(initial.readinessStateId) }] }] : etsySkuRepairProducts(existing!, sku);
     await httpJson(url, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ products, price_on_property: [], quantity_on_property: [], sku_on_property: [], readiness_state_on_property: [] }) });
     const verified = await httpJson<EtsySkuInventory>(url, { headers });
     if (verified.products?.length !== 1 || verified.products[0].sku !== sku) throw new Error("Etsy did not confirm the inventory SKU. Retry SKU sync on the saved draft.");

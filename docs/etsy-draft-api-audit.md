@@ -50,3 +50,8 @@ Etsy stores SKU on listing inventory products, not on createDraftListing. New dr
 Add reviewed item to Etsy batch snapshots each item's own form data, regional prices, selected shop and media. Review additional items, then save 5 by default or up to 25 per run. Requests run sequentially through the existing server validation; results stay visible, success/failure rows are excluded from later runs, and Stop after current item prevents the next request. The queue is held in the open page; refreshing or leaving discards unsaved queue entries. No batch action publishes Etsy listings.
 
 Checks: mocked connector SKU PUT and GET read-back, custom attributes, failure preservation; SKU repair price/quantity/profile preservation and variation rejection; batch limits, duplicate selections, partial failure and stopping; TypeScript and targeted ESLint.
+
+
+SKU sync verification now persists actual SKU and verified timestamp in draft metadata; the Drafts page replaces the action with a synced status, and new drafts record successful initial verification. Older drafts without a verification marker need one check. If Etsy already contains the same SKU, checking skips the inventory PUT so seller-entered regional prices are not rewritten.
+
+The three ERP regional prices remain planning values. The documented Etsy API only accepts one base price; separate domestic, US and global price fields must be configured using Add global prices in Etsy. Creation and draft review now explain this limitation explicitly. Do SKU repair before manually setting regional pricing when the SKU is missing, because inventory updates cannot guarantee preservation of unsupported regional price fields.

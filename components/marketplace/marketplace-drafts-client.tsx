@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EbayBulkReview } from "@/components/marketplace/ebay-bulk-review";
 import { EbayCompleteReview } from "@/components/marketplace/ebay-complete-review";
 export type SavedDraft = {
+  skuSynced?: boolean;
   sellerHubDraft?: { state: string; taskId: string | null; draftId: string | null; completeUrl: string | null } | null;
   shopId: string | null;
   id: string;
@@ -26,6 +27,7 @@ export type SavedDraft = {
 };
 export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
  const router = useRouter();
+ const [syncedSkuIds, setSyncedSkuIds] = useState<string[]>([]);
  const [busy, setBusy] = useState(false);
  const [offerChecks, setOfferChecks] = useState<Record<string, string>>({});
  const [checkingOfferId, setCheckingOfferId] = useState<string | null>(null);
@@ -60,6 +62,7 @@ export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
                       <summary className="cursor-pointer px-4 py-3 text-sm marker:text-muted-foreground">
                         <span className="font-medium break-words">{draft.title}</span>
                         <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">{draft.platform}</span>
+                        {draft.platform === "ETSY" && (draft.skuSynced || syncedSkuIds.includes(draft.id)) && <p className="mt-2 text-xs text-emerald-600">SKU synced to Etsy</p>}
                         {draft.syncError && <span className="ml-2 text-xs text-amber-700">Needs attention</span>}
                         <span className="mt-1 block break-words text-xs text-muted-foreground">{draft.sku} · {draft.shop} · {draft.currency} {draft.price.toFixed(2)}</span>
                       </summary>
@@ -69,12 +72,13 @@ export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
                         {draft.externalId
                           ? <p className="mt-1 text-[10px] text-muted-foreground">{draft.platform === "EBAY" ? "eBay API offer ID" : "Etsy draft listing ID"} · {draft.externalId}</p>
                           : !draft.sellerHubDraft?.taskId && <p className="mt-1 text-[10px] text-amber-700">ERP draft · review complete listing to check its eBay offer</p>}
-                        {draft.platform === "ETSY" && draft.externalId && draft.shopId && <Button type="button" variant="outline" size="sm" disabled={busy} onClick={async () => {
+                        {draft.platform === "ETSY" && draft.externalId && draft.shopId && !draft.skuSynced && !syncedSkuIds.includes(draft.id) && <Button type="button" variant="outline" size="sm" disabled={busy} onClick={async () => {
                           setBusy(true);
                           try {
                             const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "repairEtsySku", draftId: draft.id, shopId: draft.shopId }) });
                             const payload = await response.json();
                             if (!response.ok) throw new Error(payload.error || "SKU sync failed.");
+                            setSyncedSkuIds((previous) => [...previous, draft.id]);
                             toast.success(`SKU ${payload.sku} saved to Etsy draft ${payload.externalListingId}.`); router.refresh();
                           } catch (error) { toast.error(error instanceof Error ? error.message : "SKU sync failed."); }
                           finally { setBusy(false); }
@@ -169,9 +173,11 @@ export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
                       <div className="text-right">
                           {draft.regionalPrices ? (
                             <div className="space-y-0.5 text-xs">
+                              <p className="font-medium">ERP regional prices</p>
                               <p>India · INR {draft.regionalPrices.india.toFixed(2)}</p>
                               <p>US · INR {draft.regionalPrices.us.toFixed(2)}</p>
                               <p>Global · INR {draft.regionalPrices.global.toFixed(2)}</p>
+                              {draft.platform === "ETSY" && <p className="mt-2 max-w-xs text-left text-muted-foreground">Etsy receives one base price through its API. Set the separate domestic, US and global prices using Add global prices in Etsy.</p>}
                             </div>
                           ) : (
                             <p className="font-medium">{draft.currency} {draft.price.toFixed(2)}</p>

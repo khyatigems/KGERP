@@ -1557,7 +1557,7 @@ export function ListingPreparationClient({
                   <div>
                     <Label>6. Etsy listing prices · enter manually <span className="text-destructive">*</span></Label>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      These are intended prices, not ERP selling-price defaults. Etsy uses the India amount for INR shops, the US amount for USD shops, or the global amount for other shop currencies, converted using the configured exchange rate.
+                      These three intended prices are saved in the ERP. Etsy’s API accepts one base price: India for INR shops, US for USD shops, or Global for other shop currencies, converted using the configured rate. After saving, use Add global prices in Etsy to enter separate domestic, US and global prices.
                     </p>
                   </div>
                   <PricingSummary

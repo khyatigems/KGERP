@@ -781,6 +781,8 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
       id: remoteDraft.listingId,
       draftSettings: remoteDraft.draftSettings,
       state: "DRAFT",
+      skuSync: remoteDraft.warnings.some((warning) => warning.startsWith("SKU:")) ? null : { sku: item.sku, verifiedAt: new Date().toISOString() },
+      pricing: { apiAmount: etsyPrice, currency: shopCurrency, regionalPricesSync: "MANUAL_IN_ETSY" },
       uploadedMedia: remoteDraft.uploadedMedia,
       warnings: remoteDraft.warnings,
     },
@@ -838,7 +840,7 @@ export async function POST(request: NextRequest) {
         if (!item?.sku || (draft.listingSku && draft.listingSku !== item.sku)) throw new ListingPreparationError("The saved draft SKU no longer matches inventory. Review the item before syncing.");
         await new EtsyConnector().saveDraftSku(draft.marketplaceShop.connectionId, draft.externalId, item.sku);
         const warnings = (metadata.marketplaceDraft?.warnings || []).filter((warning) => !warning.startsWith("SKU:"));
-        const updated = await prisma.listing.updateMany({ where: { id: draft.id, status: "DRAFT", rawMetadata: draft.rawMetadata }, data: { syncError: warnings.length ? warnings.join("; ") : null, rawMetadata: JSON.stringify({ ...metadata, marketplaceDraft: { ...metadata.marketplaceDraft, warnings } }) } });
+        const updated = await prisma.listing.updateMany({ where: { id: draft.id, status: "DRAFT", rawMetadata: draft.rawMetadata }, data: { syncError: warnings.length ? warnings.join("; ") : null, rawMetadata: JSON.stringify({ ...metadata, marketplaceDraft: { ...metadata.marketplaceDraft, warnings, skuSync: { sku: item.sku, verifiedAt: new Date().toISOString() } } }) } });
         if (!updated.count) throw new ListingPreparationError("The draft changed during SKU sync. Refresh and check it again.", 409);
         return NextResponse.json({ sku: item.sku, externalListingId: draft.externalId });
       }
