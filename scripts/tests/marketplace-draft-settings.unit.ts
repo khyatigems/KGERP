@@ -59,6 +59,10 @@ async function main() {
         assert.equal(body.listingDescription, longHtmlDescription, "Keep the complete HTML in the offer");
         return Response.json({ offerId: "test-offer" });
       }
+      if (path.endsWith("/offer/test-offer")) {
+        assert.equal(init?.method || "GET", "GET", "Offer verification must be read-only");
+        return Response.json({ offerId: "test-offer", sku: "TEST", status: "UNPUBLISHED", marketplaceId: "EBAY_US" });
+      }
       throw new Error(`Unexpected test request: ${path}`);
     };
     const ebay = new EbayConnector();
@@ -70,6 +74,9 @@ async function main() {
     const result = await ebay.createMarketplaceDraft("ebay-test", ebayInput);
     assert.equal(result.offerId, "test-offer");
     assert.equal(offerCreated, true);
+    const verified = await ebay.getMarketplaceOffer("ebay-test", "test-offer");
+    assert.equal(verified.status, "UNPUBLISHED");
+    assert.equal(verified.listingId, null, "Unpublished offers do not have a published listing ID");
     offerCreated = false;
     await assert.rejects(ebay.createMarketplaceDraft("ebay-test", { ...ebayInput, draftSettings: { fulfillmentPolicyId: "wrong-shop" } }), /no longer available/);
     assert.equal(offerCreated, false, "Validate shop policies before remote draft creation");

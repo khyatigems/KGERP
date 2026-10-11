@@ -1,5 +1,19 @@
 # Marketplace draft settings
 
+## eBay offers and Seller Hub drafts
+
+The eBay integration calls Inventory API `createOffer`. Its returned ID is an
+offer ID, not a Seller Hub draft ID or published listing ID. These unpublished
+offers are separate from Seller Hub Drafts. The Inventory API manages and
+publishes them; the ERP currently does not publish them. Etsy uses its separate
+draft-listing endpoint and creates a shop draft.
+
+Saved eBay rows provide a read-only **Check eBay offer** action using `getOffer`,
+which reports the remote status, API environment, and any published listing ID.
+For local diagnostics, run `npx tsx scripts/check-ebay-offer.ts <offerId>`.
+
+Reference: https://developer.ebay.com/api-docs/sell/inventory/overview.html
+
 Create Listing loads settings automatically when a connected shop is selected.
 The authenticated `shopSettings` action in `/api/marketplace/listing-preparation`
 returns named choices and preselected IDs. Users can reload these settings after

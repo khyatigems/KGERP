@@ -23,7 +23,8 @@ import {
 } from "@/lib/marketplace/listing-preparation";
 
 const requestSchema = z.object({
-  action: z.enum(["prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements", "shopSettings"]),
+  action: z.enum(["prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements", "shopSettings", "verifyEbayOffer"]),
+  draftId: z.string().uuid().optional(),
   draftSettings: z.object({
     fulfillmentPolicyId: z.string().max(80).optional(),
     paymentPolicyId: z.string().max(80).optional(),
@@ -814,6 +815,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (parsed.data.action === "verifyEbayOffer") {
+      if (!parsed.data.draftId) throw new ListingPreparationError("Select a saved eBay offer to verify.", 400);
+      const saved = await prisma.listing.findFirst({
+        where: { id: parsed.data.draftId, platform: "EBAY", marketplaceShopId: parsed.data.shopId, marketplaceShop: { status: "CONNECTED", connection: { status: "CONNECTED" } } },
+        select: { rawMetadata: true, listingSku: true, marketplaceShop: { select: { connectionId: true } } },
+      });
+      const offerId = saved && getMarketplaceDraftId(saved.rawMetadata);
+      if (!saved?.marketplaceShop || !offerId) throw new ListingPreparationError("No saved eBay offer is available for this connected shop.", 404);
+      const offer = await new EbayConnector().getMarketplaceOffer(saved.marketplaceShop.connectionId, offerId);
+      if (offer.sku !== saved.listingSku) throw new ListingPreparationError("The returned eBay offer does not match this inventory SKU.", 409);
+      return NextResponse.json(offer);
+    }
     if (parsed.data.action === "shopSettings") {
       const shop = await prisma.marketplaceShop.findFirst({
         where: { id: parsed.data.shopId, marketplace: { in: ["EBAY", "ETSY"] }, status: "CONNECTED", connection: { status: "CONNECTED" } },
@@ -962,7 +975,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Enter a marketplace price before saving this draft." }, { status: 400 });
     }
     if (!parsed.data.usdToInr) {
-      return NextResponse.json({ error: "Enter a valid INR-per-USD rate before saving the eBay draft." }, { status: 400 });
+      return NextResponse.json({ error: "Enter a valid INR-per-USD rate before saving the eBay API offer." }, { status: 400 });
     }
     const ebayShop = await prisma.marketplaceShop.findFirst({
       where: { id: parsed.data.shopId, marketplace: "EBAY", status: "CONNECTED", connection: { status: "CONNECTED" } },
@@ -970,7 +983,7 @@ export async function POST(request: NextRequest) {
     });
     if (!ebayShop) throw new ListingPreparationError("The selected eBay shop is not connected.", 404);
     if (!(await new EbayConnector().ensureInventoryWriteScope(ebayShop.connectionId, ebayShop.connection.scopes))) {
-      throw new ListingPreparationError("Reconnect the selected eBay shop and approve the sell.inventory permission before creating marketplace drafts.", 403);
+      throw new ListingPreparationError("Reconnect the selected eBay shop and approve the sell.inventory permission before creating API offers.", 403);
     }
     const taxonomy = await new EbayConnector().getCategoryAspects(
       ebayShop.connectionId,
@@ -1023,7 +1036,7 @@ export async function POST(request: NextRequest) {
       );
     }
     if (!prepared.condition) {
-      throw new ListingPreparationError("Choose a valid eBay condition on the inventory item before creating its marketplace draft.", 422);
+      throw new ListingPreparationError("Choose a valid eBay condition on the inventory item before creating its API offer.", 422);
     }
 
     const draftData = {
@@ -1082,7 +1095,7 @@ export async function POST(request: NextRequest) {
       select: { id: true, rawMetadata: true },
     });
     if (existingDraft && getMarketplaceDraftId(existingDraft.rawMetadata)) {
-      throw new ListingPreparationError("An eBay marketplace draft already exists for this item and shop. Continue editing it in Seller Hub instead of creating a duplicate.", 409);
+      throw new ListingPreparationError("An eBay API offer already exists for this item and shop. Check the saved offer in the ERP; unpublished API offers are not Seller Hub drafts.", 409);
     }
     const mediaForMarketplace: Array<{ mediaUrl: string; type: "IMAGE" | "VIDEO" }> = prepared.inventory.mediaAssets.flatMap((asset) =>
       asset.type === "IMAGE" || asset.type === "VIDEO"
@@ -1110,12 +1123,14 @@ export async function POST(request: NextRequest) {
         ...draftMetadata,
         marketplaceDraft: {
           id: remoteDraft.offerId,
+          kind: "EBAY_INVENTORY_OFFER",
+          sellerHubDraft: false,
           draftSettings: remoteDraft.draftSettings,
           state: "UNPUBLISHED",
           uploadedMedia: remoteDraft.uploadedMedia,
           warnings: remoteDraft.warnings,
         },
-        note: "An unpublished eBay offer draft was created. Review it in Seller Hub, add any missing media or details, and publish it there.",
+        note: "An unpublished eBay Inventory API offer was created. It is not a Seller Hub draft. Review it through the Inventory API before publishing.",
       }),
       syncError: remoteDraft.warnings.length ? remoteDraft.warnings.join("; ") : null,
     };
@@ -1146,6 +1161,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       draftId: draft.id,
       externalListingId: remoteDraft.offerId,
+      offerId: remoteDraft.offerId,
+      sellerHubDraft: false,
       uploadedMedia: remoteDraft.uploadedMedia,
       warnings: remoteDraft.warnings,
       unresolved: prepared.unresolved,

@@ -111,6 +111,7 @@ export default async function MarketplaceCreateListingsPage() {
     itemName: draft.inventory?.itemName || draft.marketplaceTitle || "Unknown item",
     title: draft.marketplaceTitle || draft.inventory?.itemName || draft.listingSku || "Untitled marketplace draft",
     shop: draft.marketplaceShop?.name || draft.marketplaceShopName || `${draft.platform} shop`,
+    shopId: draft.marketplaceShopId,
     platform: draft.platform,
     syncError: draft.syncError,
     price: draft.listedPrice,

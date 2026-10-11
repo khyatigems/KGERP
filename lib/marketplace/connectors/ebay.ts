@@ -491,8 +491,18 @@ export class EbayConnector implements MarketplaceConnector {
         }),
       }
     );
-    if (!offer.offerId) throw new Error("eBay accepted the offer but did not return a draft ID.");
+    if (!offer.offerId) throw new Error("eBay accepted the offer but did not return an offer ID.");
     return { offerId: offer.offerId, uploadedMedia, warnings, draftSettings };
+  }
+
+  async getMarketplaceOffer(connectionId: string, offerId: string) {
+    const token = await this.getAccessToken(connectionId);
+    const { apiBase, sandbox } = bases();
+    const offer = await httpJson<{ offerId: string; sku: string; status: string; marketplaceId: string; listing?: { listingId?: string } }>(
+      `${apiBase}/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`,
+      { headers: this.getHeaders(token) }
+    );
+    return { offerId: offer.offerId, sku: offer.sku, status: offer.status, marketplaceId: offer.marketplaceId, listingId: offer.listing?.listingId || null, environment: sandbox ? "SANDBOX" : "PRODUCTION" };
   }
 
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {

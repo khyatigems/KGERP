@@ -82,6 +82,7 @@ type PricingGuidance = {
   warning: string | null;
 };
 type SavedDraft = {
+  shopId: string | null;
   id: string;
   externalId?: string | null;
   sku: string;
@@ -405,6 +406,8 @@ export function ListingPreparationClient({
   const [customAspectValues, setCustomAspectValues] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [draftsExpanded, setDraftsExpanded] = useState(false);
+  const [offerChecks, setOfferChecks] = useState<Record<string, string>>({});
+  const [checkingOfferId, setCheckingOfferId] = useState<string | null>(null);
   const prepareSequence = useRef(0);
   const draftsSectionRef = useRef<HTMLDivElement>(null);
   const listingTitleRef = useRef(listingTitle);
@@ -866,9 +869,9 @@ export function ListingPreparationClient({
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to save draft.");
       if (Array.isArray(payload.warnings) && payload.warnings.length) {
-        toast.warning(`eBay draft ${payload.externalListingId} was created, but some media needs attention: ${payload.warnings.join("; ")}`);
+        toast.warning(`eBay API offer ${payload.offerId} was created, but some media needs attention: ${payload.warnings.join("; ")}`);
       } else {
-        toast.success("Unpublished eBay draft created in the selected shop with selected media.");
+        toast.success("Unpublished eBay API offer saved. It will not appear in Seller Hub Drafts.");
       }
       returnToSavedDrafts();
     } catch (error) {
@@ -964,11 +967,11 @@ export function ListingPreparationClient({
           </div>
           {marketplace === "EBAY" && selectedShop && !selectedShop.writeReady && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-muted-foreground">
-              {selectedShop.writeAccessError || <>This eBay connection does not include the <code className="rounded bg-background px-1 py-0.5">sell.inventory</code> write scope. Reconnect it before creating marketplace drafts.</>}
+              {selectedShop.writeAccessError || <>This eBay connection does not include the <code className="rounded bg-background px-1 py-0.5">sell.inventory</code> write scope. Reconnect it before creating API offers.</>}
             </div>
           )}
           <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-            Saves an unpublished draft to the selected shop · publish there when ready
+            {marketplace === "EBAY" ? "Creates an unpublished API offer · not a Seller Hub draft" : "Saves an unpublished Etsy draft · publish in Etsy when ready"}
           </span>
         </div>
       </div>
@@ -1004,8 +1007,8 @@ export function ListingPreparationClient({
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
               <div className="space-y-1.5">
-                <CardTitle>Saved marketplace drafts <span className="text-sm font-normal text-muted-foreground">({drafts.length})</span></CardTitle>
-                <CardDescription>New drafts are created in the selected marketplace shop. Older ERP-only drafts are identified below.</CardDescription>
+                <CardTitle>Saved offers and drafts <span className="text-sm font-normal text-muted-foreground">({drafts.length})</span></CardTitle>
+                <CardDescription>eBay entries are unpublished API offers, separate from Seller Hub Drafts. Etsy entries are shop drafts.</CardDescription>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={() => setDraftsExpanded((expanded) => !expanded)} aria-expanded={draftsExpanded}>
                 {draftsExpanded ? "Hide drafts" : "View drafts"}
@@ -1020,7 +1023,7 @@ export function ListingPreparationClient({
                 </div>
               ) : (
                 <div>
-                  <p className="mb-3 text-xs text-muted-foreground">Review these drafts in the selected eBay or Etsy shop, add any missing details or media there, and publish when ready.</p>
+                  <p className="mb-3 text-xs text-muted-foreground">Check eBay API offers here. Etsy drafts can be reviewed and published in the selected Etsy shop.</p>
                   <div className="divide-y rounded-lg border">
                   {drafts.map((draft) => (
                     <div key={draft.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
@@ -1031,9 +1034,29 @@ export function ListingPreparationClient({
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{draft.itemName} · {draft.sku} · {draft.shop}</p>
                         {draft.externalId
-                          ? <p className="mt-1 text-[10px] text-muted-foreground">Marketplace draft ID · {draft.externalId}</p>
+                          ? <p className="mt-1 text-[10px] text-muted-foreground">{draft.platform === "EBAY" ? "eBay API offer ID" : "Etsy draft listing ID"} · {draft.externalId}</p>
                           : <p className="mt-1 text-[10px] text-amber-700">ERP-only draft · not sent to marketplace</p>}
                         {draft.syncError && <p className="mt-1 max-w-xl text-[10px] text-amber-700">{draft.syncError}</p>}
+                        {draft.platform === "EBAY" && draft.externalId && draft.shopId && (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs text-muted-foreground">This API offer is separate from Seller Hub Drafts.</p>
+                            <Button type="button" variant="outline" size="sm" disabled={checkingOfferId !== null} onClick={async () => {
+                              setCheckingOfferId(draft.id);
+                              try {
+                                const response = await fetch("/api/marketplace/listing-preparation", {
+                                  method: "POST", headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ action: "verifyEbayOffer", draftId: draft.id, shopId: draft.shopId }),
+                                });
+                                const payload = await response.json();
+                                if (!response.ok) throw new Error(payload.error || "Unable to verify this eBay offer.");
+                                setOfferChecks((previous) => ({ ...previous, [draft.id]: `eBay status: ${payload.status} · ${payload.environment}${payload.listingId ? ` · Listing ID: ${payload.listingId}` : " · No published listing ID"}` }));
+                              } catch (error) {
+                                setOfferChecks((previous) => ({ ...previous, [draft.id]: error instanceof Error ? error.message : "Unable to verify this eBay offer." }));
+                              } finally { setCheckingOfferId(null); }
+                            }}>{checkingOfferId === draft.id ? "Checking eBay…" : "Check eBay offer"}</Button>
+                            {offerChecks[draft.id] && <p className="text-xs">{offerChecks[draft.id]}</p>}
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                           {draft.regionalPrices ? (
@@ -1719,14 +1742,14 @@ export function ListingPreparationClient({
                       />
                     </div>
                   ) : (
-                    <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Select an eBay shop first; inventory already listed or saved as a draft for that shop will be excluded.</p>
+                    <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Select an eBay shop first; inventory already listed or saved as an API offer for that shop will be excluded.</p>
                   )}
 
                   <div className="space-y-4 rounded-xl border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">4–5. eBay category requirements</p>
-                        <p className="text-xs text-muted-foreground">Read required and optional item aspects and permitted values from eBay Taxonomy before saving a draft.</p>
+                        <p className="text-xs text-muted-foreground">Read required and optional item aspects and permitted values from eBay Taxonomy before saving an API offer.</p>
                       </div>
                       <Button
                         type="button"
@@ -1874,7 +1897,7 @@ export function ListingPreparationClient({
                         Prepare ERP preview
                       </Button>
                       <Button type="button" className="min-h-10 h-auto w-full whitespace-normal px-3 py-2 text-center leading-tight" onClick={() => void saveDraft()} disabled={busy || !shopSettingsReady || !inventoryId || !shopId || !selectedShop?.writeReady || !listingTitle.trim() || !hasSelectedMarketplacePhoto || !price || !usdToInr || Number(offerPercent) >= 100 || !aspectValuesValid}>
-                        Create eBay marketplace draft
+                        Create unpublished eBay offer
                       </Button>
                     </div>
                   </div>
@@ -2181,7 +2204,7 @@ function MarketplaceMediaSelector({
           Etsy allows JPG, GIF, or PNG photos and up to 2 videos. Selected media is uploaded to the unpublished Etsy draft; add any missing media or details in Etsy before publishing.
         </p>
       ) : (
-        <p className="text-xs leading-relaxed text-muted-foreground">eBay allows up to 24 photos and one product video. Selected media is attached to the unpublished offer; add anything missing in Seller Hub before publishing.</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">eBay allows up to 24 photos and one product video. Selected media is attached to the unpublished API offer. API offers are separate from Seller Hub Drafts and require API management and publishing.</p>
       )}
     </div>
   );
