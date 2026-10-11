@@ -229,6 +229,7 @@ export class EbayConnector implements MarketplaceConnector {
     if (!targetName) throw new Error("A category path is required to resolve eBay listing requirements.");
     const suggestionsResponse = await httpJson<{
       categorySuggestions?: Array<{
+        categoryTreeNodeAncestors?: Array<{ categoryName?: string; categoryTreeNodeLevel?: number }>;
         category?: { categoryId?: string; categoryName?: string };
         categoryTreeNode?: {
           category?: { categoryId?: string; categoryName?: string };
@@ -242,7 +243,9 @@ export class EbayConnector implements MarketplaceConnector {
     const suggestions = (suggestionsResponse.categorySuggestions || []).flatMap((suggestion) => {
       const category = suggestion.categoryTreeNode?.category || suggestion.category;
       if (!category?.categoryId || !category.categoryName) return [];
-      const ancestors = suggestion.categoryTreeNode?.categoryTreeNodeAncestors || [];
+    const ancestors = suggestion.categoryTreeNodeAncestors
+      ? [...suggestion.categoryTreeNodeAncestors].sort((a, b) => (a.categoryTreeNodeLevel || 0) - (b.categoryTreeNodeLevel || 0))
+      : suggestion.categoryTreeNode?.categoryTreeNodeAncestors || [];
       const path = [...ancestors.map((ancestor) => ancestor.categoryName).filter((name): name is string => Boolean(name)), category.categoryName].join(" > ");
       return [{ categoryId: String(category.categoryId), categoryPath: path }];
     });

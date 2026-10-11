@@ -34,8 +34,9 @@ import { formSchema, type FormInputValues, type FormValues, type InventoryFormPr
 import { BasicInfoSection } from "./inventory-basic-info";
 import { InventoryCompletenessPanel } from "./inventory-completeness-panel";
 import { getInventoryCompleteness } from "@/lib/inventory-completeness";
-import { InventoryMarketplaceFieldsSection } from "./inventory-marketplace-fields";
-import type { InventoryMarketplaceFields } from "@/lib/marketplace/inventory-fields";
+import { InventoryProductDetails } from "./inventory-product-details";
+import { parseDimensions, productFactsSchema, type ProductFacts } from "@/lib/inventory-product-facts";
+
 import { InventorySaveProgressToast } from "./inventory-save-progress-toast";
 
 const FileUpload = dynamic(
@@ -58,10 +59,6 @@ const ClassificationSection = dynamic(() => import("./inventory-classification")
   loading: () => <div className="rounded-lg border bg-card/50 p-5 space-y-4 animate-pulse"><div className="h-6 w-28 bg-muted rounded" /><div className="h-16 bg-muted rounded" /></div>,
 });
 
-const RashisSection = dynamic(() => import("./inventory-rashis").then((m) => m.RashisSection), {
-  loading: () => <div className="rounded-lg border bg-card/50 p-5 space-y-4 animate-pulse"><div className="h-6 w-20 bg-muted rounded" /><div className="h-16 bg-muted rounded" /></div>,
-});
-
 const MeasurementsSection = dynamic(() => import("./inventory-measurements").then((m) => m.MeasurementsSection), {
   loading: () => <div className="rounded-lg border bg-card/50 p-5 space-y-4 animate-pulse"><div className="h-6 w-28 bg-muted rounded" /><div className="h-24 bg-muted rounded" /></div>,
 });
@@ -74,10 +71,10 @@ const NotesSection = dynamic(() => import("./inventory-notes").then((m) => m.Not
   loading: () => <div className="rounded-lg border bg-card/50 p-5 space-y-4 animate-pulse"><div className="h-6 w-16 bg-muted rounded" /><div className="h-40 bg-muted rounded" /></div>,
 });
 
-export function InventoryForm({ vendors, categories, gemstones, colors, cuts, shapes = [], collections, rashis, certificates = [], origins = [], initialData, copyData, categoryHsnMap }: InventoryFormProps) {
+export function InventoryForm({ vendors, categories, gemstones, colors, cuts, shapes = [], collections, certificates = [], origins = [], initialData, copyData, categoryHsnMap }: InventoryFormProps) {
   const router = useRouter();
   const { showLoader } = useGlobalLoader();
-  const [marketplaceFields, setMarketplaceFields] = useState<InventoryMarketplaceFields | undefined>(undefined);
+  const [productFacts, setProductFacts] = useState<ProductFacts | undefined>(initialData ? undefined : productFactsSchema.parse({}));
   const [isPending, setIsPending] = useState(false);
   const [skuPreview, setSkuPreview] = useState<string>("");
   const [isSkuPreviewOpen, setIsSkuPreviewOpen] = useState(false);
@@ -127,6 +124,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
       description: source?.description || "",
       etsyDescription: source?.etsyDescription || "",
       stockLocation: source?.stockLocation || "",
+      status: (initialData?.status as "IN_STOCK" | "RESERVED" | "MEMO") || "IN_STOCK",
+      certificateComments: source?.certificateComments || "",
       collectionCodeId: source?.collectionCodeId || "",
       rashiCodeIds: source?.rashiCodes?.map((r: { id: string }) => r.id) || [],
       braceletType: source?.braceletType || "",
@@ -269,9 +268,9 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
     }
 
     const formData = new FormData();
-    if (marketplaceFields !== undefined) formData.append("marketplaceFields", JSON.stringify(marketplaceFields));
+    if (productFacts !== undefined) formData.append("productFacts", JSON.stringify({ ...productFacts, ...(parseDimensions(data.dimensionsMm) || { lengthMm: "", widthMm: "", breadthMm: "" }) }));
     Object.entries(data).forEach(([key, value]) => {
-      if (key === 'mediaUrls') return;
+      if (['mediaUrls', 'status', 'certificateCodeIds', 'rashiCodeIds', 'certificateComments', 'notes'].includes(key)) return;
       if (value !== undefined && value !== null) {
         formData.append(key, value.toString());
       }
@@ -329,7 +328,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
         }
 
         if (!initialData && !shouldRedirect) {
-          setMarketplaceFields(undefined);
+          setProductFacts(productFactsSchema.parse({}));
           setFormResetKey((k) => k + 1);
           const base = createDefaultsRef.current || form.getValues();
           const resetValues: FormInputValues = {
@@ -576,7 +575,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
 
             <ClassificationSection form={form} certificates={certificates} collections={collections} />
 
-            <RashisSection form={form} rashis={rashis} />
+
           </div>
 
           <div className="space-y-6" key={`right-${formResetKey}`}>
@@ -615,7 +614,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
 
             <InventoryCompletenessPanel form={form} />
 
-            <InventoryMarketplaceFieldsSection key={`marketplaces-${formResetKey}`} inventoryId={initialData?.id} value={marketplaceFields} onChange={setMarketplaceFields} />
+            <InventoryProductDetails key={`product-${formResetKey}`} inventoryId={initialData?.id} value={productFacts} onChange={setProductFacts} />
             <NotesSection key={`notes-${formResetKey}`} form={form} skuPreview={skuPreview} />
           </div>
         </div>

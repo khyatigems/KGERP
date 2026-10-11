@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function InventoryCompletenessPanel({ form }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const watched = useWatch({ control: form.control });
   const result = getInventoryCompleteness(watched as CompletenessValues);
 

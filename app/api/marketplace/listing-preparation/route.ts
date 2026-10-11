@@ -1,3 +1,5 @@
+import { loadProductFacts } from "@/lib/inventory-product-facts-store";
+import { sharedAttributeSuggestion } from "@/lib/inventory-product-facts";
 import { loadInventoryMarketplaceFields } from "@/lib/marketplace/inventory-fields-store";
 import { etsyShopDescription } from "@/lib/marketplace/inventory-fields";
 import { NextRequest, NextResponse } from "next/server";
@@ -290,6 +292,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       inventoryId: item.id,
       marketplaceFields: await loadInventoryMarketplaceFields(item.id),
+      productFacts: await loadProductFacts(item.id),
       inventoryDefaults: {
         itemName: item.itemName,
         etsyDescription: item.etsyDescription,
@@ -378,7 +381,8 @@ async function prepareListing(input: z.infer<typeof requestSchema>) {
 
   const template = input.template;
   const categoryPath = EBAY_TEMPLATE_CATEGORY_PATHS[template];
-  const condition = resolveEbayCondition(item.condition);
+  const facts = await loadProductFacts(item.id);
+  const condition = resolveEbayCondition(facts?.condition || item.condition);
   const mediaAssets: ListingMediaAsset[] = [
     ...(item.imageUrl?.trim() ? [{ id: "inventory-image", mediaUrl: item.imageUrl.trim(), type: "IMAGE" }] : []),
     ...item.media.filter((asset) => asset.mediaUrl.trim()),
@@ -473,6 +477,7 @@ async function prepareListing(input: z.infer<typeof requestSchema>) {
         braceletType: item.braceletType,
         standardSize: item.standardSize,
         brandName: settings?.companyName || null,
+        transparency: item.transparency,
       },
       imageUrl: primaryImage,
       mediaAssets: selectedMedia,
@@ -927,6 +932,7 @@ export async function POST(request: NextRequest) {
               where: { id: parsed.data.inventoryId },
               select: {
                 itemName: true,
+                dimensionsMm: true,
                 gemType: true,
                 stoneType: true,
                 color: true,
@@ -947,9 +953,11 @@ export async function POST(request: NextRequest) {
       const itemForSuggestions = inventoryItem
         ? { ...inventoryItem, carats: inventoryItem.carats || 0 }
         : null;
+      const sharedFacts = parsed.data.inventoryId ? await loadProductFacts(parsed.data.inventoryId) : null;
       const propertySuggestions = itemForSuggestions
         ? Object.fromEntries(options.properties.flatMap((property) => {
-            const suggestion = suggestEtsyInventoryAttribute(property.name, itemForSuggestions, property.values);
+            const shared = sharedAttributeSuggestion(property.name, sharedFacts, inventoryItem?.dimensionsMm, "ETSY");
+            const suggestion = shared ? (!property.values.length ? shared : property.values.find((v) => v.name.toLowerCase() === shared.toLowerCase())?.name || null) : suggestEtsyInventoryAttribute(property.name, itemForSuggestions, property.values);
             return suggestion ? [[property.name, suggestion]] : [];
           }))
         : {};
@@ -988,15 +996,17 @@ export async function POST(request: NextRequest) {
       ].filter((aspect) => isSensitiveEbayCertificateAspect(aspect.name)).length;
       const requiredAspects = taxonomy.requiredAspects.filter((aspect) => !isSensitiveEbayCertificateAspect(aspect.name));
       const optionalAspects = taxonomy.optionalAspects.filter((aspect) => !isSensitiveEbayCertificateAspect(aspect.name));
+      const sharedFacts = parsed.data.inventoryId ? await loadProductFacts(parsed.data.inventoryId) : null;
+      const dimensions = await prisma.inventory.findUnique({ where: { id: parsed.data.inventoryId }, select: { dimensionsMm: true } });
       const erpSuggestions = Object.fromEntries(requiredAspects.flatMap((aspect) => {
-        const inventoryValue = suggestEbayInventoryAspect(aspect.name, prepared.inventory.aspectSource);
+        const inventoryValue = sharedAttributeSuggestion(aspect.name, sharedFacts, dimensions?.dimensionsMm) || suggestEbayInventoryAspect(aspect.name, prepared.inventory.aspectSource);
         if (!inventoryValue) return [];
         const canonicalValue = aspect.values.find((value) => value.toLowerCase() === inventoryValue.toLowerCase());
         if (canonicalValue) return [[aspect.name, canonicalValue]];
         return aspect.mode === "SELECTION_ONLY" ? [] : [[aspect.name, inventoryValue]];
       }));
       const optionalErpSuggestions = Object.fromEntries(optionalAspects.flatMap((aspect) => {
-        const inventoryValue = suggestEbayInventoryAspect(aspect.name, prepared.inventory.aspectSource);
+        const inventoryValue = sharedAttributeSuggestion(aspect.name, sharedFacts, dimensions?.dimensionsMm) || suggestEbayInventoryAspect(aspect.name, prepared.inventory.aspectSource);
         if (!inventoryValue) return [];
         const canonicalValue = aspect.values.find((value) => value.toLowerCase() === inventoryValue.toLowerCase());
         if (canonicalValue) return [[aspect.name, canonicalValue]];

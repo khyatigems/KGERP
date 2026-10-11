@@ -1,11 +1,31 @@
-# Inventory marketplace preparation
+# Shared inventory product details
 
-Add or edit inventory and use **Marketplace listing fields** to choose each connected eBay or Etsy shop. Load the current category fields, select the category, and enter the item's actual attributes. Etsy also supports seller details, production method, tools, quantity, tags and shop section. Save the inventory form to retain these values.
+The inventory form stores one set of product facts per item, independent of marketplace shops. Every shop reuses these facts. Existing gemstone, primary color, shape, weight, treatment, origin/locality, transparency and measurement inputs remain the source; Product details contains only missing attributes.
 
-Create Listing loads the selected item's saved fields for the selected shop. Category requirements still come from the marketplace: unsupported attribute choices must be reviewed before saving a draft. Prices, shipping policies and processing profiles continue through the existing listing controls.
+Sales category IDs remain separate for eBay and Etsy because their taxonomies differ. Country of origin differs from the existing origin/locality (which may be a mine or region). Shop sections, shipping/processing policies, prices and publication confirmation remain shop-specific listing controls.
 
-Existing items without saved marketplace fields retain the manual listing workflow. Staff may optionally edit an older inventory item to save its fields for future reuse.
+## Category audit
 
-Storage uses an inventory-specific Setting key, written in the same transaction as the inventory change. This feature introduces no database migration or backfill. An omitted marketplace payload preserves existing saved values, and malformed values reject the save before inventory changes. Saved shop IDs and marketplace types are checked before writing.
+The maintenance script snapshot-inventory-field-catalog.ts fetched the connected marketplaces' taxonomy APIs on 11 October 2026. The bundled catalog covers the product families currently supported by Create Listing:
 
-For the Etsy shop named CrystalVeda, listing descriptions replace the heading “Why Buy From KhyatiGems” with “Why Buy From CrystalVeda”. Shared inventory descriptions and other shops' descriptions remain intact. This applies during preparation and draft submission.
+- eBay Loose Gemstones: 1 required and 23 optional aspects.
+- eBay Fashion Jewelry / Bracelets & Charms: 3 required and 43 optional aspects.
+- Etsy Gemstones, Beads, Beaded Bracelets and Charm Bracelets: 21, 18, 23 and 24 properties respectively.
+
+The inventory form uses this catalog without marketplace requests or shop selectors. Duplicate meanings map to one input; current taxonomy validates values during listing preparation. Marketplace changes can still require review. API definitions: [eBay item specifics](https://developer.ebay.com/api-docs/user-guides/static/trading-user-guide/item-specifics-requirements.html) and [Etsy listing properties](https://developers.etsy.com/documentation/tutorials/listings/).
+
+## Dimensions and compatibility
+
+Length, width and breadth/depth use separate dropdowns in millimetres. Presets cover 0.1–200 mm; exact-size entry supports finer precision and larger measurements. Old precise measurements remain selectable. Order is L × W × B; values are never sorted or swapped. eBay Item Length, Item Width and Item Depth map separately.
+
+Shared facts use inventory_product_facts_v1_<inventoryId> in Setting and save atomically with inventory. Existing dimensionsMm text remains compatible with descriptions, exports and existing screens. Listing preparation also parses that text, so bulk dimension edits take precedence over older snapshots. No migration is needed.
+
+The authorized backfill added structured dimensions to 229 existing items, left 17 ambiguous values untouched, and preserved the original Inventory columns. A second dry run found zero remaining safe candidates. The recovery snapshot is in the git-ignored backups/inventory-dimensions/ directory. The backfill refuses to overwrite changed items or existing structured dimensions.
+
+## Hidden fields and old items
+
+Certificates, Rashis, stock status, additional notes and certificate comments are hidden in this form. Saving omits these fields and preserves stored values and relations. Certificates and stock status remain managed through inventory-table actions. The completeness checklist is collapsed by default, with its count visible.
+
+Old items can use manual listing entry, or staff can edit Product details for future reuse. Previous shop-specific preparation settings remain compatibility fallbacks; this form no longer creates them.
+
+CrystalVeda branding remains limited to that Etsy shop's description heading. Common inventory descriptions and other shops remain intact.

@@ -1,6 +1,7 @@
 "use client";
 
 import * as z from "zod";
+import { parseDimensions } from "@/lib/inventory-product-facts";
 import type { Inventory, InventoryMedia } from "@prisma/client";
 
 export type CodeRow = {
@@ -117,7 +118,7 @@ export const formSchema = z.object({
   }
 
   if (values.dimensionsMm && values.dimensionsMm.trim()) {
-    const valid = /^\d+(\.\d+)?\s*[xX]\s*\d+(\.\d+)?(\s*[xX]\s*\d+(\.\d+)?)?$/.test(values.dimensionsMm);
+    const valid = !!parseDimensions(values.dimensionsMm);
     if (!valid) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

@@ -1,3 +1,4 @@
+import { loadProductFacts } from "@/lib/inventory-product-facts-store";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
  if (!(await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_VIEW))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
  try {
   const shopId = req.nextUrl.searchParams.get("shopId"), inventoryId = req.nextUrl.searchParams.get("inventoryId");
-  if (!shopId) return NextResponse.json({ shops: await prisma.marketplaceShop.findMany({ where: { marketplace: { in: ["EBAY", "ETSY"] }, status: "CONNECTED", connection: { status: "CONNECTED" } }, select: { id: true, name: true, marketplace: true }, orderBy: { name: "asc" } }), fields: inventoryId ? await loadInventoryMarketplaceFields(inventoryId) : [] });
+  if (!shopId) return NextResponse.json({ shops: await prisma.marketplaceShop.findMany({ where: { marketplace: { in: ["EBAY", "ETSY"] }, status: "CONNECTED", connection: { status: "CONNECTED" } }, select: { id: true, name: true, marketplace: true }, orderBy: { name: "asc" } }), fields: inventoryId ? await loadInventoryMarketplaceFields(inventoryId) : [], productFacts: inventoryId ? await loadProductFacts(inventoryId) : null });
   const shop = await prisma.marketplaceShop.findFirst({ where: { id: shopId, status: "CONNECTED", connection: { status: "CONNECTED" }, marketplace: { in: ["EBAY", "ETSY"] } } });
   if (!shop) return NextResponse.json({ error: "Connected marketplace shop not found." }, { status: 404 });
   const categoryId = req.nextUrl.searchParams.get("categoryId") || undefined;

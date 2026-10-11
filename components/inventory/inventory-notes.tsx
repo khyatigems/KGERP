@@ -7,6 +7,7 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles, FileText } from "lucide-react";
+import type { EbaySettingsData } from "@/lib/ebay-settings";
 import { buildEbayHtmlDescription } from "@/lib/ebay-description";
 import { generateFallbackDescription, type FormInputValues } from "./inventory-form.types";
 
@@ -26,6 +27,7 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
       <div className="rounded-lg border bg-card/50 p-5 space-y-4">
         <h3 className="text-base font-semibold">Notes</h3>
 
+        <div className="hidden">
         <FormField
           control={form.control}
           name="notes"
@@ -82,7 +84,7 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
                   {isGeneratingDescription ? "Generating..." : "Generate Smart Description"}
                 </Button>
               </div>
-              <div className="mb-2">
+              <div className="mb-2 hidden">
                 <Textarea
                   className="min-h-20 text-sm"
                   placeholder="Add Product Information for AI (optional). Example: buyer style, tone, selling focus, special highlights."
@@ -98,6 +100,7 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
           )}
         />
 
+        </div>
         <FormField
           control={form.control}
           name="description"
@@ -140,7 +143,7 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
                       });
                       
                       let categoryImages: string[] | undefined;
-                      let settings: any = {};
+                      let settings: Partial<EbaySettingsData> = {};
                       
                       if (settingsResponse.ok) {
                         const settingsData = await settingsResponse.json();
@@ -286,19 +289,7 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="certificateComments"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Certificate Comments</FormLabel>
-              <FormControl>
-                <Textarea className="min-h-30 font-mono text-sm" placeholder="Optional comments to show on the certificate" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
       </div>
     </div>
   );

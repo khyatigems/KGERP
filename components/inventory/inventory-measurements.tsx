@@ -1,5 +1,6 @@
 "use client";
 
+import { InventoryDimensions } from "./inventory-dimensions";
 import { useEffect } from "react";
 import { type UseFormReturn } from "react-hook-form";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -34,8 +35,8 @@ export function MeasurementsSection({ form, categoryName, categories = [] }: Mea
   const gemType = form.watch("gemType");
   const normalizedCategory = (categoryName || "").toLowerCase();
   const showBeadDetails =
-    normalizedCategory.includes("bead") ||
-    isBraceletSelection(categoryName, undefined, gemType, categories);
+    normalizedCategory.includes("bead") &&
+    !isBraceletSelection(categoryName, undefined, gemType, categories);
 
   const calculatedRatti = computeRatti(weightValue, weightUnit);
   const calculatedCarats = computeCarats(weightValue, weightUnit);
@@ -127,9 +128,9 @@ export function MeasurementsSection({ form, categoryName, categories = [] }: Mea
           name="dimensionsMm"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Dimensions (mm)</FormLabel>
+              <FormLabel>Dimensions</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. 8.5 x 6.2 x 4.1" {...field} />
+                <InventoryDimensions value={field.value} onChange={field.onChange} />
               </FormControl>
               <FormMessage />
             </FormItem>

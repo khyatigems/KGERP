@@ -28,6 +28,7 @@ export type EbayInventoryAspectSource = {
   beadSizeMm?: number | null;
   beadCount?: number | null;
   brandName?: string | null;
+  transparency?: string | null;
 };
 
 export function isEbayCertificationAuthorityAspect(aspectName: string): boolean {
@@ -62,6 +63,7 @@ export function suggestEbayInventoryAspect(
   if (aspect === "gemstone clarity grade" || aspect === "clarity" || aspect === "clarity grade") return item.clarityGrade || item.clarity || null;
   if (aspect === "cut grade") return item.cutGrade || item.cut || null;
   if (aspect === "brand") return item.brandName || null;
+  if (aspect === "transparency") return item.transparency || null;
   if (aspect === "style") return item.braceletType || null;
   if (aspect === "type" && /bracelet/i.test(item.category || "")) return "Bracelet";
   if (aspect === "number of pieces") {

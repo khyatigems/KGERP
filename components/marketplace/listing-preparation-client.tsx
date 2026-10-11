@@ -1,4 +1,5 @@
 "use client";
+import { productFieldCatalog, type ProductFacts } from "@/lib/inventory-product-facts";
 import { etsyShopDescription, type InventoryMarketplaceFields } from "@/lib/marketplace/inventory-fields";
 import { etsyPlainText } from "@/lib/marketplace/etsy-plain-text";
 
@@ -623,11 +624,14 @@ export function ListingPreparationClient({
         const savedFields = (payload.marketplaceFields || []) as InventoryMarketplaceFields;
         setSavedInventoryFields(savedFields);
         setSavedFieldsInventoryId(inventoryId);
-        const saved = savedFields.find((entry) => entry.shopId === shopId && entry.marketplace === marketplace);
+        const shared = payload.productFacts as ProductFacts | null;
+        const legacy = savedFields.find((entry) => entry.shopId === shopId && entry.marketplace === marketplace);
+        const sharedCategory = marketplace === "EBAY" ? productFieldCatalog.ebay.find((c) => c.categoryId === shared?.ebayCategoryId) : productFieldCatalog.etsy.find((c) => c.category.taxonomyId === shared?.etsyCategoryId);
+        const saved = shared ? { ...legacy, ...shared, shopId, marketplace, productType: (marketplace === "EBAY" ? productFieldCatalog.ebay.find((c) => c.categoryId === shared.ebayCategoryId)?.type === "JEWELRY" ? "JEWELRY" : "LOOSE_GEMSTONE" : productFieldCatalog.etsy.find((c) => c.category.taxonomyId === shared.etsyCategoryId)?.category.path.includes("Bracelets") ? "BRACELET" : "LOOSE_GEMSTONE") as InventoryMarketplaceFields[number]["productType"], categoryId: (marketplace === "EBAY" ? shared.ebayCategoryId : shared.etsyCategoryId) || legacy?.categoryId || "", categoryName: sharedCategory && "category" in sharedCategory ? sharedCategory.category.path : sharedCategory && "categoryPath" in sharedCategory ? sharedCategory.categoryPath || "" : legacy?.categoryName || "", attributes: legacy?.attributes || {} } : legacy;
         if (saved && marketplace === "ETSY") {
           setEtsyListingDetails((previous) => ({ ...previous,
-            productType: saved.productType === "BRACELET" ? "BRACELET" : "LOOSE_GEMSTONE",
-            taxonomyId: saved.categoryId, categoryName: saved.categoryName,
+            productType: saved.categoryId ? saved.productType === "BRACELET" ? "BRACELET" : "LOOSE_GEMSTONE" : previous.productType,
+            taxonomyId: saved.categoryId || previous.taxonomyId, categoryName: saved.categoryName || previous.categoryName,
             whoMade: saved.whoMade || previous.whoMade || "", whatIsIt: saved.whatIsIt || previous.whatIsIt || "",
             whenMade: saved.whenMade || previous.whenMade || "", quantity: saved.quantity || previous.quantity || "",
             tags: saved.tags || previous.tags || "", shopSectionId: saved.shopSectionId || previous.shopSectionId || "",
@@ -636,8 +640,8 @@ export function ListingPreparationClient({
           setEtsyCategoryAttributesByName((previous) => ({ ...saved.attributes, ...Object.fromEntries(Object.entries(previous).filter(([, value]) => value.trim())) }));
         }
         if (saved && marketplace === "EBAY") {
-          setTemplate(saved.productType === "JEWELRY" ? "JEWELRY" : "LOOSE_GEMSTONE");
-          setCategoryId(saved.categoryId);
+          if (saved.categoryId) setTemplate(saved.productType === "JEWELRY" ? "JEWELRY" : "LOOSE_GEMSTONE");
+          if (saved.categoryId) setCategoryId(saved.categoryId);
           setAspectValues(saved.attributes);
         }
         setSelectedInventory((previous) => previous?.id === inventoryId

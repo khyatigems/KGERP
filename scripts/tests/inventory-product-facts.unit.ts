@@ -1,0 +1,32 @@
+import assert from "node:assert/strict";
+import { categoryFactFields, factKey, parseDimensions, productFactsSchema, productFactsKey, sharedAttributeSuggestion } from "../../lib/inventory-product-facts";
+import { productFactsFromForm, saveProductFacts } from "../../lib/inventory-product-facts-store";
+import type { Prisma } from "@prisma/client";
+async function main() {
+ assert.deepEqual(parseDimensions("11 x 5.5 x 9"), { lengthMm: "11", widthMm: "5.5", breadthMm: "9" });
+ assert.deepEqual(parseDimensions("8.55 × 6.25 × 4.125 mm"), { lengthMm: "8.55", widthMm: "6.25", breadthMm: "4.125" });
+ assert.equal(parseDimensions("8 x unknown x 4"), null);
+ assert.equal(parseDimensions("4-6 x 8"), null);
+ assert.deepEqual(parseDimensions("8 x 6"), { lengthMm: "8", widthMm: "6", breadthMm: "" });
+ const facts = productFactsSchema.parse({ attributes: { "craft type": "Jewelry making", "stone source": "Lab grown" }, lengthMm: "11", widthMm: "5.5", breadthMm: "9" });
+ assert.equal(sharedAttributeSuggestion("Item Length", facts), "11 mm");
+ assert.equal(sharedAttributeSuggestion("Item Width", facts), "5.5 mm");
+ assert.equal(sharedAttributeSuggestion("Item Depth", facts), "9 mm");
+ assert.equal(sharedAttributeSuggestion("Item Length", facts, "12 x 6 x 4"), "12 mm");
+ assert.equal(sharedAttributeSuggestion("Gemstone Creation", facts), "Lab-Created");
+ assert.equal(sharedAttributeSuggestion("Stone source", facts, null, "ETSY"), "Lab grown");
+ assert.equal(sharedAttributeSuggestion("Lab created", facts, null, "ETSY"), "Yes");
+ assert.equal(factKey("Gemstone Shape"), factKey("Shape"));
+ const fields = categoryFactFields("262027", "" );
+ assert.equal(fields.some((field) => ["shape", "gemstone", "primary color", "length", "width", "breadth", "treatment"].includes(field.key)), false);
+ assert.equal(new Set(fields.map((field) => field.key)).size, fields.length);
+ assert.deepEqual(productFactsFromForm(new FormData()), { facts: undefined });
+ const form = new FormData(); form.set("productFacts", "malformed"); assert.ok(productFactsFromForm(form).error);
+ const writes: Array<{ where: { key: string }; update: { value: string } }> = [];
+ const tx = { setting: { upsert: async (args: typeof writes[number]) => { writes.push(args); } } } as unknown as Prisma.TransactionClient;
+ await saveProductFacts(tx, "single-item", facts);
+ assert.equal(writes[0].where.key, productFactsKey("single-item"));
+ assert.deepEqual(JSON.parse(writes[0].update.value), facts);
+ console.log("Shared product facts, deduplication, dimensions and safe storage tests passed.");
+}
+void main();

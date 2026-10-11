@@ -245,31 +245,7 @@ export function PricingSection({ form, vendors, categories, gemstones }: Pricing
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Stock Status</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value || "IN_STOCK"}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Stock Status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="IN_STOCK">In Stock</SelectItem>
-                  <SelectItem value="RESERVED">Reserved</SelectItem>
-                  <SelectItem value="MEMO">Memo</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                Current status of this inventory item
-              </p>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 "use server";
+import { productFactsFromForm, saveProductFacts } from "@/lib/inventory-product-facts-store";
 
 import { inventoryFieldsFromForm, saveInventoryMarketplaceFields } from "@/lib/marketplace/inventory-fields-store";
 import { z } from "zod";
@@ -251,6 +252,8 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   if (!hasPerm) return { message: "Insufficient permissions" };
   await ensureInventoryBraceletSchema();
 
+  const productInput = productFactsFromForm(formData);
+  if (productInput.error) return { message: productInput.error };
   const marketplaceInput = inventoryFieldsFromForm(formData);
   if (marketplaceInput.error) return { message: marketplaceInput.error };
   const raw = Object.fromEntries(formData.entries());
@@ -401,7 +404,9 @@ export async function createInventory(prevState: unknown, formData: FormData) {
               standardSize: data.standardSize,
           };
 
+          if (productInput.facts?.condition) createData.condition = productInput.facts.condition;
           const inventory = await tx.inventory.create({ data: createData });
+          if (productInput.facts !== undefined) await saveProductFacts(tx, inventory.id, productInput.facts);
           if (marketplaceInput.fields !== undefined) await saveInventoryMarketplaceFields(tx, inventory.id, marketplaceInput.fields);
 
           return {
@@ -503,6 +508,8 @@ export async function updateInventory(
   if (!current) return { message: "Inventory not found" };
   if (current.status === "SOLD") return { message: "Cannot edit sold inventory" };
 
+  const productInput = productFactsFromForm(formData);
+  if (productInput.error) return { message: productInput.error };
   const marketplaceInput = inventoryFieldsFromForm(formData);
   if (marketplaceInput.error) return { message: marketplaceInput.error };
   const raw = Object.fromEntries(formData.entries());
@@ -592,8 +599,8 @@ export async function updateInventory(
       colorCode: data.colorCodeId ? { connect: { id: data.colorCodeId } } : { disconnect: true },
       cutCode: data.cutCodeId ? { connect: { id: data.cutCodeId } } : { disconnect: true },
       collectionCode: data.collectionCodeId ? { connect: { id: data.collectionCodeId } } : { disconnect: true },
-      rashis: { set: data.rashiCodeIds?.map(id => ({ id })) || [] },
-      certificates: { set: data.certificateCodeIds?.map(id => ({ id })) || [] },
+      rashis: formData.has("rashiCodeIds") ? { set: data.rashiCodeIds?.map(id => ({ id })) || [] } : undefined,
+      certificates: formData.has("certificateCodeIds") ? { set: data.certificateCodeIds?.map(id => ({ id })) || [] } : undefined,
       shape: data.shape,
       dimensionsMm: data.dimensionsMm,
       weightValue: data.weightValue,
@@ -629,7 +636,9 @@ export async function updateInventory(
     };
 
     const updatedInventory = await prisma.$transaction(async (tx) => {
+      if (productInput.facts?.condition) updateData.condition = productInput.facts.condition;
       const updated = await tx.inventory.update({ where: { id }, data: updateData });
+      if (productInput.facts !== undefined) await saveProductFacts(tx, id, productInput.facts);
       if (marketplaceInput.fields !== undefined) await saveInventoryMarketplaceFields(tx, id, marketplaceInput.fields);
       return updated;
     });

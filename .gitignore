@@ -51,3 +51,6 @@ migration-artifacts/
 # Ignore problematic file
 of the module*
 *.txt
+
+# Private, reversible inventory backfill snapshots
+/backups/inventory-dimensions/
