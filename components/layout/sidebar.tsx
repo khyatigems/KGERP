@@ -49,6 +49,7 @@ export const navGroups = [
       { href: "/marketplace-control-center", label: "Control Center", icon: LayoutDashboard, module: "listings:view", animKey: "control-center" as NavAnimationKey, badge: "conflicts" },
       { href: "/marketplace-listings", label: "Listings", icon: Globe, module: "listings:view", animKey: "listings" as NavAnimationKey },
       { href: "/marketplace-create-listings", label: "Create Listings", icon: ListPlus, module: "listings:view", animKey: "listings" as NavAnimationKey },
+      { href: "/marketplace-drafts", label: "Drafts", icon: FileText, module: "listings:view", animKey: "listings" as NavAnimationKey },
       { href: "/marketplace-orders", label: "Orders", icon: ShoppingCart, module: "listings:view", animKey: "sales" as NavAnimationKey },
       { href: "/marketplace-sync-history", label: "Sync History", icon: Activity, module: "listings:view", animKey: "reports" as NavAnimationKey },
       { href: "/marketplace-conflicts", label: "Conflicts", icon: AlertTriangle, module: "listings:view", animKey: "conflicts" as NavAnimationKey },

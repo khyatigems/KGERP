@@ -2,11 +2,12 @@
 import { etsyPlainText } from "@/lib/marketplace/etsy-plain-text";
 
 
+import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, ChevronDown, ChevronUp, CircleAlert, Image as ImageIcon, Loader2, Sparkles, Video } from "lucide-react";
+import { CheckCircle2, CircleAlert, Image as ImageIcon, Loader2, Sparkles, Video } from "lucide-react";
 import { buildMarketplaceTitle, InventoryPicker } from "@/components/listings/inventory-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,9 +21,7 @@ import type { DraftSettingGroup, DraftSettings } from "@/lib/marketplace/draft-s
 import { areEtsyRequirementsCurrent, loadEtsyCategoryRequirements } from "@/lib/marketplace/etsy-requirements";
 import { inventoryListingDefaults, type InventoryListingSource } from "@/lib/marketplace/inventory-listing-defaults";
 import { ETSY_WHEN_MADE_OPTIONS, etsyDraftValidationErrors } from "@/lib/marketplace/etsy-draft-validation";
-import { EbayCompleteReview } from "@/components/marketplace/ebay-complete-review";
 import { EtsyDraftBatch, type QueuedEtsyDraft } from "@/components/marketplace/etsy-draft-batch";
-import { EbayBulkReview } from "@/components/marketplace/ebay-bulk-review";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -87,22 +86,7 @@ type PricingGuidance = {
   pricingEnabled: boolean;
   warning: string | null;
 };
-type SavedDraft = {
-  sellerHubDraft?: { state: string; taskId: string | null; draftId: string | null; completeUrl: string | null } | null;
-  shopId: string | null;
-  id: string;
-  externalId?: string | null;
-  sku: string;
-  itemName: string;
-  title: string;
-  shop: string;
-  platform: string;
-  syncError?: string | null;
-  price: number;
-  currency: string;
-  regionalPrices?: { india: number; us: number; global: number } | null;
-  updatedAt: string;
-};
+
 type EtsyListingDetails = {
   productType: "LOOSE_GEMSTONE" | "BRACELET" | "";
   categoryName: string;
@@ -304,7 +288,7 @@ function EbayAspectField({
               }
             }}
           >
-            <SelectTrigger id={`ebay-aspect-${aspect.name}`}><SelectValue placeholder="Select or enter a value" /></SelectTrigger>
+            <SelectTrigger className="w-full" id={`ebay-aspect-${aspect.name}`}><SelectValue placeholder="Select or enter a value" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__none__">{aspect.required ? "Select a value" : "Not specified"}</SelectItem>
               {aspect.values.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
@@ -353,7 +337,7 @@ function EbayAspectField({
         </div>
       ) : (
         <Select value={value || "__none__"} onValueChange={(selection) => onValueChange(selection === "__none__" ? "" : selection)}>
-          <SelectTrigger id={`ebay-aspect-${aspect.name}`}>
+          <SelectTrigger className="w-full" id={`ebay-aspect-${aspect.name}`}>
             <SelectValue placeholder={aspect.required ? "Select required value" : "Optional — choose if known"} />
           </SelectTrigger>
           <SelectContent>
@@ -370,11 +354,9 @@ function EbayAspectField({
 export function ListingPreparationClient({
   ebayShops,
   etsyShops,
-  drafts,
 }: {
   ebayShops: Shop[];
   etsyShops: Shop[];
-  drafts: SavedDraft[];
 }) {
   const router = useRouter();
   const [etsyQueue, setEtsyQueue] = useState<QueuedEtsyDraft[]>([]);
@@ -419,11 +401,7 @@ export function ListingPreparationClient({
   const [aspectValues, setAspectValues] = useState<Record<string, string>>({});
   const [customAspectValues, setCustomAspectValues] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
-  const [draftsExpanded, setDraftsExpanded] = useState(false);
-  const [offerChecks, setOfferChecks] = useState<Record<string, string>>({});
-  const [checkingOfferId, setCheckingOfferId] = useState<string | null>(null);
   const prepareSequence = useRef(0);
-  const draftsSectionRef = useRef<HTMLDivElement>(null);
   const listingTitleRef = useRef(listingTitle);
   listingTitleRef.current = listingTitle;
   const etsyDescriptionRef = useRef(etsyListingDetails.description);
@@ -826,7 +804,7 @@ export function ListingPreparationClient({
   const returnToSavedDrafts = () => {
     resetListingForm();
     router.refresh();
-    window.setTimeout(() => draftsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    if (!etsyQueue.length) router.push("/marketplace-drafts");
   };
 
   const toggleMarketplaceMedia = (url: string) => {
@@ -975,9 +953,21 @@ export function ListingPreparationClient({
     { number: "04", title: "ERP check", description: "Review the inventory data and pricing.", complete: Boolean(inventoryId && !pricingLoading && pricing) },
     { number: "05", title: "Required fields", description: "Fill marketplace-required listing data.", complete: marketplace === "EBAY" ? aspectValuesValid && Boolean(listingTitle.trim()) : marketplace === "ETSY" && etsyDetailsComplete },
     { number: "06", title: "Price", description: "Enter listing-specific prices.", complete: marketplace === "EBAY" ? ebayPriceComplete : etsyPriceComplete },
-    { number: "07", title: "Marketplace validation", description: "Seller-side checks need marketplace write access.", complete: false },
   ];
-  const activeWorkflowStep = workflowSteps.findIndex((step) => !step.complete);
+  const previousSteps = useRef<{ context: string; completed: boolean[] } | null>(null);
+  const stepContext = `${marketplace || ""}:${shopId}:${inventoryId}`;
+  const completionKey = workflowSteps.map((step) => step.complete ? "1" : "0").join("");
+  const completionLabels = workflowSteps.map((step) => step.title).join("|");
+  useEffect(() => {
+    const completed = completionKey.split("").map((value) => value === "1");
+    const previous = previousSteps.current;
+    previousSteps.current = { context: stepContext, completed };
+    if (!marketplace || !shopId) return;
+    const newlyCompleted = completionLabels.split("|").filter((_, index) => completed[index] && !previous?.completed[index]);
+    if (!newlyCompleted.length) return;
+    toast.success(`${newlyCompleted.join(", ")} complete`, { id: "listing-step-progress", duration: 3500 });
+    // Only completion changes should notify; editing text within a completed step stays quiet.
+  }, [completionKey, completionLabels, stepContext, marketplace, shopId]);
 
   return (
     <div className="w-full max-w-none space-y-6 pb-8">
@@ -987,197 +977,24 @@ export function ListingPreparationClient({
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Create Listings</h1>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Prepare marketplace-specific product data from eligible inventory, review what still needs attention, and keep private certificate numbers and report identifiers out of listing content.
+              Choose an item, review its marketplace details and save a draft.
             </p>
           </div>
+          <Button asChild variant="outline"><Link href="/marketplace-drafts">View drafts</Link></Button>
           {marketplace === "EBAY" && selectedShop && !selectedShop.writeReady && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-muted-foreground">
               {selectedShop.writeAccessError || <>This eBay connection does not include the <code className="rounded bg-background px-1 py-0.5">sell.inventory</code> write scope. Reconnect it before sending Seller Hub drafts.</>}
             </div>
           )}
-          <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+          {marketplace && <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
             {marketplace === "EBAY" ? "Save the complete ERP draft · verify its eBay offer · publish explicitly" : "Saves an unpublished Etsy draft · publish in Etsy when ready"}
-          </span>
+          </span>}
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-        {workflowSteps.map((step, index) => {
-          const isActive = index === activeWorkflowStep && !step.complete;
-          const status = step.complete ? "Complete" : isActive ? "In progress" : "Not started";
-          return (
-            <div
-              key={step.number}
-              aria-current={isActive ? "step" : undefined}
-              className={`flex gap-3 rounded-xl border p-3 ${step.complete ? "border-emerald-600/30 bg-emerald-600/5" : isActive ? "border-primary/60 bg-primary/5 ring-1 ring-primary/15" : "bg-card"}`}
-            >
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${step.complete ? "border-emerald-600 bg-emerald-600 text-white" : isActive ? "border-primary bg-background text-primary" : "border-muted bg-muted text-muted-foreground"}`}>
-                {step.complete ? <CheckCircle2 className="h-4 w-4" /> : step.number}
-              </span>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold">{step.title}</p>
-                  <span className={`text-[10px] font-semibold uppercase tracking-wide ${step.complete ? "text-emerald-700" : isActive ? "text-primary" : "text-muted-foreground"}`}>{status}</span>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{step.description}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       <EtsyDraftBatch blocked={busy || photoUploading} items={etsyQueue} onChange={setEtsyQueue} onRunning={setEtsyBatchRunning} />
-      <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.8fr)]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
         <div className="space-y-6">
-          <div ref={draftsSectionRef} className="scroll-mt-4">
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-              <div className="space-y-1.5">
-                <CardTitle>Saved offers and drafts <span className="text-sm font-normal text-muted-foreground">({drafts.length})</span></CardTitle>
-                <CardDescription>Review complete eBay listings, verify all entered fields, and publish explicitly. Basic Seller Hub uploads remain available separately.</CardDescription>
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setDraftsExpanded((expanded) => !expanded)} aria-expanded={draftsExpanded}>
-                {draftsExpanded ? "Hide drafts" : "View drafts"}
-                {draftsExpanded ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />}
-              </Button>
-            </CardHeader>
-            {draftsExpanded && <CardContent>
-              <EbayBulkReview drafts={drafts} />
-              {drafts.length === 0 ? (
-                <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-                  <p className="text-sm font-medium">No marketplace drafts yet</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Saved marketplace drafts will appear here for review.</p>
-                </div>
-              ) : (
-                <div>
-                  <p className="mb-3 text-xs text-muted-foreground">Open confirmed drafts in the selected marketplace shop to review and publish.</p>
-                  <div className="divide-y rounded-lg border">
-                  {drafts.map((draft) => (
-                    <div key={draft.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{draft.title}</p>
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium">{draft.platform}</span>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">{draft.itemName} · {draft.sku} · {draft.shop}</p>
-                        {draft.externalId
-                          ? <p className="mt-1 text-[10px] text-muted-foreground">{draft.platform === "EBAY" ? "eBay API offer ID" : "Etsy draft listing ID"} · {draft.externalId}</p>
-                          : !draft.sellerHubDraft?.taskId && <p className="mt-1 text-[10px] text-amber-700">ERP draft · review complete listing to check its eBay offer</p>}
-                        {draft.platform === "ETSY" && draft.externalId && draft.shopId && <Button type="button" variant="outline" size="sm" disabled={busy || etsyBatchRunning} onClick={async () => {
-                          setBusy(true);
-                          try {
-                            const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "repairEtsySku", draftId: draft.id, shopId: draft.shopId }) });
-                            const payload = await response.json();
-                            if (!response.ok) throw new Error(payload.error || "SKU sync failed.");
-                            toast.success(`SKU ${payload.sku} saved to Etsy draft ${payload.externalListingId}.`); router.refresh();
-                          } catch (error) { toast.error(error instanceof Error ? error.message : "SKU sync failed."); }
-                          finally { setBusy(false); }
-                        }}>Sync inventory SKU to Etsy</Button>}
-                        {draft.syncError && <p className="mt-1 max-w-xl text-[10px] text-amber-700">{draft.syncError}</p>}
-                        {draft.platform === "ETSY" && draft.externalId && draft.shopId && draft.syncError?.includes("Category attribute") && (
-                          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={async () => {
-                            setBusy(true);
-                            try {
-                              const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "repairEtsyAttributes", draftId: draft.id, shopId: draft.shopId }) });
-                              const payload = await response.json();
-                              if (!response.ok) throw new Error(payload.error || "Attribute repair failed.");
-                              if (payload.warnings?.length) toast.warning(payload.warnings.join("; "));
-                              else toast.success(`Etsy draft ${payload.externalListingId} attributes repaired.`);
-                              router.refresh();
-                            } catch (error) { toast.error(error instanceof Error ? error.message : "Attribute repair failed."); }
-                            finally { setBusy(false); }
-                          }}>Retry Etsy attributes</Button>
-                        )}
-
-                        {draft.platform === "EBAY" && draft.shopId && (
-                          <div className="mt-2 space-y-2">
-                            <EbayCompleteReview draftId={draft.id} shopId={draft.shopId!} sku={draft.sku} />
-                            <p className="text-xs">Basic Seller Hub draft: {draft.sellerHubDraft?.state || "Not submitted"}{draft.sellerHubDraft?.draftId ? ` · Draft ID ${draft.sellerHubDraft.draftId}` : ""}</p>
-                            {draft.sellerHubDraft?.completeUrl && <a className="text-xs underline" href={draft.sellerHubDraft.completeUrl} target="_blank" rel="noreferrer">Open Seller Hub draft</a>}
-                            <div className="flex flex-wrap gap-2">
-                              <Button type="button" variant="outline" size="sm" disabled={checkingOfferId !== null} onClick={async () => {
-                                setCheckingOfferId(draft.id);
-                                try {
-                                  const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: draft.sellerHubDraft?.taskId ? "checkEbaySellerHubDraft" : "sendEbaySellerHubDraft", draftId: draft.id, shopId: draft.shopId }) });
-                                  const payload = await response.json();
-                                  if (!response.ok) throw new Error(payload.error || "Seller Hub transfer failed.");
-                                  setOfferChecks((previous) => ({ ...previous, [draft.id]: payload.success ? `Seller Hub draft confirmed: ${payload.draftId}` : `Seller Hub ${payload.state}. ${payload.error || (payload.terminal ? "Download the upload result for details." : "Check again after eBay finishes processing.")}` }));
-                                  if (payload.success) toast.success("Seller Hub draft confirmed.");
-                                  router.refresh();
-                                } catch (error) { toast.error(error instanceof Error ? error.message : "Seller Hub transfer failed."); }
-                                finally { setCheckingOfferId(null); }
-                              }}>{checkingOfferId === draft.id ? "Checking eBay…" : draft.sellerHubDraft?.taskId ? "Check Seller Hub upload" : "Send to Seller Hub"}</Button>
-                              <Button type="button" variant="outline" size="sm" onClick={async () => {
-                                try {
-                                  const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "downloadEbaySellerHubDraftCsv", draftId: draft.id, shopId: draft.shopId }) });
-                                  if (!response.ok) throw new Error("Unable to download the Seller Hub draft CSV.");
-                                  const url = URL.createObjectURL(await response.blob());
-                                  const link = document.createElement("a"); link.href = url; link.download = `${draft.sku}-seller-hub-draft.csv`; link.click(); URL.revokeObjectURL(url);
-                                } catch (error) { toast.error(error instanceof Error ? error.message : "CSV download failed."); }
-                              }}>Download draft CSV</Button>
-                              {draft.sellerHubDraft?.taskId && <Button type="button" variant="outline" size="sm" onClick={async () => {
-                                try {
-                                  const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkEbaySellerHubDraft", draftId: draft.id, shopId: draft.shopId }) });
-                                  const payload = await response.json();
-                                  if (!response.ok || !payload.report) throw new Error(payload.error || "The upload result is not ready yet.");
-                                  const url = URL.createObjectURL(new Blob([payload.report], { type: "text/csv;charset=utf-8" }));
-                                  const link = document.createElement("a"); link.href = url; link.download = `${draft.sku}-upload-result.csv`; link.click(); URL.revokeObjectURL(url);
-                                } catch (error) { toast.error(error instanceof Error ? error.message : "Result download failed."); }
-                              }}>Download upload result</Button>}
-                            </div>
-                            <Button type="button" variant="outline" size="sm" onClick={async () => {
-                              try {
-                                const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "downloadEbayDescription", draftId: draft.id, shopId: draft.shopId }) });
-                                if (!response.ok) throw new Error("Unable to download the static HTML description.");
-                                const url = URL.createObjectURL(await response.blob());
-                                const link = document.createElement("a"); link.href = url; link.download = `${draft.sku}-description.html`; link.click(); URL.revokeObjectURL(url);
-                              } catch (error) { toast.error(error instanceof Error ? error.message : "Description download failed."); }
-                            }}>Download clean description HTML</Button>
-                            <p className="max-w-xl text-xs text-muted-foreground">Basic draft imported only: item specifics, business policies, item location, and videos are not transferred by this draft template. Complete them in Seller Hub before publishing. To repair an existing description, paste the clean HTML into Show HTML Code. If an upload fails, upload the draft CSV through Seller Hub → Reports → Uploads.</p>
-                            {offerChecks[draft.id] && <p className="text-xs">{offerChecks[draft.id]}</p>}
-                          </div>
-                        )}
-                        {draft.platform === "EBAY" && draft.externalId && draft.shopId && (
-                          <div className="mt-2 space-y-1">
-                            <p className="text-xs text-muted-foreground">This API offer is separate from Seller Hub Drafts.</p>
-                            <Button type="button" variant="outline" size="sm" disabled={checkingOfferId !== null} onClick={async () => {
-                              setCheckingOfferId(draft.id);
-                              try {
-                                const response = await fetch("/api/marketplace/listing-preparation", {
-                                  method: "POST", headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ action: "verifyEbayOffer", draftId: draft.id, shopId: draft.shopId }),
-                                });
-                                const payload = await response.json();
-                                if (!response.ok) throw new Error(payload.error || "Unable to verify this eBay offer.");
-                                setOfferChecks((previous) => ({ ...previous, [draft.id]: `eBay status: ${payload.status} · ${payload.environment}${payload.listingId ? ` · Listing ID: ${payload.listingId}` : " · No published listing ID"}` }));
-                              } catch (error) {
-                                setOfferChecks((previous) => ({ ...previous, [draft.id]: error instanceof Error ? error.message : "Unable to verify this eBay offer." }));
-                              } finally { setCheckingOfferId(null); }
-                            }}>{checkingOfferId === draft.id ? "Checking eBay…" : "Check eBay offer"}</Button>
-                            {offerChecks[draft.id] && <p className="text-xs">{offerChecks[draft.id]}</p>}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                          {draft.regionalPrices ? (
-                            <div className="space-y-0.5 text-xs">
-                              <p>India · INR {draft.regionalPrices.india.toFixed(2)}</p>
-                              <p>US · INR {draft.regionalPrices.us.toFixed(2)}</p>
-                              <p>Global · INR {draft.regionalPrices.global.toFixed(2)}</p>
-                            </div>
-                          ) : (
-                            <p className="font-medium">{draft.currency} {draft.price.toFixed(2)}</p>
-                          )}
-                          <p className="text-xs text-muted-foreground">{draft.updatedAt.slice(0, 10)}</p>
-                      </div>
-                    </div>
-                  ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>}
-          </Card>
-          </div>
 
           <Card>
             <CardHeader>
@@ -1215,7 +1032,7 @@ export function ListingPreparationClient({
                     setEtsyCategoryAttributesByName({});
                     setLoadedEtsyRequirements(null);
                   }}>
-                    <SelectTrigger id="marketplace"><SelectValue placeholder="Select marketplace" /></SelectTrigger>
+                    <SelectTrigger className="w-full" id="marketplace"><SelectValue placeholder="Select marketplace" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="EBAY">eBay</SelectItem>
                       <SelectItem value="ETSY">Etsy</SelectItem>
@@ -1249,7 +1066,7 @@ export function ListingPreparationClient({
                     setAspectValues({});
                     setCustomAspectValues({});
                   }}>
-                    <SelectTrigger id="marketplace-shop"><SelectValue placeholder={marketplace ? "Select connected shop" : "Select marketplace first"} /></SelectTrigger>
+                    <SelectTrigger className="w-full" id="marketplace-shop"><SelectValue placeholder={marketplace ? "Select connected shop" : "Select marketplace first"} /></SelectTrigger>
                     <SelectContent>
                       {activeShops.map((shop) => <SelectItem key={shop.id} value={shop.id}>{shop.name}</SelectItem>)}
                     </SelectContent>
@@ -1278,7 +1095,7 @@ export function ListingPreparationClient({
                           <Label htmlFor={`draft-setting-${group.key}`}>{group.label} <span className="text-destructive">*</span></Label>
                           {group.options.length ? (
                             <Select value={draftSettings[group.key] || ""} onValueChange={(value) => setDraftSettings((previous) => ({ ...previous, [group.key]: value }))}>
-                              <SelectTrigger id={`draft-setting-${group.key}`}><SelectValue placeholder={`Choose ${group.label.toLowerCase()}`} /></SelectTrigger>
+                              <SelectTrigger className="w-full" id={`draft-setting-${group.key}`}><SelectValue placeholder={`Choose ${group.label.toLowerCase()}`} /></SelectTrigger>
                               <SelectContent>{group.options.map((option) => <SelectItem key={option.id} value={option.id}>{option.name}</SelectItem>)}</SelectContent>
                             </Select>
                           ) : <p className="text-xs text-destructive">No {group.label.toLowerCase()} is available. Add one in {marketplace === "EBAY" ? "eBay" : "Etsy"}, then reload shop settings.</p>}
@@ -1334,7 +1151,7 @@ export function ListingPreparationClient({
                           setEtsyPreparationOptions((previous) => previous ? { ...previous, properties: [] } : previous);
                         }}
                       >
-                        <SelectTrigger id="etsy-product-type"><SelectValue placeholder="Select product type" /></SelectTrigger>
+                        <SelectTrigger className="w-full" id="etsy-product-type"><SelectValue placeholder="Select product type" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Select product type</SelectItem>
                           <SelectItem value="LOOSE_GEMSTONE">Loose gemstone</SelectItem>
@@ -1386,7 +1203,7 @@ export function ListingPreparationClient({
                               shopSectionId: value === "__none__" ? "" : value,
                             }))}
                           >
-                            <SelectTrigger id="etsy-shop-section"><SelectValue placeholder="Select shop section" /></SelectTrigger>
+                            <SelectTrigger className="w-full" id="etsy-shop-section"><SelectValue placeholder="Select shop section" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__none__">No shop section</SelectItem>
                               {etsyPreparationOptions.sections.map((section) => (
@@ -1476,7 +1293,7 @@ export function ListingPreparationClient({
                                 [property.name]: value === "__none__" ? "" : value,
                               }))}
                             >
-                              <SelectTrigger id={`etsy-property-${property.id}`}><SelectValue placeholder={`Select ${property.name.toLocaleLowerCase()}`} /></SelectTrigger>
+                              <SelectTrigger className="w-full" id={`etsy-property-${property.id}`}><SelectValue placeholder={`Select ${property.name.toLocaleLowerCase()}`} /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="__none__">{property.required ? "Select a value" : "Not specified"}</SelectItem>
                                 {property.values.map((value) => <SelectItem key={value.id || value.name} value={value.name}>{value.name}</SelectItem>)}
@@ -1539,7 +1356,7 @@ export function ListingPreparationClient({
                         value={etsyListingDetails.whenMade || "__none__"}
                         onValueChange={(value) => setEtsyListingDetails((previous) => ({ ...previous, whenMade: value === "__none__" ? "" : value }))}
                       >
-                        <SelectTrigger id="etsy-when-made"><SelectValue placeholder="Select Etsy date range" /></SelectTrigger>
+                        <SelectTrigger className="w-full" id="etsy-when-made"><SelectValue placeholder="Select Etsy date range" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Select when it was made</SelectItem>
                           {ETSY_WHEN_MADE_OPTIONS.map(([value, label]) => (
@@ -1559,7 +1376,7 @@ export function ListingPreparationClient({
                           whoMade: value === "__none__" ? "" : value as EtsyListingDetails["whoMade"],
                         }))}
                       >
-                        <SelectTrigger id="etsy-who-made"><SelectValue placeholder="Select who made the item" /></SelectTrigger>
+                        <SelectTrigger className="w-full" id="etsy-who-made"><SelectValue placeholder="Select who made the item" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Select who made it</SelectItem>
                           <SelectItem value="I_DID">I did</SelectItem>
@@ -1577,7 +1394,7 @@ export function ListingPreparationClient({
                           whatIsIt: value === "__none__" ? "" : value as EtsyListingDetails["whatIsIt"],
                         }))}
                       >
-                        <SelectTrigger id="etsy-what-is-it"><SelectValue placeholder="Select item type" /></SelectTrigger>
+                        <SelectTrigger className="w-full" id="etsy-what-is-it"><SelectValue placeholder="Select item type" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Select item type</SelectItem>
                           <SelectItem value="FINISHED_PRODUCT">A finished product</SelectItem>
@@ -1596,7 +1413,7 @@ export function ListingPreparationClient({
                           productionMethod: value === "__none__" ? "" : value as EtsyListingDetails["productionMethod"],
                         }))}
                       >
-                        <SelectTrigger id="etsy-production-method"><SelectValue placeholder="Select if applicable" /></SelectTrigger>
+                        <SelectTrigger className="w-full" id="etsy-production-method"><SelectValue placeholder="Select if applicable" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Not provided</SelectItem>
                           <SelectItem value="MADE_FROM_SCRATCH">Made from scratch</SelectItem>
@@ -1693,7 +1510,7 @@ export function ListingPreparationClient({
                                 [key]: value === "UNANSWERED" ? "" : value,
                               }))}
                             >
-                              <SelectTrigger id={`etsy-gem-${key}`}><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="w-full" id={`etsy-gem-${key}`}><SelectValue /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="UNANSWERED">Not answered</SelectItem>
                                 <SelectItem value="YES">Yes</SelectItem>
@@ -1834,7 +1651,7 @@ export function ListingPreparationClient({
                       setAspectValues({});
                       setCustomAspectValues({});
                     }}>
-                      <SelectTrigger id="listing-template"><SelectValue placeholder="Select eBay template" /></SelectTrigger>
+                      <SelectTrigger className="w-full" id="listing-template"><SelectValue placeholder="Select eBay template" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="LOOSE_GEMSTONE">Loose Gemstone</SelectItem>
                         <SelectItem value="JEWELRY">Bracelet</SelectItem>
@@ -1891,7 +1708,7 @@ export function ListingPreparationClient({
                           <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
                             <Label htmlFor="ebay-category-suggestion">Choose the correct eBay category</Label>
                             <Select value={categoryId || "__none__"} onValueChange={(value) => setCategoryId(value === "__none__" ? "" : value)}>
-                              <SelectTrigger id="ebay-category-suggestion"><SelectValue placeholder="Select category suggestion" /></SelectTrigger>
+                              <SelectTrigger className="w-full" id="ebay-category-suggestion"><SelectValue placeholder="Select category suggestion" /></SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="__none__">Select a category</SelectItem>
                                 {taxonomy.suggestions.map((suggestion) => (
@@ -2091,7 +1908,7 @@ export function ListingPreparationClient({
           </Card>
         </div>
 
-        <Card className="xl:sticky xl:top-4">
+        <Card className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
           <CardHeader>
             <CardTitle>Preparation review</CardTitle>
             <CardDescription>Review ERP data before saving an unpublished draft to the selected marketplace shop.</CardDescription>

@@ -137,3 +137,14 @@ city Kpmg (provided by the user). Earlier drafts stored selected policies under
 marketplaceDraft.draftSettings; the full workflow preserves that legacy selection
 instead of guessing among multiple payment policies. The separate Seller Hub
 draft 5387189153310 is unchanged.
+
+
+### Create page and saved drafts
+
+Create Listings contains the creation form and preparation review. Completed steps produce a single auto-hiding toast (3.5 seconds); repeated edits within a completed step do not generate more progress notices. Field-level validation and the preparation checklist remain visible.
+
+Saved eBay and Etsy drafts now live at `/marketplace-drafts`, accessible from the Marketplaces sidebar, the command palette and View drafts on Create Listings. The new page preserves full eBay review/verification/publishing and bulk actions, Etsy SKU/attribute repair, and Seller Hub transfer/download tools. Search by SKU/title/shop or filter by marketplace; individual draft actions and secondary Seller Hub tools are collapsed until opened. The page retains the existing latest-100 draft query and listing-view permission guard. Creation no longer queries saved drafts or includes their components.
+
+After single-draft saving, the user is taken to Drafts unless an Etsy batch queue needs to stay on the creation page. Batch outcomes remain visible on Create Listings. The preparation review uses a sticky, scrollable panel on wide screens and normal document flow on mobile.
+
+UI verification: render actual React components with project CSS at 1280 and 390 pixels, in light/dark themes; verify no horizontal overflow and that draft details expand. `scripts/check-marketplace-ui-preview.ts` writes temporary screenshot artifacts without marketplace requests.

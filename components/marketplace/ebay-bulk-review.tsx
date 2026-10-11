@@ -56,7 +56,7 @@ export function EbayBulkReview({ drafts }: { drafts: Draft[] }) {
       </span>
     </Label>)}</div>
     <p className="text-xs">For drafts without a selected eBay location, use this actual dispatch address:</p>
-    <div className="grid grid-cols-3 gap-2">{(["country", "postalCode", "city"] as const).map((key) => <Label key={key}>{key === "country" ? "Country code" : key === "postalCode" ? "Postal code" : "City"}<Input disabled={busy} value={address[key]} onChange={(event) => { setAddress({ ...address, [key]: event.target.value }); setResults({}); setConfirmed(false); }} /></Label>)}</div>
+    <div className="grid gap-3 sm:grid-cols-3">{(["country", "postalCode", "city"] as const).map((key) => <Label key={key} className="flex flex-col items-start gap-2">{key === "country" ? "Country code" : key === "postalCode" ? "Postal code" : "City"}<Input disabled={busy} value={address[key]} onChange={(event) => { setAddress({ ...address, [key]: event.target.value }); setResults({}); setConfirmed(false); }} /></Label>)}</div>
     {hasUnsavedChanges && <p className="text-sm text-amber-700">A selected product has unsaved review edits. Verify that product&apos;s edits first, or reload its review to discard them.</p>}
     <Button type="button" variant="outline" disabled={busy || !chosen.length || hasUnsavedChanges} onClick={async () => {
       try { validateEbayBatchSelection(chosen); } catch (error) { toast.error(error instanceof Error ? error.message : "Invalid selection."); return; }
