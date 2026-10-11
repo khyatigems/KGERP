@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 
 export interface SalesReportData {
@@ -24,11 +25,9 @@ export async function getSalesReportData(
   startDate?: Date,
   endDate?: Date
 ): Promise<SalesReportData> {
-  const where: any = {};
+  const where: Prisma.SaleWhereInput = {};
   if (startDate || endDate) {
-    where.saleDate = {};
-    if (startDate) where.saleDate.gte = startDate;
-    if (endDate) where.saleDate.lte = endDate;
+    where.saleDate = { ...(startDate ? { gte: startDate } : {}), ...(endDate ? { lte: endDate } : {}) };
   }
 
   // Get all sales with invoice data for conversion rates

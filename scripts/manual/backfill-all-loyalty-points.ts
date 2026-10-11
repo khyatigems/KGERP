@@ -3,10 +3,10 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
-import { ensureBillfreePhase1Schema, prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma";
 import { accrueLoyaltyPoints } from "../../lib/loyalty-accrual";
 import { type PrismaTx } from "../../lib/accounting";
-import crypto from "crypto";
+import "crypto";
 
 async function main() {
   console.log("Starting loyalty points backfill for ALL historical invoices (including previously processed)...");

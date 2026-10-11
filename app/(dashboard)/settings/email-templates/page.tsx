@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { listEmailTemplates } from "@/lib/email/templates";
 import { getZohoConnectionStatus } from "./actions";
 import { EmailTemplatesForm } from "./email-templates-form";
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function EmailTemplatesPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.SETTINGS_MANAGE)) redirect("/");
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.SETTINGS_MANAGE)) redirect("/");
 
   const templates = await listEmailTemplates();
   const zohoStatus = await getZohoConnectionStatus();

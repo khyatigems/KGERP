@@ -211,7 +211,7 @@ export default async function SalesReturnsPage() {
                             const viaSale = saleInvoiceById.get(invoiceId) || null;
                             const legacy =
                               legacyInvoiceByReturnNumber.get(r.returnNumber) || replacementInvoiceByReturnNumberFromSales.get(r.returnNumber);
-                            const resolvedToken = directToken || viaSale?.token || legacy?.token || "";
+                            void (directToken || viaSale?.token || legacy?.token || "");
                             const resolvedInvoiceNo =
                               invNoById.get(invoiceId) || viaSale?.invoiceNumber || legacy?.invoiceNumber || "REPLACEMENT";
                             const href = `/sales-returns/${encodeURIComponent(r.id)}/replacement-invoice`;

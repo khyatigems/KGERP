@@ -23,7 +23,7 @@ async function waitForServer(url, timeout = 30000) {
         req.setTimeout(3000, () => { req.destroy(); resolve(false); });
       });
       if (ok) return true;
-    } catch (e) {}
+    } catch  {}
     await new Promise(r => setTimeout(r, 500));
   }
   throw new Error('Server did not respond in time');

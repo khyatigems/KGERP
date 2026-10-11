@@ -2,13 +2,13 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { TrendingUp, Boxes, CircleDollarSign, Percent, Activity, Package, PieChart, FileText, FileCheck, Printer, Lock, CreditCard, ReceiptIndianRupee, QrCode, ListChecks, Gift, ImageOff } from "lucide-react";
+import { TrendingUp, Boxes, CircleDollarSign, Percent, Activity } from "lucide-react";
 import Link from "next/link";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermissions, PERMISSIONS } from "@/lib/permissions";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ReportDirectory } from "@/components/reports/report-directory";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ExportJobCenter } from "@/components/reports/export-job-center";
 import { getGovernanceConfig } from "@/lib/governance";
@@ -18,10 +18,12 @@ import { AnimatedPage } from "@/components/ui/animated-page";
 export default async function ReportsHubPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
     const session = await auth();
     if (!session?.user) redirect("/login");
-    if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
-
-    const canViewFinancials = hasPermission(session.user.role, PERMISSIONS.REPORTS_FINANCIAL);
+    const access = await checkUserPermissions(session.user.id, [PERMISSIONS.REPORTS_VIEW, PERMISSIONS.REPORTS_FINANCIAL, PERMISSIONS.REPORTS_VENDOR, PERMISSIONS.REPORTS_CUSTOMER_INSIGHTS]);
+    if (!access.get(PERMISSIONS.REPORTS_VIEW)) redirect("/");
+    const canViewFinancials = access.get(PERMISSIONS.REPORTS_FINANCIAL) ?? false;
+    const directory = <ReportDirectory financial={canViewFinancials} vendor={access.get(PERMISSIONS.REPORTS_VENDOR) ?? false} admin={["ADMIN", "SUPER_ADMIN"].includes(session.user.role) || (access.get(PERMISSIONS.REPORTS_CUSTOMER_INSIGHTS) ?? false)} />;
     const sp = await searchParams;
+    if (sp.view !== "overview") return <AnimatedPage>{directory}</AnimatedPage>;
     const rangeDays = (() => {
         const raw = sp.range;
         const v = Array.isArray(raw) ? raw[0] : raw;
@@ -42,7 +44,8 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
     const renderSetup = () => (
         <div className="space-y-6">
             <div>
-                <h2 className="text-3xl font-bold tracking-tight">Reports Dashboard</h2>
+                {directory}
+                <h2 className="text-xl font-semibold tracking-tight">Overview setup</h2>
                 <p className="text-sm text-muted-foreground">Analytics tables are initializing. Please refresh in a minute.</p>
             </div>
             <Card>
@@ -107,7 +110,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
     };
 
     try {
-        const [paidCountRow, pendingCountRow] = await prisma.$queryRaw<
+        const [paidCountRow] = await prisma.$queryRaw<
             Array<{ paidCount: unknown; pendingCount: unknown }>
         >`
           WITH pay AS (
@@ -141,7 +144,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         `;
 
         paidInvoices = toNumber(paidCountRow?.paidCount);
-        pendingInvoices = toNumber(pendingCountRow?.pendingCount);
+        pendingInvoices = toNumber(paidCountRow?.pendingCount);
 
         [salesTodayCount, salesMonthCount, avgSale, activeListings, listingBreakdown] = await Promise.all([
             prisma.sale.count({ where: { saleDate: { gte: todayUtc } } }),
@@ -270,7 +273,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         throw error;
     }
 
-    const profitStats = await (async () => {
+    const profitStats = canViewFinancials ? await (async () => {
         try {
             const [avgRow] = await prisma.$queryRaw<Array<{ avgProfit: number | null }>>`
               SELECT CAST(AVG(COALESCE("profit", "netAmount" - COALESCE("costPriceSnapshot", 0))) AS REAL) as avgProfit
@@ -308,7 +311,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
         } catch {
             return { avgProfit: 0, highestCategory: null, lowestCategory: null };
         }
-    })();
+    })() : { avgProfit: 0, highestCategory: null, lowestCategory: null };
     if (!slowMoving || slowMoving.length === 0) {
         const oldest = await prisma.inventory.findMany({
             where: { status: "IN_STOCK" },
@@ -345,37 +348,10 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
     ]);
     const healthPassed = reportHealthChecks.filter((r) => r.status === "fulfilled").length;
     const healthTotal = reportHealthChecks.length;
-    const reports = [
-        { title: "Inventory Reports", description: "Stock levels, aging, category breakdown", icon: Package, href: "/reports/inventory", allowed: true },
-        { title: "Sales Reports", description: "Revenue, platform performance, top SKUs", icon: TrendingUp, href: "/reports/sales", allowed: true },
-        { title: "Profit & Margin", description: "Net profit, SKU margins, platform margins", icon: PieChart, href: "/reports/profit", allowed: canViewFinancials },
-        { title: "Quotation Analytics", description: "Conversion rates, sent vs expired", icon: FileText, href: "/reports/quotations", allowed: true },
-        { title: "Invoice Reports", description: "Paid/Unpaid status, outstanding aging", icon: FileCheck, href: "/reports/invoices", allowed: true },
-        { title: "GST Reports", description: "GSTR-1 exports, HSN summary, credit notes", icon: FileText, href: "/reports/gst", allowed: canViewFinancials },
-        { title: "Inventory Aging", description: "Days-in-stock buckets and capital lock visibility", icon: Package, href: "/reports/inventory-aging", allowed: true },
-        { title: "Capital Rotation", description: "Sell-cycle and money velocity intelligence", icon: TrendingUp, href: "/reports/capital-rotation", allowed: true },
-        { title: "Certificate Checklist", description: "SKU-wise missing fields for certificate readiness", icon: ListChecks, href: "/reports/certificate-readiness", allowed: true },
-        { title: "Missing Image & Certificate", description: "SKUs pending image or certificate by category/gem/color", icon: ImageOff, href: "/reports/missing-media", allowed: true },
-        { title: "Customer Intelligence", description: "Repeat customer behavior and ticket-size analytics", icon: TrendingUp, href: "/reports/customer-intelligence", allowed: ["ADMIN", "SUPER_ADMIN"].includes(session.user.role) },
-        { title: "Loyalty Points Report", description: "Detailed breakdown of loyalty points earned and redeemed.", icon: Gift, href: "/reports/loyalty-points", allowed: true },
-        { title: "Discount Usage Report", description: "Analysis of discount coupons and their impact on sales.", icon: Percent, href: "/reports/discount-usage", allowed: true },
-        { title: "Payment Reports", description: "Payment trends, method distribution, recent transactions", icon: CreditCard, href: "/reports/payments", allowed: true },
-        { title: "Label & Ops", description: "Printing activity, user logs", icon: Printer, href: "/reports/ops", allowed: true },
-        { title: "QR Scans Report", description: "Track QR code usage and scan activity", icon: QrCode, href: "/reports/qr-scans", allowed: true }
-    ];
-    const reportModules = [
-        { title: "Inventory Intelligence", color: "text-primary", description: "Track stock performance and aging.", links: [{ label: "Inventory Summary", href: "/reports/inventory" }, { label: "Inventory Aging", href: "/reports/inventory-aging" }, { label: "Vendor Inventory", href: "/reports/vendor-inventory" }, { label: "Category Stock", href: "/reports/category-stock" }, { label: "Missing Image & Certificate", href: "/reports/missing-media" }] },
-        { title: "Sales Performance", color: "text-green-600", description: "Understand product sales velocity.", links: [{ label: "Sales Report", href: "/reports/sales" }, { label: "Turnover Report", href: "/reports/turnover-report" }, { label: "Top Categories", href: "/reports/top-categories" }, { label: "Sales Cycle", href: "/reports/sales-cycle" }] },
-        { title: "Financial Reports", color: "text-yellow-600", description: "Revenue and profitability analytics.", links: [{ label: "Profit & Margins", href: "/reports/profit" }, { label: "Payments", href: "/reports/payments" }, { label: "Invoice Analytics", href: "/reports/invoices" }, { label: "Expenses", href: "/reports/expenses" }] },
-        { title: "Vendor Intelligence", color: "text-purple-600", description: "Track supplier performance.", links: [{ label: "Vendor Purchases", href: "/reports/vendor-purchases" }, { label: "Vendor Inventory", href: "/reports/vendor-inventory" }, { label: "Vendor Dependency", href: "/reports/vendor-dependency" }] },
-        { title: "Operations Reports", color: "text-orange-600", description: "Operational insights.", links: [{ label: "Label Printing", href: "/reports/label-printing" }, { label: "User Activity", href: "/reports/user-activity" }, { label: "System Logs", href: "/reports/system-logs" }] },
-        { title: "Customer Intelligence", color: "text-rose-600", description: "Lifecycle and repeat-customer insights.", links: [{ label: "Customer Intelligence", href: "/reports/customer-intelligence" }, { label: "Top Customers", href: "/reports/top-customers" }, { label: "Purchase Timeline", href: "/reports/purchase-timeline" }] },
-        { title: "Loyalty & Discounts", color: "text-indigo-600", description: "Analyze loyalty points and discount usage.", links: [{ label: "Loyalty Points Report", href: "/reports/loyalty-points" }, { label: "Discount Usage Report", href: "/reports/discount-usage" }] },
-    ];
 
     return (
         <AnimatedPage>
-        <div className="space-y-6">
+        <div className="space-y-6 [&_[data-slot=card]]:rounded-2xl">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Reports Dashboard</h2>
@@ -383,9 +359,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full lg:w-auto">
                     <ReportsRangeSelect defaultDays={rangeDays} />
-                    <Input placeholder="Category" />
-                    <Input placeholder="Vendor" />
-                    <Input placeholder="Platform" />
+                    <Button asChild variant="outline"><Link href="/reports">Report library</Link></Button>
                 </div>
             </div>
 
@@ -393,7 +367,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Inventory Health</CardTitle><Boxes className="h-4 w-4 text-primary" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Items in Stock: <span className="font-semibold">{(latestSnapshot?.inventoryCount ?? 0) || liveInventory.count}</span></div><div>Inventory Value: <span className="font-semibold">{formatCurrency((latestSnapshot?.inventoryValueSell ?? 0) || liveInventory.sellValue)}</span></div><div>Slow Moving: <span className="font-semibold">{slowMoving.length}</span></div></CardContent></Card>
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Sales Performance</CardTitle><TrendingUp className="h-4 w-4 text-green-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Sales Today: <span className="font-semibold">{salesTodayCount}</span></div><div>Sales Last {rangeDays} Days: <span className="font-semibold">{salesMonthCount}</span></div><div>Avg Sale Price: <span className="font-semibold">{formatCurrency(avgSale._avg.netAmount || 0)}</span></div></CardContent></Card>
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Payments Status</CardTitle><CircleDollarSign className="h-4 w-4 text-yellow-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Paid Invoices: <span className="font-semibold">{paidInvoices}</span></div><div>Pending Payments: <span className="font-semibold">{pendingInvoices}</span></div><div>Collection Rate: <span className="font-semibold">{collectionRate.toFixed(1)}%</span></div></CardContent></Card>
-                <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Profit Insights</CardTitle><Percent className="h-4 w-4 text-amber-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Avg Margin: <span className="font-semibold">{formatCurrency(profitStats.avgProfit)}</span></div><div>Highest Category: <span className="font-semibold">{profitStats.highestCategory || "-"}</span></div><div>Lowest Category: <span className="font-semibold">{profitStats.lowestCategory || "-"}</span></div></CardContent></Card>
+                {canViewFinancials && <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Profit Insights</CardTitle><Percent className="h-4 w-4 text-amber-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Avg Margin: <span className="font-semibold">{formatCurrency(profitStats.avgProfit)}</span></div><div>Highest Category: <span className="font-semibold">{profitStats.highestCategory || "-"}</span></div><div>Lowest Category: <span className="font-semibold">{profitStats.lowestCategory || "-"}</span></div></CardContent></Card>}
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Listings Overview</CardTitle><Activity className="h-4 w-4 text-purple-600" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Active Listings: <span className="font-semibold">{activeListings}</span></div>{listingBreakdown.slice(0, 3).map((row) => (<div key={row.platform}>{row.platform}: <span className="font-semibold">{row._count.id}</span></div>))}</CardContent></Card>
             </div>
 
@@ -409,17 +383,6 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                 </CardContent>
             </Card>
 
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                {reportModules.map((module) => (
-                    <Card key={module.title}>
-                        <CardHeader><CardTitle className={module.color}>{module.title}</CardTitle><CardDescription>{module.description}</CardDescription></CardHeader>
-                        <CardContent className="flex flex-wrap gap-2">
-                            {module.links.map((link) => (<Button key={link.label} asChild variant="outline" size="sm"><Link href={link.href}>{link.label}</Link></Button>))}
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
             <div className="grid gap-4 lg:grid-cols-2">
                 <Card><CardHeader><CardTitle>Recent Sales</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>SKU</TableHead><TableHead className="text-right">Amount</TableHead><TableHead>User</TableHead></TableRow></TableHeader><TableBody>{recentSales.map((sale) => (<TableRow key={sale.id}><TableCell>{sale.invoice?.invoiceNumber || "-"}</TableCell><TableCell>{sale.inventory.sku}</TableCell><TableCell className="text-right">{formatCurrency(sale.netAmount || 0)}</TableCell><TableCell>{sale.customerName || "-"}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
                 <Card><CardHeader><CardTitle>Slow Moving Inventory</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Item</TableHead><TableHead className="text-right">Days</TableHead></TableRow></TableHeader><TableBody>{slowMoving.map((item: { id: string; sku: string; itemName: string; daysInStock: number }) => (<TableRow key={item.id}><TableCell>{item.sku}</TableCell><TableCell>{item.itemName}</TableCell><TableCell className="text-right">{item.daysInStock}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card>
@@ -429,25 +392,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
 
             <ExportJobCenter />
 
-            <div className="space-y-2">
-                <h3 className="text-xl font-semibold">Report Navigation</h3>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {reports.map((report) => (
-                        <Link key={report.title} href={report.allowed ? report.href : "#"} className={!report.allowed ? "cursor-not-allowed opacity-60 pointer-events-none" : ""} aria-disabled={!report.allowed}>
-                            <Card className="h-full hover:bg-muted/50 transition-colors">
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <report.icon className={`h-8 w-8 ${report.allowed ? "text-primary" : "text-muted-foreground"}`} />
-                                        {!report.allowed && <Lock className="h-4 w-4 text-muted-foreground" />}
-                                    </div>
-                                    <CardTitle className="mt-4">{report.title}</CardTitle>
-                                    <CardDescription>{report.description}</CardDescription>
-                                </CardHeader>
-                            </Card>
-                        </Link>
-                    ))}
-                </div>
-            </div>
+            <ReportDirectory overview financial={canViewFinancials} vendor={access.get(PERMISSIONS.REPORTS_VENDOR) ?? false} admin={["ADMIN", "SUPER_ADMIN"].includes(session.user.role) || (access.get(PERMISSIONS.REPORTS_CUSTOMER_INSIGHTS) ?? false)} />
             </div>
         </AnimatedPage>
     );

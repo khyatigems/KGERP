@@ -3,7 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import { FadeIn } from "@/components/auth/effects/fade-in";
 import { CompanyLogoClient } from "@/components/auth/company-logo-client";
-import { cn } from "@/lib/utils";
+import "@/lib/utils";
 
 interface InfoPageProps {
   title: string;

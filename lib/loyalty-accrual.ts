@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { LoyaltyAccrualInput, LoyaltySettings, LoyaltyDatabaseTx } from "@/types/pdf-generation";
+import { LoyaltyAccrualInput, LoyaltySettings } from "@/types/pdf-generation";
 
 export async function accrueLoyaltyPoints(input: LoyaltyAccrualInput) {
   // Enhanced input validation

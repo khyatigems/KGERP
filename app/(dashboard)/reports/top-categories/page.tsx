@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getTopCategoriesData } from "@/lib/report-module-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,7 +10,7 @@ import { AnimatedPage } from "@/components/ui/animated-page";
 export default async function TopCategoriesReportPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) redirect("/");
   const rows = await getTopCategoriesData();
 
   return (

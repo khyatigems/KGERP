@@ -1,6 +1,6 @@
 // Type definitions for PDF generation and loyalty system
 
-import { PrismaTx } from "@/lib/accounting";
+import "@/lib/accounting";
 
 // Enhanced type definitions for better type safety
 export interface LoyaltyDatabaseTx {
@@ -78,7 +78,7 @@ export interface LoyaltyLedgerEntry {
 export interface ValidationError {
   field: string;
   message: string;
-  value: any;
+  value: unknown;
 }
 
 export interface ValidationResult {
@@ -114,7 +114,7 @@ export function validateVoucherPDFData(data: VoucherPDFData): ValidationResult {
   const errors: ValidationError[] = [];
 
   // Helper function to validate optional string fields
-  const validateOptionalString = (value: any, fieldName: string): boolean => {
+  const validateOptionalString = (value, fieldName: string): boolean => {
     if (value === null || value === undefined) return true; // null/undefined are allowed
     if (typeof value !== 'string') {
       errors.push({ 

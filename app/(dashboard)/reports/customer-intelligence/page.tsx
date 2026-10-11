@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getCustomerIntelligence } from "@/lib/customer-intelligence";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,8 +12,8 @@ import { AnimatedPage } from "@/components/ui/animated-page";
 export default async function CustomerIntelligencePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
-  if (!["ADMIN", "SUPER_ADMIN"].includes(session.user.role)) redirect("/reports");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) redirect("/");
+  if (!["ADMIN", "SUPER_ADMIN"].includes(session.user.role) && !(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_CUSTOMER_INSIGHTS))) redirect("/reports");
 
   const data = await getCustomerIntelligence(365);
 

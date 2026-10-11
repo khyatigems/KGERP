@@ -2,6 +2,7 @@
 
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { WorkspaceAppearanceProvider } from "@/components/workspace-appearance-provider";
 import { GlobalLoaderProvider } from "@/components/global-loader-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -13,9 +14,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        <GlobalLoaderProvider>
+        <WorkspaceAppearanceProvider><GlobalLoaderProvider>
           {children}
-        </GlobalLoaderProvider>
+        </GlobalLoaderProvider></WorkspaceAppearanceProvider>
       </NextThemesProvider>
     </SessionProvider>
   );

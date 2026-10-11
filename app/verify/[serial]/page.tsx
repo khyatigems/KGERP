@@ -97,7 +97,7 @@ export default async function VerifyPage({
     })();
 
     const mediaArr = (inv as unknown as { media?: Array<{ mediaUrl?: string | null }> })?.media;
-    const imageUrl = mediaArr?.[0]?.mediaUrl || (inv?.imageUrl as string | null) || null;
+    void (mediaArr?.[0]?.mediaUrl || (inv?.imageUrl as string | null) || null);
 
     return {
       serialNumber: r.serialNumber,
@@ -164,7 +164,7 @@ export default async function VerifyPage({
           </p>
         )}
 
-        {verifiedItems.map((item, idx) => {
+        {verifiedItems.map((item, _idx) => {
           const inv = item.inventory as Record<string, unknown>;
           const itemName = (inv?.itemName as string) || "Product";
           const sku = (inv?.sku as string) || null;
@@ -174,7 +174,7 @@ export default async function VerifyPage({
           const certAuthority = (inv?.certificateLab as string) || (inv?.lab as string) || null;
           const certComments = inv?.certificateComments as string | null;
           const certUrl = normalizeCertificateUrl(certComments);
-          const imageUrl = (inv?.imageUrl as string) || null;
+          void ((inv?.imageUrl as string) || null);
 
           return (
             <div key={item.serialNumber} className={isMulti ? "border-b border-gray-100 pb-4 last:border-0 last:pb-0" : ""}>

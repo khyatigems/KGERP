@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { reconcileInventory } from "@/lib/marketplace/reconciliation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +30,7 @@ const SEVERITY_VARIANT: Record<string, "default" | "secondary" | "destructive" |
 export default async function MarketplaceReconciliationPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.LISTINGS_VIEW)) redirect("/");
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.LISTINGS_VIEW)) redirect("/");
 
   const exceptions = await reconcileInventory();
 

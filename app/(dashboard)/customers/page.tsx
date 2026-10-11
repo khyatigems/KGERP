@@ -35,7 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { redirect } from "next/navigation";
 import { getCustomerPurchaseStats } from "@/lib/customer-purchase-stats";
@@ -56,7 +56,7 @@ export const dynamic = "force-dynamic";
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; type?: string; tier?: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
 
   await ensureCustomerSecondaryPhoneSchema();
   await ensureReturnsSchema();
@@ -165,13 +165,13 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     loyaltyMap.set(r.customerId, Number(r.points || 0));
   }
 
-  const canExport = hasPermission(session.user.role, PERMISSIONS.CUSTOMER_EXPORT);
+  const canExport = await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMER_EXPORT);
 
   const exportCustomers = customers.map((c) => ({
     ...c,
     loyaltyPoints: Number(loyaltyMap.get(c.id) || 0),
   }));
-  const { rows: exportData, columns: exportColumns } = buildCustomerExport(exportCustomers as any);
+  const { rows: exportData, columns: exportColumns } = buildCustomerExport(exportCustomers);
 
   return (
     <AnimatedPage><div className="space-y-6">

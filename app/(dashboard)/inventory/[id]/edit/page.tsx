@@ -74,7 +74,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
   const [inventory, vendors, categories, gemstones, colors, collections, rashis, cuts, shapes, certificates, originRows] = result.data!;
   const origins = originRows.map((r: { origin: string }) => r.origin);
 
-  const gpisSettings = await (prisma as any).gpisSettings.findFirst();
+  const gpisSettings = await (prisma).gpisSettings.findFirst();
   const categoryHsnMap: Record<string, string> = {};
   if (gpisSettings?.categoryHsnJson) {
     try {

@@ -1,3 +1,6 @@
+import { auth } from "@/lib/auth";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { LabelsManagementTable } from "@/components/labels/labels-management-table";
@@ -13,6 +16,9 @@ export const metadata: Metadata = {
 import { getCart, getLabelJobs } from "./actions";
 
 export default async function LabelsPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.LABELS_VIEW)) && !(await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_VIEW))) redirect("/");
   const [inventory, cartItems, labelJobs] = await Promise.all([
     prisma.inventory.findMany({
       where: {

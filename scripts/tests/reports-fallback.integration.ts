@@ -1,6 +1,8 @@
 import assert from "node:assert";
 import path from "node:path";
 import fs from "node:fs";
+import { createClient } from "@libsql/client";
+import { pathToFileURL } from "node:url";
 import { execSync } from "node:child_process";
 
 async function main() {
@@ -8,8 +10,14 @@ async function main() {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath);
 
-  process.env.DATABASE_URL = `file:${dbPath}`;
-  execSync("npx prisma migrate deploy", { stdio: "inherit", env: process.env });
+  process.env.DATABASE_URL = "file:../tmp/reports-fallback-test.db";
+  process.env.TURSO_DATABASE_URL = "";
+  process.env.TURSO_URL = "";
+  // This fixture tests reporting, independent of historical migration baselines.
+  const schemaSql = execSync("npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script", { encoding: "utf8", env: process.env });
+  const fixture = createClient({ url: pathToFileURL(dbPath).href });
+  await fixture.executeMultiple(schemaSql);
+  fixture.close();
 
   const { prisma } = await import("../../lib/prisma");
   const { getReportsAnalyticsSummaryUncached, getInventoryAgingAnalytics, getCapitalRotationAnalyticsUncached } = await import("../../lib/reports-analytics");

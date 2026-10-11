@@ -4,7 +4,7 @@ config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
 import { ensureBillfreePhase1Schema, ensureInvoiceSupportSchema, hasTable, prisma } from "../../lib/prisma";
-import { getOrCreateAccountByCode, ACCOUNTS, PrismaTx } from "../../lib/accounting";
+import { getOrCreateAccountByCode, ACCOUNTS } from "../../lib/accounting";
 
 async function diagnoseInvoiceCreation() {
   console.log("🔍 Diagnosing Invoice Creation Issues...\n");

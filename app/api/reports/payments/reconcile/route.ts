@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getPaymentCompletenessValidation, reconcileHistoricalInvoicePayments } from "@/lib/payment-reconciliation";
 
 function toBoolean(value: string | null) {
@@ -12,7 +12,7 @@ function toBoolean(value: string | null) {
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) {
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const dryRun = toBoolean(request.nextUrl.searchParams.get("dryRun"));
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.SETTINGS_MANAGE)) {
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.SETTINGS_MANAGE))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

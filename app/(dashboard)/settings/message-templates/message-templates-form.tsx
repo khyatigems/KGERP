@@ -83,7 +83,7 @@ export function MessageTemplatesForm({ initial }: { initial: MessageTemplateRow[
         toast.success("Template updated");
         setRows((p) => p.map((r) => (r.id === editing.id ? { ...r, ...editing } : r)));
         setEditing(null);
-      } catch (e) {
+      } catch  {
         toast.error("Failed to update");
       }
     });

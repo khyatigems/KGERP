@@ -10,13 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Plus, X, User, Search, Tag, Percent, Gift, Calculator, Package, Calendar, AlertTriangle, CheckCircle, Trash2 } from "lucide-react";
+import { Loader2, Plus, X, User, Search, Percent, Gift, Calculator, Package, Calendar, AlertTriangle, CheckCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
 import { createNewCustomer, validateCouponCode, getCustomerLoyaltyPoints } from "@/app/(dashboard)/sales/new-actions";
 import { createSale, getNextInvoiceNumber } from "@/app/(dashboard)/sales/actions";
@@ -137,8 +137,8 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerLoyaltyPoints, setCustomerLoyaltyPoints] = useState<number>(0);
-  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
-  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+  const [, setIsCreatingCustomer] = useState(false);
+  const [, setIsSearchingCustomer] = useState(false);
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -157,8 +157,8 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   const [categoryGstRates, setCategoryGstRates] = useState<Record<string, number>>({});
   const [initialPayments, setInitialPayments] = useState<Array<{ amount: number; method: string; date: string; reference?: string; notes?: string; advanceId?: string; creditNoteId?: string; creditNoteCode?: string }>>([]);
   const [availableAdvances, setAvailableAdvances] = useState<Array<{ id: string; amount: number; remainingAmount: number; paymentMode: string; createdAt: string }>>([]);
-  const [availableCreditNotes, setAvailableCreditNotes] = useState<Array<{ id: string; code: string; amount: number; remainingAmount: number; createdAt: string }>>([]);
-  const [exportSettings, setExportSettings] = useState<{
+  const [, setAvailableCreditNotes] = useState<Array<{ id: string; code: string; amount: number; remainingAmount: number; createdAt: string }>>([]);
+  const [, setExportSettings] = useState<{
     enableExportInvoice: boolean;
     defaultExportType: string;
     companyIec: string;
@@ -255,7 +255,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   }, [fetchInventory, itemSearchQuery]);
 
   const form = useForm<SaleFormData>({
-    resolver: zodResolver(saleFormSchema) as any,
+    resolver: zodResolver(saleFormSchema),
     defaultValues: {
       customerType: "existing",
       customerId: "",
@@ -334,7 +334,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       try {
         const rates = JSON.parse(companySettings.categoryGstRates);
         setCategoryGstRates(rates);
-      } catch (error) {
+      } catch  (error) {
         console.error("Error parsing GST rates:", error);
       }
     }
@@ -350,7 +350,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       } else {
         setInvoiceNumberStatus("error");
       }
-    } catch (error) {
+    } catch  (error) {
       console.error("Error fetching next invoice number:", error);
       setInvoiceNumberStatus("error");
     }
@@ -385,7 +385,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
     setInitialPayments(prev => [...prev, { amount: 0, method: "CASH", date: watchedValues.invoiceDate || new Date().toISOString().split('T')[0], notes: "" }]);
   };
 
-  const updateInitialPayment = (index: number, field: string, value: any) => {
+  const updateInitialPayment = (index: number, field: string, value) => {
     setInitialPayments(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
   };
 
@@ -445,14 +445,13 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   const effectivePaid = isExportInvoice ? totalPaidUsdAmount : totalPaidAmount;
   const effectiveTotal = isExportInvoice ? finalTotal / exportConvRate : finalTotal;
   const paidAmount = totalPaidAmount; // kept for non-export INR usage
-  const invoicePaymentStatus =
-    effectivePaid >= effectiveTotal - 0.001
+  void (effectivePaid >= effectiveTotal - 0.001
       ? "PAID"
       : effectivePaid > 0
       ? "PARTIAL"
       : watchedValues.paymentStatus === "PARTIAL"
       ? "PARTIAL"
-      : "PENDING";
+      : "PENDING");
 
   // Calculate amount to collect (backend logic)
   const amountToCollect = isExportInvoice
@@ -565,7 +564,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
               console.log('Loyalty points fetch failed:', result);
             }
           }
-        } catch (error) {
+        } catch  (error) {
           // Debug: Only log occasionally
           if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
             console.error('Error fetching loyalty points:', error);
@@ -616,7 +615,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
     // Use your exact existing GST calculation from actions.ts
     const inclusivePrice = item.sellingPrice;
     const basePrice = inclusivePrice / (1 + (gstRate / 100));
-    const gstAmount = inclusivePrice - basePrice;
+    void (inclusivePrice - basePrice);
     
     // Debug: Only log occasionally
     if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
@@ -691,7 +690,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
           // Use your exact existing GST calculation from actions.ts
           const inclusivePrice = item.sellingPrice;
           const basePrice = inclusivePrice / (1 + (item.gstRate / 100));
-          const gstAmount = inclusivePrice - basePrice;
+          void (inclusivePrice - basePrice);
           
           const totalBasePrice = basePrice * updatedItem.quantity;
           updatedItem.discount = field === "discount" ? value : updatedItem.discount;
@@ -754,7 +753,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       } else {
         toast.error(result.message || "Failed to create customer");
       }
-    } catch (error) {
+    } catch  (error) {
       toast.error("Failed to create customer");
     }
     setIsCreatingCustomer(false);
@@ -784,7 +783,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       } else {
         toast.error(result?.message || "Failed to apply coupon");
       }
-    } catch (error) {
+    } catch  (error) {
       toast.error("Failed to validate coupon");
     }
   };
@@ -799,7 +798,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
     const paymentStatus = watchedValues.paymentStatus;
 
     if (paymentStatus === "PARTIAL") {
-      const pendingAmount = amountToCollect;
+      void (amountToCollect);
       setShowConfirmation(true);
       setConfirmationStep(1);
     } else if (paymentStatus === "PENDING") {
@@ -970,7 +969,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
       } else {
         toast.error(result?.message || "Failed to create sale", { duration: 5000 });
       }
-    } catch (error) {
+    } catch  (error) {
       console.error("Sale creation error:", error);
       toast.error("Failed to create sale. Please try again.", { duration: 5000 });
     } finally {
@@ -1248,7 +1247,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
               </div>
               <div>
                 <Label htmlFor="platform">Sales Platform</Label>
-                <Select value={watchedValues.platform} onValueChange={(value) => form.setValue("platform", value as any)}>
+                <Select value={watchedValues.platform} onValueChange={(value) => form.setValue("platform", value)}>
                   <SelectTrigger id="platform">
                     <SelectValue placeholder="Select platform" />
                   </SelectTrigger>
@@ -1263,7 +1262,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
               </div>
               <div>
                 <Label htmlFor="invoiceType">Invoice Type</Label>
-                <Select value={watchedValues.invoiceType} onValueChange={(value) => form.setValue("invoiceType", value as any)}>
+                <Select value={watchedValues.invoiceType} onValueChange={(value) => form.setValue("invoiceType", value)}>
                   <SelectTrigger id="invoiceType">
                     <SelectValue placeholder="Select invoice type" />
                   </SelectTrigger>
@@ -1289,7 +1288,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="invoiceCurrency">Invoice Currency</Label>
-                    <Select value={watchedValues.invoiceCurrency || "USD"} onValueChange={(value) => form.setValue("invoiceCurrency", value as any)}>
+                    <Select value={watchedValues.invoiceCurrency || "USD"} onValueChange={(value) => form.setValue("invoiceCurrency", value)}>
                       <SelectTrigger id="invoiceCurrency">
                         <SelectValue placeholder="Select currency" />
                       </SelectTrigger>
@@ -1315,7 +1314,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                   </div>
                   <div>
                     <Label htmlFor="exportType">Export Type</Label>
-                    <Select value={watchedValues.exportType || "LUT"} onValueChange={(value) => form.setValue("exportType", value as any)}>
+                    <Select value={watchedValues.exportType || "LUT"} onValueChange={(value) => form.setValue("exportType", value)}>
                       <SelectTrigger id="exportType">
                         <SelectValue placeholder="Select export type" />
                       </SelectTrigger>
@@ -1353,7 +1352,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                   </div>
                   <div>
                     <Label htmlFor="modeOfTransport">Mode of Transport</Label>
-                    <Select value={watchedValues.modeOfTransport || "AIR"} onValueChange={(value) => form.setValue("modeOfTransport", value as any)}>
+                    <Select value={watchedValues.modeOfTransport || "AIR"} onValueChange={(value) => form.setValue("modeOfTransport", value)}>
                       <SelectTrigger id="modeOfTransport">
                         <SelectValue placeholder="Select transport mode" />
                       </SelectTrigger>
@@ -1595,7 +1594,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                     return;
                   }
                   setDiscountConflictMessage(null);
-                  form.setValue("discountType", value as any);
+                  form.setValue("discountType", value);
                 }}
               >
                 <SelectTrigger>

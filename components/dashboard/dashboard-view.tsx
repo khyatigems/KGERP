@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { LottieLoader } from "@/components/ui/lottie";

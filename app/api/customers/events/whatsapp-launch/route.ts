@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { normalizeWhatsAppPhone, buildCustomerWhatsappUrl } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.redirect(new URL("/login", req.url), 303);
-  if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_VIEW)) {
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMER_VIEW)) {
     return NextResponse.redirect(new URL("/", req.url), 303);
   }
 

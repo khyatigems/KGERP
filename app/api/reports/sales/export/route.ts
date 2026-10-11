@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });
   }
-  if (!hasPermission(session.user.role, PERMISSIONS.SALES_VIEW)) {
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.SALES_VIEW))) {
     return new Response("Forbidden", { status: 403 });
   }
 
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
   const baseSearchOr = (() => {
     if (!q) return undefined;
 
-    const ors: any[] = [
+    const ors: unknown[] = [
       { customerName: { contains: q } },
       { customerEmail: { contains: q } },
       { customerPhone: { contains: q } },
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
     return ors;
   })();
 
-  const where = baseSearchOr ? ({ OR: baseSearchOr } as any) : ({} as any);
+  const where = baseSearchOr ? ({ OR: baseSearchOr }) : ({});
 
   const orderBy = sort === "invoice"
     ? ([
@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
       while (true) {
         const rows = (await prisma.sale.findMany({
           where,
-          orderBy: orderBy as any,
+          orderBy: orderBy,
           skip,
           take: CHUNK_SIZE,
           select: {

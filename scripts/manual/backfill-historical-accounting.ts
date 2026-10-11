@@ -3,10 +3,10 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
-import { ensureBillfreePhase1Schema, prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma";
 import { createVoucher } from "../../lib/voucher-service";
-import { type PrismaTx } from "../../lib/accounting";
-import crypto from "crypto";
+import "../../lib/accounting";
+import "crypto";
 
 async function main() {
   console.log("Starting backfill for missing historical accounting entries...");

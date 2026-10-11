@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import crypto from "crypto";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 export default async function CustomerDetailPage(props: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
 
   await ensureCustomerSecondaryPhoneSchema();
   await ensureReturnsSchema();
@@ -135,7 +135,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
           </p>
         </div>
         <div className="flex gap-2">
-          {hasPermission(session.user.role, PERMISSIONS.CUSTOMER_MANAGE) && (
+          {await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMER_MANAGE) && (
             <Button asChild variant="outline">
               <Link href={`/customers/${customer.id}/edit`}>Edit</Link>
             </Button>

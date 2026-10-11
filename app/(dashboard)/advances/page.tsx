@@ -1,9 +1,16 @@
+import { auth } from "@/lib/auth";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { redirect } from "next/navigation";
 import { AdvancesPage } from "@/components/advances/advances-page";
 import { getAdvances } from "./actions";
 import { prisma } from "@/lib/prisma";
 import { AnimatedPage } from "@/components/ui/animated-page";
 
 export default async function AdvancesPageRoute() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.ADVANCES_MANAGE)) && !(await checkUserPermission(session.user.id, PERMISSIONS.SALES_VIEW)) && !(await checkUserPermission(session.user.id, PERMISSIONS.RECEIVABLES_VIEW))) redirect("/");
+  const canManage = await checkUserPermission(session.user.id, PERMISSIONS.ADVANCES_MANAGE) || await checkUserPermission(session.user.id, PERMISSIONS.SALES_CREATE) || await checkUserPermission(session.user.id, PERMISSIONS.RECEIVABLES_MANAGE);
   const [advancesResult, customers, companySettings] = await Promise.all([
     getAdvances(),
     prisma.customer.findMany({
@@ -33,6 +40,7 @@ export default async function AdvancesPageRoute() {
   }));
 
   return <AnimatedPage><AdvancesPage 
+    canManage={canManage}
     advances={advances} 
     customers={mappedCustomers} 
     companySettings={companySettings || undefined}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useClientMounted } from "../use-client-mounted";
 import React, { useEffect, useRef, useState, Suspense, lazy } from "react";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
@@ -25,7 +26,7 @@ function LottieAnimationInner({
   config,
   className,
   style,
-  onLoad,
+  
   onError,
   onComplete,
   onLoopComplete,
@@ -34,8 +35,8 @@ function LottieAnimationInner({
 }: LottieAnimationProps) {
   const playerRef = useRef<AnimationItem | null>(null);
   const [hasError, setHasError] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [, setIsLoaded] = useState(false);
+  const mounted = useClientMounted();
   const reducedMotion = prefersReducedMotion();
   const hueRotation = useThemeHue();
 
@@ -47,9 +48,6 @@ function LottieAnimationInner({
     filter: `hue-rotate(${hueRotation}deg)`,
   };
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!mounted) return;

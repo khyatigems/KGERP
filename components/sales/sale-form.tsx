@@ -7,47 +7,16 @@ import { useState, useEffect } from "react";
 import { Loader2, Check, ChevronsUpDown, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createSale } from "@/app/(dashboard)/sales/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -263,7 +232,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
     const formValue = form.getValues("invoiceType");
     setCurrentInvoiceType(formValue || "TAX_INVOICE");
   }, [form]);
-  const conversionRate = Number(form.watch("conversionRate") || 1);
+  void (Number(form.watch("conversionRate") || 1));
 
   const [loyaltyContext, setLoyaltyContext] = useState<{
     availablePoints: number;

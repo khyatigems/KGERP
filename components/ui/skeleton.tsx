@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
 
-interface SkeletonProps extends React.ComponentProps<"div"> {}
+type SkeletonProps = React.ComponentProps<"div">;
 
 export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
@@ -94,7 +94,7 @@ export function ChartSkeleton({ height = "h-64" }: { height?: string }) {
           <Skeleton
             key={i}
             className="flex-1 rounded-t-md"
-            style={{ height: `${30 + Math.random() * 60}%` }}
+            style={{ height: `${30 + ((i * 37 + 19) % 60)}%` }}
           />
         ))}
       </div>

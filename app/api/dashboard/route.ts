@@ -8,6 +8,7 @@ export async function GET() {
   try {
     const session = await auth();
     const userId = session?.user?.id;
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const cacheKey = `dashboard:${userId ?? "anon"}`;
 
     const payload = await withCache(cacheKey, 30_000, async () => {

@@ -125,7 +125,7 @@ const loadImageMeta = (url: string): Promise<{ dataUrl: string; width: number; h
       try {
         const dataUrl = canvas.toDataURL("image/png");
         resolve({ dataUrl, width: img.width, height: img.height });
-      } catch (e) {
+      } catch  (e) {
         reject(e);
       }
     };
@@ -527,7 +527,7 @@ export async function generateInvoicePDF(data: InvoiceData, output: "blob" | "ar
       doc.setFontSize(7.8);
       doc.setTextColor(0);
       y += platformLogoH + 8; // Add space reserved for platform branding block
-    } catch (error) {
+    } catch  {
       doc.setFont(fontFamily, "normal");
       doc.setFontSize(7.8);
       doc.setTextColor(0);
@@ -768,7 +768,7 @@ export async function generateInvoicePDF(data: InvoiceData, output: "blob" | "ar
         // Center QR code vertically within the row
         const qrY = pos.y + (pos.height - qrSize) / 2;
         doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
-      } catch (e) {
+      } catch  {
         // Silently skip if QR generation fails
       }
     }

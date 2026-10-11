@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
 
 interface SidebarContextValue {
   collapsed: boolean;
@@ -12,21 +12,25 @@ const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 const STORAGE_KEY = "khyatigems-sidebar-collapsed";
 
+const listeners = new Set<() => void>();
+let fallbackCollapsed = false;
+function getSnapshot() {
+  try { return window.localStorage.getItem(STORAGE_KEY) === "1"; }
+  catch { return fallbackCollapsed; }
+}
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => { listeners.delete(listener); window.removeEventListener("storage", listener); };
+}
+const serverSnapshot = () => false;
+
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored === "1") setCollapsed(true);
-    } catch {}
-  }, []);
-
+  const collapsed = useSyncExternalStore(subscribe, getSnapshot, serverSnapshot);
   const setCollapsedPersist = (value: boolean) => {
-    setCollapsed(value);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, value ? "1" : "0");
-    } catch {}
+    fallbackCollapsed = value;
+    try { window.localStorage.setItem(STORAGE_KEY, value ? "1" : "0"); } catch {}
+    listeners.forEach(listener => listener());
   };
 
   const toggleCollapsed = () => setCollapsedPersist(!collapsed);

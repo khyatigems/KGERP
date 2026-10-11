@@ -5,7 +5,7 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { ZohoMailConnector } from "@/lib/email/connectors/zoho";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const allowed = await checkUserPermission(session.user.id, PERMISSIONS.SETTINGS_MANAGE);

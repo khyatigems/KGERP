@@ -280,7 +280,7 @@ export async function generateVoucherPDF(data: VoucherPDFData) {
       doc.setFont("helvetica", "bold");
       doc.saveGraphicsState();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      doc.setGState(new (doc as any).GState({ opacity: 0.3 }));
+      doc.setGState(new (doc).GState({ opacity: 0.3 }));
       doc.text("CANCELLED", pageWidth / 2, pageHeight / 2, { align: "center", angle: 45 });
       doc.restoreGraphicsState();
   }

@@ -65,6 +65,13 @@ export const PERMISSIONS = {
   REPORTS_FINANCIAL: "reports:financial",
   REPORTS_VENDOR: "reports:vendor",
   
+  // Additional operational access
+  ADVANCES_MANAGE: "advances:manage",
+  REPORTS_CUSTOMER_INSIGHTS: "reports:customer_insights",
+  LABELS_VIEW: "labels:view",
+  ACTIVITY_VIEW: "activity:view",
+  CUSTOMERS_MERGE: "customers:merge",
+
   // Packaging (GPIS)
   PACKAGING_MANAGE: "packaging:manage",
   PACKAGING_VIEW: "packaging:view",
@@ -176,9 +183,6 @@ export async function checkUserPermission(userId: string, permission: Permission
       if (isSuperAdminRole(user.roleRelation.name)) return true;
       const rolePermissionKeys = user.roleRelation.permissions?.map((rp) => rp.permission.key) ?? [];
       if (rolePermissionKeys.includes(permission)) return true;
-      if (rolePermissionKeys.length === 0) {
-        return getPermissionsForRole(user.roleRelation.name).includes(permission);
-      }
       return false;
     }
 
@@ -201,9 +205,7 @@ export async function checkUserPermission(userId: string, permission: Permission
       if (isSuperAdminRole(role?.name)) return true;
       const rolePermissionKeys = role?.permissions?.map((rp) => rp.permission?.key).filter(Boolean) ?? [];
       if (rolePermissionKeys.includes(permission)) return true;
-      if (rolePermissionKeys.length === 0 && role?.name) {
-        return getPermissionsForRole(role.name).includes(permission);
-      }
+      if (role) return false;
     } catch {}
 
     return getPermissionsForRole(user.role).includes(permission);
@@ -289,8 +291,12 @@ export async function checkUserPermissions(
       if (up.permission?.key) overrides.set(up.permission.key, up.allow);
     });
 
+    const assignedRole = user.roleRelation || (!isSuperAdminRole(user.role) ? await prisma.role.findUnique({
+      where: { name: user.role },
+      include: { permissions: { include: { permission: true } } },
+    }) : null);
     const rolePermissionKeys = new Set(
-      user.roleRelation?.permissions?.map(rp => rp.permission?.key).filter(Boolean) ?? []
+      assignedRole?.permissions?.map(rp => rp.permission?.key).filter(Boolean) ?? []
     );
 
     permissions.forEach(p => {
@@ -298,8 +304,8 @@ export async function checkUserPermissions(
         result.set(p, overrides.get(p)!);
       } else if (rolePermissionKeys.has(p)) {
         result.set(p, true);
-      } else if (rolePermissionKeys.size === 0 && user.roleRelation?.name) {
-        result.set(p, getPermissionsForRole(user.roleRelation.name).includes(p));
+      } else if (assignedRole) {
+        result.set(p, false);
       } else {
         result.set(p, getPermissionsForRole(user.role).includes(p));
       }

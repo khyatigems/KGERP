@@ -2,8 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
-import { redirect } from "next/navigation";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import "next/navigation";
 import { normalizeDateToUtcNoon } from "@/lib/utils";
 import crypto from "crypto";
 import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
@@ -19,7 +19,7 @@ export async function createNewCustomer(customerData: {
 }) {
   const session = await auth();
   if (!session?.user) return { success: false, message: "Unauthorized" };
-  if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_MANAGE)) {
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMER_MANAGE)) {
     return { success: false, message: "Insufficient permissions" };
   }
 
@@ -213,7 +213,7 @@ export async function createSaleWithNewLogic(saleData: {
 }) {
   const session = await auth();
   if (!session?.user) return { success: false, message: "Unauthorized" };
-  if (!hasPermission(session.user.role, PERMISSIONS.SALES_CREATE)) {
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.SALES_CREATE)) {
     return { success: false, message: "Insufficient permissions" };
   }
 
@@ -272,8 +272,8 @@ export async function createSaleWithNewLogic(saleData: {
           taxTotal: saleData.items.reduce((sum, item) => sum + (item.taxAmount || 0), 0),
           discountTotal: totalDiscount + discountAmount,
           totalAmount: finalTotal,
-          paymentStatus: saleData.paymentStatus as any,
-          paidAmount: (saleData as any).paidAmount || 0,
+          paymentStatus: saleData.paymentStatus,
+          paidAmount: (saleData).paidAmount || 0,
           status: saleData.paymentStatus === "PAID" ? "PAID" : "ISSUED",
         },
       });
@@ -289,8 +289,8 @@ export async function createSaleWithNewLogic(saleData: {
           netAmount: finalTotal,
           saleDate: normalizeDateToUtcNoon(new Date(saleData.saleDate)),
           notes: saleData.notes || null,
-          paymentStatus: saleData.paymentStatus as any,
-          paymentMethod: saleData.paymentMethod as any,
+          paymentStatus: saleData.paymentStatus,
+          paymentMethod: saleData.paymentMethod,
           platform: "MANUAL",
           // Use first item for main record
           inventoryId: saleData.items[0]?.inventoryId || "",
@@ -325,13 +325,13 @@ export async function createSaleWithNewLogic(saleData: {
       if (saleData.paymentStatus === "PAID" || saleData.paymentStatus === "PARTIAL") {
         const paymentAmount = saleData.paymentStatus === "PAID" 
           ? finalTotal 
-          : ((saleData as any).paidAmount || 0);
+          : ((saleData).paidAmount || 0);
           
         await tx.payment.create({
           data: {
             invoiceId: newInvoice.id,
             amount: paymentAmount,
-            method: saleData.paymentMethod as any,
+            method: saleData.paymentMethod,
             date: normalizeDateToUtcNoon(new Date(saleData.saleDate)),
             notes: `Payment for invoice ${invoiceNumber}`,
           },
@@ -342,10 +342,10 @@ export async function createSaleWithNewLogic(saleData: {
       if (loyaltyRedeemAmount > 0 && customerProfile) {
         const currentPoints = await getCustomerLoyaltyPoints(customerProfile.id);
         if (currentPoints && currentPoints.points) {
-          const pointsToRedeem = Math.min(
+          void (Math.min(
             loyaltyRedeemAmount,
             currentPoints.points
-          );
+          ));
           // TODO: Implement updateCustomerLoyaltyPoints function
           // await updateCustomerLoyaltyPoints(
           //   customerProfile.id,
@@ -386,7 +386,7 @@ export async function createSaleWithNewLogic(saleData: {
 }
 
 // Helper functions
-async function ensureCustomerCode(customerId: string, tx: any = prisma) {
+async function ensureCustomerCode(customerId: string, tx: unknown = prisma) {
   try {
     const existingCode = await tx.$queryRawUnsafe(
       `SELECT code FROM CustomerCode WHERE customerId = ? LIMIT 1`,
@@ -428,7 +428,7 @@ async function ensureCustomerCode(customerId: string, tx: any = prisma) {
   }
 }
 
-async function generateInvoiceNumber(tx: any) {
+async function generateInvoiceNumber(tx: unknown) {
   try {
     const prefix = "INV";
     const year = new Date().getFullYear();

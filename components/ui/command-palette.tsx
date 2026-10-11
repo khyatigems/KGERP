@@ -1,22 +1,12 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
+import "@/lib/utils";
 import { usePathname, useRouter } from "next/navigation";
 import { LottieIcon } from "@/components/ui/lottie";
-import {
-  LayoutDashboard, Diamond, Globe, ShoppingCart, FileText, Tag, PackageCheck,
-  Users, BarChart3, Settings, Wallet, ShoppingBag, Truck, RotateCcw,
-  Search, Keyboard, ChevronRight, Plus, Send, Download, RefreshCw, Zap
-} from "lucide-react";
+import { LayoutDashboard, Diamond, Globe, ShoppingCart, FileText, Users, BarChart3, Settings, ShoppingBag, Truck, Search, Keyboard, Plus, Send, Download, RefreshCw, Zap } from "lucide-react";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -34,11 +24,11 @@ interface CommandItem {
 }
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
-  const pathname = usePathname();
+  void (usePathname());
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const [selectedCategory, setSelectedCategory] = useState<CommandItem["category"] | "all">("all");
+  const [selectedCategory, ] = useState<CommandItem["category"] | "all">("all");
 
   const commands = useCallback((): CommandItem[] => {
     const baseCommands: CommandItem[] = [

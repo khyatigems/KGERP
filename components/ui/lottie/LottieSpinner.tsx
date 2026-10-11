@@ -19,7 +19,7 @@ export function LottieSpinner({
   variant = "global",
   className,
   size = 24,
-  showProgress = false,
+  
   progress = null,
 }: LottieSpinnerProps) {
   const animationKey = loaderVariantMap[variant];

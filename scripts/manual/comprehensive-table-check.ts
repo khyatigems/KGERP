@@ -3,7 +3,7 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
-import { ensureBillfreePhase1Schema, prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma";
 
 async function main() {
   console.log("🔍 COMPREHENSIVE DATABASE TABLE VERIFICATION...");
@@ -98,11 +98,11 @@ async function main() {
           );
           count = count[0]?.count || 0;
         } else {
-          count = await (prisma as any)[table.name.toLowerCase()].count();
+          count = await (prisma)[table.name.toLowerCase()].count();
         }
         
         console.log(`  📊 ${table.name}: ${count} records (${table.description})`);
-      } catch (error) {
+      } catch  (error) {
         console.log(`  ❌ ${table.name}: ERROR - ${(error as Error).message}`);
       }
     }
@@ -140,14 +140,14 @@ async function main() {
         } else {
           console.log(`  ✅ ${fk.table}.${fk.column}: All references valid`);
         }
-      } catch (error) {
+      } catch  {
         console.log(`  ❌ ${fk.table}.${fk.column}: Check failed`);
       }
     }
     
     console.log("\n✅ COMPREHENSIVE VERIFICATION COMPLETED");
     
-  } catch (error) {
+  } catch  (error) {
     console.error("❌ Error during verification:", error);
   }
   

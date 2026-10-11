@@ -1,16 +1,16 @@
 import { Metadata } from "next";
-import Link from "next/link";
+import "next/link";
 import { redirect } from "next/navigation";
 import CustomerEventsClientPage from "./customer-events-client-page";
-import { CalendarDays, MessageCircle } from "lucide-react";
+import "lucide-react";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import "@/components/ui/card";
+import "@/components/ui/button";
+import "@/components/ui/badge";
 import { AnimatedPage } from "@/components/ui/animated-page";
-import { formatDate } from "@/lib/utils";
+import "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Customer Events | KhyatiGems™ ERP",
@@ -45,7 +45,7 @@ export default async function CustomerEventsPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMER_VIEW)) redirect("/");
   await ensureBillfreePhase1Schema();
 
   const sp = await searchParams;

@@ -5,15 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, Plus, X, Upload } from "lucide-react";
 import { updateCategoryImagesAction } from "@/app/settings/ebay/actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -330,7 +322,7 @@ export function CategoryImageEditor({
             {images.length === 0 && (
               <div className="p-8 border-2 border-dashed rounded-lg text-center">
                 <p className="text-muted-foreground">
-                  No images added yet. Click "Add Image" to get started.
+                  No images added yet. Click &quot;Add Image&quot; to get started.
                 </p>
               </div>
             )}

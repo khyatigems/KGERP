@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import "./workspace-theme.css";
+import { APPEARANCE_BOOTSTRAP } from "@/lib/workspace-appearance";
 import { Providers } from "@/components/providers";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -33,6 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: APPEARANCE_BOOTSTRAP }}/></head>
       <body
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} antialiased`}

@@ -1,18 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecordAdvanceDialog } from "@/components/advances/record-advance-dialog";
@@ -22,14 +15,7 @@ import { format } from "date-fns";
 import { Plus, Search, Wallet, ArrowUpRight, ArrowDownRight, Download, Loader2 } from "lucide-react";
 import { generateAdvanceReceiptPDF, type AdvanceReceiptData } from "@/lib/advance-receipt-generator";
 import { exportAdvancesToCSV, exportAdvancesToExcel, exportAdvancesToPDF } from "@/lib/advances-export";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FileSpreadsheet, FileText, File as FilePdf } from "lucide-react";
 
 export interface Advance {
@@ -48,6 +34,7 @@ export interface Advance {
 }
 
 interface AdvancesPageProps {
+  canManage: boolean;
   advances: Advance[];
   customers: { id: string; name: string; phone?: string; address?: string; email?: string }[];
   companySettings?: {
@@ -145,7 +132,7 @@ function DownloadAdvanceButton({
   );
 }
 
-export function AdvancesPage({ advances, customers, companySettings }: AdvancesPageProps) {
+export function AdvancesPage({ advances, customers, companySettings, canManage }: AdvancesPageProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [showRecordDialog, setShowRecordDialog] = useState(false);
@@ -201,7 +188,7 @@ export function AdvancesPage({ advances, customers, companySettings }: AdvancesP
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button onClick={() => setShowRecordDialog(true)}>
+          <Button disabled={!canManage} onClick={() => setShowRecordDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Record Advance
           </Button>

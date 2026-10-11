@@ -5,7 +5,7 @@ import { useState } from "react";
 export default function FixInvoicePage() {
   const [invoiceNumber, setInvoiceNumber] = useState("INV-2026-0026");
   const [totalAmount, setTotalAmount] = useState("1000");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {

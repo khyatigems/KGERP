@@ -4,10 +4,10 @@ config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
 import { prisma } from "../../lib/prisma";
-import { auth } from "../../lib/auth";
+import "../../lib/auth";
 import { createSale } from "../../app/(dashboard)/sales/actions";
-import { checkPermission } from "../../lib/permission-guard";
-import { PERMISSIONS } from "../../lib/permissions";
+import "../../lib/permission-guard";
+import "../../lib/permissions";
 
 async function testInvoiceCreation() {
   console.log("🧪 Testing Invoice Creation with Minimal Data...\n");

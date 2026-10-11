@@ -1,3 +1,4 @@
+import type { EbaySettings } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export const DEFAULT_EBAY_IMAGE_URLS = [
@@ -65,7 +66,7 @@ export async function getEbaySettings() {
 /**
  * Get category-specific images or fallback to global
  */
-export function getCategoryImages(settings: any, category?: string): string[] {
+export function getCategoryImages(settings: Pick<EbaySettings, "globalBannerImages" | "categoryImageUrls"> | null | undefined, category?: string): string[] {
   if (!category) {
     const globalImages = parseJson<string[]>(
       settings?.globalBannerImages,
@@ -146,7 +147,7 @@ export async function validateImageUrl(
     const response = await fetch(url, {
       method: "HEAD",
       timeout: 5000,
-    } as any);
+    });
 
     if (!response.ok) {
       return {
@@ -181,7 +182,7 @@ export function parseCategoryImageJson(
 /**
  * Get all unique categories from settings
  */
-export function getAllConfiguredCategories(settings: any): string[] {
+export function getAllConfiguredCategories(settings: Pick<EbaySettings, "globalBannerImages" | "categoryImageUrls"> | null | undefined): string[] {
   const categoryMap = parseCategoryImageJson(settings?.categoryImageUrls);
   return Object.keys(categoryMap).sort();
 }
@@ -190,7 +191,7 @@ export function getAllConfiguredCategories(settings: any): string[] {
  * Get image count for a specific category
  */
 export function getCategoryImageCount(
-  settings: any,
+  settings: Pick<EbaySettings, "globalBannerImages" | "categoryImageUrls"> | null | undefined,
   category: string
 ): number {
   const categoryMap = parseCategoryImageJson(settings?.categoryImageUrls);

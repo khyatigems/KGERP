@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { ensureRbacSchema, prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { isProtectedRole } from "@/lib/permission-display";
 import { PERMISSIONS } from "@/lib/permissions";
 
 type PermissionRow = {
@@ -44,6 +45,7 @@ async function seedPermissionsAndRoles() {
   const roleRows = await prisma.$queryRawUnsafe<Array<{ id: string; name: string }>>(`SELECT id, name FROM "Role"`);
   const roleByName = new Map((roleRows || []).map((r) => [r.name, r.id]));
 
+  const createdRoles = new Set<string>();
   for (const role of rolesToEnsure) {
     if (roleByName.has(role.name)) continue;
     const id = crypto.randomUUID();
@@ -56,6 +58,7 @@ async function seedPermissionsAndRoles() {
       role.isActive
     );
     roleByName.set(role.name, id);
+    createdRoles.add(role.name);
   }
 
   const permissions = await prisma.$queryRawUnsafe<Array<{ id: string; key: string }>>(`SELECT id, key FROM "Permission"`);
@@ -72,6 +75,7 @@ async function seedPermissionsAndRoles() {
   };
 
   for (const [roleName, permissionKeys] of Object.entries(defaultRolePermissions)) {
+    if (!createdRoles.has(roleName)) continue;
     const roleId = roleByName.get(roleName);
     if (!roleId) continue;
     for (const key of permissionKeys) {
@@ -95,7 +99,7 @@ export async function GET() {
     await seedPermissionsAndRoles();
 
     const [roles, permissions] = await Promise.all([
-      (prisma as any).role.findMany({
+      (prisma).role.findMany({
         include: { permissions: { include: { permission: true } } },
         orderBy: { name: "asc" }
       }),
@@ -104,7 +108,7 @@ export async function GET() {
       )
     ]);
 
-    return NextResponse.json({ roles, permissions });
+    return NextResponse.json({ roles, permissions: permissions.filter(p => !/^expenses?(?::|$)/i.test(p.key) && !/^expenses?$/i.test(p.module)) });
   } catch (error) {
     console.error("Failed to fetch roles:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
@@ -123,9 +127,16 @@ export async function POST(request: Request) {
       | { name?: string; duplicateFromRoleId?: string }
       | null;
 
-    const name = String(body?.name || "").trim().toUpperCase();
+    const name = String(body?.name || "").trim().toUpperCase().replace(/\s+/g, "_");
     if (!name) return NextResponse.json({ error: "Role name is required" }, { status: 400 });
 
+    if (name.length > 60 || !/^[A-Z][A-Z0-9_]*$/.test(name)) return NextResponse.json({ error: "Use letters, numbers, spaces or underscores, starting with a letter (up to 60 characters)." }, { status: 400 });
+    if (isProtectedRole(name)) return NextResponse.json({ error: "This role name is protected." }, { status: 400 });
+    if (await prisma.role.findUnique({ where: { name } })) return NextResponse.json({ error: "A role with this name already exists." }, { status: 409 });
+    if (body?.duplicateFromRoleId) {
+      const source = await prisma.role.findUnique({ where: { id: String(body.duplicateFromRoleId) } });
+      if (!source || isProtectedRole(source.name)) return NextResponse.json({ error: "Choose an existing, editable role to duplicate." }, { status: 400 });
+    }
     const id = crypto.randomUUID();
     await prisma.$executeRawUnsafe(
       `INSERT INTO "Role" (id, name, isSystem, isActive, createdAt, updatedAt)
@@ -174,10 +185,15 @@ export async function PUT(request: Request) {
     const permissionKeys = Array.isArray(body?.permissionKeys) ? body!.permissionKeys : [];
     if (!roleId) return NextResponse.json({ error: "roleId is required" }, { status: 400 });
 
+    const targetRole = await prisma.role.findUnique({ where: { id: roleId } });
+    if (!targetRole) return NextResponse.json({ error: "Role not found" }, { status: 404 });
+    if (isProtectedRole(targetRole.name)) return NextResponse.json({ error: "Superadmin roles and permissions are protected." }, { status: 403 });
+    if (permissionKeys.some(key => typeof key !== "string")) return NextResponse.json({ error: "Invalid permissions" }, { status: 400 });
     const perms = await prisma.$queryRawUnsafe<Array<{ id: string; key: string }>>(
       `SELECT id, key FROM "Permission" WHERE key IN (${permissionKeys.map(() => "?").join(",") || "''"})`,
       ...(permissionKeys as unknown as string[])
     );
+    if (perms.length !== new Set(permissionKeys).size) return NextResponse.json({ error: "Unknown permission selected" }, { status: 400 });
     const permIds = new Set((perms || []).map((p) => p.id));
 
     await prisma.$transaction(async (tx) => {

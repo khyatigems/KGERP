@@ -3,15 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Check, X, Loader2, Trash2, Download, RefreshCw, Zap, Package, FileText, Users } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Check, X, Loader2, Trash2, Download, RefreshCw, Zap, Package, Users } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { LottieAnimation, LottieLoader } from "@/components/ui/lottie";
 import { getAnimationConfig } from "@/components/ui/lottie/animations";
 
@@ -26,7 +19,7 @@ export interface BulkActionItem {
 
 export interface BulkActionTheaterProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
   title: string;
   description?: string;
   actionType: BulkActionType;
@@ -47,7 +40,7 @@ const actionTypeConfig: Record<BulkActionType, { icon: React.ReactNode; color: s
 };
 
 export function BulkActionTheater({
-  open,
+  
   onOpenChange,
   title,
   description,
@@ -56,7 +49,7 @@ export function BulkActionTheater({
   onExecute,
   onCancel,
   showProgress = true,
-  maxConcurrent = 3,
+  
 }: BulkActionTheaterProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -84,7 +77,7 @@ export function BulkActionTheater({
       await new Promise(resolve => setTimeout(resolve, 300)); // Simulate processing delay
       setItemStatuses(prev => ({ ...prev, [item.id]: "success" }));
       setCompletedCount(prev => prev + 1);
-    } catch (error) {
+    } catch  (error) {
       setItemStatuses(prev => ({ ...prev, [item.id]: "error" }));
       setFailedCount(prev => prev + 1);
     }
@@ -107,7 +100,7 @@ export function BulkActionTheater({
     
     try {
       await onExecute(items);
-    } catch (error) {
+    } catch  (error) {
       console.error("Bulk action failed:", error);
     }
   };
@@ -253,9 +246,9 @@ export function useBulkActionTheater() {
     config: Omit<BulkActionTheaterProps, "open" | "onOpenChange"> | null;
   }>({ open: false, config: null });
 
-  const open = useCallback((config: Omit<BulkActionTheaterProps, "open" | "onOpenChange">) => {
+  void (useCallback((config: Omit<BulkActionTheaterProps, "open" | "onOpenChange">) => {
     setTheaterState({ open: true, config });
-  }, []);
+  }, []));
 
   const close = useCallback(() => {
     setTheaterState({ open: false, config: null });
@@ -265,7 +258,7 @@ export function useBulkActionTheater() {
 }
 
 export function BulkActionTheaterProvider({ children }: { children: React.ReactNode }) {
-  const { theaterState, open, close } = useBulkActionTheater();
+  const { theaterState,  close } = useBulkActionTheater();
 
   return (
     <>

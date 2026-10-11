@@ -3,10 +3,10 @@ import { ACTIVE_MARKETPLACE_LISTING_STATUSES } from "@/lib/marketplace/listing-s
 
 type ListingDb = {
   listing: {
-    updateMany: (args: any) => Promise<{ count: number }>;
+    updateMany: (args: unknown) => Promise<{ count: number }>;
   };
   inventory: {
-    findMany: (args: any) => Promise<Array<{ sku: string }>>;
+    findMany: (args: unknown) => Promise<Array<{ sku: string }>>;
   };
 };
 

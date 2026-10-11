@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { TrendingUp, Calendar, BarChart3, ArrowUpRight } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { formatCurrency, cn } from "@/lib/utils";
-import { LottieLoader } from "@/components/ui/lottie";
+import "@/components/ui/lottie";
 
 interface RevenueTrendProps {
   data: Array<{ date: string; revenue: number }>;

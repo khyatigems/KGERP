@@ -226,7 +226,7 @@ const loadImage = (url: string): Promise<string> => {
       }
     };
     
-    img.onerror = (event) => {
+    img.onerror = (_event) => {
       clearTimeout(timeoutId);
       reject(new Error(`Failed to load image at ${url}: Network or CORS error`));
     };

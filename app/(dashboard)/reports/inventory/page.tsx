@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 export default async function InventoryReportsPage({ searchParams }: { searchParams: Promise<SearchMap> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) redirect("/");
 
   const sp = await searchParams;
   const today = new Date();

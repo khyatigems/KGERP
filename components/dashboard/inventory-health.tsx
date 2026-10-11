@@ -1,10 +1,10 @@
 "use client";
 
 import useSWR from "swr";
-import { Package, ImageIcon, ShieldAlert, CheckCircle2, Clock, PlusCircle, FileText } from "lucide-react";
+import { Package, ImageIcon, ShieldAlert, Clock, PlusCircle, FileText } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { InlineLottieState, EmptyState, LottieLoader } from "@/components/ui/lottie";
+import { EmptyState, LottieLoader } from "@/components/ui/lottie";
 
 const fetcher = async (url: string) => {
   const r = await fetch(url, { credentials: "include", cache: "no-store" });

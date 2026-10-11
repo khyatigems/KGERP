@@ -8,11 +8,10 @@ type AnimatedGreetingProps = {
 };
 
 export function AnimatedGreeting({ name, className = "" }: AnimatedGreetingProps) {
-  const [firstName, setFirstName] = useState<string | null>(name ?? null);
+  const firstName = name ?? null;
   const [play, setPlay] = useState(false);
   useEffect(() => {
     // Accept server-provided `name` prop and avoid any client network calls.
-    setFirstName(name ?? null);
     const t = setTimeout(() => setPlay(true), 60);
     return () => clearTimeout(t);
   }, [name]);

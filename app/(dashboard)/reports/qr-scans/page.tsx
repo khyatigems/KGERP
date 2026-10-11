@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { QrCode, Link as LinkIcon, Eye, FileText, Package, User, Globe, Monitor } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { QrScansControls } from "@/components/reports/qr-scans-controls";
 import { Prisma } from "@prisma/client";
 import { AnimatedPage } from "@/components/ui/animated-page";
@@ -24,7 +24,7 @@ export default async function QrScansReportPage({ searchParams }: { searchParams
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) {
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) {
     redirect("/");
   }
 

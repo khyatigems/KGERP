@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureActivityLogSchema, hasTable, prisma } from "@/lib/prisma";
 import type { ActivityLog } from "@prisma/client";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 let activitySchemaReady = false;
 let activitySchemaCheckedAt = 0;

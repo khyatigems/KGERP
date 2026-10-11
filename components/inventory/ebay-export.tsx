@@ -2,18 +2,11 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Download, ExternalLink, ShoppingCart } from "lucide-react";
+import { Download, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -384,7 +377,7 @@ export function EbayExport({
               <ol className="list-decimal list-inside space-y-1 mt-1">
                 <li>Download the Excel file</li>
                 <li>Go to eBay Seller Hub → Listings → Create Listings</li>
-                <li>Select "Upload a file" option</li>
+                <li>Select &quot;Upload a file&quot; option</li>
                 <li>Upload the generated Excel file</li>
                 <li>Review and submit listings</li>
               </ol>

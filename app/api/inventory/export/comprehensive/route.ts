@@ -1,11 +1,14 @@
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import * as XLSX from "xlsx";
 
+type ExportInventory = Prisma.InventoryGetPayload<{ include: { categoryCode: true; gemstoneCode: true; colorCode: true; cutCode: true; collectionCode: true; rashis: true; certificates: true; media: true; vendor: true } }>;
+
 // Comprehensive field mapping
-const FIELD_MAPPINGS: Record<string, { label: string; getter: (item: any) => any }> = {
+const FIELD_MAPPINGS: Record<string, { label: string; getter: (item: ExportInventory) => unknown }> = {
   // Basic Information
   id: { label: "Inventory ID", getter: (item) => item.id },
   sku: { label: "SKU", getter: (item) => item.sku },
@@ -78,8 +81,8 @@ const FIELD_MAPPINGS: Record<string, { label: string; getter: (item: any) => any
   lab: { label: "Lab", getter: (item) => item.lab || "" },
   certificateLab: { label: "Certificate Lab", getter: (item) => item.certificateLab || "" },
   certificateComments: { label: "Certificate Comments", getter: (item) => item.certificateComments || "" },
-  rashis: { label: "Rashis", getter: (item) => item.rashis?.map((r: any) => r.name).join(", ") || "" },
-  certificates: { label: "Certificates", getter: (item) => item.certificates?.map((c: any) => c.name).join(", ") || "" },
+  rashis: { label: "Rashis", getter: (item) => item.rashis?.map((r) => r.name).join(", ") || "" },
+  certificates: { label: "Certificates", getter: (item) => item.certificates?.map((c) => c.name).join(", ") || "" },
   
   // Pricing
   pricingMode: { label: "Pricing Mode", getter: (item) => item.pricingMode || "" },
@@ -109,8 +112,8 @@ const FIELD_MAPPINGS: Record<string, { label: string; getter: (item: any) => any
   // Media
   imageUrl: { label: "Image URL", getter: (item) => item.imageUrl || "" },
   videoUrl: { label: "Video URL", getter: (item) => item.videoUrl || "" },
-  mediaUrls: { label: "All Media URLs", getter: (item) => item.media?.map((m: any) => m.mediaUrl).join("; ") || "" },
-  primaryMediaUrl: { label: "Primary Media URL", getter: (item) => item.media?.find((m: any) => m.isPrimary)?.mediaUrl || item.imageUrl || "" },
+  mediaUrls: { label: "All Media URLs", getter: (item) => item.media?.map((m) => m.mediaUrl).join("; ") || "" },
+  primaryMediaUrl: { label: "Primary Media URL", getter: (item) => item.media?.find((m) => m.isPrimary)?.mediaUrl || item.imageUrl || "" },
   
   // Notes
   notes: { label: "Notes", getter: (item) => item.notes || "" },
@@ -162,7 +165,7 @@ export async function GET(req: NextRequest) {
     console.log("[Export API] Requested fields count:", requestedFields.length);
 
     // Build where clause
-    let where: any = {};
+    const where: Prisma.InventoryWhereInput = {};
     if (!allStock && statusParam && statusParam !== "ALL") {
       where.status = statusParam;
     }
@@ -195,7 +198,7 @@ export async function GET(req: NextRequest) {
     // Transform data for export
     console.log("[Export API] Transforming data...");
     const exportData = inventory.map(item => {
-      const row: Record<string, any> = {};
+      const row: Record<string, unknown> = {};
       requestedFields.forEach(field => {
         const mapping = FIELD_MAPPINGS[field];
         if (mapping) {

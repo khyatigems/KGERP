@@ -15,8 +15,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { useSidebar } from "./sidebar-context";
 import { useTheme } from "next-themes";
-import { NavItemIcon, SidebarChevronIcon } from "@/components/ui/lottie";
-import { navAnimationMap, type NavAnimationKey } from "@/components/ui/lottie/animations";
+
+type NavAnimationKey = string;
 
 export const navGroups = [
   {
@@ -35,7 +35,7 @@ export const navGroups = [
     icon: Diamond,
     items: [
       { href: "/inventory", label: "Inventory", icon: Diamond, module: "inventory:view", animKey: "inventory" as NavAnimationKey },
-      { href: "/masters/merge", label: "Merge Masters", icon: HardDrive, module: "inventory:manage", animKey: "settings" as NavAnimationKey },
+      { href: "/masters/merge", label: "Merge Customers", icon: HardDrive, module: "customers:merge", animKey: "settings" as NavAnimationKey },
       { href: "/inventory/matched-pairs", label: "Matched Pairs & Sets", icon: Link2, module: "inventory:view", animKey: "matched-pairs" as NavAnimationKey },
     ],
   },
@@ -110,7 +110,7 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   module: string;
-  animKey: keyof typeof navAnimationMap;
+  animKey: NavAnimationKey;
   badge?: string;
 }
 
@@ -133,7 +133,6 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
   const { collapsed, toggleCollapsed } = useSidebar();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [hoveredHref, setHoveredHref] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(() => 
     navGroups.map(g => g.id)
   );
@@ -223,28 +222,16 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
     }
   };
 
-  const getGroupColorClasses = (color: string) => {
-    const colorMap: Record<string, { bg: string; text: string; border: string; hover: string; active: string }> = {
-      violet: { bg: "bg-violet-500/10", text: "text-violet-600", border: "border-violet-500", hover: "hover:bg-violet-500/20", active: "bg-violet-500/20 border-l-4 border-violet-500" },
-      sky: { bg: "bg-sky-500/10", text: "text-sky-600", border: "border-sky-500", hover: "hover:bg-sky-500/20", active: "bg-sky-500/20 border-l-4 border-sky-500" },
-      emerald: { bg: "bg-emerald-500/10", text: "text-emerald-600", border: "border-emerald-500", hover: "hover:bg-emerald-500/20", active: "bg-emerald-500/20 border-l-4 border-emerald-500" },
-      amber: { bg: "bg-amber-500/10", text: "text-amber-600", border: "border-amber-500", hover: "hover:bg-amber-500/20", active: "bg-amber-500/20 border-l-4 border-amber-500" },
-      rose: { bg: "bg-rose-500/10", text: "text-rose-600", border: "border-rose-500", hover: "hover:bg-rose-500/20", active: "bg-rose-500/20 border-l-4 border-rose-500" },
-      indigo: { bg: "bg-indigo-500/10", text: "text-indigo-600", border: "border-indigo-500", hover: "hover:bg-indigo-500/20", active: "bg-indigo-500/20 border-l-4 border-indigo-500" },
-    };
-    return colorMap[color] || colorMap.violet;
-  };
-
-  const renderNavItem = (item: NavItem, groupColor: string) => {
-    if (!allowedModules.includes("ALL") && item.module !== "dashboard" && !allowedModules.includes(item.module)) {
+  const renderNavItem = (item: NavItem) => {
+    if (!allowedModules.includes("ALL") && item.module !== "dashboard" && !allowedModules.includes(item.module) && !(item.href === "/advances" && (allowedModules.includes("advances:manage") || allowedModules.includes("receivables:view"))) && !(item.module === "labels:view" && allowedModules.includes("inventory:view")) && !(item.module === "activity:view" && allowedModules.includes("reports:view")) && !(item.module === "customers:merge" && allowedModules.includes("users:manage"))) {
       return null;
     }
 
     const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-    const isHovered = hoveredHref === item.href;
-    const colorClasses = getGroupColorClasses(groupColor);
-    
-    const AnimKey = navAnimationMap[item.animKey];
+
+
+
+
     const LucideIcon = item.icon;
 
     return (
@@ -252,33 +239,27 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
         key={item.href}
         href={item.href}
         onClick={() => handleNavigation(item.href)}
-        onMouseEnter={() => setHoveredHref(item.href)}
-        onMouseLeave={() => setHoveredHref(null)}
+
+
         title={item.label}
         className={cn(
-          "group flex items-center rounded-md transition-all duration-200",
+          "workspace-nav-item group relative flex items-center rounded-xl transition-colors duration-150",
           collapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5",
-          isActive 
-            ? `${colorClasses.active} text-sidebar-foreground gem-facet-glow` 
-            : `text-muted-foreground ${colorClasses.hover} hover:text-sidebar-foreground`,
-          !collapsed && isActive && "premium-nav-active pl-2",
-          !collapsed && !isActive && "hover:pl-4"
+          isActive
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+          isActive && "workspace-nav-active",
+          !collapsed && "text-[13px]"
         )}
       >
-        <NavItemIcon
-          icon={<LucideIcon className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? `${colorClasses.text}` : "text-muted-foreground group-hover:text-sidebar-foreground")} />}
-          isActive={isActive}
-          isHovered={isHovered}
-          size={20}
-          lottieSrc={AnimKey}
-        />
+        <LucideIcon aria-hidden="true" className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
         {!collapsed && (
           <>
             <span className="truncate font-medium">{item.label}</span>
             {item.badge === "conflicts" && pendingConflicts > 0 && (
               <span
                 title={`${pendingConflicts} open marketplace conflict${pendingConflicts === 1 ? "" : "s"}`}
-                className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white animate-pulse px-1"
+                className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white px-1"
               >
                 {pendingConflicts > 99 ? "99+" : pendingConflicts}
               </span>
@@ -298,7 +279,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
   };
 
   const renderGroup = (group: NavGroup) => {
-    const colorClasses = getGroupColorClasses(group.color);
+
     const GroupIcon = group.icon;
     // Use mounted state to prevent hydration mismatch: always expanded on server/initial render
     const expanded = mounted ? isGroupExpanded(group.id) : true;
@@ -306,7 +287,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
     if (collapsed) {
       return (
         <div key={group.id} className="grid gap-1">
-          {group.items.map(item => renderNavItem(item, group.color))}
+          {group.items.map(item => renderNavItem(item))}
         </div>
       );
     }
@@ -317,15 +298,14 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
           type="button"
           onClick={() => toggleGroup(group.id)}
           className={cn(
-            "flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200",
-            "text-xs font-semibold uppercase tracking-wider",
-            expanded ? colorClasses.text : "text-muted-foreground hover:text-sidebar-foreground",
-            expanded && colorClasses.bg
+            "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors duration-150 hover:bg-sidebar-accent/50",
+            "text-[10px] font-semibold uppercase tracking-[.12em]",
+            "text-muted-foreground hover:text-sidebar-foreground"
           )}
           aria-expanded={expanded}
           suppressHydrationWarning
         >
-          <GroupIcon className={cn("h-3.5 w-3.5 shrink-0", colorClasses.text)} />
+          <GroupIcon className={cn("h-3.5 w-3.5 shrink-0", "text-primary/80")} />
           <span className="truncate">{group.label}</span>
           <ChevronRightIcon className={cn("ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200", expanded && "rotate-90")} />
         </button>
@@ -333,8 +313,8 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
           "overflow-hidden transition-all duration-300 ease-in-out",
           expanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         )} suppressHydrationWarning>
-          <div className="grid gap-0.5 pl-2 border-l border-sidebar-border">
-            {group.items.map(item => renderNavItem(item, group.color))}
+          <div className="grid gap-1 pl-1">
+            {group.items.map(item => renderNavItem(item))}
           </div>
         </div>
       </div>
@@ -342,11 +322,11 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
   };
 
   return (
-    <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border text-sidebar-foreground premium-sidebar">
+    <div className="workspace-sidebar sticky top-0 flex h-dvh flex-col bg-sidebar border-r border-sidebar-border text-sidebar-foreground">
       <div
         className={cn(
-          "flex items-center border-b border-sidebar-border",
-          collapsed ? "h-20 flex-col justify-center gap-1 px-3" : "h-14 lg:h-15 flex-row justify-between px-6"
+          "flex shrink-0 items-center border-b border-sidebar-border",
+          collapsed ? "h-20 flex-col justify-center gap-1 px-3" : "h-20 flex-row justify-between px-4"
         )}
       >
         <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={() => handleNavigation("/")} title="KhyatiGems™ ERP">
@@ -366,7 +346,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
             </span>
           ) : (
             <span className="flex items-center gap-2 transition-all duration-300">
-              <svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 shrink-0 animate-sidebar-logo-in">
+              <svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 shrink-0 ">
                 <g>
                   <g>
                     <polygon fill={brandRed} points="391.3,256.3 300.9,375.7 420.8,256.3" />
@@ -377,7 +357,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
                   <polygon fill={brandNavy} points="641.4,256.3 793.5,375.7 872,375.7 658.2,207.8 342.1,207.8 176.5,337.9 176.5,207.8 176,207.8 128,245.4 128,738.2 176.3,792.2 176.5,792.2 176.5,430.2 500.1,792.2 745.1,518.2 788.5,469.7 723.4,469.7 453.9,469.7 497.3,518.2 680.1,518.2 500.1,719.4 320.2,518.2 276.8,469.7 198.6,382.2 358.8,256.3" />
                 </g>
               </svg>
-              <span className="text-lg tracking-tight whitespace-nowrap">KhyatiGems™</span>
+              <span className="text-base tracking-tight whitespace-nowrap">KhyatiGems™</span>
             </span>
           )}
         </Link>
@@ -388,27 +368,28 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
             aria-label="Expand sidebar"
             className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-all duration-200 lg:flex"
           >
-            <SidebarChevronIcon collapsed={collapsed} />
+            <ChevronRightIcon className={cn("h-4 w-4 transition-transform duration-150", !collapsed && "rotate-180")} />
           </button>
         ) : (
           <div className="hidden lg:flex items-center gap-1">
-            <ThemeToggle />
+
             <button
               type="button"
               onClick={toggleCollapsed}
               aria-label="Collapse sidebar"
               className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-all duration-200"
             >
-              <SidebarChevronIcon collapsed={collapsed} />
+              <ChevronRightIcon className={cn("h-4 w-4 transition-transform duration-150", !collapsed && "rotate-180")} />
             </button>
           </div>
         )}
       </div>
-      <div className="flex-1 overflow-auto py-4">
-        <nav className={cn("grid items-start text-sm font-medium gap-1.5", collapsed ? "px-1.5" : "px-2")}>
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-3">
+        <nav className={cn("grid items-start text-sm font-medium gap-3", collapsed ? "px-1.5" : "px-2")}>
           {navGroups.map(group => renderGroup(group))}
         </nav>
       </div>
+      <div className={cn("flex shrink-0 items-center gap-3 border-t border-sidebar-border p-3", collapsed && "justify-center")}><ThemeToggle />{!collapsed && <div className="min-w-0"><p className="text-xs font-medium">Appearance</p><p className="mt-0.5 text-[10px] text-muted-foreground">Theme & dashboard view</p></div>}</div>
     </div>
   );
 }

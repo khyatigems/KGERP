@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
       const rows = await prisma.$queryRawUnsafe<Array<{ globalBannerImages: string | null; categoryImageUrls: string | null; categoryGemtypeImageUrls: string | null; brandLogoUrl: string | null; companyName: string | null; tagline: string | null }>>(`SELECT * FROM "EbaySettings" LIMIT 1`);
       if (rows && rows.length > 0) {
         const row = rows[0];
-        const parseJson = (v: string | null, fallback: any) => { if (!v) return fallback; try { return JSON.parse(v); } catch { return fallback; } };
+        const parseJson = (v: string | null, fallback) => { if (!v) return fallback; try { return JSON.parse(v); } catch { return fallback; } };
         categoryImageUrls = parseJson(row.categoryImageUrls, {});
         categoryGemtypeImageUrls = parseJson(row.categoryGemtypeImageUrls, {});
         globalBannerImages = parseJson(row.globalBannerImages, []);
@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
         const a = analyzePricing({
           purchasePrice: Number(b.costPrice) || 0,
           sellingPrice: Number(b.sellingPrice) || 0,
-          charges: (pricingProfile.charges || []).map((c: any): FeeCharge => ({
+          charges: (pricingProfile.charges || []).map((c): FeeCharge => ({
             id: String(c.id),
             chargeKey: String(c.chargeKey) as FeeCharge["chargeKey"],
             name: String(c.name),
@@ -216,10 +216,7 @@ export async function GET(req: NextRequest) {
     };
 
     // Helper to set cell as text (prevents ExcelJS from corrupting HTML)
-    const setText = (cell: ExcelJS.Cell) => {
-      cell.numFmt = '@';
-      cell.alignment = { wrapText: false, vertical: "top" };
-    };
+    
 
     const isReady = (b: Record<string, unknown>) => {
       const hasImage = !!(b.imageUrl) || (Number(b.mediaCount) || 0) > 0;

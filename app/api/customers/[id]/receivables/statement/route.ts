@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { generateCustomerStatementPDF } from "@/lib/statement-generator";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const { id: customerId } = await params;
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.RECEIVABLES_VIEW)) {
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.RECEIVABLES_VIEW)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const customer = await prisma.customer.findUnique({ where: { id: customerId } });

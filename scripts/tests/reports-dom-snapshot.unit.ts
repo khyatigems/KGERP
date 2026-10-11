@@ -10,7 +10,7 @@ function fingerprint(input: string) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
-const root = "d:/khyatigems-erp";
+const root = process.cwd();
 const vendorIntelligencePages = [
   "vendor-purchases",
   "vendor-inventory",

@@ -1,6 +1,6 @@
-import { PrismaClient } from "@prisma/client"
-import { PrismaLibSQL } from "@prisma/adapter-libsql"
-import { createClient } from "@libsql/client"
+import { PrismaClient } from "@prisma/client";
+import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { createClient } from "@libsql/client";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -23,7 +23,7 @@ if (typeof window === "undefined" && !process.env.DATABASE_URL) {
     const { config } = require("dotenv");
     config({ path: ".env.local" });
     config({ path: ".env" });
-  } catch (e) {
+  } catch  {
     // Ignore if dotenv is not available
   }
 }
@@ -103,7 +103,7 @@ const prismaBase =
   globalForPrisma.prisma ??
   (() => {
     // Build client options based on database type
-    const clientOptions: any = {
+    const clientOptions: unknown = {
       log: isProd ? ['error', 'warn'] : ['query', 'error', 'warn'],
     };
     
@@ -121,7 +121,7 @@ const prismaBase =
     // Attach slow query logger in development
     if (!isProd) {
       try {
-        (client as unknown as { $on: (ev: string, cb: (e: { query: string; duration: number }) => void) => void }).$on('query', async (e: { query: string; duration: number }) => {
+        (client as unknown as { $on: (ev: string, cb: (_e: { query: string; duration: number }) => void) => void }).$on('query', async (e: { query: string; duration: number }) => {
           const dur = Number(e.duration || 0);
           if (dur > 500) {
             console.warn(`[slow-query] ${dur}ms ${String(e.query || "").slice(0, 120)}...`);
@@ -1336,7 +1336,7 @@ export async function ensurePricingEngineSchema(): Promise<void> {
           args: [crypto.randomUUID()],
         },
       ]);
-    } catch (e) {
+    } catch  (e) {
       console.error("ensurePricingEngineSchema failed:", e);
     } finally {
       ensuredPricingEngine = true;

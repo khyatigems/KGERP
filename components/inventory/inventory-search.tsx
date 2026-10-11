@@ -6,12 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Search, X, SlidersHorizontal, RotateCcw,
-} from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Search, X, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { cn } from "@/lib/utils";
 
@@ -65,10 +61,10 @@ export function InventorySearch({
   const { replace } = useRouter();
   const { showLoader } = useGlobalLoader();
   const [queryValue, setQueryValue] = useState(searchParams.get("query")?.toString() || "");
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const applyTimerRef = useRef<number | null>(null);
-  const [isApplying, setIsApplying] = useState(false);
+  const [, setIsApplying] = useState(false);
 
   const uniqueCategories = useMemo(
     () => categories.filter((c, i, arr) => arr.findIndex((x) => x.name === c.name) === i),

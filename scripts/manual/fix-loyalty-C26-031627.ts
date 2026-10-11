@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import crypto from "crypto";
 

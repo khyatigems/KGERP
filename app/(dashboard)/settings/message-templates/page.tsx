@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getMessageTemplates } from "./actions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { MessageTemplatesForm } from "./message-templates-form";
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function MessageTemplatesPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.SETTINGS_MANAGE)) redirect("/");
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.SETTINGS_MANAGE)) redirect("/");
   const rows = await getMessageTemplates();
   return (
     <AnimatedPage><div className="space-y-6">

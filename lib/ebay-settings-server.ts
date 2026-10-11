@@ -119,7 +119,7 @@ export async function getEbaySettings() {
 /**
  * Get category-specific images or fallback to global
  */
-export function getCategoryImages(settings: any, category?: string): string[] {
+export function getCategoryImages(settings: unknown, category?: string): string[] {
   if (!category) {
     const globalImages = parseJson<string[]>(
       settings?.globalBannerImages,
@@ -236,7 +236,7 @@ export function parseCategoryImageJson(
 /**
  * Get all unique categories from settings
  */
-export function getAllConfiguredCategories(settings: any): string[] {
+export function getAllConfiguredCategories(settings: unknown): string[] {
   const categoryMap = parseCategoryImageJson(settings?.categoryImageUrls);
   return Object.keys(categoryMap).sort();
 }
@@ -245,7 +245,7 @@ export function getAllConfiguredCategories(settings: any): string[] {
  * Get image count for a specific category
  */
 export function getCategoryImageCount(
-  settings: any,
+  settings: unknown,
   category: string
 ): number {
   const categoryMap = parseCategoryImageJson(settings?.categoryImageUrls);
@@ -339,7 +339,7 @@ export async function updateEbaySettings(data: EbaySettingsData) {
     } else {
       // Update existing settings
       const updates: string[] = [];
-      const values: any[] = [];
+      const values: unknown[] = [];
 
       if (data.globalBannerImages !== undefined) {
         updates.push(`"globalBannerImages" = ?`);
@@ -385,7 +385,7 @@ export async function updateEbaySettings(data: EbaySettingsData) {
     }
 
     // Return updated settings
-    const updated = await prisma.$queryRawUnsafe<Array<any>>(
+    const updated = await prisma.$queryRawUnsafe<Array<unknown>>(
       `SELECT * FROM "EbaySettings" LIMIT 1`
     );
 

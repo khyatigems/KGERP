@@ -4,7 +4,6 @@ import React, { createContext, useContext, useState, useEffect, Suspense, useRef
 import { usePathname, useSearchParams } from "next/navigation";
 import { Toaster } from "sonner";
 import { MarketplaceSyncToastMonitor } from "@/components/marketplace/sync-toast-monitor";
-import { AppLogoLoader } from "@/components/ui/app-logo-loader";
 import { TopLoader } from "@/components/ui/top-loader";
 
 interface GlobalLoaderContextType {
@@ -32,10 +31,6 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
     const qs = searchParams.toString();
     return qs ? `${pathname}?${qs}` : pathname;
   }, [pathname, searchParams]);
-
-  const isDashboardRoute = useMemo(() => {
-    return pathname === "/" || pathname.startsWith("/dashboard") || pathname.startsWith("/inventory") || pathname.startsWith("/sales") || pathname.startsWith("/customers") || pathname.startsWith("/vendors");
-  }, [pathname]);
 
   useEffect(() => {
     if (!isLoading) return;
@@ -106,7 +101,7 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
       {children}
       <MarketplaceSyncToastMonitor />
       <TopLoader isLoading={isLoading} progress={progress} />
-      {isLoading && <AppLogoLoader label={null} progress={progress} variant={isDashboardRoute ? "lottie" : "default"} />}
+      {isLoading && <div role="status" className="pointer-events-none fixed bottom-5 right-5 z-[9998] rounded-xl border bg-card px-4 py-2 text-xs text-muted-foreground shadow-sm">Loading…</div>}
       <Toaster
         richColors
         expand

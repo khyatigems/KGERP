@@ -189,9 +189,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
     }
 
-    if ((result as any)?.alreadyExists) {
+    if ((result)?.alreadyExists) {
       return NextResponse.json(
-        { error: "Replacement already created", invoiceId: (result as any).invoiceId, invoiceNumber: (result as any).invoiceNumber, memoId: (result as any).memoId },
+        { error: "Replacement already created", invoiceId: (result).invoiceId, invoiceNumber: (result).invoiceNumber, memoId: (result).memoId },
         { status: 409 }
       );
     }

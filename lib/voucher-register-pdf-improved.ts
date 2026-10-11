@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatInrCurrency } from "@/lib/number-formatting";
 import { format } from "date-fns";
-import { RegisterEntry, VoucherRegisterData, validateVoucherRegisterData } from "@/types/pdf-generation";
+import { VoucherRegisterData, validateVoucherRegisterData } from "@/types/pdf-generation";
 
 // Helper to ensure consistent date handling
 const ensureDate = (date: Date | string | undefined | null): Date => {

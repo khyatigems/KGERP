@@ -9,6 +9,7 @@ export default async function NewUserPage() {
   if (!session?.user?.id) redirect("/");
 
   const roles = await prisma.role.findMany({
+    where: { isActive: true, ...(session.user.role === "SUPER_ADMIN" ? {} : { name: { notIn: ["SUPER_ADMIN", "SUPERADMIN", "ADMINISTRATOR"] } }) },
     orderBy: { name: 'asc' }
   });
 

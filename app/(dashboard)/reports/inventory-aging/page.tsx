@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getInventoryAgingAnalytics } from "@/lib/reports-analytics";
 import type { BucketStat, InventoryAgingRow } from "@/lib/reports-analytics";
 import { InventoryAgingChart } from "@/components/reports/inventory-aging-chart";
@@ -18,7 +18,7 @@ type SearchMap = { [key: string]: string | string[] | undefined };
 export default async function InventoryAgingReportPage({ searchParams }: { searchParams: Promise<SearchMap> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) redirect("/");
 
   const sp = await searchParams;
   const bucket = typeof sp.bucket === "string" ? sp.bucket : undefined;

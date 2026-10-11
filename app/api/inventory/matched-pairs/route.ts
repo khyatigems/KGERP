@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       sellingPrice: Number(item.sellingPrice) || 0,
     }));
 
-    const { pairs, sets, summary } = findAllMatches(inventoryItems, includeSets, config);
+    const { pairs, sets } = findAllMatches(inventoryItems, includeSets, config);
 
     let filteredPairs = pairs;
     let filteredSets = sets;

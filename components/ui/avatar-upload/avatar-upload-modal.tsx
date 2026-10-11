@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect, useMemo } from "react";
-import { Camera, X, Upload, Check, Trash2 } from "lucide-react";
+import { Upload, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,7 +29,7 @@ export function AvatarUploadModal({
   currentAvatar,
   currentSvgAvatar,
   history,
-  userName,
+  
   onSave,
   onRemove,
 }: AvatarUploadModalProps) {

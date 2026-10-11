@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getCapitalRotationAnalytics } from "@/lib/reports-analytics";
 import type { BucketStat, CapitalRotationCategoryRow } from "@/lib/reports-analytics";
 import { CapitalRotationCharts } from "@/components/reports/capital-rotation-charts";
@@ -17,7 +17,7 @@ type SearchMap = { [key: string]: string | string[] | undefined };
 export default async function CapitalRotationReportPage({ searchParams }: { searchParams: Promise<SearchMap> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) redirect("/");
 
   const sp = await searchParams;
   const selectedCategory = typeof sp.category === "string" ? sp.category : "";

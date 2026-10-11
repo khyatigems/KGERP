@@ -16,7 +16,7 @@ async function verifyStandardRounding() {
       FROM "LoyaltyLedger"
     `);
     
-    const stats = ledgerStats as any[];
+    const stats = ledgerStats as unknown[];
     console.log(`📊 Loyalty Ledger Status:`);
     console.log(`   Total Entries: ${stats[0]?.total_entries || 0}`);
     console.log(`   Decimal Entries: ${stats[0]?.decimal_entries || 0}`);
@@ -38,7 +38,7 @@ async function verifyStandardRounding() {
     `);
     
     console.log(`\n💰 Top Customer Balances:`);
-    (customerBalances as any[]).forEach((balance: any, i: number) => {
+    (customerBalances as unknown[]).forEach((balance, i: number) => {
       const isWhole = Number(balance.totalPoints) === Math.floor(Number(balance.totalPoints));
       const status = isWhole ? "✅" : "⚠️";
       console.log(`   ${i+1}. ${status} Customer: ${balance.customerId}, Balance: ${balance.totalPoints} points`);

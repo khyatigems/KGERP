@@ -66,7 +66,7 @@ export function MarketplaceOrdersTable({ data }: { data: MarketplaceOrderRow[] }
             {data.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                  No marketplace orders synced yet. Use "Sync Orders".
+                  No marketplace orders synced yet. Use &quot;Sync Orders&quot;.
                 </TableCell>
               </TableRow>
             ) : (

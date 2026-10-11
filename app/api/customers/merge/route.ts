@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.USERS_MANAGE)) {
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.USERS_MANAGE)) && !(await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMERS_MERGE))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { sourceId, targetId } = await req.json().catch(() => ({}));

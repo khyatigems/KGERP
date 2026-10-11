@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getSalesCycleData } from "@/lib/report-module-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,7 +19,7 @@ interface SalesCycleReportPageProps {
 export default async function SalesCycleReportPage({ searchParams }: SalesCycleReportPageProps) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) redirect("/");
   const params = await searchParams;
   const today = new Date();
   const fromDate = params.from ? startOfDay(parseISO(params.from)) : startOfDay(subDays(today, 30));

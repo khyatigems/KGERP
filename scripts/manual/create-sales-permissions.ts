@@ -76,9 +76,9 @@ async function createSalesPermission() {
       });
 
       if (!exists) {
-        const created = await prisma.permission.create({
+        void (await prisma.permission.create({
           data: permData
-        });
+        }));
         console.log(`✅ Created ${permData.key} permission`);
       } else {
         console.log(`✅ ${permData.key} already exists`);

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { LottieAnimation } from "./LottieAnimation";
-import { animations, LoaderVariant, loaderVariantMap, getAnimationConfig } from "./animations";
+import { LoaderVariant, loaderVariantMap, getAnimationConfig } from "./animations";
 
 interface LottieLoaderProps {
   variant?: LoaderVariant;

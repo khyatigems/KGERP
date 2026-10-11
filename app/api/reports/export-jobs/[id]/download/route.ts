@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getCapitalRotationAnalyticsUncached, getInventoryAgingAnalytics, getReportsAnalyticsSummaryUncached } from "@/lib/reports-analytics";
 import { ensureReportExportJobSchema } from "@/lib/report-export-job-schema";
 
@@ -78,7 +78,7 @@ async function buildRows(job: { reportType: string; filtersJson: string | null }
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) {
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

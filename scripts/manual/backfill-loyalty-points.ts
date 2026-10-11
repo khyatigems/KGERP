@@ -6,7 +6,7 @@ config({ path: ".env" });
 import { ensureBillfreePhase1Schema, prisma } from "../../lib/prisma";
 import { accrueLoyaltyPoints } from "../../lib/loyalty-accrual";
 import { type PrismaTx } from "../../lib/accounting";
-import crypto from "crypto";
+import "crypto";
 
 async function main() {
   await ensureBillfreePhase1Schema();

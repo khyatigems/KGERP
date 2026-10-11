@@ -1,5 +1,6 @@
 "use client";
 
+import { isProtectedRole } from "@/lib/permission-display";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { updateUser } from "../../actions";
@@ -204,7 +205,8 @@ export default function EditUserForm({ user, roles }: { user: EditableUser, role
 
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Select name="role" defaultValue={user.role}>
+            {isProtectedRole(user.role) && <><input type="hidden" name="role" value={user.role}/><p className="text-xs text-muted-foreground">Superadmin access is protected and cannot be reassigned.</p></>}
+            <Select name="role" defaultValue={user.role} disabled={isProtectedRole(user.role)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>

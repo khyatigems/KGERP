@@ -25,7 +25,7 @@ const libsqlClient = createClient({
 });
 
 const adapter = new PrismaLibSQL(libsqlClient);
-const prisma = new PrismaClient({ adapter } as any);
+const prisma = new PrismaClient({ adapter });
 
 async function fixDecimalLoyaltyEntries() {
   console.log("\n=== Starting Loyalty Points Decimal Fix ===\n");

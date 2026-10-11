@@ -3,7 +3,7 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
-import { ensureBillfreePhase1Schema, prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma";
 
 async function main() {
   console.log("🔍 SAFELY checking production database schema and data...");
@@ -12,7 +12,7 @@ async function main() {
   try {
     await prisma.$queryRawUnsafe('SELECT 1');
     console.log("✅ Database connection successful");
-  } catch (error) {
+  } catch  (error) {
     console.error("❌ Database connection failed:", error);
     return;
   }
@@ -57,7 +57,7 @@ async function main() {
     } else {
       console.log("✅ LoyaltyLedger schema complete");
     }
-  } catch (error) {
+  } catch  {
     console.log("ℹ️  LoyaltyLedger table doesn't exist - will be created");
   }
   
@@ -72,7 +72,7 @@ async function main() {
     } else {
       console.log("✅ LoyaltySettings exists");
     }
-  } catch (error) {
+  } catch  {
     console.log("ℹ️  LoyaltySettings table doesn't exist - will be created");
   }
   
@@ -89,7 +89,7 @@ async function main() {
     if (permissionCount === 0 || roleCount === 0) {
       console.log("⚠️  Permissions/Roles missing - will be created");
     }
-  } catch (error) {
+  } catch  {
     console.log("ℹ️  Permissions/Roles tables don't exist - will be created");
   }
   
@@ -126,7 +126,7 @@ async function main() {
       } else {
         console.log("\n✅ All paid invoices have loyalty points");
       }
-    } catch (error) {
+    } catch  {
       console.log("ℹ️  Could not check loyalty points - LoyaltyLedger may not exist");
     }
   }
@@ -163,7 +163,7 @@ async function main() {
       } else {
         console.log("\n✅ All sales have journal entries");
       }
-    } catch (error) {
+    } catch  {
       console.log("ℹ️  Could not check journal entries");
     }
   }

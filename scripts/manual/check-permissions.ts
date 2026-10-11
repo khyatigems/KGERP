@@ -23,12 +23,12 @@ async function checkUserPermissions() {
     console.log(`Found ${users.length} users:`);
 
     for (const user of users) {
-      console.log(`\n👤 ${(user as any).name} (${user.email})`);
-      console.log(`   Role: ${(user as any).roleId || 'No role'}`);
+      console.log(`\n👤 ${(user).name} (${user.email})`);
+      console.log(`   Role: ${(user).roleId || 'No role'}`);
       
-      if ((user as any).userPermissions && (user as any).userPermissions.length > 0) {
-        const salesCreatePerm = (user as any).userPermissions.find(
-          (p: any) => p.permission.key === 'SALES_CREATE'
+      if ((user).userPermissions && (user).userPermissions.length > 0) {
+        const salesCreatePerm = (user).userPermissions.find(
+          (p) => p.permission.key === 'SALES_CREATE'
         );
         
         if (salesCreatePerm) {
@@ -36,7 +36,7 @@ async function checkUserPermissions() {
         } else {
           console.log(`   ❌ Missing SALES_CREATE permission`);
           console.log(`   📋 Available permissions:`);
-          (user as any).userPermissions.forEach((p: any) => {
+          (user).userPermissions.forEach((p) => {
             console.log(`      - ${p.permission.key} (${p.permission.module}: ${p.permission.action})`);
           });
         }
@@ -73,7 +73,7 @@ async function checkUserPermissions() {
     });
 
     if (recentLogs.length > 0) {
-      recentLogs.forEach((log: any) => {
+      recentLogs.forEach((log) => {
         console.log(`   ${log.userName} - ${log.createdAt} - CREATE`);
       });
     } else {

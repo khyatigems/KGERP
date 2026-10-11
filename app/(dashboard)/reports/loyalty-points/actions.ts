@@ -20,15 +20,7 @@ function buildEmptyReport(startDate: Date, endDate: Date, loyaltySettings: unkno
   };
 }
 
-function isMissingTableError(error: unknown): boolean {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    return error.code === "P2010" && /no such table/i.test(error.message);
-  }
-  if (error instanceof Error) {
-    return /no such table/i.test(error.message);
-  }
-  return false;
-}
+
 
 type LoyaltyReportRow = {
   id: string;
@@ -88,7 +80,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
   const hasRupeeValueColumn = ledgerColumns.some((col) => col.name === "rupeeValue");
   const hasRemarksColumn = ledgerColumns.some((col) => col.name === "remarks");
 
-  const selectParts = [
+  void ([
     "ll.id AS id",
     "ll.customerId AS customerId",
     "c.name AS customerName",
@@ -105,14 +97,14 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     hasInvoiceIdColumn
       ? "NULL AS totalProfitOnInvoice"
       : "NULL AS totalProfitOnInvoice",
-  ];
+  ]);
 
-  const fromClause = hasInvoiceIdColumn
+  void (hasInvoiceIdColumn
     ? `FROM "LoyaltyLedger" ll
        LEFT JOIN "Customer" c ON ll.customerId = c.id
        LEFT JOIN "Invoice" i ON ll.invoiceId = i.id`
     : `FROM "LoyaltyLedger" ll
-       LEFT JOIN "Customer" c ON ll.customerId = c.id`;
+       LEFT JOIN "Customer" c ON ll.customerId = c.id`);
 
   // Ultra-simple query without any JOINs to avoid LibSQL issues
   const loyaltyQuery = `
@@ -140,10 +132,10 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     
     const rawReportData = await prisma.$queryRawUnsafe(loyaltyQuery, startIso, endIso);
     
-    console.log('Raw report data count:', (rawReportData as any[]).length);
+    console.log('Raw report data count:', (rawReportData as unknown[]).length);
     
     // Fetch invoice data separately to avoid JOIN issues
-    const invoiceIds = [...new Set((rawReportData as any[]).map(r => r.invoiceId).filter(Boolean))];
+    const invoiceIds = [...new Set((rawReportData as unknown[]).map(r => r.invoiceId).filter(Boolean))];
     console.log('Extracted invoice IDs for profit lookup:', invoiceIds.length);
     
     let invoiceMap = new Map();
@@ -197,7 +189,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     }
     
     // Fetch customer names separately to avoid join issues
-    const customerIds = [...new Set((rawReportData as any[]).map(r => r.customerId))];
+    const customerIds = [...new Set((rawReportData as unknown[]).map(r => r.customerId))];
     let customerMap = new Map();
     
     if (customerIds.length > 0) {
@@ -216,7 +208,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     }
     
     // Convert all potential BigInt values to regular numbers before processing
-    reportData = (rawReportData as any[]).map((row: any) => {
+    reportData = (rawReportData as unknown[]).map((row) => {
       const invoiceData = row.invoiceId ? invoiceMap.get(row.invoiceId) : null;
       const profitValue = row.invoiceId ? invoiceProfitMap.get(row.invoiceId) : null;
       

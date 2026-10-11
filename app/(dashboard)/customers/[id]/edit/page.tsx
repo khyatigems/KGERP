@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { CustomerForm } from "@/components/customers/customer-form";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default async function EditCustomerPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.CUSTOMER_MANAGE)) redirect("/");
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMER_MANAGE)) redirect("/");
 
   await ensureCustomerSecondaryPhoneSchema();
   await ensureBillfreePhase1Schema();

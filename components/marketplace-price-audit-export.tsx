@@ -7,9 +7,7 @@ import { Download, DollarSign } from "lucide-react";
 import { ExportButton } from "@/components/ui/lottie";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface AuditRow {
   sku: string; itemName: string; category: string; gemType: string;
@@ -70,7 +68,7 @@ function enrich(rows: AuditRow[]): EnhancedRow[] {
     const ps: EnhancedRow["_priceStatus"] = r.listedPriceInr < r.sellingPrice ? "Below Selling" : r.listedPriceInr > r.sellingPrice * 1.15 ? "Premium" : "Safe";
     const ms: EnhancedRow["_marginStatus"] = r.marketplaceMarginPct < 100 ? "Red" : r.marketplaceMarginPct < 300 ? "Amber" : "Green";
     const rs: EnhancedRow["_riskStatus"] = (r.listedPriceInr < r.sellingPrice || r.marketplaceMarginPct < 100) ? "Critical" : (r.marketplaceMarginPct < 300 ? "Warning" : "Good");
-    const leakage = r.listedPriceInr < r.sellingPrice ? r.sellingPrice - r.listedPriceInr : 0;
+    void (r.listedPriceInr < r.sellingPrice ? r.sellingPrice - r.listedPriceInr : 0);
     const premium = r.sellingPrice > 0 ? ((r.listedPriceInr - r.sellingPrice) / r.sellingPrice) * 100 : 0;
     const markup = r.costPrice > 0 ? r.listedPriceInr / r.costPrice : 0;
     const eff = r.costPrice > 0 ? (r.listedPriceInr - r.costPrice) / r.costPrice : 0;
@@ -81,7 +79,7 @@ function enrich(rows: AuditRow[]): EnhancedRow[] {
 // ── QC ──
 function validate(rows: EnhancedRow[]): string | null {
   const total = rows.length;
-  const leakage = rows.filter((r) => r._revenueLeakage > 0);
+  void (rows.filter((r) => r._revenueLeakage > 0));
   const red = rows.filter((r) => r._marginStatus === "Red");
   const amber = rows.filter((r) => r._marginStatus === "Amber");
   const green = rows.filter((r) => r._marginStatus === "Green");
@@ -137,7 +135,7 @@ export function MarketplacePriceAuditExport() {
       if (!raw.length) return;
 
       const rows = enrich(raw);
-      const effectiveRate = hasOverride ? rate : 0;
+      void (hasOverride ? rate : 0);
 
       // QC
       const qcErr = validate(rows);

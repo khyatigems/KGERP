@@ -21,11 +21,12 @@ export interface UseLottieReturn {
 
 export function useLottie(): UseLottieReturn {
   const playerRef = useRef<AnimationItem | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [player, setPlayer] = useState<AnimationItem | null>(null);
+  const isLoaded = player !== null;
 
   const handleLoad = useCallback((player: AnimationItem) => {
     playerRef.current = player;
-    setIsLoaded(true);
+    setPlayer(player);
   }, []);
 
   const play = useCallback((segments?: [number, number]) => {
@@ -85,7 +86,7 @@ export function useLottie(): UseLottieReturn {
     setDirection,
     getDuration,
     getCurrentFrame,
-    player: playerRef.current,
+    player,
     isLoaded,
     onLoad: handleLoad,
   };

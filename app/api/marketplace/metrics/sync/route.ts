@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureMarketplaceMetricsSchema, prisma } from "@/lib/prisma";
+import { ensureMarketplaceMetricsSchema } from "@/lib/prisma";
 import { requireExtensionApiToken } from "@/lib/extension-api-auth";
 import { logActivity } from "@/lib/activity-logger";
 import { syncMetricsBatch, normalizeMarketplace } from "@/lib/marketplace-metrics";

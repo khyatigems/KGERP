@@ -8,19 +8,20 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const user = await prisma.user.findUnique({
     where: { id },
+    include: { roleRelation: true },
   });
 
   if (!user) {
     notFound();
   }
 
-  const roles = await (prisma as any).role.findMany({ orderBy: { name: 'asc' } });
+  const roles = await (prisma).role.findMany({ orderBy: { name: 'asc' } });
 
   const userData = {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role,
+    role: user.roleRelation?.name || user.role,
     avatar: user.avatar,
     avatarUrl: user.avatarUrl,
     avatarHistory: user.avatarHistory,

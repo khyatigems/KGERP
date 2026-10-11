@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SalesReturnForm } from "@/components/sales-returns/sales-return-form";
@@ -12,9 +12,9 @@ export const dynamic = "force-dynamic";
 export default async function NewSalesReturnPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.SALES_CREATE)) redirect("/");
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.SALES_CREATE)) redirect("/");
 
-  const company = await prisma.companySettings.findFirst({ select: { address: true } });
+  void (await prisma.companySettings.findFirst({ select: { address: true } }));
   const invoiceSettings = await prisma.invoiceSettings.findFirst({ select: { categoryGstRates: true } });
   const gstRates = (() => {
     try {

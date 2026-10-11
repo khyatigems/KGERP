@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditNotesTable } from "../../../../components/sales-returns/credit-notes-table";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function CreditNotesPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.RECEIVABLES_VIEW)) redirect("/");
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.RECEIVABLES_VIEW)) redirect("/");
 
   const rows = await prisma.$queryRawUnsafe<
     Array<{

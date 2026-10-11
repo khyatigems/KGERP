@@ -11,7 +11,7 @@ interface BackgroundProps {
 function DiamondFacets({ theme, width, height }: BackgroundProps) {
   const isDark = theme === "dark";
   const stroke = isDark ? "rgba(212,168,83,0.15)" : "rgba(184,134,11,0.12)";
-  const strokeBright = isDark ? "rgba(212,168,83,0.25)" : "rgba(184,134,11,0.18)";
+  void (isDark ? "rgba(212,168,83,0.25)" : "rgba(184,134,11,0.18)");
   const cx = width / 2;
   const cy = height / 2;
 
@@ -58,7 +58,7 @@ function DiamondFacets({ theme, width, height }: BackgroundProps) {
 function CrystalLattice({ theme, width, height }: BackgroundProps) {
   const isDark = theme === "dark";
   const stroke = isDark ? "rgba(212,168,83,0.12)" : "rgba(184,134,11,0.10)";
-  const strokeBright = isDark ? "rgba(212,168,83,0.22)" : "rgba(184,134,11,0.16)";
+  void (isDark ? "rgba(212,168,83,0.22)" : "rgba(184,134,11,0.16)");
 
   const hexR = 48;
   const hexH = hexR * Math.sqrt(3);
@@ -106,7 +106,7 @@ function CrystalLattice({ theme, width, height }: BackgroundProps) {
 function PrismaticLight({ theme, width, height }: BackgroundProps) {
   const isDark = theme === "dark";
   const stroke = isDark ? "rgba(212,168,83,0.12)" : "rgba(184,134,11,0.09)";
-  const strokeBright = isDark ? "rgba(212,168,83,0.20)" : "rgba(184,134,11,0.15)";
+  void (isDark ? "rgba(212,168,83,0.20)" : "rgba(184,134,11,0.15)");
 
   const rays: string[] = [];
   const count = 14;

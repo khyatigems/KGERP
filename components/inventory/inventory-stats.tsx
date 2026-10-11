@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { Boxes, CircleDollarSign, ImageIcon, FileCheck, Clock } from "lucide-react";
 import { ExportButton } from "@/components/ui/export-button";
 
 type StatRow = { totalItems: number; overallTotalItems: number; totalSell: number };
@@ -189,7 +190,7 @@ export function InventoryStats({ searchParams }: { searchParams: Record<string, 
     };
   }, [data?.byCategoryGemType, overallStatusSummary]);
 
-  // Removed per user request
+  const statCardClass = `rounded-2xl border bg-gradient-to-br from-card to-muted/30 shadow-sm transition-shadow hover:shadow-md ${isLoading ? "animate-pulse" : isValidating ? "opacity-70" : ""}`;
 
   const topCategory = (data?.byCategory || [])[0]?.category;
   const topGemType = (data?.byGemType || [])[0]?.gemType;
@@ -218,7 +219,7 @@ export function InventoryStats({ searchParams }: { searchParams: Record<string, 
           <h2 className="text-lg font-semibold">Inventory Overview</h2>
           <p className="text-sm text-muted-foreground">Updates automatically based on selected filters.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 [&_button]:rounded-xl">
           <ExportButton
             filename="inventory_by_category"
             multiTable={categoryExport.multiTable}
@@ -235,12 +236,12 @@ export function InventoryStats({ searchParams }: { searchParams: Record<string, 
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
+        <Card className={statCardClass}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Items</CardTitle>
+            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">Total Items<span className="rounded-lg bg-primary/10 p-2 text-primary"><Boxes className="h-4 w-4"/></span></CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.overallTotalItems ?? data?.totalItems ?? "—"}</div>
+            <div className="text-2xl font-semibold tracking-tight tabular-nums">{data?.overallTotalItems ?? data?.totalItems ?? "—"}</div>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
               <span className="text-emerald-600 dark:text-emerald-300">In Stock: {overallStatusSummary.inStock}</span>
               <span className="text-primary dark:text-primary">Sold: {overallStatusSummary.sold}</span>
@@ -262,12 +263,12 @@ export function InventoryStats({ searchParams }: { searchParams: Record<string, 
           </CardContent>
         </Card>
 
-        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
+        <Card className={statCardClass}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Total Sell Value</CardTitle>
+            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">Total Sell Value<span className="rounded-lg bg-primary/10 p-2 text-primary"><CircleDollarSign className="h-4 w-4"/></span></CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data ? formatCurrency(data.totalSell) : "—"}</div>
+            <div className="text-2xl font-semibold tracking-tight tabular-nums">{data ? formatCurrency(data.totalSell) : "—"}</div>
             <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
               <div>Avg Item Value: {data ? formatCurrency(data.avgSell) : "—"}</div>
               <div>Highest Item Price: {data ? formatCurrency(data.maxSell) : "—"}</div>
@@ -275,37 +276,39 @@ export function InventoryStats({ searchParams }: { searchParams: Record<string, 
           </CardContent>
         </Card>
 
-        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
+        <Card className={statCardClass}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">With Images</CardTitle>
+            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">With Images<span className="rounded-lg bg-primary/10 p-2 text-primary"><ImageIcon className="h-4 w-4"/></span></CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-semibold tracking-tight tabular-nums">
               {data ? `${data.withImagesCount}/${data.totalItems}` : "—"}
             </div>
+            <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${imagesPct}%` }}/></div>
             <div className="text-xs text-muted-foreground mt-2">
               {data ? `${imagesPct}% • Missing ${missingImages}` : "Items having image/media"}
             </div>
           </CardContent>
         </Card>
 
-        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
+        <Card className={statCardClass}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">With Certificate</CardTitle>
+            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">With Certificate<span className="rounded-lg bg-primary/10 p-2 text-primary"><FileCheck className="h-4 w-4"/></span></CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-semibold tracking-tight tabular-nums">
               {data ? `${data.withCertificateCount}/${data.totalItems}` : "—"}
             </div>
+            <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${certPct}%` }}/></div>
             <div className="text-xs text-muted-foreground mt-2">
               {data ? `${certPct}% • Missing ${missingCertificates}` : "Certificate number/details present"}
             </div>
           </CardContent>
         </Card>
 
-        <Card className={isLoading ? "animate-pulse" : `transition-all duration-300 animate-in fade-in ${isValidating ? "opacity-70" : "opacity-100"}`}>
+        <Card className={statCardClass}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Inventory Aging</CardTitle>
+            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">Inventory Aging<span className="rounded-lg bg-primary/10 p-2 text-primary"><Clock className="h-4 w-4"/></span></CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">In Stock only</div>

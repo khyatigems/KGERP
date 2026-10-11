@@ -1,41 +1,17 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragOverlay,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
-import {
-  GripVertical, LayoutDashboard, ArrowUpDown, X, Maximize2, Minimize2,
-  MoreHorizontal, ChevronUp, ChevronDown, ArrowUp, ArrowDown, Settings2
-} from "lucide-react";
+import { GripVertical, LayoutDashboard, ArrowUpDown, Maximize2, Minimize2, ChevronUp, ChevronDown, ArrowUp, ArrowDown, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import "@/components/ui/card";
 import { LottieIcon } from "@/components/ui/lottie";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-type WidgetRenderer = (props: any) => React.ReactNode;
+type WidgetRenderer = (props: unknown) => React.ReactNode;
 
 const widgetRegistry: Record<string, WidgetRenderer> = {
   header: (props) => <DashboardHeader {...props} />,
@@ -271,7 +247,7 @@ function DraggableWidget({
 export function DashboardGrid({
   widgets,
   onReorder,
-  onResize,
+  
   editMode = false,
   onToggleEditMode,
   renderData,
@@ -369,10 +345,10 @@ export function DashboardGrid({
     return renderer(data);
   }, [renderData]);
 
-  const getOverlayContent = useCallback((activeItem: DraggableWidgetConfig | undefined) => {
+  void (useCallback((activeItem: DraggableWidgetConfig | undefined) => {
     if (!activeItem) return null;
     return renderWidget(activeItem);
-  }, [renderWidget]);
+  }, [renderWidget]));
 
   return (
     <div className="space-y-4">
@@ -446,7 +422,7 @@ export function DashboardGrid({
                 <div className="min-h-20">{renderWidget(activeItem)}</div>
               </div>
             );
-          }) as any)}
+          }))}
         </DragOverlay>
       </DndContext>
 

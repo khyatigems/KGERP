@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import "child_process";
 
 const TURSO_DB_URL = process.env.TURSO_DATABASE_URL;
 const TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;

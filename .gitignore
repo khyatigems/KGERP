@@ -54,3 +54,6 @@ of the module*
 
 # Private, reversible inventory backfill snapshots
 /backups/inventory-dimensions/
+
+# Local test fixtures, review builds, logs, and screenshots
+/tmp/

@@ -1,3 +1,4 @@
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +11,8 @@ export async function GET(request: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Get detailed payment records for export invoices
-    const where: any = {};
+    const where: unknown = {};
     if (startDate || endDate) {
       where.date = {};
       if (startDate) where.date.gte = startDate;

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { redirect } from "next/navigation";
 
@@ -24,7 +24,7 @@ export default async function VendorDetailPage({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  if (!hasPermission(session.user.role, PERMISSIONS.VENDOR_VIEW)) {
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.VENDOR_VIEW)) {
     redirect("/");
   }
 
@@ -57,7 +57,7 @@ export default async function VendorDetailPage({
     }),
   ]);
 
-  const canManage = hasPermission(session.user.role, PERMISSIONS.VENDOR_MANAGE);
+  const canManage = await checkUserPermission(session.user.id, PERMISSIONS.VENDOR_MANAGE);
 
   return (
     <AnimatedPage><div className="space-y-6">

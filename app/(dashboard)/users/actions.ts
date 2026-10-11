@@ -7,13 +7,14 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 import { checkPermission } from "@/lib/permission-guard";
-import type { Prisma } from "@prisma/client";
+import { isProtectedRole } from "@/lib/permission-display";
+
 
 const userSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["SUPER_ADMIN", "ADMIN", "SALES", "ACCOUNTS", "VIEWER"]),
+  role: z.string().trim().min(1).max(60),
   avatar: z.string().optional(),
   avatarUrl: z.string().optional(),
 });
@@ -22,7 +23,7 @@ const updateUserSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
   password: z.string().optional(),
-  role: z.enum(["SUPER_ADMIN", "ADMIN", "SALES", "ACCOUNTS", "VIEWER"]),
+  role: z.string().trim().min(1).max(60),
   avatar: z.string().optional(),
   avatarUrl: z.string().optional(),
 });
@@ -47,14 +48,18 @@ export async function createUser(formData: FormData) {
   }
 
   // Try to find matching Role ID in the new DB table
-  const roleRecord = await (prisma as any).role.findUnique({
+  const roleRecord = await (prisma).role.findUnique({
     where: { name: result.data.role }
   });
+
+  if (!roleRecord?.isActive) return { message: "Choose an active role" };
+  const session = await auth();
+  if (isProtectedRole(roleRecord.name) && session?.user?.role !== "SUPER_ADMIN") return { message: "Only superadmin can assign this role" };
 
   try {
     const hashedPassword = await hash(result.data.password, 12);
 
-    const userData: any = {
+    const userData: unknown = {
       name: result.data.name,
       email: result.data.email,
       password: hashedPassword,
@@ -64,7 +69,7 @@ export async function createUser(formData: FormData) {
     };
     if (result.data.avatarUrl) userData.avatarUrl = result.data.avatarUrl;
 
-    await (prisma.user as any).create({
+    await (prisma.user).create({
       data: userData,
     });
   } catch (e: unknown) {
@@ -75,12 +80,13 @@ export async function createUser(formData: FormData) {
     if (message.includes("Unknown argument") && result.data.avatar) {
         try {
             const hashedPassword = await hash(result.data.password, 12);
-            await (prisma.user as any).create({
+            await (prisma.user).create({
                 data: {
                     name: result.data.name,
                     email: result.data.email,
                     password: hashedPassword,
                     role: result.data.role,
+                    roleId: roleRecord.id,
                 },
             });
             // If successful, we just return (user created without avatar)
@@ -114,6 +120,9 @@ export async function deleteUser(id: string) {
         return { message: "Cannot delete yourself" };
     }
 
+    const target = await prisma.user.findUnique({ where: { id }, include: { roleRelation: true } });
+    if (isProtectedRole(target?.roleRelation?.name || target?.role)) return { message: "Superadmin accounts cannot be deleted" };
+
     try {
         await prisma.user.delete({ where: { id } });
         revalidatePath("/users");
@@ -144,11 +153,17 @@ export async function updateUser(id: string, formData: FormData) {
     }
 
     try {
-        const roleRecord = await (prisma as any).role.findUnique({
+        const roleRecord = await (prisma).role.findUnique({
           where: { name: result.data.role }
         });
 
-        const updateData: any = {
+        if (!roleRecord?.isActive) return { message: "Choose an active role" };
+        const existingUser = await prisma.user.findUnique({ where: { id }, include: { roleRelation: true } });
+        const session = await auth();
+        if (isProtectedRole(existingUser?.roleRelation?.name || existingUser?.role) && session?.user?.role !== "SUPER_ADMIN") return { message: "Only superadmin can edit this account" };
+        if (isProtectedRole(existingUser?.roleRelation?.name || existingUser?.role) && result.data.role !== (existingUser?.roleRelation?.name || existingUser?.role)) return { message: "Superadmin role cannot be changed" };
+        if (isProtectedRole(roleRecord.name) && session?.user?.role !== "SUPER_ADMIN") return { message: "Only superadmin can assign this role" };
+        const updateData: unknown = {
             name: result.data.name,
             email: result.data.email,
             role: result.data.role,
@@ -161,7 +176,7 @@ export async function updateUser(id: string, formData: FormData) {
             updateData.password = await hash(result.data.password, 12);
         }
 
-        await (prisma.user as any).update({
+        await (prisma.user).update({
             where: { id },
             data: updateData,
         });
@@ -182,12 +197,12 @@ export async function updateUser(id: string, formData: FormData) {
                      // Ideally we lift updateData out of try block but 'const' block scope issues.
                      // Simpler to just re-construct.
                      const hashedPassword = await hash(result.data.password, 12);
-                     await (prisma.user as any).update({
+                     await (prisma.user).update({
                          where: { id },
                          data: { ...baseData, password: hashedPassword },
                      });
                  } else {
-                     await (prisma.user as any).update({
+                     await (prisma.user).update({
                          where: { id },
                          data: baseData,
                      });

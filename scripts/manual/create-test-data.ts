@@ -3,7 +3,7 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
-import { ensureBillfreePhase1Schema, prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma";
 import { resolveInventoryCertificateUrl } from "../../lib/certificate-url";
 
 async function main() {
@@ -49,7 +49,7 @@ async function main() {
   });
   
   // Create test sale
-  const testSale = await prisma.sale.create({
+  void (await prisma.sale.create({
     data: {
       inventoryId: testInventory.id,
       customerId: testCustomer.id,
@@ -63,7 +63,7 @@ async function main() {
       paymentMethod: "CASH",
       paymentStatus: "PAID"
     }
-  });
+  }));
   
   // Create test invoice
   const testInvoice = await prisma.invoice.create({

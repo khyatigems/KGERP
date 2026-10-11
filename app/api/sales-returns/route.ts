@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { computeReturnStockPlacement } from "@/lib/sales-return-rules";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 
@@ -22,7 +22,7 @@ function round2(n: number) {
 
 function computeGstSplit(input: { taxable: number; rate: number; companyState: string; placeOfSupply: string }) {
   const totalTax = round2(input.taxable * input.rate);
-  const company = (input.companyState || "").trim().toLowerCase();
+  void ((input.companyState || "").trim().toLowerCase());
   const pos = (input.placeOfSupply || "").trim().toLowerCase();
   const interstate = Boolean(company && pos && company !== pos);
   if (interstate) return { igst: totalTax, cgst: 0, sgst: 0, totalTax };
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   await ensureReturnsSchema();
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.SALES_CREATE)) {
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.SALES_CREATE)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const body = await request.json().catch(() => ({}));
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       const returnNumber = nextPrefixedNumber("SR-", existingReturns);
       const salesReturnId = crypto.randomUUID();
 
-      const company = await tx.companySettings.findFirst({ select: { address: true } });
+      void (await tx.companySettings.findFirst({ select: { address: true } }));
       const placeOfSupply = inv.sales?.[0]?.placeOfSupply || inv.sales?.[0]?.customerCity || "";
       const taxableAmount = round2(
         items.reduce((s: number, i: { sellingPrice: number; quantity: number }) => s + Number(i.sellingPrice || 0) * Number(i.quantity || 1), 0)

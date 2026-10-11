@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const settings = await (prisma as any).gpisSettings.findFirst();
+    const settings = await (prisma).gpisSettings.findFirst();
     const json = settings?.categoryHsnJson;
     if (!json || typeof json !== "string") {
       return NextResponse.json({ map: {} });

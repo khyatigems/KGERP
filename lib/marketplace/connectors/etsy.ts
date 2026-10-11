@@ -18,6 +18,27 @@ import type {
 } from "@/lib/marketplace/types";
 import { getValidAccessToken, updateTokens, isEncryptionReady } from "@/lib/marketplace/oauth";
 
+type OAuthTokenResponse = { access_token: string; refresh_token?: string; expires_in?: number; scope?: string };
+type EtsyMoney = { amount?: number | string; divisor?: number | string; currency_code?: string };
+type EtsyImage = { url_fullxfull?: string; url_570xN?: string; url_170x135?: string; url?: string };
+type EtsyProduct = { sku?: unknown; offerings?: { sku?: unknown }[] };
+type EtsyListing = {
+  sku?: unknown; inventory?: { products?: EtsyProduct[] }; products?: EtsyProduct[];
+  images?: EtsyImage[]; Images?: EtsyImage[]; description?: string; listing_id?: string | number;
+  title?: string; price?: EtsyMoney; quantity?: number; state?: string; url?: string;
+  taxonomy_id?: number | string; num_favorers?: number;
+};
+type EtsyReceipt = {
+  receipt_id?: number | string; status?: string; name?: string; buyer_email?: string;
+  country_iso?: string; city?: string; state?: string; zip?: string;
+  tracking_code?: string; carrier_name?: string;
+  shipments?: { tracking_code?: string; carrier_name?: string }[];
+  grandtotal?: EtsyMoney; created_timestamp?: number;
+  transactions?: { transaction_id?: number | string; listing_id?: number | string; sku?: string;
+    title?: string; quantity?: number; price?: EtsyMoney; image_url?: string }[];
+};
+type EtsyShop = { shop_id?: number | string; shop_name?: string };
+
 const API_BASE = "https://openapi.etsy.com";
 const AUTH_URL = "https://www.etsy.com/oauth/connect";
 const TOKEN_URL = "https://api.etsy.com/v3/public/oauth/token";
@@ -127,7 +148,7 @@ export async function isEtsyProfileConfigured(profile: EtsyOAuthAppProfile): Pro
   }
 }
 
-function moneyValue(money: any): number | null {
+function moneyValue(money: EtsyMoney | undefined): number | null {
   if (!money) return null;
   const amount = Number(money.amount);
   const divisor = Number(money.divisor) || 1;
@@ -135,7 +156,7 @@ function moneyValue(money: any): number | null {
   return amount / divisor;
 }
 
-function moneyCurrency(money: any): string | null {
+function moneyCurrency(money: EtsyMoney | undefined): string | null {
   return money?.currency_code ? String(money.currency_code) : null;
 }
 
@@ -150,10 +171,10 @@ function usableSku(value: unknown): string | null {
  * listing itself. A legacy direct `sku` is also accepted because saved API
  * payloads and older responses can use that shape.
  */
-export function etsyListingSku(listing: any): string | null {
+export function etsyListingSku(listing: EtsyListing | null | undefined): string | null {
   const directValues = Array.isArray(listing?.sku) ? listing.sku : [listing?.sku];
   for (const value of directValues) {
-    const direct = usableSku(value && typeof value === "object" ? value.sku : value);
+    const direct = usableSku(value && typeof value === "object" ? ("sku" in value ? value.sku : undefined) : value);
     if (direct) return direct;
   }
 
@@ -184,14 +205,14 @@ export function etsyListingSku(listing: any): string | null {
   return labelledSku?.[1] || null;
 }
 
-export function etsyListingImages(listing: any): string[] {
+export function etsyListingImages(listing: EtsyListing | null | undefined): string[] {
   const candidates = Array.isArray(listing?.images)
     ? listing.images
     : Array.isArray(listing?.Images)
       ? listing.Images
       : [];
   return candidates
-    .map((image: any) => image?.url_fullxfull || image?.url_570xN || image?.url_170x135 || image?.url || "")
+    .map((image) => image?.url_fullxfull || image?.url_570xN || image?.url_170x135 || image?.url || "")
     .filter((url: unknown): url is string => typeof url === "string" && url.length > 0);
 }
 
@@ -271,7 +292,7 @@ export class EtsyConnector implements MarketplaceConnector {
     });
     body.set("code_verifier", verifier);
 
-    const data = await httpJson<Record<string, any>>(TOKEN_URL, {
+    const data = await httpJson<OAuthTokenResponse>(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
@@ -319,7 +340,7 @@ export class EtsyConnector implements MarketplaceConnector {
       client_id: credentials.clientId,
       refresh_token: refreshToken,
     });
-    const data = await httpJson<Record<string, any>>(TOKEN_URL, {
+    const data = await httpJson<OAuthTokenResponse>(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: body.toString(),
@@ -343,12 +364,12 @@ export class EtsyConnector implements MarketplaceConnector {
   }
 
   /** Resolve the authenticating user's shop(s). Returns an array regardless of shape. */
-  private async getUserShops(token: string, headers: Record<string, string>): Promise<any[]> {
+  private async getUserShops(token: string, headers: Record<string, string>): Promise<EtsyShop[]> {
     const userId = String(token.split(".")[0] || "").trim();
     const url = userId
       ? `${API_BASE}/v3/application/users/${userId}/shops`
       : `${API_BASE}/v3/application/shops`;
-    const data = await httpJson<any>(url, { headers }).catch((e) => {
+    const data = await httpJson<EtsyShop & { results?: EtsyShop[] }>(url, { headers }).catch((e) => {
       const err = e as { message?: string; body?: unknown };
       console.error("[etsy] getUserShops failed:", err.message, err.body ? JSON.stringify(err.body) : "");
       throw new Error(`Unable to load Etsy shops: ${err.message || "Marketplace API request failed"}`);
@@ -644,7 +665,7 @@ export class EtsyConnector implements MarketplaceConnector {
     const headers = this.getHeaders(token, this.credentials(await this.getConnectionProfile(context.connectionId)));
     const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 100;
     const offset = params.offset || 0;
-    const data = await httpJson<{ results?: any[]; count?: number }>(
+    const data = await httpJson<{ results?: EtsyListing[]; count?: number }>(
       `${API_BASE}/v3/application/shops/${encodeURIComponent(context.externalShopId)}/listings?state=active&includes=Images,Inventory&limit=${pageSize}&offset=${offset}`,
       { headers }
     );
@@ -656,7 +677,7 @@ export class EtsyConnector implements MarketplaceConnector {
     }));
   }
 
-  private normalizeListing(listing: any): NormalizedListing {
+  private normalizeListing(listing: EtsyListing | null | undefined): NormalizedListing {
     const sku = etsyListingSku(listing);
     const images = etsyListingImages(listing);
 
@@ -687,7 +708,7 @@ export class EtsyConnector implements MarketplaceConnector {
     const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 50;
     const offset = params.offset || 0;
 
-    const receipts = await httpJson<{ results?: any[] }>(
+    const receipts = await httpJson<{ results?: EtsyReceipt[] }>(
       `${API_BASE}/v3/application/shops/${encodeURIComponent(context.externalShopId)}/receipts?limit=${pageSize}&offset=${offset}`,
       { headers }
     );
@@ -715,7 +736,7 @@ export class EtsyConnector implements MarketplaceConnector {
   ): Promise<Map<string, string>> {
     const id = String(receiptId || "").trim();
     if (!id) return new Map();
-    const data = await httpJson<{ results?: any[] }>(
+    const data = await httpJson<{ results?: EtsyListing[] }>(
       `${API_BASE}/v3/application/shops/${encodeURIComponent(shopId)}/receipts/${encodeURIComponent(id)}/listings?includes=Images&limit=100`,
       { headers }
     );
@@ -728,7 +749,7 @@ export class EtsyConnector implements MarketplaceConnector {
         // Fetch the image resource directly so receipt thumbnails are reliable.
         let image = etsyListingImages(listing)[0];
         if (!image) {
-          const imageData = await httpJson<{ results?: any[] }>(
+          const imageData = await httpJson<{ results?: EtsyImage[] }>(
             `${API_BASE}/v3/application/listings/${encodeURIComponent(listingId)}/images?limit=1`,
             { headers }
           );
@@ -744,8 +765,8 @@ export class EtsyConnector implements MarketplaceConnector {
     return result;
   }
 
-  private normalizeOrder(receipt: any, imagesByListing = new Map<string, string>()): NormalizedOrder {
-    const items: NormalizedOrderItem[] = (receipt?.transactions || []).map((tx: any) => ({
+  private normalizeOrder(receipt: EtsyReceipt, imagesByListing = new Map<string, string>()): NormalizedOrder {
+    const items: NormalizedOrderItem[] = (receipt?.transactions || []).map((tx) => ({
       itemId: tx?.transaction_id ? String(tx.transaction_id) : null,
       listingId: tx?.listing_id != null ? String(tx.listing_id) : null,
       sku: tx?.sku ? String(tx.sku) : null,

@@ -68,7 +68,7 @@ async function main() {
   let updated = 0;
   let skipped = 0;
 
-  for (const [invoiceId, list] of byInvoice.entries()) {
+  for (const [, list] of byInvoice.entries()) {
     const invoice = list[0]?.invoice;
     if (!invoice) {
       skipped += list.length;

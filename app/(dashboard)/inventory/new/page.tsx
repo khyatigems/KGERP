@@ -37,7 +37,7 @@ export default async function NewInventoryPage() {
   ]);
   const origins = originRows.map((r) => r.origin);
 
-  const gpisSettings = await (prisma as any).gpisSettings.findFirst();
+  const gpisSettings = await (prisma).gpisSettings.findFirst();
   const categoryHsnMap: Record<string, string> = {};
   if (gpisSettings?.categoryHsnJson) {
     try {

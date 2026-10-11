@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { cn } from "@/lib/utils";
-import { Bell, X, Check, AlertCircle, Info, Loader2, Settings, MessageSquare, ShoppingCart, FileText, Users, Package } from "lucide-react";
+import { Bell, X, Check, AlertCircle, Info, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { LottieIcon, LottieAnimation } from "@/components/ui/lottie";
-import { getAnimationConfig } from "@/components/ui/lottie/animations";
+import "@/components/ui/separator";
+import { LottieIcon } from "@/components/ui/lottie";
+import "@/components/ui/lottie/animations";
 
 export type NotificationType = "info" | "success" | "warning" | "error" | "action_required";
 
@@ -55,7 +55,7 @@ export function SmartNotificationsProvider({ children }: { children: React.React
       const stored = localStorage.getItem("smart-notifications");
       if (stored) {
         const parsed = JSON.parse(stored);
-        setNotifications(parsed.map((n: any) => ({ ...n, timestamp: new Date(n.timestamp) })));
+        setNotifications(parsed.map((n) => ({ ...n, timestamp: new Date(n.timestamp) })));
       }
     } catch (e) {
       console.error("Failed to load notifications:", e);
@@ -207,7 +207,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <LottieIcon src="emptyState" size={40} className="text-muted-foreground/50" />
                   <p className="text-sm text-muted-foreground mt-2">No notifications</p>
-                  <p className="text-xs text-muted-foreground/60">You're all caught up!</p>
+                  <p className="text-xs text-muted-foreground/60">You&apos;re all caught up!</p>
                 </div>
               ) : (
                 filteredNotifications.map((notification) => {

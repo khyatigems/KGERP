@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { LottieAnimation } from "./LottieAnimation";
-import { getAnimationConfig, prefersReducedMotion } from "./animations";
+import { prefersReducedMotion } from "./animations";
 import type { AnimationConfig } from "./animations";
 
 interface LottieTransitionProps {
@@ -34,7 +34,7 @@ export function LottieTransition({
   exitKey,
   className,
   style,
-  delay = 0,
+  
   duration = 300,
   onEnterComplete,
   onExitComplete,

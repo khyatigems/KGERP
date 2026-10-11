@@ -2,35 +2,15 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ListPlus, ExternalLink, Link, Check, X, Eye, ShoppingBag } from "lucide-react";
+import { ListPlus, ExternalLink, Link, Check, Eye, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Supported platforms
 const PLATFORMS = [
@@ -224,14 +204,7 @@ export function BulkListings({
     ) : <Badge>{platformId}</Badge>;
   };
 
-  const getStatusBadge = (statusId: string) => {
-    const s = LISTING_STATUSES.find(s => s.id === statusId);
-    return s ? (
-      <Badge className={`${s.color} text-white`}>
-        {s.name}
-      </Badge>
-    ) : <Badge>{statusId}</Badge>;
-  };
+  
 
   return (
     <>
@@ -404,7 +377,7 @@ export function BulkListings({
                     {filteredListings.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          No listings found. Create listings in the "Create Listings" tab.
+                          No listings found. Create listings in the &quot;Create Listings&quot; tab.
                         </TableCell>
                       </TableRow>
                     ) : (

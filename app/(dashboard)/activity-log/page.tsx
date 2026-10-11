@@ -1,9 +1,8 @@
+import type { ActivityLog, Prisma } from "@prisma/client";
 import { Metadata } from "next";
-import { ensureActivityLogSchema, prisma, type ActivityLog } from "@/lib/prisma";
+import { ensureActivityLogSchema, prisma } from "@/lib/prisma";
 import { format, formatDistanceToNow } from "date-fns";
-import { 
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -29,7 +28,7 @@ export default async function ActivityLogPage({
 
     const isSuperAdmin = (session.user.role || "") === "SUPER_ADMIN";
     if (!isSuperAdmin) {
-      const canView = await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW);
+      const canView = await checkUserPermission(session.user.id, PERMISSIONS.ACTIVITY_VIEW) || await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW);
       if (!canView) return null;
     }
 
@@ -39,7 +38,7 @@ export default async function ActivityLogPage({
     const skip = (page - 1) * limit;
     
     // Filters
-    const module = typeof params.module === "string" ? params.module : undefined;
+    const moduleFilter = typeof params.module === "string" ? params.module : undefined;
     const actionType = typeof params.actionType === "string" ? params.actionType : undefined;
     const userId = typeof params.userId === "string" ? params.userId : undefined;
     const source = typeof params.source === "string" ? params.source : undefined;
@@ -47,8 +46,8 @@ export default async function ActivityLogPage({
     const from = typeof params.from === "string" ? params.from : undefined;
     const to = typeof params.to === "string" ? params.to : undefined;
     
-    const where: any = {};
-    if (module && module !== "ALL") where.module = module;
+    const where: Prisma.ActivityLogWhereInput = {};
+    if (moduleFilter && moduleFilter !== "ALL") where.module = moduleFilter;
     if (actionType && actionType !== "ALL") where.actionType = actionType;
     if (source && source !== "ALL") where.source = source;
     if (isSuperAdmin) {
@@ -58,13 +57,13 @@ export default async function ActivityLogPage({
     }
     if (q) {
       where.OR = [
-        { referenceId: { contains: q, mode: "insensitive" } },
-        { entityIdentifier: { contains: q, mode: "insensitive" } },
-        { details: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
-        { userName: { contains: q, mode: "insensitive" } },
-        { module: { contains: q, mode: "insensitive" } },
-        { actionType: { contains: q, mode: "insensitive" } },
+        { referenceId: { contains: q } },
+        { entityIdentifier: { contains: q } },
+        { details: { contains: q } },
+        { description: { contains: q } },
+        { userName: { contains: q } },
+        { module: { contains: q } },
+        { actionType: { contains: q } },
       ];
     }
     if (from || to) {
@@ -74,7 +73,7 @@ export default async function ActivityLogPage({
     }
     
     // Fetch logs
-    let logs: any[] = [];
+    let logs: ActivityLog[] = [];
     let totalCount = 0;
     
     try {
@@ -113,7 +112,7 @@ export default async function ActivityLogPage({
     ).catch(() => []);
 
     const exportRows = logs.map((logItem) => {
-      const log = logItem as any;
+      const log = logItem;
       const dt = log?.createdAt ? new Date(log.createdAt) : null;
       return {
         Time: dt && !Number.isNaN(dt.getTime()) ? format(dt, "dd-MMM-yyyy HH:mm") : String(log.createdAt || ""),
@@ -142,7 +141,7 @@ export default async function ActivityLogPage({
               <form className="flex flex-wrap items-end gap-3" action="/activity-log" method="get">
                 <div className="flex flex-col gap-1">
                   <div className="text-xs text-muted-foreground">Module</div>
-                  <select name="module" defaultValue={module || "ALL"} className="h-9 rounded-md border bg-background px-3 text-sm">
+                  <select name="module" defaultValue={moduleFilter || "ALL"} className="h-9 rounded-md border bg-background px-3 text-sm">
                     <option value="ALL">All</option>
                     {moduleOptions.map((m) => (
                       <option key={String(m.module)} value={String(m.module)}>{String(m.module)}</option>
@@ -228,7 +227,7 @@ export default async function ActivityLogPage({
                             </TableRow>
                         ) : (
                             logs.map((logItem) => {
-                                 const log = logItem as any;
+                                 const log = logItem;
                                  const metaStr = log.metadata || log.fieldChanges;
                                  return (
                                  <TableRow key={log.id}>

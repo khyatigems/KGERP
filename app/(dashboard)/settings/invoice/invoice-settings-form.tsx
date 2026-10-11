@@ -78,7 +78,7 @@ export function InvoiceSettingsForm({ initialSettings, initialPaymentSettings, c
     }));
   };
 
-  const updatePlatform = (index: number, field: keyof PlatformConfig, value: any) => {
+  const updatePlatform = (index: number, field: keyof PlatformConfig, value) => {
     setPlatforms((prev: PlatformConfig[]) => prev.map((p: PlatformConfig, i: number) => i === index ? { ...p, [field]: value } : p));
   };
 

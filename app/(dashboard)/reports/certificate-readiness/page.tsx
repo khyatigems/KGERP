@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ExportButton } from "@/components/ui/export-button";
@@ -34,7 +34,7 @@ const checklistFieldOrder = [
 export default async function CertificateReadinessReportPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) {
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) {
     redirect("/");
   }
 

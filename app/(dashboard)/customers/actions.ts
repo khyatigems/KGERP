@@ -17,7 +17,7 @@ const normalizePhone = (input: unknown) => {
 };
 
 async function linkLegacyCustomerRecords(
-  tx: any,
+  tx: unknown,
   input: { customerId: string; phone: string | null; email: string | null }
 ) {
   const phone = input.phone ? input.phone.replace(/[^\d+]/g, "") : null;

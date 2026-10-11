@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
-import {
-  listEmailTemplates,
-  createEmailTemplate,
-  updateEmailTemplate,
-  toggleEmailTemplate,
-} from "@/lib/email/templates";
+import { listEmailTemplates, createEmailTemplate, updateEmailTemplate, toggleEmailTemplate } from "@/lib/email/templates";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const allowed = await checkUserPermission(session.user.id, PERMISSIONS.SETTINGS_MANAGE);

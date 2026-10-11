@@ -4,43 +4,15 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CsvImporter } from "@/components/ui/csv-importer";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import {
-  createCode,
-  updateCode,
-  setCodeStatus,
-  importCodes,
-  checkCodeDuplicate,
-  type CsvRow,
-} from "@/app/(dashboard)/settings/codes/actions";
+import "@/components/ui/checkbox";
+import "@/components/ui/label";
+import { createCode, updateCode, setCodeStatus, importCodes, checkCodeDuplicate, type CsvRow } from "@/app/(dashboard)/settings/codes/actions";
 import { Download, Plus, Upload, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 

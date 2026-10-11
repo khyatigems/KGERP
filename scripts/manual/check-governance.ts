@@ -4,7 +4,7 @@ config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
 import { prisma } from "../../lib/prisma";
-import { GOVERNANCE_SETTING_KEYS, getGovernanceConfig } from "../../lib/governance";
+import { getGovernanceConfig } from "../../lib/governance";
 
 async function checkGovernanceSettings() {
   console.log("🔒 Checking Governance Settings...\n");

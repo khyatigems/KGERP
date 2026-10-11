@@ -146,14 +146,14 @@ export default function NewUserForm({ roles }: { roles: Record<string, unknown>[
 
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Select name="role" defaultValue={roles.length > 0 ? (roles[0].name as string) : "VIEWER"}>
+            <Select name="role" defaultValue={roles.length > 0 ? ((roles.find(r => r.name === "VIEWER") || roles.find(r => r.name !== "SUPER_ADMIN") || roles[0]).name as string) : "VIEWER"}>
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
                 {roles.length > 0 ? (
                   roles.map(r => (
-                    <SelectItem key={r.id as string} value={r.name as string}>{(r.name as string).replace("_", " ")}</SelectItem>
+                    <SelectItem key={r.id as string} value={r.name as string}>{(r.name as string).replaceAll("_", " ")}</SelectItem>
                   ))
                 ) : (
                   <>

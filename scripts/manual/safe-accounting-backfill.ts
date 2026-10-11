@@ -3,7 +3,7 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
-import { ensureBillfreePhase1Schema, prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma";
 import { postJournalEntry } from "../../lib/accounting";
 import { createVoucher } from "../../lib/voucher-service";
 import crypto from "crypto";
@@ -72,7 +72,7 @@ async function main() {
   
   const arAccount = accounts.find(a => a.code === '1010');
   const salesAccount = accounts.find(a => a.code === '4001');
-  const gstPayableAccount = accounts.find(a => a.code === '2001');
+  void (accounts.find(a => a.code === '2001'));
   
   if (!arAccount || !salesAccount) {
     console.error("❌ Required accounts not found. Please ensure accounts 1010 and 4001 exist.");
@@ -142,7 +142,7 @@ async function main() {
         console.log(`✅ Created journal entry for ${sale.invoiceNumber}: ₹${sale.netAmount}`);
         successCount++;
       });
-    } catch (error) {
+    } catch  (error) {
       console.error(`❌ Failed to process ${sale.invoiceNumber}:`, (error as Error).message);
       errorCount++;
     }
@@ -160,7 +160,7 @@ async function main() {
     `Processed ${successCount} sales, created ${totalJournalEntries} journal entries, ${errorCount} errors`
     );
     console.log("✅ Activity log entry created");
-  } catch (error) {
+  } catch  {
     console.log("ℹ️  Could not create activity log entry");
   }
   

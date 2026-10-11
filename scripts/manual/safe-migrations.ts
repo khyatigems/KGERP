@@ -48,7 +48,7 @@ async function main() {
       console.log("  ✅ Added 'remarks' column");
     }
     
-  } catch (error) {
+  } catch  (error) {
     console.log("  ℹ️  LoyaltyLedger table doesn't exist or error:", (error as Error).message);
   }
   
@@ -74,7 +74,7 @@ async function main() {
     } else {
       console.log("  ✅ LoyaltySettings already exists");
     }
-  } catch (error) {
+  } catch  {
     console.log("  ℹ️  LoyaltySettings table doesn't exist - will be created by schema");
   }
   
@@ -83,7 +83,7 @@ async function main() {
   try {
     await ensureBillfreePhase1Schema();
     console.log("  ✅ Schema migration completed");
-  } catch (error) {
+  } catch  (error) {
     console.log("  ⚠️  Schema migration issue:", (error as Error).message);
   }
   

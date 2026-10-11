@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getSystemLogsReportData } from "@/lib/report-module-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPage } from "@/components/ui/animated-page";
@@ -8,7 +8,7 @@ import { AnimatedPage } from "@/components/ui/animated-page";
 export default async function SystemLogsReportPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.REPORTS_VIEW)) redirect("/");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.REPORTS_VIEW))) redirect("/");
   const data = await getSystemLogsReportData();
 
   return (

@@ -4,7 +4,7 @@ import React, { useRef, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { LottieAnimation } from "./LottieAnimation";
 import { getAnimationConfig, ActionVariant, actionVariantMap, prefersReducedMotion } from "./animations";
-import { Loader2, Check, X, RefreshCw, Filter, Upload } from "lucide-react";
+import { Check, X, RefreshCw, Filter, Upload } from "lucide-react";
 
 interface LottieButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ActionVariant;
@@ -30,14 +30,14 @@ const variantIconMap: Record<ActionVariant, React.ReactNode> = {
   sync: <RefreshCw className="h-4 w-4" />,
 };
 
-const defaultIcons: Record<string, React.ReactNode> = {
+void ({
   Download: <Download className="h-4 w-4" />,
   Save: <Save className="h-4 w-4" />,
   Trash2: <Trash2 className="h-4 w-4" />,
   Filter: <Filter className="h-4 w-4" />,
   RefreshCw: <RefreshCw className="h-4 w-4" />,
   Upload: <Upload className="h-4 w-4" />,
-};
+});
 
 function Download({ className, ...props }: React.SVGProps<SVGSVGElement>) {
   return (
@@ -88,7 +88,7 @@ export function LottieButton({
   ...props
 }: LottieButtonProps) {
   const [animationState, setAnimationState] = useState<"idle" | "progress" | "success" | "error">("idle");
-  const playerRef = useRef<any>(null);
+  void (useRef<unknown>(null));
   const reducedMotion = prefersReducedMotion();
   const animationKey = actionVariantMap[variant];
   const config = getAnimationConfig(animationKey);

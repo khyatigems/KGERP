@@ -1,3 +1,4 @@
+import type { Inventory } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export interface ReadinessResult {
@@ -7,13 +8,13 @@ export interface ReadinessResult {
   checks: Array<{ field: string; passed: boolean; weight: number }>;
 }
 
-const CHECKS: Array<{ field: string; weight: number; check: (inv: any) => boolean }> = [
+const CHECKS: Array<{ field: string; weight: number; check: (inv: Pick<Inventory, "itemName" | "sku" | "sellingPrice" | "imageUrl" | "category" | "gemType" | "description" | "productDescription" | "carats" | "weightValue" | "certificateNumber" | "certificateNo" | "categoryCodeId" | "gemstoneCodeId"> & { media: { id: string }[] }) => boolean }> = [
   { field: "title", weight: 10, check: (inv) => Boolean(inv.itemName) },
   { field: "sku", weight: 10, check: (inv) => Boolean(inv.sku) },
   { field: "price", weight: 15, check: (inv) => Number(inv.sellingPrice) > 0 },
   { field: "images", weight: 20, check: (inv) => (inv.media?.length ?? 0) > 0 || Boolean(inv.imageUrl) },
-  { field: "category", weight: 10, check: (inv) => Boolean(inv.category) || Boolean(inv.categoryCode) },
-  { field: "gemstone_type", weight: 10, check: (inv) => Boolean(inv.gemType) || Boolean(inv.gemstoneCode) },
+  { field: "category", weight: 10, check: (inv) => Boolean(inv.category) || Boolean(inv.categoryCodeId) },
+  { field: "gemstone_type", weight: 10, check: (inv) => Boolean(inv.gemType) || Boolean(inv.gemstoneCodeId) },
   { field: "description", weight: 10, check: (inv) => Boolean(inv.description) || Boolean(inv.productDescription) },
   { field: "weight", weight: 10, check: (inv) => Number(inv.carats) > 0 || Number(inv.weightValue) > 0 },
   { field: "certificate", weight: 5, check: (inv) => Boolean(inv.certificateNumber || inv.certificateNo) },

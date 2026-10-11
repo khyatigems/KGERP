@@ -74,7 +74,7 @@ function findBestMatch(
 
 async function main() {
   console.log("Loading code maps...");
-  const [[catMap, catNames], [gemMap, gemNames], [colMap, colNames], [cutMap, cutNames]] = await Promise.all([
+  const [[catMap, ], [gemMap, gemNames], [colMap, colNames], [cutMap, cutNames]] = await Promise.all([
     loadCodeMap("CategoryCode"),
     loadCodeMap("GemstoneCode"),
     loadCodeMap("ColorCode"),
@@ -137,7 +137,7 @@ async function main() {
     args.push(id);
     await client.execute({
       sql: `UPDATE "Inventory" SET ${sets.join(", ")} WHERE id = ?`,
-      args: args as any,
+      args: args,
     });
 
     const changes: string[] = [];

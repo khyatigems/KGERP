@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { ensureBillfreePhase1Schema, ensureInvoiceSupportSchema, hasTable, prisma } from "@/lib/prisma";
+import { ensureInvoiceSupportSchema, hasTable, prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
@@ -9,7 +9,7 @@ import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
 import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
 import { applyCreditNotesOnInvoiceCreation } from "@/lib/invoice-payment";
 import { checkPermission } from "@/lib/permission-guard";
-import { PERMISSIONS, hasPermission } from "@/lib/permissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import crypto, { randomBytes } from "crypto";
 import { InvoiceData } from "@/lib/invoice-generator";
 import { Prisma } from "@prisma/client";
@@ -18,7 +18,7 @@ import { normalizeDateToUtcNoon } from "@/lib/date";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { computeInvoiceGst } from "@/lib/invoice-gst";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
-import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
+import "@/lib/returns-schema-ensure";
 import { accrueLoyaltyPoints } from "@/lib/loyalty-accrual";
 
 const saleItemSchema = z.object({

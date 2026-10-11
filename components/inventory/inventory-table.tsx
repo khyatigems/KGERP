@@ -243,7 +243,7 @@ export function InventoryTable({
 
                         if (!hasCertNo && !hasCertNum && !certUrl) return <span className="text-amber-600">— ⚠</span>;
 
-                        const provider = providerFromCodes || String((item as any).lab || (item as any).certificateLab || "") || "GCI";
+                        const provider = providerFromCodes || String((item).lab || (item).certificateLab || "") || "GCI";
 
                         return (
                           <div className="flex flex-col gap-1">

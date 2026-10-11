@@ -3,7 +3,7 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
-import { ensureBillfreePhase1Schema, prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma";
 import { accrueLoyaltyPoints } from "../../lib/loyalty-accrual";
 import { type PrismaTx } from "../../lib/accounting";
 import crypto from "crypto";
@@ -83,7 +83,7 @@ async function main() {
         console.log(`✅ Awarded ${expectedPoints} points for ${invoice.invoiceNumber} (₹${invoice.totalAmount})`);
         successCount++;
       });
-    } catch (error) {
+    } catch  (error) {
       console.error(`❌ Failed to process ${invoice.invoiceNumber}:`, (error as Error).message);
       errorCount++;
     }
@@ -101,7 +101,7 @@ async function main() {
     `Processed ${successCount} invoices, awarded ${totalPointsAwarded} points, ${errorCount} errors`
     );
     console.log("✅ Activity log entry created");
-  } catch (error) {
+  } catch  {
     console.log("ℹ️  Could not create activity log entry");
   }
   

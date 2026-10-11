@@ -1,3 +1,4 @@
+import { activeChannelListingWhere, buildPreparedUnlistedWhere } from "@/lib/trading-dashboard";
 import { Metadata } from "next";
 import { Plus, Upload } from "lucide-react";
 import { Suspense } from "react";
@@ -14,7 +15,6 @@ import { InventoryInsightBar } from "@/components/inventory/inventory-insight-ba
 import { ComprehensiveExport } from "@/components/inventory/comprehensive-export";
 import { InventoryFilteredExport } from "@/components/inventory/inventory-filtered-export";
 import { RegenerateEbayButton, RegenerateEtsyButton } from "@/components/inventory/regenerate-ebay-button";
-import { BulkListings } from "@/components/inventory/bulk-listings";
 import type { Inventory, Prisma } from "@prisma/client";
 import { removeDuplicates } from "@/lib/dedup";
 import { auth } from "@/lib/auth";
@@ -171,7 +171,11 @@ function buildInventoryWhere(
     }
   }
 
-  if (params.filter === "missingImages") {
+  if (params.filter === "preparedUnlisted") {
+    and.push(buildPreparedUnlistedWhere());
+  } else if (params.filter === "unlisted") {
+    and.push({ status: "IN_STOCK", listings: { none: activeChannelListingWhere } });
+  } else if (params.filter === "missingImages") {
     and.push({ imageUrl: null, status: "IN_STOCK", media: { none: {} } });
   } else if (params.filter === "readyToSell") {
     and.push(buildReadyToSellWhere());
@@ -496,7 +500,9 @@ export default async function InventoryPage({
     return `/inventory${nextParams.toString() ? `?${nextParams.toString()}` : ""}`;
   };
 
-  const activeFilterLabel = params.filter === "missingImages" ? "Missing Images"
+  const activeFilterLabel = params.filter === "preparedUnlisted" ? "Prepared & Unlisted"
+    : params.filter === "unlisted" ? "Unlisted Stock"
+    : params.filter === "missingImages" ? "Missing Images"
     : params.filter === "readyToSell" ? "Ready to Sell"
     : params.filter === "missingCertification" ? "Missing Certification"
     : params.filter === "highValueUnsold" ? "High-Value Stagnant"
@@ -509,13 +515,13 @@ export default async function InventoryPage({
     <AnimatedPage>
     <div className="space-y-6">
       <InventorySavedToast />
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
           <p className="text-muted-foreground">Manage your inventory items</p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3 shadow-sm [&_button]:rounded-xl [&_a[data-slot=button]]:rounded-xl">
           {data.canCreate && (
             <>
               <Button asChild variant="outline">
@@ -537,23 +543,12 @@ export default async function InventoryPage({
           </Suspense>
           <RegenerateEbayButton />
           <RegenerateEtsyButton />
-          <BulkListings inventoryItems={data.inventory.map(item => ({
-            id: item.id,
-            sku: item.sku,
-            itemName: item.itemName,
-            category: item.category,
-            gemType: item.gemType || "",
-            color: item.colorCode?.name || item.color || "",
-            weightValue: item.weightValue || 0,
-            sellingPrice: item.sellingPrice || item.flatSellingPrice || 0,
-            status: item.status,
-          }))} />
         </div>
       </div>
 
       <InventoryStats searchParams={params} />
 
-      <div className="bg-card p-4 rounded-md border">
+      <div className="bg-card p-4 rounded-2xl border shadow-sm [&_button]:rounded-xl">
         <InventorySearch
           vendors={data.vendors}
           categories={data.categories}

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import {
   FileText, AlertTriangle, Clock, Package,
-  Link2, Printer, ArrowRight, CheckCircle2, Zap,
+  Printer, ArrowRight, Zap,
   DollarSign, ShoppingCart, PlusCircle
 } from "lucide-react";
 import Link from "next/link";
@@ -53,7 +53,6 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
     addIfPresent("overdue-memo", Clock, "Overdue Memo / Returns", attention?.memo?.length ?? 0, "warning", "/sales-returns");
     addIfPresent("pending-vendors", Package, "Pending Vendor Approvals", attention?.vendors ?? 0, "warning", "/vendors");
     addIfPresent("pending-payments", DollarSign, "Pending Payments", pendingPayments?.count ?? 0, "warning", "/invoices");
-    addIfPresent("pending-expenses", Link2, "Pending Expenses", attention?.pendingExpenses?.length ?? 0, "info", "/expenses");
 
     // Today's activity (info)
     addIfPresent("today-inventory", PlusCircle, "Items Added Today", todayActions?.inventory ?? 0, "info", "/inventory?filter=todayItems");

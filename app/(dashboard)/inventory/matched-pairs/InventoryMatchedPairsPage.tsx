@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Download, Filter, Search, Sparkles, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { Download, Sparkles, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import "@/lib/utils";
 import { MatchedPairCard } from "@/components/dashboard/matched-pair-card";
 import { MatchedPairModal } from "@/components/dashboard/matched-pair-modal";
 import { MatchedPairItem, MatchedPairsResponse, MatchedPairTab } from "@/components/dashboard/matched-pairs-types";
@@ -22,13 +22,7 @@ function getMatchQuality(score: number): "excellent" | "good" | "possible" {
   return "possible";
 }
 
-function getQualityColor(quality: "excellent" | "good" | "possible"): string {
-  switch (quality) {
-    case "excellent": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-    case "good": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-    case "possible": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-  }
-}
+
 
 export function InventoryMatchedPairsPage() {
   const [activeTab, setActiveTab] = useState<MatchedPairTab>("ALL");

@@ -128,8 +128,8 @@ export function exportAdvancesToPDF(advances: Advance[]) {
     headStyles: { fillColor: [66, 66, 66], fontStyle: "bold", textColor: 255 },
     theme: "grid",
     margin: { top: 40, left: 40, right: 40 },
-    didDrawPage: (data: any) => {
-      const str = "Page " + (doc.internal as any).pages.length;
+    didDrawPage: (data) => {
+      const str = "Page " + (doc.internal).pages.length;
       doc.setFontSize(8);
       doc.setTextColor(100);
       doc.text(str, data.settings.margin.left, doc.internal.pageSize.height - 20);

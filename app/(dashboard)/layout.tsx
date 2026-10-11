@@ -74,8 +74,8 @@ export default async function DashboardLayout({
     ? {
         name: session.user.name ?? null,
         email: session.user.email ?? null,
-        image: (session.user as any)?.image ?? (session.user as any)?.avatar ?? null,
-        avatarUrl: (session.user as any)?.avatarUrl ?? null,
+        image: (session.user)?.image ?? (session.user)?.avatar ?? null,
+        avatarUrl: (session.user)?.avatarUrl ?? null,
         role: session.user.role ?? undefined,
         lastLogin: session.user.lastLogin ?? null,
       }
@@ -88,7 +88,7 @@ export default async function DashboardLayout({
     const hasRbacTables = await checkRbacTablesCached();
 
     const dbUser = supports && hasRbacTables
-      ? ((await (prisma.user as any).findUnique({
+      ? ((await (prisma.user).findUnique({
           where: { id: session.user.id },
           select: ({
             name: true,
@@ -102,8 +102,8 @@ export default async function DashboardLayout({
               select: { name: true, permissions: { select: { permission: { select: { key: true } } } } },
             },
             userPermissions: { select: { allow: true, permission: { select: { key: true } } } },
-          } as any),
-        })) as any)
+          }),
+        })))
       : ((await prisma.user.findUnique({
           where: { id: session.user.id },
           select: {
@@ -115,7 +115,7 @@ export default async function DashboardLayout({
             role: true,
             lastLogin: true,
           },
-        })) as any);
+        })));
 
     if (dbUser) {
       const resolvedPerms = new Set<string>();
@@ -131,26 +131,26 @@ export default async function DashboardLayout({
       if (isSuperAdmin) {
         allowedNavModules = ["ALL"];
       } else {
-        dbUser.roleRelation?.permissions?.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
+        dbUser.roleRelation?.permissions?.forEach((rp) => resolvedPerms.add(rp.permission.key));
 
-        if (!resolvedPerms.size && dbUser.role) {
+        if (!resolvedPerms.size && !dbUser.roleRelation && dbUser.role) {
           try {
-            const role = await (prisma as any).role.findUnique({
+            const role = await (prisma).role.findUnique({
               where: { name: dbUser.role },
               include: { permissions: { include: { permission: true } } },
             });
-            role?.permissions?.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
+            role?.permissions?.forEach((rp) => resolvedPerms.add(rp.permission.key));
           } catch {}
         }
 
-        dbUser.userPermissions?.forEach((up: any) => {
+        dbUser.userPermissions?.forEach((up) => {
           if (up.allow) resolvedPerms.add(up.permission.key);
           else resolvedPerms.delete(up.permission.key);
         });
 
         allowedNavModules = Array.from(resolvedPerms);
 
-        if (!allowedNavModules.length && dbUser.role) {
+        if (!allowedNavModules.length && !(supports && hasRbacTables) && dbUser.role) {
           allowedNavModules = getPermissionsForRole(dbUser.role);
         }
 
@@ -162,12 +162,12 @@ export default async function DashboardLayout({
       user = {
         name: dbUser.name ?? session?.user?.name ?? null,
         email: dbUser.email ?? session?.user?.email ?? null,
-        image: dbUser.avatar ?? (session?.user as any)?.image ?? (session?.user as any)?.avatar ?? null,
-        avatarUrl: dbUser.avatarUrl ?? (session?.user as any)?.avatarUrl ?? null,
+        image: dbUser.avatar ?? (session?.user)?.image ?? (session?.user)?.avatar ?? null,
+        avatarUrl: dbUser.avatarUrl ?? (session?.user)?.avatarUrl ?? null,
         avatarHistory: (() => { try { return dbUser.avatarHistory ? JSON.parse(dbUser.avatarHistory) : []; } catch { return []; } })(),
         role: (dbUser.role ?? session?.user?.role) ?? undefined,
-        lastLogin: dbUser.lastLogin ?? (session?.user as any)?.lastLogin ?? null,
-      } as any;
+        lastLogin: dbUser.lastLogin ?? (session?.user)?.lastLogin ?? null,
+      };
     }
   }
 

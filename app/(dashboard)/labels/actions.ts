@@ -5,16 +5,16 @@ import { auth } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { encodePrice } from "@/lib/price-encoder";
 import { LabelConfig } from "@/lib/label-generator";
-import { checkPermission } from "@/lib/permission-guard";
-import { PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
 
-export async function addToCart(inventoryId: string): Promise<{ success: boolean; message?: string }> {
-    const perm = await checkPermission(PERMISSIONS.INVENTORY_VIEW);
-    if (!perm.success) return { success: false, message: perm.message };
+async function canUseLabels(userId: string) {
+    return await checkUserPermission(userId, PERMISSIONS.LABELS_VIEW) || await checkUserPermission(userId, PERMISSIONS.INVENTORY_VIEW);
+}
 
+export async function addToCart(inventoryId: string): Promise<{ success: boolean; message?: string }> {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, message: "Unauthorized" };
+    if (!session?.user?.id || !(await canUseLabels(session.user.id))) return { success: false, message: "Unauthorized" };
 
     try {
         const existing = await prisma.labelCartItem.findFirst({
@@ -44,13 +44,10 @@ export async function addToCart(inventoryId: string): Promise<{ success: boolean
 }
 
 export async function addManyToCart(inventoryIds: string[]): Promise<{ success: boolean; message?: string; count?: number }> {
-    const perm = await checkPermission(PERMISSIONS.INVENTORY_VIEW);
-    if (!perm.success) return { success: false, message: perm.message };
-
     const session = await auth();
     console.log("[addManyToCart] Session:", session ? { user: session.user } : "null");
     
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !(await canUseLabels(session.user.id))) {
         console.error("[addManyToCart] Unauthorized: No user ID in session");
         return { success: false, message: "Unauthorized: Please log in again." };
     }
@@ -88,7 +85,7 @@ export async function addManyToCart(inventoryIds: string[]): Promise<{ success: 
 
 export async function getCart() {
     const session = await auth();
-    if (!session?.user?.id) return [];
+    if (!session?.user?.id || !(await canUseLabels(session.user.id))) return [];
 
     try {
         const cartItems = await prisma.labelCartItem.findMany({
@@ -112,7 +109,7 @@ export async function getCart() {
 
 export async function removeFromCart(cartItemId: string) {
     const session = await auth();
-    if (!session?.user?.id) return { success: false };
+    if (!session?.user?.id || !(await canUseLabels(session.user.id))) return { success: false };
 
     try {
         await prisma.labelCartItem.delete({
@@ -128,7 +125,7 @@ export async function removeFromCart(cartItemId: string) {
 
 export async function clearCart() {
     const session = await auth();
-    if (!session?.user?.id) return { success: false };
+    if (!session?.user?.id || !(await canUseLabels(session.user.id))) return { success: false };
 
     try {
         await prisma.labelCartItem.deleteMany({
@@ -149,7 +146,7 @@ export async function createLabelJob(data: {
     console.log("[createLabelJob] Starting job creation for", data.inventoryIds.length, "items");
     try {
         const session = await auth();
-        if (!session?.user?.id) {
+        if (!session?.user?.id || !(await canUseLabels(session.user.id))) {
             console.error("[createLabelJob] Unauthorized: No session");
             return { success: false, items: [], message: "Unauthorized" };
         }
@@ -263,7 +260,7 @@ export async function createLabelJob(data: {
 
 export async function getLabelJobs() {
     const session = await auth();
-    if (!session?.user?.id) return [];
+    if (!session?.user?.id || !(await canUseLabels(session.user.id))) return [];
 
     try {
         // Verify user exists
@@ -333,6 +330,8 @@ export async function getLabelJobs() {
 // Helper to reconstruct LabelItems from Job History
 // Ensures "Bit-for-bit" identical reprint by using STORED prices
 export async function getJobReprintItems(jobId: string) {
+    const session = await auth();
+    if (!session?.user?.id || !(await canUseLabels(session.user.id))) return [];
     try {
         const job = await prisma.labelPrintJob.findUnique({
             where: { id: jobId },
@@ -383,7 +382,7 @@ export async function getJobReprintItems(jobId: string) {
 
 export async function updateLabelJobStatus(jobId: string, status: "PENDING" | "COMPLETED" | "FAILED") {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, message: "Unauthorized" };
+    if (!session?.user?.id || !(await canUseLabels(session.user.id))) return { success: false, message: "Unauthorized" };
     try {
         const result = await prisma.labelPrintJob.updateMany({
             where: { id: jobId, userId: session.user.id },

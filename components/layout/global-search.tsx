@@ -74,12 +74,7 @@ export function GlobalSearch() {
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
   }, []);
 
-  const chooseResult = (result: SearchResult) => {
-    setQuery("");
-    setResults([]);
-    setIsOpen(false);
-    router.push(result.href);
-  };
+  
 
   const openAllResults = () => {
     if (normalizedQuery.length < 2) return;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role, PERMISSIONS.SALES_VIEW)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!await checkUserPermission(session.user.id, PERMISSIONS.SALES_VIEW)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await ensureBillfreePhase1Schema();
   const { id } = await params;

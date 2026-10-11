@@ -44,11 +44,11 @@ function RegenerateDescriptionButton({
         {marketplace === "ETSY"
           ? <Sparkles className="h-4 w-4" />
           : <RefreshCw className="h-4 w-4 transition-transform group-hover:rotate-45" />}
-        {marketplace === "EBAY" && useDefaultLabel ? (
+        {useDefaultLabel ? (
           <span className="inline-flex items-center gap-3">
             <Image
-              src="/ebay-logo.svg"
-              alt="eBay"
+              src={marketplace === "EBAY" ? "/ebay-logo.svg" : "/etsy-logo.svg"}
+              alt={marketplace === "EBAY" ? "eBay" : "Etsy"}
               width={92}
               height={36}
               className="h-7 w-24 object-contain"

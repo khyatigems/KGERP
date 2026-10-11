@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allows an isolated local UI review without sharing the normal dev-server lock.
+  distDir: process.env.ERP_REVIEW_DIST_DIR || ".next",
   /* config options here */
   serverExternalPackages: ["puppeteer", "puppeteer-core", "canvas"],
   reactCompiler: true,

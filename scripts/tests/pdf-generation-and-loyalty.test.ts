@@ -12,7 +12,7 @@ function assert(condition: unknown, message: string): void {
   }
 }
 
-function assertThrows(fn: () => Promise<any>, expectedMessage: string): Promise<void> {
+function assertThrows(fn: () => Promise<unknown>, expectedMessage: string): Promise<void> {
   return fn().then(
     () => { throw new Error(`Expected function to throw with message: ${expectedMessage}`); },
     (error) => {
@@ -25,7 +25,7 @@ function assertThrows(fn: () => Promise<any>, expectedMessage: string): Promise<
 
 // Mock implementations for testing with enhanced type safety
 const mockTx = {
-  $queryRawUnsafe: async <T = unknown>(query: string, ...params: (string | number | boolean | null)[]): Promise<T[]> => {
+  $queryRawUnsafe: async <T = unknown>(query: string, ..._params: (string | number | boolean | null)[]): Promise<T[]> => {
     // Mock different query results based on the query content
     if (query.includes('LoyaltySettings')) {
       return [{ pointsPerRupee: 0.1, redeemRupeePerPoint: 1 }] as T[];
@@ -38,32 +38,14 @@ const mockTx = {
     }
     return [] as T[];
   },
-  $executeRawUnsafe: async (query: string, ...params: (string | number | boolean | null)[]): Promise<number> => {
+  $executeRawUnsafe: async (_query: string, ..._params: (string | number | boolean | null)[]): Promise<number> => {
     // Mock successful insert/update operations
     return 1; // Return 1 affected row
   }
 };
 
 // Mock jsPDF
-const mockJsPDF = () => ({
-  internal: { pageSize: { width: 210, height: 297 } },
-  setLineWidth: () => {},
-  setDrawColor: () => {},
-  rect: () => {},
-  setFillColor: () => {},
-  setTextColor: () => {},
-  setFont: () => {},
-  setFontSize: () => {},
-  getTextWidth: () => 50,
-  splitTextToSize: (text: string) => text.split('\n'),
-  text: () => {},
-  addImage: () => {},
-  line: () => {},
-  saveGraphicsState: () => {},
-  restoreGraphicsState: () => {},
-  setGState: () => {},
-  output: () => new Blob(['pdf data'], { type: 'application/pdf' })
-});
+
 
 // Mock canvas and image
 global.document = {
@@ -76,7 +58,7 @@ global.document = {
       toDataURL: () => 'data:image/png;base64,mockdata'
     })
   })
-} as any;
+};
 
 global.Image = function(this: any) {
   this.crossOrigin = '';
@@ -90,7 +72,7 @@ global.Image = function(this: any) {
   setTimeout(() => {
     if (this.onload) this.onload();
   }, 0);
-} as any;
+};
 
 async function testPDFGeneration() {
   console.log('Testing PDF Generation...');

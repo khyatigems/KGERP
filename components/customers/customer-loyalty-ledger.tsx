@@ -31,7 +31,7 @@ export function CustomerLoyaltyLedger({ customerId, customerName }: CustomerLoya
       } else {
         setError(result.message);
       }
-    } catch (err) {
+    } catch  {
       setError("Failed to fetch loyalty ledger");
     } finally {
       setIsLoading(false);

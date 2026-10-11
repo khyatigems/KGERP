@@ -132,7 +132,7 @@ export class EbayConnector implements MarketplaceConnector {
       redirect_uri: this.ruName,
     });
     const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64");
-    const data = await httpJson<Record<string, any>>(
+    const data = await httpJson<{ access_token: string; refresh_token?: string; expires_in?: number; scope?: string }>(
       `${apiBase}/identity/v1/oauth2/token`,
       {
         method: "POST",
@@ -320,7 +320,7 @@ export class EbayConnector implements MarketplaceConnector {
     const { apiBase } = bases();
     const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString("base64");
     const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken });
-    const data = await httpJson<Record<string, any>>(
+    const data = await httpJson<{ access_token: string; refresh_token?: string; expires_in?: number; scope?: string }>(
       `${apiBase}/identity/v1/oauth2/token`,
       {
         method: "POST",
@@ -651,7 +651,7 @@ export class EbayConnector implements MarketplaceConnector {
     const query = new URLSearchParams({ limit: String(pageSize), offset: String(offset) });
     if (filter) query.set("filter", filter);
 
-    const data = await httpJson<{ orders?: any[] }>(
+    const data = await httpJson<{ orders?: unknown[] }>(
       `${apiBase}/sell/fulfillment/v1/order?${query.toString()}`,
       { headers }
     );
@@ -671,7 +671,7 @@ export class EbayConnector implements MarketplaceConnector {
   }
 
   private async getTrackingDetails(
-    order: any,
+    order: unknown,
     headers: Record<string, string>,
     apiBase: string
   ): Promise<{ trackingCode: string | null; carrier: string | null }> {
@@ -721,7 +721,7 @@ export class EbayConnector implements MarketplaceConnector {
     return tracking;
   }
 
-  private async readJson(url: string, headers: Record<string, string>): Promise<any> {
+  private async readJson(url: string, headers: Record<string, string>): Promise<unknown> {
     const response = await httpRequest(url, { headers });
     if (response.status === 204) return {};
     const text = await response.text();
@@ -738,14 +738,14 @@ export class EbayConnector implements MarketplaceConnector {
   }
 
   private normalizeOrder(
-    order: any,
+    order: unknown,
     tracking: { trackingCode: string | null; carrier: string | null }
   ): NormalizedOrder {
     const total = order?.pricingSummary?.total || {};
     const buyer = order?.buyer || {};
     const shipTo = order?.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo || {};
     const address = shipTo?.contactAddress || buyer?.buyerRegistrationAddress?.contactAddress || {};
-    const items: NormalizedOrderItem[] = (order?.lineItems || []).map((line: any) => ({
+    const items: NormalizedOrderItem[] = (order?.lineItems || []).map((line) => ({
       itemId: line?.lineItemId ? String(line.lineItemId) : null,
       listingId: line?.legacyItemId
         ? String(line.legacyItemId)

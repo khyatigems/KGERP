@@ -1,19 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { permissionLabel, permissionDescription, isProtectedRole } from "@/lib/permission-display";
 import { Search, Shield, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,53 +36,41 @@ export function RolesPermissionsTable() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [savingMode, setSavingMode] = useState<"save" | "create" | "duplicate" | null>(null);
+  const [roleModal, setRoleModal] = useState<"create" | "duplicate" | null>(null);
+  const [roleName, setRoleName] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [adminMode, setAdminMode] = useState(false);
 
-  useEffect(() => {
-    fetchRoles();
-  }, []);
-
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async (preferredId?: string) => {
     try {
       const res = await fetch("/api/roles");
+      if (!res.ok) throw new Error("Unable to load roles. Please retry.");
+      setLoadError("");
       if (res.ok) {
         const data = await res.json();
         setRoles(data.roles || []);
         setPermissions(data.permissions || []);
-        const first = (data.roles || [])[0]?.id;
+        const first = preferredId || (data.roles || [])[0]?.id;
         if (first) {
           setSelectedRoleId(first);
           const role = (data.roles || []).find((r: DBRole) => r.id === first);
-          const keys = new Set<string>((role?.permissions || []).map((p: any) => String(p.permission.key)));
+          const keys = new Set<string>((role?.permissions || []).map((p: DBRole["permissions"][number]) => String(p.permission.key)));
           setSelectedKeys(keys);
         }
       }
     } catch (e) {
-      console.error(e);
+      setLoadError(e instanceof Error ? e.message : "Unable to load roles");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const formatPermission = (perm: string) => {
-    return perm.split(":").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
-  };
-
-  const getPermissionDescription = (perm: string) => {
-    // Simple mapping for descriptions based on the permission key
-    if (perm.includes("view")) return "Allows viewing of records";
-    if (perm.includes("create")) return "Allows creation of new records";
-    if (perm.includes("edit")) return "Allows modification of existing records";
-    if (perm.includes("delete")) return "Allows deletion of records";
-    if (perm.includes("manage")) return "Full administrative access";
-    if (perm.includes("approve")) return "Allows approving workflows";
-    return "Access to this function";
-  };
+  useEffect(() => { void fetchRoles(); }, [fetchRoles]);
 
   useEffect(() => {
     const role = roles.find((r) => r.id === selectedRoleId);
     if (!role) return;
-    setSelectedKeys(new Set((role.permissions || []).map((p: any) => p.permission.key)));
+    setSelectedKeys(new Set((role.permissions || []).map((p: DBRole["permissions"][number]) => p.permission.key)));
   }, [selectedRoleId, roles]);
 
   useEffect(() => {
@@ -108,9 +90,10 @@ export function RolesPermissionsTable() {
     }, new Set<string>())
   ).sort();
 
-  const actionColumns = ["view", "create", "edit", "delete"];
-
-  const keyFor = (module: string, action: string) => `${module}:${action}`;
+  const selectedRole = roles.find(r => r.id === selectedRoleId);
+  const protectedRole = isProtectedRole(selectedRole?.name);
+  const editable = adminMode && !protectedRole && !saving;
+  const dirty = !!selectedRole && (selectedRole.permissions.length !== selectedKeys.size || selectedRole.permissions.some(p => !selectedKeys.has(p.permission.key)));
 
   const toggleKey = (key: string, checked: boolean) => {
     setSelectedKeys((prev) => {
@@ -133,20 +116,8 @@ export function RolesPermissionsTable() {
     });
   };
 
-  const selectAllForAction = (action: string, checked: boolean) => {
-    setSelectedKeys((prev) => {
-      const next = new Set(prev);
-      const allForAction = permissions.filter((p) => p.action === action).map((p) => p.key);
-      for (const k of allForAction) {
-        if (checked) next.add(k);
-        else next.delete(k);
-      }
-      return next;
-    });
-  };
-
   const handleSave = async () => {
-    if (!selectedRoleId) return;
+    if (!selectedRoleId || protectedRole) return;
     setSaving(true);
     setSavingMode("save");
     try {
@@ -159,7 +130,7 @@ export function RolesPermissionsTable() {
         const data = await res.json().catch(() => null);
         throw new Error(typeof data?.error === "string" ? data.error : "Failed to save permissions");
       }
-      await fetchRoles();
+      await fetchRoles(selectedRoleId);
       toast.success("Role permissions saved");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save permissions");
@@ -170,234 +141,69 @@ export function RolesPermissionsTable() {
   };
 
   const handleCreateRole = async () => {
-    const name = window.prompt("New role name (e.g., MANAGER):");
-    if (!name) return;
+    if (!roleName.trim() || !roleModal) return;
     setSaving(true);
-    setSavingMode("create");
     try {
       const res = await fetch("/api/roles", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name }),
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: roleName.trim(), ...(roleModal === "duplicate" ? { duplicateFromRoleId: selectedRoleId } : {}) }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(typeof data?.error === "string" ? data.error : "Failed to create role");
-      }
-      await fetchRoles();
-      toast.success("Role created");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to create role");
-    } finally {
-      setSaving(false);
-      setSavingMode(null);
-    }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create role");
+      await fetchRoles(data.id);
+      setRoleModal(null); setRoleName("");
+      toast.success("Role created. Select permissions and save changes.");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to create role"); }
+    finally { setSaving(false); }
   };
 
-  const handleDuplicateRole = async () => {
-    if (!selectedRoleId) return;
-    const baseRole = roles.find((r) => r.id === selectedRoleId);
-    const name = window.prompt("Duplicate role name:", `${baseRole?.name || "ROLE"}_COPY`);
-    if (!name) return;
-    setSaving(true);
-    setSavingMode("duplicate");
-    try {
-      const res = await fetch("/api/roles", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, duplicateFromRoleId: selectedRoleId }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(typeof data?.error === "string" ? data.error : "Failed to duplicate role");
-      }
-      await fetchRoles();
-      toast.success("Role duplicated");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to duplicate role");
-    } finally {
-      setSaving(false);
-      setSavingMode(null);
-    }
-  };
-
-  if (loading) return <div>Loading roles...</div>;
+  if (loading) return <div className="rounded-2xl border p-8 text-muted-foreground" role="status">Loading roles and permissions...</div>;
+  if (loadError) return <div role="alert" className="rounded-xl border p-6">{loadError}<Button onClick={() => fetchRoles(selectedRoleId)} className="ml-4">Retry</Button></div>;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="font-semibold">Roles & Permissions</div>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleCreateRole} disabled={!adminMode || saving} variant="secondary" className="gap-2">
-            {saving && savingMode === "create" ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              "Create Role"
-            )}
-          </Button>
-          <Button onClick={handleDuplicateRole} disabled={!adminMode || saving} variant="secondary" className="gap-2">
-            {saving && savingMode === "duplicate" ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Duplicating...
-              </>
-            ) : (
-              "Duplicate Role"
-            )}
-          </Button>
-          <Button onClick={handleSave} disabled={!adminMode || saving || !selectedRoleId} className="gap-2">
-            {saving && savingMode === "save" ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Save Changes"
-            )}
-          </Button>
-        </div>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div><h2 className="text-2xl font-semibold">Roles & permissions</h2><p className="text-sm text-muted-foreground">Choose a role, then select what its users can do.</p></div>
+        <Button disabled={!adminMode || saving} onClick={() => { setRoleName(""); setRoleModal("create"); }}>Create role</Button>
       </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="w-70">
-          <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              {roles.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search modules..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          {actionColumns.map((a) => {
-            const all = permissions.filter((p) => p.action === a).map((p) => p.key);
-            const checked = all.length > 0 && all.every((k) => selectedKeys.has(k));
-            return (
-              <label key={a} className="flex items-center gap-2">
-                <Checkbox
-                  checked={checked}
-                  onCheckedChange={(v) => selectAllForAction(a, Boolean(v))}
-                  disabled={!adminMode}
-                />
-                <span>Select {a}</span>
-              </label>
-            );
-          })}
-        </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {roles.map(role => <button key={role.id} type="button" disabled={saving} aria-pressed={role.id === selectedRoleId} onClick={() => {
+          if (dirty && !window.confirm("Discard unsaved permission changes?")) return;
+          setSelectedRoleId(role.id);
+        }} className={`rounded-2xl border p-5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-primary ${role.id === selectedRoleId ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-card hover:bg-muted/50"}`}>
+          <div className="flex items-center justify-between gap-2"><Shield className="h-5 w-5 text-primary"/><Badge variant="secondary">{isProtectedRole(role.name) ? "Protected" : role.isSystem ? "System role" : "Custom role"}</Badge></div>
+          <h3 className="mt-3 font-semibold">{permissionLabel(role.name)}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{isProtectedRole(role.name) ? "Full access · unchanged" : `${role.permissions.length} permissions · ${role.isActive ? "Active" : "Inactive"}`}</p>
+        </button>)}
       </div>
-      <div className="rounded-md border bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-55">Module</TableHead>
-              {actionColumns.map((a) => (
-                <TableHead key={a} className="w-30 text-center">
-                  {a.toUpperCase()}
-                </TableHead>
-              ))}
-              <TableHead>More</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {modules
-              .filter((m) => m.toLowerCase().includes(searchQuery.toLowerCase()))
-              .map((module) => {
-                const modulePerms = permissions.filter((p) => p.module === module);
-                const morePerms = modulePerms.filter((p) => !actionColumns.includes(p.action));
-                const rowAllKeys = modulePerms.map((p) => p.key);
-                const rowChecked = rowAllKeys.length > 0 && rowAllKeys.every((k) => selectedKeys.has(k));
-
-                return (
-                  <TableRow key={module}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-primary" />
-                        <span className="capitalize">{module}</span>
-                        <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-                          <Checkbox
-                            checked={rowChecked}
-                            onCheckedChange={(v) => selectAllForModule(module, Boolean(v))}
-                            disabled={!adminMode}
-                          />
-                          <span>Select all</span>
-                        </label>
-                      </div>
-                    </TableCell>
-                    {actionColumns.map((action) => {
-                      const key = keyFor(module, action);
-                      const exists = modulePerms.some((p) => p.key === key);
-                      if (!exists) {
-                        return (
-                          <TableCell key={action} className="text-center text-muted-foreground">
-                            -
-                          </TableCell>
-                        );
-                      }
-                      return (
-                        <TableCell key={action} className="text-center">
-                          <Checkbox
-                            checked={selectedKeys.has(key)}
-                            onCheckedChange={(v) => toggleKey(key, Boolean(v))}
-                            disabled={!adminMode}
-                          />
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        {morePerms.length ? (
-                          morePerms.map((p) => (
-                            <label key={p.key} className="flex items-center gap-2" title={getPermissionDescription(p.key)}>
-                              <Checkbox
-                                checked={selectedKeys.has(p.key)}
-                                onCheckedChange={(v) => toggleKey(p.key, Boolean(v))}
-                                disabled={!adminMode}
-                              />
-                              <Badge variant="secondary" className="cursor-help">
-                                {formatPermission(p.key)}
-                              </Badge>
-                            </label>
-                          ))
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            {modules.filter((m) => m.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No modules found matching your search.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+      <div className="rounded-2xl border bg-card p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h3 className="font-semibold">{permissionLabel(selectedRole?.name || "Select a role")}</h3><p className="text-sm text-muted-foreground">{protectedRole ? "Superadmin access is protected. Its permissions cannot be edited here." : `${selectedKeys.size} selected permissions${dirty ? " · Unsaved changes" : ""}`}</p></div>
+          <div className="flex gap-2"><Button variant="outline" disabled={!editable || !selectedRole} onClick={() => { setRoleName(`${selectedRole?.name}_COPY`); setRoleModal("duplicate"); }}>Duplicate role</Button><Button disabled={!editable || !dirty} onClick={handleSave}>{savingMode === "save" ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}Save changes</Button></div>
+        </div>
+        <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input aria-label="Search permissions" className="pl-9" placeholder="Search a module, function, or permission..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}/></div>
+        <div className="flex items-start gap-2 text-xs text-muted-foreground"><Info className="h-4 w-4 shrink-0"/><p>Permissions apply to everyone with this role. Manage permissions cover multiple actions. Individual user overrides still apply. Only superadmin can save changes.</p></div>
       </div>
-
-      <div className="text-xs text-muted-foreground flex items-center gap-1">
-        <Info className="h-3 w-3" />
-        <span>Only SUPER_ADMIN can modify roles/permissions.</span>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {modules.map(module => {
+          const all = permissions.filter(p => p.module === module);
+          const visible = all.filter(p => `${p.module} ${permissionLabel(p.action)} ${p.key} ${permissionDescription(p)}`.toLowerCase().includes(searchQuery.toLowerCase()));
+          if (!visible.length) return null;
+          const count = all.filter(p => selectedKeys.has(p.key)).length;
+          return <section key={module} className="rounded-2xl border bg-card p-5 space-y-4">
+            <div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold">{permissionLabel(module)}</h3><p className="text-xs text-muted-foreground">{protectedRole ? all.length : count} of {all.length} enabled</p></div><label className="flex items-center gap-2 text-xs"><Checkbox disabled={!editable} checked={protectedRole || count === all.length ? true : count ? "indeterminate" : false} onCheckedChange={v => selectAllForModule(module, v === true)}/>Select module</label></div>
+            <div className="space-y-2">{visible.map(p => <label key={p.key} className={`flex items-start gap-3 rounded-xl border p-3 ${protectedRole || selectedKeys.has(p.key) ? "border-primary/20 bg-primary/5" : ""}`}>
+              <Checkbox className="mt-1" disabled={!editable} checked={protectedRole || selectedKeys.has(p.key)} onCheckedChange={v => toggleKey(p.key, v === true)}/><div><div className="text-sm font-medium">{permissionLabel(p.action)}</div><p className="text-xs text-muted-foreground mt-1">{permissionDescription(p)}</p></div>
+            </label>)}</div>
+          </section>;
+        })}
       </div>
+      {!permissions.some(p => `${p.module} ${permissionLabel(p.action)} ${p.key} ${permissionDescription(p)}`.toLowerCase().includes(searchQuery.toLowerCase())) && <p className="text-center text-muted-foreground py-8">No permissions match your search.</p>}
+      <Dialog open={roleModal !== null} onOpenChange={open => { if (!open && !saving) setRoleModal(null); }}>
+        <DialogContent><DialogHeader><DialogTitle>{roleModal === "duplicate" ? "Duplicate role" : "Create a new role"}</DialogTitle><DialogDescription>{roleModal === "duplicate" ? "Start with the selected role’s saved permissions, then customize them." : "Give the role a clear name. After creating it, choose permissions for its users."}</DialogDescription></DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); void handleCreateRole(); }} className="space-y-5"><div className="space-y-2"><Label htmlFor="role-name">Role name</Label><Input id="role-name" autoFocus required maxLength={60} placeholder="For example: Inventory Manager" value={roleName} onChange={e => setRoleName(e.target.value)} disabled={saving}/></div><DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setRoleModal(null)}>Cancel</Button><Button type="submit" disabled={saving || !roleName.trim()}>{saving ? "Creating..." : "Create role"}</Button></DialogFooter></form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

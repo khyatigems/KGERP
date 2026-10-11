@@ -86,9 +86,9 @@ export function PriceSuggestionWidget({ form, categories, gemstones }: PriceSugg
         setSuggestion(data);
 
         if (data.matchLevel !== "none") {
-          form.setValue("_priceRecommendation" as any, JSON.stringify(data));
+          form.setValue("_priceRecommendation", JSON.stringify(data));
         } else {
-          form.setValue("_priceRecommendation" as any, "");
+          form.setValue("_priceRecommendation", "");
         }
       }
     } catch {
@@ -104,8 +104,8 @@ export function PriceSuggestionWidget({ form, categories, gemstones }: PriceSugg
     let abortController: AbortController | null = null;
     const sub = form.watch((values, { name }) => {
       if (name !== "category" && name !== "gemType") return;
-      const catName = (values as any).category as string | undefined;
-      const gemName = (values as any).gemType as string | undefined;
+      const catName = (values).category as string | undefined;
+      const gemName = (values).gemType as string | undefined;
       if (!catName && !gemName) return;
 
       if (debounceTimer) clearTimeout(debounceTimer);
@@ -137,7 +137,7 @@ export function PriceSuggestionWidget({ form, categories, gemstones }: PriceSugg
             if (reqId === lastReqRef.current) {
               setSuggestion(data);
               form.setValue(
-                "_priceRecommendation" as any,
+                "_priceRecommendation",
                 data.matchLevel !== "none" ? JSON.stringify(data) : "",
               );
             }

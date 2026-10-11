@@ -1,11 +1,12 @@
 import fs from "fs";
+import { REPORT_CATALOG } from "../../lib/report-catalog";
 import path from "path";
 
 function assert(condition: unknown, message: string) {
   if (!condition) throw new Error(message);
 }
 
-const root = "d:/khyatigems-erp";
+const root = process.cwd();
 const reportRouteFiles = [
   "/reports/inventory",
   "/reports/inventory-aging",
@@ -18,7 +19,6 @@ const reportRouteFiles = [
   "/reports/profit",
   "/reports/payments",
   "/reports/invoices",
-  "/reports/expenses",
   "/reports/vendor-purchases",
   "/reports/vendor-dependency",
   "/reports/label-printing",
@@ -37,9 +37,12 @@ for (const route of reportRouteFiles) {
   assert(fs.existsSync(full), `Missing report route file: ${full}`);
 }
 
-const reportHub = fs.readFileSync(path.join(root, "app", "(dashboard)", "reports", "page.tsx"), "utf8");
+const reportHub = fs.readFileSync(path.join(root, "lib", "report-catalog.ts"), "utf8");
+const actualRoutes = fs.readdirSync(path.join(root, "app", "(dashboard)", "reports"), { withFileTypes: true }).filter(d => d.isDirectory() && fs.existsSync(path.join(root, "app", "(dashboard)", "reports", d.name, "page.tsx"))).map(d => `/reports/${d.name}`);
+assert(new Set(REPORT_CATALOG.map(r => r.href)).size === REPORT_CATALOG.length, "Report catalog must not duplicate routes");
+for (const route of actualRoutes) assert(REPORT_CATALOG.some(r => r.href === route), `Report missing from catalog: ${route}`);
 for (const route of reportRouteFiles) {
-  assert(reportHub.includes(`href: "${route}"`) || reportHub.includes(`href="${route}"`) || reportHub.includes(`href={\"${route}\"}`), `Route not linked from reports hub: ${route}`);
+  assert(reportHub.includes(`"href": "${route}"`), `Route not linked from reports hub: ${route}`);
 }
 
 console.log("reports-route-resolution.unit.ts passed");

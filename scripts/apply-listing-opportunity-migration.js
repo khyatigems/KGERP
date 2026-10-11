@@ -1,5 +1,5 @@
 const { createClient } = require("@libsql/client");
-const fs = require("fs");
+void (require("fs"));
 const path = require("path");
 
 try {
@@ -29,11 +29,7 @@ if (!url) {
   process.exit(1);
 }
 
-const splitSql = (raw) =>
-  raw
-    .split(/;\s*(?:\r?\n|$)/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+
 
 async function exec(client, stmt) {
   const preview = stmt.replace(/\s+/g, " ").slice(0, 90);

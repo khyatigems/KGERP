@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import { useClientMounted } from "../use-client-mounted";
+import type { AnimationItem } from "lottie-web";
+import React, { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { LottieAnimation } from "./LottieAnimation";
 import { animations, getAnimationConfig, shouldRenderAnimation, prefersReducedMotion } from "./animations";
-import type { AnimationKey, AnimationConfig } from "./animations";
+import type { AnimationKey } from "./animations";
 
 type TriggerType = "hover" | "click" | "auto" | "mount";
 
@@ -38,20 +40,16 @@ export function LottieIcon({
   "data-testid": testId,
 }: LottieIconProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<any>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const playerRef = useRef<AnimationItem | null>(null);
+  const [, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useClientMounted();
   const reducedMotion = prefersReducedMotion();
 
   const config = typeof src === "string" && src in animations
     ? getAnimationConfig(src as AnimationKey)
     : { src, loop, autoplay: false, premiumOnly, segments, speed };
 
-  useEffect(() => {
-    setIsMounted(true);
-    return () => setIsMounted(false);
-  }, []);
 
   const playAnimation = () => {
     if (playerRef.current && !reducedMotion) {
@@ -67,7 +65,7 @@ export function LottieIcon({
     }
   };
 
-  const handleLoad = (player: any) => {
+  const handleLoad = (player: AnimationItem) => {
     playerRef.current = player;
     if (trigger === "mount" || trigger === "auto") {
       playAnimation();

@@ -31,7 +31,7 @@ export default async function SettingsPage() {
 
   // Fetch Landing Page Settings
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const landingPageSettings = await getLandingPageSettings() as any;
+  const landingPageSettings = await getLandingPageSettings();
 
   // Ensure schema has export columns before querying CompanySettings
   await ensureInvoiceSupportSchema();

@@ -3,7 +3,7 @@ import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
 
-import { ensureBillfreePhase1Schema, prisma } from "../../lib/prisma";
+import { prisma } from "../../lib/prisma";
 import { generateVoucherPDF } from "../../lib/voucher-pdf-improved";
 import { generateMonthlyRegisterPDF } from "../../lib/voucher-register-pdf-improved";
 
@@ -48,7 +48,7 @@ async function main() {
     console.log(`📄 Testing with voucher: ${sampleVoucher.voucherNumber}`);
     
     // Test individual voucher PDF
-    const voucherPDF = await generateVoucherPDF({
+    void (await generateVoucherPDF({
       voucherNumber: sampleVoucher.voucherNumber,
       date: sampleVoucher.voucherDate,
       type: sampleVoucher.voucherType,
@@ -65,7 +65,7 @@ async function main() {
       logoUrl: undefined, // Add logo URL if available
       invoiceNumber: null, // Will be populated when available in database
       customerName: null // Will be populated when available in database
-    });
+    }));
     
     console.log("✅ Individual voucher PDF generated successfully");
     
@@ -111,7 +111,7 @@ async function main() {
         totalCredits: vouchers.filter(v => v.voucherType === "RECEIPT").reduce((sum, v) => sum + v.amount, 0)
       };
       
-      const registerPDF = await generateMonthlyRegisterPDF(registerData);
+      void (await generateMonthlyRegisterPDF(registerData));
       console.log("✅ Voucher register PDF generated successfully");
     }
     

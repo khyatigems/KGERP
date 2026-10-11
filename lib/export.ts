@@ -93,7 +93,7 @@ export const exportToExcel = (
   data: Record<string, unknown>[],
   columns: { header: string; key: string }[],
   filename: string,
-  _title: string = "Report",
+  __title: string = "Report",
   multiTable?: { title: string; rows: Record<string, unknown>[]; columns: { header: string; key: string }[] }[]
 ) => {
   const wb = XLSX.utils.book_new();
@@ -222,7 +222,7 @@ export const exportToPDF = async (
         headStyles: { fillColor: [66, 66, 66], font: "notosansdisplay", fontStyle: "bold" },
         theme: "grid",
         margin: { top: 40, left: 40, right: 40 },
-        columnStyles: buildColumnStyles(t.columns) as any,
+        columnStyles: buildColumnStyles(t.columns),
         didDrawPage: (data: unknown) => {
           // Footer
           const settings = (data as { settings: { margin: { left: number } } }).settings;
@@ -248,7 +248,7 @@ export const exportToPDF = async (
       headStyles: { fillColor: [66, 66, 66], font: "notosansdisplay", fontStyle: "bold" },
       theme: "grid",
       margin: { top: 40, left: 40, right: 40 },
-      columnStyles: buildColumnStyles(columns) as any,
+      columnStyles: buildColumnStyles(columns),
       didDrawPage: (data: unknown) => {
         // Footer
         const settings = (data as { settings: { margin: { left: number } } }).settings;

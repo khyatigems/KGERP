@@ -3,6 +3,8 @@ import LoyaltyPointsClientPage from "./loyalty-points-client-page";
 import { subDays } from "date-fns";
 import { AnimatedPage } from "@/components/ui/animated-page";
 
+export const dynamic = "force-dynamic";
+
 export default async function LoyaltyPointsReportServerPage() {
   const endDate = new Date();
   const startDate = subDays(endDate, 30); // Default to last 30 days

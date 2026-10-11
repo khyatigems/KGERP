@@ -1,15 +1,10 @@
 "use server";
 
 import { auth } from "@/lib/auth";
-import { checkPermission } from "@/lib/permission-guard";
-import { PERMISSIONS } from "@/lib/permissions";
+import "@/lib/permission-guard";
+import "@/lib/permissions";
 import { revalidatePath } from "next/cache";
-import {
-  getEbaySettings,
-  updateEbaySettings,
-  deleteCategoryImages,
-  type EbaySettingsData,
-} from "@/lib/ebay-settings-server";
+import { getEbaySettings, updateEbaySettings, deleteCategoryImages, type EbaySettingsData } from "@/lib/ebay-settings-server";
 
 /**
  * Get eBay settings (for UI display)

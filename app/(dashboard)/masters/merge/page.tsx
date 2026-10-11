@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPage } from "@/components/ui/animated-page";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function MergeCustomersPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!hasPermission(session.user.role, PERMISSIONS.USERS_MANAGE)) redirect("/");
+  if (!(await checkUserPermission(session.user.id, PERMISSIONS.USERS_MANAGE)) && !(await checkUserPermission(session.user.id, PERMISSIONS.CUSTOMERS_MERGE))) redirect("/");
 
   const customers = await prisma.customer.findMany({
     select: { id: true, name: true, phone: true, email: true, gstin: true },

@@ -34,10 +34,10 @@ interface CustomerAdvancesProps {
   customerName: string;
 }
 
-export function CustomerAdvances({ customerId, customerName }: CustomerAdvancesProps) {
+export function CustomerAdvances({ customerId }: CustomerAdvancesProps) {
   const [advances, setAdvances] = useState<CustomerAdvance[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAdvances = async () => {

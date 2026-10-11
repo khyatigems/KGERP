@@ -1,8 +1,18 @@
 "use server";
 
+import { auth } from "@/lib/auth";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+
+async function canUseAdvances(manage: boolean) {
+  const session = await auth();
+  if (!session?.user?.id) return false;
+  return await checkUserPermission(session.user.id, PERMISSIONS.ADVANCES_MANAGE)
+    || await checkUserPermission(session.user.id, manage ? PERMISSIONS.SALES_CREATE : PERMISSIONS.SALES_VIEW)
+    || await checkUserPermission(session.user.id, manage ? PERMISSIONS.RECEIVABLES_MANAGE : PERMISSIONS.RECEIVABLES_VIEW);
+}
 
 const recordAdvanceSchema = z.object({
   customerId: z.string(),
@@ -13,6 +23,7 @@ const recordAdvanceSchema = z.object({
 });
 
 export async function recordAdvance(formData: FormData) {
+  if (!(await canUseAdvances(true))) return { error: "Unauthorized" };
   try {
     // Debug: Log all form data
     console.log("Record advance called with:");
@@ -61,6 +72,7 @@ export async function recordAdvance(formData: FormData) {
 }
 
 export async function getAdvances() {
+  if (!(await canUseAdvances(false))) return { error: "Unauthorized" };
   try {
     const advances = await prisma.customerAdvance.findMany({
       include: {
@@ -101,6 +113,7 @@ export async function getAdvances() {
 }
 
 export async function getCustomerAdvanceBalance(customerId: string) {
+  if (!(await canUseAdvances(false))) return { error: "Unauthorized" };
   try {
     const advances = await prisma.customerAdvance.findMany({
       where: {
@@ -137,6 +150,7 @@ export async function adjustAdvanceAgainstInvoice(
   saleId: string,
   amountToUse: number
 ) {
+  if (!(await canUseAdvances(true))) return { error: "Unauthorized" };
   try {
     const advance = await prisma.customerAdvance.findUnique({
       where: { id: advanceId },

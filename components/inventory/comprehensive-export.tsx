@@ -3,21 +3,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Download, FileSpreadsheet, X, Save } from "lucide-react";
@@ -344,7 +331,7 @@ export function ComprehensiveExport({
                   className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                   <X className="h-4 w-4 mr-1" />
-                  Delete "{selectedPreset}"
+                  Delete &quot;{selectedPreset}&quot;
                 </Button>
               )}
             </div>

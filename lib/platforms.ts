@@ -60,9 +60,9 @@ export function normalizePlatformConfig(raw: unknown): Record<string, PlatformCo
       if (!code) return acc;
       const normalizedCode = formatPlatformCode(code);
       acc[normalizedCode] = {
-        label: typeof (entry as any).label === "string" ? (entry as any).label : undefined,
-        logoUrl: typeof (entry as any).logoUrl === "string" ? (entry as any).logoUrl : undefined,
-        active: typeof (entry as any).active === "boolean" ? (entry as any).active : undefined,
+        label: typeof (entry).label === "string" ? (entry).label : undefined,
+        logoUrl: typeof (entry).logoUrl === "string" ? (entry).logoUrl : undefined,
+        active: typeof (entry).active === "boolean" ? (entry).active : undefined,
       };
       return acc;
     }, {});
