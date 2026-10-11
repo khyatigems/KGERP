@@ -20,12 +20,14 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isGeneratingEbayDescription, setIsGeneratingEbayDescription] = useState(false);
   const [isGeneratingEtsyDescription, setIsGeneratingEtsyDescription] = useState(false);
+  const [ebayExpanded, setEbayExpanded] = useState(false);
+  const [etsyExpanded, setEtsyExpanded] = useState(false);
   const [additionalProductInfo, setAdditionalProductInfo] = useState("");
 
   return (
     <div className="space-y-6">
       <div className="rounded-lg border bg-card/50 p-5 space-y-4">
-        <h3 className="text-base font-semibold">Notes</h3>
+        <h3 className="text-base font-semibold">Listing descriptions</h3>
 
         <div className="hidden">
         <FormField
@@ -33,7 +35,7 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <FormLabel>Notes</FormLabel>
                 <Button
                   type="button"
@@ -106,7 +108,7 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <FormLabel>eBay HTML Description</FormLabel>
                 <Button
                   type="button"
@@ -200,9 +202,15 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
               <p className="text-xs text-muted-foreground">
                 This HTML description is used for eBay export and can be customized for copy-paste uploads.
               </p>
-              <FormControl>
-                <Textarea className="min-h-96 font-mono text-sm" placeholder="Paste or generate HTML description for eBay" {...field} />
-              </FormControl>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">{field.value?.length || 0} characters{field.value ? " · Ready to review" : " · No description entered"}</p>
+                <Button type="button" variant="outline" size="sm" aria-expanded={ebayExpanded} aria-controls="inventory-ebay-description-editor" onClick={() => setEbayExpanded((value) => !value)}>{ebayExpanded ? "Collapse description" : "Expand eBay description"}</Button>
+              </div>
+              <div id="inventory-ebay-description-editor" hidden={!ebayExpanded}>
+                <FormControl>
+                  <Textarea className="min-h-80 font-mono text-sm" placeholder="Paste or generate HTML description for eBay" {...field} />
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -213,7 +221,7 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
           name="etsyDescription"
           render={({ field }) => (
             <FormItem>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <FormLabel>Etsy plain-text description</FormLabel>
                 <Button
                   type="button"
@@ -281,9 +289,15 @@ export function NotesSection({ form, skuPreview }: NotesSectionProps) {
               <p className="text-xs text-muted-foreground">
                 Saved separately as plain text on the inventory record. Certificate numbers, lab identifiers, prices, and internal notes are not sent to the description generator.
               </p>
-              <FormControl>
-                <Textarea className="min-h-48 text-sm" maxLength={5000} placeholder="Generate or write the reusable Etsy description here." {...field} />
-              </FormControl>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">{field.value?.length || 0}/5000 characters{field.value ? " · Ready to review" : " · No description entered"}</p>
+                <Button type="button" variant="outline" size="sm" aria-expanded={etsyExpanded} aria-controls="inventory-etsy-description-editor" onClick={() => setEtsyExpanded((value) => !value)}>{etsyExpanded ? "Collapse description" : "Expand Etsy description"}</Button>
+              </div>
+              <div id="inventory-etsy-description-editor" hidden={!etsyExpanded}>
+                <FormControl>
+                  <Textarea className="min-h-64 text-sm" maxLength={5000} placeholder="Generate or write the reusable Etsy description here." {...field} />
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}

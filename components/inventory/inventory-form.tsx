@@ -559,7 +559,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
         className="space-y-8"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <BasicInfoSection
               form={form}
               categories={categories}
@@ -575,10 +575,12 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
 
             <ClassificationSection form={form} certificates={certificates} collections={collections} />
 
+            <InventoryProductDetails key={`product-${formResetKey}`} inventoryId={initialData?.id} value={productFacts} onChange={setProductFacts} />
+
 
           </div>
 
-          <div className="space-y-6" key={`right-${formResetKey}`}>
+          <div className="min-w-0 space-y-6" key={`right-${formResetKey}`}>
             <MeasurementsSection form={form} categoryName={watchCategory} categories={categories} />
 
             <PricingSection form={form} vendors={vendors} categories={categories} gemstones={gemstones} />
@@ -614,7 +616,6 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
 
             <InventoryCompletenessPanel form={form} />
 
-            <InventoryProductDetails key={`product-${formResetKey}`} inventoryId={initialData?.id} value={productFacts} onChange={setProductFacts} />
             <NotesSection key={`notes-${formResetKey}`} form={form} skuPreview={skuPreview} />
           </div>
         </div>
