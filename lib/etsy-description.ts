@@ -1,3 +1,4 @@
+import { etsyPlainText } from "@/lib/marketplace/etsy-plain-text";
 export type EtsyDescriptionFacts = {
   itemName: string;
   category?: string | null;
@@ -95,50 +96,50 @@ export function buildEtsyDescriptionFallback(facts: EtsyDescriptionFacts): strin
     "- Secure packaging",
   ].filter(Boolean);
 
-  return [
-    "## 1. PRODUCT DESCRIPTION",
+  return etsyPlainText([
+    "PRODUCT DESCRIPTION",
     "",
-    "### ✨ About This Gemstone",
+    "✨ About This Gemstone",
     `Explore this ${gemstone}${clean(facts.color) ? ` in ${clean(facts.color).toLowerCase()}` : ""}${clean(facts.shape) ? ` with a ${clean(facts.shape).toLowerCase()} shape` : ""}, described using the verified inventory details below.`,
     "Review the measurements, specifications, and item photographs to decide whether it suits your project or collection.",
     "",
-    "### 💎 Product Details",
+    "💎 Product Details",
     ...detailLines(facts),
     "",
-    "### 🔬 Certification",
+    "🔬 Certification",
     facts.hasCertification
       ? "This item is recorded as having certification information. The certification authority is listed as GCI; certificate numbers and private report identifiers are intentionally omitted."
       : "Certification details are not included in this product description.",
     "",
-    "### 🌈 Gemstone Characteristics",
+    "🌈 Gemstone Characteristics",
     characteristics.length
       ? `Recorded characteristics: ${characteristics.join("; ")}.`
       : "Please use the recorded product specifications and photographs to review this item's visual characteristics.",
     "",
-    "### 💍 Perfect For",
+    "💍 Perfect For",
     "- Custom jewelry design",
     "- Gemstone collections",
     "- Lapidary and creative craft projects",
     "- A thoughtful gift for gemstone enthusiasts",
     "- Display and personal collections",
     "",
-    "### 🎁 What You Will Receive",
+    "🎁 What You Will Receive",
     ...receiveDetails,
     "",
-    "### 📸 Important Photography Note",
+    "📸 Important Photography Note",
     "Photographs are provided to show the listed item. Gemstone color may appear slightly different across screens, lighting conditions, and photography.",
     "",
-    "### 📦 Packaging & Shipping",
+    "📦 Packaging & Shipping",
     "The item will be packed securely. Shipping and tracking details follow the delivery option selected at checkout.",
     "",
-    "### ⭐ Why Buy From KhyatiGems",
+    "⭐ Why Buy From KhyatiGems",
     "- ✅ Carefully selected gemstones",
     "- ✅ Transparent product information",
     "- ✅ Certification information on applicable items",
     "- ✅ Product photographs for item review",
     "- ✅ Secure packaging",
     "- ✅ Professional customer support",
-  ].join("\n").slice(0, 5000);
+  ].join("\n")).slice(0, 5000);
 }
 
 export function buildEtsyDescriptionPrompt(facts: EtsyDescriptionFacts): string {
@@ -177,19 +178,19 @@ export function buildEtsyDescriptionPrompt(facts: EtsyDescriptionFacts): string 
     "When a fact is missing, omit that detail rather than guessing. You may use the generic use cases and buyer information in the requested headings.",
     "If certification is recorded, name GCI as the certification authority and explain that certificate numbers and report identifiers are withheld. Never include a certificate number, report identifier, SKU, internal notes, prices, or stock data.",
     "Do not include certificate numbers or any identifying certificate data. Use the exact product name as supplied, but do not add an SKU.",
-    "Use plain text (no HTML) and keep the final description below 4,500 characters.",
+    "Use plain text without Markdown or HTML; use Unicode bullets and keep the final description below 4,500 characters.",
     "",
     "Use these headings:",
-    "## 1. PRODUCT DESCRIPTION",
-    "### ✨ About This Gemstone",
-    "### 💎 Product Details",
-    "### 🔬 Certification",
-    "### 🌈 Gemstone Characteristics",
-    "### 💍 Perfect For",
-    "### 🎁 What You Will Receive",
-    "### 📸 Important Photography Note",
-    "### 📦 Packaging & Shipping",
-    "### ⭐ Why Buy From KhyatiGems",
+    "PRODUCT DESCRIPTION",
+    "✨ About This Gemstone",
+    "💎 Product Details",
+    "🔬 Certification",
+    "🌈 Gemstone Characteristics",
+    "💍 Perfect For",
+    "🎁 What You Will Receive",
+    "📸 Important Photography Note",
+    "📦 Packaging & Shipping",
+    "⭐ Why Buy From KhyatiGems",
     "",
     ...verifiedFacts.map(([name, value]) => `${name}: ${value}`),
   ].join("\n");
@@ -262,7 +263,7 @@ export async function generateEtsyDescription(facts: EtsyDescriptionFacts): Prom
       };
     }
     return {
-      description: generated.text.replace(/<[^>]*>/g, "").slice(0, 5000).trim(),
+      description: etsyPlainText(generated.text.replace(/<[^>]*>/g, "")).slice(0, 5000).trim(),
       provider: generated.provider,
     };
   } catch (error) {

@@ -11,8 +11,11 @@ export const ETSY_WHEN_MADE_OPTIONS = [
   ["before_2007", "Before 2007"],
 ] as const;
 
-export function etsyDraftValidationErrors(input: { title: string; whenMade: string; tags: string[]; price?: number }) {
+export function etsyDraftValidationErrors(input: { title: string; whenMade: string; tags: string[]; price?: number; whoMade?: string; isSupply?: boolean }) {
   const errors: string[] = [];
+  if (input.whoMade === "ANOTHER_COMPANY_OR_PERSON" && input.isSupply === false && ["made_to_order", "2020_2026", "2010_2019", "2007_2009"].includes(input.whenMade.toLowerCase())) {
+    errors.push("Etsy cannot accept a modern finished product made by another company. For loose gemstones intended for jewelry making, select Supply or tool. Keep the actual maker and age accurate.");
+  }
   const title = input.title.trim().normalize("NFC");
   if (!title || title.length > 140) errors.push("Etsy titles must contain 1–140 characters.");
   if (/[^\p{L}\p{Nd}\p{P}\p{Sm}\p{Zs}™©®]/u.test(title) || /[$^`]/u.test(title)) {

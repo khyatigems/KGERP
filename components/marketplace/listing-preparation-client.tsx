@@ -1,4 +1,6 @@
 "use client";
+import { etsyPlainText } from "@/lib/marketplace/etsy-plain-text";
+
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -376,6 +378,8 @@ export function ListingPreparationClient({
   const router = useRouter();
   const [marketplace, setMarketplace] = useState<"EBAY" | "ETSY" | null>(null);
   const [inventoryId, setInventoryId] = useState("");
+  const currentInventoryId = useRef(inventoryId);
+  currentInventoryId.current = inventoryId;
   const [selectedInventory, setSelectedInventory] = useState<SelectedInventory | null>(null);
   const [shopId, setShopId] = useState("");
   const [shopSettings, setShopSettings] = useState<{ shopId: string; groups: DraftSettingGroup[] } | null>(null);
@@ -397,6 +401,9 @@ export function ListingPreparationClient({
   const [etsyRequirementsLoading, setEtsyRequirementsLoading] = useState(false);
   const [etsyRequirementsError, setEtsyRequirementsError] = useState("");
   const [etsyRequirementsReload, setEtsyRequirementsReload] = useState(0);
+  const [uploadedPhotos, setUploadedPhotos] = useState<(PricingGuidance["mediaAssets"][number] & { inventoryId: string })[]>([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState("");
   const [selectedMediaUrls, setSelectedMediaUrls] = useState<string[]>([]);
   const [pricing, setPricing] = useState<PricingGuidance | null>(null);
   const [pricingError, setPricingError] = useState("");
@@ -465,6 +472,7 @@ export function ListingPreparationClient({
   );
   const belowMsp = isBelowMinimumPrice(discountedPriceInr, pricing?.msp ?? null);
   const inventoryMediaAssets: PricingGuidance["mediaAssets"] = [
+    ...uploadedPhotos.filter((photo) => photo.inventoryId === inventoryId),
     ...(selectedInventory?.id === inventoryId && selectedInventory.imageUrl
       ? [{ id: "selected-inventory-image", mediaUrl: selectedInventory.imageUrl, type: "IMAGE" as const }] : []),
     ...(pricing?.inventoryId === inventoryId ? pricing.mediaAssets : []),
@@ -474,7 +482,7 @@ export function ListingPreparationClient({
   const maxMarketplaceVideos = marketplace === "EBAY" ? 1 : 2;
   const hasSelectedMarketplacePhoto = selectedMediaAssets.some((asset) => asset.type === "IMAGE");
   const etsyTags = etsyListingDetails.tags.split(",").map((tag) => tag.trim()).filter(Boolean);
-  const etsyDraftErrors = etsyDraftValidationErrors({ title: listingTitle, whenMade: etsyListingDetails.whenMade, tags: etsyTags });
+  const etsyDraftErrors = etsyDraftValidationErrors({ title: listingTitle, whenMade: etsyListingDetails.whenMade, tags: etsyTags, whoMade: etsyListingDetails.whoMade, isSupply: etsyListingDetails.whatIsIt === "SUPPLY_OR_TOOL" });
   const manualEtsyCategoryAttributes = [
     ...Object.entries(etsyCategoryAttributesByName)
       .filter(([, value]) => value.trim())
@@ -917,7 +925,7 @@ export function ListingPreparationClient({
           etsyListingDetails: {
             ...etsyListingDetails,
             categoryName: etsyListingDetails.categoryName.trim(),
-            description: etsyListingDetails.description.trim(),
+            description: etsyPlainText(etsyListingDetails.description),
             productionMethod: etsyListingDetails.productionMethod || undefined,
             tags: etsyTags,
             quantity: Number(etsyListingDetails.quantity),
@@ -1278,6 +1286,7 @@ export function ListingPreparationClient({
                           setEtsyListingDetails((previous) => ({
                             ...previous,
                             productType,
+                            whatIsIt: productType === "LOOSE_GEMSTONE" ? "SUPPLY_OR_TOOL" : "",
                             categoryName: preferredCategory?.path || "",
                             taxonomyId: preferredCategory?.taxonomyId || "",
                             shopSectionId: "",
@@ -1373,7 +1382,7 @@ export function ListingPreparationClient({
                         setEtsyPrices({ india: "", us: "", global: "" });
                         setEtsyListingDetails((previous) => ({
                           ...previous,
-                          description: item?.etsyDescription || "",
+                          description: etsyPlainText(item?.etsyDescription || ""),
                         }));
                         setEtsyCategoryAttributesByName({});
                         setEtsyPreparationOptions((previous) => previous ? {
@@ -1659,6 +1668,31 @@ export function ListingPreparationClient({
                       </div>
                     </div>
                   )}
+                  <div className="space-y-2">
+                    <Label htmlFor="etsy-photo-upload">Add inventory photos for this listing</Label>
+                    <Input id="etsy-photo-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={!inventoryId || !shopId || photoUploading} onChange={async (event) => {
+                      const files = Array.from(event.target.files || []);
+                      event.target.value = "";
+                      const selectedItemId = inventoryId;
+                      if (files.length + selectedMediaAssets.filter((asset) => asset.type === "IMAGE").length > maxMarketplacePhotos) { setPhotoUploadError(`Select up to ${maxMarketplacePhotos} photos.`); return; }
+                      setPhotoUploading(true); setPhotoUploadError("");
+                      try {
+                        for (const file of files) {
+                          if (file.size > 4 * 1024 * 1024) throw new Error("Choose photos up to 4 MB each.");
+                          const form = new FormData(); form.set("inventoryId", selectedItemId); form.set("shopId", shopId); form.set("file", file);
+                          const response = await fetch("/api/marketplace/listing-preparation/media", { method: "POST", body: form });
+                          const payload = await response.json();
+                          if (!response.ok) throw new Error(payload.error || "Photo upload failed.");
+                          setUploadedPhotos((previous) => [...previous, { ...payload, inventoryId: selectedItemId }]);
+                          if (currentInventoryId.current === selectedItemId) setSelectedMediaUrls((previous) => [...previous, payload.mediaUrl]);
+                        }
+                      } catch (error) { setPhotoUploadError(error instanceof Error ? error.message : "Photo upload failed."); }
+                      finally { setPhotoUploading(false); }
+                    }} />
+                    <p className="text-xs text-muted-foreground">JPEG, PNG or WebP, up to 4 MB each. Uploaded photos are saved to inventory. Uncheck a photo below to exclude it from this draft.</p>
+                    {photoUploading && <p role="status">Uploading photos…</p>}
+                    {photoUploadError && <p role="alert" className="text-destructive">{photoUploadError}</p>}
+                  </div>
                   <MarketplaceMediaSelector
                     marketplace="ETSY"
                     assets={inventoryMediaAssets}
@@ -1741,7 +1775,7 @@ export function ListingPreparationClient({
                     <Button
                       type="button"
                       onClick={() => void saveEtsyPriceDraft()}
-                      disabled={busy || !shopSettingsReady || !inventoryId || !shopId || !selectedShop?.writeReady || !etsyDetailsComplete || !hasSelectedMarketplacePhoto || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global}
+                      disabled={busy || photoUploading || !shopSettingsReady || !inventoryId || !shopId || !selectedShop?.writeReady || !etsyDetailsComplete || !hasSelectedMarketplacePhoto || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global}
                     >
                       {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Create Etsy marketplace draft

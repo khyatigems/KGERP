@@ -1,3 +1,4 @@
+import { etsyPlainText } from "@/lib/marketplace/etsy-plain-text";
 import crypto from "node:crypto";
 import { httpJson, httpRequest, bearerAuth, HttpError } from "@/lib/marketplace/http";
 import { etsyDraftValidationErrors } from "@/lib/marketplace/etsy-draft-validation";
@@ -519,7 +520,7 @@ export class EtsyConnector implements MarketplaceConnector {
     const form = new URLSearchParams({
       quantity: String(input.quantity),
       title: input.title.normalize("NFC"),
-      description: input.description,
+      description: etsyPlainText(input.description),
       price: input.price.toFixed(2),
       who_made: input.whoMade === "I_DID" ? "i_did" : input.whoMade === "SHOP_MEMBER" ? "collective" : "someone_else",
       when_made: input.whenMade.toLowerCase(),

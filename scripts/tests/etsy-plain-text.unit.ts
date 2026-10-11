@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { etsyPlainText } from "../../lib/marketplace/etsy-plain-text";
+import { buildEtsyDescriptionFallback, buildEtsyDescriptionPrompt } from "../../lib/etsy-description";
+assert.equal(etsyPlainText("## Product\n\n### Details\n- **Weight:** 13 carats"), "Product\n\nDetails\n\u2022 Weight: 13 carats");
+assert.equal(etsyPlainText(String.raw`\### Details\n\- \*\*Color:\*\* Green`), "Details\n\u2022 Color: Green");
+assert.equal(etsyPlainText("Model #123, 2 * 3"), "Model #123, 2 * 3");
+const facts = { itemName: "Cubic Zirconia Peridot Green", carats: 13 };
+assert.ok(!/^[#]|\*\*/m.test(buildEtsyDescriptionFallback(facts)));
+assert.ok(!/###/.test(buildEtsyDescriptionPrompt(facts)));
+console.log("Etsy plain text regression tests passed.");

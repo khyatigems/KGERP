@@ -755,7 +755,7 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
   }
 
   const draftTitle = input.title || listingTitle(item).slice(0, 140);
-  const draftErrors = etsyDraftValidationErrors({ title: draftTitle, whenMade: input.etsyListingDetails.whenMade, tags: input.etsyListingDetails.tags, price: etsyPrice });
+  const draftErrors = etsyDraftValidationErrors({ title: draftTitle, whenMade: input.etsyListingDetails.whenMade, tags: input.etsyListingDetails.tags, price: etsyPrice, whoMade: input.etsyListingDetails.whoMade, isSupply: input.etsyListingDetails.whatIsIt === "SUPPLY_OR_TOOL" });
   if (draftErrors.length) throw new ListingPreparationError(draftErrors.join(" "), 422);
   const remoteDraft = await etsy.createMarketplaceDraft(shop.connectionId, shop.externalShopId, {
     draftSettings: input.draftSettings,

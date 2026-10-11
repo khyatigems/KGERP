@@ -9,3 +9,9 @@ assert.match(etsyDraftValidationErrors({ ...valid, title: "Green & Blue & Red" }
 assert.match(etsyDraftValidationErrors({ ...valid, tags: ["green & blue"] }).join(), /tags/);
 assert.match(etsyDraftValidationErrors({ ...valid, price: 0.004 }).join(), /0.01/);
 console.log("Etsy draft validation tests passed.");
+
+const resale = { ...valid, whoMade: "ANOTHER_COMPANY_OR_PERSON", isSupply: false };
+assert.match(etsyDraftValidationErrors(resale).join(), /Supply or tool/);
+assert.deepEqual(etsyDraftValidationErrors({ ...resale, isSupply: true }), []);
+assert.deepEqual(etsyDraftValidationErrors({ ...resale, whoMade: "I_DID" }), []);
+assert.deepEqual(etsyDraftValidationErrors({ ...resale, whenMade: "1990s" }), []);

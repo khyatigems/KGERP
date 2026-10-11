@@ -23,3 +23,14 @@ Sources:
 - https://developers.etsy.com/documentation/reference/
 - https://developer.etsy.com/documentation/tutorials/migration/
 - https://github.com/etsy/open-api/discussions/780
+
+
+## Eligibility and plain-text descriptions
+
+The Etsy form previously allowed a modern item made by another company to be sent with `is_supply=false`. For loose stones supplied for jewelry making, select Supply or tool; selecting the loose gemstone product type now defaults this classification. Both the form and server/connector reject the inconsistent modern resale combination before creating a marketplace draft. Actual maker and age remain unchanged. This validation is not a guarantee of Etsy policy approval for every product.
+
+Existing inventory descriptions are normalized from Markdown on load and again at the connector boundary. Generated descriptions also use plain-text headings and bullets. Inventory records are not rewritten by opening the form.
+
+The Etsy creation form supports multiple JPEG/PNG/WebP uploads (4 MB each), saved as inventory media. Uploaded photos are selected for the draft; uncheck photos to exclude them without deleting inventory assets. Saving is disabled during upload. The authenticated media endpoint verifies inventory-edit permission, an in-stock inventory item, and a connected Etsy shop before accepting an upload.
+
+Validation: Etsy eligibility and plain-text regression tests, marketplace description/settings/HTTP regressions, eBay image/batch regressions, TypeScript and targeted ESLint. Live Etsy acceptance requires deployment and a new explicit draft save; these changes do not publish listings.

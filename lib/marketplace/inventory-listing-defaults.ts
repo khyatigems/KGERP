@@ -1,3 +1,4 @@
+import { etsyPlainText } from "@/lib/marketplace/etsy-plain-text";
 export type InventoryListingSource = {
   itemName: string;
   weightValue?: number | null;
@@ -10,7 +11,7 @@ export function inventoryListingDefaults(item: InventoryListingSource, marketpla
   const weight = item.weightValue ? `${item.weightValue} ${item.weightUnit || "cts"}` : "";
   return {
     title: [item.itemName, weight].filter(Boolean).join(" - ").slice(0, marketplace === "EBAY" ? 80 : 140),
-    description: item.etsyDescription?.trim() || "",
+    description: etsyPlainText(item.etsyDescription || ""),
     imageUrl: item.imageUrl?.trim() || "",
   };
 }

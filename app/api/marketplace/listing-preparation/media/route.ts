@@ -18,6 +18,17 @@ export async function POST(req: NextRequest) {
     const draftId = String(form.get("draftId") || ""), shopId = String(form.get("shopId") || "");
     const file = form.get("file");
     if (!(file instanceof File) || file.size > 4 * 1024 * 1024) return NextResponse.json({ error: "Choose one photo up to 4 MB." }, { status: 400 });
+    const inventoryId = String(form.get("inventoryId") || "");
+    if (!draftId && inventoryId) {
+      const shop = await prisma.marketplaceShop.findFirst({ where: { id: shopId, status: "CONNECTED", connection: { marketplace: "ETSY", status: "CONNECTED" } } });
+      const item = await prisma.inventory.findFirst({ where: { id: inventoryId, status: "IN_STOCK" } });
+      if (!shop || !item) return NextResponse.json({ error: "Select a connected Etsy shop and an in-stock inventory item." }, { status: 404 });
+      const buffer = await normalizeEbayReviewImage(Buffer.from(await file.arrayBuffer()), "ETSY");
+      const url = await uploadToCloudinary(buffer, `etsy_${randomUUID()}.jpg`);
+      if (!url.startsWith("https://")) throw new Error("Image hosting did not return a secure photo URL.");
+      const media = await prisma.inventoryMedia.create({ data: { inventoryId, mediaUrl: url, type: "IMAGE", isPrimary: false } });
+      return NextResponse.json({ id: media.id, mediaUrl: url, type: "IMAGE" });
+    }
     const draft = await prisma.listing.findFirst({ where: { id: draftId, marketplaceShopId: shopId, platform: "EBAY", status: "DRAFT", marketplaceShop: { status: "CONNECTED", connection: { status: "CONNECTED" } } } });
     if (!draft?.inventoryId) return NextResponse.json({ error: "Unpublished eBay draft not found." }, { status: 404 });
     const metadata = JSON.parse(draft.rawMetadata || "{}");
