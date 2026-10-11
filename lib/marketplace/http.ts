@@ -1,8 +1,17 @@
 function responseErrorMessage(body: unknown): string | undefined {
-  if (!body || typeof body !== "object" || Array.isArray(body)) return undefined;
+  if (typeof body === "string") {
+    const detail = body.trim();
+    return detail && !/[<>]/.test(detail) ? detail.slice(0, 1000) : undefined;
+  }
+  if (Array.isArray(body)) {
+    const messages = body.map(responseErrorMessage).filter(Boolean);
+    return messages.length ? [...new Set(messages)].join("; ").slice(0, 1000) : undefined;
+  }
+  if (!body || typeof body !== "object") return undefined;
   const payload = body as Record<string, unknown>;
   const messages = Array.isArray(payload.errors)
     ? payload.errors.flatMap((entry: unknown) => {
+        if (typeof entry === "string" && entry.trim()) return [entry.trim()];
         if (!entry || typeof entry !== "object") return [];
         const error = entry as Record<string, unknown>;
         const message = typeof error.longMessage === "string" && error.longMessage.trim()
@@ -14,6 +23,21 @@ function responseErrorMessage(body: unknown): string | undefined {
   for (const key of ["error_description", "message", "error"]) {
     const value = payload[key];
     if (typeof value === "string" && value.trim()) return value.trim();
+    if (Array.isArray(value)) {
+      const detail = responseErrorMessage(value);
+      if (detail) return detail;
+    }
+  }
+  for (const key of ["error_list", "errors"]) {
+    const value = payload[key];
+    if (Array.isArray(value)) {
+      const detail = responseErrorMessage(value);
+      if (detail) return detail;
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const details = Object.values(value).map(responseErrorMessage).filter(Boolean);
+      if (details.length) return details.join("; ").slice(0, 1000);
+    }
   }
   return undefined;
 }

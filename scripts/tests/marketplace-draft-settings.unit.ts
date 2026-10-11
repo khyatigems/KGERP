@@ -56,7 +56,7 @@ async function main() {
         offerCreated = true;
         const body = JSON.parse(String(init?.body));
         assert.deepEqual(body.listingPolicies, { fulfillmentPolicyId: "ship-default", paymentPolicyId: "pay", returnPolicyId: "return" });
-        assert.equal(body.listingDescription, longHtmlDescription, "Keep the complete HTML in the offer");
+        assert.equal(body.listingDescription, `<h1>Test listing</h1><p>${"Gemstone details ".repeat(500)}</p>`, "Keep all product text and static markup without executable content or stylesheet blocks");
         return Response.json({ offerId: "test-offer" });
       }
       if (path.endsWith("/offer/test-offer")) {
@@ -85,24 +85,55 @@ async function main() {
       const path = String(url);
       if (path.endsWith("/shipping-profiles")) return Response.json({ count: 1, results: [{ shipping_profile_id: 123, title: "Worldwide shipping" }] });
       if (path.includes("/readiness-state-definitions?")) return Response.json({ count: 1, results: [{ readiness_state_id: 456, readiness_state: "ready_to_ship", min_processing_time: 1, max_processing_time: 3, processing_time_unit: "days" }] });
-      if (path.endsWith("/shops/shop-test/listings")) {
+      if (path.endsWith("/shops/shop-test/listings?legacy=false")) {
         draftCreated = true;
         const form = new URLSearchParams(String(init?.body));
         assert.equal(form.get("shipping_profile_id"), "123");
         assert.equal(form.get("readiness_state_id"), "456");
         assert.equal(form.get("type"), "physical");
+        assert.equal(form.get("tags"), "green gem,jewelry making");
+        assert.equal(form.has("tags[]"), false);
+        assert.equal(form.get("who_made"), "i_did");
+        assert.equal(form.get("when_made"), "2020_2026");
         return Response.json({ listing_id: 789 });
+      }
+      if (path.endsWith("/listings/789/properties/200")) {
+        const form = new URLSearchParams(String(init?.body));
+        assert.equal(form.get("value_ids"), "10");
+        assert.equal(form.get("values"), "Green");
+        assert.equal(form.has("value_ids[]"), false);
+        return Response.json({});
       }
       throw new Error(`Unexpected test request: ${path}`);
     };
     const etsy = new EtsyConnector();
-    const etsyInput = { title: "Test", description: "Test", quantity: 1, price: 20, taxonomyId: "123", whoMade: "I_DID" as const, whenMade: "2020_2026", isSupply: false, tags: [], categoryAttributes: [], media: [] };
+    const etsyInput = { title: "Test", description: "Test", quantity: 1, price: 20, taxonomyId: "123", whoMade: "I_DID" as const, whenMade: "2020_2026", isSupply: false, tags: ["green gem", "jewelry making"], categoryAttributes: [{ propertyId: "200", valueId: "10", value: "Green" }], media: [] };
     const etsyDraft = await etsy.createMarketplaceDraft("etsy-test", "shop-test", etsyInput);
     assert.equal(etsyDraft.listingId, "789");
     assert.equal(draftCreated, true);
+    assert.deepEqual(etsyDraft.warnings, []);
     draftCreated = false;
     await assert.rejects(etsy.createMarketplaceDraft("etsy-test", "shop-test", { ...etsyInput, draftSettings: { shippingProfileId: "wrong-shop" } }), /no longer available/);
     assert.equal(draftCreated, false);
+    let failedCreates = 0;
+    globalThis.fetch = async (url) => {
+      const path = String(url);
+      if (path.endsWith("/shipping-profiles")) return Response.json({ count: 1, results: [{ shipping_profile_id: 123, title: "Shipping" }] });
+      if (path.includes("/readiness-state-definitions?")) return Response.json({ count: 1, results: [{ readiness_state_id: 456 }] });
+      failedCreates += 1;
+      return Response.json(["The processing profile is invalid."], { status: 400 });
+    };
+    await assert.rejects(etsy.createMarketplaceDraft("etsy-test", "shop-test", etsyInput), /Etsy draft creation failed \(HTTP 400\): The processing profile is invalid/);
+    assert.equal(failedCreates, 1);
+    globalThis.fetch = async (url) => {
+      const path = String(url);
+      if (path.endsWith("/shipping-profiles")) return Response.json({ count: 1, results: [{ shipping_profile_id: 123, title: "Shipping" }] });
+      if (path.includes("/readiness-state-definitions?")) return Response.json({ count: 1, results: [{ readiness_state_id: 456 }] });
+      failedCreates += 1;
+      return Response.json({ error: "Temporary failure" }, { status: 500 });
+    };
+    await assert.rejects(etsy.createMarketplaceDraft("etsy-test", "shop-test", etsyInput), /HTTP 500/);
+    assert.equal(failedCreates, 2, "Never automatically retry non-idempotent draft creation");
   } finally {
     prisma.marketplaceConnection.findUnique = originalFind;
     globalThis.fetch = originalFetch;

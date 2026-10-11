@@ -14,6 +14,10 @@ import { EtsyConnector } from "@/lib/marketplace/connectors/etsy";
 import { hasOAuthScope } from "@/lib/marketplace/scopes";
 import { HttpError } from "@/lib/marketplace/http";
 import { DraftSettingsError } from "@/lib/marketplace/draft-settings";
+import { etsyDraftValidationErrors } from "@/lib/marketplace/etsy-draft-validation";
+import { checkSellerHubDraft, loadSellerHubDraft, submitSellerHubDraft } from "@/lib/marketplace/ebay-seller-hub-service";
+import { buildEbayStaticDescription } from "@/lib/marketplace/ebay-description-html";
+import { reviewCompleteEbayListing, prepareCompleteEbayListing, publishCompleteEbayListing } from "@/lib/marketplace/ebay-complete-listing";
 import { MARKETPLACE_LISTING_SCOPE_SQL, marketplaceInventoryJoinSql } from "@/lib/marketplace-control-center";
 import {
   EBAY_TEMPLATE_CATEGORY_PATHS,
@@ -23,7 +27,12 @@ import {
 } from "@/lib/marketplace/listing-preparation";
 
 const requestSchema = z.object({
-  action: z.enum(["prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements", "shopSettings", "verifyEbayOffer"]),
+  action: z.enum(["prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements", "shopSettings", "verifyEbayOffer", "sendEbaySellerHubDraft", "checkEbaySellerHubDraft", "downloadEbaySellerHubDraftCsv", "downloadEbayDescription", "reviewCompleteEbay", "prepareCompleteEbay", "publishCompleteEbay"]),
+  locationKey: z.string().min(1).max(100).optional(),
+  dispatchAddress: z.object({ country: z.string().regex(/^[A-Z]{2}$/), postalCode: z.string().trim().min(1).max(20), city: z.string().trim().max(100).optional() }).optional(),
+  reviewToken: z.string().length(64).optional(),
+  confirmationSku: z.string().max(100).optional(),
+  completeEdits: z.object({ title: z.string().trim().min(1).max(80), description: z.string().min(1).max(500000), price: z.number().positive(), quantity: z.number().int().min(1).max(999), aspects: z.record(z.string(), z.array(z.string().max(500)).max(1)), draftSettings: z.object({ fulfillmentPolicyId: z.string().max(80).optional(), paymentPolicyId: z.string().max(80).optional(), returnPolicyId: z.string().max(80).optional() }).optional() }).optional(),
   draftId: z.string().uuid().optional(),
   draftSettings: z.object({
     fulfillmentPolicyId: z.string().max(80).optional(),
@@ -745,9 +754,12 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
     );
   }
 
+  const draftTitle = input.title || listingTitle(item).slice(0, 140);
+  const draftErrors = etsyDraftValidationErrors({ title: draftTitle, whenMade: input.etsyListingDetails.whenMade, tags: input.etsyListingDetails.tags, price: etsyPrice });
+  if (draftErrors.length) throw new ListingPreparationError(draftErrors.join(" "), 422);
   const remoteDraft = await etsy.createMarketplaceDraft(shop.connectionId, shop.externalShopId, {
     draftSettings: input.draftSettings,
-    title: input.title || listingTitle(item).slice(0, 140),
+    title: draftTitle,
     description: input.etsyListingDetails.description,
     quantity: input.etsyListingDetails.quantity,
     price: etsyPrice,
@@ -815,6 +827,27 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (["reviewCompleteEbay", "prepareCompleteEbay", "publishCompleteEbay"].includes(parsed.data.action)) {
+      if (!parsed.data.draftId) throw new ListingPreparationError("Select a saved eBay draft.", 400);
+      if (!(await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_EDIT))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      if (parsed.data.action === "reviewCompleteEbay") return NextResponse.json(await reviewCompleteEbayListing(parsed.data.draftId, parsed.data.shopId));
+      if (parsed.data.action === "prepareCompleteEbay") return NextResponse.json(await prepareCompleteEbayListing(parsed.data.draftId, parsed.data.shopId, parsed.data.locationKey, parsed.data.dispatchAddress, parsed.data.completeEdits));
+      if (!parsed.data.reviewToken || !parsed.data.confirmationSku) throw new ListingPreparationError("Review the prepared offer and type its SKU before publishing.", 400);
+      return NextResponse.json(await publishCompleteEbayListing(parsed.data.draftId, parsed.data.shopId, parsed.data.reviewToken, parsed.data.confirmationSku));
+    }
+    if (["sendEbaySellerHubDraft", "checkEbaySellerHubDraft", "downloadEbaySellerHubDraftCsv", "downloadEbayDescription"].includes(parsed.data.action)) {
+      if (!parsed.data.draftId) throw new ListingPreparationError("Select a saved eBay draft.", 400);
+      if (parsed.data.action === "downloadEbayDescription") {
+        const { metadata } = await loadSellerHubDraft(parsed.data.draftId, parsed.data.shopId);
+        return new NextResponse(buildEbayStaticDescription(metadata.description || ""), { headers: { "Content-Type": "text/plain; charset=utf-8", "Content-Disposition": 'attachment; filename="ebay-description.html"' } });
+      }
+      if (parsed.data.action === "sendEbaySellerHubDraft" && !(await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_EDIT))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      if (parsed.data.action === "downloadEbaySellerHubDraftCsv") {
+        const { csv } = await loadSellerHubDraft(parsed.data.draftId, parsed.data.shopId);
+        return new NextResponse(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="ebay-seller-hub-draft.csv"' } });
+      }
+      return NextResponse.json(await (parsed.data.action === "sendEbaySellerHubDraft" ? submitSellerHubDraft : checkSellerHubDraft)(parsed.data.draftId, parsed.data.shopId));
+    }
     if (parsed.data.action === "verifyEbayOffer") {
       if (!parsed.data.draftId) throw new ListingPreparationError("Select a saved eBay offer to verify.", 400);
       const saved = await prisma.listing.findFirst({
@@ -975,7 +1008,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Enter a marketplace price before saving this draft." }, { status: 400 });
     }
     if (!parsed.data.usdToInr) {
-      return NextResponse.json({ error: "Enter a valid INR-per-USD rate before saving the eBay API offer." }, { status: 400 });
+      return NextResponse.json({ error: "Enter a valid INR-per-USD rate before saving the eBay draft." }, { status: 400 });
     }
     const ebayShop = await prisma.marketplaceShop.findFirst({
       where: { id: parsed.data.shopId, marketplace: "EBAY", status: "CONNECTED", connection: { status: "CONNECTED" } },
@@ -983,7 +1016,7 @@ export async function POST(request: NextRequest) {
     });
     if (!ebayShop) throw new ListingPreparationError("The selected eBay shop is not connected.", 404);
     if (!(await new EbayConnector().ensureInventoryWriteScope(ebayShop.connectionId, ebayShop.connection.scopes))) {
-      throw new ListingPreparationError("Reconnect the selected eBay shop and approve the sell.inventory permission before creating API offers.", 403);
+      throw new ListingPreparationError("Reconnect the selected eBay shop and approve the sell.inventory permission before sending Seller Hub drafts.", 403);
     }
     const taxonomy = await new EbayConnector().getCategoryAspects(
       ebayShop.connectionId,
@@ -1036,7 +1069,7 @@ export async function POST(request: NextRequest) {
       );
     }
     if (!prepared.condition) {
-      throw new ListingPreparationError("Choose a valid eBay condition on the inventory item before creating its API offer.", 422);
+      throw new ListingPreparationError("Choose a valid eBay condition on the inventory item before creating its draft.", 422);
     }
 
     const draftData = {
@@ -1055,12 +1088,14 @@ export async function POST(request: NextRequest) {
       syncStatus: "DRAFT",
       rawMetadata: JSON.stringify({
         source: "MARKETPLACE_LISTING_ENGINE",
+        draftSettings: parsed.data.draftSettings,
         template: prepared.template,
         categoryPath: taxonomy.categoryPath,
         configuredCategoryPath: prepared.categoryPath,
         format: prepared.format,
         duration: prepared.duration,
         description: prepared.description,
+        condition: prepared.condition,
         unresolved: prepared.unresolved,
         mediaAssets: prepared.inventory.mediaAssets.map((asset) => ({ url: asset.mediaUrl, type: asset.type })),
         ebayTaxonomy: {
@@ -1088,62 +1123,28 @@ export async function POST(request: NextRequest) {
         inventoryId: prepared.inventory.id,
         platform: "EBAY",
         marketplaceShopId: prepared.shop.id,
-        externalId: null,
         status: "DRAFT",
         rawMetadata: { contains: '"source":"MARKETPLACE_LISTING_ENGINE"' },
       },
       select: { id: true, rawMetadata: true },
     });
-    if (existingDraft && getMarketplaceDraftId(existingDraft.rawMetadata)) {
-      throw new ListingPreparationError("An eBay API offer already exists for this item and shop. Check the saved offer in the ERP; unpublished API offers are not Seller Hub drafts.", 409);
+    if (existingDraft) {
+      const previous = parseJson<Record<string, unknown>>(existingDraft.rawMetadata, {});
+      const state = (previous.completeEbay as { state?: string } | undefined)?.state;
+      if (["PREPARING", "PUBLISHING", "PUBLISH_UNCERTAIN"].includes(state || "")) throw new ListingPreparationError("This draft has an operation pending. Check its status before editing.", 409);
+      const complete = previous.completeEbay as { offerId?: string; locationKey?: string } | undefined;
+      const updated = await prisma.listing.updateMany({ where: { id: existingDraft.id, status: "DRAFT", rawMetadata: existingDraft.rawMetadata }, data: { ...draftData, rawMetadata: JSON.stringify({ ...previous, ...JSON.parse(draftData.rawMetadata), completeEbay: { state: "SAVED", offerId: complete?.offerId, locationKey: complete?.locationKey, verified: false } }) } });
+      if (!updated.count) throw new ListingPreparationError("The draft changed. Reload before saving.", 409);
+      return NextResponse.json({ draftId: existingDraft.id, completeErpDraft: true, success: true });
     }
-    const mediaForMarketplace: Array<{ mediaUrl: string; type: "IMAGE" | "VIDEO" }> = prepared.inventory.mediaAssets.flatMap((asset) =>
-      asset.type === "IMAGE" || asset.type === "VIDEO"
-        ? [{ mediaUrl: asset.mediaUrl, type: asset.type }]
-        : []
-    );
-    const remoteDraft = await new EbayConnector().createMarketplaceDraft(ebayShop.connectionId, {
-      draftSettings: parsed.data.draftSettings,
-      sku: prepared.inventory.sku,
-      title: prepared.title,
-      description: prepared.description,
-      categoryId: taxonomy.categoryId,
-      marketplaceId: taxonomy.marketplaceId,
-      price: parsed.data.price,
-      currency: prepared.currency,
-      quantity: 1,
-      condition: prepared.condition,
-      aspects: Object.fromEntries([...aspectValues.entries()].map(([name, value]) => [name, [value]])),
-      media: mediaForMarketplace,
+    const draft = await prisma.$transaction(async (tx) => {
+      const concurrentDraft = await tx.listing.findFirst({
+        where: { inventoryId: prepared.inventory.id, platform: "EBAY", marketplaceShopId: prepared.shop.id, status: "DRAFT", rawMetadata: { contains: '"source":"MARKETPLACE_LISTING_ENGINE"' } },
+        select: { id: true },
+      });
+      if (concurrentDraft) throw new ListingPreparationError("Another request saved this draft. Reload before saving your edits.", 409);
+      return tx.listing.create({ data: draftData, select: { id: true } });
     });
-    const draftMetadata = JSON.parse(draftData.rawMetadata) as Record<string, unknown>;
-    const persistedDraftData = {
-      ...draftData,
-      rawMetadata: JSON.stringify({
-        ...draftMetadata,
-        marketplaceDraft: {
-          id: remoteDraft.offerId,
-          kind: "EBAY_INVENTORY_OFFER",
-          sellerHubDraft: false,
-          draftSettings: remoteDraft.draftSettings,
-          state: "UNPUBLISHED",
-          uploadedMedia: remoteDraft.uploadedMedia,
-          warnings: remoteDraft.warnings,
-        },
-        note: "An unpublished eBay Inventory API offer was created. It is not a Seller Hub draft. Review it through the Inventory API before publishing.",
-      }),
-      syncError: remoteDraft.warnings.length ? remoteDraft.warnings.join("; ") : null,
-    };
-    const draft = existingDraft
-      ? await prisma.listing.update({
-          where: { id: existingDraft.id },
-          data: persistedDraftData,
-          select: { id: true },
-        })
-      : await prisma.listing.create({
-          data: persistedDraftData,
-          select: { id: true },
-        });
 
     const defaultsPrefix = "marketplace_listing_default_ebay_";
     await Promise.all([...aspectValues.entries()].map(([name, value]) =>
@@ -1158,15 +1159,7 @@ export async function POST(request: NextRequest) {
         })
     ));
 
-    return NextResponse.json({
-      draftId: draft.id,
-      externalListingId: remoteDraft.offerId,
-      offerId: remoteDraft.offerId,
-      sellerHubDraft: false,
-      uploadedMedia: remoteDraft.uploadedMedia,
-      warnings: remoteDraft.warnings,
-      unresolved: prepared.unresolved,
-    });
+    return NextResponse.json({ draftId: draft.id, completeErpDraft: true, success: true });
   } catch (error) {
     if (error instanceof DraftSettingsError) {
       return NextResponse.json({ error: error.message }, { status: 422 });

@@ -41,6 +41,15 @@ function getRegionalPrices(rawMetadata: string | null) {
   return null;
 }
 
+function getSellerHubDraft(rawMetadata: string | null) {
+  try {
+    const value = JSON.parse(rawMetadata || "{}").sellerHubDraft;
+    if (!value || typeof value !== "object") return null;
+    const completeUrl = typeof value.completeUrl === "string" && value.completeUrl.startsWith("https://www.ebay.com/") ? value.completeUrl : null;
+    return { state: String(value.state || "NOT_SUBMITTED"), taskId: typeof value.taskId === "string" ? value.taskId : null, draftId: typeof value.draftId === "string" ? value.draftId : null, completeUrl };
+  } catch { return null; }
+}
+
 function getMarketplaceDraftId(rawMetadata: string | null) {
   if (!rawMetadata) return null;
   try {
@@ -107,6 +116,7 @@ export default async function MarketplaceCreateListingsPage() {
     drafts={drafts.map((draft) => ({
     id: draft.id,
     externalId: draft.externalId || getMarketplaceDraftId(draft.rawMetadata),
+    sellerHubDraft: getSellerHubDraft(draft.rawMetadata),
     sku: draft.inventory?.sku || draft.listingSku || "—",
     itemName: draft.inventory?.itemName || draft.marketplaceTitle || "Unknown item",
     title: draft.marketplaceTitle || draft.inventory?.itemName || draft.listingSku || "Untitled marketplace draft",

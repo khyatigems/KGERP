@@ -1,0 +1,18 @@
+{
+  "verifiedOn": "2026-10-11",
+  "environment": "PRODUCTION",
+  "shop": "khyatigemsofficial",
+  "sku": "KGLGZIRVLT130000287",
+  "feedType": "FX_DRAFT",
+  "csvAction": "Draft",
+  "taskId": "task-42-13333736577",
+  "status": "COMPLETED",
+  "successCount": 1,
+  "failureCount": 0,
+  "draftId": "5387189153310",
+  "completeUrl": "https://www.ebay.com/sl/list?mode=AddItem&draft_id=5387189153310",
+  "reportStatus": "SUCCESS",
+  "published": false,
+  "importedFieldsVisuallyVerified": false,
+  "visualVerificationBlocker": "User reported eBay login unavailable in the in-app browser."
+}

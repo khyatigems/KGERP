@@ -557,7 +557,7 @@ export function buildEbayHtmlDescription(product: EbayDescriptionFields, options
             <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
               ${productImages.map(url => `
                 <div style="flex:0 0 auto;width:calc(50% - 6px);max-width:360px;min-width:180px;border-radius:12px;overflow:hidden;border:1px solid #E0E3EA;box-shadow:0 2px 8px #181B4E11;">
-                  <img src="${escapeHtml(url)}" alt="Product Image" style="width:100%;height:auto;display:block;aspect-ratio:1;object-fit:cover;" onerror="this.style.display='none'" />
+                  <img src="${escapeHtml(url)}" alt="Product Image" style="width:100%;height:auto;display:block;aspect-ratio:1;object-fit:cover;" />
                 </div>
               `).join("")}
             </div>

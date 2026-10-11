@@ -1,0 +1,15 @@
+{
+  "verifiedOn": "2026-10-11",
+  "environment": "PRODUCTION",
+  "sku": "KGLGZIRVLT130000287",
+  "offerId": "305937640011",
+  "state": "READY",
+  "readBackVerified": true,
+  "itemSpecificCount": 21,
+  "photoCount": 1,
+  "location": { "country": "IN", "postalCode": "122001", "city": "Kpmg" },
+  "policies": { "fulfillmentPolicyId": "288570289015", "paymentPolicyId": "288570535015", "returnPolicyId": "288570492015" },
+  "published": false,
+  "sellerHubDraftModified": false,
+  "hostedCodeDeployed": false
+}

@@ -17,6 +17,8 @@ import { calculateDiscountedInr, isBelowMinimumPrice } from "@/lib/marketplace/p
 import type { DraftSettingGroup, DraftSettings } from "@/lib/marketplace/draft-settings";
 import { areEtsyRequirementsCurrent, loadEtsyCategoryRequirements } from "@/lib/marketplace/etsy-requirements";
 import { inventoryListingDefaults, type InventoryListingSource } from "@/lib/marketplace/inventory-listing-defaults";
+import { ETSY_WHEN_MADE_OPTIONS, etsyDraftValidationErrors } from "@/lib/marketplace/etsy-draft-validation";
+import { EbayCompleteReview } from "@/components/marketplace/ebay-complete-review";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -82,6 +84,7 @@ type PricingGuidance = {
   warning: string | null;
 };
 type SavedDraft = {
+  sellerHubDraft?: { state: string; taskId: string | null; draftId: string | null; completeUrl: string | null } | null;
   shopId: string | null;
   id: string;
   externalId?: string | null;
@@ -470,6 +473,7 @@ export function ListingPreparationClient({
   const maxMarketplaceVideos = marketplace === "EBAY" ? 1 : 2;
   const hasSelectedMarketplacePhoto = selectedMediaAssets.some((asset) => asset.type === "IMAGE");
   const etsyTags = etsyListingDetails.tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+  const etsyDraftErrors = etsyDraftValidationErrors({ title: listingTitle, whenMade: etsyListingDetails.whenMade, tags: etsyTags });
   const manualEtsyCategoryAttributes = [
     ...Object.entries(etsyCategoryAttributesByName)
       .filter(([, value]) => value.trim())
@@ -533,7 +537,8 @@ export function ListingPreparationClient({
     })
     .slice(0, 250) || [];
   const etsyDetailsComplete = Boolean(
-    etsyListingDetails.productType
+    !etsyDraftErrors.length
+    && etsyListingDetails.productType
     && etsyListingDetails.categoryName.trim()
     && etsyListingDetails.taxonomyId
     && listingTitle.trim()
@@ -868,11 +873,10 @@ export function ListingPreparationClient({
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to save draft.");
-      if (Array.isArray(payload.warnings) && payload.warnings.length) {
-        toast.warning(`eBay API offer ${payload.offerId} was created, but some media needs attention: ${payload.warnings.join("; ")}`);
-      } else {
-        toast.success("Unpublished eBay API offer saved. It will not appear in Seller Hub Drafts.");
-      }
+      if (payload.completeErpDraft) toast.success("Complete ERP draft saved. Review and verify its eBay offer from Saved drafts.");
+      else if (payload.success) toast.success("eBay confirmed the Seller Hub draft. Open it from Saved drafts.");
+      else if (payload.error || payload.state === "FAILED") toast.warning(`ERP draft saved; Seller Hub creation is not confirmed. ${payload.error || "Check the upload result in Saved drafts."}`);
+      else toast.info("ERP draft saved and submitted to eBay. Check Seller Hub upload status in Saved drafts.");
       returnToSavedDrafts();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to save draft.");
@@ -967,11 +971,11 @@ export function ListingPreparationClient({
           </div>
           {marketplace === "EBAY" && selectedShop && !selectedShop.writeReady && (
             <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-muted-foreground">
-              {selectedShop.writeAccessError || <>This eBay connection does not include the <code className="rounded bg-background px-1 py-0.5">sell.inventory</code> write scope. Reconnect it before creating API offers.</>}
+              {selectedShop.writeAccessError || <>This eBay connection does not include the <code className="rounded bg-background px-1 py-0.5">sell.inventory</code> write scope. Reconnect it before sending Seller Hub drafts.</>}
             </div>
           )}
           <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
-            {marketplace === "EBAY" ? "Creates an unpublished API offer · not a Seller Hub draft" : "Saves an unpublished Etsy draft · publish in Etsy when ready"}
+            {marketplace === "EBAY" ? "Save the complete ERP draft · verify its eBay offer · publish explicitly" : "Saves an unpublished Etsy draft · publish in Etsy when ready"}
           </span>
         </div>
       </div>
@@ -1008,7 +1012,7 @@ export function ListingPreparationClient({
             <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
               <div className="space-y-1.5">
                 <CardTitle>Saved offers and drafts <span className="text-sm font-normal text-muted-foreground">({drafts.length})</span></CardTitle>
-                <CardDescription>eBay entries are unpublished API offers, separate from Seller Hub Drafts. Etsy entries are shop drafts.</CardDescription>
+                <CardDescription>Review complete eBay listings, verify all entered fields, and publish explicitly. Basic Seller Hub uploads remain available separately.</CardDescription>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={() => setDraftsExpanded((expanded) => !expanded)} aria-expanded={draftsExpanded}>
                 {draftsExpanded ? "Hide drafts" : "View drafts"}
@@ -1023,7 +1027,7 @@ export function ListingPreparationClient({
                 </div>
               ) : (
                 <div>
-                  <p className="mb-3 text-xs text-muted-foreground">Check eBay API offers here. Etsy drafts can be reviewed and published in the selected Etsy shop.</p>
+                  <p className="mb-3 text-xs text-muted-foreground">Open confirmed drafts in the selected marketplace shop to review and publish.</p>
                   <div className="divide-y rounded-lg border">
                   {drafts.map((draft) => (
                     <div key={draft.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
@@ -1035,8 +1039,56 @@ export function ListingPreparationClient({
                         <p className="mt-1 text-xs text-muted-foreground">{draft.itemName} · {draft.sku} · {draft.shop}</p>
                         {draft.externalId
                           ? <p className="mt-1 text-[10px] text-muted-foreground">{draft.platform === "EBAY" ? "eBay API offer ID" : "Etsy draft listing ID"} · {draft.externalId}</p>
-                          : <p className="mt-1 text-[10px] text-amber-700">ERP-only draft · not sent to marketplace</p>}
+                          : !draft.sellerHubDraft?.taskId && <p className="mt-1 text-[10px] text-amber-700">ERP draft · review complete listing to check its eBay offer</p>}
                         {draft.syncError && <p className="mt-1 max-w-xl text-[10px] text-amber-700">{draft.syncError}</p>}
+                        {draft.platform === "EBAY" && draft.shopId && (
+                          <div className="mt-2 space-y-2">
+                            <EbayCompleteReview draftId={draft.id} shopId={draft.shopId!} sku={draft.sku} />
+                            <p className="text-xs">Basic Seller Hub draft: {draft.sellerHubDraft?.state || "Not submitted"}{draft.sellerHubDraft?.draftId ? ` · Draft ID ${draft.sellerHubDraft.draftId}` : ""}</p>
+                            {draft.sellerHubDraft?.completeUrl && <a className="text-xs underline" href={draft.sellerHubDraft.completeUrl} target="_blank" rel="noreferrer">Open Seller Hub draft</a>}
+                            <div className="flex flex-wrap gap-2">
+                              <Button type="button" variant="outline" size="sm" disabled={checkingOfferId !== null} onClick={async () => {
+                                setCheckingOfferId(draft.id);
+                                try {
+                                  const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: draft.sellerHubDraft?.taskId ? "checkEbaySellerHubDraft" : "sendEbaySellerHubDraft", draftId: draft.id, shopId: draft.shopId }) });
+                                  const payload = await response.json();
+                                  if (!response.ok) throw new Error(payload.error || "Seller Hub transfer failed.");
+                                  setOfferChecks((previous) => ({ ...previous, [draft.id]: payload.success ? `Seller Hub draft confirmed: ${payload.draftId}` : `Seller Hub ${payload.state}. ${payload.error || (payload.terminal ? "Download the upload result for details." : "Check again after eBay finishes processing.")}` }));
+                                  if (payload.success) toast.success("Seller Hub draft confirmed.");
+                                  router.refresh();
+                                } catch (error) { toast.error(error instanceof Error ? error.message : "Seller Hub transfer failed."); }
+                                finally { setCheckingOfferId(null); }
+                              }}>{checkingOfferId === draft.id ? "Checking eBay…" : draft.sellerHubDraft?.taskId ? "Check Seller Hub upload" : "Send to Seller Hub"}</Button>
+                              <Button type="button" variant="outline" size="sm" onClick={async () => {
+                                try {
+                                  const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "downloadEbaySellerHubDraftCsv", draftId: draft.id, shopId: draft.shopId }) });
+                                  if (!response.ok) throw new Error("Unable to download the Seller Hub draft CSV.");
+                                  const url = URL.createObjectURL(await response.blob());
+                                  const link = document.createElement("a"); link.href = url; link.download = `${draft.sku}-seller-hub-draft.csv`; link.click(); URL.revokeObjectURL(url);
+                                } catch (error) { toast.error(error instanceof Error ? error.message : "CSV download failed."); }
+                              }}>Download draft CSV</Button>
+                              {draft.sellerHubDraft?.taskId && <Button type="button" variant="outline" size="sm" onClick={async () => {
+                                try {
+                                  const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "checkEbaySellerHubDraft", draftId: draft.id, shopId: draft.shopId }) });
+                                  const payload = await response.json();
+                                  if (!response.ok || !payload.report) throw new Error(payload.error || "The upload result is not ready yet.");
+                                  const url = URL.createObjectURL(new Blob([payload.report], { type: "text/csv;charset=utf-8" }));
+                                  const link = document.createElement("a"); link.href = url; link.download = `${draft.sku}-upload-result.csv`; link.click(); URL.revokeObjectURL(url);
+                                } catch (error) { toast.error(error instanceof Error ? error.message : "Result download failed."); }
+                              }}>Download upload result</Button>}
+                            </div>
+                            <Button type="button" variant="outline" size="sm" onClick={async () => {
+                              try {
+                                const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "downloadEbayDescription", draftId: draft.id, shopId: draft.shopId }) });
+                                if (!response.ok) throw new Error("Unable to download the static HTML description.");
+                                const url = URL.createObjectURL(await response.blob());
+                                const link = document.createElement("a"); link.href = url; link.download = `${draft.sku}-description.html`; link.click(); URL.revokeObjectURL(url);
+                              } catch (error) { toast.error(error instanceof Error ? error.message : "Description download failed."); }
+                            }}>Download clean description HTML</Button>
+                            <p className="max-w-xl text-xs text-muted-foreground">Basic draft imported only: item specifics, business policies, item location, and videos are not transferred by this draft template. Complete them in Seller Hub before publishing. To repair an existing description, paste the clean HTML into Show HTML Code. If an upload fails, upload the draft CSV through Seller Hub → Reports → Uploads.</p>
+                            {offerChecks[draft.id] && <p className="text-xs">{offerChecks[draft.id]}</p>}
+                          </div>
+                        )}
                         {draft.platform === "EBAY" && draft.externalId && draft.shopId && (
                           <div className="mt-2 space-y-1">
                             <p className="text-xs text-muted-foreground">This API offer is separate from Seller Hub Drafts.</p>
@@ -1441,15 +1493,9 @@ export function ListingPreparationClient({
                         <SelectTrigger id="etsy-when-made"><SelectValue placeholder="Select Etsy date range" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Select when it was made</SelectItem>
-                          <SelectItem value="MADE_TO_ORDER">Made to order</SelectItem>
-                          <SelectItem value="2020_2026">2020–2026</SelectItem>
-                          <SelectItem value="2010_2019">2010–2019</SelectItem>
-                          <SelectItem value="2000_2009">2000–2009</SelectItem>
-                          <SelectItem value="1990s">1990s</SelectItem>
-                          <SelectItem value="1980s">1980s</SelectItem>
-                          <SelectItem value="1970s">1970s</SelectItem>
-                          <SelectItem value="1960s">1960s</SelectItem>
-                          <SelectItem value="before_1960">Before 1960</SelectItem>
+                          {ETSY_WHEN_MADE_OPTIONS.map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1559,6 +1605,9 @@ export function ListingPreparationClient({
                       placeholder="Enter tags separated by commas"
                     />
                     <p className={`text-xs ${etsyTags.length > 13 ? "text-destructive" : "text-muted-foreground"}`}>{etsyTags.length}/13 tags · each tag may contain up to 30 characters.</p>
+                    {inventoryId && etsyDraftErrors.length > 0 && (
+                      <p role="alert" className="text-xs text-destructive">{etsyDraftErrors.join(" ")}</p>
+                    )}
                   </div>
                   {etsyListingDetails.productType === "LOOSE_GEMSTONE" && visibleEtsyGemstoneOptionKeys.length > 0 && (
                     <div className="space-y-4 rounded-lg border p-4">
@@ -1742,14 +1791,14 @@ export function ListingPreparationClient({
                       />
                     </div>
                   ) : (
-                    <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Select an eBay shop first; inventory already listed or saved as an API offer for that shop will be excluded.</p>
+                    <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Select an eBay shop first; inventory already listed or saved as a draft for that shop will be excluded.</p>
                   )}
 
                   <div className="space-y-4 rounded-xl border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold">4–5. eBay category requirements</p>
-                        <p className="text-xs text-muted-foreground">Read required and optional item aspects and permitted values from eBay Taxonomy before saving an API offer.</p>
+                        <p className="text-xs text-muted-foreground">All nonempty required and optional item specifics are saved in the ERP and transferred when you verify the complete eBay offer.</p>
                       </div>
                       <Button
                         type="button"
@@ -1897,7 +1946,7 @@ export function ListingPreparationClient({
                         Prepare ERP preview
                       </Button>
                       <Button type="button" className="min-h-10 h-auto w-full whitespace-normal px-3 py-2 text-center leading-tight" onClick={() => void saveDraft()} disabled={busy || !shopSettingsReady || !inventoryId || !shopId || !selectedShop?.writeReady || !listingTitle.trim() || !hasSelectedMarketplacePhoto || !price || !usdToInr || Number(offerPercent) >= 100 || !aspectValuesValid}>
-                        Create unpublished eBay offer
+                        Save complete eBay draft in ERP
                       </Button>
                     </div>
                   </div>
@@ -2204,7 +2253,7 @@ function MarketplaceMediaSelector({
           Etsy allows JPG, GIF, or PNG photos and up to 2 videos. Selected media is uploaded to the unpublished Etsy draft; add any missing media or details in Etsy before publishing.
         </p>
       ) : (
-        <p className="text-xs leading-relaxed text-muted-foreground">eBay allows up to 24 photos and one product video. Selected media is attached to the unpublished API offer. API offers are separate from Seller Hub Drafts and require API management and publishing.</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">Save the complete draft in the ERP, review its details, then verify the full eBay offer before explicitly publishing. The separate basic Seller Hub draft upload carries fewer fields.</p>
       )}
     </div>
   );

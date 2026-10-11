@@ -1,7 +1,9 @@
 import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
 import { downloadMarketplaceMedia } from "@/lib/marketplace/media-transfer";
 import { buildEbayInventoryDescription } from "@/lib/marketplace/ebay-description-payload";
+import { buildEbayStaticDescription } from "@/lib/marketplace/ebay-description-html";
 import { nonEmptyEbayAspects } from "@/lib/marketplace/inventory-listing-defaults";
+import { sellerHubFeedOutcome } from "@/lib/marketplace/ebay-seller-hub-draft";
 import { makeDraftSettingGroup, parseEbayDefaultPolicyIds, resolveDraftSettings, type DraftSettings, type DraftSettingGroup } from "@/lib/marketplace/draft-settings";
 import { EBAY_INVENTORY_WRITE_SCOPE, hasOAuthScope, resolveOAuthScopes } from "@/lib/marketplace/scopes";
 import type { MarketplaceConnector, MarketplaceOAuthResult, MarketplaceConnectionContext } from "@/lib/marketplace/connector";
@@ -63,6 +65,8 @@ function bases() {
 }
 
 export type EbayMarketplaceDraftInput = {
+  merchantLocationKey?: string;
+  existingOfferId?: string;
   draftSettings?: DraftSettings;
   sku: string;
   title: string;
@@ -470,10 +474,10 @@ export class EbayConnector implements MarketplaceConnector {
         }),
       }
     );
-    const offer = await httpJson<{ offerId?: string }>(
-      `${apiBase}/sell/inventory/v1/offer`,
+    const offerResponse = await httpRequest(
+      `${apiBase}/sell/inventory/v1/offer${input.existingOfferId ? `/${encodeURIComponent(input.existingOfferId)}` : ""}`,
       {
-        method: "POST",
+        method: input.existingOfferId ? "PUT" : "POST",
         headers: { ...headers, "Content-Type": "application/json", "Content-Language": "en-US" },
         body: JSON.stringify({
           sku: input.sku,
@@ -481,7 +485,9 @@ export class EbayConnector implements MarketplaceConnector {
           format: "FIXED_PRICE",
           availableQuantity: input.quantity,
           categoryId: input.categoryId,
-          listingDescription: input.description,
+          ...(input.merchantLocationKey ? { merchantLocationKey: input.merchantLocationKey } : {}),
+          listingDuration: "GTC",
+          listingDescription: buildEbayStaticDescription(input.description),
           listingPolicies: {
             fulfillmentPolicyId: draftSettings.fulfillmentPolicyId,
             paymentPolicyId: draftSettings.paymentPolicyId,
@@ -489,10 +495,55 @@ export class EbayConnector implements MarketplaceConnector {
           },
           pricingSummary: { price: { value: input.price.toFixed(2), currency: input.currency } },
         }),
-      }
+      }, { maxRetries: 0 }
     );
-    if (!offer.offerId) throw new Error("eBay accepted the offer but did not return an offer ID.");
-    return { offerId: offer.offerId, uploadedMedia, warnings, draftSettings };
+    const offerId = input.existingOfferId || ((await offerResponse.json()) as { offerId?: string }).offerId;
+    if (!offerId) throw new Error("eBay accepted the offer but did not return an offer ID. Reconcile by SKU before retrying.");
+    return { offerId, uploadedMedia, warnings, draftSettings };
+  }
+
+  async getInventoryLocations(connectionId: string) {
+    const headers = this.getHeaders(await this.getAccessToken(connectionId));
+    const { apiBase } = bases();
+    const locations: Array<{ merchantLocationKey: string; name?: string; merchantLocationStatus?: string; location?: { address?: { city?: string; stateOrProvince?: string; postalCode?: string; country?: string } } }> = [];
+    for (let offset = 0; ; offset += 100) {
+      const page = await httpJson<{ locations?: typeof locations; total?: number }>(`${apiBase}/sell/inventory/v1/location?limit=100&offset=${offset}`, { headers });
+      locations.push(...(page.locations || []));
+      if (!page.locations?.length || locations.length >= (page.total || 0)) break;
+      if (offset >= 9900) throw new Error("Too many eBay locations to load safely.");
+    }
+    return locations.filter((location) => location.merchantLocationStatus === "ENABLED");
+  }
+
+  async createInventoryLocation(connectionId: string, key: string, address: { country: string; postalCode: string; city?: string }) {
+    const { apiBase } = bases();
+    await httpRequest(`${apiBase}/sell/inventory/v1/location/${encodeURIComponent(key)}`, {
+      method: "POST", headers: { ...this.getHeaders(await this.getAccessToken(connectionId)), "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "ERP dispatch location", merchantLocationStatus: "ENABLED", locationTypes: ["WAREHOUSE"], location: { address } }),
+    }, { maxRetries: 0 });
+  }
+
+  async findOffersForSku(connectionId: string, sku: string, marketplaceId: string) {
+    const { apiBase } = bases();
+    const result = await httpJson<{ offers?: Array<{ offerId: string; sku: string; marketplaceId: string; format: string; status: string }> }>(`${apiBase}/sell/inventory/v1/offer?sku=${encodeURIComponent(sku)}&marketplace_id=${encodeURIComponent(marketplaceId)}&format=FIXED_PRICE&limit=100`, { headers: this.getHeaders(await this.getAccessToken(connectionId)) });
+    return result.offers || [];
+  }
+
+  async getCompleteOffer(connectionId: string, offerId: string) {
+    const { apiBase } = bases();
+    return httpJson<Record<string, unknown>>(`${apiBase}/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`, { headers: this.getHeaders(await this.getAccessToken(connectionId)) });
+  }
+
+  async getCompleteInventoryItem(connectionId: string, sku: string) {
+    const { apiBase } = bases();
+    return httpJson<Record<string, unknown>>(`${apiBase}/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`, { headers: this.getHeaders(await this.getAccessToken(connectionId)), });
+  }
+
+  async publishMarketplaceOffer(connectionId: string, offerId: string) {
+    const { apiBase } = bases();
+    const result = await httpJson<{ listingId?: string }>(`${apiBase}/sell/inventory/v1/offer/${encodeURIComponent(offerId)}/publish`, { method: "POST", headers: { ...this.getHeaders(await this.getAccessToken(connectionId)), "Content-Type": "application/json" } }, { maxRetries: 0 });
+    if (!result.listingId) throw new Error("eBay did not return a listing ID. Check offer status before retrying.");
+    return result.listingId;
   }
 
   async getMarketplaceOffer(connectionId: string, offerId: string) {
@@ -503,6 +554,44 @@ export class EbayConnector implements MarketplaceConnector {
       { headers: this.getHeaders(token) }
     );
     return { offerId: offer.offerId, sku: offer.sku, status: offer.status, marketplaceId: offer.marketplaceId, listingId: offer.listing?.listingId || null, environment: sandbox ? "SANDBOX" : "PRODUCTION" };
+  }
+
+  async createSellerHubDraftTask(connectionId: string) {
+    const { apiBase, sandbox } = bases();
+    if (sandbox) throw new Error("Seller Hub draft feeds are supported only in eBay production.");
+    const response = await httpRequest(`${apiBase}/sell/feed/v1/task`, {
+      method: "POST", headers: { ...this.getHeaders(await this.getAccessToken(connectionId)), "Content-Type": "application/json", "X-EBAY-C-MARKETPLACE-ID": "EBAY_US" },
+      body: JSON.stringify({ feedType: "FX_DRAFT", schemaVersion: "1.0" }),
+    }, { maxRetries: 0 });
+    const taskId = response.headers.get("location")?.split("/").filter(Boolean).pop();
+    if (!taskId || !/^[a-zA-Z0-9_-]+$/.test(taskId)) throw new Error("eBay did not return a valid Seller Hub upload task ID.");
+    return taskId;
+  }
+
+  async uploadSellerHubDraft(connectionId: string, taskId: string, csv: string) {
+    const body = new FormData();
+    body.append("file", new Blob([csv], { type: "text/csv" }), "erp-seller-hub-draft.csv");
+    await httpRequest(`${bases().apiBase}/sell/feed/v1/task/${encodeURIComponent(taskId)}/upload_file`, {
+      method: "POST", headers: { ...this.getHeaders(await this.getAccessToken(connectionId)), "X-EBAY-C-MARKETPLACE-ID": "EBAY_US" }, body,
+    }, { maxRetries: 0 });
+  }
+
+  async getSellerHubDraftTask(connectionId: string, taskId: string) {
+    const task = await httpJson<{ status?: string; feedType?: string; uploadSummary?: { successCount?: number; failureCount?: number } }>(
+      `${bases().apiBase}/sell/feed/v1/task/${encodeURIComponent(taskId)}`,
+      { headers: this.getHeaders(await this.getAccessToken(connectionId)) }
+    );
+    if (task.feedType !== "FX_DRAFT") throw new Error("This task is not a Seller Hub draft upload.");
+    return sellerHubFeedOutcome(task);
+  }
+
+  async getSellerHubDraftResult(connectionId: string, taskId: string): Promise<string> {
+    const response = await httpRequest(`${bases().apiBase}/sell/feed/v1/task/${encodeURIComponent(taskId)}/download_result_file`, {
+      headers: this.getHeaders(await this.getAccessToken(connectionId)),
+    });
+    const bytes = Buffer.from(await response.arrayBuffer());
+    const { gunzipSync } = await import("node:zlib");
+    return (bytes[0] === 0x1f && bytes[1] === 0x8b ? gunzipSync(bytes, { maxOutputLength: 1024 * 1024 }) : bytes).toString("utf8");
   }
 
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {

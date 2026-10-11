@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
+import { httpJson, httpRequest, bearerAuth, HttpError } from "@/lib/marketplace/http";
+import { etsyDraftValidationErrors } from "@/lib/marketplace/etsy-draft-validation";
 import { prisma } from "@/lib/prisma";
 import { makeDraftSettingGroup, resolveDraftSettings, type DraftSettings, type DraftSettingGroup } from "@/lib/marketplace/draft-settings";
 import { resolveOAuthScopes } from "@/lib/marketplace/scopes";
@@ -508,6 +509,8 @@ export class EtsyConnector implements MarketplaceConnector {
     externalShopId: string,
     input: EtsyMarketplaceDraftInput
   ): Promise<{ listingId: string; uploadedMedia: number; warnings: string[]; draftSettings: DraftSettings }> {
+    const validationErrors = etsyDraftValidationErrors(input);
+    if (validationErrors.length) throw new Error(validationErrors.join(" "));
     const draftSettings = resolveDraftSettings(await this.getDraftSettingGroups(connectionId, externalShopId), input.draftSettings);
     const token = await this.getAccessToken(connectionId);
     const profile = await this.getConnectionProfile(connectionId);
@@ -515,7 +518,7 @@ export class EtsyConnector implements MarketplaceConnector {
     const headers = this.getHeaders(token, credentials);
     const form = new URLSearchParams({
       quantity: String(input.quantity),
-      title: input.title,
+      title: input.title.normalize("NFC"),
       description: input.description,
       price: input.price.toFixed(2),
       who_made: input.whoMade === "I_DID" ? "i_did" : input.whoMade === "SHOP_MEMBER" ? "collective" : "someone_else",
@@ -527,28 +530,33 @@ export class EtsyConnector implements MarketplaceConnector {
       readiness_state_id: draftSettings.readinessStateId!,
     });
     if (input.shopSectionId) form.set("shop_section_id", input.shopSectionId);
-    input.tags.forEach((tag) => form.append("tags[]", tag));
+    if (input.tags.length) form.set("tags", input.tags.join(","));
 
     const created = await httpJson<{ listing_id?: number | string }>(
-      `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/listings`,
+      `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/listings?legacy=false`,
       {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
         body: form.toString(),
-      }
-    );
+      },
+      // Creating a draft is not idempotent: retrying a lost response can create duplicates.
+      { maxRetries: 0 }
+    ).catch((error: unknown) => {
+      if (error instanceof HttpError) throw new HttpError(`Etsy draft creation failed (HTTP ${error.status})`, error.status, error.body);
+      throw error;
+    });
     const listingId = String(created.listing_id || "").trim();
     if (!listingId) throw new Error("Etsy accepted the draft request but did not return a listing ID.");
 
     const warnings: string[] = [];
     let uploadedMedia = 0;
-    let imageRank = 0;
+    let imageRank = 1;
     for (const [index, attribute] of input.categoryAttributes.entries()) {
       if (!attribute.propertyId) continue;
       try {
         const propertyValues = new URLSearchParams();
-        if (attribute.valueId) propertyValues.append("value_ids[]", attribute.valueId);
-        propertyValues.append("values[]", attribute.value);
+        if (attribute.valueId) propertyValues.set("value_ids", attribute.valueId);
+        propertyValues.set("values", attribute.value);
         await httpRequest(
           `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/listings/${encodeURIComponent(listingId)}/properties/${encodeURIComponent(attribute.propertyId)}`,
           {

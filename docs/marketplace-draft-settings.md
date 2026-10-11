@@ -2,17 +2,56 @@
 
 ## eBay offers and Seller Hub drafts
 
-The eBay integration calls Inventory API `createOffer`. Its returned ID is an
-offer ID, not a Seller Hub draft ID or published listing ID. These unpublished
-offers are separate from Seller Hub Drafts. The Inventory API manages and
-publishes them; the ERP currently does not publish them. Etsy uses its separate
-draft-listing endpoint and creates a shop draft.
+The old eBay implementation called Inventory API `createOffer`, whose ID is
+an unpublished offer ID rather than a Seller Hub draft. New saves preserve the
+complete ERP draft. Review complete listing in ERP lets the seller edit title,
+description, price, quantity, specifics and policies, choose or create an actual
+dispatch location, then prepare an unpublished Inventory API offer. Read-back
+verifies every supplied specific, all three policy IDs, full static HTML,
+photos/videos, title, SKU, category, condition, GTC format, price/quantity and
+location key. Publishing requires the verified revision and exact SKU typed by
+the seller. It changes the ERP listing to ACTIVE only after eBay returns a
+listing ID or a later status check confirms publication. POST creation and
+publication are never automatically retried. Interrupted publications must be
+reconciled; definite validation failures require re-preparation.
+
+The optional basic Seller Hub transfer uploads a Draft CSV through Sell Feed
+API `FX_DRAFT`; it is a separate, incomplete draft and is not the full review
+workflow. Etsy uses its own draft endpoint. Do not publish both copies.
+
+Uploads are asynchronous. The ERP shows processing until the task completes,
+then requires successCount=1, failureCount=0, and a successful result row with
+a DraftID before claiming creation. The returned edit link opens the draft in
+Seller Hub. Old API offers retain their offer ID and can be transferred using
+Send to Seller Hub; they are not published or deleted during transfer.
+
+The Draft template supports title, SKU, category, price, quantity, condition,
+HTML description, and photo URLs. Policies, item specifics, and videos remain
+in the ERP for reference and require review in Seller Hub. Only eBay US/USD
+is currently supported. The Country header is IN for this ERP's Indian seller.
+If an upload fails, Download draft CSV can be used in Seller Hub Reports >
+Uploads. Download upload result provides the complete returned CSV report.
+
+The operational feed type was confirmed by production testing on 11 October
+2026: task-42-13333736577 returned COMPLETED, successCount=1, failureCount=0,
+and Seller Hub DraftID 5387189153310 for KGLGZIRVLT130000287. The successful
+report did not echo a title; imported field contents could not be visually
+verified because the browser login was unavailable. Review the draft before
+publishing. No publish endpoint was called.
+
+The earlier bare Action CSV test failed with zero successes. Adding the site,
+country, currency, schema/encoding context and complete Draft column layout
+produced the confirmed result. No failed upload is automatically resubmitted.
+Task IDs are persisted before upload and concurrent submission is guarded by
+an atomic metadata comparison. Only generated Action=Draft rows are uploaded.
 
 Saved eBay rows provide a read-only **Check eBay offer** action using `getOffer`,
 which reports the remote status, API environment, and any published listing ID.
 For local diagnostics, run `npx tsx scripts/check-ebay-offer.ts <offerId>`.
 
 Reference: https://developer.ebay.com/api-docs/sell/inventory/overview.html
+Seller Hub draft fields: https://pages.ebay.com/sh/reports/help/uploadable-file-feeds/
+Feed workflow: https://developer.ebay.com/api-docs/sell/static/feed/fx-feeds-overview.html
 
 Create Listing loads settings automatically when a connected shop is selected.
 The authenticated `shopSettings` action in `/api/marketplace/listing-preparation`
@@ -41,3 +80,37 @@ required policy or profile, the user must configure it there and reload.
 
 Run `npm run test:marketplace-draft-settings` for mocked API regression tests.
 These tests do not connect to seller accounts or create live marketplace drafts.
+# Seller Hub draft field audit (2026-10-11)
+
+User screenshots of draft 5387189153310 confirm title, SKU, category, photo,
+price, quantity, condition and HTML imported. Item specifics and payment policy
+are blank; the location shows United States despite the CSV Country=IN context.
+Do not treat the context header or task success as proof of location or policy
+import. The official draft template documents only 11 basic columns and warns
+that additional columns are not guaranteed to import:
+https://pages.ebay.com/sh/reports/help/uploadable-file-feeds/
+
+The stored description contains one event handler (no script elements), which
+explains why eBay reports JavaScript active content.
+The handler came from lib/ebay-description.ts product-image onerror; it has also
+been removed at the generator source for newly prepared descriptions. Both offer and draft exports
+now use a parsed allowlist sanitizer to remove event handlers, scripts, embedded
+active content and unsafe URLs/CSS. Original ERP descriptions are preserved.
+The saved-draft UI offers a clean HTML download for repairing existing drafts.
+This does not update an already-created eBay draft automatically.
+
+Full field transfer to Seller Hub remains unsupported through this basic template.
+Do not claim this is a ready-to-publish draft or add unsupported columns and
+interpret task success as field verification. A full API listing workflow would
+uses the implemented explicit Publish action after ERP review; creation of an
+active listing is not equivalent to saving a draft. No active listing was created
+during implementation verification.
+
+Live verification on 2026-10-11 updated existing unpublished offer 305937640011
+for KGLGZIRVLT130000287. eBay read-back matched all 21 entered item specifics,
+one photo, full static description, title/price/quantity/condition/category, all
+three saved policies and enabled dispatch location in India, postal code 122001,
+city Kpmg (provided by the user). Earlier drafts stored selected policies under
+marketplaceDraft.draftSettings; the full workflow preserves that legacy selection
+instead of guessing among multiple payment policies. The separate Seller Hub
+draft 5387189153310 is unchanged.
