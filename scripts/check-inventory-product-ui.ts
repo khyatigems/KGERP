@@ -17,7 +17,9 @@ import assert from "node:assert/strict";
 Object.assign(globalThis, { React });
 function DescriptionPreview() {
  const form = useForm<FormInputValues>({ defaultValues: { description: "<p>Saved eBay description</p>", etsyDescription: "Saved Etsy description" } });
- return React.createElement(Form, { ...form, children: React.createElement(NotesSection, { form }) });
+ // FormProvider requires children in its typed props when called without JSX.
+ // eslint-disable-next-line react/no-children-prop
+ return React.createElement(Form<FormInputValues>, { ...form, children: React.createElement(NotesSection, { form }) });
 }
 async function main() {
  const directory = await mkdtemp(join(tmpdir(), "inventory-product-ui-"));
