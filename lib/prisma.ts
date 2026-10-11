@@ -103,7 +103,7 @@ const prismaBase =
   globalForPrisma.prisma ??
   (() => {
     // Build client options based on database type
-    const clientOptions: unknown = {
+    const clientOptions: any = {
       log: isProd ? ['error', 'warn'] : ['query', 'error', 'warn'],
     };
     

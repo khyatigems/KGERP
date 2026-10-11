@@ -174,7 +174,7 @@ export default async function VerifyPage({
           const certAuthority = (inv?.certificateLab as string) || (inv?.lab as string) || null;
           const certComments = inv?.certificateComments as string | null;
           const certUrl = normalizeCertificateUrl(certComments);
-          void ((inv?.imageUrl as string) || null);
+          const imageUrl = (inv?.imageUrl as string) || null;
 
           return (
             <div key={item.serialNumber} className={isMulti ? "border-b border-gray-100 pb-4 last:border-0 last:pb-0" : ""}>

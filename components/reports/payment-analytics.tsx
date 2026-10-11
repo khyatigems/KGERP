@@ -126,7 +126,7 @@ export function PaymentAnalytics({ data }: { data: PaymentData }) {
 
     // Detailed Table
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const lastY = (doc).lastAutoTable.finalY || 50;
+    const lastY = (doc as any).lastAutoTable.finalY || 50;
     doc.text("Payment History", 14, lastY + 10);
 
     const tableRows = data.recentPayments.map(p => [

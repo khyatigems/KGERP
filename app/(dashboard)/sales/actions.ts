@@ -770,7 +770,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
                   where: { id: itemData.inv.id },
                   data: { status: "SOLD" }
               });
-              await markMarketplaceListingsSold({ inventoryIds: [itemData.inv.id] }, tx);
+              await markMarketplaceListingsSold({ inventoryIds: [itemData.inv.id] }, tx as any);
           }
 
           // Apply existing credit notes of customer (auto-adjust receivable)

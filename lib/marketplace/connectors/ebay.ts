@@ -671,7 +671,7 @@ export class EbayConnector implements MarketplaceConnector {
   }
 
   private async getTrackingDetails(
-    order: unknown,
+    order: any,
     headers: Record<string, string>,
     apiBase: string
   ): Promise<{ trackingCode: string | null; carrier: string | null }> {
@@ -721,7 +721,7 @@ export class EbayConnector implements MarketplaceConnector {
     return tracking;
   }
 
-  private async readJson(url: string, headers: Record<string, string>): Promise<unknown> {
+  private async readJson(url: string, headers: Record<string, string>): Promise<any> {
     const response = await httpRequest(url, { headers });
     if (response.status === 204) return {};
     const text = await response.text();
@@ -738,14 +738,14 @@ export class EbayConnector implements MarketplaceConnector {
   }
 
   private normalizeOrder(
-    order: unknown,
+    order: any,
     tracking: { trackingCode: string | null; carrier: string | null }
   ): NormalizedOrder {
     const total = order?.pricingSummary?.total || {};
     const buyer = order?.buyer || {};
     const shipTo = order?.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo || {};
     const address = shipTo?.contactAddress || buyer?.buyerRegistrationAddress?.contactAddress || {};
-    const items: NormalizedOrderItem[] = (order?.lineItems || []).map((line) => ({
+    const items: NormalizedOrderItem[] = (order?.lineItems || []).map((line: any) => ({
       itemId: line?.lineItemId ? String(line.lineItemId) : null,
       listingId: line?.legacyItemId
         ? String(line.legacyItemId)

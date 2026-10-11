@@ -58,7 +58,7 @@ global.document = {
       toDataURL: () => 'data:image/png;base64,mockdata'
     })
   })
-};
+} as any;
 
 global.Image = function(this: any) {
   this.crossOrigin = '';
@@ -72,7 +72,7 @@ global.Image = function(this: any) {
   setTimeout(() => {
     if (this.onload) this.onload();
   }, 0);
-};
+} as any;
 
 async function testPDFGeneration() {
   console.log('Testing PDF Generation...');

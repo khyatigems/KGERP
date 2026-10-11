@@ -98,7 +98,7 @@ async function main() {
           );
           count = count[0]?.count || 0;
         } else {
-          count = await (prisma)[table.name.toLowerCase()].count();
+          count = await (prisma as any)[table.name.toLowerCase()].count();
         }
         
         console.log(`  📊 ${table.name}: ${count} records (${table.description})`);

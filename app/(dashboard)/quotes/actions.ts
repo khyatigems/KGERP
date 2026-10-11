@@ -514,7 +514,7 @@ export async function convertQuotationToInvoice(id: string) {
             where: { id: inv.id },
             data: { status: "SOLD" }
         });
-        await markMarketplaceListingsSold({ inventoryIds: [inv.id] }, tx);
+        await markMarketplaceListingsSold({ inventoryIds: [inv.id] }, tx as any);
       }
 
       // 5. Update Quotation Status

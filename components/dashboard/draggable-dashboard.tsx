@@ -11,7 +11,7 @@ import "@/components/ui/card";
 import { LottieIcon } from "@/components/ui/lottie";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-type WidgetRenderer = (props: unknown) => React.ReactNode;
+type WidgetRenderer = (props: any) => React.ReactNode;
 
 const widgetRegistry: Record<string, WidgetRenderer> = {
   header: (props) => <DashboardHeader {...props} />,
@@ -422,7 +422,7 @@ export function DashboardGrid({
                 <div className="min-h-20">{renderWidget(activeItem)}</div>
               </div>
             );
-          }))}
+          }) as any)}
         </DragOverlay>
       </DndContext>
 

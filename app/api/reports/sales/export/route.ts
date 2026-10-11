@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
   const baseSearchOr = (() => {
     if (!q) return undefined;
 
-    const ors: unknown[] = [
+    const ors: any[] = [
       { customerName: { contains: q } },
       { customerEmail: { contains: q } },
       { customerPhone: { contains: q } },
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
     return ors;
   })();
 
-  const where = baseSearchOr ? ({ OR: baseSearchOr }) : ({});
+  const where = baseSearchOr ? ({ OR: baseSearchOr } as any) : ({} as any);
 
   const orderBy = sort === "invoice"
     ? ([
@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
       while (true) {
         const rows = (await prisma.sale.findMany({
           where,
-          orderBy: orderBy,
+          orderBy: orderBy as any,
           skip,
           take: CHUNK_SIZE,
           select: {

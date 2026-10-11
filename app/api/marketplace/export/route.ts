@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
       const rows = await prisma.$queryRawUnsafe<Array<{ globalBannerImages: string | null; categoryImageUrls: string | null; categoryGemtypeImageUrls: string | null; brandLogoUrl: string | null; companyName: string | null; tagline: string | null }>>(`SELECT * FROM "EbaySettings" LIMIT 1`);
       if (rows && rows.length > 0) {
         const row = rows[0];
-        const parseJson = (v: string | null, fallback) => { if (!v) return fallback; try { return JSON.parse(v); } catch { return fallback; } };
+        const parseJson = (v: string | null, fallback: any) => { if (!v) return fallback; try { return JSON.parse(v); } catch { return fallback; } };
         categoryImageUrls = parseJson(row.categoryImageUrls, {});
         categoryGemtypeImageUrls = parseJson(row.categoryGemtypeImageUrls, {});
         globalBannerImages = parseJson(row.globalBannerImages, []);

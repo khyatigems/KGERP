@@ -202,7 +202,7 @@ export async function GET(req: NextRequest) {
       requestedFields.forEach(field => {
         const mapping = FIELD_MAPPINGS[field];
         if (mapping) {
-          row[mapping.label] = mapping.getter(item);
+          row[mapping.label] = mapping.getter(item as ExportInventory);
         }
       });
       return row;

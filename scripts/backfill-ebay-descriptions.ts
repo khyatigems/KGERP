@@ -48,7 +48,7 @@ function normalizeValue(value?: string | null) {
   return trimmed || null;
 }
 
-function normalizeCategoryImageUrls(settings: unknown): Record<string, string[]> {
+function normalizeCategoryImageUrls(settings: any): Record<string, string[]> {
   if (!settings) return {};
   if (settings.categoryImageUrls && typeof settings.categoryImageUrls === "string") {
     try {
@@ -62,7 +62,7 @@ function normalizeCategoryImageUrls(settings: unknown): Record<string, string[]>
     : {};
 }
 
-function normalizeCategoryGemtypeImageUrls(settings: unknown): Record<string, string[]> {
+function normalizeCategoryGemtypeImageUrls(settings: any): Record<string, string[]> {
   if (!settings) return {};
   if (settings.categoryGemtypeImageUrls && typeof settings.categoryGemtypeImageUrls === "string") {
     try {
@@ -76,7 +76,7 @@ function normalizeCategoryGemtypeImageUrls(settings: unknown): Record<string, st
     : {};
 }
 
-function normalizeGlobalBannerImages(settings: unknown): string[] | undefined {
+function normalizeGlobalBannerImages(settings: any): string[] | undefined {
   if (!settings) return undefined;
   if (settings.globalBannerImages && typeof settings.globalBannerImages === "string") {
     try {

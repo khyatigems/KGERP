@@ -37,7 +37,7 @@ export default async function ErpLayout({
     const hasRbacTables = (await hasTable("UserPermission")) && (await hasTable("Role")) && (await hasTable("Permission")) && (await hasTable("RolePermission"));
 
     const dbUser = supports && hasRbacTables
-      ? ((await (prisma.user).findUnique({
+      ? ((await (prisma.user as any).findUnique({
           where: { id: session.user.id },
           select: ({
             name: true,
@@ -51,8 +51,8 @@ export default async function ErpLayout({
               select: { name: true, permissions: { select: { permission: { select: { key: true } } } } }
             },
             userPermissions: { select: { allow: true, permission: { select: { key: true } } } }
-          })
-        })))
+          } as any)
+        })) as any)
       : ((await prisma.user.findUnique({
           where: { id: session.user.id },
           select: {
@@ -64,7 +64,7 @@ export default async function ErpLayout({
             role: true,
             lastLogin: true,
           }
-        })));
+        })) as any);
     
     if (dbUser) {
       // Resolve permissions
@@ -75,7 +75,7 @@ export default async function ErpLayout({
         allowedNavModules = ["ALL"];
       } else {
         // From role
-        dbUser.roleRelation?.permissions.forEach((rp) => resolvedPerms.add(rp.permission.key));
+        dbUser.roleRelation?.permissions.forEach((rp: any) => resolvedPerms.add(rp.permission.key));
 
         if (!dbUser.roleRelation?.permissions?.length && dbUser.role) {
           try {
@@ -88,7 +88,7 @@ export default async function ErpLayout({
         }
         
         // Apply overrides
-        dbUser.userPermissions?.forEach((up) => {
+        dbUser.userPermissions?.forEach((up: any) => {
           if (up.allow) resolvedPerms.add(up.permission.key);
           else resolvedPerms.delete(up.permission.key);
         });
@@ -106,7 +106,7 @@ export default async function ErpLayout({
         role: dbUser.roleRelation?.name || dbUser.role,
         lastLogin: dbUser.lastLogin,
         permissions: allowedNavModules as Permission[]
-      };
+      } as any;
     }
   }
 

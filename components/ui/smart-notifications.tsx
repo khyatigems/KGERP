@@ -55,7 +55,7 @@ export function SmartNotificationsProvider({ children }: { children: React.React
       const stored = localStorage.getItem("smart-notifications");
       if (stored) {
         const parsed = JSON.parse(stored);
-        setNotifications(parsed.map((n) => ({ ...n, timestamp: new Date(n.timestamp) })));
+        setNotifications(parsed.map((n: any) => ({ ...n, timestamp: new Date(n.timestamp) })));
       }
     } catch (e) {
       console.error("Failed to load notifications:", e);

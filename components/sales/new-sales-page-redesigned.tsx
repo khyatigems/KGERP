@@ -255,7 +255,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   }, [fetchInventory, itemSearchQuery]);
 
   const form = useForm<SaleFormData>({
-    resolver: zodResolver(saleFormSchema),
+    resolver: zodResolver(saleFormSchema) as any,
     defaultValues: {
       customerType: "existing",
       customerId: "",
@@ -385,7 +385,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
     setInitialPayments(prev => [...prev, { amount: 0, method: "CASH", date: watchedValues.invoiceDate || new Date().toISOString().split('T')[0], notes: "" }]);
   };
 
-  const updateInitialPayment = (index: number, field: string, value) => {
+  const updateInitialPayment = (index: number, field: string, value: any) => {
     setInitialPayments(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
   };
 
@@ -615,7 +615,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
     // Use your exact existing GST calculation from actions.ts
     const inclusivePrice = item.sellingPrice;
     const basePrice = inclusivePrice / (1 + (gstRate / 100));
-    void (inclusivePrice - basePrice);
+    const gstAmount = inclusivePrice - basePrice;
     
     // Debug: Only log occasionally
     if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
@@ -1247,7 +1247,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
               </div>
               <div>
                 <Label htmlFor="platform">Sales Platform</Label>
-                <Select value={watchedValues.platform} onValueChange={(value) => form.setValue("platform", value)}>
+                <Select value={watchedValues.platform} onValueChange={(value) => form.setValue("platform", value as any)}>
                   <SelectTrigger id="platform">
                     <SelectValue placeholder="Select platform" />
                   </SelectTrigger>
@@ -1262,7 +1262,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
               </div>
               <div>
                 <Label htmlFor="invoiceType">Invoice Type</Label>
-                <Select value={watchedValues.invoiceType} onValueChange={(value) => form.setValue("invoiceType", value)}>
+                <Select value={watchedValues.invoiceType} onValueChange={(value) => form.setValue("invoiceType", value as any)}>
                   <SelectTrigger id="invoiceType">
                     <SelectValue placeholder="Select invoice type" />
                   </SelectTrigger>
@@ -1288,7 +1288,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="invoiceCurrency">Invoice Currency</Label>
-                    <Select value={watchedValues.invoiceCurrency || "USD"} onValueChange={(value) => form.setValue("invoiceCurrency", value)}>
+                    <Select value={watchedValues.invoiceCurrency || "USD"} onValueChange={(value) => form.setValue("invoiceCurrency", value as any)}>
                       <SelectTrigger id="invoiceCurrency">
                         <SelectValue placeholder="Select currency" />
                       </SelectTrigger>
@@ -1314,7 +1314,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                   </div>
                   <div>
                     <Label htmlFor="exportType">Export Type</Label>
-                    <Select value={watchedValues.exportType || "LUT"} onValueChange={(value) => form.setValue("exportType", value)}>
+                    <Select value={watchedValues.exportType || "LUT"} onValueChange={(value) => form.setValue("exportType", value as any)}>
                       <SelectTrigger id="exportType">
                         <SelectValue placeholder="Select export type" />
                       </SelectTrigger>
@@ -1352,7 +1352,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                   </div>
                   <div>
                     <Label htmlFor="modeOfTransport">Mode of Transport</Label>
-                    <Select value={watchedValues.modeOfTransport || "AIR"} onValueChange={(value) => form.setValue("modeOfTransport", value)}>
+                    <Select value={watchedValues.modeOfTransport || "AIR"} onValueChange={(value) => form.setValue("modeOfTransport", value as any)}>
                       <SelectTrigger id="modeOfTransport">
                         <SelectValue placeholder="Select transport mode" />
                       </SelectTrigger>
@@ -1594,7 +1594,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
                     return;
                   }
                   setDiscountConflictMessage(null);
-                  form.setValue("discountType", value);
+                  form.setValue("discountType", value as any);
                 }}
               >
                 <SelectTrigger>

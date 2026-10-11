@@ -137,7 +137,7 @@ async function main() {
     args.push(id);
     await client.execute({
       sql: `UPDATE "Inventory" SET ${sets.join(", ")} WHERE id = ?`,
-      args: args,
+      args: args as any,
     });
 
     const changes: string[] = [];

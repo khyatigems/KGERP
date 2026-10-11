@@ -150,7 +150,7 @@ export default async function SalesPage({
   const baseSearchOr = (() => {
     if (!searchQuery) return undefined;
 
-    const ors: unknown[] = [
+    const ors: any[] = [
       { customerName: { contains: searchQuery } },
       { customerEmail: { contains: searchQuery } },
       { customerPhone: { contains: searchQuery } },
@@ -237,7 +237,7 @@ export default async function SalesPage({
   };
 
   const makeWhere = (section: "TAX" | "EXPORT" | "REPLACEMENT") => {
-    const and: unknown[] = [];
+    const and: any[] = [];
 
     if (baseSearchOr) {
       and.push({ OR: baseSearchOr });
@@ -262,7 +262,7 @@ export default async function SalesPage({
     const [rows, totalItems] = await Promise.all([
       prisma.sale.findMany({
         where,
-        orderBy: orderBy,
+        orderBy: orderBy as any,
         skip: (page - 1) * ITEMS_PER_PAGE,
         take: ITEMS_PER_PAGE,
         select: baseSelect,

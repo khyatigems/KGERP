@@ -40,7 +40,7 @@ const actionTypeConfig: Record<BulkActionType, { icon: React.ReactNode; color: s
 };
 
 export function BulkActionTheater({
-  
+  open,
   onOpenChange,
   title,
   description,
@@ -49,7 +49,7 @@ export function BulkActionTheater({
   onExecute,
   onCancel,
   showProgress = true,
-  
+  maxConcurrent = 3,
 }: BulkActionTheaterProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -246,9 +246,9 @@ export function useBulkActionTheater() {
     config: Omit<BulkActionTheaterProps, "open" | "onOpenChange"> | null;
   }>({ open: false, config: null });
 
-  void (useCallback((config: Omit<BulkActionTheaterProps, "open" | "onOpenChange">) => {
+  const open = useCallback((config: Omit<BulkActionTheaterProps, "open" | "onOpenChange">) => {
     setTheaterState({ open: true, config });
-  }, []));
+  }, []);
 
   const close = useCallback(() => {
     setTheaterState({ open: false, config: null });
@@ -258,7 +258,7 @@ export function useBulkActionTheater() {
 }
 
 export function BulkActionTheaterProvider({ children }: { children: React.ReactNode }) {
-  const { theaterState,  close } = useBulkActionTheater();
+  const { theaterState, open, close } = useBulkActionTheater();
 
   return (
     <>

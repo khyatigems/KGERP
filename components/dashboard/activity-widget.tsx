@@ -12,12 +12,12 @@ export async function ActivityWidget() {
   try {
     // Safety check for Prisma model
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (!(prisma).activityLog) {
+    if (!(prisma as any).activityLog) {
       console.warn("ActivityLog model not found in Prisma client");
       loggingDisabled = true;
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      recentLogs = await (prisma).activityLog.findMany({
+      recentLogs = await (prisma as any).activityLog.findMany({
         take: 10,
         orderBy: { timestamp: "desc" },
       });

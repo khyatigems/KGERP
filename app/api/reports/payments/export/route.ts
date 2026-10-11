@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Get detailed payment records for export invoices
-    const where: unknown = {};
+    const where: any = {};
     if (startDate || endDate) {
       where.date = {};
       if (startDate) where.date.gte = startDate;

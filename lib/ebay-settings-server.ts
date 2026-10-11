@@ -119,7 +119,7 @@ export async function getEbaySettings() {
 /**
  * Get category-specific images or fallback to global
  */
-export function getCategoryImages(settings: unknown, category?: string): string[] {
+export function getCategoryImages(settings: any, category?: string): string[] {
   if (!category) {
     const globalImages = parseJson<string[]>(
       settings?.globalBannerImages,
@@ -236,7 +236,7 @@ export function parseCategoryImageJson(
 /**
  * Get all unique categories from settings
  */
-export function getAllConfiguredCategories(settings: unknown): string[] {
+export function getAllConfiguredCategories(settings: any): string[] {
   const categoryMap = parseCategoryImageJson(settings?.categoryImageUrls);
   return Object.keys(categoryMap).sort();
 }
@@ -245,7 +245,7 @@ export function getAllConfiguredCategories(settings: unknown): string[] {
  * Get image count for a specific category
  */
 export function getCategoryImageCount(
-  settings: unknown,
+  settings: any,
   category: string
 ): number {
   const categoryMap = parseCategoryImageJson(settings?.categoryImageUrls);

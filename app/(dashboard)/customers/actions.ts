@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { ensureBillfreePhase1Schema, prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
@@ -17,7 +18,7 @@ const normalizePhone = (input: unknown) => {
 };
 
 async function linkLegacyCustomerRecords(
-  tx: unknown,
+  tx: Prisma.TransactionClient,
   input: { customerId: string; phone: string | null; email: string | null }
 ) {
   const phone = input.phone ? input.phone.replace(/[^\d+]/g, "") : null;

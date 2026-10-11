@@ -411,14 +411,14 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
         }
       } else if (result && (result.message || result.errors)) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((result).isDuplicateWarning) {
+        if ((result as any).isDuplicateWarning) {
           if (optimisticToastId != null) {
             try { toast.dismiss(optimisticToastId); } catch {}
           }
           setDuplicateWarning({
             message: result.message || "Potential duplicate detected",
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            errors: (result.errors) || {},
+            errors: (result.errors as any) || {},
           });
           setIsPending(false);
           return;

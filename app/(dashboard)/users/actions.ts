@@ -59,7 +59,7 @@ export async function createUser(formData: FormData) {
   try {
     const hashedPassword = await hash(result.data.password, 12);
 
-    const userData: unknown = {
+    const userData: any = {
       name: result.data.name,
       email: result.data.email,
       password: hashedPassword,
@@ -163,7 +163,7 @@ export async function updateUser(id: string, formData: FormData) {
         if (isProtectedRole(existingUser?.roleRelation?.name || existingUser?.role) && session?.user?.role !== "SUPER_ADMIN") return { message: "Only superadmin can edit this account" };
         if (isProtectedRole(existingUser?.roleRelation?.name || existingUser?.role) && result.data.role !== (existingUser?.roleRelation?.name || existingUser?.role)) return { message: "Superadmin role cannot be changed" };
         if (isProtectedRole(roleRecord.name) && session?.user?.role !== "SUPER_ADMIN") return { message: "Only superadmin can assign this role" };
-        const updateData: unknown = {
+        const updateData: any = {
             name: result.data.name,
             email: result.data.email,
             role: result.data.role,

@@ -273,7 +273,7 @@ export async function createSaleWithNewLogic(saleData: {
           discountTotal: totalDiscount + discountAmount,
           totalAmount: finalTotal,
           paymentStatus: saleData.paymentStatus,
-          paidAmount: (saleData).paidAmount || 0,
+          paidAmount: (saleData as any).paidAmount || 0,
           status: saleData.paymentStatus === "PAID" ? "PAID" : "ISSUED",
         },
       });
@@ -325,7 +325,7 @@ export async function createSaleWithNewLogic(saleData: {
       if (saleData.paymentStatus === "PAID" || saleData.paymentStatus === "PARTIAL") {
         const paymentAmount = saleData.paymentStatus === "PAID" 
           ? finalTotal 
-          : ((saleData).paidAmount || 0);
+          : ((saleData as any).paidAmount || 0);
           
         await tx.payment.create({
           data: {
@@ -366,7 +366,7 @@ export async function createSaleWithNewLogic(saleData: {
       }
       await markMarketplaceListingsSold(
         { inventoryIds: saleData.items.map((item) => item.inventoryId) },
-        tx
+        tx as any
       );
 
       return {
@@ -386,7 +386,7 @@ export async function createSaleWithNewLogic(saleData: {
 }
 
 // Helper functions
-async function ensureCustomerCode(customerId: string, tx: unknown = prisma) {
+async function ensureCustomerCode(customerId: string, tx: any = prisma) {
   try {
     const existingCode = await tx.$queryRawUnsafe(
       `SELECT code FROM CustomerCode WHERE customerId = ? LIMIT 1`,
@@ -428,7 +428,7 @@ async function ensureCustomerCode(customerId: string, tx: unknown = prisma) {
   }
 }
 
-async function generateInvoiceNumber(tx: unknown) {
+async function generateInvoiceNumber(tx: any) {
   try {
     const prefix = "INV";
     const year = new Date().getFullYear();

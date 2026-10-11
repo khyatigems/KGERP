@@ -114,7 +114,7 @@ export function validateVoucherPDFData(data: VoucherPDFData): ValidationResult {
   const errors: ValidationError[] = [];
 
   // Helper function to validate optional string fields
-  const validateOptionalString = (value, fieldName: string): boolean => {
+  const validateOptionalString = (value: any, fieldName: string): boolean => {
     if (value === null || value === undefined) return true; // null/undefined are allowed
     if (typeof value !== 'string') {
       errors.push({ 

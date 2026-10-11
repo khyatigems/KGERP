@@ -147,7 +147,7 @@ export async function validateImageUrl(
     const response = await fetch(url, {
       method: "HEAD",
       timeout: 5000,
-    });
+    } as any);
 
     if (!response.ok) {
       return {

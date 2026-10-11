@@ -25,8 +25,8 @@ async function fixLoyaltyPointsBalance() {
     `);
     
     console.log("✅ Fixed balance query successful!");
-    console.log("💰 Customer Loyalty Balances (Fixed):", (balances as unknown[]).length);
-    (balances as unknown[]).forEach((balance, i: number) => {
+    console.log("💰 Customer Loyalty Balances (Fixed):", (balances as any[]).length);
+    (balances as any[]).forEach((balance: any, i: number) => {
       console.log(`   ${i+1}. Customer: ${balance.customerId}, Balance: ${balance.totalPoints} points, Transactions: ${balance.transactionCount}`);
     });
     
@@ -48,8 +48,8 @@ async function fixLoyaltyPointsBalance() {
       LIMIT 5
     `);
     
-    console.log("👥 Customer Loyalty Stats (Fixed):", (customerStats as unknown[]).length);
-    (customerStats as unknown[]).forEach((stat, i: number) => {
+    console.log("👥 Customer Loyalty Stats (Fixed):", (customerStats as any[]).length);
+    (customerStats as any[]).forEach((stat: any, i: number) => {
       console.log(`   ${i+1}. ${stat.customerName}: Earned=${stat.earnedPoints}, Redeemed=${stat.redeemedPoints}, Balance=${stat.balancePoints}`);
     });
     

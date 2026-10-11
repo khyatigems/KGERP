@@ -22,7 +22,7 @@ function round2(n: number) {
 
 function computeGstSplit(input: { taxable: number; rate: number; companyState: string; placeOfSupply: string }) {
   const totalTax = round2(input.taxable * input.rate);
-  void ((input.companyState || "").trim().toLowerCase());
+  const company = (input.companyState || "").trim().toLowerCase();
   const pos = (input.placeOfSupply || "").trim().toLowerCase();
   const interstate = Boolean(company && pos && company !== pos);
   if (interstate) return { igst: totalTax, cgst: 0, sgst: 0, totalTax };

@@ -17,15 +17,15 @@ async function applyStandardRounding() {
       ORDER BY createdAt DESC
     `);
     
-    console.log(`📊 Found ${(decimalEntries as unknown[]).length} entries with decimal points:`);
+    console.log(`📊 Found ${(decimalEntries as any[]).length} entries with decimal points:`);
     
-    if ((decimalEntries as unknown[]).length === 0) {
+    if ((decimalEntries as any[]).length === 0) {
       console.log("✅ No decimal points found - all loyalty points are already whole numbers!");
       return;
     }
     
     // Show decimal entries before update
-    (decimalEntries as unknown[]).forEach((entry, i: number) => {
+    (decimalEntries as any[]).forEach((entry: any, i: number) => {
       const originalPoints = entry.points;
       const roundedPoints = Math.round(originalPoints);
       const adjustment = roundedPoints - originalPoints;
@@ -40,7 +40,7 @@ async function applyStandardRounding() {
     let bonusGiven = 0;
     let pointsReduced = 0;
     
-    for (const entry of (decimalEntries as unknown[])) {
+    for (const entry of (decimalEntries as any[])) {
       const originalPoints = entry.points;
       const roundedPoints = Math.round(originalPoints);
       const adjustment = roundedPoints - originalPoints;
@@ -81,7 +81,7 @@ async function applyStandardRounding() {
       LIMIT 10
     `);
     
-    (updatedBalances as unknown[]).forEach((balance, i: number) => {
+    (updatedBalances as any[]).forEach((balance: any, i: number) => {
       console.log(`   ${i+1}. Customer: ${balance.customerId}, Balance: ${balance.totalPoints} points`);
     });
     

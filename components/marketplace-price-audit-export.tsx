@@ -68,7 +68,7 @@ function enrich(rows: AuditRow[]): EnhancedRow[] {
     const ps: EnhancedRow["_priceStatus"] = r.listedPriceInr < r.sellingPrice ? "Below Selling" : r.listedPriceInr > r.sellingPrice * 1.15 ? "Premium" : "Safe";
     const ms: EnhancedRow["_marginStatus"] = r.marketplaceMarginPct < 100 ? "Red" : r.marketplaceMarginPct < 300 ? "Amber" : "Green";
     const rs: EnhancedRow["_riskStatus"] = (r.listedPriceInr < r.sellingPrice || r.marketplaceMarginPct < 100) ? "Critical" : (r.marketplaceMarginPct < 300 ? "Warning" : "Good");
-    void (r.listedPriceInr < r.sellingPrice ? r.sellingPrice - r.listedPriceInr : 0);
+    const leakage = r.listedPriceInr < r.sellingPrice ? r.sellingPrice - r.listedPriceInr : 0;
     const premium = r.sellingPrice > 0 ? ((r.listedPriceInr - r.sellingPrice) / r.sellingPrice) * 100 : 0;
     const markup = r.costPrice > 0 ? r.listedPriceInr / r.costPrice : 0;
     const eff = r.costPrice > 0 ? (r.listedPriceInr - r.costPrice) / r.costPrice : 0;

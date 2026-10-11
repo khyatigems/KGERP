@@ -135,7 +135,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     console.log('Raw report data count:', (rawReportData as unknown[]).length);
     
     // Fetch invoice data separately to avoid JOIN issues
-    const invoiceIds = [...new Set((rawReportData as unknown[]).map(r => r.invoiceId).filter(Boolean))];
+    const invoiceIds = [...new Set((rawReportData as any[]).map(r => r.invoiceId).filter(Boolean))];
     console.log('Extracted invoice IDs for profit lookup:', invoiceIds.length);
     
     let invoiceMap = new Map();
@@ -189,7 +189,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     }
     
     // Fetch customer names separately to avoid join issues
-    const customerIds = [...new Set((rawReportData as unknown[]).map(r => r.customerId))];
+    const customerIds = [...new Set((rawReportData as any[]).map(r => r.customerId))];
     let customerMap = new Map();
     
     if (customerIds.length > 0) {
@@ -208,7 +208,7 @@ export async function getLoyaltyPointsReport(startDate: Date, endDate: Date) {
     }
     
     // Convert all potential BigInt values to regular numbers before processing
-    reportData = (rawReportData as unknown[]).map((row) => {
+    reportData = (rawReportData as any[]).map((row: any) => {
       const invoiceData = row.invoiceId ? invoiceMap.get(row.invoiceId) : null;
       const profitValue = row.invoiceId ? invoiceProfitMap.get(row.invoiceId) : null;
       
