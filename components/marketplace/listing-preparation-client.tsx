@@ -19,6 +19,7 @@ import { areEtsyRequirementsCurrent, loadEtsyCategoryRequirements } from "@/lib/
 import { inventoryListingDefaults, type InventoryListingSource } from "@/lib/marketplace/inventory-listing-defaults";
 import { ETSY_WHEN_MADE_OPTIONS, etsyDraftValidationErrors } from "@/lib/marketplace/etsy-draft-validation";
 import { EbayCompleteReview } from "@/components/marketplace/ebay-complete-review";
+import { EbayBulkReview } from "@/components/marketplace/ebay-bulk-review";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -1020,6 +1021,7 @@ export function ListingPreparationClient({
               </Button>
             </CardHeader>
             {draftsExpanded && <CardContent>
+              <EbayBulkReview drafts={drafts} />
               {drafts.length === 0 ? (
                 <div className="rounded-lg border border-dashed px-4 py-8 text-center">
                   <p className="text-sm font-medium">No marketplace drafts yet</p>

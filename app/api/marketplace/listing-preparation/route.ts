@@ -27,12 +27,12 @@ import {
 } from "@/lib/marketplace/listing-preparation";
 
 const requestSchema = z.object({
-  action: z.enum(["prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements", "shopSettings", "verifyEbayOffer", "sendEbaySellerHubDraft", "checkEbaySellerHubDraft", "downloadEbaySellerHubDraftCsv", "downloadEbayDescription", "reviewCompleteEbay", "prepareCompleteEbay", "publishCompleteEbay"]),
+  action: z.enum(["prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements", "shopSettings", "verifyEbayOffer", "sendEbaySellerHubDraft", "checkEbaySellerHubDraft", "downloadEbaySellerHubDraftCsv", "downloadEbayDescription", "reviewCompleteEbay", "prepareCompleteEbay", "publishCompleteEbay", "rebuildEbayDescription"]),
   locationKey: z.string().min(1).max(100).optional(),
   dispatchAddress: z.object({ country: z.string().regex(/^[A-Z]{2}$/), postalCode: z.string().trim().min(1).max(20), city: z.string().trim().max(100).optional() }).optional(),
   reviewToken: z.string().length(64).optional(),
   confirmationSku: z.string().max(100).optional(),
-  completeEdits: z.object({ title: z.string().trim().min(1).max(80), description: z.string().min(1).max(500000), price: z.number().positive(), quantity: z.number().int().min(1).max(999), aspects: z.record(z.string(), z.array(z.string().max(500)).max(1)), draftSettings: z.object({ fulfillmentPolicyId: z.string().max(80).optional(), paymentPolicyId: z.string().max(80).optional(), returnPolicyId: z.string().max(80).optional() }).optional() }).optional(),
+  completeEdits: z.object({ title: z.string().trim().min(1).max(80), description: z.string().min(1).max(500000), price: z.number().positive(), quantity: z.number().int().min(1).max(999), aspects: z.record(z.string(), z.array(z.string().max(500)).max(1)), media: z.array(z.object({ mediaUrl: z.string().url(), type: z.enum(["IMAGE", "VIDEO"]) })).max(25).optional(), draftSettings: z.object({ fulfillmentPolicyId: z.string().max(80).optional(), paymentPolicyId: z.string().max(80).optional(), returnPolicyId: z.string().max(80).optional() }).optional() }).optional(),
   draftId: z.string().uuid().optional(),
   draftSettings: z.object({
     fulfillmentPolicyId: z.string().max(80).optional(),
@@ -827,6 +827,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (parsed.data.action === "rebuildEbayDescription") {
+      if (!parsed.data.draftId) throw new ListingPreparationError("Select a saved eBay draft.", 400);
+      const { saved, metadata } = await loadSellerHubDraft(parsed.data.draftId, parsed.data.shopId);
+      const rebuilt = await prepareListing(requestSchema.parse({ action: "prepare", inventoryId: saved.inventoryId, shopId: parsed.data.shopId, template: metadata.template, title: parsed.data.title || saved.marketplaceTitle, mediaUrls: parsed.data.mediaUrls }));
+      return NextResponse.json({ description: buildEbayStaticDescription(rebuilt.description) });
+    }
     if (["reviewCompleteEbay", "prepareCompleteEbay", "publishCompleteEbay"].includes(parsed.data.action)) {
       if (!parsed.data.draftId) throw new ListingPreparationError("Select a saved eBay draft.", 400);
       if (!(await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_EDIT))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

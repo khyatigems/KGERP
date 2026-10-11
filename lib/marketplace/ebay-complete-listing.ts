@@ -18,7 +18,7 @@ type Metadata = {
   [key: string]: unknown;
 };
 export type DispatchAddress = { country: string; postalCode: string; city?: string };
-export type CompleteEbayEdits = { title: string; description: string; price: number; quantity: number; aspects: Record<string, string[]>; draftSettings?: DraftSettings };
+export type CompleteEbayEdits = { title: string; description: string; price: number; quantity: number; aspects: Record<string, string[]>; draftSettings?: DraftSettings; media?: Array<{ mediaUrl: string; type: "IMAGE" | "VIDEO" }> };
 
 export function completeEbayInput(saved: { listingSku: string | null; marketplaceTitle: string | null; listedPrice: number; currency: string; marketplaceQuantity: number | null }, metadata: Metadata): EbayMarketplaceDraftInput {
   const input: EbayMarketplaceDraftInput = {
@@ -32,6 +32,7 @@ export function completeEbayInput(saved: { listingSku: string | null; marketplac
   if (!input.sku || !input.title.trim() || input.title.length > 80 || !input.description.trim() || !input.condition || !/^\d+$/.test(input.categoryId) || !Number.isFinite(input.price) || input.price <= 0) throw new Error("The saved draft is incomplete. Edit and save its title, description, condition, category and price first.");
   if (!Number.isInteger(input.quantity) || input.quantity < 1) throw new Error("Enter a positive whole-number listing quantity.");
   if (!input.media.some((asset) => asset.type === "IMAGE")) throw new Error("Select at least one product photo before preparing the complete listing.");
+  if (input.media.filter((asset) => asset.type === "IMAGE").length > 24 || input.media.filter((asset) => asset.type === "VIDEO").length > 1) throw new Error("Choose at most 24 photos and one video.");
   if (metadata.format && !["FixedPrice", "FIXED_PRICE", "Fixed price"].includes(metadata.format)) throw new Error("This workflow supports fixed-price listings only.");
   if (metadata.duration && !["GTC", "GoodTillCancelled", "Good 'Til Cancelled"].includes(metadata.duration)) throw new Error("Fixed-price listings require GTC duration. Update the ERP template first.");
   return input;
@@ -55,12 +56,13 @@ export function verifyCompleteEbayPayload(input: EbayMarketplaceDraftInput, item
   for (const key of ["fulfillmentPolicyId", "paymentPolicyId", "returnPolicyId"] as const) if (!input.draftSettings?.[key] || policies?.[key] !== input.draftSettings[key]) mismatches.push(key);
   for (const [name, values] of Object.entries(input.aspects)) if (digest([...(product?.aspects?.[name] || [])].sort()) !== digest([...values].sort())) mismatches.push(`item specific: ${name}`);
   for (const asset of input.media.filter((asset) => asset.type === "IMAGE")) if (!product?.imageUrls?.includes(asset.mediaUrl)) mismatches.push("product photo");
+  if (digest(product?.imageUrls || []) !== digest(input.media.filter((asset) => asset.type === "IMAGE").map((asset) => asset.mediaUrl))) mismatches.push("photo selection/order");
   if ((product?.videoIds?.length || 0) !== input.media.filter((asset) => asset.type === "VIDEO").length) mismatches.push("product video");
   if (mismatches.length) throw new Error(`eBay read-back did not match: ${[...new Set(mismatches)].join(", ")}. Publishing is blocked.`);
 }
 
 async function load(draftId: string, shopId: string) {
-  const saved = await prisma.listing.findFirst({ where: { id: draftId, platform: "EBAY", marketplaceShopId: shopId, marketplaceShop: { status: "CONNECTED", connection: { status: "CONNECTED" } } }, include: { inventory: { select: { status: true, condition: true } }, marketplaceShop: { include: { connection: { select: { scopes: true } } } } } });
+  const saved = await prisma.listing.findFirst({ where: { id: draftId, platform: "EBAY", marketplaceShopId: shopId, marketplaceShop: { status: "CONNECTED", connection: { status: "CONNECTED" } } }, include: { inventory: { select: { status: true, condition: true, imageUrl: true, media: { select: { mediaUrl: true, type: true } } } }, marketplaceShop: { include: { connection: { select: { scopes: true } } } } } });
   if (!saved?.marketplaceShop) throw new Error("Saved eBay draft not found for this connected shop.");
   const metadata = JSON.parse(saved.rawMetadata || "{}") as Metadata;
   if (!metadata.condition && saved.inventory?.condition) metadata.condition = resolveEbayCondition(saved.inventory.condition) || undefined;
@@ -71,7 +73,8 @@ export async function reviewCompleteEbayListing(draftId: string, shopId: string)
   const { saved, metadata, connector, connectionId } = await load(draftId, shopId);
   const input = completeEbayInput(saved, metadata);
   const [locations, policyGroups] = await Promise.all([connector.getInventoryLocations(connectionId), connector.getDraftSettingGroups(connectionId, input.marketplaceId)]);
-  return { input, locations, policyGroups, preparation: metadata.completeEbay || null, shopName: saved.marketplaceShop!.name, status: saved.status };
+  const availableMedia = [...(saved.inventory?.media || []), ...(saved.inventory?.imageUrl ? [{ mediaUrl: saved.inventory.imageUrl, type: "IMAGE" }] : []), ...input.media].filter((asset, index, all) => ["IMAGE", "VIDEO"].includes(asset.type) && all.findIndex((other) => other.mediaUrl === asset.mediaUrl) === index);
+  return { input, locations, policyGroups, availableMedia, preparation: metadata.completeEbay || null, shopName: saved.marketplaceShop!.name, status: saved.status };
 }
 
 export async function prepareCompleteEbayListing(draftId: string, shopId: string, locationKey: string | undefined, address: DispatchAddress | undefined, edits?: CompleteEbayEdits) {
@@ -81,6 +84,12 @@ export async function prepareCompleteEbayListing(draftId: string, shopId: string
     if (saved.status !== "DRAFT" || ["PREPARING", "PUBLISHING", "PUBLISH_UNCERTAIN"].includes(metadata.completeEbay?.state || "")) throw new Error("This draft is busy or already published. Reload its status.");
     metadata.description = buildEbayStaticDescription(edits.description);
     metadata.draftSettings = edits.draftSettings;
+    if (edits.media) {
+      const permitted = [...(metadata.mediaAssets || []).map((asset) => ({ mediaUrl: asset.url, type: asset.type })), ...(saved.inventory?.media || []), ...(saved.inventory?.imageUrl ? [{ mediaUrl: saved.inventory.imageUrl, type: "IMAGE" }] : [])];
+      if (edits.media.some((asset) => !permitted.some((other) => other.mediaUrl === asset.mediaUrl && other.type === asset.type))) throw new Error("Select media attached to this inventory item, or upload it through this review first.");
+      if (new Set(edits.media.map((asset) => asset.mediaUrl)).size !== edits.media.length) throw new Error("The same media file cannot be selected twice.");
+      metadata.mediaAssets = edits.media.map((asset) => ({ url: asset.mediaUrl, type: asset.type }));
+    }
     metadata.ebayTaxonomy = { ...metadata.ebayTaxonomy, requiredAspectValues: Object.fromEntries(Object.entries(nonEmptyEbayAspects(edits.aspects)).map(([name, values]) => [name, values.join(" | ")])) };
     metadata.completeEbay = { ...metadata.completeEbay, state: "SAVED", verified: false, reviewToken: undefined };
     completeEbayInput({ ...saved, marketplaceTitle: edits.title, listedPrice: edits.price, marketplaceQuantity: edits.quantity }, metadata);

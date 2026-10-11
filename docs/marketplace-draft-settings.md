@@ -9,8 +9,14 @@ description, price, quantity, specifics and policies, choose or create an actual
 dispatch location, then prepare an unpublished Inventory API offer. Read-back
 verifies every supplied specific, all three policy IDs, full static HTML,
 photos/videos, title, SKU, category, condition, GTC format, price/quantity and
-location key. Publishing requires the verified revision and exact SKU typed by
-the seller. It changes the ERP listing to ACTIVE only after eBay returns a
+location key. Single-item publishing requires the verified revision and SKU
+confirmation, with a copy button beside the SKU. Batch publishing selects up to
+25 saved drafts, verifies them individually, shows their current titles, shops,
+prices, quantities, photo/specific counts and dispatch locations, then requires
+one explicit confirmation for the verified group. Items with unsaved review
+edits cannot be processed in bulk. Failed items are excluded from publishing;
+results stay visible until dismissed. Stop finishes the current request and
+leaves remaining items untouched. It changes the ERP listing to ACTIVE only after eBay returns a
 listing ID or a later status check confirms publication. POST creation and
 publication are never automatically retried. Interrupted publications must be
 reconciled; definite validation failures require re-preparation.
@@ -18,6 +24,23 @@ reconciled; definite validation failures require re-preparation.
 The optional basic Seller Hub transfer uploads a Draft CSV through Sell Feed
 API `FX_DRAFT`; it is a separate, incomplete draft and is not the full review
 workflow. Etsy uses its own draft endpoint. Do not publish both copies.
+
+Reviews can upload JPEG/PNG/WebP photos (4 MB each, minimum 500 pixels on the
+longest side), add existing inventory photos, exclude selected media and choose
+the main photo. Uploads are scoped to authenticated editable drafts and stored
+against the inventory. Photos are decoded, oriented, resized within 2400 pixels,
+converted to JPEG and hosted securely. Media edits invalidate readiness; only
+inventory-attached media can be prepared, with at most 24 photos and one video.
+Read-back also verifies photo order and the absence of removed photos.
+
+The HTML sanitizer preserves static layout properties, including flex wrapping,
+spacing, backgrounds, borders, image sizing, shadows and pre-line specifications,
+while continuing to reject scripts, events and unsafe CSS/URLs. Existing drafts
+whose descriptions previously lost styling can explicitly rebuild the template
+from inventory and selected photos, preview it, then verify it. This replaces
+description text only when the seller clicks Rebuild; live listings are not
+automatically revised. Desktop (1100 px) and mobile (390 px) fixture renders were
+checked for preserved formatting and no horizontal overflow.
 
 Uploads are asynchronous. The ERP shows processing until the task completes,
 then requires successCount=1, failureCount=0, and a successful result row with

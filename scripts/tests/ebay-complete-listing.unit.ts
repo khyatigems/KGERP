@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { completeEbayInput, verifyCompleteEbayPayload, publishCompleteEbayListing } from "../../lib/marketplace/ebay-complete-listing";
+import { completeEbayInput, verifyCompleteEbayPayload, publishCompleteEbayListing, prepareCompleteEbayListing } from "../../lib/marketplace/ebay-complete-listing";
 import { buildEbayInventoryDescription } from "../../lib/marketplace/ebay-description-payload";
 import { EbayConnector } from "../../lib/marketplace/connectors/ebay";
 import { prisma } from "../../lib/prisma";
@@ -18,6 +18,7 @@ assert.throws(() => verifyCompleteEbayPayload(input, { ...item, product: { ...it
 assert.throws(() => verifyCompleteEbayPayload(input, item, { ...offer, listingPolicies: {} }), /paymentPolicyId/);
 assert.throws(() => verifyCompleteEbayPayload(input, item, { ...offer, merchantLocationKey: "US" }), /dispatch location/);
 assert.throws(() => verifyCompleteEbayPayload(input, { ...item, product: { ...item.product, imageUrls: [] } }, offer), /photo/);
+assert.throws(() => verifyCompleteEbayPayload(input, { ...item, product: { ...item.product, imageUrls: [...item.product.imageUrls, "https://example.test/removed.jpg"] } }, offer), /selection\/order/, "Removed photos must not remain on the offer");
 
 async function main() {
   const priorFetch = globalThis.fetch;
@@ -71,6 +72,7 @@ async function main() {
     EbayConnector.prototype.getCompleteOffer = async () => offer;
     publishCalls = 0;
     EbayConnector.prototype.publishMarketplaceOffer = async () => { publishCalls++; throw new Error("Interrupted after submission"); };
+    await assert.rejects(prepareCompleteEbayListing("draft", "shop", "india-122001", undefined, { title: input.title, description: input.description, price: input.price, quantity: 1, aspects: input.aspects, media: [{ mediaUrl: "https://example.test/not-attached.jpg", type: "IMAGE" }] }), /attached to this inventory/);
     await assert.rejects(publishCompleteEbayListing("draft", "shop", "token", "WRONG"), /exact SKU/);
     await assert.rejects(publishCompleteEbayListing("draft", "shop", "stale", "TEST"), /changed/);
     assert.equal(publishCalls, 0);

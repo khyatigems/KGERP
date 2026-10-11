@@ -92,7 +92,7 @@ export default async function MarketplaceCreateListingsPage() {
         marketplaceShop: { select: { name: true } },
       },
       orderBy: { updatedAt: "desc" },
-      take: 30,
+      take: 100,
     }),
   ]);
   const ebayShops = await Promise.all(shops.filter((shop) => shop.marketplace === "EBAY").map(async (shop) => {
