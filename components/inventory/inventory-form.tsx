@@ -72,6 +72,7 @@ const NotesSection = dynamic(() => import("./inventory-notes").then((m) => m.Not
 });
 
 export function InventoryForm({ vendors, categories, gemstones, colors, cuts, shapes = [], collections, certificates = [], origins = [], initialData, copyData, categoryHsnMap }: InventoryFormProps) {
+  const [gemstoneOptions, setGemstoneOptions] = useState(gemstones);
   const router = useRouter();
   const { showLoader } = useGlobalLoader();
   const [productFacts, setProductFacts] = useState<ProductFacts | undefined>(initialData ? undefined : productFactsSchema.parse({}));
@@ -141,7 +142,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
           ""),
       gemstoneCodeId:
         source?.gemstoneCodeId ||
-        (gemstones.find((g) => g.name === (source?.gemType || ""))?.id ??
+        (gemstoneOptions.find((g) => g.name === (source?.gemType || ""))?.id ??
           ""),
       colorCodeId:
         source?.colorCodeId ||
@@ -169,7 +170,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
   const watchWeightValue = form.watch("weightValue");
 
   const selectedCategory = categories.find((c) => c.name === watchCategory);
-  const selectedGemstone = gemstones.find((g) => g.name === watchGemType);
+  const selectedGemstone = gemstoneOptions.find((g) => g.name === watchGemType);
   const selectedColor = colors.find((c) => c.name === watchColor);
 
   useEffect(() => {
@@ -570,7 +571,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
               categoryHsnMap={categoryHsnMap}
             />
 
-            <GemDetailsSection key={`gem-${formResetKey}`} form={form} gemstones={gemstones} colors={colors} cuts={cuts} shapes={shapes} origins={origins} />
+            <GemDetailsSection key={`gem-${formResetKey}`} form={form} gemstones={gemstoneOptions} onGemstoneCreated={(gemstone) => setGemstoneOptions((previous) => [...previous.filter((entry) => entry.id !== gemstone.id), gemstone].sort((a, b) => a.name.localeCompare(b.name)))} colors={colors} cuts={cuts} shapes={shapes} origins={origins} />
 
 
             <ClassificationSection form={form} certificates={certificates} collections={collections} />
@@ -583,7 +584,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
           <div className="min-w-0 space-y-6" key={`right-${formResetKey}`}>
             <MeasurementsSection form={form} categoryName={watchCategory} categories={categories} />
 
-            <PricingSection form={form} vendors={vendors} categories={categories} gemstones={gemstones} />
+            <PricingSection form={form} vendors={vendors} categories={categories} gemstones={gemstoneOptions} />
 
             <div className="rounded-lg border bg-card/50 p-5 space-y-4">
               <h3 className="text-base font-semibold">Media Upload</h3>

@@ -24,13 +24,20 @@ const DEFAULT_SHAPES: CodeRow[] = ["Round", "Oval", "Cushion", "Emerald", "Pear"
 interface GemDetailsSectionProps {
   form: UseFormReturn<FormInputValues>;
   gemstones: CodeRow[];
+  onGemstoneCreated?: (gemstone: CodeRow) => void;
   colors: CodeRow[];
   cuts: CodeRow[];
   shapes?: CodeRow[];
   origins?: string[];
 }
 
-export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, shapes: initialShapes = [], origins = [] }: GemDetailsSectionProps) {
+export function GemDetailsSection({ form, gemstones, onGemstoneCreated, colors, cuts: initialCuts, shapes: initialShapes = [], origins = [] }: GemDetailsSectionProps) {
+  const [gemstonesList, setGemstonesList] = useState(gemstones);
+  const [isAddingGemstone, setIsAddingGemstone] = useState(false);
+  const [newGemstoneName, setNewGemstoneName] = useState("");
+  const [newGemstoneCode, setNewGemstoneCode] = useState("");
+  const [isCreatingGemstone, setIsCreatingGemstone] = useState(false);
+
   const [colorsList, setColorsList] = useState(colors);
   const [isAddingColor, setIsAddingColor] = useState(false);
   const [newColorName, setNewColorName] = useState("");
@@ -83,7 +90,7 @@ export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, 
     if (treatment && !TREATMENT_PRESETS.includes(treatment)) setUseCustomTreatment(true);
   }, [treatment]);
 
-  const selectedGemstone = gemstones.find((g) => g.name === gemName);
+  const selectedGemstone = gemstonesList.find((g) => g.name === gemName);
   const selectedColor = colorsList.find((c) => c.name === colorName);
 
   useEffect(() => {
@@ -97,6 +104,35 @@ export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, 
       form.setValue("colorCodeId", selectedColor.id);
     }
   }, [selectedColor, form]);
+
+  const handleCreateGemstone = async () => {
+    const name = newGemstoneName.trim();
+    const code = newGemstoneCode.trim().toUpperCase();
+    if (!name || !code || isCreatingGemstone) return;
+    setIsCreatingGemstone(true);
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("code", code);
+    formData.append("status", "ACTIVE");
+    try {
+      const res = await createCode("gemstones", formData);
+      if (res.error) toast.error(res.error);
+      else if (res.data) {
+        setGemstonesList((previous) => [...previous, { ...res.data, code: res.data.code || "", status: "ACTIVE" }].sort((a, b) => a.name.localeCompare(b.name)));
+        onGemstoneCreated?.({ ...res.data, code: res.data.code || "", status: "ACTIVE" });
+        form.setValue("gemType", res.data.name, { shouldDirty: true, shouldValidate: true });
+        form.setValue("gemstoneCodeId", res.data.id, { shouldDirty: true });
+        setIsAddingGemstone(false);
+        setNewGemstoneName("");
+        setNewGemstoneCode("");
+        toast.success("Gem type added to Code Management");
+      }
+    } catch {
+      toast.error("Failed to create gem type");
+    } finally {
+      setIsCreatingGemstone(false);
+    }
+  };
 
   const handleCreateColor = async () => {
     if (!newColorName || !newColorCode) return;
@@ -200,7 +236,64 @@ export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, 
             name="gemType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Gem Type</FormLabel>
+                <FormLabel className="flex items-center justify-between">
+                  Gem Type
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                    disabled={isCreatingGemstone}
+                    onClick={() => setIsAddingGemstone(!isAddingGemstone)}
+                  >
+                    {isAddingGemstone ? <X className="w-3 h-3 mr-1" /> : <Plus className="w-3 h-3 mr-1" />}
+                    {isAddingGemstone ? "Cancel" : "Add gem type"}
+                  </Button>
+                </FormLabel>
+                {isAddingGemstone && (
+                  <div className="mb-2 p-3 border rounded-md bg-muted/30 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Name</label>
+                        <Input
+                          aria-label="New gem type name"
+                          disabled={isCreatingGemstone}
+                          value={newGemstoneName}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNewGemstoneName(val);
+                            if (!newGemstoneCode && val) {
+                              setNewGemstoneCode(val.slice(0, 4).toUpperCase());
+                            }
+                          }}
+                          placeholder="e.g. Tourmaline"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium">Code</label>
+                        <Input
+                          aria-label="New gem type code"
+                          disabled={isCreatingGemstone}
+                          value={newGemstoneCode}
+                          onChange={(e) => setNewGemstoneCode(e.target.value.toUpperCase().slice(0, 6))}
+                          placeholder="e.g. TOUR"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full h-7 text-xs"
+                      onClick={handleCreateGemstone}
+                      disabled={!newGemstoneName.trim() || !newGemstoneCode.trim() || isCreatingGemstone}
+                    >
+                      {isCreatingGemstone ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                      Save new gem type
+                    </Button>
+                  </div>
+                )}
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -208,7 +301,7 @@ export function GemDetailsSection({ form, gemstones, colors, cuts: initialCuts, 
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {gemstones.filter((g, i, arr) => arr.findIndex((x) => x.name === g.name) === i).map((g) => (
+                    {gemstonesList.filter((g, i, arr) => arr.findIndex((x) => x.name === g.name) === i).map((g) => (
                       <SelectItem key={g.id} value={g.name}>
                         {g.name} ({g.code})
                       </SelectItem>
