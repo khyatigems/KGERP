@@ -11,12 +11,13 @@ import { EBAY_BATCH_LIMIT, runEbayBatch, validateEbayBatchSelection, type EbayBa
 type Draft = EbayBatchDraft & { title: string; price: number; currency: string; shop: string; platform: string };
 type Result = { state: "READY" | "FAILED" | "PUBLISHED"; token?: string; title?: string; price?: number; currency?: string; quantity?: number; photoCount?: number; specificCount?: number; location?: string; message?: string; listingUrl?: string };
 
-export function EbayBulkReview({ drafts }: { drafts: Draft[] }) {
+export function EbayBulkReview({ drafts, onRunning }: { drafts: Draft[]; onRunning?: (running: boolean) => void }) {
   const router = useRouter();
   const eligible = drafts.filter((draft) => draft.platform === "EBAY" && draft.shopId);
   const [selected, setSelected] = useState<string[]>([]);
   const [results, setResults] = useState<Record<string, Result>>({});
   const [busy, setBusy] = useState(false);
+  useEffect(() => { onRunning?.(busy); }, [busy, onRunning]);
   const [confirmed, setConfirmed] = useState(false);
   const [dirty, setDirty] = useState<string[]>([]);
   useEffect(() => {

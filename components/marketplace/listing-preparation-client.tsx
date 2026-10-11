@@ -21,7 +21,8 @@ import type { DraftSettingGroup, DraftSettings } from "@/lib/marketplace/draft-s
 import { areEtsyRequirementsCurrent, loadEtsyCategoryRequirements } from "@/lib/marketplace/etsy-requirements";
 import { inventoryListingDefaults, type InventoryListingSource } from "@/lib/marketplace/inventory-listing-defaults";
 import { ETSY_WHEN_MADE_OPTIONS, etsyDraftValidationErrors } from "@/lib/marketplace/etsy-draft-validation";
-import { EtsyDraftBatch, type QueuedEtsyDraft } from "@/components/marketplace/etsy-draft-batch";
+import { useEtsyDraftQueue } from "@/components/marketplace/use-etsy-draft-queue";
+import { EtsyDraftBatch } from "@/components/marketplace/etsy-draft-batch";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -359,7 +360,7 @@ export function ListingPreparationClient({
   etsyShops: Shop[];
 }) {
   const router = useRouter();
-  const [etsyQueue, setEtsyQueue] = useState<QueuedEtsyDraft[]>([]);
+  const [etsyQueue, setEtsyQueue] = useEtsyDraftQueue();
   const [etsyBatchRunning, setEtsyBatchRunning] = useState(false);
   const [marketplace, setMarketplace] = useState<"EBAY" | "ETSY" | null>(null);
   const [inventoryId, setInventoryId] = useState("");

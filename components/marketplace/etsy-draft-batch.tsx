@@ -17,7 +17,7 @@ export function EtsyDraftBatch({ items, onChange, onRunning, blocked }: { blocke
   if (!items.length) return null;
   return <div className="space-y-3 rounded-lg border p-4">
     <h3 className="font-semibold">Bulk Etsy draft saving</h3>
-    <p className="text-sm">Review each item in the Etsy form and add it to this batch. Each keeps its own shop, prices, attributes and photos. Keep this page open until saving finishes.</p>
+    <p className="text-sm">Review each item in the Etsy form and add it to this batch. Each keeps its own shop, prices, attributes and photos. The queue follows you between Create Listings and Drafts in this browser tab. Keep the page open while a batch is running.</p>
     {items.map((entry) => <div key={entry.key} className="flex justify-between gap-2 rounded border p-2 text-sm">
       <span>{entry.sku} · {entry.title} · {entry.shop} · {entry.prices}<span className="block text-xs">{entry.result || "Reviewed and queued"}</span></span>
       <Button type="button" size="sm" variant="ghost" disabled={running} onClick={() => onChange((previous) => previous.filter((item) => item.key !== entry.key))}>Remove</Button>

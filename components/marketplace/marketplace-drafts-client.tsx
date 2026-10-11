@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EtsyBulkDrafts } from "./etsy-bulk-drafts";
 import { EbayBulkReview } from "@/components/marketplace/ebay-bulk-review";
 import { EbayCompleteReview } from "@/components/marketplace/ebay-complete-review";
 export type SavedDraft = {
@@ -27,6 +28,9 @@ export type SavedDraft = {
 };
 export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
  const router = useRouter();
+ const [bulkMode, setBulkMode] = useState(false);
+ const [bulkMarketplace, setBulkMarketplace] = useState("EBAY");
+ const [bulkRunning, setBulkRunning] = useState(false);
  const [syncedSkuIds, setSyncedSkuIds] = useState<string[]>([]);
  const [busy, setBusy] = useState(false);
  const [offerChecks, setOfferChecks] = useState<Record<string, string>>({});
@@ -35,8 +39,8 @@ export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
  const [platform, setPlatform] = useState("ALL");
  const visibleDrafts = drafts.filter((draft) => (platform === "ALL" || draft.platform === platform) && `${draft.sku} ${draft.title} ${draft.shop}`.toLowerCase().includes(search.toLowerCase()));
  return <div className="space-y-5">
-   <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-semibold">Marketplace Drafts</h1><p className="mt-1 text-sm text-muted-foreground">Review saved eBay and Etsy drafts, resolve warnings and continue listing.</p></div><Button asChild><Link href="/marketplace-create-listings">Create listing</Link></Button></div>
-   <div className="flex flex-wrap gap-3"><Input className="sm:max-w-sm" aria-label="Search drafts" placeholder="Search SKU, title or shop" value={search} onChange={(event) => setSearch(event.target.value)} /><select className="rounded-md border bg-background px-3 py-2 text-sm" aria-label="Filter drafts by marketplace" value={platform} onChange={(event) => setPlatform(event.target.value)}><option value="ALL">All marketplaces</option><option value="EBAY">eBay</option><option value="ETSY">Etsy</option></select><span className="self-center text-sm text-muted-foreground">{visibleDrafts.length} of {drafts.length} drafts</span></div>
+   <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-semibold">Marketplace Drafts</h1><p className="mt-1 text-sm text-muted-foreground">Review saved eBay and Etsy drafts, resolve warnings and continue listing.</p></div><div className="flex gap-2"><Button type="button" variant={bulkMode ? "default" : "outline"} aria-pressed={bulkMode} disabled={bulkRunning || busy} onClick={() => setBulkMode((value) => !value)}>{bulkMode ? "Exit bulk mode" : "Bulk mode"}</Button><Button asChild><Link href="/marketplace-create-listings" onClick={(event) => { if (bulkRunning) event.preventDefault(); }} aria-disabled={bulkRunning}>Create listing</Link></Button></div></div>
+   <div className="flex flex-wrap gap-3"><Input className="sm:max-w-sm" disabled={bulkRunning} aria-label="Search drafts" placeholder="Search SKU, title or shop" value={search} onChange={(event) => setSearch(event.target.value)} /><select className="rounded-md border bg-background px-3 py-2 text-sm" disabled={bulkRunning} aria-label="Filter drafts by marketplace" value={platform} onChange={(event) => setPlatform(event.target.value)}><option value="ALL">All marketplaces</option><option value="EBAY">eBay</option><option value="ETSY">Etsy</option></select><span className="self-center text-sm text-muted-foreground">{visibleDrafts.length} of {drafts.length} drafts</span></div>
           <div>
           <Card>
             <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
@@ -47,7 +51,11 @@ export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
 
             </CardHeader>
             <CardContent>
-              {visibleDrafts.some((draft) => draft.platform === "EBAY" && draft.shopId) && <details className="mb-4 rounded-lg border p-3"><summary className="cursor-pointer text-sm font-medium">Bulk eBay preparation and publishing</summary><div className="mt-3"><EbayBulkReview drafts={visibleDrafts} /></div></details>}
+              {bulkMode ? <div className="space-y-4">
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4"><h2 className="font-semibold">Bulk mode</h2><p className="mt-1 text-sm text-muted-foreground">Choose a marketplace, select the products and run one batch action. Review each item’s result before switching marketplaces or exiting bulk mode.</p><div className="mt-3 flex gap-2">{["EBAY", "ETSY"].map((value) => <Button key={value} type="button" aria-pressed={bulkMarketplace === value} variant={bulkMarketplace === value ? "default" : "outline"} disabled={bulkRunning} onClick={() => { setBulkMarketplace(value); setPlatform("ALL"); }}>{value === "EBAY" ? "eBay" : "Etsy"}</Button>)}</div></div>
+                {bulkMarketplace === "EBAY" ? (visibleDrafts.some((draft) => draft.platform === "EBAY") ? <EbayBulkReview drafts={visibleDrafts} onRunning={setBulkRunning} /> : <p>No eBay drafts match the current filter.</p>) : <EtsyBulkDrafts drafts={visibleDrafts} onRunning={setBulkRunning} />}
+              </div> : <>
+
               {visibleDrafts.length === 0 ? (
                 <div className="rounded-lg border border-dashed px-4 py-8 text-center">
                   <p className="text-sm font-medium">No matching marketplace drafts</p>
@@ -190,6 +198,7 @@ export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
                   </div>
                 </div>
               )}
+              </>}
             </CardContent>
           </Card>
           </div>

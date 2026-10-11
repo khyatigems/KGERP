@@ -2,6 +2,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { ListingPreparationClient } from "../components/marketplace/listing-preparation-client";
+import { EtsyBulkDrafts } from "../components/marketplace/etsy-bulk-drafts";
+import { EbayBulkReview } from "../components/marketplace/ebay-bulk-review";
 import { MarketplaceDraftsClient } from "../components/marketplace/marketplace-drafts-client";
 import postcss from "postcss";
 import tailwind from "@tailwindcss/postcss";
@@ -18,7 +20,7 @@ async function main() {
  const draft = { id: "preview", sku: "KGLGZIRGRN130000288", title: "Cubic Zirconia Peridot Green – 13 cts", itemName: "Cubic Zirconia Peridot Green", shop: "Khyatigemsofficial", shopId: "shop", platform: "ETSY", externalId: "4592981714", price: 85, currency: "USD", updatedAt: "2026-10-11" };
  const browser = await puppeteer.launch({ headless: true });
  try {
-  for (const [name, component] of [["create", React.createElement(ListingPreparationClient, { ebayShops: [], etsyShops: [] })], ["drafts", React.createElement(MarketplaceDraftsClient, { drafts: [draft, { ...draft, id: "ebay-preview", platform: "EBAY", externalId: null }] })]] as const) {
+  for (const [name, component] of [["create", React.createElement(ListingPreparationClient, { ebayShops: [], etsyShops: [] })], ["drafts", React.createElement(MarketplaceDraftsClient, { drafts: [draft, { ...draft, id: "ebay-preview", platform: "EBAY", externalId: null }] })], ["etsy-bulk", React.createElement(EtsyBulkDrafts, { drafts: [draft], onRunning: () => {} })], ["ebay-bulk", React.createElement(EbayBulkReview, { drafts: [{ ...draft, platform: "EBAY" }] })]] as const) {
    const markup = renderToStaticMarkup(React.createElement(AppRouterContext.Provider, { value: router }, component));
    for (const width of [1280, 390]) {
     for (const theme of ["light", "dark"]) {

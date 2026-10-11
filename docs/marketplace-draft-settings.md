@@ -148,3 +148,10 @@ Saved eBay and Etsy drafts now live at `/marketplace-drafts`, accessible from th
 After single-draft saving, the user is taken to Drafts unless an Etsy batch queue needs to stay on the creation page. Batch outcomes remain visible on Create Listings. The preparation review uses a sticky, scrollable panel on wide screens and normal document flow on mobile.
 
 UI verification: render actual React components with project CSS at 1280 and 390 pixels, in light/dark themes; verify no horizontal overflow and that draft details expand. `scripts/check-marketplace-ui-preview.ts` writes temporary screenshot artifacts without marketplace requests.
+
+
+### Explicit bulk mode
+
+Drafts now opens in normal review mode. Bulk mode changes the page to a dedicated batch workspace with eBay/Etsy tabs. eBay keeps its existing selection, verification and explicit publishing workflow. Etsy provides new draft creation from the reviewed queue and separate SKU/attribute batch updates for existing draft IDs. Batch operations remain sequential with per-item results and Stop after current item. Switching modes, marketplaces and filters is disabled during processing.
+
+The Etsy reviewed queue is stored in sessionStorage in the same browser tab, so it follows navigation between Create Listings and Drafts; it is limited to 25 entries and validated before loading. Existing server validation still checks each submitted item/shop. Closing the tab clears the queue; saved marketplace drafts remain in ERP. Keep the page open during processing. Etsy batch saving does not publish listings.
