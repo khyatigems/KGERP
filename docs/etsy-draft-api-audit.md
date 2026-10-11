@@ -41,3 +41,12 @@ Validation: Etsy eligibility and plain-text regression tests, marketplace descri
 `updateListingProperty` requires `value_ids` even when a text/numeric attribute has no predefined taxonomy value ID. Serialize a present empty `value_ids=` for custom values, alongside `values`; use the actual Etsy ID for predefined choices. Never fabricate ID 0. Attribute warnings now include the name/property ID.
 
 Saved Etsy drafts with attribute warnings expose Retry Etsy attributes. This uses saved ERP attributes and the existing external listing ID, checks Etsy still reports state=draft, and only updates properties. It never recreates the draft, reuploads photos, or publishes. Media warnings remain until separately addressed. A post-create attribute-check failure preserves the newly created listing ID and records a warning.
+
+
+## SKU and bulk drafts
+
+Etsy stores SKU on listing inventory products, not on createDraftListing. New drafts now receive a separate updateListingInventory call containing the actual ERP inventory SKU, reviewed price/quantity and processing profile. The connector reads inventory back and records a SKU warning if verification fails, preserving the created draft ID. Sync inventory SKU to Etsy repairs older single-product drafts after checking they are still unpublished. It preserves Etsy's existing price, quantity and processing profile and refuses variation-bearing drafts rather than replacing their products.
+
+Add reviewed item to Etsy batch snapshots each item's own form data, regional prices, selected shop and media. Review additional items, then save 5 by default or up to 25 per run. Requests run sequentially through the existing server validation; results stay visible, success/failure rows are excluded from later runs, and Stop after current item prevents the next request. The queue is held in the open page; refreshing or leaving discards unsaved queue entries. No batch action publishes Etsy listings.
+
+Checks: mocked connector SKU PUT and GET read-back, custom attributes, failure preservation; SKU repair price/quantity/profile preservation and variation rejection; batch limits, duplicate selections, partial failure and stopping; TypeScript and targeted ESLint.

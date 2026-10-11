@@ -21,6 +21,7 @@ import { areEtsyRequirementsCurrent, loadEtsyCategoryRequirements } from "@/lib/
 import { inventoryListingDefaults, type InventoryListingSource } from "@/lib/marketplace/inventory-listing-defaults";
 import { ETSY_WHEN_MADE_OPTIONS, etsyDraftValidationErrors } from "@/lib/marketplace/etsy-draft-validation";
 import { EbayCompleteReview } from "@/components/marketplace/ebay-complete-review";
+import { EtsyDraftBatch, type QueuedEtsyDraft } from "@/components/marketplace/etsy-draft-batch";
 import { EbayBulkReview } from "@/components/marketplace/ebay-bulk-review";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
@@ -376,6 +377,8 @@ export function ListingPreparationClient({
   drafts: SavedDraft[];
 }) {
   const router = useRouter();
+  const [etsyQueue, setEtsyQueue] = useState<QueuedEtsyDraft[]>([]);
+  const [etsyBatchRunning, setEtsyBatchRunning] = useState(false);
   const [marketplace, setMarketplace] = useState<"EBAY" | "ETSY" | null>(null);
   const [inventoryId, setInventoryId] = useState("");
   const currentInventoryId = useRef(inventoryId);
@@ -894,7 +897,8 @@ export function ListingPreparationClient({
     }
   };
 
-  const saveEtsyPriceDraft = async () => {
+  const saveEtsyPriceDraft = async (queueOnly = false) => {
+    if (etsyBatchRunning) return;
     if (!shopSettingsReady) { toast.error("Load the shop settings and choose shipping and processing profiles before saving."); return; }
     if (!inventoryId || !shopId || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global
       || !Number.isFinite(Number(etsyOfferPercent)) || Number(etsyOfferPercent) < 0 || Number(etsyOfferPercent) > 99.99) {
@@ -905,12 +909,7 @@ export function ListingPreparationClient({
       toast.error("Complete every required Etsy listing field and select at least one product photo.");
       return;
     }
-    setBusy(true);
-    try {
-      const response = await fetch("/api/marketplace/listing-preparation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+    const draftRequest = {
           action: "saveEtsyPriceDraft",
           draftSettings,
           inventoryId,
@@ -932,7 +931,20 @@ export function ListingPreparationClient({
             categoryAttributes: preparedEtsyCategoryAttributes,
           },
           offerPercent: Number(etsyOfferPercent),
-        }),
+        };
+    if (queueOnly) {
+      const key = `${shopId}:${inventoryId}`;
+      if (etsyQueue.some((entry) => entry.key === key && entry.saved)) { toast.error("This queued item already has an Etsy draft."); return; }
+      if (etsyQueue.length >= 25 && !etsyQueue.some((entry) => entry.key === key)) { toast.error("Queue up to 25 Etsy drafts at a time."); return; }
+      setEtsyQueue((previous) => [...previous.filter((entry) => entry.key !== key), { key, sku: selectedInventory?.sku || inventoryId, title: listingTitle, shop: selectedShop?.name || shopId, prices: `INR India ${etsyPrices.india} / US ${etsyPrices.us} / Global ${etsyPrices.global} · discount ${etsyOfferPercent}%`, request: draftRequest }]);
+      toast.success("Reviewed item queued. Select another inventory item to continue."); return;
+    }
+    setBusy(true);
+    try {
+      const response = await fetch("/api/marketplace/listing-preparation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draftRequest),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Unable to save Etsy listing draft.");
@@ -1014,6 +1026,7 @@ export function ListingPreparationClient({
         })}
       </div>
 
+      <EtsyDraftBatch blocked={busy || photoUploading} items={etsyQueue} onChange={setEtsyQueue} onRunning={setEtsyBatchRunning} />
       <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.8fr)]">
         <div className="space-y-6">
           <div ref={draftsSectionRef} className="scroll-mt-4">
@@ -1050,6 +1063,16 @@ export function ListingPreparationClient({
                         {draft.externalId
                           ? <p className="mt-1 text-[10px] text-muted-foreground">{draft.platform === "EBAY" ? "eBay API offer ID" : "Etsy draft listing ID"} · {draft.externalId}</p>
                           : !draft.sellerHubDraft?.taskId && <p className="mt-1 text-[10px] text-amber-700">ERP draft · review complete listing to check its eBay offer</p>}
+                        {draft.platform === "ETSY" && draft.externalId && draft.shopId && <Button type="button" variant="outline" size="sm" disabled={busy || etsyBatchRunning} onClick={async () => {
+                          setBusy(true);
+                          try {
+                            const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "repairEtsySku", draftId: draft.id, shopId: draft.shopId }) });
+                            const payload = await response.json();
+                            if (!response.ok) throw new Error(payload.error || "SKU sync failed.");
+                            toast.success(`SKU ${payload.sku} saved to Etsy draft ${payload.externalListingId}.`); router.refresh();
+                          } catch (error) { toast.error(error instanceof Error ? error.message : "SKU sync failed."); }
+                          finally { setBusy(false); }
+                        }}>Sync inventory SKU to Etsy</Button>}
                         {draft.syncError && <p className="mt-1 max-w-xl text-[10px] text-amber-700">{draft.syncError}</p>}
                         {draft.platform === "ETSY" && draft.externalId && draft.shopId && draft.syncError?.includes("Category attribute") && (
                           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={async () => {
@@ -1790,11 +1813,12 @@ export function ListingPreparationClient({
                     <Button
                       type="button"
                       onClick={() => void saveEtsyPriceDraft()}
-                      disabled={busy || photoUploading || !shopSettingsReady || !inventoryId || !shopId || !selectedShop?.writeReady || !etsyDetailsComplete || !hasSelectedMarketplacePhoto || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global}
+                      disabled={busy || etsyBatchRunning || photoUploading || !shopSettingsReady || !inventoryId || !shopId || !selectedShop?.writeReady || !etsyDetailsComplete || !hasSelectedMarketplacePhoto || !etsyPrices.india || !etsyPrices.us || !etsyPrices.global}
                     >
                       {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Create Etsy marketplace draft
                     </Button>
+                    <Button type="button" variant="outline" disabled={busy || photoUploading || etsyBatchRunning} onClick={() => void saveEtsyPriceDraft(true)}>Add reviewed item to Etsy batch</Button>
                   </div>
                 </div>
                 </>

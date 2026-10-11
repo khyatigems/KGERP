@@ -98,6 +98,16 @@ async function main() {
         return Response.json({ listing_id: 789 });
       }
       if (path.endsWith("/application/listings/789")) return Response.json({ state: "draft" });
+      if (path.endsWith("/application/listings/789/inventory")) {
+        if (init?.method === "PUT") {
+          const body = JSON.parse(String(init.body));
+          assert.equal(body.products[0].sku, "TEST-SKU-123");
+          assert.equal(body.products[0].offerings[0].price, 20);
+          assert.equal(body.products[0].offerings[0].quantity, 1);
+          assert.equal(body.products[0].offerings[0].readiness_state_id, 456);
+        }
+        return Response.json({ products: [{ sku: "TEST-SKU-123" }] });
+      }
       if (path.endsWith("/listings/789/properties/201")) {
         const form = new URLSearchParams(String(init?.body));
         assert.equal(form.has("value_ids"), true);
@@ -115,7 +125,7 @@ async function main() {
       throw new Error(`Unexpected test request: ${path}`);
     };
     const etsy = new EtsyConnector();
-    const etsyInput = { title: "Test", description: "Test", quantity: 1, price: 20, taxonomyId: "123", whoMade: "I_DID" as const, whenMade: "2020_2026", isSupply: false, tags: ["green gem", "jewelry making"], categoryAttributes: [{ propertyId: "200", valueId: "10", value: "Green" }, { propertyId: "201", value: "13" }], media: [] };
+    const etsyInput = { sku: "TEST-SKU-123", title: "Test", description: "Test", quantity: 1, price: 20, taxonomyId: "123", whoMade: "I_DID" as const, whenMade: "2020_2026", isSupply: false, tags: ["green gem", "jewelry making"], categoryAttributes: [{ propertyId: "200", valueId: "10", value: "Green" }, { propertyId: "201", value: "13" }], media: [] };
     const etsyDraft = await etsy.createMarketplaceDraft("etsy-test", "shop-test", etsyInput);
     assert.equal(etsyDraft.listingId, "789");
     assert.equal(draftCreated, true);

@@ -1,3 +1,4 @@
+import { etsySkuRepairProducts, type EtsySkuInventory } from "@/lib/marketplace/etsy-sku";
 import { etsyPropertyForm, type EtsyDraftAttribute } from "@/lib/marketplace/etsy-property-values";
 import { etsyPlainText } from "@/lib/marketplace/etsy-plain-text";
 import crypto from "node:crypto";
@@ -61,6 +62,7 @@ export interface EtsyAppCredentials {
 export type EtsyMarketplaceDraftInput = {
   draftSettings?: DraftSettings;
   title: string;
+  sku: string;
   description: string;
   quantity: number;
   price: number;
@@ -511,6 +513,7 @@ export class EtsyConnector implements MarketplaceConnector {
     externalShopId: string,
     input: EtsyMarketplaceDraftInput
   ): Promise<{ listingId: string; uploadedMedia: number; warnings: string[]; draftSettings: DraftSettings }> {
+    if (!input.sku.trim()) throw new Error("Inventory SKU is missing. Add it before creating an Etsy draft.");
     const validationErrors = etsyDraftValidationErrors(input);
     if (validationErrors.length) throw new Error(validationErrors.join(" "));
     const draftSettings = resolveDraftSettings(await this.getDraftSettingGroups(connectionId, externalShopId), input.draftSettings);
@@ -554,6 +557,11 @@ export class EtsyConnector implements MarketplaceConnector {
     let uploadedMedia = 0;
     let imageRank = 1;
     try {
+      await this.saveDraftSku(connectionId, listingId, input.sku, { price: input.price, quantity: input.quantity, readinessStateId: draftSettings.readinessStateId! });
+    } catch (error) {
+      warnings.push(`SKU: ${error instanceof Error ? error.message : "update failed"}`);
+    }
+    try {
       warnings.push(...await this.updateDraftAttributes(connectionId, externalShopId, listingId, input.categoryAttributes));
     } catch (error) {
       // Preserve the created listing ID even if checking/applying its attributes fails.
@@ -593,6 +601,19 @@ export class EtsyConnector implements MarketplaceConnector {
     }
 
     return { listingId, uploadedMedia, warnings, draftSettings };
+  }
+
+  async saveDraftSku(connectionId: string, listingId: string, sku: string, initial?: { price: number; quantity: number; readinessStateId: string }): Promise<void> {
+    if (!sku.trim()) throw new Error("Inventory SKU is missing.");
+    const token = await this.getAccessToken(connectionId);
+    const headers = this.getHeaders(token, this.credentials(await this.getConnectionProfile(connectionId)));
+    const listing = await httpJson<{ state?: string }>(`${API_BASE}/v3/application/listings/${encodeURIComponent(listingId)}`, { headers });
+    if (listing.state !== "draft") throw new Error("This Etsy listing is no longer a draft.");
+    const url = `${API_BASE}/v3/application/listings/${encodeURIComponent(listingId)}/inventory`;
+    const products = initial ? [{ sku, property_values: [], offerings: [{ price: initial.price, quantity: initial.quantity, is_enabled: true, readiness_state_id: Number(initial.readinessStateId) }] }] : etsySkuRepairProducts(await httpJson<EtsySkuInventory>(url, { headers }), sku);
+    await httpJson(url, { method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ products, price_on_property: [], quantity_on_property: [], sku_on_property: [], readiness_state_on_property: [] }) });
+    const verified = await httpJson<EtsySkuInventory>(url, { headers });
+    if (verified.products?.length !== 1 || verified.products[0].sku !== sku) throw new Error("Etsy did not confirm the inventory SKU. Retry SKU sync on the saved draft.");
   }
 
   async updateDraftAttributes(connectionId: string, externalShopId: string, listingId: string, attributes: EtsyDraftAttribute[]): Promise<string[]> {
