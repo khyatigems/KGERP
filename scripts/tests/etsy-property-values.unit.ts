@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { etsyPropertyForm } from "../../lib/marketplace/etsy-property-values";
+const custom = etsyPropertyForm({ propertyId: "123", value: "13" });
+assert.equal(custom.has("value_ids"), true);
+assert.equal(custom.get("value_ids"), "");
+assert.equal(custom.toString(), "value_ids=&values=13");
+assert.equal(etsyPropertyForm({ valueId: "456", value: "Green" }).toString(), "value_ids=456&values=Green");
+assert.equal(etsyPropertyForm({ value: "Blue & Green" }).get("values"), "Blue & Green");
+assert.throws(() => etsyPropertyForm({ valueId: "0", value: "13" }), /Invalid/);
+console.log("Etsy property request regression tests passed.");

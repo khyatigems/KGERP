@@ -34,3 +34,10 @@ Existing inventory descriptions are normalized from Markdown on load and again a
 The Etsy creation form supports multiple JPEG/PNG/WebP uploads (4 MB each), saved as inventory media. Uploaded photos are selected for the draft; uncheck photos to exclude them without deleting inventory assets. Saving is disabled during upload. The authenticated media endpoint verifies inventory-edit permission, an in-stock inventory item, and a connected Etsy shop before accepting an upload.
 
 Validation: Etsy eligibility and plain-text regression tests, marketplace description/settings/HTTP regressions, eBay image/batch regressions, TypeScript and targeted ESLint. Live Etsy acceptance requires deployment and a new explicit draft save; these changes do not publish listings.
+
+
+## Custom category values and draft repair
+
+`updateListingProperty` requires `value_ids` even when a text/numeric attribute has no predefined taxonomy value ID. Serialize a present empty `value_ids=` for custom values, alongside `values`; use the actual Etsy ID for predefined choices. Never fabricate ID 0. Attribute warnings now include the name/property ID.
+
+Saved Etsy drafts with attribute warnings expose Retry Etsy attributes. This uses saved ERP attributes and the existing external listing ID, checks Etsy still reports state=draft, and only updates properties. It never recreates the draft, reuploads photos, or publishes. Media warnings remain until separately addressed. A post-create attribute-check failure preserves the newly created listing ID and records a warning.

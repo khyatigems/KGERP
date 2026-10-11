@@ -1,3 +1,4 @@
+import { etsyPropertyForm, type EtsyDraftAttribute } from "@/lib/marketplace/etsy-property-values";
 import { etsyPlainText } from "@/lib/marketplace/etsy-plain-text";
 import crypto from "node:crypto";
 import { httpJson, httpRequest, bearerAuth, HttpError } from "@/lib/marketplace/http";
@@ -552,23 +553,11 @@ export class EtsyConnector implements MarketplaceConnector {
     const warnings: string[] = [];
     let uploadedMedia = 0;
     let imageRank = 1;
-    for (const [index, attribute] of input.categoryAttributes.entries()) {
-      if (!attribute.propertyId) continue;
-      try {
-        const propertyValues = new URLSearchParams();
-        if (attribute.valueId) propertyValues.set("value_ids", attribute.valueId);
-        propertyValues.set("values", attribute.value);
-        await httpRequest(
-          `${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/listings/${encodeURIComponent(listingId)}/properties/${encodeURIComponent(attribute.propertyId)}`,
-          {
-            method: "PUT",
-            headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
-            body: propertyValues.toString(),
-          }
-        );
-      } catch (error) {
-        warnings.push(`Category attribute ${index + 1}: ${error instanceof Error ? error.message : "update failed"}`);
-      }
+    try {
+      warnings.push(...await this.updateDraftAttributes(connectionId, externalShopId, listingId, input.categoryAttributes));
+    } catch (error) {
+      // Preserve the created listing ID even if checking/applying its attributes fails.
+      warnings.push(`Category attribute updates: ${error instanceof Error ? error.message : "update failed"}`);
     }
     for (const [index, asset] of input.media.entries()) {
       try {
@@ -604,6 +593,26 @@ export class EtsyConnector implements MarketplaceConnector {
     }
 
     return { listingId, uploadedMedia, warnings, draftSettings };
+  }
+
+  async updateDraftAttributes(connectionId: string, externalShopId: string, listingId: string, attributes: EtsyDraftAttribute[]): Promise<string[]> {
+    const token = await this.getAccessToken(connectionId);
+    const headers = this.getHeaders(token, this.credentials(await this.getConnectionProfile(connectionId)));
+    // Never repair attributes on a published item through the draft workflow.
+    const listing = await httpJson<{ state?: string }>(`${API_BASE}/v3/application/listings/${encodeURIComponent(listingId)}`, { headers });
+    if (listing.state !== "draft") throw new Error("This Etsy listing is no longer a draft. Review it in Etsy before changing attributes.");
+    const warnings: string[] = [];
+    for (const [index, attribute] of attributes.entries()) {
+      if (!attribute.propertyId) continue;
+      try {
+        await httpRequest(`${API_BASE}/v3/application/shops/${encodeURIComponent(externalShopId)}/listings/${encodeURIComponent(listingId)}/properties/${encodeURIComponent(attribute.propertyId)}`, {
+          method: "PUT", headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" }, body: etsyPropertyForm(attribute).toString(),
+        });
+      } catch (error) {
+        warnings.push(`Category attribute ${attribute.name || index + 1} (property ${attribute.propertyId}): ${error instanceof Error ? error.message : "update failed"}`);
+      }
+    }
+    return warnings;
   }
 
   async fetchListings(params: ListingSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedListing[]> {

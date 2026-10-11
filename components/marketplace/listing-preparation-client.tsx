@@ -1051,6 +1051,21 @@ export function ListingPreparationClient({
                           ? <p className="mt-1 text-[10px] text-muted-foreground">{draft.platform === "EBAY" ? "eBay API offer ID" : "Etsy draft listing ID"} · {draft.externalId}</p>
                           : !draft.sellerHubDraft?.taskId && <p className="mt-1 text-[10px] text-amber-700">ERP draft · review complete listing to check its eBay offer</p>}
                         {draft.syncError && <p className="mt-1 max-w-xl text-[10px] text-amber-700">{draft.syncError}</p>}
+                        {draft.platform === "ETSY" && draft.externalId && draft.shopId && draft.syncError?.includes("Category attribute") && (
+                          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={async () => {
+                            setBusy(true);
+                            try {
+                              const response = await fetch("/api/marketplace/listing-preparation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "repairEtsyAttributes", draftId: draft.id, shopId: draft.shopId }) });
+                              const payload = await response.json();
+                              if (!response.ok) throw new Error(payload.error || "Attribute repair failed.");
+                              if (payload.warnings?.length) toast.warning(payload.warnings.join("; "));
+                              else toast.success(`Etsy draft ${payload.externalListingId} attributes repaired.`);
+                              router.refresh();
+                            } catch (error) { toast.error(error instanceof Error ? error.message : "Attribute repair failed."); }
+                            finally { setBusy(false); }
+                          }}>Retry Etsy attributes</Button>
+                        )}
+
                         {draft.platform === "EBAY" && draft.shopId && (
                           <div className="mt-2 space-y-2">
                             <EbayCompleteReview draftId={draft.id} shopId={draft.shopId!} sku={draft.sku} />

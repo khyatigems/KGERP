@@ -27,7 +27,7 @@ import {
 } from "@/lib/marketplace/listing-preparation";
 
 const requestSchema = z.object({
-  action: z.enum(["prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements", "shopSettings", "verifyEbayOffer", "sendEbaySellerHubDraft", "checkEbaySellerHubDraft", "downloadEbaySellerHubDraftCsv", "downloadEbayDescription", "reviewCompleteEbay", "prepareCompleteEbay", "publishCompleteEbay", "rebuildEbayDescription"]),
+  action: z.enum(["repairEtsyAttributes", "prepare", "saveDraft", "saveEtsyPriceDraft", "validateEbay", "etsyRequirements", "shopSettings", "verifyEbayOffer", "sendEbaySellerHubDraft", "checkEbaySellerHubDraft", "downloadEbaySellerHubDraftCsv", "downloadEbayDescription", "reviewCompleteEbay", "prepareCompleteEbay", "publishCompleteEbay", "rebuildEbayDescription"]),
   locationKey: z.string().min(1).max(100).optional(),
   dispatchAddress: z.object({ country: z.string().regex(/^[A-Z]{2}$/), postalCode: z.string().trim().min(1).max(20), city: z.string().trim().max(100).optional() }).optional(),
   reviewToken: z.string().length(64).optional(),
@@ -827,6 +827,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (parsed.data.action === "repairEtsyAttributes") {
+      if (!(await checkUserPermission(session.user.id, PERMISSIONS.INVENTORY_EDIT))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      const draft = await prisma.listing.findFirst({ where: { id: parsed.data.draftId || "", marketplaceShopId: parsed.data.shopId, platform: "ETSY", status: "DRAFT", marketplaceShop: { status: "CONNECTED", connection: { status: "CONNECTED" } } }, include: { marketplaceShop: true } });
+      if (!draft?.externalId || !draft.marketplaceShop) throw new ListingPreparationError("Saved Etsy marketplace draft not found.", 404);
+      const metadata = z.object({ etsyListingDetails: z.object({ categoryAttributes: z.unknown() }).passthrough(), marketplaceDraft: z.object({ warnings: z.array(z.string()).optional() }).passthrough().optional() }).passthrough().parse(parseJson(draft.rawMetadata, {}));
+      const attributes = z.array(z.object({ propertyId: z.string().regex(/^[1-9]\d*$/).optional(), valueId: z.string().optional(), name: z.string().optional(), value: z.string().min(1) })).max(40).parse(metadata.etsyListingDetails?.categoryAttributes);
+      const warnings = await new EtsyConnector().updateDraftAttributes(draft.marketplaceShop.connectionId, draft.marketplaceShop.externalShopId, draft.externalId, attributes);
+      const previousWarnings = Array.isArray(metadata.marketplaceDraft?.warnings) ? metadata.marketplaceDraft.warnings.filter((warning: unknown) => typeof warning === "string" && !warning.startsWith("Category attribute ")) : [];
+      const remaining = [...previousWarnings, ...warnings];
+      const updated = await prisma.listing.updateMany({ where: { id: draft.id, status: "DRAFT", rawMetadata: draft.rawMetadata }, data: { syncError: remaining.length ? remaining.join("; ") : null, rawMetadata: JSON.stringify({ ...metadata, marketplaceDraft: { ...metadata.marketplaceDraft, warnings: remaining } }) } });
+      if (!updated.count) throw new ListingPreparationError("The draft changed during repair. Refresh and check it again.", 409);
+      return NextResponse.json({ externalListingId: draft.externalId, warnings: remaining });
+    }
     if (parsed.data.action === "rebuildEbayDescription") {
       if (!parsed.data.draftId) throw new ListingPreparationError("Select a saved eBay draft.", 400);
       const { saved, metadata } = await loadSellerHubDraft(parsed.data.draftId, parsed.data.shopId);

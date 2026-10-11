@@ -97,6 +97,14 @@ async function main() {
         assert.equal(form.get("when_made"), "2020_2026");
         return Response.json({ listing_id: 789 });
       }
+      if (path.endsWith("/application/listings/789")) return Response.json({ state: "draft" });
+      if (path.endsWith("/listings/789/properties/201")) {
+        const form = new URLSearchParams(String(init?.body));
+        assert.equal(form.has("value_ids"), true);
+        assert.equal(form.get("value_ids"), "");
+        assert.equal(form.get("values"), "13");
+        return Response.json({});
+      }
       if (path.endsWith("/listings/789/properties/200")) {
         const form = new URLSearchParams(String(init?.body));
         assert.equal(form.get("value_ids"), "10");
@@ -107,11 +115,27 @@ async function main() {
       throw new Error(`Unexpected test request: ${path}`);
     };
     const etsy = new EtsyConnector();
-    const etsyInput = { title: "Test", description: "Test", quantity: 1, price: 20, taxonomyId: "123", whoMade: "I_DID" as const, whenMade: "2020_2026", isSupply: false, tags: ["green gem", "jewelry making"], categoryAttributes: [{ propertyId: "200", valueId: "10", value: "Green" }], media: [] };
+    const etsyInput = { title: "Test", description: "Test", quantity: 1, price: 20, taxonomyId: "123", whoMade: "I_DID" as const, whenMade: "2020_2026", isSupply: false, tags: ["green gem", "jewelry making"], categoryAttributes: [{ propertyId: "200", valueId: "10", value: "Green" }, { propertyId: "201", value: "13" }], media: [] };
     const etsyDraft = await etsy.createMarketplaceDraft("etsy-test", "shop-test", etsyInput);
     assert.equal(etsyDraft.listingId, "789");
     assert.equal(draftCreated, true);
     assert.deepEqual(etsyDraft.warnings, []);
+    assert.deepEqual(await etsy.updateDraftAttributes("etsy-test", "shop-test", "789", etsyInput.categoryAttributes), []);
+    const workingEtsyFetch = globalThis.fetch;
+    let attributePuts = 0;
+    globalThis.fetch = async (url, init) => {
+      if (String(url).endsWith("/application/listings/789")) return Response.json({ state: "active" });
+      if (init?.method === "PUT") attributePuts++;
+      return workingEtsyFetch(url, init);
+    };
+    await assert.rejects(etsy.updateDraftAttributes("etsy-test", "shop-test", "789", etsyInput.categoryAttributes), /no longer a draft/);
+    assert.equal(attributePuts, 0);
+    // A failed post-create check must not discard the ID and cause a duplicate on retry.
+    const partialDraft = await etsy.createMarketplaceDraft("etsy-test", "shop-test", etsyInput);
+    assert.equal(partialDraft.listingId, "789");
+    assert.match(partialDraft.warnings.join(), /Category attribute updates/);
+    globalThis.fetch = workingEtsyFetch;
+
     draftCreated = false;
     await assert.rejects(etsy.createMarketplaceDraft("etsy-test", "shop-test", { ...etsyInput, draftSettings: { shippingProfileId: "wrong-shop" } }), /no longer available/);
     assert.equal(draftCreated, false);
