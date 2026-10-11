@@ -1,3 +1,5 @@
+import { loadInventoryMarketplaceFields } from "@/lib/marketplace/inventory-fields-store";
+import { etsyShopDescription } from "@/lib/marketplace/inventory-fields";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -287,6 +289,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       inventoryId: item.id,
+      marketplaceFields: await loadInventoryMarketplaceFields(item.id),
       inventoryDefaults: {
         itemName: item.itemName,
         etsyDescription: item.etsyDescription,
@@ -686,7 +689,7 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
     preparationStatus: "ETSY_MANUAL_REGIONAL_PRICES",
     descriptionStatus: "MANUALLY_PREPARED",
     validationStatus: "NOT_VALIDATED",
-    etsyListingDetails: input.etsyListingDetails,
+    etsyListingDetails: { ...input.etsyListingDetails, description: etsyShopDescription(input.etsyListingDetails.description, shop.name) },
     offerPercent: input.offerPercent,
     discountedRegionalPricesInr: {
       india: Number((input.regionalPrices.india * (1 - input.offerPercent / 100)).toFixed(2)),
@@ -761,7 +764,7 @@ async function saveEtsyPriceDraft(input: z.infer<typeof requestSchema>) {
     draftSettings: input.draftSettings,
     title: draftTitle,
     sku: item.sku,
-    description: input.etsyListingDetails.description,
+    description: etsyShopDescription(input.etsyListingDetails.description, shop.name),
     quantity: input.etsyListingDetails.quantity,
     price: etsyPrice,
     taxonomyId: input.etsyListingDetails.taxonomyId,

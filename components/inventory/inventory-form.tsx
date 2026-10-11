@@ -34,6 +34,8 @@ import { formSchema, type FormInputValues, type FormValues, type InventoryFormPr
 import { BasicInfoSection } from "./inventory-basic-info";
 import { InventoryCompletenessPanel } from "./inventory-completeness-panel";
 import { getInventoryCompleteness } from "@/lib/inventory-completeness";
+import { InventoryMarketplaceFieldsSection } from "./inventory-marketplace-fields";
+import type { InventoryMarketplaceFields } from "@/lib/marketplace/inventory-fields";
 import { InventorySaveProgressToast } from "./inventory-save-progress-toast";
 
 const FileUpload = dynamic(
@@ -75,6 +77,7 @@ const NotesSection = dynamic(() => import("./inventory-notes").then((m) => m.Not
 export function InventoryForm({ vendors, categories, gemstones, colors, cuts, shapes = [], collections, rashis, certificates = [], origins = [], initialData, copyData, categoryHsnMap }: InventoryFormProps) {
   const router = useRouter();
   const { showLoader } = useGlobalLoader();
+  const [marketplaceFields, setMarketplaceFields] = useState<InventoryMarketplaceFields | undefined>(undefined);
   const [isPending, setIsPending] = useState(false);
   const [skuPreview, setSkuPreview] = useState<string>("");
   const [isSkuPreviewOpen, setIsSkuPreviewOpen] = useState(false);
@@ -266,6 +269,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
     }
 
     const formData = new FormData();
+    if (marketplaceFields !== undefined) formData.append("marketplaceFields", JSON.stringify(marketplaceFields));
     Object.entries(data).forEach(([key, value]) => {
       if (key === 'mediaUrls') return;
       if (value !== undefined && value !== null) {
@@ -325,6 +329,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
         }
 
         if (!initialData && !shouldRedirect) {
+          setMarketplaceFields(undefined);
           setFormResetKey((k) => k + 1);
           const base = createDefaultsRef.current || form.getValues();
           const resetValues: FormInputValues = {
@@ -610,6 +615,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
 
             <InventoryCompletenessPanel form={form} />
 
+            <InventoryMarketplaceFieldsSection key={`marketplaces-${formResetKey}`} inventoryId={initialData?.id} value={marketplaceFields} onChange={setMarketplaceFields} />
             <NotesSection key={`notes-${formResetKey}`} form={form} skuPreview={skuPreview} />
           </div>
         </div>

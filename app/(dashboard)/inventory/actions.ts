@@ -1,5 +1,6 @@
 "use server";
 
+import { inventoryFieldsFromForm, saveInventoryMarketplaceFields } from "@/lib/marketplace/inventory-fields-store";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -250,6 +251,8 @@ export async function createInventory(prevState: unknown, formData: FormData) {
   if (!hasPerm) return { message: "Insufficient permissions" };
   await ensureInventoryBraceletSchema();
 
+  const marketplaceInput = inventoryFieldsFromForm(formData);
+  if (marketplaceInput.error) return { message: marketplaceInput.error };
   const raw = Object.fromEntries(formData.entries());
   const mediaUrls = formData.getAll('mediaUrls').map(String).filter(Boolean);
   
@@ -399,6 +402,7 @@ export async function createInventory(prevState: unknown, formData: FormData) {
           };
 
           const inventory = await tx.inventory.create({ data: createData });
+          if (marketplaceInput.fields !== undefined) await saveInventoryMarketplaceFields(tx, inventory.id, marketplaceInput.fields);
 
           return {
             id: inventory.id,
@@ -499,6 +503,8 @@ export async function updateInventory(
   if (!current) return { message: "Inventory not found" };
   if (current.status === "SOLD") return { message: "Cannot edit sold inventory" };
 
+  const marketplaceInput = inventoryFieldsFromForm(formData);
+  if (marketplaceInput.error) return { message: marketplaceInput.error };
   const raw = Object.fromEntries(formData.entries());
   const mediaUrls = formData.getAll('mediaUrls').map(String).filter(Boolean).map(u => u.trim());
 
@@ -622,9 +628,10 @@ export async function updateInventory(
       standardSize: data.standardSize,
     };
 
-    const updatedInventory = await prisma.inventory.update({
-      where: { id },
-      data: updateData,
+    const updatedInventory = await prisma.$transaction(async (tx) => {
+      const updated = await tx.inventory.update({ where: { id }, data: updateData });
+      if (marketplaceInput.fields !== undefined) await saveInventoryMarketplaceFields(tx, id, marketplaceInput.fields);
+      return updated;
     });
 
     // Fire-and-forget: activity log, marketplace conflict, price recommendation

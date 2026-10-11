@@ -1,4 +1,5 @@
 "use client";
+import { etsyShopDescription, type InventoryMarketplaceFields } from "@/lib/marketplace/inventory-fields";
 import { etsyPlainText } from "@/lib/marketplace/etsy-plain-text";
 
 
@@ -391,6 +392,8 @@ export function ListingPreparationClient({
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoUploadError, setPhotoUploadError] = useState("");
   const [selectedMediaUrls, setSelectedMediaUrls] = useState<string[]>([]);
+  const [savedFieldsInventoryId, setSavedFieldsInventoryId] = useState("");
+  const [savedInventoryFields, setSavedInventoryFields] = useState<InventoryMarketplaceFields>([]);
   const [pricing, setPricing] = useState<PricingGuidance | null>(null);
   const [pricingError, setPricingError] = useState("");
   const [pricingLoading, setPricingLoading] = useState(false);
@@ -617,13 +620,33 @@ export function ListingPreparationClient({
         if (!response.ok) throw new Error(payload.error || "Unable to calculate MSP/MRP.");
         if (controller.signal.aborted) return;
         setPricing(payload as PricingGuidance);
+        const savedFields = (payload.marketplaceFields || []) as InventoryMarketplaceFields;
+        setSavedInventoryFields(savedFields);
+        setSavedFieldsInventoryId(inventoryId);
+        const saved = savedFields.find((entry) => entry.shopId === shopId && entry.marketplace === marketplace);
+        if (saved && marketplace === "ETSY") {
+          setEtsyListingDetails((previous) => ({ ...previous,
+            productType: saved.productType === "BRACELET" ? "BRACELET" : "LOOSE_GEMSTONE",
+            taxonomyId: saved.categoryId, categoryName: saved.categoryName,
+            whoMade: saved.whoMade || previous.whoMade || "", whatIsIt: saved.whatIsIt || previous.whatIsIt || "",
+            whenMade: saved.whenMade || previous.whenMade || "", quantity: saved.quantity || previous.quantity || "",
+            tags: saved.tags || previous.tags || "", shopSectionId: saved.shopSectionId || previous.shopSectionId || "",
+            productionMethod: saved.productionMethod || previous.productionMethod || "", toolsUsed: saved.toolsUsed?.length ? saved.toolsUsed : previous.toolsUsed,
+          }));
+          setEtsyCategoryAttributesByName((previous) => ({ ...saved.attributes, ...Object.fromEntries(Object.entries(previous).filter(([, value]) => value.trim())) }));
+        }
+        if (saved && marketplace === "EBAY") {
+          setTemplate(saved.productType === "JEWELRY" ? "JEWELRY" : "LOOSE_GEMSTONE");
+          setCategoryId(saved.categoryId);
+          setAspectValues(saved.attributes);
+        }
         setSelectedInventory((previous) => previous?.id === inventoryId
           ? { ...previous, ...payload.inventoryDefaults } : previous);
         const defaults = inventoryListingDefaults(payload.inventoryDefaults as InventoryListingSource, marketplace);
         setListingTitle((previous) => previous === initialTitle ? defaults.title : previous);
         if (marketplace === "ETSY") {
           setEtsyListingDetails((previous) => ({ ...previous,
-            description: previous.description === initialDescription ? defaults.description : previous.description,
+            description: previous.description === initialDescription ? etsyShopDescription(defaults.description, selectedShop?.name || "") : previous.description,
           }));
         }
         const mediaAssets = payload.mediaAssets as PricingGuidance["mediaAssets"];
@@ -641,7 +664,7 @@ export function ListingPreparationClient({
     };
     void loadPricing();
     return () => controller.abort();
-  }, [inventoryId, marketplace]);
+  }, [inventoryId, marketplace, shopId, selectedShop?.name]);
 
   const prepare = useCallback(async () => {
     if (marketplace !== "EBAY" || !inventoryId || !shopId || !template) {
@@ -701,8 +724,9 @@ export function ListingPreparationClient({
       setTaxonomy(result);
       setCategoryId(result.categoryId || "");
       setTemplate(payload.template);
+      const saved = savedFieldsInventoryId === inventoryId ? savedInventoryFields.find((entry) => entry.shopId === shopId && entry.marketplace === "EBAY" && entry.categoryId === result.categoryId) : undefined;
       setCustomAspectValues(Object.fromEntries([...result.requiredAspects, ...result.optionalAspects].map((aspect) => {
-        const suggestion = result.erpSuggestions[aspect.name] || result.optionalErpSuggestions[aspect.name];
+        const suggestion = saved?.attributes[aspect.name] || result.erpSuggestions[aspect.name] || result.optionalErpSuggestions[aspect.name];
         return [
           aspect.name,
           Boolean(
@@ -715,7 +739,7 @@ export function ListingPreparationClient({
       })));
       setAspectValues(Object.fromEntries([...result.requiredAspects, ...result.optionalAspects].map((aspect) => [
         aspect.name,
-        resolveEbayAspectSuggestion(aspect, result.erpSuggestions[aspect.name] || result.optionalErpSuggestions[aspect.name]),
+        resolveEbayAspectSuggestion(aspect, saved?.attributes[aspect.name] || result.erpSuggestions[aspect.name] || result.optionalErpSuggestions[aspect.name]),
       ])));
       if (!result.exactCategoryResolved) {
         toast.error("Choose the matching eBay category returned by Taxonomy, then check it again.");
@@ -903,7 +927,7 @@ export function ListingPreparationClient({
           etsyListingDetails: {
             ...etsyListingDetails,
             categoryName: etsyListingDetails.categoryName.trim(),
-            description: etsyPlainText(etsyListingDetails.description),
+            description: etsyShopDescription(etsyPlainText(etsyListingDetails.description), selectedShop?.name || ""),
             productionMethod: etsyListingDetails.productionMethod || undefined,
             tags: etsyTags,
             quantity: Number(etsyListingDetails.quantity),
@@ -1238,7 +1262,7 @@ export function ListingPreparationClient({
                         setEtsyPrices({ india: "", us: "", global: "" });
                         setEtsyListingDetails((previous) => ({
                           ...previous,
-                          description: etsyPlainText(item?.etsyDescription || ""),
+                          description: etsyShopDescription(etsyPlainText(item?.etsyDescription || ""), selectedShop?.name || ""),
                         }));
                         setEtsyCategoryAttributesByName({});
                         setEtsyPreparationOptions((previous) => previous ? {
