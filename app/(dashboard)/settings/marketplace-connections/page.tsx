@@ -6,6 +6,8 @@ import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation"
 import { prisma } from "@/lib/prisma";
 import { MarketplaceConnectionsClient } from "./marketplace-connections-client";
 import { isEtsyProfileConfigured } from "@/lib/marketplace/connectors/etsy";
+import Link from "next/link";
+import { websiteEnabled } from "@/lib/website/store";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +66,8 @@ export default async function MarketplaceConnectionsPage({
   });
 
   return (
+    <div className="space-y-6">
+    {websiteEnabled() && <section className="rounded-lg border p-5"><h2 className="text-lg font-semibold">Website · KhyatiGems</h2><p className="mt-2 text-sm text-muted-foreground">Native website listing channel. Create listings through Marketplaces and manage their visibility and collections in Website Management. Storefront feed configuration is a separate deployment step.</p><div className="mt-3 flex gap-4 text-sm"><Link href="/marketplace-create-listings?marketplace=WEBSITE">Create website listing</Link><Link href="/marketplace-listings?marketplace=WEBSITE">Listed products</Link><Link href="/website-management">Website Management</Link></div></section>}
     <MarketplaceConnectionsClient
       flags={flags as Record<FeatureFlagKey, boolean>}
       platforms={platforms}
@@ -72,5 +76,6 @@ export default async function MarketplaceConnectionsPage({
       oauthConnected={oauthResult.connected || null}
       oauthShopCount={Number(oauthResult.shops) || 0}
     />
+    </div>
   );
 }

@@ -82,12 +82,14 @@ export function InventoryPicker({
   marketplaceReadyOnly = false,
   marketplace,
   shopId,
+  searchEndpoint = "/api/inventory/search",
 }: {
   value: string;
   onSelect: (id: string, item?: InventoryRow) => void;
   marketplaceReadyOnly?: boolean;
   marketplace?: "EBAY" | "ETSY";
   shopId?: string;
+  searchEndpoint?: string;
 }) {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const debouncedFilters = useDebouncedValue(filters, 250);
@@ -138,7 +140,7 @@ export function InventoryPicker({
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`/api/inventory/search?${query}`, { signal: ac.signal, cache: "no-store" });
+        const res = await fetch(`${searchEndpoint}?${query}`, { signal: ac.signal, cache: "no-store" });
         if (!res.ok) throw new Error(`Inventory search failed (HTTP ${res.status}).`);
         const json = await res.json();
         setRows(json.items || []);
@@ -154,7 +156,7 @@ export function InventoryPicker({
     };
     run();
     return () => ac.abort();
-  }, [query]);
+  }, [query, searchEndpoint]);
 
   const totalPages = Math.max(1, Math.ceil(total / Number(filters.pageSize || "25")));
 

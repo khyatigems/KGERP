@@ -357,9 +357,11 @@ function EbayAspectField({
 export function ListingPreparationClient({
   ebayShops,
   etsyShops,
+  websiteAvailable = false,
 }: {
   ebayShops: Shop[];
   etsyShops: Shop[];
+  websiteAvailable?: boolean;
 }) {
   const router = useRouter();
   const [etsyQueue, setEtsyQueue] = useEtsyDraftQueue();
@@ -1034,7 +1036,8 @@ export function ListingPreparationClient({
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="marketplace">1. Marketplace</Label>
-                  <Select value={marketplace || ""} onValueChange={(value: "EBAY" | "ETSY") => {
+                  <Select value={marketplace || ""} onValueChange={(value: "EBAY" | "ETSY" | "WEBSITE") => {
+                    if(value==="WEBSITE"){router.push('/marketplace-create-listings?marketplace=WEBSITE');return;}
                     setMarketplace(value);
                     setTemplate(null);
                     setShopId("");
@@ -1065,6 +1068,7 @@ export function ListingPreparationClient({
                     <SelectContent>
                       <SelectItem value="EBAY">eBay</SelectItem>
                       <SelectItem value="ETSY">Etsy</SelectItem>
+                      {websiteAvailable&&<SelectItem value="WEBSITE">Website</SelectItem>}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">

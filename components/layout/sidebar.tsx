@@ -20,6 +20,10 @@ type NavAnimationKey = string;
 
 export const navGroups = [
   {
+    id: "website", label: "Website", color: "sky", icon: Globe,
+    items: [{ href: "/website-management", label: "Website Management", icon: Globe, module: "settings:manage", animKey: "settings" as NavAnimationKey }],
+  },
+  {
     id: "overview",
     label: "Overview",
     color: "violet",
