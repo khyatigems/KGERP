@@ -1,0 +1,490 @@
+{
+  "checkedAt": "2026-10-16T12:38:22.301Z",
+  "method": "AI-assisted source review; source retrieval evidence is not professional gemologist authentication.",
+  "authorization": "Owner delegated editorial approval on 16 October 2026. Named expert reviewer remains blank.",
+  "sources": [
+    {
+      "url": "https://www.gia.edu/ruby-description",
+      "finalUrl": "https://www.gia.edu/ruby-description",
+      "status": 200,
+      "title": "Ruby Description",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "4c523c47ae7ecdfaf5f78c53c27cd63a4b0b9a105c2d88a2e9be8c231f5f7f0f"
+    },
+    {
+      "url": "https://www.gia.edu/ruby-care-cleaning",
+      "finalUrl": "https://www.gia.edu/ruby-care-cleaning",
+      "status": 200,
+      "title": "Ruby Care and Cleaning Guide",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "6efc3f4747ccfb816f688071d46342dc3b592b60f3e251006f05ff0186f6f8de"
+    },
+    {
+      "url": "https://www.gia.edu/ruby",
+      "finalUrl": "https://www.gia.edu/ruby",
+      "status": 200,
+      "title": "Ruby Gemstone | Ruby Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "9aeac3c793efe1e59ed77519f29d20b6303bad2b5b342f3b5a01d3218ae35232"
+    },
+    {
+      "url": "https://www.gia.edu/sapphire-description",
+      "finalUrl": "https://www.gia.edu/sapphire-description",
+      "status": 200,
+      "title": "Sapphire Description",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "3b332d66dce8c5887dc9dc16e04a8ab6f40e736d526c414b8a71953d65b20206"
+    },
+    {
+      "url": "https://www.gia.edu/sapphire-care-cleaning",
+      "finalUrl": "https://www.gia.edu/sapphire-care-cleaning",
+      "status": 200,
+      "title": "Sapphire Care and Cleaning Guide",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "135b8e30bb04c010b7e63806ea60b2d90fe80f14c783319f41b402346de1c462"
+    },
+    {
+      "url": "https://www.gia.edu/sapphire",
+      "finalUrl": "https://www.gia.edu/sapphire",
+      "status": 200,
+      "title": "Sapphire Gemstone | Sapphire Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "55f711491ecc5ad9973d362dbe0ef93f6fb2c06aaec0e9571be05b4752a8adc8"
+    },
+    {
+      "url": "https://www.gia.edu/emerald-description",
+      "finalUrl": "https://www.gia.edu/emerald-description",
+      "status": 200,
+      "title": "Emerald Description",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "a8e3dd3899ad79958591700c9ad7e4c3d3edd2a5d921d89d70564db47c7e9a85"
+    },
+    {
+      "url": "https://www.gia.edu/emerald-care-cleaning",
+      "finalUrl": "https://www.gia.edu/emerald-care-cleaning",
+      "status": 200,
+      "title": "Emerald Care and Cleaning Guide",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "5bd4980f0759230727e534ce0bcf4d6cc1e6e043ce82a99ff13815ad97b21415"
+    },
+    {
+      "url": "https://www.gia.edu/emerald",
+      "finalUrl": "https://www.gia.edu/emerald",
+      "status": 200,
+      "title": "Emerald Gemstone | Emerald Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "0596529070ad3470d114a331a8001c441d163f3085b6497a8e7ecac0a50432a7"
+    },
+    {
+      "url": "https://www.gia.edu/aquamarine-description",
+      "finalUrl": "https://www.gia.edu/aquamarine-description",
+      "status": 200,
+      "title": "Aquamarine Description",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "c99f3101075932aff6d3f0c1f8082f1b3ff964fa9701607ac00aac216092d4eb"
+    },
+    {
+      "url": "https://www.gia.edu/aquamarine-care-cleaning",
+      "finalUrl": "https://www.gia.edu/aquamarine-care-cleaning",
+      "status": 200,
+      "title": "Aquamarine Care and Cleaning Guide",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "a6ff598a6c396e3c70163ff9bdea309c581707543d1bf365a813ca8805acd13d"
+    },
+    {
+      "url": "https://www.gia.edu/aquamarine",
+      "finalUrl": "https://www.gia.edu/aquamarine",
+      "status": 200,
+      "title": "Aquamarine Gemstone | Aquamarine Stone - GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "22ee39b5f5e71cc41c7c0c8047cd64e93c88a4b12fc8a6531f7416536603a3ab"
+    },
+    {
+      "url": "https://www.gia.edu/gem-synthetic",
+      "finalUrl": "https://www.gia.edu/gem-synthetic",
+      "status": 200,
+      "title": "An Introduction to Synthetic Gem Materials",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "2acad4fde5b4ab10b122a8630d49a5037b36b0136bc7b840c0276d51abe0473f"
+    },
+    {
+      "url": "https://www.gia.edu/gem-imitation",
+      "finalUrl": "https://www.gia.edu/gem-imitation",
+      "status": 200,
+      "title": "An Introduction to Imitation Diamonds &amp; Other Gems | GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "6ff3515209c1842187860905eb55bcaef26fdd1f9ebf59f887bced758db16beb"
+    },
+    {
+      "url": "https://www.gia.edu/gem-treatment",
+      "finalUrl": "https://www.gia.edu/gem-treatment",
+      "status": 200,
+      "title": "An Introduction to Gem Treatments",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "97843773206195fe21c989a00d619eec47ba8929abbc95adebbbc053b1e367b9"
+    },
+    {
+      "url": "https://www.gia.edu/analysis-grading-sample-report-colored-stone?reporttype=colored-stone-identification-report",
+      "finalUrl": "https://www.gia.edu/analysis-grading-sample-report-colored-stone?reporttype=colored-stone-identification-report",
+      "status": 200,
+      "title": "Sample Colored Stone Reports",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "98c357c0e6778338a6944de6f399567db5a997f2c42a5ae0e73cd75376138fe9"
+    },
+    {
+      "url": "https://www.gia.edu/amethyst",
+      "finalUrl": "https://www.gia.edu/amethyst",
+      "status": 200,
+      "title": "Amethyst Gemstone | Amethyst Stone - GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "f48ad7cd28f6615ef87d1f9e8b56fdb2fb7d829a733e8e1b57561e001c1d43da"
+    },
+    {
+      "url": "https://www.gia.edu/citrine",
+      "finalUrl": "https://www.gia.edu/citrine",
+      "status": 200,
+      "title": "Citrine Gemstone | Natural Citrine Stone - GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "c97abe0bbfb42454ae44e2e4c0a26967f2c1fdb821799c3083b9e091e656e90a"
+    },
+    {
+      "url": "https://www.gia.edu/peridot",
+      "finalUrl": "https://www.gia.edu/peridot",
+      "status": 200,
+      "title": "Peridot Gemstone | Peridot Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "faf387733e74270ccdcd366fda141686546bfe6a68def0fe591b9ac753bf5f7c"
+    },
+    {
+      "url": "https://www.gia.edu/topaz",
+      "finalUrl": "https://www.gia.edu/topaz",
+      "status": 200,
+      "title": "What is Topaz Gemstone | Topaz Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "fe24e81c9317d716c45ffeccee28cdd38224dfb15a9439e67977f4258e503c9c"
+    },
+    {
+      "url": "https://www.gia.edu/spinel",
+      "finalUrl": "https://www.gia.edu/spinel",
+      "status": 200,
+      "title": "Spinel Gemstone | Spinel Stone - GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "c54e1ba55d8b1c6243fa53962a779dfd251dc26c0b52da5383ab928c5907c4fc"
+    },
+    {
+      "url": "https://www.gia.edu/garnet",
+      "finalUrl": "https://www.gia.edu/garnet",
+      "status": 200,
+      "title": "Garnet Gemstone | Garnet Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "16d6075a9f4103f277d71a037148d42fb358a344f82f297d5934133306bd7717"
+    },
+    {
+      "url": "https://www.gia.edu/tourmaline",
+      "finalUrl": "https://www.gia.edu/tourmaline",
+      "status": 200,
+      "title": "What Is Tourmaline Gemstone | Tourmaline Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "e617f0ba75f3e2ebeb0805af082672cab81bd785ce133ddc2325a393c54a8ca1"
+    },
+    {
+      "url": "https://www.gia.edu/zircon",
+      "finalUrl": "https://www.gia.edu/zircon",
+      "status": 200,
+      "title": "What Is Zircon Gemstone | Zircon Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "0b1c82f2652adef989cb743f96131a70464ca8252255f797b2dbcc7cdb62bebf"
+    },
+    {
+      "url": "https://www.gia.edu/tanzanite",
+      "finalUrl": "https://www.gia.edu/tanzanite",
+      "status": 200,
+      "title": "What Is Tanzanite Gemstone | Tanzanite Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "766f16c52d3ca89708889b6d838c43dcaf42aea76f7ec8a6bcdffd3364827400"
+    },
+    {
+      "url": "https://www.gia.edu/opal",
+      "finalUrl": "https://www.gia.edu/opal",
+      "status": 200,
+      "title": "Opal Gemstone | Opal Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "5f13c3b6fc27092991e58ecb387d16c3b42fe3b4f84964fc982a4bb4b6b73c4e"
+    },
+    {
+      "url": "https://www.gia.edu/moonstone",
+      "finalUrl": "https://www.gia.edu/moonstone",
+      "status": 200,
+      "title": "What Is Moonstone Gemstone | Moonstone Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "f322c2589915862bf68f34c46dc3c466b0bd868d02da95cee68f99ea1bd15127"
+    },
+    {
+      "url": "https://www.gia.edu/alexandrite",
+      "finalUrl": "https://www.gia.edu/alexandrite",
+      "status": 200,
+      "title": "Alexandrite Gemstone | Natural Alexandrite Stone - GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "b4f126210ea1bdf42bf574dc09a265f9fbe60c6475f04a95fbfa04c4d1d4e359"
+    },
+    {
+      "url": "https://www.gia.edu/diamond",
+      "finalUrl": "https://www.gia.edu/diamond",
+      "status": 200,
+      "title": "Natural Diamonds | Diamond Stone – GIA C",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "db479ad90e703f5fae7911741cb99755b79da9337c741c9270f543bc44c919a5"
+    },
+    {
+      "url": "https://www.gia.edu/morganite",
+      "finalUrl": "https://www.gia.edu/morganite",
+      "status": 200,
+      "title": "What Is Morganite Gemstone | Morganite Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "840c07dfce8f979f231ccd9c84a0615a39a2260819dc6cfcc26a9917728117a5"
+    },
+    {
+      "url": "https://www.gia.edu/jade",
+      "finalUrl": "https://www.gia.edu/jade",
+      "status": 200,
+      "title": "What Is Jade Gemstone | Jade Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "2cc21692389419e6849457febe45d991cbe9a0869fac8ff878c00a97f1a41d0d"
+    },
+    {
+      "url": "https://www.gia.edu/lapis-lazuli",
+      "finalUrl": "https://www.gia.edu/lapis-lazuli",
+      "status": 200,
+      "title": "Lapis Lazuli Gemstone | Lapis Lazuli Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "405ef20fdc8ad4f13b97f219fa2b1c1b6112ce62ab11c3064c1efc3d21219ac0"
+    },
+    {
+      "url": "https://www.gia.edu/turquoise",
+      "finalUrl": "https://www.gia.edu/turquoise",
+      "status": 200,
+      "title": "Turquoise Gemstone | Turquoise Stone – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "7f1243c53276c7b7eccff33cc326ff2e2f0f6a7ad887729772ed79b90dbaa7b4"
+    },
+    {
+      "url": "https://www.gia.edu/pearl",
+      "finalUrl": "https://www.gia.edu/pearl",
+      "status": 200,
+      "title": "Pearl Gemstone | Pearl Stone | Pearl Gem – GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "bb474d5d133b6dc4457adc3d23f7effc294a6419bf38d724a3daabb76755705f"
+    },
+    {
+      "url": "https://www.gia.edu/amber",
+      "finalUrl": "https://www.gia.edu/amber",
+      "status": 200,
+      "title": "Amber Gemstone | Amber Stone - GIA",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "d0bf66ecaf64c07cdf55748af60c35832cb2f1b7e32515bbc946eb66eec00986"
+    },
+    {
+      "url": "https://www.gia.edu/sunstone",
+      "finalUrl": "https://www.gia.edu/sunstone",
+      "status": 200,
+      "title": "Sunstone Gemstone | Sunstone Stone – GIA Gem Encyclopedia",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "55c1b4cb634dc893dd29e9857fe21edb8212dc77ccc13f611a766a12299a57fc"
+    },
+    {
+      "url": "https://www.gia.edu/birthstones",
+      "finalUrl": "https://www.gia.edu/birthstones",
+      "status": 200,
+      "title": "GIA Birthstones",
+      "checkedAt": "2026-10-16T12:38:22.301Z",
+      "contentHash": "59a0384dfcbb08595548511ec0788dbe3f5c440217f49e3439ac2fa2d04e9ca9"
+    }
+  ],
+  "quantitativeChecks": [
+    {
+      "slug": "ruby",
+      "property": "Mohs hardness",
+      "value": "9",
+      "source": "https://www.gia.edu/ruby",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "blue-sapphire",
+      "property": "Mohs hardness",
+      "value": "9",
+      "source": "https://www.gia.edu/sapphire",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "yellow-sapphire",
+      "property": "Mohs hardness",
+      "value": "9",
+      "source": "https://www.gia.edu/sapphire",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "emerald",
+      "property": "Mohs hardness",
+      "value": "7.5–8",
+      "source": "https://www.gia.edu/emerald",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "aquamarine",
+      "property": "Mohs hardness",
+      "value": "7.5–8",
+      "source": "https://www.gia.edu/aquamarine",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "amethyst",
+      "property": "Mohs hardness",
+      "value": "7",
+      "source": "https://www.gia.edu/amethyst",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "citrine",
+      "property": "Mohs hardness",
+      "value": "7",
+      "source": "https://www.gia.edu/citrine",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "peridot",
+      "property": "Mohs hardness",
+      "value": "6.5–7",
+      "source": "https://www.gia.edu/peridot",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "topaz",
+      "property": "Mohs hardness",
+      "value": "8",
+      "source": "https://www.gia.edu/topaz",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "spinel",
+      "property": "Mohs hardness",
+      "value": "8",
+      "source": "https://www.gia.edu/spinel",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "garnet",
+      "property": "Mohs hardness",
+      "value": "6.5–7.5",
+      "source": "https://www.gia.edu/garnet",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "tourmaline",
+      "property": "Mohs hardness",
+      "value": "7–7.5",
+      "source": "https://www.gia.edu/tourmaline",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "zircon",
+      "property": "Mohs hardness",
+      "value": "6–7.5",
+      "source": "https://www.gia.edu/zircon",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "tanzanite",
+      "property": "Mohs hardness",
+      "value": "6–7",
+      "source": "https://www.gia.edu/tanzanite",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "opal",
+      "property": "Mohs hardness",
+      "value": "5–6.5",
+      "source": "https://www.gia.edu/opal",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "moonstone",
+      "property": "Mohs hardness",
+      "value": "6–6.5",
+      "source": "https://www.gia.edu/moonstone",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "alexandrite",
+      "property": "Mohs hardness",
+      "value": "8.5",
+      "source": "https://www.gia.edu/alexandrite",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "diamond",
+      "property": "Mohs hardness",
+      "value": "10",
+      "source": "https://www.gia.edu/diamond",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "morganite",
+      "property": "Mohs hardness",
+      "value": "7.5–8",
+      "source": "https://www.gia.edu/morganite",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "jade",
+      "property": "Mohs hardness",
+      "value": "varies by material",
+      "source": "https://www.gia.edu/jade",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "lapis-lazuli",
+      "property": "Mohs hardness",
+      "value": "varies by composition",
+      "source": "https://www.gia.edu/lapis-lazuli",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "turquoise",
+      "property": "Mohs hardness",
+      "value": "5–6",
+      "source": "https://www.gia.edu/turquoise",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "pearl",
+      "property": "Mohs hardness",
+      "value": "2.5–3",
+      "source": "https://www.gia.edu/pearl",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "amber",
+      "property": "Mohs hardness",
+      "value": "2–2.5",
+      "source": "https://www.gia.edu/amber",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    },
+    {
+      "slug": "sunstone",
+      "property": "Mohs hardness",
+      "value": "6.0–7.2",
+      "source": "https://www.gia.edu/sunstone",
+      "method": "AI cross-check against retrieved primary material reference; material-dependent ranges remain qualified."
+    }
+  ],
+  "corrections": [
+    {
+      "slug": "sunstone",
+      "field": "Mohs hardness",
+      "previous": "6.5–7.2",
+      "corrected": "6.0–7.2",
+      "source": "https://www.gia.edu/sunstone",
+      "date": "2026-10-16"
+    }
+  ]
+}

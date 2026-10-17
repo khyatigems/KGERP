@@ -1,3 +1,5 @@
+> **Current website module — 17 October 2026:** `/website-management` renders `EditorialManager`, the non-commerce publishing studio. The older product/collection/pricing description below is historical and is not the active website backend. Current areas are Coverage, Articles, Media & rights, Site information, Announcements, Search readiness, Usage counts and Enquiries. Read `docs/website-studio.md` for the redesigned controls and validation. Existing business inventory/marketplace functions elsewhere in ERP are outside this change. No production database migration or deployment was performed.
+
 # Website module — development milestone
 
 ## Isolation

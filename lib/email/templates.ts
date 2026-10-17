@@ -1,3 +1,4 @@
+import { websiteEnquiryTemplate } from "./website-enquiry-template";
 import crypto from "crypto";
 import { prisma, ensureBillfreePhase1Schema } from "@/lib/prisma";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
@@ -20,6 +21,7 @@ const DEFAULT_EMAIL_TEMPLATES: Array<{
   htmlBody: string;
   plainTextBody: string;
 }> = [
+  websiteEnquiryTemplate,
   {
     key: "email_invoice",
     title: "Invoice Email",
@@ -147,8 +149,7 @@ export async function listEmailTemplates(): Promise<EmailTemplateRow[]> {
 }
 
 export async function getEmailTemplateByKey(key: string): Promise<EmailTemplateRow | null> {
-  await ensureBillfreePhase1Schema();
-  await ensureMarketplaceFoundationSchema();
+  await ensureDefaultEmailTemplates();
   const rows = await prisma.$queryRawUnsafe<EmailTemplateRow[]>(
     `SELECT id, key, title, subject, htmlBody, plainTextBody, isActive, channel
      FROM "MessageTemplate" WHERE key = ? AND channel = 'EMAIL' LIMIT 1`,

@@ -13,8 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { formatMarketplaceDateTime } from "@/lib/utils";
-import { WebsiteListedProducts } from "@/components/website/listed-products";
-import { websiteEnabled } from "@/lib/website/store";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +25,7 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
   if (!permission.success) redirect("/");
   const params = await searchParams;
   const marketplace = first(params.marketplace) || "";
-  if (marketplace === "WEBSITE" && websiteEnabled()) {
-    const management = await checkPermission(PERMISSIONS.SETTINGS_MANAGE);
-    if (!management.success) redirect("/");
-    return <div className="space-y-5"><h1 className="text-2xl font-semibold">Website · KhyatiGems listings</h1><WebsiteListedProducts /></div>;
-  }
+  if (marketplace === "WEBSITE") redirect("/website-management");
   await ensureMarketplaceFoundationSchema();
   const shopId = first(params.shop) || "";
   const status = first(params.status) ?? "ACTIVE";
@@ -108,7 +102,7 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
     <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">{shops.map((shop) => <div key={shop.id} className="rounded-md border px-3 py-2"><strong>{shop.marketplace} · {shop.name}</strong> · Last listings sync: {formatMarketplaceDateTime(lastSyncByShop.get(shop.id))}</div>)}</div>
     <form className="grid gap-2 rounded-md border p-3 md:grid-cols-6" action="/marketplace-listings" method="get">
       <input name="q" defaultValue={query} placeholder="Search title, SKU or ID" className="h-9 rounded-md border bg-background px-3 text-sm md:col-span-2" />
-      <select name="marketplace" defaultValue={marketplace} className="h-9 rounded-md border bg-background px-2 text-sm"><option value="">All marketplaces</option>{websiteEnabled() && <option value="WEBSITE">Website · KhyatiGems</option>}{[...new Set(shops.map((shop) => shop.marketplace))].map((value) => <option key={value} value={value}>{value}</option>)}</select>
+      <select name="marketplace" defaultValue={marketplace} className="h-9 rounded-md border bg-background px-2 text-sm"><option value="">All marketplaces</option>{[...new Set(shops.map((shop) => shop.marketplace))].map((value) => <option key={value} value={value}>{value}</option>)}</select>
       <select name="shop" defaultValue={shopId} className="h-9 rounded-md border bg-background px-2 text-sm"><option value="">All shops</option>{shops.filter((shop) => !marketplace || shop.marketplace === marketplace).map((shop) => <option key={shop.id} value={shop.id}>{shop.name}</option>)}</select>
       <select name="status" defaultValue={status} className="h-9 rounded-md border bg-background px-2 text-sm"><option value="">All listing states</option><option value="ACTIVE">Active</option><option value="ENDED">Ended</option><option value="SOLD">Sold</option></select>
       <select name="match" defaultValue={match} className="h-9 rounded-md border bg-background px-2 text-sm"><option value="">All match states</option><option value="SYNCED">Matched</option><option value="UNKNOWN_SKU">Unknown SKU</option><option value="MISMATCH">SKU mismatch</option></select>
