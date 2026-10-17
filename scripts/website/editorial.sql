@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS WebsiteEditorialMigration (id TEXT PRIMARY KEY, checksum TEXT NOT NULL, appliedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS WebsiteArticle (id TEXT PRIMARY KEY, kind TEXT NOT NULL, slug TEXT NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)), stage TEXT NOT NULL DEFAULT 'research', revision INTEGER NOT NULL DEFAULT 1, publishedPayload TEXT CHECK(publishedPayload IS NULL OR json_valid(publishedPayload)), publishedRevision INTEGER, publishedAt TEXT, updatedAt TEXT NOT NULL, UNIQUE(kind,slug));
+CREATE INDEX IF NOT EXISTS WebsiteArticle_published ON WebsiteArticle(kind,publishedAt);
+CREATE TABLE IF NOT EXISTS WebsiteArticleRevision (id TEXT PRIMARY KEY, articleId TEXT NOT NULL REFERENCES WebsiteArticle(id), revision INTEGER NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)), stage TEXT NOT NULL, action TEXT NOT NULL, actor TEXT NOT NULL, createdAt TEXT NOT NULL, UNIQUE(articleId,revision));
+CREATE TABLE IF NOT EXISTS WebsiteImageRights (id TEXT PRIMARY KEY, payload TEXT NOT NULL CHECK(json_valid(payload)), revision INTEGER NOT NULL DEFAULT 1, approvedBy TEXT, updatedAt TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS WebsiteEditorialSettings (id TEXT PRIMARY KEY CHECK(id='site'), payload TEXT NOT NULL CHECK(json_valid(payload)), revision INTEGER NOT NULL DEFAULT 1, updatedAt TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS WebsiteEditorialAudit (id TEXT PRIMARY KEY, entityId TEXT NOT NULL, action TEXT NOT NULL, actor TEXT NOT NULL, payload TEXT NOT NULL CHECK(json_valid(payload)), createdAt TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS WebsiteEnquiry (id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL, subject TEXT NOT NULL, message TEXT NOT NULL, consentAt TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new', createdAt TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS WebsiteRequestLimit (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expiresAt INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS WebsiteUploadGrant (id TEXT PRIMARY KEY, actor TEXT NOT NULL, publicId TEXT NOT NULL, mediaType TEXT NOT NULL, expiresAt INTEGER NOT NULL, completedId TEXT);
+CREATE TABLE IF NOT EXISTS WebsiteEditorialBackup (id TEXT PRIMARY KEY, payload TEXT NOT NULL CHECK(json_valid(payload)), createdAt TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS WebsiteIndexObservation (id TEXT PRIMARY KEY, articleId TEXT NOT NULL REFERENCES WebsiteArticle(id), platform TEXT NOT NULL, status TEXT NOT NULL, evidence TEXT NOT NULL, checkedAt TEXT NOT NULL, actor TEXT NOT NULL, UNIQUE(articleId,platform));
+CREATE TABLE IF NOT EXISTS WebsiteUsageMetric (day TEXT NOT NULL, kind TEXT NOT NULL, path TEXT NOT NULL, total INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(day,kind,path));

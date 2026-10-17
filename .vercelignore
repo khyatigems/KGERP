@@ -1,0 +1,11 @@
+node_modules
+.next
+tmp
+.env*
+backups
+migration-artifacts
+KhyatiGems_Images
+scripts/tests
+*.db
+*.bak
+*.log

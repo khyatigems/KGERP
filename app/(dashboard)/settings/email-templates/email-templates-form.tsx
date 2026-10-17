@@ -32,6 +32,8 @@ export interface EmailTemplateViewModel {
 
 const VARIABLES = [
   "customer_name",
+  "enquiry_reference",
+  "enquiry_subject",
   "order_number",
   "order_number_line",
   "purchase_date",

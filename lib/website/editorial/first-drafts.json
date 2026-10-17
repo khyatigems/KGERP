@@ -1,0 +1,543 @@
+[
+  {
+    "id": "gem-ruby",
+    "content": {
+      "kind": "gemstones",
+      "title": "Ruby",
+      "slug": "ruby",
+      "summary": "Ruby is the red variety of corundum, the mineral species that also includes sapphire. Its name describes a gem variety; it does not, by itself, establish natural origin, treatment status or the quality of an individual stone.",
+      "aliases": [
+        "Manik",
+        "माणिक"
+      ],
+      "family": "Corundum",
+      "material": "Mineral",
+      "colours": [
+        "Red",
+        "Purplish red",
+        "Orangy red"
+      ],
+      "parentSlug": "",
+      "properties": [
+        {
+          "name": "Mineral species",
+          "value": "Corundum"
+        },
+        {
+          "name": "Mohs hardness",
+          "value": "9"
+        },
+        {
+          "name": "Refractive index (reference range)",
+          "value": "1.762–1.770"
+        },
+        {
+          "name": "Birefringence (reference range)",
+          "value": "0.008–0.010"
+        },
+        {
+          "name": "Specific gravity (reference value)",
+          "value": "Approximately 4.00"
+        },
+        {
+          "name": "Chemical composition",
+          "value": "Al₂O₃"
+        }
+      ],
+      "sections": [
+        {
+          "heading": "Classification and appearance",
+          "body": "Chromium contributes to ruby’s red colour. Hue can lean towards orange or purple, and appearance also depends on the specimen and viewing conditions. Rather than treating a colour phrase as a universal grade, ask what the seller means and compare the actual stone with its written description.\n\nGIA describes ruby occurrences in both marble and basalt settings. This geological context helps explain why specimens can differ, but it is not a method for assigning an unknown stone to a mine or country. A geographic claim needs its own supporting evidence."
+        },
+        {
+          "heading": "Treatments and disclosure",
+          "body": "Ruby may be untreated or treated, and those distinctions matter when planning care. Heat treatment and fracture filling should not be collapsed into the same description. Glass-filled material can have care limitations that differ from those of untreated or simply heated ruby. Ask for the treatment wording used in the stone’s documentation."
+        },
+        {
+          "heading": "Identification and documentation",
+          "body": "A name on a label is a starting point, not a laboratory conclusion. Ask whether the material has been identified as natural or laboratory grown, which treatments were detected, and which questions the examination actually addressed. Read the report for the individual stone rather than borrowing a conclusion from a similar-looking example.\n\nKeep the report number, stone measurements and seller description together when discussing a purchase. If any of those details disagree, pause and ask for clarification. A reference photograph on this website is an educational example; it cannot establish the identity, treatment or geographic origin of a stone in another listing."
+        },
+        {
+          "heading": "Care and cleaning",
+          "body": "Corundum rates 9 on the Mohs scale. Hardness concerns resistance to scratching; it is not a guarantee against every kind of damage. GIA recommends a damp cloth for fracture-filled, cavity-filled or dyed ruby. Do not choose ultrasonic or steam cleaning without knowing the stone’s treatment and condition."
+        },
+        {
+          "heading": "Questions to ask before choosing a stone",
+          "body": "Request clear photographs under more than one lighting condition and ask which image best represents the stone in ordinary use. Compare dimensions as well as weight, and ask about any treatment-related care requirements before deciding on a setting. These questions are useful even when the gemstone name is familiar.\n\nDo not infer the terms of a sale from this educational article. Availability, a particular report, delivery and return conditions belong to the individual seller and purchase channel. Keep written answers with the relevant listing information so that your decision is based on the stone being offered."
+        },
+        {
+          "heading": "Reading the property table",
+          "body": "The optical and density values here are reference ranges from GIA, not measurements of a pictured specimen. A property table helps you understand the material being discussed; it is not a substitute for a laboratory examination. Results depend on the sample, instrument and method, and more than one observation may be needed to distinguish natural, synthetic and treated material. Ask for the conclusions of the examination rather than attempting to identify an unknown stone from one number."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "What is ruby?",
+          "answer": "Ruby is the red variety of the mineral corundum."
+        },
+        {
+          "question": "What is the hardness of ruby?",
+          "answer": "Ruby has a Mohs hardness of 9. Treatment-related care limitations still matter."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA — Ruby description",
+          "url": "https://www.gia.edu/ruby-description",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA — Ruby care and cleaning",
+          "url": "https://www.gia.edu/ruby-care-cleaning",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA Ruby reference properties",
+          "url": "https://www.gia.edu/ruby",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "imageIds": [],
+      "relatedSlugs": [
+        "blue-sapphire",
+        "yellow-sapphire"
+      ],
+      "seoTitle": "Ruby: Properties, Treatments & Care",
+      "metaDescription": "Learn about ruby, its mineral classification, appearance, treatment disclosure, laboratory evidence and care in the KhyatiGems encyclopedia.",
+      "review": null,
+      "publishAt": ""
+    },
+    "reviewNotes": "Expanded research draft. Optical/density reference values checked against GIA on 14 October 2026. Qualified factual review, formation/geographical source expansion, genuine reviewer attribution and image approval remain required. No reviewer or media approval is inferred."
+  },
+  {
+    "id": "gem-blue-sapphire",
+    "content": {
+      "kind": "gemstones",
+      "title": "Blue Sapphire",
+      "slug": "blue-sapphire",
+      "summary": "Blue sapphire is a blue variety of corundum. It shares its mineral species with ruby and sapphires of other colours. The familiar blue name does not identify a particular geographic source or establish that a specimen is untreated.",
+      "aliases": [
+        "Neelam",
+        "नीलम"
+      ],
+      "family": "Corundum",
+      "material": "Mineral",
+      "colours": [
+        "Blue",
+        "Greenish blue",
+        "Violetish blue"
+      ],
+      "parentSlug": "",
+      "properties": [
+        {
+          "name": "Mineral species",
+          "value": "Corundum"
+        },
+        {
+          "name": "Mohs hardness",
+          "value": "9"
+        },
+        {
+          "name": "Refractive index (reference range)",
+          "value": "1.762–1.770"
+        },
+        {
+          "name": "Birefringence (reference range)",
+          "value": "0.008–0.010"
+        },
+        {
+          "name": "Specific gravity (reference value)",
+          "value": "Approximately 4.00"
+        },
+        {
+          "name": "Chemical composition",
+          "value": "Al₂O₃"
+        }
+      ],
+      "sections": [
+        {
+          "heading": "Classification and appearance",
+          "body": "GIA describes blue sapphire hues from greenish blue to violetish blue. Those colour directions are useful descriptive terms, not proof of origin. Compare an individual stone under consistent conditions and ask which photographs represent its everyday appearance.\n\nWhen reading a trade description, separate observations about colour from claims about treatment and provenance. Each claim answers a different question. A photograph that looks strongly blue cannot substitute for a laboratory examination or a clear treatment disclosure."
+        },
+        {
+          "heading": "Treatments and disclosure",
+          "body": "Sapphire treatment information should be recorded for the particular stone. Heating, diffusion and filling are different subjects, and care should take account of any disclosed enhancement. Ask whether the report addresses treatment, what language it uses and whether the seller has provided additional care instructions. Avoid assuming that every sapphire needs identical handling."
+        },
+        {
+          "heading": "Identification and documentation",
+          "body": "A name on a label is a starting point, not a laboratory conclusion. Ask whether the material has been identified as natural or laboratory grown, which treatments were detected, and which questions the examination actually addressed. Read the report for the individual stone rather than borrowing a conclusion from a similar-looking example.\n\nKeep the report number, stone measurements and seller description together when discussing a purchase. If any of those details disagree, pause and ask for clarification. A reference photograph on this website is an educational example; it cannot establish the identity, treatment or geographic origin of a stone in another listing."
+        },
+        {
+          "heading": "Care and cleaning",
+          "body": "Sapphire rates 9 on the Mohs scale. GIA distinguishes the care of untreated or heated sapphire from filled or dyed material. When the treatment or condition is uncertain, seek stone-specific instructions before using an ultrasonic or steam cleaner. Store it so that it cannot rub against other jewellery."
+        },
+        {
+          "heading": "Questions to ask before choosing a stone",
+          "body": "Request clear photographs under more than one lighting condition and ask which image best represents the stone in ordinary use. Compare dimensions as well as weight, and ask about any treatment-related care requirements before deciding on a setting. These questions are useful even when the gemstone name is familiar.\n\nDo not infer the terms of a sale from this educational article. Availability, a particular report, delivery and return conditions belong to the individual seller and purchase channel. Keep written answers with the relevant listing information so that your decision is based on the stone being offered."
+        },
+        {
+          "heading": "Reading the property table",
+          "body": "The optical and density values here are reference ranges from GIA, not measurements of a pictured specimen. A property table helps you understand the material being discussed; it is not a substitute for a laboratory examination. Results depend on the sample, instrument and method, and more than one observation may be needed to distinguish natural, synthetic and treated material. Ask for the conclusions of the examination rather than attempting to identify an unknown stone from one number."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "What is blue sapphire?",
+          "answer": "Blue sapphire is a blue variety of the mineral corundum."
+        },
+        {
+          "question": "What does Neelam refer to?",
+          "answer": "Neelam is a traditional Indian name commonly used for blue sapphire; it is not a separate mineral species."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA — Sapphire description",
+          "url": "https://www.gia.edu/sapphire-description",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA — Sapphire care and cleaning",
+          "url": "https://www.gia.edu/sapphire-care-cleaning",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA Blue Sapphire reference properties",
+          "url": "https://www.gia.edu/sapphire",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "imageIds": [],
+      "relatedSlugs": [
+        "ruby",
+        "yellow-sapphire"
+      ],
+      "seoTitle": "Blue Sapphire: Properties, Treatments & Care",
+      "metaDescription": "Learn about blue sapphire, its mineral classification, appearance, treatment disclosure, laboratory evidence and care in the KhyatiGems encyclopedia.",
+      "review": null,
+      "publishAt": ""
+    },
+    "reviewNotes": "Expanded research draft. Optical/density reference values checked against GIA on 14 October 2026. Qualified factual review, formation/geographical source expansion, genuine reviewer attribution and image approval remain required. No reviewer or media approval is inferred."
+  },
+  {
+    "id": "gem-yellow-sapphire",
+    "content": {
+      "kind": "gemstones",
+      "title": "Yellow Sapphire",
+      "slug": "yellow-sapphire",
+      "summary": "Yellow sapphire is a yellow variety of corundum, in the same mineral species as blue sapphire and ruby. It is a colour variety rather than an independent mineral species, and its name does not establish the treatment or origin of an individual specimen.",
+      "aliases": [
+        "Pukhraj",
+        "पुखराज"
+      ],
+      "family": "Corundum",
+      "material": "Mineral",
+      "colours": [
+        "Yellow"
+      ],
+      "parentSlug": "",
+      "properties": [
+        {
+          "name": "Mineral species",
+          "value": "Corundum"
+        },
+        {
+          "name": "Mohs hardness",
+          "value": "9"
+        },
+        {
+          "name": "Refractive index (reference range)",
+          "value": "1.762–1.770"
+        },
+        {
+          "name": "Birefringence (reference range)",
+          "value": "0.008–0.010"
+        },
+        {
+          "name": "Specific gravity (reference value)",
+          "value": "Approximately 4.00"
+        },
+        {
+          "name": "Chemical composition",
+          "value": "Al₂O₃"
+        }
+      ],
+      "sections": [
+        {
+          "heading": "Classification and appearance",
+          "body": "Yellow belongs to the range of colours described for fancy sapphire. Assess the particular stone instead of relying on a colour name alone. Ask for photographs in consistent lighting and compare those images with the written description.\n\nTraditional names can be helpful when searching, but they should resolve to an identified material. If a listing uses Pukhraj without a clear gemological identification, ask which material is actually being described. The trade or cultural name is not a substitute for testing the stone."
+        },
+        {
+          "heading": "Treatments and disclosure",
+          "body": "Ask for treatment disclosure that belongs to the actual specimen. Sapphire enhancement and care are connected subjects; a broad statement about sapphire cannot establish the condition of a particular yellow stone. Keep the seller’s explanation and laboratory wording distinct, and request clarification if one appears more specific than the other."
+        },
+        {
+          "heading": "Identification and documentation",
+          "body": "A name on a label is a starting point, not a laboratory conclusion. Ask whether the material has been identified as natural or laboratory grown, which treatments were detected, and which questions the examination actually addressed. Read the report for the individual stone rather than borrowing a conclusion from a similar-looking example.\n\nKeep the report number, stone measurements and seller description together when discussing a purchase. If any of those details disagree, pause and ask for clarification. A reference photograph on this website is an educational example; it cannot establish the identity, treatment or geographic origin of a stone in another listing."
+        },
+        {
+          "heading": "Care and cleaning",
+          "body": "As corundum, sapphire rates 9 on the Mohs scale. A high hardness number should not be read as permission to use every cleaning method. Filled or dyed sapphire requires special care, and a setting may introduce additional cleaning restrictions. Ask for instructions that address both the stone and its disclosed condition."
+        },
+        {
+          "heading": "Questions to ask before choosing a stone",
+          "body": "Request clear photographs under more than one lighting condition and ask which image best represents the stone in ordinary use. Compare dimensions as well as weight, and ask about any treatment-related care requirements before deciding on a setting. These questions are useful even when the gemstone name is familiar.\n\nDo not infer the terms of a sale from this educational article. Availability, a particular report, delivery and return conditions belong to the individual seller and purchase channel. Keep written answers with the relevant listing information so that your decision is based on the stone being offered."
+        },
+        {
+          "heading": "Reading the property table",
+          "body": "The optical and density values here are reference ranges from GIA, not measurements of a pictured specimen. A property table helps you understand the material being discussed; it is not a substitute for a laboratory examination. Results depend on the sample, instrument and method, and more than one observation may be needed to distinguish natural, synthetic and treated material. Ask for the conclusions of the examination rather than attempting to identify an unknown stone from one number."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "What is yellow sapphire?",
+          "answer": "Yellow sapphire is a yellow variety of the mineral corundum."
+        },
+        {
+          "question": "Is Pukhraj a mineral species?",
+          "answer": "Pukhraj is a traditional name used for yellow sapphire, not a separate mineral species."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA — Sapphire description",
+          "url": "https://www.gia.edu/sapphire-description",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA — Sapphire care and cleaning",
+          "url": "https://www.gia.edu/sapphire-care-cleaning",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA Yellow Sapphire reference properties",
+          "url": "https://www.gia.edu/sapphire",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "imageIds": [],
+      "relatedSlugs": [
+        "ruby",
+        "blue-sapphire"
+      ],
+      "seoTitle": "Yellow Sapphire: Properties, Treatments & Care",
+      "metaDescription": "Learn about yellow sapphire, its mineral classification, appearance, treatment disclosure, laboratory evidence and care in the KhyatiGems encyclopedia.",
+      "review": null,
+      "publishAt": ""
+    },
+    "reviewNotes": "Expanded research draft. Optical/density reference values checked against GIA on 14 October 2026. Qualified factual review, formation/geographical source expansion, genuine reviewer attribution and image approval remain required. No reviewer or media approval is inferred."
+  },
+  {
+    "id": "gem-emerald",
+    "content": {
+      "kind": "gemstones",
+      "title": "Emerald",
+      "slug": "emerald",
+      "summary": "Emerald is a green to bluish green variety of beryl. Aquamarine belongs to the same mineral species, but the names describe different varieties. The boundary between emerald and lighter green beryl is not expressed identically by every expert or laboratory.",
+      "aliases": [
+        "Panna",
+        "पन्ना"
+      ],
+      "family": "Beryl",
+      "material": "Mineral",
+      "colours": [
+        "Green",
+        "Bluish green"
+      ],
+      "parentSlug": "",
+      "properties": [
+        {
+          "name": "Mineral species",
+          "value": "Beryl"
+        },
+        {
+          "name": "Mohs hardness",
+          "value": "7.5–8"
+        },
+        {
+          "name": "Refractive index (reference range)",
+          "value": "1.577–1.583"
+        },
+        {
+          "name": "Birefringence (reference range)",
+          "value": "0.005–0.009"
+        },
+        {
+          "name": "Specific gravity (reference value)",
+          "value": "Approximately 2.72"
+        },
+        {
+          "name": "Chemical composition",
+          "value": "Be₃Al₂Si₆O₁₈"
+        }
+      ],
+      "sections": [
+        {
+          "heading": "Classification and appearance",
+          "body": "GIA notes differences of opinion about how light a green beryl can be while still being called emerald. Ask which identification has been recorded for the actual stone instead of making a universal rule from a colour photograph.\n\nLook at colour and visible characteristics together, and distinguish your visual observations from laboratory conclusions. An inclusion seen in an image can be a useful point to discuss, but an isolated photograph does not establish treatment or geographic provenance. Request explanations that relate to the specimen, not merely to emerald in general."
+        },
+        {
+          "heading": "Treatments and disclosure",
+          "body": "Surface-reaching fractures in emerald may be filled with materials such as oils, resins or polymers. Ask what treatment information is available and whether it affects handling, cleaning or future maintenance. Do not interpret a natural-origin description as a statement that the stone has received no enhancement."
+        },
+        {
+          "heading": "Identification and documentation",
+          "body": "A name on a label is a starting point, not a laboratory conclusion. Ask whether the material has been identified as natural or laboratory grown, which treatments were detected, and which questions the examination actually addressed. Read the report for the individual stone rather than borrowing a conclusion from a similar-looking example.\n\nKeep the report number, stone measurements and seller description together when discussing a purchase. If any of those details disagree, pause and ask for clarification. A reference photograph on this website is an educational example; it cannot establish the identity, treatment or geographic origin of a stone in another listing."
+        },
+        {
+          "heading": "Care and cleaning",
+          "body": "Emerald rates 7.5 to 8 on the Mohs scale. GIA warns that heat, chemicals, ultrasonic vibration and steam can create problems for fractured or filled stones. Gentle cleaning with warm soapy water is the safer general approach described in its guide. Obtain specific advice for the condition and treatment of an individual emerald."
+        },
+        {
+          "heading": "Questions to ask before choosing a stone",
+          "body": "Request clear photographs under more than one lighting condition and ask which image best represents the stone in ordinary use. Compare dimensions as well as weight, and ask about any treatment-related care requirements before deciding on a setting. These questions are useful even when the gemstone name is familiar.\n\nDo not infer the terms of a sale from this educational article. Availability, a particular report, delivery and return conditions belong to the individual seller and purchase channel. Keep written answers with the relevant listing information so that your decision is based on the stone being offered."
+        },
+        {
+          "heading": "Reading the property table",
+          "body": "The optical and density values here are reference ranges from GIA, not measurements of a pictured specimen. A property table helps you understand the material being discussed; it is not a substitute for a laboratory examination. Results depend on the sample, instrument and method, and more than one observation may be needed to distinguish natural, synthetic and treated material. Ask for the conclusions of the examination rather than attempting to identify an unknown stone from one number."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "What is emerald?",
+          "answer": "Emerald is a green to bluish green variety of beryl."
+        },
+        {
+          "question": "Can I steam-clean emerald?",
+          "answer": "Steam cleaning is risky for emerald, particularly where fractures or fillings are present. Ask for treatment-sensitive cleaning advice."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA — Emerald description",
+          "url": "https://www.gia.edu/emerald-description",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA — Emerald care and cleaning",
+          "url": "https://www.gia.edu/emerald-care-cleaning",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA Emerald reference properties",
+          "url": "https://www.gia.edu/emerald",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "imageIds": [],
+      "relatedSlugs": [
+        "aquamarine"
+      ],
+      "seoTitle": "Emerald: Properties, Treatments & Care",
+      "metaDescription": "Learn about emerald, its mineral classification, appearance, treatment disclosure, laboratory evidence and care in the KhyatiGems encyclopedia.",
+      "review": null,
+      "publishAt": ""
+    },
+    "reviewNotes": "Expanded research draft. Optical/density reference values checked against GIA on 14 October 2026. Qualified factual review, formation/geographical source expansion, genuine reviewer attribution and image approval remain required. No reviewer or media approval is inferred."
+  },
+  {
+    "id": "gem-aquamarine",
+    "content": {
+      "kind": "gemstones",
+      "title": "Aquamarine",
+      "slug": "aquamarine",
+      "summary": "Aquamarine is the green-blue to blue variety of beryl. It shares its mineral species with emerald, but its colour range and variety name are different. A pleasing blue appearance does not establish that an individual stone is untreated.",
+      "aliases": [],
+      "family": "Beryl",
+      "material": "Mineral",
+      "colours": [
+        "Blue",
+        "Greenish blue"
+      ],
+      "parentSlug": "",
+      "properties": [
+        {
+          "name": "Mineral species",
+          "value": "Beryl"
+        },
+        {
+          "name": "Mohs hardness",
+          "value": "7.5–8"
+        },
+        {
+          "name": "Refractive index (reference range)",
+          "value": "1.577–1.583"
+        },
+        {
+          "name": "Birefringence (reference range)",
+          "value": "0.005–0.009"
+        },
+        {
+          "name": "Specific gravity (reference value)",
+          "value": "Approximately 2.72"
+        },
+        {
+          "name": "Chemical composition",
+          "value": "Be₃Al₂Si₆O₁₈"
+        }
+      ],
+      "sections": [
+        {
+          "heading": "Classification and appearance",
+          "body": "GIA describes aquamarine’s colour as commonly light and pastel. Heating can give it a bluer appearance. Ask how the stone has been described and what treatment information accompanies it; a photograph alone cannot resolve that history.\n\nFor a practical comparison, request images under consistent conditions and consider the face-up dimensions alongside weight. Keep descriptive preferences separate from identification. A colour that you like is a selection preference, while natural origin and treatment are questions that require supporting evidence."
+        },
+        {
+          "heading": "Treatments and disclosure",
+          "body": "Treatment information should accompany the individual stone. GIA notes that aquamarine is rarely fracture filled and identifies additional cleaning concerns where fractures or liquid inclusions are present. Ask whether any such condition has been recorded rather than assuming that all aquamarines have the same care profile."
+        },
+        {
+          "heading": "Identification and documentation",
+          "body": "A name on a label is a starting point, not a laboratory conclusion. Ask whether the material has been identified as natural or laboratory grown, which treatments were detected, and which questions the examination actually addressed. Read the report for the individual stone rather than borrowing a conclusion from a similar-looking example.\n\nKeep the report number, stone measurements and seller description together when discussing a purchase. If any of those details disagree, pause and ask for clarification. A reference photograph on this website is an educational example; it cannot establish the identity, treatment or geographic origin of a stone in another listing."
+        },
+        {
+          "heading": "Care and cleaning",
+          "body": "Aquamarine rates 7.5 to 8 on the Mohs scale. Protect it from scratching and knocks. GIA recommends warm soapy water as a safe general cleaning method and advises against heat exposure. Ultrasonic or steam cleaning should not be selected without considering fractures, inclusions and any disclosed treatment."
+        },
+        {
+          "heading": "Questions to ask before choosing a stone",
+          "body": "Request clear photographs under more than one lighting condition and ask which image best represents the stone in ordinary use. Compare dimensions as well as weight, and ask about any treatment-related care requirements before deciding on a setting. These questions are useful even when the gemstone name is familiar.\n\nDo not infer the terms of a sale from this educational article. Availability, a particular report, delivery and return conditions belong to the individual seller and purchase channel. Keep written answers with the relevant listing information so that your decision is based on the stone being offered."
+        },
+        {
+          "heading": "Reading the property table",
+          "body": "The optical and density values here are reference ranges from GIA, not measurements of a pictured specimen. A property table helps you understand the material being discussed; it is not a substitute for a laboratory examination. Results depend on the sample, instrument and method, and more than one observation may be needed to distinguish natural, synthetic and treated material. Ask for the conclusions of the examination rather than attempting to identify an unknown stone from one number."
+        }
+      ],
+      "faqs": [
+        {
+          "question": "What is aquamarine?",
+          "answer": "Aquamarine is the green-blue to blue variety of beryl."
+        },
+        {
+          "question": "What is the hardness of aquamarine?",
+          "answer": "Aquamarine has a Mohs hardness of 7.5 to 8."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA — Aquamarine description",
+          "url": "https://www.gia.edu/aquamarine-description",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA — Aquamarine care and cleaning",
+          "url": "https://www.gia.edu/aquamarine-care-cleaning",
+          "checkedAt": "2026-10-13"
+        },
+        {
+          "title": "GIA Aquamarine reference properties",
+          "url": "https://www.gia.edu/aquamarine",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "imageIds": [],
+      "relatedSlugs": [
+        "emerald"
+      ],
+      "seoTitle": "Aquamarine: Properties, Treatments & Care",
+      "metaDescription": "Learn about aquamarine, its mineral classification, appearance, treatment disclosure, laboratory evidence and care in the KhyatiGems encyclopedia.",
+      "review": null,
+      "publishAt": ""
+    },
+    "reviewNotes": "Expanded research draft. Optical/density reference values checked against GIA on 14 October 2026. Qualified factual review, formation/geographical source expansion, genuine reviewer attribution and image approval remain required. No reviewer or media approval is inferred."
+  }
+]

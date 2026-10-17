@@ -1,0 +1,39 @@
+.kg-announcement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  padding: 12px 24px;
+  font:
+    500 14px/1.6 Arial,
+    sans-serif;
+  text-align: center;
+  overflow-wrap: anywhere;
+  background: #162742;
+  color: #fff;
+}
+.kg-announcement a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-weight: 600;
+}
+.kg-announcement a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+.kg-announcement--gold {
+  background: #f3e6c7;
+  color: #302719;
+}
+.kg-announcement--neutral {
+  background: #edf1f5;
+  color: #243246;
+}
+@media (max-width: 480px) {
+  .kg-announcement {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}

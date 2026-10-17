@@ -1,0 +1,184 @@
+[
+  {
+    "id": "guides-natural-laboratory-grown-and-imitation-gemstones",
+    "content": {
+      "kind": "guides",
+      "title": "Natural, laboratory-grown and imitation gemstones",
+      "slug": "natural-laboratory-grown-and-imitation-gemstones",
+      "summary": "Keep material identity, natural or laboratory origin, and imitation separate when reading a gemstone description.",
+      "sections": [
+        {
+          "heading": "Three questions",
+          "body": "Begin by asking what material the stone is, how it formed, and how it is represented. A laboratory-grown counterpart can share the chemical and optical properties of the natural material. An imitation resembles a named gemstone while being a different material. These descriptions answer different questions, so avoid treating them as interchangeable labels.\n\nFor example, a synthetic ruby is not simply a red object that resembles ruby. Conversely, a ruby imitation should be described by its actual material as well as its visual purpose. When a description is unclear, ask the seller to put the material and origin statement in writing."
+        },
+        {
+          "heading": "A practical description checklist",
+          "body": "Read the full description rather than relying on a short title. Ask whether identity was examined, whether natural or laboratory-grown origin was determined, and what treatment information is available. Keep those answers with the report and the individual listing. A photograph of another specimen does not resolve a question about your stone.\n\nTreat an incomplete answer as a missing answer. A seller may have an identification but no treatment assessment. Record the scope of the evidence instead of filling the gap from a familiar name. If the distinction matters to your decision, seek appropriate independent testing before purchasing or setting the stone."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA reference",
+          "url": "https://www.gia.edu/gem-synthetic",
+          "checkedAt": "2026-10-14"
+        },
+        {
+          "title": "GIA reference",
+          "url": "https://www.gia.edu/gem-imitation",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "relatedSlugs": [],
+      "seoTitle": "Natural, laboratory-grown and imitation gemstones | KhyatiGems",
+      "metaDescription": "Keep material identity, natural or laboratory origin, and imitation separate when reading a gemstone description.",
+      "review": null,
+      "imageIds": []
+    },
+    "reviewNotes": "Original research draft. Qualified factual review, named reviewer and any media approval remain pending."
+  },
+  {
+    "id": "guides-gemstone-treatment-disclosure",
+    "content": {
+      "kind": "guides",
+      "title": "Gemstone treatment disclosure",
+      "slug": "gemstone-treatment-disclosure",
+      "summary": "Ask what treatment was performed on the individual gemstone, what evidence supports that description, and whether it changes the care required.",
+      "sections": [
+        {
+          "heading": "Appearance and care",
+          "body": "Treatments can change colour or apparent clarity, and some introduce different care requirements. Treatment terms describe processes rather than an overall quality grade. The presence of a treatment does not, by itself, describe the amount of treatment or the suitability of an individual stone for a particular use.\n\nAsk for a precise description. A broad phrase such as enhanced leaves several questions unanswered. Request the treatment name, any known precautions, and the basis for the statement. Distinguish a seller declaration from a laboratory finding; they are different forms of evidence."
+        },
+        {
+          "heading": "What to record",
+          "body": "Keep the treatment description alongside the material name, measurements and report number. If a report includes comments or qualifications, read them together with the main identification. Do not transfer a conclusion from one item to a similar-looking stone.\n\nBefore cleaning, repairing or resetting the gemstone, pass the information to the professional doing the work. Explain uncertainty instead of guessing. An examination may be appropriate when the treatment record is missing.\n\nYour purchase preference can include treatment limitations, but communicate those requirements explicitly. Ask the seller to confirm them for the individual item and review the relevant channel’s purchase terms before paying. This article does not determine treatment status or promise a result for a photographed specimen."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA reference",
+          "url": "https://www.gia.edu/gem-treatment",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "relatedSlugs": [],
+      "seoTitle": "Gemstone treatment disclosure | KhyatiGems",
+      "metaDescription": "Ask what treatment was performed on the individual gemstone, what evidence supports that description, and whether it changes the care required.",
+      "review": null,
+      "imageIds": []
+    },
+    "reviewNotes": "Original research draft. Qualified factual review, named reviewer and any media approval remain pending."
+  },
+  {
+    "id": "guides-reading-a-gemstone-laboratory-report",
+    "content": {
+      "kind": "guides",
+      "title": "Reading a gemstone laboratory report",
+      "slug": "reading-a-gemstone-laboratory-report",
+      "summary": "Read the identification, detected treatments and stated scope of a laboratory report before drawing conclusions about an individual gemstone.",
+      "sections": [
+        {
+          "heading": "Match the report to the stone",
+          "body": "A GIA coloured-stone identification report records material identity, natural or laboratory-grown origin and detectable treatments, together with descriptive information. These are findings about the examined material. Start by matching the report number and listed dimensions or other identifying details to the item you are considering.\n\nRead all comments and limitations. A seller summary can omit a qualification that matters to your decision. If the report and listing disagree, ask for an explanation before proceeding. A familiar laboratory name does not make every seller statement part of the examination."
+        },
+        {
+          "heading": "Understand the scope",
+          "body": "Identification, geographic origin and monetary valuation are separate questions. Choose documentation that addresses the question you need answered. Do not infer geographic origin from an identification statement, and do not read an educational property table as a report on the offered stone.\n\nUse the laboratory’s official verification process where available and inspect the actual report rather than an edited screenshot. Verification of a report record should still be combined with checking that it relates to the correct item.\n\nKeep the report, listing and seller answers together. A report informs a decision; it does not replace reading the sale terms or assessing suitability. When wording is unclear, seek clarification from the issuing laboratory or a suitably qualified professional."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA reference",
+          "url": "https://www.gia.edu/analysis-grading-sample-report-colored-stone?reporttype=colored-stone-identification-report",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "relatedSlugs": [],
+      "seoTitle": "Reading a gemstone laboratory report | KhyatiGems",
+      "metaDescription": "Read the identification, detected treatments and stated scope of a laboratory report before drawing conclusions about an individual gemstone.",
+      "review": null,
+      "imageIds": []
+    },
+    "reviewNotes": "Original research draft. Qualified factual review, named reviewer and any media approval remain pending."
+  },
+  {
+    "id": "families-corundum",
+    "content": {
+      "kind": "families",
+      "title": "Corundum family",
+      "slug": "corundum",
+      "summary": "Ruby and sapphire are gemstone varieties of corundum. Family membership organizes research but does not establish the origin or treatment of a specimen.",
+      "sections": [
+        {
+          "heading": "Species and varieties",
+          "body": "Corundum is the mineral species that includes ruby and sapphire. Ruby describes the red variety; sapphire includes blue and other non-ruby colours. Yellow and blue sapphires are therefore researched within the same mineral family, while their appearance and descriptive questions may differ.\n\nSimilar underlying properties do not imply identical commercial descriptions or treatment histories. Keep family classification separate from the record of a particular stone."
+        },
+        {
+          "heading": "Using the family reference",
+          "body": "Begin with the individual variety page for the colour or phenomenon being discussed. Compare reference properties and treatment explanations, then check which questions have been examined for the stone being offered. A photograph alone cannot establish those conclusions.\n\nWhen comparing corundum varieties, use consistent viewing conditions and ask for the same categories of information for both stones. A comparison is weaker when one description supplies a report and the other supplies only a name.\n\nThis overview is an organizing entry point rather than an identification service. Each variety page should carry sources, relevant care information and genuine reviewer attribution. Optical-effect and synthetic-material entries need their own research. Do not infer those details from a general family label or treat a reference photo as documentation for an unknown specimen."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA reference",
+          "url": "https://www.gia.edu/ruby",
+          "checkedAt": "2026-10-14"
+        },
+        {
+          "title": "GIA reference",
+          "url": "https://www.gia.edu/sapphire",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "relatedSlugs": [
+        "ruby",
+        "blue-sapphire",
+        "yellow-sapphire"
+      ],
+      "seoTitle": "Corundum family | KhyatiGems",
+      "metaDescription": "Ruby and sapphire are gemstone varieties of corundum. Family membership organizes research but does not establish the origin or treatment of a specimen.",
+      "review": null,
+      "imageIds": []
+    },
+    "reviewNotes": "Original research draft. Qualified factual review, named reviewer and any media approval remain pending."
+  },
+  {
+    "id": "families-beryl",
+    "content": {
+      "kind": "families",
+      "title": "Beryl family",
+      "slug": "beryl",
+      "summary": "Emerald and aquamarine are varieties of beryl. Shared mineral identity does not make their appearance, treatment sensitivity or buying questions identical.",
+      "sections": [
+        {
+          "heading": "Two familiar varieties",
+          "body": "Emerald and aquamarine belong to beryl. Emerald is associated with green colour and aquamarine with blue to greenish-blue appearance. The distinction between emerald and light green beryl can involve differences in colour descriptions used by laboratories and the trade. Avoid deciding a variety from an edited photograph alone.\n\nThe shared family gives a starting point for property comparisons. It does not mean every beryl variety can be handled identically. Use the actual variety and known treatment when consulting care guidance."
+        },
+        {
+          "heading": "Questions for a useful comparison",
+          "body": "Ask for consistent photographs, measurements and a clear material description. Compare the information available for each stone rather than only its colour name. Request individual treatment records and relevant precautions.\n\nDo not assume origin from a family name. Mineral classification identifies a relationship, while geographic origin is a separate question that may require specialist evidence. Mentioning a producing country in an educational article does not establish provenance for a pictured specimen.\n\nUse individual variety entries to explore the issues in more detail. Keep unresolved questions visible when deciding whether further testing is needed. These references support research and discussion; they do not replace an examination or verify a seller’s statements about availability, quality or geographic source. Seek clarification whenever two descriptions answer different questions."
+        }
+      ],
+      "sources": [
+        {
+          "title": "GIA reference",
+          "url": "https://www.gia.edu/emerald",
+          "checkedAt": "2026-10-14"
+        },
+        {
+          "title": "GIA reference",
+          "url": "https://www.gia.edu/aquamarine",
+          "checkedAt": "2026-10-14"
+        }
+      ],
+      "relatedSlugs": [
+        "emerald",
+        "aquamarine"
+      ],
+      "seoTitle": "Beryl family | KhyatiGems",
+      "metaDescription": "Emerald and aquamarine are varieties of beryl. Shared mineral identity does not make their appearance, treatment sensitivity or buying questions identical.",
+      "review": null,
+      "imageIds": []
+    },
+    "reviewNotes": "Original research draft. Qualified factual review, named reviewer and any media approval remain pending."
+  }
+]

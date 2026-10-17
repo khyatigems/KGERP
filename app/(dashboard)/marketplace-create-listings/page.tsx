@@ -6,8 +6,6 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { ListingPreparationClient } from "@/components/marketplace/listing-preparation-client";
 import { EbayConnector } from "@/lib/marketplace/connectors/ebay";
 import { hasOAuthScope } from "@/lib/marketplace/scopes";
-import { WebsiteCreateListing } from "@/components/website/create-listing";
-import { websiteEnabled } from "@/lib/website/store";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +17,7 @@ export default async function MarketplaceCreateListingsPage({searchParams}:{sear
   const permission = await checkPermission(PERMISSIONS.LISTINGS_VIEW);
   if (!permission.success) redirect("/");
   const params=await searchParams;
-  if(params.marketplace==="WEBSITE"&&websiteEnabled())return <WebsiteCreateListing listingId={params.listing}/>;
+  if(params.marketplace==="WEBSITE") redirect("/website-management");
 
   const shops = await prisma.marketplaceShop.findMany({
       where: {
@@ -48,7 +46,6 @@ export default async function MarketplaceCreateListingsPage({searchParams}:{sear
     }
   }));
   return <ListingPreparationClient
-    websiteAvailable={websiteEnabled()}
     ebayShops={ebayShops}
     etsyShops={shops.filter((shop) => shop.marketplace === "ETSY").map((shop) => ({
       id: shop.id,
