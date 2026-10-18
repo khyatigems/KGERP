@@ -324,6 +324,20 @@ export async function saveImage(
   }
   return transaction(async (tx) => {
     const id = input.id || randomUUID();
+    if (input.id && parsed.status === "archived") {
+      const uses = await tx.execute({
+        sql: "SELECT id FROM WebsiteArticle WHERE EXISTS(SELECT 1 FROM json_each(payload,'$.imageIds') WHERE value=?) OR EXISTS(SELECT 1 FROM json_each(publishedPayload,'$.imageIds') WHERE value=?) LIMIT 1",
+        args: [id, id],
+      });
+      const placements = await tx.execute({
+        sql: "SELECT id FROM WebsiteEditorialSettings WHERE json_extract(payload,'$.heroImageId')=? OR json_extract(payload,'$.heroVideoId')=? OR json_extract(payload,'$.brandImageId')=? OR EXISTS(SELECT 1 FROM json_each(payload,'$.heroGalleryIds') WHERE value=?) OR EXISTS(SELECT 1 FROM json_each(payload,'$.galleryImageIds') WHERE value=?) LIMIT 1",
+        args: [id, id, id, id, id],
+      });
+      if (uses.rows.length || placements.rows.length)
+        throw new Error(
+          "This media is in use. Remove its article and website placements before archiving it.",
+        );
+    }
     if (input.id) {
       const result = await tx.execute({
         sql: "UPDATE WebsiteImageRights SET payload=?,revision=revision+1,approvedBy=?,updatedAt=? WHERE id=? AND revision=?",
@@ -469,6 +483,7 @@ export async function publicFeed(now = Date.now()): Promise<PublicFeed> {
         [
           value.heroImageId,
           value.heroVideoId,
+          ...value.heroGalleryIds,
           value.brandImageId,
           ...value.galleryImageIds,
         ].includes(asset.id) &&
@@ -493,6 +508,9 @@ export async function publicFeed(now = Date.now()): Promise<PublicFeed> {
       )
         ? value.brandImageId
         : "",
+      heroGalleryIds: value.heroGalleryIds.filter((id) =>
+        homepageMedia.some((asset) => asset.id === id),
+      ),
       galleryImageIds: value.galleryImageIds.filter((id) =>
         homepageMedia.some((asset) => asset.id === id),
       ),

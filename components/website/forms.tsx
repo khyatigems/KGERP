@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-type Answer = { answer: string; sources: { title: string; url: string }[] };
+type Answer = {answer:string;sources:{title:string;url:string}[];images?:{url:string;alt:string;caption:string;attribution:string;sourceUrl:string;licenseUrl:string;license:string;articleUrl:string;articleTitle:string}[]};
 export function AssistantForm({ suggestions }: { suggestions: string[] }) {
   const [question, setQuestion] = useState(""),
     [answer, setAnswer] = useState<Answer | null>(null),
@@ -60,7 +60,8 @@ export function AssistantForm({ suggestions }: { suggestions: string[] }) {
         {message}
         {answer && (
           <div className="answer">
-            <p>{answer.answer}</p>
+            <p style={{whiteSpace:"pre-line"}}>{answer.answer}</p>
+            {!!answer.images?.length&&<div className="assistant-images">{answer.images.map(image=><figure key={image.url}><a href={image.articleUrl}><img src={image.url} alt={image.alt} width={320} height={240} loading="lazy"/></a><figcaption><a href={image.articleUrl}>{image.articleTitle}</a><p>{image.caption}</p><small>{image.attribution} · <a href={image.sourceUrl}>Original source</a> · <a href={image.licenseUrl}>{image.license}</a></small></figcaption></figure>)}</div>}
             {answer.sources.map((s) => (
               <a key={s.url} href={s.url}>
                 {s.title} →

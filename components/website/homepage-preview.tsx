@@ -24,7 +24,7 @@ export function Homepage({
           .map((slug) => gems.find((article) => article.slug === slug))
           .filter((article): article is PublicArticle => Boolean(article))
       : gems
-  ).slice(0, 4);
+  ).slice(0, 6);
   const availableGuides = articles.filter(
     (article) => article.kind === "guides",
   );
@@ -36,7 +36,7 @@ export function Homepage({
           )
           .filter((article): article is PublicArticle => Boolean(article))
       : availableGuides
-  ).slice(0, 3);
+  ).slice(0, 6);
   const heroImage = homepageMedia.find(
     (asset) => asset.id === settings.heroImageId && asset.mediaType === "image",
   );
@@ -49,7 +49,7 @@ export function Homepage({
   );
   const content = (
     <>
-      <BrandHero settings={settings} image={heroImage} video={heroVideo} />
+      <BrandHero settings={settings} image={heroImage} video={heroVideo} gallery={settings.heroGalleryIds.map(id=>homepageMedia.find(a=>a.id===id&&a.mediaType==="image")).filter((a):a is NonNullable<typeof a>=>!!a)}/>
       <div className="brand-commitments" aria-label="Our approach">
         <span>Clear gemstone information</span>
         <span>Documentation in context</span>
@@ -77,18 +77,18 @@ export function Homepage({
           </a>
           <form
             className="brand-library-search"
-            action="/gemstones"
+            action="/search"
             role="search"
           >
             <label htmlFor="home-query">
-              Find a gemstone or traditional name
+              Find a gemstone, guide or topic
             </label>
             <div>
               <input
                 type="search"
                 name="q"
                 id="home-query"
-                placeholder="Try sapphire, ruby or Neelam"
+                placeholder="Try ruby, treatment or laboratory reports"
                 maxLength={120}
               />
               <button type="submit">Search</button>
@@ -153,7 +153,7 @@ export function Homepage({
           <a href="/gemstones">View all gemstones →</a>
         </div>
         {featured.length ? (
-          <div className="home-feature-grid">
+          <div className={`home-feature-grid${featured.length > 4 ? " home-feature-grid-six" : ""}`}>
             {featured.map((article) => {
               const image = article.images.find(
                 (asset) => asset.mediaType === "image",

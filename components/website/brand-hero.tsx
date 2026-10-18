@@ -16,10 +16,12 @@ export function BrandHero({
   settings,
   image,
   video,
+  gallery = [],
 }: {
   settings: SiteSettings;
   image?: ImageAsset;
   video?: ImageAsset;
+  gallery?: ImageAsset[];
 }) {
   const heading = settings.heading.match(/^(.*?[.!?])\s+(.+)$/);
   const slides: Slide[] = [
@@ -46,17 +48,30 @@ export function BrandHero({
         "Explore gemstone properties, treatments and care. Discover the questions that help you understand an individual stone.",
       caption: image?.caption || "Illustrative brand artwork",
     },
-    {
-      type: "image",
-      url: "/media/hero-bracelets.webp",
-      alt: "Gemstone bracelets and a gemstone tree in a KhyatiGems brand composition",
-      eyebrow: "A considered place to begin",
-      title: "Beautiful details.",
-      emphasis: "Thoughtful questions.",
-      description:
-        "Learn about gemstone materials, the meaning of their names and the documentation that helps put their details in context.",
-      caption: "Illustrative brand artwork",
-    },
+    ...(gallery.length
+      ? gallery.map((asset) => ({
+          type: "image" as const,
+          url: asset.url,
+          alt: asset.alt,
+          eyebrow: "From KhyatiGems",
+          title: "Discover more.",
+          emphasis: "Understand clearly.",
+          description: settings.introduction,
+          caption: asset.caption || asset.title,
+        }))
+      : [
+          {
+            type: "image" as const,
+            url: "/media/hero-bracelets.webp",
+            alt: "Gemstone bracelets and a gemstone tree in a KhyatiGems brand composition",
+            eyebrow: "A considered place to begin",
+            title: "Beautiful details.",
+            emphasis: "Thoughtful questions.",
+            description:
+              "Learn about gemstone materials, the meaning of their names and the documentation that helps put their details in context.",
+            caption: "Illustrative brand artwork",
+          },
+        ]),
   ];
   const [current, setCurrent] = useState(0),
     [paused, setPaused] = useState(false),
@@ -70,6 +85,13 @@ export function BrandHero({
   }, []);
   const player = useRef<HTMLVideoElement>(null);
   const next = () => setCurrent((index) => (index + 1) % slides.length);
+  useEffect(() => {
+    if (current === 0 && player.current && player.current.readyState >= 1)
+      player.current.currentTime = Math.min(
+        settings.heroVideoStart,
+        Math.max(0, player.current.duration - 0.1),
+      );
+  }, [current, settings.heroVideoStart]);
   useEffect(() => {
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
     const media = player.current;
@@ -101,9 +123,9 @@ export function BrandHero({
       return;
     const timer = setTimeout(() => {
       if (!document.hidden) next();
-    }, 7500);
+    }, settings.heroSlideSeconds * 1000);
     return () => clearTimeout(timer);
-  }, [current, paused, hovered, visible]);
+  }, [current, paused, hovered, visible, settings.heroSlideSeconds]);
   const slide = slides[current];
   return (
     <section
@@ -158,6 +180,26 @@ export function BrandHero({
           playsInline
           preload="metadata"
           poster={slides[0].poster}
+          style={{
+            objectPosition: `${settings.heroVideoPositionX}% ${settings.heroVideoPositionY}%`,
+          }}
+          onLoadedMetadata={(event) => {
+            if (settings.heroVideoStart > 0)
+              event.currentTarget.currentTime = Math.min(
+                settings.heroVideoStart,
+                Math.max(0, event.currentTarget.duration - 0.1),
+              );
+          }}
+          onTimeUpdate={(event) => {
+            if (
+              current === 0 &&
+              settings.heroVideoEnd > settings.heroVideoStart &&
+              event.currentTarget.currentTime >= settings.heroVideoEnd
+            ) {
+              event.currentTarget.pause();
+              next();
+            }
+          }}
           onEnded={next}
           onVolumeChange={(event) => setMuted(event.currentTarget.muted)}
           aria-label={slides[0].alt}
@@ -178,6 +220,10 @@ export function BrandHero({
             className={
               current === index + 1 ? "brand-slide active" : "brand-slide"
             }
+            style={{
+              objectPosition: `${settings.heroImagePositionX}% ${settings.heroImagePositionY}%`,
+              transform: `scale(${settings.heroImageZoom})`,
+            }}
             src={item.url}
             alt={item.alt}
             aria-hidden={current !== index + 1}

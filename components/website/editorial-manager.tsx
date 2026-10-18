@@ -14,7 +14,21 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { AnnouncementStudio } from "./announcement-studio";
+import { HomepageStudio } from "./homepage-studio";
+import { HeroMediaStudio } from "./hero-media-studio";
+import { MediaLibraryTable } from "./media-library-table";
 const workspaces = [
+  {
+    name: "Homepage",
+    icon: PanelTop,
+    description:
+      "Arrange sections, preview the page and select featured articles",
+  },
+  {
+    name: "Hero media",
+    icon: Images,
+    description: "Upload, select and adjust hero images and video",
+  },
   {
     name: "Coverage",
     icon: LayoutDashboard,
@@ -395,7 +409,10 @@ export function EditorialManager() {
           : "Editorial stage updated.",
     );
   }
-  async function upload(file: File) {
+  async function upload(
+    file: File,
+    purpose: "reference" | "brand" = "reference",
+  ) {
     const mediaType = file.type.startsWith("video/") ? "video" : "image";
     if (
       !(
@@ -431,19 +448,33 @@ export function EditorialManager() {
     });
     const result = await verified.json();
     if (!verified.ok) throw new Error(result.error);
-    const next = await load();
-    setMedia(next.images.find((i) => i.id === result.id) || null);
+    let next = await load();
+    let asset = next.images.find((i) => i.id === result.id);
+    if (asset && purpose === "brand") {
+      const { id, revision, ...payload } = asset;
+      await write({
+        type: "image",
+        id,
+        revision,
+        payload: { ...payload, purpose: "brand", status: "pending" },
+      });
+      next = await load();
+      asset = next.images.find((i) => i.id === result.id);
+    }
+    setMedia(asset || null);
     setMessage(
       "Upload saved. Complete its description and rights before approval.",
     );
+    return asset;
   }
   const dirty =
     !!selected && JSON.stringify(draft) !== JSON.stringify(selected.payload);
   const filtered =
     data?.articles.filter(
       (a) =>
-        (tab !== "Coverage" || ((kindFilter === "all" || a.kind === kindFilter) &&
-        (stageFilter === "all" || a.stage === stageFilter))) &&
+        (tab !== "Coverage" ||
+          ((kindFilter === "all" || a.kind === kindFilter) &&
+            (stageFilter === "all" || a.stage === stageFilter))) &&
         `${a.payload.title} ${a.payload.aliases.join(" ")} ${a.kind} ${a.stage}`
           .toLowerCase()
           .includes(search.toLowerCase()),
@@ -608,7 +639,7 @@ export function EditorialManager() {
                       {
                         title: "Design your homepage",
                         description: "Sections, images and preview",
-                        tab: "Site information",
+                        tab: "Homepage",
                         icon: PanelTop,
                       },
                       {
@@ -1534,7 +1565,10 @@ export function EditorialManager() {
                         accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) void operation(() => upload(file));
+                          if (file)
+                            void operation(async () => {
+                              await upload(file);
+                            });
                           e.target.value = "";
                         }}
                       />
@@ -1567,39 +1601,55 @@ export function EditorialManager() {
                         value={mediaFilter}
                         onChange={(event) => setMediaFilter(event.target.value)}
                       >
-                        {["all", "image", "video", "pending", "approved"].map(
-                          (value) => (
-                            <option key={value}>{value}</option>
-                          ),
-                        )}
+                        {[
+                          "all",
+                          "image",
+                          "video",
+                          "pending",
+                          "approved",
+                          "archived",
+                        ].map((value) => (
+                          <option key={value}>{value}</option>
+                        ))}
                       </select>
                     </label>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    {data.images
-                      .filter(
-                        (item) =>
-                          (mediaFilter === "all" ||
-                            item.mediaType === mediaFilter ||
-                            item.status === mediaFilter) &&
-                          `${item.title} ${item.specimen} ${item.cloudinaryPublicId}`
-                            .toLowerCase()
-                            .includes(mediaQuery.toLowerCase()),
-                      )
-                      .map((i) => (
-                        <button
-                          className="rounded border p-3 text-left"
-                          key={i.id}
-                          onClick={() => setMedia(i)}
-                        >
-                          <Thumbnail asset={i} />
-                          <strong className="block text-sm">{i.title}</strong>
-                          <span className="text-xs">
-                            {i.mediaType} · {i.status}
-                          </span>
-                        </button>
-                      ))}
-                  </div>
+                  <MediaLibraryTable
+                    images={data.images.filter(
+                      (item) =>
+                        (mediaFilter === "archived"
+                          ? item.status === "archived"
+                          : item.status !== "archived") &&
+                        (mediaFilter === "all" ||
+                          item.mediaType === mediaFilter ||
+                          item.status === mediaFilter) &&
+                        `${item.title} ${item.specimen} ${item.cloudinaryPublicId}`
+                          .toLowerCase()
+                          .includes(mediaQuery.toLowerCase()),
+                    )}
+                    select={setMedia}
+                    archive={(asset, restore) =>
+                      operation(async () => {
+                        const { id, revision, ...payload } = asset;
+                        await write({
+                          type: "image",
+                          id,
+                          revision,
+                          payload: {
+                            ...payload,
+                            status: restore ? "pending" : "archived",
+                          },
+                        });
+                        await load();
+                        if (media?.id === id) setMedia(null);
+                        setMessage(
+                          restore
+                            ? "Media restored as pending."
+                            : "Media archived. The Cloudinary original is preserved.",
+                        );
+                      })
+                    }
+                  />
                   {media && (
                     <div className="space-y-4 rounded border p-4">
                       <h2 className="text-xl font-semibold">
@@ -1701,6 +1751,30 @@ export function EditorialManager() {
                           />
                         ))}
                       </div>
+                      <label className="studio-label">
+                        Media purpose
+                        <select
+                          value={media.purpose}
+                          onChange={(e) =>
+                            setMedia({
+                              ...media,
+                              purpose: e.target.value as "reference" | "brand",
+                              status: "pending",
+                            })
+                          }
+                        >
+                          <option value="reference">
+                            Specimen reference photograph
+                          </option>
+                          <option value="brand">
+                            Brand / hero media or illustration
+                          </option>
+                        </select>
+                        <small className="studio-help">
+                          Brand artwork cannot satisfy a gemstone article's
+                          specimen photography requirement.
+                        </small>
+                      </label>
                       <label className="flex gap-2 text-sm">
                         <input
                           type="checkbox"
@@ -1727,8 +1801,9 @@ export function EditorialManager() {
                             })
                           }
                         />{" "}
-                        Genuine photographic media accurately depicting the
-                        stated subject
+                        {media.purpose === "brand"
+                          ? "This is a genuine photograph (optional for brand artwork)"
+                          : "Genuine photographic media accurately depicting the stated subject"}
                       </label>
                       <label className="block text-sm">
                         Rights status
@@ -1758,10 +1833,7 @@ export function EditorialManager() {
                               payload,
                             });
                             const next = await load();
-                            setMedia(
-                              next.images.find((i) => i.id === saved.id) ||
-                                null,
-                            );
+                            setMedia(null);
                             setMessage("Media details and rights saved.");
                           })
                         }
@@ -1772,400 +1844,46 @@ export function EditorialManager() {
                   )}
                 </>
               )}
-              {tab === "Site information" && site && (
-                <div className="space-y-5 rounded border p-4">
-                  <h2 className="text-xl font-semibold">
-                    Company, homepage and contact
-                  </h2>
-                  {[
-                    {
-                      title: "Homepage message",
-                      description:
-                        "Your hero headline and the main actions visitors can take.",
-                      fields: [
-                        "heading",
-                        "introduction",
-                        "heroPrimaryLabel",
-                        "heroPrimaryPath",
-                        "heroSecondaryLabel",
-                        "heroSecondaryPath",
-                      ] as const,
-                    },
-                    {
-                      title: "Company and contact",
-                      description:
-                        "Keep your company story and public contact details up to date.",
-                      fields: [
-                        "companyName",
-                        "tagline",
-                        "about",
-                        "contactEmail",
-                        "phone",
-                        "whatsapp",
-                      ] as const,
-                    },
-                    {
-                      title: "Search ownership",
-                      description:
-                        "Verification codes only. These do not confirm indexing.",
-                      fields: [
-                        "googleVerification",
-                        "bingVerification",
-                      ] as const,
-                    },
-                  ].map((group) => (
-                    <section
-                      key={group.title}
-                      className="studio-panel space-y-4"
-                    >
-                      <div>
-                        <h3>{group.title}</h3>
-                        <p className="studio-help">{group.description}</p>
-                      </div>
-                      <div className="studio-form-grid">
-                        {group.fields.map((k) => (
-                          <Input
-                            key={k}
-                            label={k}
-                            value={site[k]}
-                            area={["about", "introduction"].includes(k)}
-                            onChange={(v) => setSite({ ...site, [k]: v })}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                  <div className="space-y-3 rounded border p-4">
-                    <h3 className="text-lg font-semibold">
-                      Homepage hero media
-                    </h3>
-                    <p className="text-sm">
-                      Upload and document media in Media &amp; rights first.
-                      Only approved assets with complete rights records appear
-                      on the public website. Videos use a poster fallback and
-                      playback controls. Browser policies may require visitor
-                      interaction to enable sound.
-                    </p>
-                    {(
-                      ["heroImageId", "heroVideoId", "brandImageId"] as const
-                    ).map((key) => {
-                      const chosen = data.images.find(
-                        (item) => item.id === site[key],
-                      );
-                      return (
-                        <label className="block space-y-2 text-sm" key={key}>
-                          <span>
-                            {key === "heroImageId"
-                              ? "Hero photograph"
-                              : key === "brandImageId"
-                                ? "Company photograph"
-                                : "Optional hero video"}
-                          </span>
-                          <select
-                            className={field}
-                            value={site[key]}
-                            onChange={(event) =>
-                              setSite({ ...site, [key]: event.target.value })
-                            }
-                          >
-                            <option value="">No asset selected</option>
-                            {data.images
-                              .filter(
-                                (item) =>
-                                  item.mediaType ===
-                                  (key === "heroVideoId" ? "video" : "image"),
-                              )
-                              .map((item) => (
-                                <option value={item.id} key={item.id}>
-                                  {item.title} · {item.status} ·{" "}
-                                  {item.cloudinaryPublicId || item.id}
-                                </option>
-                              ))}
-                          </select>
-                          {chosen && (
-                            <div className="max-w-sm rounded border p-2">
-                              <Thumbnail asset={chosen} />
-                              <p className="mt-2 break-all text-xs">
-                                {chosen.cloudinaryPublicId || chosen.id} ·{" "}
-                                {chosen.status}
-                              </p>
-                            </div>
-                          )}
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <div className="space-y-3 rounded border p-4">
-                    <h3 className="text-lg font-semibold">
-                      Featured gemstone entries
-                    </h3>
-                    <p className="text-sm">
-                      Choose up to six entries. Only published entries appear on
-                      the website.
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {data.articles
-                        .filter((article) => article.kind === "gemstones")
-                        .sort((a, b) =>
-                          a.payload.title.localeCompare(b.payload.title),
-                        )
-                        .map((article) => (
-                          <label
-                            className="flex items-center gap-2 text-sm"
-                            key={article.id}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={site.featuredSlugs.includes(
-                                article.slug,
-                              )}
-                              onChange={(event) =>
-                                setSite({
-                                  ...site,
-                                  featuredSlugs: event.target.checked
-                                    ? [
-                                        ...site.featuredSlugs,
-                                        article.slug,
-                                      ].slice(0, 6)
-                                    : site.featuredSlugs.filter(
-                                        (slug) => slug !== article.slug,
-                                      ),
-                                })
-                              }
-                            />
-                            {article.payload.title} · {article.stage}
-                          </label>
-                        ))}
-                    </div>
-                  </div>
-                  <label className="flex gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={site.contactVerified}
-                      onChange={(e) =>
-                        setSite({ ...site, contactVerified: e.target.checked })
-                      }
-                    />{" "}
-                    Contact details have been verified for publication
-                  </label>
-                  <h2 className="text-lg font-semibold">
-                    Verified marketplace storefronts
-                  </h2>
-                  <section className="space-y-3 rounded border p-4">
-                    <h3 className="text-lg font-semibold">Homepage sections</h3>
-                    <p className="text-sm">
-                      Arrange visible sections. Article features only appear
-                      when published content exists.
-                    </p>
-                    {site.homepageSections.map((key, index) => (
-                      <div
-                        className="flex flex-wrap items-center gap-2"
-                        key={key}
-                      >
-                        <span className="min-w-24 capitalize">{key}</span>
-                        <button
-                          className={button}
-                          disabled={index === 0}
-                          onClick={() => {
-                            const order = [...site.homepageSections];
-                            [order[index - 1], order[index]] = [
-                              order[index],
-                              order[index - 1],
-                            ];
-                            setSite({ ...site, homepageSections: order });
-                          }}
-                        >
-                          Move up
-                        </button>
-                        <button
-                          className={button}
-                          disabled={index === site.homepageSections.length - 1}
-                          onClick={() => {
-                            const order = [...site.homepageSections];
-                            [order[index + 1], order[index]] = [
-                              order[index],
-                              order[index + 1],
-                            ];
-                            setSite({ ...site, homepageSections: order });
-                          }}
-                        >
-                          Move down
-                        </button>
-                        <button
-                          className={button}
-                          onClick={() =>
-                            setSite({
-                              ...site,
-                              homepageSections: site.homepageSections.filter(
-                                (item) => item !== key,
-                              ),
-                            })
-                          }
-                        >
-                          Hide {key}
-                        </button>
-                      </div>
-                    ))}
-                    {homeSections
-                      .filter((key) => !site.homepageSections.includes(key))
-                      .map((key) => (
-                        <button
-                          className={button}
-                          key={key}
-                          onClick={() =>
-                            setSite({
-                              ...site,
-                              homepageSections: [...site.homepageSections, key],
-                            })
-                          }
-                        >
-                          Show {key}
-                        </button>
-                      ))}
-                    <Input
-                      label="Featured guide slugs (one per line, up to six)"
-                      area
-                      value={site.featuredGuideSlugs.join("\n")}
-                      onChange={(value) =>
-                        setSite({
-                          ...site,
-                          featuredGuideSlugs: value
-                            .split("\n")
-                            .map((slug) => slug.trim())
-                            .filter(Boolean)
-                            .slice(0, 6),
-                        })
-                      }
-                    />
-                    <p className="text-sm">Approved gallery photographs</p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {data.images
-                        .filter((item) => item.mediaType === "image")
-                        .map((item) => (
-                          <label className="flex gap-2 text-sm" key={item.id}>
-                            <input
-                              type="checkbox"
-                              checked={site.galleryImageIds.includes(item.id)}
-                              onChange={(event) =>
-                                setSite({
-                                  ...site,
-                                  galleryImageIds: event.target.checked
-                                    ? [...site.galleryImageIds, item.id].slice(
-                                        0,
-                                        30,
-                                      )
-                                    : site.galleryImageIds.filter(
-                                        (id) => id !== item.id,
-                                      ),
-                                })
-                              }
-                            />
-                            {item.title} · {item.status}
-                          </label>
-                        ))}
-                    </div>
-                    <button
-                      className={button}
-                      onClick={() =>
-                        operation(async () => {
-                          const response = await fetch(
-                            "/api/website/editorial/preview",
-                            {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify(site),
-                            },
-                          );
-                          const value = await response.json();
-                          if (!response.ok) throw new Error(value.error);
-                          setHomePreview(privatePreviewHtml(value));
-                        })
-                      }
-                    >
-                      Preview homepage
-                    </button>
-                    {homePreview && (
-                      <div className="space-y-3">
-                        <p className="text-sm">
-                          Private preview using unsaved settings. Navigation is
-                          disabled inside this preview.
-                        </p>
-                        <iframe
-                          title="Private homepage preview"
-                          sandbox=""
-                          srcDoc={homePreview}
-                          className="h-[800px] w-full rounded border bg-white"
-                        />
-                        <button
-                          className={button}
-                          onClick={() => setHomePreview("")}
-                        >
-                          Close homepage preview
-                        </button>
-                      </div>
-                    )}
-                  </section>
-                  {site.marketplaces.map((m, i) => (
-                    <div className="space-y-2 rounded border p-3" key={i}>
-                      {(["name", "url", "verifiedAt"] as const).map((k) => (
-                        <Input
-                          key={k}
-                          label={k}
-                          type={k === "verifiedAt" ? "date" : "text"}
-                          value={m[k]}
-                          onChange={(v) =>
-                            setSite({
-                              ...site,
-                              marketplaces: site.marketplaces.map((r, j) =>
-                                i === j ? { ...r, [k]: v } : r,
-                              ),
-                            })
-                          }
-                        />
-                      ))}
-                      <button
-                        className={button}
-                        onClick={() =>
-                          setSite({
-                            ...site,
-                            marketplaces: site.marketplaces.filter(
-                              (_, j) => j !== i,
-                            ),
-                          })
-                        }
-                      >
-                        Remove storefront
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    className={button}
-                    onClick={() =>
-                      setSite({
-                        ...site,
-                        marketplaces: [
-                          ...site.marketplaces,
-                          { name: "", url: "", verifiedAt: "" },
-                        ],
-                      })
+              {tab === "Homepage" && site && (
+                <HomepageStudio
+                  site={site}
+                  images={data.images}
+                  articles={data.articles}
+                  change={setSite}
+                  save={() => operation(saveSite)}
+                  openHero={() => setTab("Hero media")}
+                />
+              )}
+              {tab === "Hero media" && site && (
+                <HeroMediaStudio
+                  site={site}
+                  images={data.images}
+                  change={setSite}
+                  save={() => operation(saveSite)}
+                  upload={async (file) => {
+                    setBusy(true);
+                    try {
+                      return await upload(file, "brand");
+                    } finally {
+                      setBusy(false);
                     }
-                  >
-                    Add storefront
-                  </button>
-                  <div className="studio-panel">
-                    <h2>Announcement bar</h2>
-                    <p>
-                      Design and schedule notices in the dedicated announcement
-                      workspace.
-                    </p>
-                    <button
-                      className={button}
-                      onClick={() => setTab("Announcements")}
-                    >
-                      Open announcement studio
-                    </button>
-                  </div>
-                  <div>
+                  }}
+                  review={(asset) => {
+                    setMedia(asset);
+                    setTab("Media & rights");
+                  }}
+                />
+              )}
+              {tab === "Site information" && site && (
+                <div className="space-y-5">
+                  <div className="studio-section-heading">
+                    <div>
+                      <h2>Company and contact information</h2>
+                      <p>
+                        Manage public company details, gallery placements and
+                        optional storefront links.
+                      </p>
+                    </div>
                     <button
                       className={primary}
                       onClick={() => operation(saveSite)}
@@ -2173,10 +1891,216 @@ export function EditorialManager() {
                       Save website information
                     </button>
                   </div>
+                  <div className="studio-panel space-y-4">
+                    <h3>Company details</h3>
+                    <div className="studio-form-grid">
+                      {(
+                        [
+                          "companyName",
+                          "tagline",
+                          "about",
+                          "contactEmail",
+                          "phone",
+                          "whatsapp",
+                        ] as const
+                      ).map((k) => (
+                        <Input
+                          key={k}
+                          label={k}
+                          value={site[k]}
+                          area={k === "about"}
+                          onChange={(v) => setSite({ ...site, [k]: v })}
+                        />
+                      ))}
+                    </div>
+                    <label className="studio-switch">
+                      <input
+                        type="checkbox"
+                        checked={site.contactVerified}
+                        onChange={(e) =>
+                          setSite({
+                            ...site,
+                            contactVerified: e.target.checked,
+                          })
+                        }
+                      />
+                      Company contact details checked for public use
+                    </label>
+                  </div>
+                  <div className="studio-panel space-y-4">
+                    <h3>Company image and gallery</h3>
+                    <label className="studio-label">
+                      Company photograph
+                      <select
+                        value={site.brandImageId}
+                        onChange={(e) =>
+                          setSite({ ...site, brandImageId: e.target.value })
+                        }
+                      >
+                        <option value="">
+                          Use existing brand presentation
+                        </option>
+                        {data.images
+                          .filter(
+                            (i) =>
+                              i.mediaType === "image" &&
+                              i.status !== "archived",
+                          )
+                          .map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.title} · {i.status}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <p className="studio-help">
+                      Selected gallery images appear only after rights approval.
+                    </p>
+                    <div className="studio-feature-picks">
+                      {data.images
+                        .filter(
+                          (i) =>
+                            i.mediaType === "image" && i.status !== "archived",
+                        )
+                        .map((i) => (
+                          <label key={i.id}>
+                            <input
+                              type="checkbox"
+                              checked={site.galleryImageIds.includes(i.id)}
+                              onChange={(e) =>
+                                setSite({
+                                  ...site,
+                                  galleryImageIds: e.target.checked
+                                    ? [...site.galleryImageIds, i.id].slice(
+                                        0,
+                                        30,
+                                      )
+                                    : site.galleryImageIds.filter(
+                                        (id) => id !== i.id,
+                                      ),
+                                })
+                              }
+                            />
+                            <img
+                              src={i.url}
+                              alt=""
+                              width={60}
+                              height={45}
+                              loading="lazy"
+                            />
+                            <span>
+                              {i.title}
+                              <small>{i.status}</small>
+                            </span>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
+                  <div className="studio-panel space-y-4">
+                    <h3>Optional verified storefront links</h3>
+                    <p className="studio-help">
+                      Marketplace logos can remain unlinked, as requested. Add
+                      URLs only when you want visitors to use verified seller
+                      destinations.
+                    </p>
+                    {site.marketplaces.map((store, index) => (
+                      <div className="studio-form-grid" key={index}>
+                        {(["name", "url", "verifiedAt"] as const).map((key) => (
+                          <Input
+                            key={key}
+                            label={
+                              key === "name"
+                                ? "Marketplace name"
+                                : key === "url"
+                                  ? "Verified shop URL"
+                                  : "Verified on"
+                            }
+                            type={key === "verifiedAt" ? "date" : "text"}
+                            value={store[key]}
+                            onChange={(value) =>
+                              setSite({
+                                ...site,
+                                marketplaces: site.marketplaces.map((row, i) =>
+                                  i === index ? { ...row, [key]: value } : row,
+                                ),
+                              })
+                            }
+                          />
+                        ))}
+                        <button
+                          onClick={() =>
+                            setSite({
+                              ...site,
+                              marketplaces: site.marketplaces.filter(
+                                (_, i) => i !== index,
+                              ),
+                            })
+                          }
+                        >
+                          Remove storefront
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() =>
+                        setSite({
+                          ...site,
+                          marketplaces: [
+                            ...site.marketplaces,
+                            { name: "", url: "", verifiedAt: "" },
+                          ],
+                        })
+                      }
+                      disabled={site.marketplaces.length >= 12}
+                    >
+                      Add storefront
+                    </button>
+                  </div>
+                  <div className="studio-panel">
+                    <h3>Homepage design</h3>
+                    <p>
+                      Homepage layout, featured articles and hero media now have
+                      dedicated workspaces.
+                    </p>
+                    <button onClick={() => setTab("Homepage")}>
+                      Open homepage designer
+                    </button>
+                  </div>
                 </div>
               )}
               {tab === "Search readiness" && (
                 <section className="space-y-5 rounded border p-4">
+                  {site && (
+                    <details className="studio-panel">
+                      <summary>
+                        Advanced: Google and Bing ownership verification
+                        (optional)
+                      </summary>
+                      <p className="studio-help">
+                        These codes prove you control the domain when connecting
+                        Search Console or Bing Webmaster Tools. They do not
+                        power the website search or guarantee indexing. Leave
+                        them unchanged if the domain is already verified.
+                      </p>
+                      <Input
+                        label="googleVerification"
+                        value={site.googleVerification}
+                        onChange={(v) =>
+                          setSite({ ...site, googleVerification: v })
+                        }
+                      />
+                      <Input
+                        label="bingVerification"
+                        value={site.bingVerification}
+                        onChange={(v) =>
+                          setSite({ ...site, bingVerification: v })
+                        }
+                      />
+                      <button onClick={() => operation(saveSite)}>
+                        Save verification codes
+                      </button>
+                    </details>
+                  )}
                   <h2 className="text-xl font-semibold">
                     Search indexing register
                   </h2>
@@ -2372,6 +2296,32 @@ export function EditorialManager() {
                     counts, not unique visitors or search traffic. Personal
                     details and query text are not recorded in this table.
                   </p>
+                  <div className="studio-quick-actions">
+                    {[
+                      ["view", "Page views"],
+                      ["marketplace", "Verified storefront clicks"],
+                      ["enquiry", "Saved enquiry events"],
+                    ].map(([kind, label]) => (
+                      <div className="studio-panel" key={kind}>
+                        <p className="studio-help">{label}</p>
+                        <strong className="text-2xl">
+                          {(data.metrics || [])
+                            .filter((m) => m.kind === kind)
+                            .reduce((n, m) => n + Number(m.total), 0)}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() =>
+                      operation(async () => {
+                        await load();
+                        setMessage("Usage counts refreshed.");
+                      })
+                    }
+                  >
+                    Refresh usage counts
+                  </button>
                   <div className="overflow-auto">
                     <table className="w-full text-left text-sm">
                       <thead>
@@ -2398,7 +2348,27 @@ export function EditorialManager() {
                     </table>
                   </div>
                   {!data.metrics?.length && (
-                    <p>No usage counts have been recorded yet.</p>
+                    <div className="studio-panel">
+                      <h3>No opted-in visits recorded yet</h3>
+                      <p>
+                        Visitors must allow anonymous usage counts using the
+                        website’s privacy control. Visits made without consent
+                        are deliberately excluded.
+                      </p>
+                      <p className="studio-help">
+                        To verify the connection, open the live website, enable
+                        “Allow anonymous usage counts for this browser tab”,
+                        visit a published page and refresh these counts. Counts
+                        are events, not unique visitors.
+                      </p>
+                      <a
+                        href="https://www.khyatigems.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open live website →
+                      </a>
+                    </div>
                   )}
                 </section>
               )}
@@ -2417,7 +2387,14 @@ export function EditorialManager() {
                       value={enquirySearch}
                       maxLength={200}
                       onChange={(event) => setEnquirySearch(event.target.value)}
-                  onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();operation(()=>filterEnquiries({query:enquirySearch,page:0}));}}}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          operation(() =>
+                            filterEnquiries({ query: enquirySearch, page: 0 }),
+                          );
+                        }
+                      }}
                     />
                   </label>
                   <div className="studio-toolbar">
@@ -2532,7 +2509,7 @@ export function EditorialManager() {
                       </p>
                       <p className="whitespace-pre-wrap">{e.message}</p>
                       <EnquiryFollowup
-                        key={`${e.id}-${e.followupRevision || 0}`}
+                        key={e.id}
                         enquiry={e}
                         save={async (payload) => {
                           await write({

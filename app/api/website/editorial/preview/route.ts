@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
         [
           settings.heroImageId,
           settings.heroVideoId,
+          ...settings.heroGalleryIds,
           settings.brandImageId,
           ...settings.galleryImageIds,
         ].includes(asset.id),

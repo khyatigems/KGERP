@@ -10,6 +10,7 @@ export async function recordMetric(
   const allowed = [
     "/",
     "/gemstones",
+    "/search",
     "/gemstone-families",
     "/birthstones",
     "/glossary",
@@ -24,6 +25,10 @@ export async function recordMetric(
     "/image-credits",
     "/photography",
     "/certification",
+    "/services",
+    "/faq",
+    "/lookbook",
+    "/editorial-policy",
     ...feed.articles.map(articlePath),
   ];
   if (!allowed.includes(path)) throw new Error("Unknown public path");

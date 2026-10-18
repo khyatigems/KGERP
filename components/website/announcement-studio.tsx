@@ -27,13 +27,24 @@ export function AnnouncementStudio({
     [width, setWidth] = useState(768),
     [visitor, setVisitor] = useState(false),
     [time, setTime] = useState(() => localDate(new Date().toISOString()));
-  const previewHost=useRef<HTMLDivElement>(null);
-  const [availableWidth,setAvailableWidth]=useState(1200);
-  useEffect(()=>{
-    const element=previewHost.current;if(!element)return;
-    const measure=()=>{const css=getComputedStyle(element);setAvailableWidth(element.clientWidth-parseFloat(css.paddingLeft)-parseFloat(css.paddingRight));};
-    const observer=new ResizeObserver(measure);observer.observe(element);measure();return()=>observer.disconnect();
-  },[]);
+  const previewHost = useRef<HTMLDivElement>(null);
+  const [availableWidth, setAvailableWidth] = useState(1200);
+  useEffect(() => {
+    const element = previewHost.current;
+    if (!element) return;
+    const measure = () => {
+      const css = getComputedStyle(element);
+      setAvailableWidth(
+        element.clientWidth -
+          parseFloat(css.paddingLeft) -
+          parseFloat(css.paddingRight),
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    measure();
+    return () => observer.disconnect();
+  }, []);
   const items = site.announcements,
     index = Math.min(selected, Math.max(0, items.length - 1)),
     current = items[index];
@@ -100,6 +111,52 @@ export function AnnouncementStudio({
         <button onClick={() => add()} disabled={items.length >= 10}>
           Add announcement
         </button>
+      </div>
+      <div className="studio-panel studio-form-grid">
+        <label className="studio-label">
+          Seconds per announcement
+          <input
+            type="number"
+            min={5}
+            max={30}
+            value={site.announcementInterval}
+            onChange={(e) =>
+              change({ ...site, announcementInterval: Number(e.target.value) })
+            }
+          />
+        </label>
+        <label className="studio-label">
+          Transition
+          <select
+            value={site.announcementAnimation}
+            onChange={(e) =>
+              change({
+                ...site,
+                announcementAnimation: e.target
+                  .value as SiteSettings["announcementAnimation"],
+              })
+            }
+          >
+            <option value="fade">Fade</option>
+            <option value="slide">Slide</option>
+            <option value="none">No animation</option>
+          </select>
+        </label>
+        <label className="studio-switch">
+          <input
+            type="checkbox"
+            checked={site.announcementAutoplay}
+            onChange={(e) =>
+              change({ ...site, announcementAutoplay: e.target.checked })
+            }
+          />
+          Rotate announcements automatically
+        </label>
+        <p className="studio-help">
+          Only one notice is shown at a time. Rotation pauses while hovered or
+          focused, when the tab is hidden, or when the visitor requests reduced
+          motion.
+        </p>
       </div>
       <div className="studio-announcement-grid">
         <div className="studio-panel space-y-3">
@@ -334,7 +391,7 @@ export function AnnouncementStudio({
         <div className="studio-preview-scroll" ref={previewHost}>
           <div
             className="studio-browser-preview"
-            style={{ width, zoom:Math.min(1,availableWidth/width) }}
+            style={{ width, zoom: Math.min(1, availableWidth / width) }}
           >
             <div className="studio-browser-chrome">
               <i />
@@ -345,8 +402,14 @@ export function AnnouncementStudio({
             <div className="studio-preview-nav">
               KHYATIGEMS <small>Gemstone Encyclopedia</small>
             </div>
-            <div data-announcement-preview onClick={event=>event.preventDefault()}>
+            <div
+              data-announcement-preview
+              onClick={(event) => event.preventDefault()}
+            >
               <AnnouncementBar
+                interval={site.announcementInterval}
+                animation={site.announcementAnimation}
+                autoplay={site.announcementAutoplay}
                 announcements={
                   visitor
                     ? items.filter((a) => announcementState(a, now) === "Live")
@@ -367,8 +430,10 @@ export function AnnouncementStudio({
             </div>
           </div>
         </div>
-        <p className="studio-help">Preview layout: {width}px wide, scaled to fit this workspace.</p>
-      {!visitor && current && (
+        <p className="studio-help">
+          Preview layout: {width}px wide, scaled to fit this workspace.
+        </p>
+        {!visitor && current && (
           <p className="studio-help">
             Showing the selected draft, including when it is disabled or outside
             its schedule. Use visitor view to check actual visibility.

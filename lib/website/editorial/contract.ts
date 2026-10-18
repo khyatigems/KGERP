@@ -113,6 +113,7 @@ export type Kind = Content["kind"];
 export type Stage = (typeof stages)[number];
 export const imageSchema = z
   .object({
+    purpose: z.enum(["reference", "brand"]).default("reference"),
     mediaType: z.enum(["image", "video"]).default("image"),
     posterUrl: optionalUrl,
     cloudinaryPublicId: text(250).default(""),
@@ -136,7 +137,7 @@ export const imageSchema = z
     verifiedAt: z.union([z.string().date(), z.literal("")]).default(""),
     permissionEvidence: text(1000).default(""),
     authenticPhoto: z.boolean().default(false),
-    status: z.enum(["pending", "approved"]).default("pending"),
+    status: z.enum(["pending", "approved", "archived"]).default("pending"),
   })
   .strict();
 export type ImageAsset = z.infer<typeof imageSchema> & {
@@ -163,6 +164,18 @@ export const settingsSchema = z
     ),
     heroImageId: text(100).default(""),
     heroVideoId: text(100).default(""),
+    heroGalleryIds: z.array(text(100)).max(5).default([]),
+    heroSlideSeconds: z.number().min(5).max(30).default(7.5),
+    heroImagePositionX: z.number().min(0).max(100).default(50),
+    heroImagePositionY: z.number().min(0).max(100).default(50),
+    heroImageZoom: z.number().min(1).max(2).default(1),
+    heroVideoPositionX: z.number().min(0).max(100).default(50),
+    heroVideoPositionY: z.number().min(0).max(100).default(50),
+    heroVideoStart: z.number().min(0).max(3600).default(0),
+    heroVideoEnd: z.number().min(0).max(3600).default(0),
+    announcementInterval: z.number().int().min(5).max(30).default(8),
+    announcementAnimation: z.enum(["fade", "slide", "none"]).default("fade"),
+    announcementAutoplay: z.boolean().default(true),
     featuredSlugs: z.array(text(150)).max(6).default([]),
     featuredGuideSlugs: z.array(text(150)).max(6).default([]),
     heroPrimaryLabel: text(60).min(1).default("Explore gemstones"),
@@ -237,7 +250,15 @@ export const settingsSchema = z
       .regex(/^[a-zA-Z0-9_-]*$/)
       .default(""),
   })
-  .strict();
+  .strict()
+  .refine(
+    (site) =>
+      site.heroVideoEnd === 0 || site.heroVideoEnd > site.heroVideoStart,
+    {
+      message: "Hero video end must be after its start",
+      path: ["heroVideoEnd"],
+    },
+  );
 export type SiteSettings = z.infer<typeof settingsSchema>;
 export const defaultSettings = settingsSchema.parse({});
 export type PublicArticle = Content & {
@@ -271,7 +292,7 @@ export function imageIssues(image: z.infer<typeof imageSchema>): string[] {
     "permissionEvidence",
   ] as const)
     if (!image[key]) issues.push(`Image requires ${key}`);
-  if (!image.authenticPhoto)
+  if (image.purpose === "reference" && !image.authenticPhoto)
     issues.push("Confirm this is authentic specimen photography");
   if (!image.commercialUse) issues.push("Confirm commercial reuse rights");
   if (
@@ -348,6 +369,8 @@ export function publicationIssues(
         (i) =>
           content.imageIds.includes(i.id) &&
           i.mediaType === "image" &&
+          i.purpose === "reference" &&
+          i.authenticPhoto &&
           i.status === "approved",
       )
     )
