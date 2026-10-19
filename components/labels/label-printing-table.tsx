@@ -8,14 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Inventory } from "@prisma/client";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { LabelItem } from "@/lib/label-generator";
+import { getLabelSellingPrice, toLabelItem } from "@/lib/label-items";
 import { formatCurrency } from "@/lib/utils";
 
 // Helper to calculate price
-const getPrice = (item: Inventory) => {
-    return item.pricingMode === "PER_CARAT"
-        ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
-        : item.flatSellingPrice || 0;
-};
+const getPrice = getLabelSellingPrice;
 
 interface InventoryWithRelations extends Inventory {
     categoryCode?: { name: string } | null;
@@ -51,20 +48,7 @@ export function LabelPrintingTable({ data }: LabelPrintingTableProps) {
     const selectedItems = data.filter(item => selectedIds.has(item.id));
     
     // Map to LabelItem
-    const labelItems: LabelItem[] = selectedItems.map(item => ({
-        id: item.id,
-        sku: item.sku,
-        itemName: item.itemName,
-        internalName: item.internalName || "",
-        gemType: item.gemType || "",
-        color: item.colorCode?.name || "",
-        weightValue: item.weightValue || 0,
-        weightUnit: item.weightUnit || "",
-        weightRatti: item.weightRatti,
-        sellingPrice: getPrice(item),
-        pricingMode: item.pricingMode || "FLAT",
-        sellingRatePerCarat: item.sellingRatePerCarat || 0
-    }));
+    const labelItems: LabelItem[] = selectedItems.map(item => toLabelItem(item));
 
     return (
         <div className="space-y-4">

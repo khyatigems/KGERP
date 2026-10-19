@@ -1,289 +1,223 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
-import { InvoiceData } from "./invoice-generator";
-import { formatDate } from "./utils";
+import { convertNumberToWords, type InvoiceData } from "./invoice-generator";
+import { getPublicInvoicePdfUrl, isValidInvoiceToken } from "./public-invoice-url";
 
-// 50mm width as per user requirement (Label Printer usage)
-const PAPER_WIDTH = 50;
-const MARGIN = 0.5;
-const CONTENT_WIDTH = PAPER_WIDTH - (MARGIN * 2);
-
-const formatCurrencyPDF = (amount: number | undefined | null) => {
-    if (amount === undefined || amount === null || isNaN(amount)) return "Rs. 0.00";
-    try {
-        const fmt = new Intl.NumberFormat('en-IN', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-        return `Rs. ${fmt.format(amount)}`;
-    } catch {
-        return `Rs. ${amount?.toFixed(2) || "0.00"}`;
-    }
+export interface ThermalInvoiceOptions {
+    paperWidth: 50 | 80 | 100;
+    profile: "compact" | "detailed";
+    showQr: boolean;
+    showLogo: boolean;
+    showFinancials: boolean;
+    showCertification: boolean;
+}
+export const DEFAULT_THERMAL_INVOICE_OPTIONS: ThermalInvoiceOptions = {
+    paperWidth: 50, profile: "compact", showQr: true, showLogo: true,
+    showFinancials: true, showCertification: true,
 };
+export type ReceiptElement =
+    | { kind: "text"; text: string; x: number; y: number; size: number; bold: boolean; align: "left" | "center" | "right"; width: number; height: number }
+    | { kind: "rule"; x: number; y: number; width: number; height: number }
+    | { kind: "qr"; x: number; y: number; width: number; height: number; modules: number; matrix: boolean[][] }
+    | { kind: "logo"; x: number; y: number; width: number; height: number; source: string };
+export interface ThermalInvoiceLayout { width: number; height: number; elements: ReceiptElement[]; warnings: string[]; }
 
-interface JsPDFWithDash extends jsPDF {
-    setLineDash(dashArray: number[], dashPhase?: number): jsPDF;
+export function resolveThermalInvoiceQr(data: InvoiceData): { url?: string; warning?: string } {
+    if (!data.token || !isValidInvoiceToken(data.token)) return { warning: "Invoice download QR unavailable: this invoice has no valid public token." };
+    try {
+        // A server-resolved public ERP address takes precedence over a local browser origin.
+        const origin = data.publicUrl ? new URL(data.publicUrl).origin : typeof window !== "undefined" ? window.location.origin : undefined;
+        if (!origin) return { warning: "Configure ERP_PUBLIC_URL with the public HTTPS ERP address to enable invoice download QR codes." };
+        return { url: getPublicInvoicePdfUrl(data.token, origin) };
+    } catch {
+        return { warning: "Invoice download QR unavailable. Configure ERP_PUBLIC_URL with your public HTTPS ERP address. The receipt can still be printed without a QR." };
+    }
 }
 
-export async function generateThermalInvoicePDF(data: InvoiceData) {
-    // 1. Calculate Estimated Height First
-    // We need a dummy doc to calculate text wrapping height
-    const dummyDoc = new jsPDF({ unit: "mm", format: [PAPER_WIDTH, 1000] });
-    
-    const fontSize = {
-        title: 10,
-        header: 9,
-        normal: 8,
-        small: 7,
-        tiny: 6
-    };
-    const lineHeight = 3.5; // Reduced line height for compactness
-
-    let estimatedHeight = MARGIN + 10; // Top margin + initial buffer
-
-    // Helper to estimate text height
-    const getTxtHeight = (text: string, size: number, bold: boolean = false) => {
-        dummyDoc.setFontSize(size);
-        dummyDoc.setFont("helvetica", bold ? "bold" : "normal");
-        const lines = dummyDoc.splitTextToSize(text, CONTENT_WIDTH);
-        return lines.length * (size * 0.35 + 1); // Approximation
-    };
-
-    // Header estimation
-    estimatedHeight += getTxtHeight(data.company.name, fontSize.title, true);
-    if (data.company.address) estimatedHeight += getTxtHeight(data.company.address, fontSize.tiny);
-    if (data.company.phone) estimatedHeight += getTxtHeight(`Phone: ${data.company.phone}`, fontSize.tiny);
-    if (data.company.gstin) estimatedHeight += getTxtHeight(`GSTIN: ${data.company.gstin}`, fontSize.tiny);
-    estimatedHeight += 10; // Invoice details buffer
-
-    // Customer
-    estimatedHeight += 15;
-
-    // Items
-    data.items.forEach(item => {
-        estimatedHeight += getTxtHeight(item.description, fontSize.normal, true); // Name
-        // Details lines
-        const detailLines = (item.sku ? 1 : 0) + 1; // +1 for price line
-        estimatedHeight += detailLines * lineHeight; 
-        estimatedHeight += 5; // Spacing
-    });
-
-    // Totals
-    estimatedHeight += 25;
-
-    // Footer
-    if (data.amountPaid > 0) estimatedHeight += 10;
-    if (data.bankDetails) estimatedHeight += 25;
-    if (data.terms) estimatedHeight += getTxtHeight(data.terms, fontSize.tiny) + 5;
-    if (data.notes) estimatedHeight += getTxtHeight(data.notes, fontSize.tiny) + 5;
-    
-    if (data.publicUrl || data.token) estimatedHeight += 35; // QR Code space
-
-    estimatedHeight += 10; // Bottom margin
-
-    // 2. Create Real Document
-    const doc = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: [PAPER_WIDTH, Math.max(estimatedHeight, 40)] // Min height 40mm
-    });
-
-    let y = MARGIN + 2;
-    const centerX = PAPER_WIDTH / 2;
-    const leftX = MARGIN;
-    const rightX = PAPER_WIDTH - MARGIN;
-
-    // --- Drawing Helpers ---
-    
-    const drawCenterText = (text: string, size: number, bold: boolean = false) => {
-        doc.setFontSize(size);
-        doc.setFont("helvetica", bold ? "bold" : "normal");
-        const lines = doc.splitTextToSize(text, CONTENT_WIDTH);
-        doc.text(lines, centerX, y, { align: "center" });
-        y += lines.length * (size * 0.35 + 1.2);
-    };
-
-    const drawLeftRight = (left: string, right: string, size: number = fontSize.normal, bold: boolean = false) => {
-        doc.setFontSize(size);
-        doc.setFont("helvetica", bold ? "bold" : "normal");
-        
-        // Check if left text is too long and needs wrapping
-        // We reserve space for the right text
-        const rightWidth = doc.getTextWidth(right);
-        const maxLeftWidth = CONTENT_WIDTH - rightWidth - 2;
-        
-        const leftLines = doc.splitTextToSize(left, maxLeftWidth);
-        
-        doc.text(leftLines, leftX, y);
-        doc.text(right, rightX, y, { align: "right" }); // Print right text on the first line level
-        
-        y += leftLines.length * (size * 0.35 + 1.2);
-    };
-    
-    const drawWrappedText = (text: string, size: number, align: "left" | "center" = "left") => {
-        doc.setFontSize(size);
-        doc.setFont("helvetica", "normal");
-        const lines = doc.splitTextToSize(text, CONTENT_WIDTH);
-        doc.text(lines, align === "center" ? centerX : leftX, y, { align });
-        y += lines.length * (size * 0.35 + 1.2);
-    };
-
-    const drawDivider = () => {
-        y += 1;
-        doc.setLineWidth(0.1);
-        (doc as unknown as JsPDFWithDash).setLineDash([1, 1], 0); // Dashed line
-        doc.line(leftX, y, rightX, y);
-        (doc as unknown as JsPDFWithDash).setLineDash([], 0); // Reset
-        y += 3;
-    };
-
-    // --- Content Rendering ---
-
-    // 1. Company Header
-    if (data.company.name) drawCenterText(data.company.name, fontSize.title, true);
-    
-    doc.setFontSize(fontSize.tiny);
-    if (data.company.address) {
-        drawCenterText(data.company.address, fontSize.tiny);
+/** One measured layout drives PDF rendering and tests; no estimated receipt height. */
+export function buildThermalInvoiceLayout(data: InvoiceData, input: Partial<ThermalInvoiceOptions> = {}, logoData?: string): ThermalInvoiceLayout {
+    const options = { ...DEFAULT_THERMAL_INVOICE_OPTIONS, ...input };
+    if (![50, 80, 100].includes(options.paperWidth)) throw new Error("Choose 50, 80 or 100 mm thermal paper.");
+    const width = options.paperWidth;
+    const margin = width === 50 ? 2 : 4;
+    const content = width - 2 * margin;
+    const base = width === 50 ? 7.5 : 9;
+    const small = base - 1;
+    const elements: ReceiptElement[] = [];
+    const warnings: string[] = [];
+    const measure = new jsPDF({ unit: "mm" });
+    let y = margin;
+    const detailed = options.profile === "detailed";
+    const exportInvoice = data.invoiceType === "EXPORT_INVOICE";
+    const currency = exportInvoice ? data.invoiceCurrency || "USD" : "INR";
+    const rate = currency !== "INR" ? data.conversionRate : 1;
+    if (currency !== "INR" && (!rate || !Number.isFinite(rate) || rate <= 0)) {
+        throw new Error(`Set the invoice's ${currency} conversion rate before printing. INR totals cannot be labelled as foreign currency.`);
     }
-    if (data.company.phone) drawCenterText(`Ph: ${data.company.phone}`, fontSize.tiny);
-    if (data.company.gstin) drawCenterText(`GSTIN: ${data.company.gstin}`, fontSize.tiny);
-
-    drawDivider();
-
-    // 2. Invoice Meta
-    drawCenterText("TAX INVOICE", fontSize.header, true);
-    y += 1;
-    drawLeftRight("Invoice No:", data.invoiceNumber, fontSize.small);
-    drawLeftRight("Date:", formatDate(data.date), fontSize.small);
-
-    drawDivider();
-
-    // 3. Customer
-    drawWrappedText("Bill To:", fontSize.small);
-    drawWrappedText(data.customer.name, fontSize.normal);
-    if (data.customer.phone) drawWrappedText(`Ph: ${data.customer.phone}`, fontSize.small);
-    if (data.customer.address) drawWrappedText(data.customer.address, fontSize.tiny);
-
-    drawDivider();
-
-    // 4. Items Header
-    doc.setFontSize(fontSize.small);
-    doc.setFont("helvetica", "bold");
-    doc.text("Item", leftX, y);
-    doc.text("Amt", rightX, y, { align: "right" });
-    y += 4;
-    
-    doc.setLineWidth(0.1);
-    doc.line(leftX, y - 1, rightX, y - 1);
-    y += 2;
-
-    // 5. Items Loop
-    data.items.forEach(item => {
-        // Item Name & Price
-        // We split description to get the main item name (first line usually)
-        const descLines = item.description.split('\n');
-        const itemName = descLines[0];
-        
-        // Draw Item Name (Bold) and Total Price
-        drawLeftRight(itemName, formatCurrencyPDF(item.total), fontSize.normal, true);
-        
-        // Draw Details (SKU, Attributes) - Smaller font
-        doc.setFontSize(fontSize.tiny);
-        doc.setFont("helvetica", "normal");
-        
-        if (item.sku) {
-            doc.text(`SKU: ${item.sku}`, leftX, y);
-            y += 3;
+    const money = (inr: number) => `${currency} ${new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(inr / (rate || 1))}`;
+    const clean = (text: unknown) => String(text ?? "").replace(/₹/g, "INR ").replace(/[\u200b-\u200f\u202a-\u202e\ufeff]/g, "");
+    const text = (value: unknown, size = base, bold = false, align: "left" | "center" | "right" = "left", maxWidth = content, x = margin) => {
+        const valueText = clean(value).trim();
+        if (!valueText) return;
+        // Helvetica cannot represent arbitrary Unicode; fail visibly rather than printing corrupt customer data.
+        if (/[^\x09\x0a\x0d\x20-\x7e\xa0-\xff\u0152\u0153\u0160\u0161\u0178\u017d\u017e\u0192\u02c6\u02dc\u2013\u2014\u2018-\u201a\u201c-\u201e\u2020-\u2022\u2026\u2030\u2039\u203a\u20ac\u2122]/.test(valueText)) {
+            throw new Error("Thermal font does not support some invoice characters. Use the standard PDF for this invoice or use Latin text.");
         }
-
-        // Remaining description lines (attributes)
-        for (let i = 1; i < descLines.length; i++) {
-            const line = descLines[i];
-            const wrapped = doc.splitTextToSize(line, CONTENT_WIDTH);
-            doc.text(wrapped, leftX, y);
-            y += wrapped.length * 3;
+        measure.setFont("helvetica", bold ? "bold" : "normal");
+        measure.setFontSize(size);
+        const lines = measure.splitTextToSize(valueText, maxWidth) as string[];
+        const height = size * 25.4 / 72 * 1.25;
+        for (const line of lines) {
+            elements.push({ kind: "text", text: line, x: align === "center" ? width / 2 : align === "right" ? width - margin : x, y, size, bold, align, width: measure.getTextWidth(line), height });
+            y += height;
         }
-        
-        y += 2; // Extra space between items
-    });
-
-    drawDivider();
-
-    // 6. Totals
-    const drawTotalRow = (label: string, value: number, bold: boolean = false) => {
-        drawLeftRight(label, formatCurrencyPDF(value), fontSize.small, bold);
+        y += 0.7;
     };
-
-    drawTotalRow("Subtotal:", data.subtotal);
-    if (data.discount > 0) drawTotalRow("Discount:", -data.discount);
-    if (data.tax > 0) drawTotalRow("GST (3%):", data.tax);
-    
-    y += 1;
-    drawLeftRight("Total:", formatCurrencyPDF(data.total), fontSize.header, true);
-
-    // 7. Payment Info
-    if (data.amountPaid > 0) {
-        y += 2;
-        drawTotalRow("Paid:", data.amountPaid);
-        drawTotalRow("Balance:", data.balanceDue, true);
-    }
-
-    drawDivider();
-
-    // 8. Bank Details
-    if (data.bankDetails) {
-        drawCenterText("Bank Details", fontSize.small, true);
-        drawWrappedText(`Bank: ${data.bankDetails.bankName}`, fontSize.tiny);
-        drawWrappedText(`A/c: ${data.bankDetails.accountNumber}`, fontSize.tiny);
-        drawWrappedText(`IFSC: ${data.bankDetails.ifsc}`, fontSize.tiny);
-        y += 2;
-    }
-
-    // 9. Terms & Notes
-    if (data.terms) {
-        drawWrappedText("Terms & Conditions:", fontSize.tiny, "left");
-        drawWrappedText(data.terms, fontSize.tiny, "left");
-        y += 2;
-    }
-
-    if (data.notes) {
-        drawWrappedText("Note:", fontSize.tiny, "left");
-        drawWrappedText(data.notes, fontSize.tiny, "left");
-        y += 2;
-    }
-
-    // 10. Footer
-    y += 3;
-    drawCenterText("Thank you for your business!", fontSize.small, true);
-    
-    // 11. QR Code
-    // Use configured public URL if available (best for prod/consistent links)
-    // Fallback to window.location.origin (best for local dev if env not set)
-    let qrTargetUrl = data.publicUrl || 
-        (data.token && typeof window !== "undefined" ? `${window.location.origin}/invoice/${data.token}` : undefined);
-
-    if (qrTargetUrl) {
-        qrTargetUrl += "?source=qr";
-    }
-
-    if (qrTargetUrl) {
-        y += 2;
-        try {
-            const qrDataUrl = await QRCode.toDataURL(qrTargetUrl, { 
-                margin: 0,
-                errorCorrectionLevel: 'M' 
-            });
-            const qrSize = 25;
-            const qrX = (PAPER_WIDTH - qrSize) / 2;
-            doc.addImage(qrDataUrl, "PNG", qrX, y, qrSize, qrSize);
-            y += qrSize + 2;
-            drawCenterText("Scan to Download Invoice", fontSize.tiny);
-        } catch (e) {
-            console.error("Failed to generate QR", e);
+    const rule = () => { y += 1; elements.push({ kind: "rule", x: margin, y, width: content, height: 0.15 }); y += 2; };
+    const section = (label: string) => { rule(); text(label, small, true); };
+    const pair = (label: string, value: string, bold = false, size = base) => {
+        measure.setFont("helvetica", bold ? "bold" : "normal"); measure.setFontSize(size);
+        const rightWidth = measure.getTextWidth(value);
+        const leftWidth = measure.getTextWidth(label);
+        if (rightWidth + leftWidth + 3 <= content) {
+            const start = y;
+            text(label, size, bold, "left");
+            const end = y; y = start;
+            text(value, size, bold, "right");
+            y = Math.max(y, end);
+        } else { text(label, small, bold); text(value, size, bold, "right"); }
+    };
+    if (options.showLogo && logoData) { elements.push({ kind: "logo", source: logoData, x: (width - 9) / 2, y, width: 9, height: 9 }); y += 10; }
+    text("KHYATIGEMS", base + 3, true, "center");
+    if (data.company.name.toLowerCase().replace(/\s/g, "") !== "khyatigems") text(data.company.name, small, true, "center");
+    text(data.company.address, small, false, "center");
+    if (data.company.gstin) text(`GSTIN: ${data.company.gstin}`, small, false, "center");
+    text([data.company.phone, data.company.website].filter(Boolean).join(" | "), small, false, "center");
+    if (detailed) text(data.company.email, small, false, "center");
+    section(!options.showFinancials ? "PACKING COPY" : data.documentTitle || (exportInvoice ? "EXPORT INVOICE" : "TAX INVOICE"));
+    pair(data.documentNumberLabel || "Invoice", data.invoiceNumber, true);
+    const date = new Date(data.date);
+    if (Number.isNaN(date.getTime())) throw new Error("This invoice has an invalid invoice date.");
+    pair("Date", date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }));
+    if (data.platformOrderId) text(`Order: ${data.platformOrderId}`, small);
+    if (data.platformInfo?.label) text(`Channel: ${data.platformInfo.label}`, small);
+    section("BILL TO");
+    text(data.customer.name, base, true);
+    text(data.billingAddress || data.customer.address, small);
+    if (data.customer.phone) text(`Phone: ${data.customer.phone}`, small);
+    if (data.customer.gstin) text(`Customer GSTIN: ${data.customer.gstin}`, small);
+    if (detailed && data.customer.email) text(data.customer.email, small);
+    if (data.placeOfSupply && data.placeOfSupply !== "-") text(`Place of supply: ${data.placeOfSupply}`, small);
+    if (data.countryOfDestination) text(`Destination: ${data.countryOfDestination}`, small);
+    if (data.shippingAddress && data.shippingAddress.trim() !== (data.billingAddress || data.customer.address || "").trim()) { section("SHIP TO"); text(data.shippingAddress, small); }
+    if (data.courierPartner || data.trackingId) text([data.courierPartner, data.trackingId && `Tracking: ${data.trackingId}`].filter(Boolean).join(" | "), small);
+    section(`ITEM DETAILS (${data.items.length})`);
+    data.items.forEach((item, index) => {
+        if (index) rule();
+        const [name, ...details] = item.description.split("\n");
+        text(`${index + 1}. ${name}`, base, true);
+        if (item.sku) text(`SKU: ${item.sku}`, base, true);
+        text(`Qty: ${item.quantity}${item.displayQty && item.displayQty !== String(item.quantity) ? ` | ${item.displayQty}` : ""}`, small);
+        for (const detail of details) {
+            if (!options.showCertification && /^Cert:/i.test(detail.trim())) continue;
+            if (!options.showFinancials && /^Rate:/i.test(detail.trim())) continue;
+            text(detail, small);
+        }
+        if (item.hsn) text(`HSN: ${item.hsn}`, small);
+        if (options.showFinancials) {
+            if (detailed) {
+                pair("Unit price", money(item.unitPrice), false, small);
+                if (item.discountAmount) pair("Item discount", money(item.discountAmount), false, small);
+                if (typeof item.gstAmount === "number") pair(`GST${item.gstRate != null ? ` (${item.gstRate}%)` : ""}`, money(item.gstAmount), false, small);
+            }
+            pair("Line total", money(item.total), true);
+        }
+    });
+    if (options.showFinancials) {
+        section("PAYMENT SUMMARY");
+        if (data.discount > 0 && typeof data.grossTotal === "number") { pair("Before discount", money(data.grossTotal)); pair("Discount", `-${money(data.discount)}`); }
+        pair("Taxable subtotal", money(data.subtotal));
+        if (data.discount > 0 && typeof data.grossTotal !== "number") pair("Discount (included)", money(data.discount));
+        pair("GST / tax", money(data.tax));
+        if (data.shippingCharge) pair("Shipping", money(data.shippingCharge));
+        if (data.additionalCharge) pair("Other charges", money(data.additionalCharge));
+        for (const row of data.extraTotalRows || []) pair(row.label, money(row.amount), row.emphasis === "bold");
+        rule(); pair(data.totalLabel || "GRAND TOTAL", money(data.total), true, base + 2);
+        if (detailed && ["INR", "USD", "EUR"].includes(currency)) text(`In words: ${convertNumberToWords(data.total / (rate || 1), currency)}`, small);
+        if (data.showPaymentSection !== false) {
+            pair("Paid", money(data.amountPaid)); pair("Balance due", money(data.balanceDue), true);
+            text(`Payment: ${data.paymentStatus}`, small, true);
+            for (const payment of data.paymentBreakdown || []) pair(payment.method, money(payment.amount), false, small);
+            if (data.paymentMethod && !data.paymentBreakdown?.length) text(`Method: ${data.paymentMethod}`, small);
         }
     }
+    if (detailed && data.showBankDetailsSection !== false && data.bankDetails) { section("BANK DETAILS"); text(`${data.bankDetails.bankName}\nA/c: ${data.bankDetails.accountNumber}\nIFSC: ${data.bankDetails.ifsc}\n${data.bankDetails.holder}`, small); }
+    if (exportInvoice) {
+        if (data.iecCode) text(`IEC: ${data.iecCode}`, small);
+        if (data.exportType) text(`Export profile: ${data.exportType}`, small);
+        if (data.portOfDispatch) text(`Port: ${data.portOfDispatch}`, small);
+        if (data.modeOfTransport) text(`Transport: ${data.modeOfTransport}`, small);
+        if (data.exportTerms) { section("EXPORT TERMS"); text(data.exportTerms, small); }
+    }
+    if (data.terms) { section("TERMS"); text(data.terms, small); }
+    if (data.notes) { section("NOTES"); text(data.notes, small); }
+    rule(); text("Thank you for choosing KhyatiGems!", small, true, "center");
+    if (options.showQr) {
+        const target = resolveThermalInvoiceQr(data);
+        if (target.warning) warnings.push(target.warning);
+        if (target.url) {
+            const code = QRCode.create(target.url, { errorCorrectionLevel: "M" });
+            const size = Math.max(24, (code.modules.size + 8) * 3 * 25.4 / 203);
+            if (size > content) throw new Error("The invoice download QR is too large for this paper profile. Select wider paper.");
+            const matrix = Array.from({ length: code.modules.size }, (_, row) => Array.from({ length: code.modules.size }, (_, col) => Boolean(code.modules.get(row, col))));
+            y += 2; elements.push({ kind: "qr", x: (width - size) / 2, y, width: size, height: size, modules: code.modules.size, matrix }); y += size + 1;
+            text("Scan to download your invoice PDF", small, false, "center");
+        }
+    }
+    const height = Math.ceil(y + margin + 3);
+    if (height > 1400) throw new Error("This receipt exceeds the supported roll length. Use the standard multi-page PDF for this invoice.");
+    return { width, height, elements, warnings };
+}
 
-    // Save
-    doc.save(`Invoice-${data.invoiceNumber}-Thermal.pdf`);
+async function loadMonochromeLogo(source: string): Promise<string | undefined> {
+    if (typeof document === "undefined") return undefined;
+    return new Promise(resolve => {
+        const image = new Image(); image.crossOrigin = "anonymous";
+        const timeout = setTimeout(() => resolve(undefined), 4000);
+        image.onerror = () => { clearTimeout(timeout); resolve(undefined); };
+        image.onload = () => {
+            clearTimeout(timeout);
+            try {
+                const canvas = document.createElement("canvas"); canvas.width = 180; canvas.height = 180;
+                const context = canvas.getContext("2d"); if (!context) return resolve(undefined);
+                context.fillStyle = "white"; context.fillRect(0, 0, 180, 180);
+                const scale = Math.min(180 / image.width, 180 / image.height);
+                context.drawImage(image, (180 - image.width * scale) / 2, (180 - image.height * scale) / 2, image.width * scale, image.height * scale);
+                const pixels = context.getImageData(0, 0, 180, 180);
+                for (let i = 0; i < pixels.data.length; i += 4) { const value = pixels.data[i] * 0.299 + pixels.data[i + 1] * 0.587 + pixels.data[i + 2] * 0.114 < 185 ? 0 : 255; pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value; }
+                context.putImageData(pixels, 0, 0); resolve(canvas.toDataURL("image/png"));
+            } catch { resolve(undefined); }
+        };
+        image.src = source;
+    });
+}
+export async function createThermalInvoicePDF(data: InvoiceData, options: Partial<ThermalInvoiceOptions> = {}) {
+    const logo = options.showLogo !== false && data.company.logoUrl ? await loadMonochromeLogo(data.company.logoUrl) : undefined;
+    const layout = buildThermalInvoiceLayout(data, options, logo);
+    if (data.company.logoUrl && options.showLogo !== false && !logo) layout.warnings.push("Company logo could not be loaded; the company name is printed instead.");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [layout.width, layout.height], compress: true });
+    for (const element of layout.elements) {
+        if (element.kind === "text") { doc.setFont("helvetica", element.bold ? "bold" : "normal"); doc.setFontSize(element.size); doc.text(element.text, element.x, element.y, { align: element.align, baseline: "top" }); }
+        else if (element.kind === "rule") { doc.setLineWidth(0.15); doc.line(element.x, element.y, element.x + element.width, element.y); }
+        else if (element.kind === "logo") doc.addImage(element.source, "PNG", element.x, element.y, element.width, element.height);
+        else { const moduleSize = element.width / (element.modules + 8); doc.setFillColor(0, 0, 0); element.matrix.forEach((row, r) => row.forEach((dark, c) => { if (dark) doc.rect(element.x + (c + 4) * moduleSize, element.y + (r + 4) * moduleSize, moduleSize, moduleSize, "F"); })); }
+    }
+    return { blob: doc.output("blob"), layout, fileName: `Invoice-${data.invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "_")}-Thermal.pdf` };
+}
+export async function generateThermalInvoicePDF(data: InvoiceData, options: Partial<ThermalInvoiceOptions> = {}) {
+    const result = await createThermalInvoicePDF(data, options);
+    const url = URL.createObjectURL(result.blob);
+    const link = document.createElement("a"); link.href = url; link.download = result.fileName; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return result;
 }

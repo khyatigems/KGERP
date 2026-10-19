@@ -28,6 +28,8 @@ export function renderTemplate(
 
 export const COMMON_TEMPLATE_VARIABLES = [
   "customer_name",
+  "enquiry_reference",
+  "enquiry_subject",
   "order_number",
   "invoice_number",
   "certificate_number",

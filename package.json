@@ -19,6 +19,8 @@
     "test:attention:integration": "tsx scripts/tests/attention-visibility.integration.ts",
     "test:attention": "npm run test:attention:unit && npm run test:attention:integration",
     "test:invoice:unit": "tsx scripts/tests/invoice-date.unit.ts",
+    "test:packaging:thermal": "tsx scripts/tests/packaging-thermal.unit.ts",
+    "test:thermal": "tsx scripts/tests/thermal-label-layout.unit.ts && tsx scripts/tests/thermal-invoice-layout.unit.ts && tsx scripts/tests/thermal-invoice-snapshot.unit.ts && tsx scripts/tests/public-invoice-pdf.unit.ts",
     "test:invoice:integration": "tsx scripts/tests/invoice-postpayment-charge.integration.ts",
     "test:invoice": "npm run test:invoice:unit && npm run test:invoice:integration",
     "test:multi-payment": "tsx scripts/tests/multi-payment.integration.ts",

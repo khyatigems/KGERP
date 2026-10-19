@@ -1,11 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
-import { selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
+import { computeInvoicePaymentStatus, selfHealInvoicePaymentOnLoad } from "@/lib/invoice-billing";
 import { aggregateInvoicePayments, getPaymentMethodLabel } from "@/lib/payment-breakdown";
 import { computeInvoiceGst } from "@/lib/invoice-gst";
 import { sanitizeNumberText } from "@/lib/number-formatting";
 import type { InvoiceData } from "@/lib/invoice-generator";
+import { isValidInvoiceToken } from "@/lib/public-invoice-url";
+import { resolveInventoryCertificateUrl } from "@/lib/certificate-url";
+import { readThermalInvoiceSnapshot } from "@/lib/documents/thermal-invoice-snapshot";
 
 type PrismaRecord = Record<string, unknown>;
 type PackagingSettingsRow = { categoryHsnJson?: string | null };
@@ -39,18 +42,23 @@ function parseCategoryHsnJson(input: unknown): Record<string, string> {
  * Build the canonical InvoiceData for an invoice — identical to the invoice
  * page's download PDF, so email attachments match the ERP download exactly.
  */
-export async function buildInvoiceData(invoiceId: string): Promise<InvoiceData | null> {
+export async function buildInvoiceData(
+  invoiceId: string,
+  options: { readOnly?: boolean; publicToken?: string } = {},
+): Promise<InvoiceData | null> {
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
     include: {
-      sales: { include: { inventory: { include: { certificates: true } }, customer: true } },
-      legacySale: { include: { inventory: { include: { certificates: true } }, customer: true } },
+      sales: { include: { inventory: { include: { certificates: true, rashis: true } }, customer: true } },
+      legacySale: { include: { inventory: { include: { certificates: true, rashis: true } }, customer: true } },
       quotation: { include: { customer: true } },
       versions: { orderBy: { versionNumber: "desc" } },
       payments: { orderBy: { date: "desc" } },
     },
   });
   if (!invoice) return null;
+  // Recheck here too: a link may be disabled or rotated between the token lookup and this read.
+  if (options.publicToken && (!invoice.isActive || invoice.token !== options.publicToken)) return null;
 
   const salesItems = invoice.sales.length > 0 ? invoice.sales : (invoice.legacySale ? [invoice.legacySale] : []);
   const primarySale = salesItems[0];
@@ -148,7 +156,10 @@ export async function buildInvoiceData(invoiceId: string): Promise<InvoiceData |
   const pdfTotalWithoutCoupon = totalBeforeExtras + (Number.isFinite(shippingCharge) ? shippingCharge : 0) + (Number.isFinite(additionalCharge) ? additionalCharge : 0);
   const pdfTotal = Math.max(0, pdfTotalWithoutCoupon - couponDiscountTotal);
   const discount = gstCalc.discountTotal;
-  const healResult = await selfHealInvoicePaymentOnLoad({
+  const healResult = options.readOnly ? {
+    paymentStatus: computeInvoicePaymentStatus(pdfTotal, amountPaid),
+    balanceDue: Math.max(0, pdfTotal - amountPaid),
+  } : await selfHealInvoicePaymentOnLoad({
     invoiceId: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
     persistedTotalAmount: invoice.totalAmount || 0,
@@ -177,7 +188,7 @@ export async function buildInvoiceData(invoiceId: string): Promise<InvoiceData |
   })();
   const latestPaymentDate = (invoice.payments || []).slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.date;
   const isExportInvoice = invoice.invoiceType === "EXPORT_INVOICE" || invoice.invoiceType === "EXPORT";
-  const isReplacement = invoice.status === "REPLACEMENT" || paymentStatus === "REPLACEMENT";
+  const isReplacement = invoice.status === "REPLACEMENT" || invoice.paymentStatus === "REPLACEMENT";
 
   const creditNotes = await prisma.$queryRawUnsafe<
     Array<{ id: string; creditNoteNumber: string; issueDate: string; activeUntil: string | null; totalAmount: number; balanceAmount: number; isActive: number }>
@@ -211,6 +222,9 @@ export async function buildInvoiceData(invoiceId: string): Promise<InvoiceData |
 
   const pdfData: InvoiceData = {
     invoiceNumber: invoice.invoiceNumber,
+    token: invoice.token,
+    platformOrderId: primarySale.orderId || undefined,
+    platformInfo: primarySale.platform ? { label: primarySale.platform } : undefined,
     date: getInvoiceDisplayDate(invoice),
     invoiceType: isExportInvoice ? "EXPORT_INVOICE" : "TAX_INVOICE",
     invoiceCurrency: (invoice.invoiceCurrency || companySettings?.defaultCurrency || "INR") as "INR" | "USD" | "EUR" | "GBP",
@@ -241,6 +255,7 @@ export async function buildInvoiceData(invoiceId: string): Promise<InvoiceData |
     customer: {
       name: resolvedCustomer.name,
       customerCode: customerCode || undefined,
+      gstin: linkedCustomer?.gstin || undefined,
       address: resolvedCustomer.address || resolvedCustomer.city || "",
       phone: resolvedCustomer.phone,
       email: resolvedCustomer.email,
@@ -249,9 +264,9 @@ export async function buildInvoiceData(invoiceId: string): Promise<InvoiceData |
     shippingAddress: (primarySale as { shippingAddress?: string | null }).shippingAddress || (primarySale as { billingAddress?: string | null }).billingAddress || resolvedCustomer.address || resolvedCustomer.city || "",
     placeOfSupply: (primarySale as { placeOfSupply?: string | null }).placeOfSupply || resolvedCustomer.city || resolvedCustomer.address || "-",
     items: processedItems.map((item) => {
-      const qtyLabel = item.inventory.weightRatti
+      const qtyLabel = displayOptions.showRatti && item.inventory.weightRatti
         ? `${item.inventory.weightRatti} Ratti`
-        : item.inventory.weightValue
+        : displayOptions.showWeight && item.inventory.weightValue
         ? `${item.inventory.weightValue} ${item.inventory.weightUnit}`
         : "1";
       const detailLines: string[] = [];
@@ -259,6 +274,23 @@ export async function buildInvoiceData(invoiceId: string): Promise<InvoiceData |
       const label = unit.toLowerCase().includes("ct") ? "Carat" : "Weight";
       if (displayOptions.showWeight) detailLines.push(`${label}: ${item.inventory.weightValue} ${unit}`);
       if (displayOptions.showRatti && item.inventory.weightRatti) detailLines.push(`Ratti: ${item.inventory.weightRatti}`);
+      if (displayOptions.showDimensions && (item.inventory.dimensionsMm || item.inventory.measurements)) {
+        detailLines.push(`Dimensions: ${item.inventory.dimensionsMm || item.inventory.measurements}`);
+      }
+      if (displayOptions.showGemType && item.inventory.gemType) detailLines.push(`Gem: ${item.inventory.gemType}`);
+      if (displayOptions.showCategory && item.inventory.category) detailLines.push(`Category: ${item.inventory.category}`);
+      if (displayOptions.showColor && item.inventory.color) detailLines.push(`Color: ${item.inventory.color}`);
+      if (displayOptions.showShape && item.inventory.shape) detailLines.push(`Shape: ${item.inventory.shape}`);
+      if (displayOptions.showRashi && item.inventory.rashis?.length) {
+        detailLines.push(`Rashi: ${item.inventory.rashis.map((rashi) => rashi.name).join(", ")}`);
+      }
+      if (displayOptions.showCertificates) {
+        const provider = item.inventory.certificates?.length
+          ? item.inventory.certificates.map((certificate) => certificate.name).join(", ")
+          : item.inventory.certification || item.inventory.certificateLab || item.inventory.lab || "";
+        const certificateNumber = item.inventory.certificateNumber || item.inventory.certificateNo || "";
+        if (provider || certificateNumber) detailLines.push(`Cert: ${[provider, certificateNumber].filter(Boolean).join(" #")}`);
+      }
       if (displayOptions.showPrice) {
         const rateValue = item.inventory.pricingMode === "PER_CARAT"
           ? item.inventory.sellingRatePerCarat
@@ -281,6 +313,7 @@ export async function buildInvoiceData(invoiceId: string): Promise<InvoiceData |
         gstAmount: item.calculatedGst,
         total: item.finalTotal,
         discountAmount: item.discountAmount || 0,
+        certificateUrl: displayOptions.showCertificates ? resolveInventoryCertificateUrl(item.inventory) || undefined : undefined,
       };
     }),
     grossTotal: gstCalc.grossTotal,
@@ -313,4 +346,21 @@ export async function buildInvoiceData(invoiceId: string): Promise<InvoiceData |
   };
 
   return pdfData;
+}
+
+/** Public reads never repair billing or write to the database. Disabled links return no data. */
+export async function buildPublicInvoiceData(token: string): Promise<InvoiceData | null> {
+  if (!isValidInvoiceToken(token)) return null;
+  const invoice = await prisma.invoice.findUnique({
+    where: { token },
+    select: { id: true, isActive: true, updatedAt: true },
+  });
+  if (!invoice?.isActive) return null;
+  const archived = await readThermalInvoiceSnapshot(invoice.id, invoice.updatedAt.toISOString());
+  if (archived) {
+    // Revalidate the bearer link immediately before handing out archived customer data.
+    const active = await prisma.invoice.findFirst({ where: { id: invoice.id, token, isActive: true }, select: { id: true } });
+    return active ? { ...archived, token } : null;
+  }
+  return buildInvoiceData(invoice.id, { readOnly: true, publicToken: token });
 }

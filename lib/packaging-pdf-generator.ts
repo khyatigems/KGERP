@@ -103,6 +103,8 @@ export type PackagingSheetLayout = {
 };
 
 export type PackagingRenderOptions = {
+  medium?: "STICKER" | "THERMAL_50X25";
+  thermalOrigin?: string;
   selectedFields: PackagingFieldId[];
   drawGuides?: boolean;
   drawCellNumbers?: boolean;
@@ -197,6 +199,11 @@ export async function generatePackagingPdfBlob(
   layout: PackagingSheetLayout,
   options: PackagingRenderOptions
 ): Promise<Blob> {
+  if (options.medium === "THERMAL_50X25") {
+    const { generatePackagingThermalPdfBlob } = await import("@/lib/packaging-thermal-layout");
+    const origin = options.thermalOrigin || (typeof window !== "undefined" ? window.location.origin : "");
+    return generatePackagingThermalPdfBlob(labels, origin);
+  }
   try {
     const doc = new jsPDF({
       orientation: "portrait",

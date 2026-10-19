@@ -7,6 +7,7 @@ import { encodePrice } from "@/lib/price-encoder";
 import { LabelConfig } from "@/lib/label-generator";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { logActivity } from "@/lib/activity-logger";
+import { toLabelItem } from "@/lib/label-items";
 
 async function canUseLabels(userId: string) {
     return await checkUserPermission(userId, PERMISSIONS.LABELS_VIEW) || await checkUserPermission(userId, PERMISSIONS.INVENTORY_VIEW);
@@ -220,13 +221,7 @@ export async function createLabelJob(data: {
             }
         });
 
-        // 4. Remove items from Cart (if they exist there)
-        await prisma.labelCartItem.deleteMany({
-            where: {
-                userId: session.user.id,
-                inventoryId: { in: data.inventoryIds }
-            }
-        });
+        // Keep queued items until PDF generation succeeds and the job is completed.
 
         // 5. Log label print activity for each inventory item
         const labelType = (data.printFormat as LabelConfig)?.pageSize || "A4";
@@ -238,7 +233,7 @@ export async function createLabelJob(data: {
               entityId: invId,
               entityIdentifier: invItem.sku,
               actionType: "EDIT",
-              details: `Label printed for this item (${labelType})`,
+              details: `Label print job prepared for this item (${labelType})`,
               source: "WEB",
               userId: session.user.id,
               userName: session.user.name || session.user.email || "Unknown",
@@ -340,38 +335,18 @@ export async function getJobReprintItems(jobId: string) {
 
         if (!job) return [];
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const skus = job.items.map((i: any) => i.sku);
+        const skus = job.items.map(item => item.sku);
         const inventoryItems = await prisma.inventory.findMany({
             where: { sku: { in: skus } },
             include: { colorCode: true }
         });
 
-        // Map inventory items but use JOB price data
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const reprintItems = job.items.map((jobItem: any) => {
+        const reprintItems = job.items.map(jobItem => {
             const invItem = inventoryItems.find(i => i.sku === jobItem.sku);
             if (!invItem) return null; 
             
-            return {
-                id: invItem.id,
-                sku: jobItem.sku,
-                itemName: invItem.itemName,
-                gemType: invItem.gemType || "",
-                color: invItem.colorCode?.name || "",
-                weightValue: invItem.weightValue || 0,
-                weightUnit: invItem.weightUnit || "",
-                weightRatti: invItem.weightRatti,
-                shape: invItem.shape,
-                dimensions: invItem.dimensionsMm,
-                stockLocation: invItem.stockLocation,
-                // FORCE USE OF STORED PRICE DATA
-                sellingPrice: jobItem.sellingPrice,
-                priceWithChecksum: jobItem.priceWithChecksum,
-                pricingMode: "REPRINT" 
-            };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        }).filter((i: any) => i !== null);
+            return toLabelItem(invItem, jobItem);
+        }).filter(item => item !== null);
 
         return reprintItems;
     } catch (e) {
@@ -390,6 +365,10 @@ export async function updateLabelJobStatus(jobId: string, status: "PENDING" | "C
         });
         if (result.count === 0) {
             return { success: false, message: "Job not found" };
+        }
+        if (status === "COMPLETED") {
+            const job = await prisma.labelPrintJob.findFirst({ where: { id: jobId, userId: session.user.id }, include: { items: true } });
+            if (job) await prisma.labelCartItem.deleteMany({ where: { userId: session.user.id, addedAt: { lte: job.createdAt }, inventory: { sku: { in: job.items.map(item => item.sku) } } } });
         }
         revalidatePath("/labels");
         return { success: true };

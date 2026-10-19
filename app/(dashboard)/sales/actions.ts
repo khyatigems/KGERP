@@ -15,11 +15,13 @@ import { InvoiceData } from "@/lib/invoice-generator";
 import { Prisma } from "@prisma/client";
 import { postJournalEntry, getOrCreateAccountByCode, ACCOUNTS, PrismaTx } from "@/lib/accounting";
 import { normalizeDateToUtcNoon } from "@/lib/date";
-import { getInvoiceDisplayDate } from "@/lib/invoice-date";
 import { computeInvoiceGst } from "@/lib/invoice-gst";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
 import "@/lib/returns-schema-ensure";
 import { accrueLoyaltyPoints } from "@/lib/loyalty-accrual";
+import { buildInvoiceData } from "@/lib/documents/invoice-data";
+import { invoicePrintHash, readThermalInvoiceSnapshot, saveThermalInvoiceSnapshot } from "@/lib/documents/thermal-invoice-snapshot";
+import { getPublicInvoicePdfUrl } from "@/lib/public-invoice-url";
 
 const saleItemSchema = z.object({
   inventoryId: z.string().uuid("Please select an item"),
@@ -1193,228 +1195,49 @@ export async function deleteSale(id: string) {
 }
 
 export async function getInvoiceDataForThermal(saleId: string): Promise<InvoiceData | null> {
-    const session = await auth();
-    if (!session) return null;
-
-    // 1. Find Sale and its Invoice
+    const permission = await checkPermission(PERMISSIONS.SALES_VIEW);
+    if (!permission.success) throw new Error(permission.message || "You do not have permission to print invoices.");
     const sale = await prisma.sale.findUnique({
         where: { id: saleId },
-        include: {
-            invoice: {
-                include: {
-                    sales: {
-                        include: {
-                            inventory: {
-                                include: {
-                                    certificates: true,
-                                    rashis: true
-                                }
-                            }
-                        }
-                    },
-                    quotation: {
-                        include: {
-                            customer: true
-                        }
-                    }
-                }
-            }
-        }
+        select: { invoice: { select: { id: true, isActive: true, updatedAt: true } }, legacyInvoice: { select: { id: true, isActive: true, updatedAt: true } } },
     });
-
-    if (!sale || !sale.invoice) return null;
-
-    const invoice = sale.invoice;
-    const companySettings = await prisma.companySettings.findFirst();
-    const invoiceSettings = await prisma.invoiceSettings.findFirst();
-    const paymentSettings = await prisma.paymentSettings.findFirst();
-
-    // Parse GST Rates
-    let gstRates: Record<string, string> = {};
-    try {
-        if (invoiceSettings?.categoryGstRates) {
-            gstRates = JSON.parse(invoiceSettings.categoryGstRates);
-        }
-    } catch (e) {
-        console.error("Failed to parse GST rates", e);
+    const invoice = sale?.invoice || sale?.legacyInvoice;
+    if (!invoice?.isActive) return null;
+    const sourceRevision = invoice.updatedAt.toISOString();
+    const archived = await readThermalInvoiceSnapshot(invoice.id, sourceRevision);
+    if (archived) {
+        try { archived.publicUrl = archived.token && process.env.ERP_PUBLIC_URL ? getPublicInvoicePdfUrl(archived.token, process.env.ERP_PUBLIC_URL) : undefined; }
+        catch { archived.publicUrl = undefined; }
+        return archived;
     }
+    const data = await buildInvoiceData(invoice.id, { readOnly: true });
+    if (!data) return null;
+    // Only an explicit ERP override can replace the browser's actual ERP origin.
+    // APP_BASE_URL may describe the storefront, which cannot serve invoice PDFs.
+    try { data.publicUrl = data.token && process.env.ERP_PUBLIC_URL ? getPublicInvoicePdfUrl(data.token, process.env.ERP_PUBLIC_URL) : undefined; }
+    catch { data.publicUrl = undefined; }
+    data.thermalSourceRevision = sourceRevision;
+    data.thermalSourceHash = invoicePrintHash(data);
+    return data;
+}
 
-    // Parse Display Options
-    let displayOptions = {
-        showWeight: true,
-        showRatti: true,
-        showDimensions: true,
-        showGemType: true,
-        showCategory: true,
-        showColor: true,
-        showShape: true,
-        showRashi: true,
-        showCertificates: true,
-        showSku: true,
-        showPrice: true,
-    };
-
-    if (invoice.displayOptions) {
-        try {
-            const parsed = JSON.parse(invoice.displayOptions);
-            displayOptions = { ...displayOptions, ...parsed };
-        } catch (e) {
-            console.error("Failed to parse display options", e);
-        }
-    }
-
-    // Process Items
-    const salesItems = invoice.sales;
-    const processedItems = salesItems.map((item) => {
-        const category = item.inventory.category || "General";
-        let rateStr = "3";
-        if (gstRates && typeof gstRates === 'object') {
-            rateStr = gstRates[category] || gstRates[item.inventory.itemName] || "3";
-        }
-        const gstRate = parseFloat(rateStr) || 3;
-
-        const inclusivePrice = item.salePrice || item.netAmount || 0;
-        const basePrice = inclusivePrice / (1 + (gstRate / 100));
-        const gstAmount = inclusivePrice - basePrice;
-
-        // Description Construction
-        const descriptionParts: string[] = [];
-        descriptionParts.push(item.inventory.itemName);
-
-        const details: string[] = [];
-        if (displayOptions.showWeight) {
-            const unit = item.inventory.weightUnit || "cts";
-            const label = unit.toLowerCase().includes("ct") ? "Carat" : "Weight";
-            details.push(`${label}: ${item.inventory.weightValue} ${unit}`);
-        }
-        if (displayOptions.showRatti && item.inventory.weightRatti) details.push(`Ratti: ${item.inventory.weightRatti}`);
-        if (displayOptions.showPrice) {
-            const rateValue = item.inventory.pricingMode === "PER_CARAT"
-              ? item.inventory.sellingRatePerCarat
-              : item.inventory.flatSellingPrice;
-            const rateFallback = rateValue ?? basePrice ?? 0;
-            details.push(`Rate: Rs. ${Number(rateFallback || 0).toFixed(2)}`);
-        }
-        
-        if (details.length > 0) descriptionParts.push(details.join(" | "));
-
-        const qtyLabel = item.inventory.weightRatti
-            ? `${item.inventory.weightRatti} Ratti`
-            : item.inventory.weightValue
-            ? `${item.inventory.weightValue} ${item.inventory.weightUnit}`
-            : "1";
-        return {
-            sku: displayOptions.showSku ? item.inventory.sku : "",
-            description: descriptionParts.join("\n"),
-            quantity: 1,
-            displayQty: qtyLabel,
-            unitPrice: item.salePrice, // Note: using salePrice here but might need basePrice depending on calculation
-            usdPrice: item.usdPrice, // USD price for export invoices
-            basePrice: basePrice,
-            gstRate,
-            gstAmount,
-            total: item.netAmount || (inclusivePrice - (item.discountAmount || 0)) || 0,
-            discountAmount: item.discountAmount || 0
-        };
-    });
-
-    // Totals
-    const subtotalBase = processedItems.reduce((sum, item) => sum + item.basePrice, 0);
-    const totalGst = processedItems.reduce((sum, item) => sum + item.gstAmount, 0);
-    const discount = processedItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-    const saleMeta = sale as {
-        shippingCharge?: number | null;
-        additionalCharge?: number | null;
-        billingAddress?: string | null;
-        shippingAddress?: string | null;
-        placeOfSupply?: string | null;
-        customerAddress?: string | null;
-        customerCity?: string | null;
-    };
-    const shippingCharge = saleMeta.shippingCharge || 0;
-    const additionalCharge = saleMeta.additionalCharge || 0;
-    const total = processedItems.reduce((sum, item) => sum + item.total, 0) + shippingCharge + additionalCharge;
-
-    // Payment Status
-    const allPaid = salesItems.every((s) => s.paymentStatus === "PAID");
-    const anyPaidOrPartial = salesItems.some((s) => s.paymentStatus === "PAID" || s.paymentStatus === "PARTIAL");
-    let paymentStatus = "UNPAID";
-    if (allPaid) paymentStatus = "PAID";
-    else if (anyPaidOrPartial) paymentStatus = "PARTIAL";
-
-    const isPaid = paymentStatus === "PAID";
-    const amountReceived = salesItems.reduce((sum, item) => {
-        if (item.paymentStatus === "PAID") return sum + (item.netAmount || item.salePrice);
-        return sum;
-    }, 0);
-    const balanceDue = isPaid ? 0 : Math.max(0, total - amountReceived);
-
-    // Customer
-    // Prefer sale customer, then invoice/quotation customer
-    const customerName = sale.customerName || invoice.quotation?.customer?.name || "Walk-in Customer";
-    const customerAddress = saleMeta.customerAddress || saleMeta.customerCity || invoice.quotation?.customer?.address || invoice.quotation?.customer?.city || "";
-    const billingAddress = saleMeta.billingAddress || saleMeta.customerAddress || customerAddress;
-    const shippingAddress = saleMeta.shippingAddress || billingAddress;
-    const placeOfSupply = saleMeta.placeOfSupply || saleMeta.customerCity || billingAddress || "-";
-    const customerPhone = sale.customerPhone || invoice.quotation?.customer?.phone || "";
-    const customerEmail = sale.customerEmail || invoice.quotation?.customer?.email || "";
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://khyatigems.com";
-    const publicUrl = invoice.token ? `${baseUrl}/invoice/${invoice.token}` : undefined;
-
-    return {
-        invoiceNumber: invoice.invoiceNumber,
-        date: getInvoiceDisplayDate(invoice),
-        publicUrl,
-        token: invoice.token,
-        company: {
-            name: companySettings?.companyName || "KhyatiGems",
-            address: companySettings?.address || "",
-            email: companySettings?.email || "",
-            phone: companySettings?.phone || "",
-            website: companySettings?.website || "",
-            gstin: companySettings?.gstin || undefined,
-            logoUrl: companySettings?.invoiceLogoUrl || companySettings?.logoUrl || undefined,
-        },
-        customer: {
-            name: customerName,
-            address: customerAddress,
-            phone: customerPhone,
-            email: customerEmail,
-        },
-        billingAddress,
-        shippingAddress,
-        placeOfSupply,
-        items: processedItems.map(item => ({
-            sku: item.sku,
-            description: item.description,
-            quantity: 1,
-            displayQty: item.displayQty,
-            unitPrice: item.basePrice,
-            basePrice: item.basePrice,
-            gstRate: item.gstRate,
-            gstAmount: item.gstAmount,
-            total: item.total
-        })),
-        subtotal: subtotalBase,
-        discount,
-        tax: totalGst,
-        shippingCharge,
-        additionalCharge,
-        total,
-        amountPaid: amountReceived,
-        balanceDue,
-        status: isPaid ? "PAID" : "DUE",
-        paymentStatus,
-        paymentMethod: sale.paymentMethod || undefined,
-        paidAt: sale.saleDate || undefined,
-        terms: invoiceSettings?.terms || undefined,
-        notes: invoiceSettings?.footerNotes || undefined,
-        bankDetails: paymentSettings?.bankEnabled ? {
-            bankName: paymentSettings.bankName || "",
-            accountNumber: paymentSettings.accountNumber || "",
-            ifsc: paymentSettings.ifscCode || "",
-            holder: paymentSettings.accountHolder || "",
-        } : undefined
-    };
+export async function recordThermalInvoiceOutput(saleId: string, action: "PRINT" | "DOWNLOAD", options: { paperWidth: number; profile: string; showQr: boolean; showLogo: boolean; showFinancials: boolean; showCertification: boolean }, expectedHash: string) {
+    const permission = await checkPermission(PERMISSIONS.SALES_VIEW);
+    if (!permission.success) throw new Error(permission.message || "Unauthorized");
+    const validated = z.object({
+        paperWidth: z.union([z.literal(50), z.literal(80), z.literal(100)]),
+        profile: z.enum(["compact", "detailed"]),
+        showQr: z.boolean(), showLogo: z.boolean(), showFinancials: z.boolean(), showCertification: z.boolean(),
+    }).parse(options);
+    const outputAction = z.enum(["PRINT", "DOWNLOAD"]).parse(action);
+    const sale = await prisma.sale.findUnique({ where: { id: saleId }, select: { invoice: { select: { id: true, invoiceNumber: true, isActive: true } }, legacyInvoice: { select: { id: true, invoiceNumber: true, isActive: true } } } });
+    const invoice = sale?.invoice || sale?.legacyInvoice;
+    if (!invoice?.isActive) throw new Error("Invoice unavailable");
+    const data = await getInvoiceDataForThermal(saleId);
+    if (!data || !expectedHash || data.thermalSourceHash !== expectedHash) throw new Error("Invoice data changed. Close and reopen the preview before printing.");
+    await saveThermalInvoiceSnapshot(invoice.id, data);
+    await logActivity({ entityType: "Invoice", entityId: invoice.id, entityIdentifier: invoice.invoiceNumber,
+        actionType: outputAction, module: "INVOICES", action: `THERMAL_${outputAction}`,
+        description: `Thermal ${outputAction.toLowerCase()} requested for existing invoice`, metadata: validated });
+    return { success: true };
 }
