@@ -5,6 +5,9 @@ import { sanitizeNumberText } from "@/lib/number-formatting";
 import QRCode from "qrcode";
 
 export interface InvoiceData {
+  /** Server-issued print revision metadata; never rendered on customer documents. */
+  thermalSourceRevision?: string;
+  thermalSourceHash?: string;
   invoiceNumber: string;
   date: Date;
   documentTitle?: string;
@@ -50,6 +53,7 @@ export interface InvoiceData {
   customer: {
     name: string;
     customerCode?: string;
+    gstin?: string;
     address?: string;
     phone?: string;
     email?: string;
@@ -254,7 +258,7 @@ async function loadFont(doc: jsPDF, family: string): Promise<boolean> {
   return true;
 }
 
-function convertNumberToWords(amount: number, currency: string = "INR"): string {
+export function convertNumberToWords(amount: number, currency: string = "INR"): string {
   const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
   const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
   const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Loader2, MoreHorizontal, ExternalLink, FileText, Printer, MessageCircle, AlertTriangle } from "lucide-react";
 import { deleteSale, getInvoiceDataForThermal } from "@/app/(dashboard)/sales/actions";
-import { generateThermalInvoicePDF } from "@/lib/thermal-invoice-generator";
+import { ThermalInvoiceDialog } from "@/components/invoice/thermal-invoice-dialog";
+import type { InvoiceData } from "@/lib/invoice-generator";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -81,6 +82,8 @@ export function SalesActions({
 }: SalesActionsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [thermalData, setThermalData] = useState<InvoiceData | null>(null);
+  const [thermalOpen, setThermalOpen] = useState(false);
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2 | 3>(0);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [whatsappOpen, setWhatsappOpen] = useState(false);
@@ -131,11 +134,12 @@ export function SalesActions({
             });
             return;
         }
-        await generateThermalInvoicePDF(data);
+        setThermalData(data);
+        setThermalOpen(true);
     } catch (error) {
         console.error(error);
         toast.error("Error", {
-            description: "Failed to generate thermal invoice."
+            description: error instanceof Error ? error.message : "Failed to load thermal invoice."
         });
     } finally {
         setIsGenerating(false);
@@ -218,6 +222,7 @@ export function SalesActions({
 
   return (
     <>
+      {thermalData && <ThermalInvoiceDialog data={thermalData} saleId={saleId} open={thermalOpen} onOpenChange={setThermalOpen} />}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">

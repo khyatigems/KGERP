@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ensureSalesReturnReplacementSchema, prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
+import { getErpPublicOrigin, getPublicInvoicePdfPath } from "@/lib/public-invoice-url";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { ArrowLeft, ExternalLink, History, FileClock } from "lucide-react";
 import { PaymentStatusSelect } from "@/components/invoices/payment-status-select";
 import { PaymentHistory } from "@/components/invoices/payment-history";
 import { DownloadPdfButton } from "@/components/invoice/download-pdf-button";
+import { ThermalInvoicePrintButton } from "@/components/invoice/thermal-invoice-dialog";
 import { InvoiceWhatsAppButton } from "@/components/invoice/invoice-whatsapp-button";
 import { EmailDocumentButton } from "@/components/invoice/email-document-button";
 import { CommunicationTimeline } from "@/components/communication/communication-timeline";
@@ -465,8 +467,8 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
       : undefined
   };
 
-  const baseUrl = process.env.APP_BASE_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
-  const invoiceUrl = `${baseUrl}/invoice/${invoice.token}`;
+  const baseUrl = getErpPublicOrigin() || "http://localhost:3000";
+  const invoiceUrl = `${baseUrl}${getPublicInvoicePdfPath(invoice.token)}`;
   const outstandingAmount = balanceDue;
   const upiUri = paymentSettings?.upiEnabled && paymentSettings.upiId && outstandingAmount > 0
     ? buildUpiUri({
@@ -541,6 +543,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
               </Button>
             )}
             <DownloadPdfButton data={pdfData} />
+            <ThermalInvoicePrintButton saleId={primarySale.id} />
             <InvoiceWhatsAppButton invoiceId={invoice.id} data={pdfData} />
             <EmailDocumentButton invoiceId={invoice.id} />
         </div>
