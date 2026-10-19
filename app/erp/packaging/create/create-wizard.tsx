@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,10 +21,13 @@ import {
   getPackagingCart,
   removeFromPackagingCart,
   previewPackagingFromCart,
+  completePackagingThermalPrint,
 } from "@/app/erp/packaging/actions";
 import { generatePackagingPdfBlob, createObjectUrl, type PackagingLabelData, type PackagingSheetLayout } from "@/lib/packaging-pdf-generator";
 import type { Inventory } from "@prisma/client";
 import { Settings2 } from "lucide-react";
+import { analyzePackagingThermalBatch, type PackagingThermalBatch } from "@/lib/packaging-thermal-layout";
+import { PackagingThermalPreview } from "@/components/packaging/packaging-thermal-preview";
 
 // --- Types ---
 
@@ -58,6 +61,8 @@ export function CreatePackagingWizard() {
 
   // State: Print Configuration
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [printMedium, setPrintMedium] = useState<"STICKER" | "THERMAL_50X25">("STICKER");
+  const isThermal = printMedium === "THERMAL_50X25";
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [manufacturingDate, setManufacturingDate] = useState(new Date().toISOString().slice(0, 10));
   const [labelVariant, setLabelVariant] = useState<"RETAIL" | "EXPORT">("RETAIL");
@@ -79,7 +84,14 @@ export function CreatePackagingWizard() {
     startPosition: 1,
   });
   const [layoutDialogOpen, setLayoutDialogOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [storedPreviewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewReadyKey, setPreviewReadyKey] = useState("");
+  const [previewError, setPreviewError] = useState("");
+  const [thermalBatch, setThermalBatch] = useState<PackagingThermalBatch | null>(null);
+  const requestRef = useRef(0);
+  const previewUrlRef = useRef<string | null>(null);
+  const previewKey = JSON.stringify({ printMedium, manufacturingDate, labelVariant, layoutParams, startPosition, itemsPerLabel, cart: cartItems.map(item => [item.inventoryId, item.quantity, item.location]) });
+  const previewUrl = previewReadyKey === previewKey ? storedPreviewUrl : null;
   const [generatingPdf, setGeneratingPdf] = useState(false);
   
   // --- Persistence ---
@@ -236,6 +248,7 @@ export function CreatePackagingWizard() {
     // However, since we debounce, let's just proceed.
     
     setGeneratingPdf(true);
+    const request = ++requestRef.current;
     try {
       const packedDate = resolvePackingDate(manufacturingDate);
       // Use the preview-specific action that doesn't delete the cart
@@ -259,6 +272,11 @@ export function CreatePackagingWizard() {
         packingDate: packedDate,
         labelVariant,
       }));
+      if (request !== requestRef.current) return;
+      setPreviewError("");
+      setThermalBatch(isThermal ? analyzePackagingThermalBatch(labels, window.location.origin) : null);
+      setPreviewReadyKey(previewKey);
+      setPreviewUrl(null);
       
       const layout: PackagingSheetLayout = {
         ...layoutParams,
@@ -266,32 +284,43 @@ export function CreatePackagingWizard() {
       };
 
       const blob = await generatePackagingPdfBlob(labels, layout, {
+        medium: printMedium,
+        thermalOrigin: window.location.origin,
         selectedFields: ["header", "footer", "qr", "barcode", "price", "origin", "weight"],
         drawGuides: false,
         drawCellNumbers: false,
-        itemsPerLabel,
+        itemsPerLabel: isThermal ? 1 : itemsPerLabel,
       });
 
       const url = createObjectUrl(blob);
+      if (request !== requestRef.current) { URL.revokeObjectURL(url); return; }
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = url;
       setPreviewUrl(url);
       
     } catch (e) {
       console.error(e);
-      toast.error("Preview generation failed");
+      if (request === requestRef.current) { setPreviewUrl(null); setPreviewReadyKey(previewKey); setPreviewError(e instanceof Error ? e.message : "Preview generation failed"); }
     } finally {
-      setGeneratingPdf(false);
+      if (request === requestRef.current) setGeneratingPdf(false);
     }
-  }, [printDialogOpen, manufacturingDate, labelVariant, layoutParams, startPosition, itemsPerLabel]);
+  }, [printDialogOpen, manufacturingDate, labelVariant, layoutParams, startPosition, itemsPerLabel, printMedium, isThermal, previewKey]);
 
   // Auto-refresh preview when settings change
   useEffect(() => {
     if (printDialogOpen && cartItems.length > 0) {
+      const requests = requestRef;
       const timer = setTimeout(() => {
         void handleGeneratePreview();
       }, 500);
-      return () => clearTimeout(timer);
+      return () => { clearTimeout(timer); requests.current++; };
     }
   }, [printDialogOpen, cartItems.length, handleGeneratePreview]);
+  useEffect(() => {
+    const requests = requestRef;
+    const urls = previewUrlRef;
+    return () => { requests.current++; if (urls.current) URL.revokeObjectURL(urls.current); };
+  }, []);
 
   // We need to actually GENERATE serials before we can print for real.
   // The "Print From Cart" flow in `create-wizard.tsx` (old) called `runCartPrintWithDate`.
@@ -311,18 +340,22 @@ export function CreatePackagingWizard() {
   };
 
   const handleFinalizeAndPrint = async () => {
-    if (cartItems.length === 0) return;
+    if (cartItems.length === 0 || !previewUrl || (isThermal && !thermalBatch?.fits)) return;
     setGeneratingPdf(true);
+    const printWindow = window.open("about:blank", "_blank");
     try {
       const packedDate = resolvePackingDate(manufacturingDate);
       
       const res = await createPackagingPrintFromCart({
         bypass: true,
         packingDate: packedDate,
-        labelVariant: labelVariant
+        labelVariant: labelVariant,
+        printMedium,
+        thermalOrigin: window.location.origin,
       });
 
       if (!res.success) {
+        printWindow?.close();
         toast.error(res.message);
         return;
       }
@@ -340,24 +373,27 @@ export function CreatePackagingWizard() {
       };
 
       const blob = await generatePackagingPdfBlob(labels, layout, {
+        medium: printMedium,
+        thermalOrigin: window.location.origin,
         selectedFields: ["header", "footer", "qr", "barcode", "price", "origin", "weight"],
         drawGuides: false,
         drawCellNumbers: false,
-        itemsPerLabel,
+        itemsPerLabel: isThermal ? 1 : itemsPerLabel,
       });
 
       const url = createObjectUrl(blob);
-      
-      // Open PDF in new tab
-      window.open(url, "_blank");
+      if (isThermal && res.thermalReceipt) await completePackagingThermalPrint(res.thermalReceipt);
+      if (printWindow) printWindow.location.href = url;
+      else { const link = document.createElement("a"); link.href = url; link.download = "Packaging-identities.pdf"; link.click(); }
       
       toast.success("Batch processed and printed successfully");
       setPrintDialogOpen(false);
       await refreshCart(); // Cart is cleared on server, refresh UI
 
     } catch (e) {
+      printWindow?.close();
       console.error(e);
-      toast.error("Failed to process batch");
+      toast.error(e instanceof Error ? e.message : "Failed to process batch");
     } finally {
       setGeneratingPdf(false);
     }
@@ -526,16 +562,17 @@ export function CreatePackagingWizard() {
 
       {/* Print Preview Dialog */}
       <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
-        <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
-          <div className="flex flex-1 min-h-0">
+        <DialogContent className="sm:max-w-6xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <div className="flex flex-1 min-h-0 flex-col overflow-auto md:flex-row md:overflow-hidden">
             {/* Sidebar: Settings */}
-            <div className="w-80 border-r bg-muted/10 p-6 flex flex-col gap-6 overflow-y-auto">
+            <div className="w-full md:w-80 shrink-0 border-b md:border-b-0 md:border-r bg-muted/10 p-6 flex flex-col gap-6 overflow-y-auto">
               <div>
                 <DialogHeader className="mb-4">
                   <DialogTitle>Print Settings</DialogTitle>
                   <DialogDescription>Configure your print job</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
+                  <div className="space-y-2"><Label>Print format</Label><Select value={printMedium} onValueChange={value => setPrintMedium(value === "THERMAL_50X25" ? "THERMAL_50X25" : "STICKER")}><SelectTrigger aria-label="Packaging print format"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="STICKER">Sticker sheet · Existing layout</SelectItem><SelectItem value="THERMAL_50X25">Thermal · 50 × 25 mm</SelectItem></SelectContent></Select>{isThermal && <p className="rounded-lg border bg-background p-3 text-xs text-muted-foreground">One 50 x 25 mm label per package. Brand, gemstone name, weight, quantity, SKU, treatment, serial and QR. Retail includes MRP; International includes recorded gemstone origin. Minimum 6 pt text. Sticker settings are preserved.</p>}</div>
                   <div className="space-y-2">
                     <Label>Manufacturing Date</Label>
                     <Input 
@@ -559,7 +596,7 @@ export function CreatePackagingWizard() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
+                  {!isThermal && <><div className="space-y-2">
                     <div className="flex items-center justify-between">
                        <Label>Page Layout</Label>
                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setLayoutDialogOpen(true)}>
@@ -610,6 +647,7 @@ export function CreatePackagingWizard() {
                   </div>
 
                   <Separator />
+                  </>}
 
                   <div className="space-y-2">
                      <Label className="text-muted-foreground">Batch Summary</Label>
@@ -639,14 +677,14 @@ export function CreatePackagingWizard() {
             </div>
 
             {/* Main Area: Preview */}
-            <div className="flex-1 bg-muted/30 flex flex-col">
+            <div className="flex-1 min-w-0 min-h-[360px] md:min-h-0 bg-muted/30 flex flex-col">
                <div className="flex-1 p-8 flex items-center justify-center overflow-hidden">
-                 {generatingPdf ? (
+                 {isThermal && previewReadyKey === previewKey && thermalBatch ? <div className="flex w-full h-full min-h-0 flex-col">{previewError && <p role="alert" className="m-3 text-sm text-destructive">{previewError}</p>}<PackagingThermalPreview batch={thermalBatch} /></div> : generatingPdf ? (
                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
                      <Loader2 className="h-8 w-8 animate-spin" />
                      <p>Generating Preview...</p>
                    </div>
-                 ) : previewUrl ? (
+                 ) : previewReadyKey === previewKey && previewError ? <div role="alert" className="max-w-lg rounded-lg border border-destructive/40 bg-background p-4 text-sm text-destructive">{previewError}</div> : previewUrl ? (
                    <iframe 
                      src={previewUrl} 
                      className="w-full h-full shadow-lg rounded-lg border bg-white" 

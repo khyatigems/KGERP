@@ -6,6 +6,8 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { computeWeightGrams } from "@/lib/utils";
+import { analyzePackagingThermalBatch } from "@/lib/packaging-thermal-layout";
+import type { PackagingLabelData } from "@/lib/packaging-pdf-generator";
 
 type PrismaRecord = Record<string, unknown>;
 type GpisSettingsDelegate = {
@@ -32,6 +34,7 @@ type GpisSerialDelegate = {
 type GpisPrintJobDelegate = {
   create: (args: { data: PrismaRecord }) => Promise<PrismaRecord>;
   update: (args: { where: PrismaRecord; data: PrismaRecord }) => Promise<PrismaRecord>;
+  updateMany: (args: { where: PrismaRecord; data: PrismaRecord }) => Promise<PrismaRecord>;
 };
 type GpisPrintJobItemDelegate = {
   createMany: (args: { data: PrismaRecord[] }) => Promise<PrismaRecord>;
@@ -1148,7 +1151,7 @@ function buildGpisLabelData(params: {
   };
 }
 
-export async function createPackagingPrintFromCart(params?: { bypass?: boolean; packingDate?: Date; labelVariant?: string }) {
+export async function createPackagingPrintFromCart(params?: { bypass?: boolean; packingDate?: Date; labelVariant?: string; printMedium?: "STICKER" | "THERMAL_50X25"; thermalOrigin?: string }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
   const perm = await checkPermission(PERMISSIONS.PACKAGING_PRINT);
@@ -1156,13 +1159,14 @@ export async function createPackagingPrintFromCart(params?: { bypass?: boolean; 
   const cartItems = (await packagingPrisma.packagingCartItem.findMany({
     where: { userId: session.user.id },
     include: { inventory: true },
-  })) as Array<{ inventory: Inventory | null; quantity: number; location?: string | null }>;
+  })) as Array<{ id: string; inventory: Inventory | null; quantity: number; location?: string | null }>;
   if (cartItems.length === 0) return { success: false, message: "Cart is empty" };
 
   const settingsRes = await getPackagingSettings();
   const settings = settingsRes.data as Record<string, unknown> | null;
 
   const allLabels: Array<Record<string, unknown>> = [];
+  const thermal = params?.printMedium === "THERMAL_50X25";
 
   for (const ci of cartItems) {
     const inv = ci.inventory;
@@ -1177,8 +1181,8 @@ export async function createPackagingPrintFromCart(params?: { bypass?: boolean; 
     const job = await createGpisPrintJobWithItems({
       sku: inv.sku,
       serials: serials.map(s => ({ id: s.id, serialNumber: s.serialNumber })),
-      printerType: "A4",
-      status: "COMPLETED",
+      printerType: thermal ? "THERMAL_50X25" : "A4",
+      status: thermal ? "PENDING" : "COMPLETED",
       printedBy: session.user.id,
     });
 
@@ -1194,14 +1198,32 @@ export async function createPackagingPrintFromCart(params?: { bypass?: boolean; 
          // The client generates the PDF.
          // So the critical part is that the SERIALS are generated with the correct DATE.
       }
-      allLabels.push(buildGpisLabelData({ inv, serial: finalSerial, settings, printJobId: job.printJobId }));
+      allLabels.push({ ...buildGpisLabelData({ inv, serial: finalSerial, settings, printJobId: job.printJobId }), ...(params?.labelVariant ? { labelVariant: params.labelVariant } : {}) });
     }
   }
 
+  if (thermal) {
+    const preflight = analyzePackagingThermalBatch(allLabels as unknown as PackagingLabelData[], params?.thermalOrigin || "");
+    if (!preflight.fits) return { success: false, message: preflight.entries.find(entry => !entry.layout.fits)?.layout.errors.join(" ") || "Thermal identities do not fit. Your batch has been retained." };
+    return { success: true, labels: allLabels, thermalReceipt: { cart: cartItems.map(item => ({ id: item.id, quantity: item.quantity })), jobs: Array.from(new Set(allLabels.map(label => String(label.printJobId)))) } };
+  }
   await packagingPrisma.packagingCartItem.deleteMany({ where: { userId: session.user.id } });
   revalidatePath("/erp/packaging");
   revalidatePath("/erp/packaging");
   return { success: true, labels: allLabels };
+}
+
+export async function completePackagingThermalPrint(receipt: { cart: Array<{ id: string; quantity: number }>; jobs: string[] }) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  const permission = await checkPermission(PERMISSIONS.PACKAGING_PRINT);
+  if (!permission.success) throw new Error(permission.message);
+  if (!Array.isArray(receipt.cart) || receipt.cart.length > 1000 || !Array.isArray(receipt.jobs) || receipt.jobs.length > 1000 || receipt.cart.some(item => typeof item.id !== "string" || !Number.isInteger(item.quantity) || item.quantity < 1) || receipt.jobs.some(job => typeof job !== "string" || job.length > 100)) throw new Error("Invalid thermal print receipt");
+  await packagingPrisma.gpisPrintJob.updateMany({ where: { printJobId: { in: receipt.jobs }, printedBy: session.user.id, printerType: "THERMAL_50X25", status: "PENDING" }, data: { status: "COMPLETED" } });
+  // Only remove unchanged entries from this batch; retain any concurrent quantity edits.
+  for (const item of receipt.cart) await packagingPrisma.packagingCartItem.deleteMany({ where: { id: item.id, userId: session.user.id, quantity: item.quantity } });
+  revalidatePath("/erp/packaging");
+  return { success: true };
 }
 
 export async function previewPackagingFromCart(params?: { packingDate?: Date }) {
@@ -1269,7 +1291,21 @@ export async function previewPackagingFromCart(params?: { packingDate?: Date }) 
   return { success: true, labels: allLabels };
 }
 
-export async function processPackagingPrint(inventoryIds: string[], bypass?: boolean) {
+export async function previewPackagingIdentities(inventoryIds: string[], packingDate: Date) {
+  const permission = await checkPermission(PERMISSIONS.PACKAGING_PRINT);
+  if (!permission.success) throw new Error(permission.message);
+  const items = await prisma.inventory.findMany({ where: { id: { in: inventoryIds } }, include: { categoryCode: true } });
+  const settings = (await getPackagingSettings()).data as Record<string, unknown> | null;
+  const date = new Date(packingDate);
+  if (Number.isNaN(date.getTime())) throw new Error("Select a valid manufacturing date");
+  const stamp = `${String(date.getFullYear()).slice(-2)}${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return items.map(inv => buildGpisLabelData({ inv, settings, printJobId: "PJ-000000-0000", serial: {
+    id: "preview", serialNumber: `KG-${inv.categoryCode?.code || inv.category?.substring(0, 2).toUpperCase() || "XX"}-${stamp}-000000-PREV`,
+    inventoryLocation: inv.stockLocation, packingDate: date, qcCode: "QC-PASS", unitQuantity: 1, madeIn: "India",
+  } }));
+}
+
+export async function processPackagingPrint(inventoryIds: string[], bypass?: boolean, printOptions?: { printMedium: "STICKER" | "THERMAL_50X25"; thermalOrigin: string; labelVariant: "RETAIL" | "EXPORT"; packingDate?: Date }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
   const perm = await checkPermission(PERMISSIONS.PACKAGING_PRINT);
@@ -1286,26 +1322,32 @@ export async function processPackagingPrint(inventoryIds: string[], bypass?: boo
   const settings = settingsRes.data as Record<string, unknown> | null;
 
   const allLabels: Array<Record<string, unknown>> = [];
+  const thermal = printOptions?.printMedium === "THERMAL_50X25";
 
   for (const inv of items) {
     // Generate 1 serial per selected item
-    const gen = await generateSerials(inv.sku, 1, inv.stockLocation || "", { bypass });
+    const gen = await generateSerials(inv.sku, 1, inv.stockLocation || "", { bypass, packingDate: printOptions?.packingDate });
     if (!gen.success || !gen.data) return { success: false, message: gen.message || "Serial generation failed" };
 
     const serials = gen.data as Array<{ id: string; serialNumber: string; inventoryLocation: string | null; packingDate?: Date | null; labelVersion?: string | null; qcCode?: string | null; unitQuantity?: number | null; madeIn?: string | null; declaredOriginal?: boolean | null }>;
     const job = await createGpisPrintJobWithItems({
       sku: inv.sku,
       serials: serials.map(s => ({ id: s.id, serialNumber: s.serialNumber })),
-      printerType: "A4",
-      status: "COMPLETED",
+      printerType: thermal ? "THERMAL_50X25" : "A4",
+      status: thermal ? "PENDING" : "COMPLETED",
       printedBy: session.user.id,
     });
 
     for (const s of serials) {
-      allLabels.push(buildGpisLabelData({ inv, serial: s, settings, printJobId: job.printJobId }));
+      allLabels.push({ ...buildGpisLabelData({ inv, serial: s, settings, printJobId: job.printJobId }), ...(printOptions ? { labelVariant: printOptions.labelVariant } : {}) });
     }
   }
 
+  if (thermal) {
+    const preflight = analyzePackagingThermalBatch(allLabels as unknown as PackagingLabelData[], printOptions?.thermalOrigin || "");
+    if (!preflight.fits) return { success: false, message: preflight.entries.find(entry => !entry.layout.fits)?.layout.errors.join(" ") || "Thermal labels do not fit" };
+    return { success: true, labels: allLabels, thermalReceipt: { cart: [], jobs: Array.from(new Set(allLabels.map(label => String(label.printJobId)))) } };
+  }
   revalidatePath("/erp/packaging");
   revalidatePath("/erp/packaging");
   return { success: true, labels: allLabels };

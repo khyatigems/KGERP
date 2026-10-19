@@ -25,8 +25,12 @@ import {
   getPackagingLayoutPresets,
   getPackagingSettings,
   processPackagingPrint,
+  previewPackagingIdentities,
+  completePackagingThermalPrint,
 } from "@/app/erp/packaging/actions";
 import { computeWeightGrams } from "@/lib/utils";
+import { analyzePackagingThermalBatch, type PackagingThermalBatch } from "@/lib/packaging-thermal-layout";
+import { PackagingThermalPreview } from "@/components/packaging/packaging-thermal-preview";
 
 type Preset = {
   id: string;
@@ -162,6 +166,11 @@ export function PackagingPrintDialog({
   onPrintComplete,
 }: PackagingPrintDialogProps) {
   const [activeTab, setActiveTab] = useState<"preview" | "layout">("preview");
+  const [printMedium, setPrintMedium] = useState<"STICKER" | "THERMAL_50X25">("STICKER");
+  const isThermal = printMedium === "THERMAL_50X25";
+  const [thermalBatch, setThermalBatch] = useState<PackagingThermalBatch | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const [previewReadyKey, setPreviewReadyKey] = useState("");
   const [isWorking, setIsWorking] = useState(false);
   const [manufacturingDate, setManufacturingDate] = useState("");
   const [dateDraft, setDateDraft] = useState("");
@@ -226,14 +235,17 @@ export function PackagingPrintDialog({
   const previewKey = useMemo(() => {
     return JSON.stringify({
       layoutMm,
+      printMedium,
+      labelVariant,
       selectedFields,
       settingsKey,
-      labelsCount: labels?.length ?? 0,
-      itemsCount: previewItems?.length ?? 0,
+      labelData: labels,
+      previewData: previewItems,
+      inventoryIds,
       manufacturingDate,
       itemsPerLabel,
     });
-  }, [layoutMm, selectedFields, settingsKey, labels?.length, previewItems?.length, manufacturingDate, itemsPerLabel]);
+  }, [layoutMm, selectedFields, settingsKey, labels, previewItems, inventoryIds, manufacturingDate, itemsPerLabel, printMedium, labelVariant]);
 
   const previewBase = useMemo(() => {
     const mmToPx = 3.7795275591;
@@ -244,19 +256,22 @@ export function PackagingPrintDialog({
   }, [layoutMm.pageWidthMm, layoutMm.pageHeightMm]);
 
   const fitsSheet = useMemo(() => {
+    if (isThermal) return true;
     const totalW = layoutMm.marginLeftMm + layoutMm.cols * layoutMm.labelWidthMm + (layoutMm.cols - 1) * layoutMm.gapXmm;
     const totalH = layoutMm.marginTopMm + layoutMm.rows * layoutMm.labelHeightMm + (layoutMm.rows - 1) * layoutMm.gapYmm;
     return totalW <= layoutMm.pageWidthMm && totalH <= layoutMm.pageHeightMm;
-  }, [layoutMm]);
+  }, [layoutMm, isThermal]);
 
   const renderOptions: PackagingRenderOptions = useMemo(
     () => ({
-      selectedFields,
+      medium: printMedium,
+      thermalOrigin: typeof window !== "undefined" ? window.location.origin : "",
+      selectedFields: isThermal ? DEFAULT_FIELDS : selectedFields,
       drawGuides: true,
       drawCellNumbers: false,
-      itemsPerLabel,
+      itemsPerLabel: isThermal ? 1 : itemsPerLabel,
     }),
-    [selectedFields, itemsPerLabel]
+    [selectedFields, itemsPerLabel, printMedium, isThermal]
   );
 
   const applyPreset = useCallback((p: Preset) => {
@@ -306,19 +321,21 @@ export function PackagingPrintDialog({
 
   useEffect(() => {
     if (!open) return;
-    const hasSource = (labels && labels.length) || (previewItems && previewItems.length && settings);
+    const hasSource = (labels && labels.length) || (previewItems && previewItems.length && settings) || (isThermal && inventoryIds?.length);
     if (!hasSource) return;
     const previewPackingDate = manufacturingDate ? resolvePackingDate(manufacturingDate) : new Date();
     let cancelled = false;
     (async () => {
       try {
+        const canonical = isThermal && !labels?.length && inventoryIds?.length ? await previewPackagingIdentities(inventoryIds, previewPackingDate) : null;
         const previewLabels: PackagingLabelData[] =
           labels && labels.length
             ? labels.map(label => ({
                 ...label,
                 packingDate: previewPackingDate,
+                labelVariant,
               }))
-            : (previewItems || []).map((inv, idx: number) => {
+            : canonical ? canonical.map(label => ({ ...label, packingDate: previewPackingDate, labelVariant })) : (previewItems || []).map((inv, idx: number) => {
                 const item = inv as InventoryPreviewItem;
                 return {
                   serial: `PREVIEW-${item.sku}-${idx + 1}`,
@@ -378,7 +395,11 @@ export function PackagingPrintDialog({
                   labelVariant,
                 };
               });
-        const blob = await generatePackagingPdfBlob(previewLabels, layoutMm, renderOptions);
+        if (cancelled) return;
+        setThermalBatch(isThermal ? analyzePackagingThermalBatch(previewLabels, window.location.origin) : null);
+        setPreviewReadyKey(previewKey);
+        setPreviewError("");
+        const blob = await generatePackagingPdfBlob(previewLabels.map(label => ({ ...label, labelVariant })), layoutMm, renderOptions);
         if (cancelled) return;
         const url = createObjectUrl(blob);
         const prev = previewUrlRef.current;
@@ -387,13 +408,13 @@ export function PackagingPrintDialog({
         if (prev) URL.revokeObjectURL(prev);
       } catch (err) {
         console.error("Preview generation failed:", err);
-        if (!cancelled) toast.error("Failed to generate preview");
+        if (!cancelled) { setPreviewReadyKey(previewKey); setPreviewUrl(null); setPreviewError(err instanceof Error ? err.message : "Failed to generate preview"); }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, previewKey, labels, previewItems, settings, layoutMm, renderOptions, manufacturingDate, labelVariant]);
+  }, [open, previewKey, labels, previewItems, settings, layoutMm, renderOptions, manufacturingDate, labelVariant, isThermal, inventoryIds]);
 
   useEffect(() => {
     if (open) return;
@@ -485,18 +506,23 @@ export function PackagingPrintDialog({
       return;
     }
     setIsWorking(true);
+    const printWindow = window.open("about:blank", "_blank");
     try {
       let labelData: PackagingLabelData[];
+      let receipt: Parameters<typeof completePackagingThermalPrint>[0] | undefined;
       if (labels && labels.length) {
         labelData = labels;
       } else if (inventoryIds && inventoryIds.length) {
-        const res = await processPackagingPrint(inventoryIds, bypass);
+        const res = await processPackagingPrint(inventoryIds, bypass, { printMedium, thermalOrigin: window.location.origin, labelVariant, packingDate: resolvePackingDate(dateValue) });
         if (!res.success) {
+          printWindow?.close();
           toast.error(res.message || "Failed to prepare print");
           return;
         }
         labelData = res.labels as unknown as PackagingLabelData[];
+        receipt = res.thermalReceipt;
       } else {
+        printWindow?.close();
         toast.error("No items selected");
         return;
       }
@@ -506,16 +532,15 @@ export function PackagingPrintDialog({
         packingDate: packedDate,
         labelVariant,
       }));
-      const blob = await generatePackagingPdfBlob(labelData, layoutMm, { selectedFields, drawGuides: false, itemsPerLabel });
+      const blob = await generatePackagingPdfBlob(labelData, layoutMm, { ...renderOptions, drawGuides: false });
       const url = createObjectUrl(blob);
-      const win = window.open(url, "_blank");
-      if (!win) {
-        toast.error("Please allow popups to print");
-        return;
-      }
+      if (isThermal && receipt) await completePackagingThermalPrint(receipt);
+      if (printWindow) printWindow.location.href = url;
+      else { const link = document.createElement("a"); link.href = url; link.download = "Packaging-identities.pdf"; link.click(); }
       onPrintComplete?.();
       onOpenChange(false);
     } catch (e: unknown) {
+      printWindow?.close();
       const msg = e instanceof Error ? e.message : "Failed to generate print";
       toast.error(msg);
     } finally {
@@ -549,10 +574,10 @@ export function PackagingPrintDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-6xl w-[min(96vw,1200px)] h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-6xl w-[min(96vw,1200px)] h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Print Packaging Labels</DialogTitle>
-            <DialogDescription>Preview label placement, select fields, and adjust sheet offsets.</DialogDescription>
+            <DialogDescription>Choose the existing sticker sheet or a complete 50 × 25 mm thermal identity.</DialogDescription>
           </DialogHeader>
 
           <Tabs
@@ -562,12 +587,14 @@ export function PackagingPrintDialog({
           >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="preview">Preview & Print</TabsTrigger>
-              <TabsTrigger value="layout">Layout Settings</TabsTrigger>
+              <TabsTrigger value="layout" disabled={isThermal}>Sticker Layout Settings</TabsTrigger>
             </TabsList>
 
           <TabsContent value="preview" className="h-full pt-4 overflow-hidden min-h-0">
-            <div className="flex h-full gap-4 min-h-0">
-              <div className="w-95 shrink-0 flex flex-col gap-3 min-h-0">
+            <div className="flex h-full flex-col gap-4 min-h-0 overflow-auto md:flex-row md:overflow-hidden">
+              <div className="w-full md:w-80 shrink-0 flex flex-col gap-3 min-h-0">
+                <div className="rounded-md border p-3 space-y-2"><Label>Print format</Label><Select value={printMedium} onValueChange={value => setPrintMedium(value === "THERMAL_50X25" ? "THERMAL_50X25" : "STICKER")}><SelectTrigger aria-label="Packaging print format"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="STICKER">Sticker sheet · Existing layout</SelectItem><SelectItem value="THERMAL_50X25">Thermal · 50 × 25 mm</SelectItem></SelectContent></Select></div>
+                {!isThermal &&
                 <div className="rounded-md border p-3 space-y-2">
                   <Label>Layout Preset</Label>
                   <Select value={presetId} onValueChange={(id) => {
@@ -586,6 +613,7 @@ export function PackagingPrintDialog({
                     </SelectContent>
                   </Select>
                 </div>
+                }
 
                 <div className="flex-1 overflow-auto pr-2 space-y-4 min-h-0">
                   <div className="rounded-md border p-3 space-y-2">
@@ -624,10 +652,11 @@ export function PackagingPrintDialog({
 
                   <div className="rounded-md border p-3 space-y-2">
                     <div className="text-sm font-medium">Fields</div>
+                    {isThermal && <p className="text-xs text-muted-foreground">One label per package: gemstone identity, weight, quantity, SKU, treatment, serial and QR. Retail adds MRP; International adds recorded gemstone origin. Minimum 6 pt text.</p>}
                     <div className="grid grid-cols-2 gap-2">
                       {FIELD_OPTIONS.map(f => (
                         <div key={f.id} className="flex items-center gap-2">
-                          <Checkbox checked={selectedFields.includes(f.id)} onCheckedChange={(v) => setField(f.id, !!v)} />
+                          <Checkbox disabled={isThermal} checked={isThermal || selectedFields.includes(f.id)} onCheckedChange={(v) => setField(f.id, !!v)} />
                           <span className="text-sm">{f.label}</span>
                         </div>
                       ))}
@@ -636,7 +665,7 @@ export function PackagingPrintDialog({
 
                   <div className="rounded-md border p-3 space-y-2">
                     <div className="text-sm font-medium">Items Per Label</div>
-                    <Select value={String(itemsPerLabel)} onValueChange={(v) => setItemsPerLabel(Number(v))}>
+                    <Select disabled={isThermal} value={String(isThermal ? 1 : itemsPerLabel)} onValueChange={(v) => setItemsPerLabel(Number(v))}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -647,7 +676,7 @@ export function PackagingPrintDialog({
                       </SelectContent>
                     </Select>
                     <div className="text-xs text-muted-foreground">
-                      {itemsPerLabel === 1
+                      {isThermal ? "One 50 × 25 mm identity label per package." : itemsPerLabel === 1
                         ? "Full details for each item on its own label."
                         : itemsPerLabel === 2
                           ? "2 items per label. Compact rows with essential fields."
@@ -655,7 +684,7 @@ export function PackagingPrintDialog({
                     </div>
                   </div>
 
-                  <div className="rounded-md border p-3 space-y-3">
+                  {!isThermal && <div className="rounded-md border p-3 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-medium">Start Position</div>
                       <Input
@@ -687,29 +716,29 @@ export function PackagingPrintDialog({
                       })}
                     </div>
                     {!fitsSheet && <div className="text-sm text-destructive">Layout exceeds page size.</div>}
-                  </div>
+                  </div>}
                 </div>
 
                 <div className="rounded-md border p-3 flex flex-col gap-2">
-                  <Button onClick={handlePrint} disabled={isWorking || isWorking || !fitsSheet}>
+                  <Button onClick={handlePrint} disabled={isWorking || !fitsSheet || !previewUrl || previewReadyKey !== previewKey || (isThermal && !thermalBatch?.fits)}>
                     {isWorking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     <Printer className="h-4 w-4 mr-2" />
                     Print
                   </Button>
-                  <Button variant="outline" onClick={handleTestPrint} disabled={isWorking}>
+                  {!isThermal && <Button variant="outline" onClick={handleTestPrint} disabled={isWorking}>
                     <TestTube2 className="h-4 w-4 mr-2" />
                     Test Print Sheet
-                  </Button>
+                  </Button>}
                 </div>
               </div>
 
               <div className="flex-1 min-w-0 rounded-md border bg-muted/20 overflow-hidden flex flex-col">
                 <div className="px-3 py-2 border-b text-xs text-muted-foreground flex items-center justify-between">
                   <span>Preview</span>
-                  <span>{Math.round(previewScale * 100)}% • {layoutMm.pageWidthMm}×{layoutMm.pageHeightMm}mm</span>
+                  <span>{isThermal ? "50 × 25 mm · Thermal identity" : `${Math.round(previewScale * 100)}% · ${layoutMm.pageWidthMm}×${layoutMm.pageHeightMm}mm`}</span>
                 </div>
                 <div ref={previewContainerRef} className="flex-1 min-h-0 flex items-center justify-center">
-                  {previewUrl ? (
+                  {isThermal && previewReadyKey === previewKey && thermalBatch ? <div className="flex h-full w-full min-h-0 flex-col">{previewError && <p role="alert" className="m-3 text-sm text-destructive">{previewError}</p>}<PackagingThermalPreview batch={thermalBatch} /></div> : previewReadyKey === previewKey && previewError ? <p role="alert" className="p-4 text-sm text-destructive">{previewError}</p> : previewUrl && previewReadyKey === previewKey ? (
                     <div
                       style={{
                         width: previewBase.width,

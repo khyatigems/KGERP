@@ -24,6 +24,7 @@ export default auth((req) => {
   const isPublicRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/verify") ||
+    pathname.startsWith("/V/") || // Compact public packaging verification QR
     pathname.startsWith("/preview") ||
     pathname === "/manifest.webmanifest" || // PWA manifest — never auth-gated (HTML redirect breaks the browser parser)
     pathname.startsWith("/api/cron") ||
