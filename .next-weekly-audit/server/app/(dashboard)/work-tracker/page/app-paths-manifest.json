@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/work-tracker/page": "app/(dashboard)/work-tracker/page.js"
+}

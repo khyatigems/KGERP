@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 // import { Label } from "@/components/ui/label";
 // import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, Edit } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 // Mock interface for a template (client-side only for now as no schema exists)
 interface ListingTemplate {

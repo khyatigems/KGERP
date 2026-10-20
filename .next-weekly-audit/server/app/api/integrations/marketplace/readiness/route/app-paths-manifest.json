@@ -1,0 +1,3 @@
+{
+  "/api/integrations/marketplace/readiness/route": "app/api/integrations/marketplace/readiness/route.js"
+}

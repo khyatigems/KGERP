@@ -1,0 +1,3 @@
+{
+  "/api/public/invoice/[token]/profile-extra/route": "app/api/public/invoice/[token]/profile-extra/route.js"
+}

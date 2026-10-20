@@ -1,0 +1,65 @@
+{
+  "node": {
+    "70fb5979001fe4e5658ff54d146ed9e8af3d498a04": {
+      "workers": {
+        "app/(dashboard)/sales/page": {
+          "moduleId": 34719,
+          "async": true,
+          "exportedName": "updateInvoicePaymentStatus",
+          "filename": "app/(dashboard)/invoices/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/page": "action-browser"
+      },
+      "exportedName": "updateInvoicePaymentStatus",
+      "filename": "app/(dashboard)/invoices/actions.ts"
+    },
+    "40f6f2ea1e6860e83c87caa84833c5c3b33fc0e30d": {
+      "workers": {
+        "app/(dashboard)/sales/page": {
+          "moduleId": 34719,
+          "async": true,
+          "exportedName": "deleteSale",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/page": "action-browser"
+      },
+      "exportedName": "deleteSale",
+      "filename": "app/(dashboard)/sales/actions.ts"
+    },
+    "4054dcd67f3e08c66824fbc0b0021ca20e2456ce50": {
+      "workers": {
+        "app/(dashboard)/sales/page": {
+          "moduleId": 34719,
+          "async": true,
+          "exportedName": "getInvoiceDataForThermal",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/page": "action-browser"
+      },
+      "exportedName": "getInvoiceDataForThermal",
+      "filename": "app/(dashboard)/sales/actions.ts"
+    },
+    "78ca148793912bc2e72005614e1b0db67812b0f5cb": {
+      "workers": {
+        "app/(dashboard)/sales/page": {
+          "moduleId": 34719,
+          "async": true,
+          "exportedName": "recordThermalInvoiceOutput",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/page": "action-browser"
+      },
+      "exportedName": "recordThermalInvoiceOutput",
+      "filename": "app/(dashboard)/sales/actions.ts"
+    }
+  },
+  "edge": {}
+}

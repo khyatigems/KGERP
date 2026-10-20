@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -86,7 +86,12 @@ export function VendorForm({ vendor }: VendorFormProps) {
         }
 
         if (result && 'success' in result && result.success) {
-            toast.success(result.message || "Vendor saved successfully");
+            toast.success(result.message || "Vendor saved successfully", {
+                action: {
+                    label: "View vendors",
+                    onClick: () => router.push("/vendors"),
+                },
+            });
             router.push("/vendors");
         } else if (result && 'message' in result) {
             toast.error(result.message);

@@ -1,0 +1,3 @@
+{
+  "/api/governance/freeze-events/route": "app/api/governance/freeze-events/route.js"
+}

@@ -1,0 +1,20 @@
+{
+  "node": {
+    "409b8be2d14a0ff400cae2014ec90f3c00cabf145a": {
+      "workers": {
+        "app/(dashboard)/settings/customer/page": {
+          "moduleId": 140621,
+          "async": true,
+          "exportedName": "saveCustomerSettings",
+          "filename": "app/(dashboard)/settings/customer/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/customer/page": "action-browser"
+      },
+      "exportedName": "saveCustomerSettings",
+      "filename": "app/(dashboard)/settings/customer/actions.ts"
+    }
+  },
+  "edge": {}
+}

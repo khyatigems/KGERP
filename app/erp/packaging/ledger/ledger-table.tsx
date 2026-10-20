@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Search, Printer, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { PackagingPrintDialog } from "@/components/packaging/packaging-print-dialog";
 import { getPublicLabelData } from "../actions";
 import { PackagingLabelData } from "@/lib/packaging-pdf-generator";

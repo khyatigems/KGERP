@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/lib/erp-feedback";
+import { useErpConfirmation } from "@/components/providers/erp-confirmation-provider";
 
 export function MergeClient({ customers }: { customers: Array<{ id: string; name: string; phone: string | null; email: string | null; gstin: string | null }> }) {
   const [sourceId, setSourceId] = useState("");
   const [targetId, setTargetId] = useState("");
   const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const router = useRouter();
+  const confirm = useErpConfirmation();
 
   const filtered = customers.filter(c =>
     !q ||
@@ -18,14 +24,30 @@ export function MergeClient({ customers }: { customers: Array<{ id: string; name
   ).slice(0, 100);
 
   const submit = async () => {
-    if (!sourceId || !targetId || sourceId === targetId) return;
-    const res = await fetch("/api/customers/merge", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sourceId, targetId }),
-    });
-    if (!res.ok) alert("Failed");
-    else alert("Merged");
+    if (!sourceId || !targetId || sourceId === targetId || busy) return;
+    const source = customers.find((customer) => customer.id === sourceId);
+    const target = customers.find((customer) => customer.id === targetId);
+    if (!(await confirm({
+      title: "Merge customer records?",
+      description: `${source?.name || "The source customer"} and their related records will be merged into ${target?.name || "the target customer"}. This change cannot be undone.`,
+      confirmLabel: "Merge customers",
+      destructive: true,
+    }))) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/customers/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceId, targetId }),
+      });
+      if (!res.ok) throw new Error("Customer merge failed. Check the selected records and try again.");
+      toast.success("Customer records merged");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Customer merge failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -56,7 +78,7 @@ export function MergeClient({ customers }: { customers: Array<{ id: string; name
         </div>
       </div>
       <div className="flex items-center justify-end">
-        <Button onClick={submit} disabled={!sourceId || !targetId || sourceId === targetId}>Merge</Button>
+        <Button onClick={submit} disabled={!sourceId || !targetId || sourceId === targetId || busy}>{busy ? "Merging…" : "Merge"}</Button>
       </div>
     </div>
   );

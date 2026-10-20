@@ -1,0 +1,3 @@
+{
+  "/api/inventory/listings/bulk-create/route": "app/api/inventory/listings/bulk-create/route.js"
+}

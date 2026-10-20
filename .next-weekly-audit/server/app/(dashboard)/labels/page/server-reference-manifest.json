@@ -1,0 +1,155 @@
+{
+  "node": {
+    "40cb70cbc297cb58aa472dfc782d3dd9179e3ea9f6": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "createLabelJob",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "exportedName": "createLabelJob",
+      "filename": "app/(dashboard)/labels/actions.ts"
+    },
+    "6059e68999deabda35538966bd5a401a29187e692e": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "updateLabelJobStatus",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "exportedName": "updateLabelJobStatus",
+      "filename": "app/(dashboard)/labels/actions.ts"
+    },
+    "00076d74415d880b410ee6ae045d6ae706b312d135": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "getCompanySettings",
+          "filename": "app/(dashboard)/settings/company/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "action-browser"
+      },
+      "exportedName": "getCompanySettings",
+      "filename": "app/(dashboard)/settings/company/actions.ts"
+    },
+    "409b2d7c5fe203413d65fdf1bd9cbc767511a33208": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "addManyToCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "exportedName": "addManyToCart",
+      "filename": "app/(dashboard)/labels/actions.ts"
+    },
+    "006178d2f2688d1cfb343fbea9b4903e36eba7552c": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "getCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "exportedName": "getCart",
+      "filename": "app/(dashboard)/labels/actions.ts"
+    },
+    "40e925046262587bdab70d91067affa98072d03b8b": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "removeFromCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "exportedName": "removeFromCart",
+      "filename": "app/(dashboard)/labels/actions.ts"
+    },
+    "004436facfb940f1765a03be1a54fa16fc2c6269f1": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "clearCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "exportedName": "clearCart",
+      "filename": "app/(dashboard)/labels/actions.ts"
+    },
+    "00d5eaf306e5df6a074dd6388c70a3cef984448918": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "getLabelJobs",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "exportedName": "getLabelJobs",
+      "filename": "app/(dashboard)/labels/actions.ts"
+    },
+    "402bd648ab87beb277f967c11ae1b28a8934e46a0f": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "getJobReprintItems",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "exportedName": "getJobReprintItems",
+      "filename": "app/(dashboard)/labels/actions.ts"
+    },
+    "40a8f8daa15669ce31434eb5951caf3eba2986f318": {
+      "workers": {
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "addToCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "exportedName": "addToCart",
+      "filename": "app/(dashboard)/labels/actions.ts"
+    }
+  },
+  "edge": {}
+}

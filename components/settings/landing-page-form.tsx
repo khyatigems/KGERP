@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Plus, Trash2, History, RotateCcw, Save, Sparkles, ChevronUp, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { saveLandingPageSettings, getVersions, rollbackVersion, addWhatsNewEntry, getWhatsNewEntries, deleteWhatsNewEntry, generateWhatsNewDraft } from "@/app/(dashboard)/settings/landing-page/actions";

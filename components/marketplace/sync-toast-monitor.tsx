@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { safeErrorMessage, toast } from "@/lib/erp-feedback";
 import { Button } from "@/components/ui/button";
 import { RetryMarketplaceSyncButton } from "@/components/marketplace/retry-sync-button";
 import { forgetMarketplaceSyncBatch, readMarketplaceSyncBatches } from "@/components/marketplace/sync-client";
@@ -132,7 +132,7 @@ export function MarketplaceSyncToastMonitor() {
                 <div key={`${job.id}-details`} className="rounded-sm bg-muted/50 p-2">
                   <div className="font-medium">{job.marketplaceShop.marketplace} · {job.marketplaceShop.name} · {job.status}</div>
                   <div>Scanned {job.recordsScanned}, created {job.recordsCreated}, updated {job.recordsUpdated}, skipped {job.recordsSkipped}, failed {job.recordsFailed}</div>
-                  {job.errorDetails && <pre className="mt-1 whitespace-pre-wrap wrap-break-word text-destructive">{job.errorDetails}</pre>}
+                  {job.errorDetails && <div className="mt-1 whitespace-pre-wrap wrap-break-word text-destructive">{safeErrorMessage(job.errorDetails)}</div>}
                 </div>
               ))}
             </div>

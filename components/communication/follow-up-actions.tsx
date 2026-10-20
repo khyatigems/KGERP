@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Loader2 } from "lucide-react";
+import { useErpConfirmation } from "@/components/providers/erp-confirmation-provider";
 
 export function FollowUpActions({
   id,
@@ -13,12 +14,13 @@ export function FollowUpActions({
   canManage: boolean;
 }) {
   const router = useRouter();
+  const confirm = useErpConfirmation();
   const [busy, setBusy] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
   const [note, setNote] = useState("");
 
   async function run(action: "COMPLETE" | "CANCEL" | "RESCHEDULE" | "ADD_NOTE") {
-    if (action === "CANCEL" && !window.confirm("Cancel this follow-up?")) return;
+    if (action === "CANCEL" && !(await confirm({ title: "Cancel follow-up?", description: "This follow-up will be cancelled and removed from the active follow-up queue.", confirmLabel: "Cancel follow-up", destructive: true }))) return;
     setBusy(true);
     try {
       const response = await fetch(`/api/followups/${encodeURIComponent(id)}`, {

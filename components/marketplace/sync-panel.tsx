@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { rememberMarketplaceSyncBatch } from "@/components/marketplace/sync-client";
@@ -38,8 +38,11 @@ export function MarketplaceSyncPanel({
       if (!response.ok) throw new Error(payload.error || "Unable to queue marketplace sync");
       rememberMarketplaceSyncBatch(payload.batchId);
       void fetch("/api/integrations/marketplace/sync/process", { method: "POST" }).catch(() => null);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to queue marketplace sync", { duration: Infinity });
+    } catch {
+      toast.error("Marketplace sync could not be queued. Check the connection and try again.", {
+        duration: Infinity,
+        action: { label: "Retry", onClick: () => void queueSync(shopIds, type) },
+      });
     } finally {
       setPending(false);
     }

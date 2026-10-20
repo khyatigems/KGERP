@@ -1,0 +1,124 @@
+module.exports=[574176,a=>{"use strict";var b=a.i(187924),c=a.i(572131),d=a.i(480789),e=a.i(58213),f=a.i(546893),g=a.i(340695),h=a.i(596221),i=a.i(808406),j=a.i(104720);let k=["https://images.unsplash.com/photo-1779786000796-effa1636a7fb?q=80&w=1460&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D","https://images.unsplash.com/photo-1779786410107-f1729039bb01?q=80&w=1460&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"];function l(a){return a.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}function m(a){return a&&a.trim()||"Not specified"}function n(a){let b=a.trim().match(/^([A-Za-z]+(?:[-_][A-Za-z]+)?)/);return b?b[1].replace(/_/g,"-").toUpperCase():null}function o(a){let b=m(a);if("Not specified"===b)return b;let c=b.toLowerCase();if(!(/^https?:\/\//i.test(b)||c.includes("certificate_number=")))return b;for(let[a,b]of[["igi-gtl","IGI-GTL"],["igigtl","IGI-GTL"],["gemstonecertificationinstitute","GCI"],["gci","GCI"],["igi","IGI"],["gia","GIA"],["gtl","GTL"],["egl","EGL"],["hrd","HRD"]])if(c.includes(a))return b;try{let a=new URL(b),c=a.searchParams.get("certificate_number")||a.searchParams.get("certificateNumber")||a.searchParams.get("cert")||a.searchParams.get("cert_no");if(c){let a=n(c);if(a)return a}}catch{let a=b.match(/certificate[_-]?number=([^&\s]+)/i);if(a?.[1]){let b=n(decodeURIComponent(a[1]));if(b)return b}}return"Certified"}function p(a,b){return a?.toLowerCase().includes("bracelet")?"Crystal Healing / Gemstone Bracelet":a?.toLowerCase().includes("bead")?"Crystal Healing / Gemstone Bead":b?`Natural ${b}`:"Natural Gemstone"}var q=a.i(942136);function r({form:a,skuPreview:n}){let[r,s]=(0,c.useState)(!1),[t,u]=(0,c.useState)(!1),[v,w]=(0,c.useState)(!1),[x,y]=(0,c.useState)(!1),[z,A]=(0,c.useState)(!1),[B,C]=(0,c.useState)("");return(0,b.jsx)("div",{className:"space-y-6",children:(0,b.jsxs)("div",{className:"rounded-lg border bg-card/50 p-5 space-y-4",children:[(0,b.jsx)("h3",{className:"text-base font-semibold",children:"Listing descriptions"}),(0,b.jsx)("div",{className:"hidden",children:(0,b.jsx)(e.FormField,{control:a.control,name:"notes",render:({field:c})=>(0,b.jsxs)(e.FormItem,{children:[(0,b.jsxs)("div",{className:"flex flex-wrap items-center justify-between gap-2",children:[(0,b.jsx)(e.FormLabel,{children:"Notes"}),(0,b.jsxs)(g.Button,{type:"button",variant:"outline",size:"sm",className:"h-7 text-xs gap-1.5 text-muted-foreground",disabled:r,onClick:async()=>{let b=a.getValues();s(!0);try{let c=await fetch("/api/ai/inventory-description",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({inventory:b,sku:n||b.sku||"",mediaUrls:b.mediaUrls||[],additionalInfo:B})});if(!c.ok)throw Error(`API error (${c.status})`);let e=await c.json(),f="string"==typeof e?.description?e.description.trim():"";if(f&&a.setValue("notes",f,{shouldDirty:!0}),e?.warning)d.toast.warning(e.warning);else if(f)d.toast.success("Product description generated");else throw Error("Empty description")}catch(e){console.error("[Smart Description] Error:",e);let c=(0,q.generateFallbackDescription)(b,n||b.sku);a.setValue("notes",c,{shouldDirty:!0}),d.toast.success("Product description generated from your inventory data.")}finally{s(!1)}},children:[r?(0,b.jsx)(h.Loader2,{className:"w-3.5 h-3.5 animate-spin"}):(0,b.jsx)(i.Sparkles,{className:"w-3.5 h-3.5"}),r?"Generating...":"Generate Smart Description"]})]}),(0,b.jsx)("div",{className:"mb-2 hidden",children:(0,b.jsx)(f.Textarea,{className:"min-h-20 text-sm",placeholder:"Add Product Information for AI (optional). Example: buyer style, tone, selling focus, special highlights.",value:B,onChange:a=>C(a.target.value)})}),(0,b.jsx)(e.FormControl,{children:(0,b.jsx)(f.Textarea,{className:"min-h-75 font-mono text-sm",placeholder:"Any additional details...",...c})}),(0,b.jsx)(e.FormMessage,{})]})})}),(0,b.jsx)(e.FormField,{control:a.control,name:"description",render:({field:c})=>(0,b.jsxs)(e.FormItem,{children:[(0,b.jsxs)("div",{className:"flex flex-wrap items-center justify-between gap-2",children:[(0,b.jsx)(e.FormLabel,{children:"eBay HTML Description"}),(0,b.jsxs)(g.Button,{type:"button",variant:"outline",size:"sm",className:"h-7 text-xs gap-1.5 text-muted-foreground",disabled:t,onClick:async()=>{let b=a.getValues(),c={...b,beadSizeMm:void 0===b.beadSizeMm||""===b.beadSizeMm?null:Number(b.beadSizeMm),beadCount:void 0===b.beadCount||""===b.beadCount?null:Number(b.beadCount),holeSizeMm:void 0===b.holeSizeMm||""===b.holeSizeMm?null:Number(b.holeSizeMm),innerCircumferenceMm:void 0===b.innerCircumferenceMm||""===b.innerCircumferenceMm?null:Number(b.innerCircumferenceMm)};u(!0);try{let e,f=await fetch("/api/ebay/settings",{method:"GET"}),g={};if(f.ok){let a=await f.json();a.success&&a.data&&(g=a.data,b.category&&(e=(a.data.categoryImageUrls||{})[b.category]||a.data.globalBannerImages))}let h=b.sku||"";if(n?.includes("####"))try{let a=await fetch("/api/sku/next"),b=await a.json(),c=String(b.nextSequence??1).padStart(5,"0");h=n.replace("####",c)}catch{h=n}else n&&(h=n);let i=function(a,b={}){let c,d,e,f,g,h,i,j,n,q,r,s,t,u,v,w,x,y,z,A,B,C,D,E,F,G,H=b.includeMeasurements??!0,I=b.includeCertificate??!0,J=b.includeOrigin??!0,K=b.settings?.companyName||"KhyatiGems",L=b.settings?.tagline||"Precious Gems for your Precious Ones",M=b.settings?.brandLogoUrl||"https://images.unsplash.com/photo-1779794047454-ad379b48d1ed?q=80&w=880&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";console.log(`[eBay Description] category="${a.category}" gemType="${a.gemType}" hasComboUrls=${!!b.settings?.categoryGemtypeImageUrls} comboKeys=${Object.keys(b.settings?.categoryGemtypeImageUrls||{}).length}`);let N=(h=a.weightValue?`${a.weightValue} ${a.weightUnit||"cts"}`:"",[a.itemName||"Gemstone Product",h].filter(Boolean).join(" – ")),O=(i=[],a.sku&&i.push(`SKU: ${a.sku}`),i.push(`Product Type: ${p(a.category,a.gemType)}`),i.push(`Gemstones: ${m(a.gemType||a.category)}`),a.weightValue&&i.push(`Total Weight: ${a.weightValue} ${a.weightUnit||"cts"}`),a.shape&&i.push(`Bead Shape: ${a.shape}`),a.color&&i.push(`Color: ${a.color}`),a.transparency&&i.push(`Transparency: ${a.transparency}`),a.treatment&&i.push(`Treatment: ${a.treatment}`),I&&a.certification&&i.push(`Certification: ${o(a.certification)}`),i.join("\n")),P=(j=m(a.itemName),n=m(a.gemType),q=a.weightValue?`${a.weightValue} ${a.weightUnit||"cts"}`:"",r=m(a.shape),s=m(a.color),t=m(a.treatment),u=m(a.origin),v=m(a.transparency),w=[`Unlock elegance, authenticity, and value with this stunning ${j.toLowerCase()}.`,`Crafted from ${n.toLowerCase()}, this item is carefully selected for its premium quality and visual appeal.`],q&&w.push(`It weighs ${q}, making it a standout piece for collectors and jewelry enthusiasts.`),s&&"Not specified"!==s&&w.push(`The color profile is ${s.toLowerCase()}, creating a rich and memorable presence.`),r&&"Not specified"!==r&&w.push(`Each piece features a ${r.toLowerCase()} shape with precision and symmetry.`),t&&"none"!==t.toLowerCase()&&w.push(`Treatment: ${t}.`),u&&"Not specified"!==u&&w.push(`Origin: ${u}.`),v&&"Not specified"!==v&&w.push(`Transparency: ${v}.`),w.join(" ")),Q=a.notes?.trim(),R=(x=[],a.sku&&x.push(["SKU",m(a.sku)]),x.push(["Product Type",p(a.category,a.gemType)],["Gemstones",m(a.gemType||a.category)],["Color",m(a.color)],["Shape",m(a.shape)],["Weight",a.weightValue?`${a.weightValue} ${a.weightUnit||"cts"}`:"Not specified"],["Dimensions",m(a.dimensionsMm)],["Treatment",m(a.treatment)],["Origin",m(a.origin)],["Transparency",m(a.transparency)]),I&&x.push(["Certification",o(a.certification)]),a.braceletType&&x.push(["Bracelet Type",a.braceletType]),a.beadSizeMm&&x.push(["Bead Size",`${a.beadSizeMm}mm`]),a.beadCount&&x.push(["Bead Count",String(a.beadCount)]),a.holeSizeMm&&x.push(["Hole Size",`${a.holeSizeMm}mm`]),a.innerCircumferenceMm&&x.push(["Inner Circumference",`${a.innerCircumferenceMm}mm`]),a.standardSize&&x.push(["Standard Size",a.standardSize]),x),S=H?`<table style="width:100%;border-collapse:separate;border-spacing:0 4px;margin:18px 0 0 0;font-size:15px;">
+        <tbody>
+          ${R.map(([a,b])=>`<tr>
+                  <td style="padding:10px 12px;background:#F8F9FB;color:#181B4E;font-weight:600;border-radius:8px 0 0 8px;border:1px solid #E0E3EA;border-right:none;">${l(a)}</td>
+                  <td style="padding:10px 12px;background:#fff;color:#181B4E;border-radius:0 8px 8px 0;border:1px solid #E0E3EA;">${l(b)}</td>
+                </tr>`).join("")}
+        </tbody>
+      </table>`:"",T=I?`<div style="background:#f0f8ff;padding:18px 20px;margin:24px 0 0 0;border-radius:12px;border-left:5px solid #4a90d9;box-shadow:0 2px 8px #181B4E11;">
+        <h3 style="margin-top:0;color:#4a90d9;font-size:18px;font-weight:700;">📜 Certification</h3>
+        <p style="margin:0 0 4px 0;"><strong>Certification:</strong> ${l(o(a.certification))}</p>
+        <p style="margin:0;">This item is guaranteed to be authentic and carefully curated by KhyatiGems.</p>
+      </div>`:"",U=J?`<div style="background:#fff8f0;padding:18px 20px;margin:24px 0 0 0;border-radius:12px;border-left:5px solid #E94B3C;box-shadow:0 2px 8px #181B4E11;">
+        <h3 style="margin-top:0;color:#E94B3C;font-size:18px;font-weight:700;">🌍 Origin & Treatment</h3>
+        <p style="margin:0 0 4px 0;"><strong>Origin:</strong> ${l(m(a.origin))}</p>
+        <p style="margin:0;"><strong>Treatment:</strong> ${l(m(a.treatment))}</p>
+      </div>`:"",V=`
+    <div style="text-align:center;margin:0 0 32px 0;">
+      <img src="${M}" alt="KhyatiGems Logo" style="height:72px;max-width:320px;object-fit:contain;border-radius:12px;box-shadow:0 2px 12px #181B4E22;margin-bottom:8px;background:#fff;" />
+      <div style="font-size:18px;font-weight:700;color:#181B4E;letter-spacing:1px;">${l(K)}</div>
+      <div style="font-size:13px;color:#E94B3C;font-weight:500;">${l(L)}</div>
+    </div>
+  `,W=function(a,b,c,d,e){let f=a?.trim()||null,g=b?.trim()||null;if(f&&g&&c){let a=[...new Set([`${f}|${g}`,`${f}|${g}`.replace(/\s*\|\s*/g,"|")])];for(let b of a){let a=c[b];if(a?.length)return console.log(`[eBay Images] Using combo images for: ${b}`),a}let b=Object.keys(c);console.log(`[eBay Images] Combo key not found. Tried: ${a.join(", ")}. Available keys (${b.length}): ${b.length>0?b.slice(0,10).join(", "):"(none)"}`)}if(f&&d){let a=d[f];if(a?.length)return console.log(`[eBay Images] Using category images for: ${f}`),a}return e?.length?(console.log("[eBay Images] Using global images"),e):(console.log("[eBay Images] Using default images"),k)}(a.category,a.gemType,b.settings?.categoryGemtypeImageUrls,b.settings?.categoryImageUrls||(b.categoryImages?{[a.category||""]:b.categoryImages}:void 0),b.settings?.globalBannerImages),X=W[0]||k[0],Y=W[1]||k[1],Z=W[2]||k[0],$=`
+    <div style="background:#F8F9FB;padding:16px 14px;margin:20px 0 28px 0;border-radius:16px;box-shadow:0 2px 12px #181B4E11;">
+      <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
+        ${["Authentic Products","Real Product Photos","Secure Packaging","Worldwide Shipping","Carefully Selected","Customer Support"].map(a=>`
+              <div style="flex:1 1 160px;min-width:160px;background:#fff;border:1px solid #E0E3EA;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#C0A050;border-radius:9999px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 6L9 17L4 12" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+                <span style="font-size:0.92rem;font-weight:600;color:#181B4E;">${l(a)}</span>
+              </div>
+            `).join("")}
+      </div>
+    </div>`,_=(g=(e=!(d=(c=(a.category||"").toLowerCase()).includes("bracelet"))&&(c.includes("loose")||c.includes("gemstone")||c.includes("stone")),f=[],d&&f.push("Natural Gemstone","Comfortable Wear","Carefully Selected","Gift Ready"),e&&f.push("Natural Stone","Collector Friendly","Jewelry Making Ready","Carefully Inspected"),f).slice(0,4)).length<3?"":`
+    <div style="background:#F8F9FB;padding:20px 24px;margin:24px 0 0 0;border-radius:14px;box-shadow:0 2px 12px #181B4E11;">
+      <h3 style="margin:0 0 12px 0;color:#C0A050;font-size:1.1rem;font-weight:700;">✨ What Makes This Item Special</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+        ${g.map(a=>`
+              <div style="background:#fff;border:1px solid #E0E3EA;border-radius:14px;padding:14px;min-height:96px;display:flex;align-items:flex-start;gap:10px;">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#E94B3C;border-radius:9999px;color:#fff;font-size:16px;font-weight:700;">•</span>
+                <div style="font-size:0.95rem;font-weight:700;color:#181B4E;">${l(a)}</div>
+              </div>
+            `).join("")}
+      </div>
+    </div>`,aa=(y=[],z=m(a.treatment),A=m(a.origin),B=o(a.certification),E=!(D=(C=(a.category||"").toLowerCase()).includes("bracelet"))&&(C.includes("loose")||C.includes("gemstone")||C.includes("stone")),a.treatment&&"Not specified"!==z&&"none"!==z.toLowerCase()&&y.push({question:"What treatment has this gemstone received?",answer:`This gemstone has been ${z.toLowerCase()} while preserving its natural character.`}),a.origin&&"Not specified"!==A&&y.push({question:"Where does this gemstone come from?",answer:`It originates from ${A.toLowerCase()} and is selected for quality and authenticity.`}),I&&a.certification&&"Not specified"!==B&&y.push({question:"Does this item come with certification?",answer:`Yes, it includes ${B.toLowerCase()} certification to verify authenticity.`}),D&&y.push({question:"Is this bracelet ready to wear?",answer:"Yes, this bracelet is designed for comfortable everyday wear and is ready to gift."}),E&&y.push({question:"Is this loose gemstone suitable for jewelry making?",answer:"Yes, this natural gemstone is ideal for collectors and jewelry makers."}),F=y.slice(0,5),0===F.length?"":`
+    <div style="background:#fff8f0;padding:20px 24px;margin:24px 0 0 0;border-radius:14px;box-shadow:0 2px 12px #181B4E11;">
+      <h3 style="margin:0 0 12px 0;color:#C0A050;font-size:1.1rem;font-weight:700;">❓ Smart FAQ</h3>
+      <div style="display:grid;gap:12px;">
+        ${F.map(a=>`
+              <div style="background:#fff;border:1px solid #E0E3EA;border-radius:14px;padding:14px;">
+                <div style="font-size:0.95rem;font-weight:700;color:#181B4E;">${l(a.question)}</div>
+                <div style="margin-top:8px;color:#475569;font-size:0.95rem;line-height:1.5;">${l(a.answer)}</div>
+              </div>
+            `).join("")}
+      </div>
+    </div>`);return`<div style="font-family:Inter,Roboto,Arial,sans-serif;max-width:800px;margin:0 auto;background:#fff;border-radius:18px;box-shadow:0 4px 32px #181B4E11;padding:32px 18px 32px 18px;">
+      ${V}
+      <h1 style="color:#181B4E;font-size:2rem;font-weight:800;letter-spacing:0.5px;margin:0 0 18px 0;line-height:1.2;">${l(N)}</h1>
+
+      <div style="background:#F8F9FB;padding:20px 24px;margin:0 0 28px 0;border-radius:12px;box-shadow:0 2px 8px #181B4E11;">
+        <h3 style="margin:0 0 8px 0;color:#E94B3C;font-size:1.1rem;font-weight:700;">🌟 Welcome to KhyatiGems</h3>
+        <p style="margin:0;color:#181B4E;font-size:1rem;">At KhyatiGems, a premier brand by Khyati Precious Gems Private Limited, we bring collectors, crystal enthusiasts, and jewelry connoisseurs authentic, premium-quality treasures. Every piece in our collection is carefully curated and accurately described, ensuring complete peace of mind and a luxurious shopping experience.</p>
+      </div>
+
+      <div style="margin:32px 0 28px 0;text-align:center;">
+        <img src="${X}" alt="KhyatiGems banner 1" style="width:100%;max-width:740px;min-width:220px;object-fit:cover;border-radius:14px;box-shadow:0 2px 12px #181B4E22;" />
+      </div>
+
+      ${$}
+
+      ${G=a.mediaUrls?.filter(Boolean)||[],(a.mediaUrl&&!G.includes(a.mediaUrl)&&G.unshift(a.mediaUrl),0===G.length)?"":`
+          <div style="background:#fff;padding:20px 24px;margin:0 0 24px 0;border-radius:12px;box-shadow:0 2px 8px #181B4E11;">
+            <h3 style="color:#C0A050;font-size:1.1rem;font-weight:700;margin:0 0 12px 0;">📸 Product Photos</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
+              ${G.map(a=>`
+                <div style="flex:0 0 auto;width:calc(50% - 6px);max-width:360px;min-width:180px;border-radius:12px;overflow:hidden;border:1px solid #E0E3EA;box-shadow:0 2px 8px #181B4E11;">
+                  <img src="${l(a)}" alt="Product Image" style="width:100%;height:auto;display:block;aspect-ratio:1;object-fit:cover;" />
+                </div>
+              `).join("")}
+            </div>
+          </div>`}
+
+      <div style="background:#fff;padding:20px 24px;margin:0 0 24px 0;border-radius:12px;box-shadow:0 2px 8px #181B4E11;">
+        <h3 style="color:#C0A050;font-size:1.1rem;font-weight:700;margin:0 0 8px 0;">📋 Product Specifications</h3>
+        <p style="white-space: pre-line;color:#181B4E;font-size:1rem;margin:0 0 8px 0;">${l(O)}</p>
+      </div>
+
+      <div style="margin:32px 0 28px 0;text-align:center;">
+        <img src="${Y}" alt="KhyatiGems banner 2" style="width:100%;max-width:740px;min-width:220px;object-fit:cover;border-radius:14px;box-shadow:0 2px 12px #181B4E22;" />
+      </div>
+
+      <div style="background:#fff;padding:20px 24px;margin:0 0 24px 0;border-radius:12px;box-shadow:0 2px 8px #181B4E11;">
+        <h3 style="color:#C0A050;font-size:1.1rem;font-weight:700;margin:0 0 8px 0;">🔍 Detailed Description</h3>
+        <p style="color:#181B4E;font-size:1rem;margin:0 0 8px 0;">${l(P)}</p>
+        ${Q?`<p style="color:#181B4E;font-size:1rem;margin:0 0 8px 0;">${l(Q)}</p>`:""}
+      </div>
+
+      <div style="margin:32px 0 28px 0;text-align:center;">
+        <img src="${Z}" alt="KhyatiGems banner 3" style="width:100%;max-width:740px;min-width:220px;object-fit:cover;border-radius:14px;box-shadow:0 2px 12px #181B4E22;" />
+      </div>
+
+      ${S}
+      ${_}
+      ${T}
+      ${U}
+      ${aa}
+
+      <div style="background:#F8F9FB;padding:18px 20px;margin:32px 0 0 0;border-radius:12px;text-align:center;box-shadow:0 2px 8px #181B4E11;border-top:3px solid #C0A050;">
+        <h3 style="color:#C0A050;font-size:1.1rem;font-weight:700;margin:0 0 8px 0;">🛡️ Store Policies & Buying Information</h3>
+        <p style="color:#181B4E;font-size:1rem;margin:0 0 4px 0;">Authenticity & Quality Guarantee: We firmly believe our premium products will meet and exceed your expectations. Please allow for slight organic variations in bead patterns and color depth for natural stones.</p>
+        <p style="color:#181B4E;font-size:1rem;margin:0 0 4px 0;">Shipping & Handling: Secure packaging, prompt dispatch, and reliable tracking information are provided for each order.</p>
+        <p style="color:#181B4E;font-size:1rem;margin:0;">Carefully selected and offered by Khyati Precious Gems Private Limited, bringing authentic gemstones and jewelry to collectors and enthusiasts worldwide.</p>
+      </div>
+
+      <div style="background:#fff;padding:18px 20px;margin:32px 0 0 0;border-radius:12px;text-align:center;box-shadow:0 2px 8px #181B4E11;border-top:3px solid #E94B3C;">
+        <h3 style="color:#E94B3C;font-size:1.1rem;font-weight:700;margin:0 0 8px 0;">🛍️ Closing Note</h3>
+        <p style="color:#181B4E;font-size:1rem;margin:0 0 4px 0;">A statement piece with undeniable presence — this item is crafted for those who value authenticity, luxury, and spiritual alignment.</p>
+        <p style="color:#181B4E;font-size:1rem;margin:0;">Exclusively offered by Khyati Precious Gems Private Limited. Don't forget to save khyatigemsofficial to your eBay favorite sellers list for exclusive updates on our latest authentic gemstone arrivals!</p>
+      </div>
+    </div>`}({...c,sku:h,mediaUrls:(b.mediaUrls||[]).filter(Boolean),mediaUrl:b.mediaUrl||""},{categoryImages:e,settings:g});a.setValue("description",i,{shouldDirty:!0}),d.toast.success("eBay HTML description generated")}catch(a){console.error("[eBay HTML Description] Error:",a),d.toast.error("Failed to generate eBay HTML description")}finally{u(!1)}},children:[t?(0,b.jsx)(h.Loader2,{className:"w-3.5 h-3.5 animate-spin"}):(0,b.jsx)(j.FileText,{className:"w-3.5 h-3.5"}),t?"Generating...":"Generate eBay HTML Description"]})]}),(0,b.jsx)("p",{className:"text-xs text-muted-foreground",children:"This HTML description is used for eBay export and can be customized for copy-paste uploads."}),(0,b.jsxs)("div",{className:"flex flex-wrap items-center justify-between gap-2",children:[(0,b.jsxs)("p",{className:"text-xs text-muted-foreground",children:[c.value?.length||0," characters",c.value?" · Ready to review":" · No description entered"]}),(0,b.jsx)(g.Button,{type:"button",variant:"outline",size:"sm","aria-expanded":x,"aria-controls":"inventory-ebay-description-editor",onClick:()=>y(a=>!a),children:x?"Collapse description":"Expand eBay description"})]}),(0,b.jsx)("div",{id:"inventory-ebay-description-editor",hidden:!x,children:(0,b.jsx)(e.FormControl,{children:(0,b.jsx)(f.Textarea,{className:"min-h-80 font-mono text-sm",placeholder:"Paste or generate HTML description for eBay",...c})})}),(0,b.jsx)(e.FormMessage,{})]})}),(0,b.jsx)(e.FormField,{control:a.control,name:"etsyDescription",render:({field:c})=>(0,b.jsxs)(e.FormItem,{children:[(0,b.jsxs)("div",{className:"flex flex-wrap items-center justify-between gap-3",children:[(0,b.jsx)(e.FormLabel,{children:"Etsy plain-text description"}),(0,b.jsxs)(g.Button,{type:"button",variant:"outline",size:"sm",className:"h-7 shrink-0 gap-1.5 text-xs text-muted-foreground",disabled:v,onClick:async()=>{let b=a.getValues();w(!0);try{let c=await fetch("/api/ai/etsy-description",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({inventory:{itemName:b.itemName,category:b.category,gemType:b.gemType,color:b.color,shape:b.shape,dimensionsMm:b.dimensionsMm,weightValue:b.weightValue,weightUnit:b.weightUnit,treatment:b.treatment,origin:b.origin,fluorescence:b.fluorescence,transparency:b.transparency,hasCertification:!!(b.certification&&"none"!==b.certification.trim().toLowerCase()||b.certificateComments?.trim()||b.certificateCodeIds?.length),braceletType:b.braceletType,beadSizeMm:b.beadSizeMm,beadCount:b.beadCount,holeSizeMm:b.holeSizeMm,innerCircumferenceMm:b.innerCircumferenceMm,standardSize:b.standardSize}})}),e=await c.json();if(!c.ok)throw Error(e.error||"Unable to generate Etsy description.");if("string"!=typeof e.description||!e.description.trim())throw Error("Description generation returned empty text.");a.setValue("etsyDescription",e.description.trim(),{shouldDirty:!0}),e.warning?d.toast.warning(`${e.warning} Review the text before saving.`):d.toast.success("Etsy description generated. Review it before saving.")}catch(a){d.toast.error(a instanceof Error?a.message:"Unable to generate Etsy description.")}finally{w(!1)}},children:[v?(0,b.jsx)(h.Loader2,{className:"h-3.5 w-3.5 animate-spin"}):(0,b.jsx)(i.Sparkles,{className:"h-3.5 w-3.5"}),v?"Generating...":"Generate Etsy description"]})]}),(0,b.jsx)("p",{className:"text-xs text-muted-foreground",children:"Saved separately as plain text on the inventory record. Certificate numbers, lab identifiers, prices, and internal notes are not sent to the description generator."}),(0,b.jsxs)("div",{className:"flex flex-wrap items-center justify-between gap-2",children:[(0,b.jsxs)("p",{className:"text-xs text-muted-foreground",children:[c.value?.length||0,"/5000 characters",c.value?" · Ready to review":" · No description entered"]}),(0,b.jsx)(g.Button,{type:"button",variant:"outline",size:"sm","aria-expanded":z,"aria-controls":"inventory-etsy-description-editor",onClick:()=>A(a=>!a),children:z?"Collapse description":"Expand Etsy description"})]}),(0,b.jsx)("div",{id:"inventory-etsy-description-editor",hidden:!z,children:(0,b.jsx)(e.FormControl,{children:(0,b.jsx)(f.Textarea,{className:"min-h-64 text-sm",maxLength:5e3,placeholder:"Generate or write the reusable Etsy description here.",...c})})}),(0,b.jsx)(e.FormMessage,{})]})})]})})}a.s(["NotesSection",()=>r],574176)},933242,a=>{a.n(a.i(574176))}];
+
+//# sourceMappingURL=components_inventory_inventory-notes_tsx_3cfe3d51._.js.map

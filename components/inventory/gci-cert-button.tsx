@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ShieldCheck, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { generateGciCertificate } from "@/app/actions/gci";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import {
     AlertDialog,
     AlertDialogAction,

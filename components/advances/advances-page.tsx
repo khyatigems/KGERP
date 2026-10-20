@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecordAdvanceDialog } from "@/components/advances/record-advance-dialog";
 import { formatCurrency } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { format } from "date-fns";
 import { Plus, Search, Wallet, ArrowUpRight, ArrowDownRight, Download, Loader2 } from "lucide-react";
 import { generateAdvanceReceiptPDF, type AdvanceReceiptData } from "@/lib/advance-receipt-generator";

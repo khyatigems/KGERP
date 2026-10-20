@@ -1,0 +1,35 @@
+{
+  "node": {
+    "004e5aa2efe3ab5e052e9f85e73ae598428414d8cf": {
+      "workers": {
+        "app/(dashboard)/settings/invoice/page": {
+          "moduleId": 485573,
+          "async": true,
+          "exportedName": "getInvoiceSettings",
+          "filename": "app/(dashboard)/settings/invoice/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/invoice/page": "rsc"
+      },
+      "exportedName": "getInvoiceSettings",
+      "filename": "app/(dashboard)/settings/invoice/actions.ts"
+    },
+    "60a3e420a073ed9510821c93b09f1785b8075aefa1": {
+      "workers": {
+        "app/(dashboard)/settings/invoice/page": {
+          "moduleId": 485573,
+          "async": true,
+          "exportedName": "updateInvoiceSettings",
+          "filename": "app/(dashboard)/settings/invoice/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/invoice/page": "action-browser"
+      },
+      "exportedName": "updateInvoiceSettings",
+      "filename": "app/(dashboard)/settings/invoice/actions.ts"
+    }
+  },
+  "edge": {}
+}

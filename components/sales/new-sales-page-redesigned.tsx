@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Plus, X, User, Search, Percent, Gift, Calculator, Package, Calendar, AlertTriangle, CheckCircle, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
 import { createNewCustomer, validateCouponCode, getCustomerLoyaltyPoints } from "@/app/(dashboard)/sales/new-actions";

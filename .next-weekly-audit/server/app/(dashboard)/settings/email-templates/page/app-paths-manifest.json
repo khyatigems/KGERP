@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/settings/email-templates/page": "app/(dashboard)/settings/email-templates/page.js"
+}

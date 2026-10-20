@@ -3,7 +3,7 @@
 import { useForm, useFieldArray, useWatch, UseFormReturn, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, Plus, Trash2, ExternalLink } from "lucide-react";
@@ -555,7 +555,12 @@ export function PurchaseForm({ vendors, categories = [], initialData, suggestedI
         }
 
         if (result && 'success' in result && result.success) {
-            toast.success(result.message || "Purchase saved successfully");
+            toast.success(result.message || "Purchase saved successfully", {
+                action: {
+                    label: "View purchases",
+                    onClick: () => router.push("/purchases"),
+                },
+            });
             router.push("/purchases");
         } else if (result && 'message' in result) {
             toast.error(result.message);

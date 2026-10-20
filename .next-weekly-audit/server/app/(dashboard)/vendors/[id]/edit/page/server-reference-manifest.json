@@ -1,0 +1,35 @@
+{
+  "node": {
+    "60d54a1ac4b166ceaa30373cc02c4677d59081cfbe": {
+      "workers": {
+        "app/(dashboard)/vendors/[id]/edit/page": {
+          "moduleId": 148263,
+          "async": true,
+          "exportedName": "createVendor",
+          "filename": "app/(dashboard)/vendors/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/vendors/[id]/edit/page": "action-browser"
+      },
+      "exportedName": "createVendor",
+      "filename": "app/(dashboard)/vendors/actions.ts"
+    },
+    "70fc17b84bb702343c272dce497640275b387893c4": {
+      "workers": {
+        "app/(dashboard)/vendors/[id]/edit/page": {
+          "moduleId": 148263,
+          "async": true,
+          "exportedName": "updateVendor",
+          "filename": "app/(dashboard)/vendors/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/vendors/[id]/edit/page": "action-browser"
+      },
+      "exportedName": "updateVendor",
+      "filename": "app/(dashboard)/vendors/actions.ts"
+    }
+  },
+  "edge": {}
+}

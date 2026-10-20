@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm, type Resolver } from "react-hook-form";
-import { toast } from "sonner";
+import { sanitizeErrorText, toast } from "@/lib/erp-feedback";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -442,7 +442,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
               itemName={String(data.itemName || "")}
               completeness={completeness}
               status="error"
-              errorMessage={errorMsg}
+              errorMessage={sanitizeErrorText(errorMsg)}
             />
           ),
           { id: SAVE_TOAST_ID, duration: 5000 }

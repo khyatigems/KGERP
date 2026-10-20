@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/reports/export-payments/page": "app/(dashboard)/reports/export-payments/page.js"
+}

@@ -1,0 +1,12 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/ebay/account-deletion/route.js")
+R.c("server/chunks/_aa0e5583._.js")
+R.c("server/chunks/[root-of-the-server]__922c6db9._.js")
+R.c("server/chunks/node_modules_next_594ba3a6._.js")
+R.c("server/chunks/node_modules_next_dist_compiled_@opentelemetry_api_index_b15ce7cb.js")
+R.c("server/chunks/[root-of-the-server]__ae5d6a65._.js")
+R.c("server/chunks/_40185923._.js")
+R.c("server/chunks/node_modules_next_dist_a1d8e66e._.js")
+R.c("server/chunks/_c3f643f4._.js")
+R.c("server/chunks/_next-internal_server_app_api_ebay_account-deletion_route_actions_46a99655.js")
+R.m(111238)
+module.exports=R.m(111238).exports

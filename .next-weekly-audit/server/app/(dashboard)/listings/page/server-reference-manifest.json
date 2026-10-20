@@ -1,0 +1,65 @@
+{
+  "node": {
+    "40d759424da3a9351ebe69bdeb577dcdc9f6286363": {
+      "workers": {
+        "app/(dashboard)/listings/page": {
+          "moduleId": 437262,
+          "async": true,
+          "exportedName": "deleteListings",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/listings/page": "action-browser"
+      },
+      "exportedName": "deleteListings",
+      "filename": "app/(dashboard)/inventory/listing-actions.ts"
+    },
+    "6098d9c8a58d05cbc09500aead260375ea490e2d36": {
+      "workers": {
+        "app/(dashboard)/listings/page": {
+          "moduleId": 437262,
+          "async": true,
+          "exportedName": "updateListingsStatus",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/listings/page": "action-browser"
+      },
+      "exportedName": "updateListingsStatus",
+      "filename": "app/(dashboard)/inventory/listing-actions.ts"
+    },
+    "4049261fa6331bf3650b8e020cd26e911fcaf05ca3": {
+      "workers": {
+        "app/(dashboard)/listings/page": {
+          "moduleId": 437262,
+          "async": true,
+          "exportedName": "getListingHistory",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/listings/page": "action-browser"
+      },
+      "exportedName": "getListingHistory",
+      "filename": "app/(dashboard)/inventory/listing-actions.ts"
+    },
+    "40fa65008a73fef15c39db60bce5ba7e69695a6332": {
+      "workers": {
+        "app/(dashboard)/listings/page": {
+          "moduleId": 437262,
+          "async": true,
+          "exportedName": "addListing",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/listings/page": "action-browser"
+      },
+      "exportedName": "addListing",
+      "filename": "app/(dashboard)/inventory/listing-actions.ts"
+    }
+  },
+  "edge": {}
+}

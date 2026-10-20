@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/cron/marketplace/sync": {
+      "maxDuration": 60
+    },
+    "/api/cron/reports/weekly": {
+      "maxDuration": 300
+    },
+    "/api/ebay/upload": {
+      "maxDuration": 60
+    },
+    "/api/email/communications/bulk": {
+      "maxDuration": 60
+    },
+    "/api/email/communications/process-due": {
+      "maxDuration": 60
+    },
+    "/api/integrations/marketplace/sync/process": {
+      "maxDuration": 60
+    },
+    "/api/marketplace/listing-preparation/media": {
+      "maxDuration": 60
+    },
+    "/api/media/upload": {
+      "maxDuration": 60
+    },
+    "/api/public/invoice/[token]/pdf": {},
+    "/api/settings/weekly-reports/[[...path]]": {
+      "maxDuration": 300
+    },
+    "/api/upload": {
+      "maxDuration": 60
+    },
+    "/api/website/content": {
+      "maxDuration": 60
+    },
+    "/api/website/editorial/setup": {},
+    "/api/website/editorial/upload": {},
+    "/api/work-tracker/[...path]": {}
+  }
+}

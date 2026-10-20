@@ -10,7 +10,7 @@ import { Download, Printer, Loader2, ExternalLink } from "lucide-react";
 import type { InvoiceData } from "@/lib/invoice-generator";
 import { createThermalInvoicePDF, DEFAULT_THERMAL_INVOICE_OPTIONS, type ThermalInvoiceOptions, type ThermalInvoiceLayout } from "@/lib/thermal-invoice-generator";
 import { getInvoiceDataForThermal, recordThermalInvoiceOutput } from "@/app/(dashboard)/sales/actions";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 export function ThermalInvoicePrintButton({ saleId }: { saleId: string }) {
     const [data, setData] = useState<InvoiceData | null>(null);

@@ -1,0 +1,3 @@
+{
+  "/api/credit-notes/[id]/pdf/route": "app/api/credit-notes/[id]/pdf/route.js"
+}

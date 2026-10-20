@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Printer, Loader2 } from "lucide-react";
 import { generateInvoiceLabelPDF, InvoiceLabelData } from "@/lib/invoice-label-generator";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 interface ThermalPrintButtonProps {
     data: InvoiceLabelData;

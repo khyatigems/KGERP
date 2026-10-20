@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/marketplace-listings/page": "app/(dashboard)/marketplace-listings/page.js"
+}

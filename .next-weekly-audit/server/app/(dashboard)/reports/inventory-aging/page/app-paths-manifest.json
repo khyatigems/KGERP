@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/reports/inventory-aging/page": "app/(dashboard)/reports/inventory-aging/page.js"
+}

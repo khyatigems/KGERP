@@ -13,7 +13,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Listing } from "@prisma/client";
 import { Download, Loader2, RefreshCw, Eye, History, ExternalLink, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { deleteListings, updateListingsStatus, getListingHistory } from "@/app/(dashboard)/inventory/listing-actions";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { useRouter } from "next/navigation";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 

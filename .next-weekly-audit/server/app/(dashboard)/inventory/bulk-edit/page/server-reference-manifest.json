@@ -1,0 +1,20 @@
+{
+  "node": {
+    "60087de0848374eb59cb443a1211345b5a4fb1b597": {
+      "workers": {
+        "app/(dashboard)/inventory/bulk-edit/page": {
+          "moduleId": 891406,
+          "async": true,
+          "exportedName": "bulkUpdateInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/bulk-edit/page": "action-browser"
+      },
+      "exportedName": "bulkUpdateInventory",
+      "filename": "app/(dashboard)/inventory/actions.ts"
+    }
+  },
+  "edge": {}
+}

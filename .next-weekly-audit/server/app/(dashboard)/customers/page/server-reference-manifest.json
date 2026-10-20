@@ -1,0 +1,35 @@
+{
+  "node": {
+    "407324182e14f63400f24fb8bec30fa7979b1352ca": {
+      "workers": {
+        "app/(dashboard)/customers/page": {
+          "moduleId": 400261,
+          "async": true,
+          "exportedName": "deleteCustomer",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/page": "action-browser"
+      },
+      "exportedName": "deleteCustomer",
+      "filename": "app/(dashboard)/customers/actions.ts"
+    },
+    "408cb28cd3a46823f2b9601817448d8363f4f5628e": {
+      "workers": {
+        "app/(dashboard)/customers/page": {
+          "moduleId": 400261,
+          "async": true,
+          "exportedName": "getCustomerDeleteImpact",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/page": "action-browser"
+      },
+      "exportedName": "getCustomerDeleteImpact",
+      "filename": "app/(dashboard)/customers/actions.ts"
+    }
+  },
+  "edge": {}
+}

@@ -9,7 +9,7 @@ import { getCart, removeFromCart, clearCart } from "@/app/(dashboard)/labels/act
 import { ShoppingCart, Trash2, Printer, Search, RefreshCw } from "lucide-react";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { toLabelItem } from "@/lib/label-items";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import type { LabelCartItem, Inventory, ColorCode } from "@prisma/client";
 
 type CartItemWithInventory = LabelCartItem & { inventory: Inventory & { colorCode: ColorCode | null } };

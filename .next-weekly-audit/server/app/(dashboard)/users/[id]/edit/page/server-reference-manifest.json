@@ -1,0 +1,20 @@
+{
+  "node": {
+    "6035a7bb7d4f231656cd8535a534276568a534b8a7": {
+      "workers": {
+        "app/(dashboard)/users/[id]/edit/page": {
+          "moduleId": 44883,
+          "async": true,
+          "exportedName": "updateUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/[id]/edit/page": "action-browser"
+      },
+      "exportedName": "updateUser",
+      "filename": "app/(dashboard)/users/actions.ts"
+    }
+  },
+  "edge": {}
+}

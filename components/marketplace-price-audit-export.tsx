@@ -8,6 +8,7 @@ import { ExportButton } from "@/components/ui/lottie";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { toast } from "@/lib/erp-feedback";
 
 interface AuditRow {
   sku: string; itemName: string; category: string; gemType: string;
@@ -139,7 +140,7 @@ export function MarketplacePriceAuditExport() {
 
       // QC
       const qcErr = validate(rows);
-      if (qcErr) { console.error("[Price Audit] QC Failed:", qcErr); alert("Export validation failed:\n" + qcErr); return; }
+      if (qcErr) { console.error("[Price Audit] QC Failed:", qcErr); toast.error(`Export validation failed: ${qcErr}`); return; }
 
       const wb = new ExcelJS.Workbook();
       wb.creator = "KhyatiGems ERP"; wb.created = new Date();

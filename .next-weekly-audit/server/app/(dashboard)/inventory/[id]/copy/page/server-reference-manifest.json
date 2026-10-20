@@ -1,0 +1,50 @@
+{
+  "node": {
+    "6006cbe094f2cce0b8a0440034a8728b2d30236765": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/copy/page": {
+          "moduleId": 517847,
+          "async": true,
+          "exportedName": "createInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/copy/page": "action-browser"
+      },
+      "exportedName": "createInventory",
+      "filename": "app/(dashboard)/inventory/actions.ts"
+    },
+    "705fa6ecfc3cec9bdbecb45f842a0595df3e73a50b": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/copy/page": {
+          "moduleId": 517847,
+          "async": true,
+          "exportedName": "updateInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/copy/page": "action-browser"
+      },
+      "exportedName": "updateInventory",
+      "filename": "app/(dashboard)/inventory/actions.ts"
+    },
+    "600e2f9079190c45f286ef005aa10062d1ef17133a": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/copy/page": {
+          "moduleId": 517847,
+          "async": true,
+          "exportedName": "createCode",
+          "filename": "app/(dashboard)/settings/codes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/copy/page": "action-browser"
+      },
+      "exportedName": "createCode",
+      "filename": "app/(dashboard)/settings/codes/actions.ts"
+    }
+  },
+  "edge": {}
+}

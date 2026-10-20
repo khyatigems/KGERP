@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Trash2 } from "lucide-react";
 import { updateEbaySettingsAction, deleteCategoryImagesAction } from "@/app/settings/ebay/actions";
 import { CategoryImageEditor } from "./category-image-editor";
+import { useErpConfirmation } from "@/components/providers/erp-confirmation-provider";
 
 interface EbaySettingsData {
   id?: string;
@@ -31,6 +32,7 @@ interface EbaySettingsFormProps {
 }
 
 export function EbaySettingsForm({ initialData }: EbaySettingsFormProps) {
+  const confirm = useErpConfirmation();
   const [globalImages, setGlobalImages] = useState<string[]>(
     initialData?.globalBannerImages || []
   );
@@ -142,7 +144,7 @@ export function EbaySettingsForm({ initialData }: EbaySettingsFormProps) {
   };
 
   const handleDeleteCategory = async (category: string) => {
-    if (!confirm(`Delete images for "${category}"?`)) return;
+    if (!(await confirm({ title: "Delete category images?", description: `Images for ${category} will be removed from this eBay settings profile.`, confirmLabel: "Delete images", destructive: true }))) return;
 
     setIsLoading(true);
     try {
@@ -709,8 +711,8 @@ export function EbaySettingsForm({ initialData }: EbaySettingsFormProps) {
                             type="button"
                             variant="destructive"
                             size="sm"
-                            onClick={() => {
-                              if (!confirm(`Delete combo ${combo}?`)) return;
+                            onClick={async () => {
+                              if (!(await confirm({ title: "Delete image combination?", description: `The ${combo} combination and its configured image list will be removed.`, confirmLabel: "Delete combination", destructive: true }))) return;
                               setCategoryGemtypeImageUrls((prev) => {
                                 const next = { ...prev };
                                 delete next[combo];

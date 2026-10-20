@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { createListing } from "@/app/(dashboard)/listings/actions";
 import { InventoryPicker } from "@/components/listings/inventory-picker";
+import { toast } from "@/lib/erp-feedback";
 
 const formSchema = z.object({
   inventoryId: z.string().uuid("Select an inventory item"),
@@ -70,9 +71,16 @@ export function ListingForm({ inventoryItems }: ListingFormProps) {
     });
 
     try {
-      await createListing(null, formData);
+      const result = await createListing(null, formData);
+      if (result && typeof result === "object" && "message" in result) {
+        toast.error(typeof result.message === "string" ? result.message : "Could not create the listing.");
+      } else if (result && typeof result === "object" && "errors" in result) {
+        toast.error("Check the listing details and correct the highlighted fields.");
+      }
     } catch (error) {
+      if (error instanceof Error && error.message === "NEXT_REDIRECT") throw error;
       console.error(error);
+      toast.error("Could not create the listing. Please try again.");
     } finally {
       setIsPending(false);
     }

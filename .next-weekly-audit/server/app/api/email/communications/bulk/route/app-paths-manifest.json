@@ -1,0 +1,3 @@
+{
+  "/api/email/communications/bulk/route": "app/api/email/communications/bulk/route.js"
+}

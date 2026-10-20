@@ -1,0 +1,415 @@
+{
+  "app": {
+    "[project]/app/(auth)/forgot-password/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(auth)/help/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(auth)/login/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(auth)/privacy/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(auth)/terms/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/activity-log/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/advances/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/communication/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/communication/analytics/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/communication/compose/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/communication/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/customers/[id]/edit/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/customers/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/customers/events/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/customers/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/customers/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/inventory/[id]/copy/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/inventory/[id]/edit/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/inventory/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/inventory/bulk-edit/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/inventory/import/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/inventory/matched-pairs/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/inventory/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/inventory/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/invoices/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/invoices/[id]/payments/[paymentId]/receipt/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/invoices/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/labels/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/listings/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/listings/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/marketplace-conflicts/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/marketplace-control-center/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/marketplace-create-listings/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/marketplace-drafts/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/marketplace-listings/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/marketplace-orders/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/marketplace-reconciliation/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/marketplace-sync-history/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/masters/merge/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/purchases/[id]/edit/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/purchases/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/purchases/import/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/purchases/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/purchases/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/quotes/[id]/edit/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/quotes/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/quotes/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/quotes/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/advance-utilization/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/capital-rotation/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/category-stock/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/certificate-readiness/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/customer-advances/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/customer-intelligence/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/discount-usage/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/export-payments/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/gst/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/inventory-aging/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/inventory/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/invoices/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/label-printing/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/loyalty-points/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/missing-media/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/ops/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/payments/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/pending-advances/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/profit/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/purchase-timeline/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/qr-scans/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/quotations/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/receivables/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/sales-cycle/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/sales/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/system-logs/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/top-categories/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/top-customers/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/turnover-report/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/user-activity/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/vendor-dependency/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/vendor-inventory/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/reports/vendor-purchases/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/sales-returns/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/sales-returns/[id]/replacement-invoice/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/sales-returns/credit-notes/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/sales-returns/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/sales-returns/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/sales-returns/replace/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/sales/[id]/create-invoice/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/sales/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/sales/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/search/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/codes/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/coupons/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/customer/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/ebay-settings/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/email-templates/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/invoice-promotions/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/invoice/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/landing-page/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/loyalty/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/marketplace-connections/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/marketplaces/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/message-templates/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/packaging/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/settings/weekly-reports/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/users/[id]/edit/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/users/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/users/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/vendors/[id]/edit/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/vendors/[id]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/vendors/new/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/vendors/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/website-management/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/(dashboard)/work-tracker/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/403/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/V/[serial]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/_not-found/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/admin/fix-invoice/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/erp/packaging/create/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/erp/packaging/ledger/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/erp/packaging/logs/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/erp/packaging/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/erp/packaging/settings/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/erp/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/invoice/[token]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/packaging/ledger/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/packaging/logs/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/packaging/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/packaging/settings/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/preview/[slug]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/preview/label/[serial]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/quote/[token]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ],
+    "[project]/app/verify/[serial]/page": [
+      "static/media/caa3a2e1cccd8315-s.p.3b6cae6d.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

@@ -30,8 +30,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { InstallMenuItem } from "@/components/pwa/install-menu-item";
 
 const routeTitles: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -271,7 +272,7 @@ export function Topbar({ user }: TopbarProps) {
                   </span>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
+              <InstallMenuItem />
               <DropdownMenuItem onClick={() => setAvatarModalOpen(true)}>
                 <Camera className="mr-2 h-4 w-4" />
                 <span>Change photo</span>

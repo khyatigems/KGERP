@@ -1,0 +1,35 @@
+{
+  "node": {
+    "00ba5f5b22aa4d53db47990d95817c4061ee2f95cc": {
+      "workers": {
+        "app/(dashboard)/page": {
+          "moduleId": 186674,
+          "async": true,
+          "exportedName": "getDashboardLayout",
+          "filename": "app/actions/dashboard-layout.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/page": "action-browser"
+      },
+      "exportedName": "getDashboardLayout",
+      "filename": "app/actions/dashboard-layout.ts"
+    },
+    "40c5ec0acd9a346945476da40b4f12d9703ce8bce2": {
+      "workers": {
+        "app/(dashboard)/page": {
+          "moduleId": 186674,
+          "async": true,
+          "exportedName": "saveDashboardLayout",
+          "filename": "app/actions/dashboard-layout.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/page": "action-browser"
+      },
+      "exportedName": "saveDashboardLayout",
+      "filename": "app/actions/dashboard-layout.ts"
+    }
+  },
+  "edge": {}
+}

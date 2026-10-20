@@ -1,0 +1,13 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/work-tracker/[...path]/route.js")
+R.c("server/chunks/[root-of-the-server]__349b2ce2._.js")
+R.c("server/chunks/node_modules_next_dist_compiled_@opentelemetry_api_index_b15ce7cb.js")
+R.c("server/chunks/node_modules_next_594ba3a6._.js")
+R.c("server/chunks/_123ed3d5._.js")
+R.c("server/chunks/_40185923._.js")
+R.c("server/chunks/node_modules_zod_v4_classic_external_fa90cebf.js")
+R.c("server/chunks/_c3f643f4._.js")
+R.c("server/chunks/[root-of-the-server]__ae5d6a65._.js")
+R.c("server/chunks/node_modules_next_dist_a1d8e66e._.js")
+R.c("server/chunks/_next-internal_server_app_api_work-tracker_[___path]_route_actions_0820762e.js")
+R.m(330015)
+module.exports=R.m(330015).exports

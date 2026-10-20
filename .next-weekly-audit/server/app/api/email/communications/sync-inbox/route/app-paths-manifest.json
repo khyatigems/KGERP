@@ -1,0 +1,3 @@
+{
+  "/api/email/communications/sync-inbox/route": "app/api/email/communications/sync-inbox/route.js"
+}

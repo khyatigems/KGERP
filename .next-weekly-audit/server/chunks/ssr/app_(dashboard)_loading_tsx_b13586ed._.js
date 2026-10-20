@@ -1,0 +1,3 @@
+module.exports=[688770,a=>{"use strict";var b=a.i(907997);function c(){return(0,b.jsx)("div",{className:"relative w-full",children:(0,b.jsx)("div",{className:"absolute top-0 left-0 right-0 h-[3px] overflow-hidden rounded-full bg-primary/10",children:(0,b.jsx)("div",{className:"h-full w-1/3 rounded-full bg-primary animate-progress-indeterminate"})})})}a.s(["default",()=>c])}];
+
+//# sourceMappingURL=app_%28dashboard%29_loading_tsx_b13586ed._.js.map

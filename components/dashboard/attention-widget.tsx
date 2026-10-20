@@ -8,7 +8,7 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { applyAttentionVisibilityFilters } from "@/lib/attention-widget-visibility";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 interface AttentionData {
     quotations: Array<{ id: string; quotationNumber: string; customerName: string; expiryDate: string | null }>;

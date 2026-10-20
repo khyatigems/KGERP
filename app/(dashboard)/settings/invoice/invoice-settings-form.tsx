@@ -16,7 +16,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { updateInvoiceSettings } from "./actions";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Loader2, Plus, Trash2, GripVertical } from "lucide-react";
 import { InvoiceSettings, PaymentSettings } from "@prisma/client";
 

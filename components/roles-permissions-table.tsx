@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label";
 import { permissionLabel, permissionDescription, isProtectedRole } from "@/lib/permission-display";
 import { Search, Shield, Info, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
+import { useErpConfirmation } from "@/components/providers/erp-confirmation-provider";
 
 type DBRole = {
   id: string;
@@ -28,6 +29,7 @@ type DBPermission = {
 };
 
 export function RolesPermissionsTable() {
+  const confirm = useErpConfirmation();
   const [searchQuery, setSearchQuery] = useState("");
   const [roles, setRoles] = useState<DBRole[]>([]);
   const [permissions, setPermissions] = useState<DBPermission[]>([]);
@@ -167,8 +169,8 @@ export function RolesPermissionsTable() {
         <Button disabled={!adminMode || saving} onClick={() => { setRoleName(""); setRoleModal("create"); }}>Create role</Button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {roles.map(role => <button key={role.id} type="button" disabled={saving} aria-pressed={role.id === selectedRoleId} onClick={() => {
-          if (dirty && !window.confirm("Discard unsaved permission changes?")) return;
+        {roles.map(role => <button key={role.id} type="button" disabled={saving} aria-pressed={role.id === selectedRoleId} onClick={async () => {
+          if (dirty && !(await confirm({ title: "Discard permission changes?", description: "Your unsaved permission selections for this role will be lost.", confirmLabel: "Discard changes", destructive: true }))) return;
           setSelectedRoleId(role.id);
         }} className={`rounded-2xl border p-5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-primary ${role.id === selectedRoleId ? "border-primary bg-primary/5 ring-1 ring-primary" : "bg-card hover:bg-muted/50"}`}>
           <div className="flex items-center justify-between gap-2"><Shield className="h-5 w-5 text-primary"/><Badge variant="secondary">{isProtectedRole(role.name) ? "Protected" : role.isSystem ? "System role" : "Custom role"}</Badge></div>

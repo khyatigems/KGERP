@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createSale } from "@/app/(dashboard)/sales/actions";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { useRouter } from "next/navigation";
 import { Inventory } from "@prisma/client";
 import { useSearchParams } from "next/navigation";
@@ -469,8 +469,12 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
         const result = await createSale(null, formData);
         
         if (result && 'success' in result && result.success) {
-            toast.success(result.message || "Sale created & invoice generated successfully");
-            // Redirect to sales or invoices? Usually Sales list.
+            toast.success(result.message || "Sale created & invoice generated successfully", {
+              action: {
+                label: "View sales",
+                onClick: () => router.push("/sales"),
+              },
+            });
             router.push("/sales");
         } else if (result && 'message' in result) {
             toast.error(result.message);

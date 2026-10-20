@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 interface SidebarContextValue {
   collapsed: boolean;
@@ -12,31 +12,38 @@ const SidebarContext = createContext<SidebarContextValue | null>(null);
 
 const STORAGE_KEY = "khyatigems-sidebar-collapsed";
 
-const listeners = new Set<() => void>();
-let fallbackCollapsed = false;
-function getSnapshot() {
-  try { return window.localStorage.getItem(STORAGE_KEY) === "1"; }
-  catch { return fallbackCollapsed; }
-}
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  window.addEventListener("storage", listener);
-  return () => { listeners.delete(listener); window.removeEventListener("storage", listener); };
-}
-const serverSnapshot = () => false;
-
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const collapsed = useSyncExternalStore(subscribe, getSnapshot, serverSnapshot);
-  const setCollapsedPersist = (value: boolean) => {
-    fallbackCollapsed = value;
-    try { window.localStorage.setItem(STORAGE_KEY, value ? "1" : "0"); } catch {}
-    listeners.forEach(listener => listener());
-  };
+  // Keep the server render and the client's hydration render structurally
+  // identical. Reading localStorage during the first render can change the
+  // sidebar tree before Radix components hydrate, producing mismatched useId
+  // values for their aria-controls/id attributes.
+  const [collapsed, setCollapsed] = useState(false);
 
-  const toggleCollapsed = () => setCollapsedPersist(!collapsed);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    try { setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "1"); } catch {}
+
+    const syncFromStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEY || event.key === null) {
+        setCollapsed(event.key === null ? false : event.newValue === "1");
+      }
+    };
+    window.addEventListener("storage", syncFromStorage);
+    return () => window.removeEventListener("storage", syncFromStorage);
+  }, []);
+
+  const setCollapsedPersist = useCallback((value: boolean) => {
+    setCollapsed(value);
+    try { window.localStorage.setItem(STORAGE_KEY, value ? "1" : "0"); } catch {}
+  }, []);
+  const toggleCollapsed = useCallback(() => setCollapsedPersist(!collapsed), [collapsed, setCollapsedPersist]);
+  const contextValue = useMemo(
+    () => ({ collapsed, setCollapsed: setCollapsedPersist, toggleCollapsed }),
+    [collapsed, setCollapsedPersist, toggleCollapsed],
+  );
 
   return (
-    <SidebarContext.Provider value={{ collapsed, setCollapsed: setCollapsedPersist, toggleCollapsed }}>
+    <SidebarContext.Provider value={contextValue}>
       {children}
     </SidebarContext.Provider>
   );

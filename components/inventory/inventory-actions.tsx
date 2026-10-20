@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import dynamic from "next/dynamic";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { updateInventoryStatus } from "@/app/(dashboard)/inventory/actions";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { ArrowLeft, Check, Loader2, Pencil } from "lucide-react";
 import { bulkUpdateInventory } from "@/app/(dashboard)/inventory/actions";
 import { Badge } from "@/components/ui/badge";

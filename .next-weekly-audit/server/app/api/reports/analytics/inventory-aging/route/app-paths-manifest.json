@@ -1,0 +1,3 @@
+{
+  "/api/reports/analytics/inventory-aging/route": "app/api/reports/analytics/inventory-aging/route.js"
+}

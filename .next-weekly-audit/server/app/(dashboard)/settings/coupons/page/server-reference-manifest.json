@@ -1,0 +1,50 @@
+{
+  "node": {
+    "002512747ba2528a9c39d8350bb953d0d4ee13ab2a": {
+      "workers": {
+        "app/(dashboard)/settings/coupons/page": {
+          "moduleId": 215558,
+          "async": true,
+          "exportedName": "getCoupons",
+          "filename": "app/(dashboard)/settings/coupons/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/coupons/page": "rsc"
+      },
+      "exportedName": "getCoupons",
+      "filename": "app/(dashboard)/settings/coupons/actions.ts"
+    },
+    "40eeeee87c059b39437afe0e95e44510a2c66ec7da": {
+      "workers": {
+        "app/(dashboard)/settings/coupons/page": {
+          "moduleId": 215558,
+          "async": true,
+          "exportedName": "createCoupon",
+          "filename": "app/(dashboard)/settings/coupons/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/coupons/page": "action-browser"
+      },
+      "exportedName": "createCoupon",
+      "filename": "app/(dashboard)/settings/coupons/actions.ts"
+    },
+    "60b5fa98476e33bbdb353cb03271f4342798306313": {
+      "workers": {
+        "app/(dashboard)/settings/coupons/page": {
+          "moduleId": 215558,
+          "async": true,
+          "exportedName": "toggleCoupon",
+          "filename": "app/(dashboard)/settings/coupons/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/coupons/page": "action-browser"
+      },
+      "exportedName": "toggleCoupon",
+      "filename": "app/(dashboard)/settings/coupons/actions.ts"
+    }
+  },
+  "edge": {}
+}

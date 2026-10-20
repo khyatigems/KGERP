@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Search, Printer, ShoppingCart, Trash2, Eye, RefreshCw, Box } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { 
   getPackagingInventory, 
   addToPackagingCart, 

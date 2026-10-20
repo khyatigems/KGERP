@@ -1,0 +1,3 @@
+{
+  "/api/email/zoho/callback/route": "app/api/email/zoho/callback/route.js"
+}

@@ -1,0 +1,3 @@
+{
+  "/api/marketplace/validate-batch/route": "app/api/marketplace/validate-batch/route.js"
+}

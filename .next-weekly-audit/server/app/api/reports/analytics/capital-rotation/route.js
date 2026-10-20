@@ -1,0 +1,12 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/reports/analytics/capital-rotation/route.js")
+R.c("server/chunks/node_modules_next_dist_compiled_@opentelemetry_api_index_b15ce7cb.js")
+R.c("server/chunks/node_modules_next_594ba3a6._.js")
+R.c("server/chunks/node_modules_next_6f120bca._.js")
+R.c("server/chunks/[root-of-the-server]__351cdbe0._.js")
+R.c("server/chunks/node_modules_next_dist_a1d8e66e._.js")
+R.c("server/chunks/[root-of-the-server]__ae5d6a65._.js")
+R.c("server/chunks/_c3f643f4._.js")
+R.c("server/chunks/_40185923._.js")
+R.c("server/chunks/ce889_server_app_api_reports_analytics_capital-rotation_route_actions_ca6aff2c.js")
+R.m(615324)
+module.exports=R.m(615324).exports

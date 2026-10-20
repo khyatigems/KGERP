@@ -1,0 +1,65 @@
+{
+  "node": {
+    "406703f3a7a7f33ff658b269ed3de1e39aace57882": {
+      "workers": {
+        "app/(dashboard)/users/page": {
+          "moduleId": 374041,
+          "async": true,
+          "exportedName": "$$RSC_SERVER_ACTION_0",
+          "filename": "app/(dashboard)/users/page.tsx"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/page": "rsc"
+      },
+      "exportedName": "$$RSC_SERVER_ACTION_0",
+      "filename": "app/(dashboard)/users/page.tsx"
+    },
+    "40ad669ab9b9572e4d3bbbd2c6d701a4753b2d6c08": {
+      "workers": {
+        "app/(dashboard)/users/page": {
+          "moduleId": 374041,
+          "async": true,
+          "exportedName": "createUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/page": "rsc"
+      },
+      "exportedName": "createUser",
+      "filename": "app/(dashboard)/users/actions.ts"
+    },
+    "40e44722c529ca089254e19977fa9302f8d9de7655": {
+      "workers": {
+        "app/(dashboard)/users/page": {
+          "moduleId": 374041,
+          "async": true,
+          "exportedName": "deleteUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/page": "rsc"
+      },
+      "exportedName": "deleteUser",
+      "filename": "app/(dashboard)/users/actions.ts"
+    },
+    "6035a7bb7d4f231656cd8535a534276568a534b8a7": {
+      "workers": {
+        "app/(dashboard)/users/page": {
+          "moduleId": 374041,
+          "async": true,
+          "exportedName": "updateUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/page": "rsc"
+      },
+      "exportedName": "updateUser",
+      "filename": "app/(dashboard)/users/actions.ts"
+    }
+  },
+  "edge": {}
+}

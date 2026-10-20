@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { createOrUpdateInvoiceFromSale } from "@/app/(dashboard)/invoices/actions";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Loader2 } from "lucide-react";
 
 interface CreateInvoiceFormProps {
@@ -75,7 +75,12 @@ export function CreateInvoiceForm({ saleId, initialOptions }: CreateInvoiceFormP
             { duration: 10000 }
           );
         } else {
-          toast.success(result.message);
+          toast.success(result.message, {
+            action: {
+              label: "View invoice",
+              onClick: () => router.push(`/invoices/${result.invoiceId}`),
+            },
+          });
         }
         if (result.token) {
            window.open(`/invoice/${result.token}`, '_blank');

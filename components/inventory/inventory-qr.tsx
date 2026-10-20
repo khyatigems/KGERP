@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { QrCode, Copy, Mail } from "lucide-react";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 export function InventoryQrDialog({ itemName, sku }: { itemName: string, sku: string }) {
   const [open, setOpen] = useState(false);

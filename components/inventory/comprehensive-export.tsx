@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Download, FileSpreadsheet, X, Save } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 // Comprehensive field definitions - ALL fields from inventory
 const ALL_EXPORT_FIELDS = [

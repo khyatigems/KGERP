@@ -1,0 +1,3 @@
+{
+  "/api/reports/qr-scans/export/route": "app/api/reports/qr-scans/export/route.js"
+}

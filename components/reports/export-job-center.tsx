@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/lib/erp-feedback";
 
 type ExportJob = {
   id: string;
@@ -107,10 +108,16 @@ export function ExportJobCenter() {
       });
       if (!res.ok) {
         const payload = (await res.json().catch(() => ({}))) as { error?: string };
-        setSubmitError(payload.error || "Failed to queue export job");
+        const message = payload.error || "Failed to queue export job";
+        setSubmitError(message);
+        toast.error(message);
         return;
       }
+      toast.success("Export job queued. Track its progress in Recent Jobs.");
       await fetchJobs();
+    } catch {
+      setSubmitError("Could not queue the export job. Please try again.");
+      toast.error("Could not queue the export job. Please try again.");
     } finally {
       setLoading(false);
     }

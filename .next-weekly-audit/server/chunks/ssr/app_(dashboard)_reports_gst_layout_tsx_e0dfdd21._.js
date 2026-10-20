@@ -1,0 +1,3 @@
+module.exports=[544635,a=>a.a(async(b,c)=>{try{var d=a.i(409223),e=a.i(302316);a.i(570396);var f=a.i(673727),g=b([e]);async function h({children:a}){let b=await (0,d.auth)();return b?.user?.id&&await (0,e.checkUserPermission)(b.user.id,e.PERMISSIONS.REPORTS_FINANCIAL)||(0,f.redirect)("/reports"),a}[e]=g.then?(await g)():g,a.s(["default",()=>h]),c()}catch(a){c(a)}},!1)];
+
+//# sourceMappingURL=app_%28dashboard%29_reports_gst_layout_tsx_e0dfdd21._.js.map

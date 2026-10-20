@@ -1,0 +1,35 @@
+{
+  "node": {
+    "60fa8132f7ba5c6371284d4662d33a07d25557c37e": {
+      "workers": {
+        "app/(dashboard)/customers/new/page": {
+          "moduleId": 642154,
+          "async": true,
+          "exportedName": "createCustomer",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/new/page": "action-browser"
+      },
+      "exportedName": "createCustomer",
+      "filename": "app/(dashboard)/customers/actions.ts"
+    },
+    "7017f7e41367c718b1018cd09ac4f2ac5e5bb39bc9": {
+      "workers": {
+        "app/(dashboard)/customers/new/page": {
+          "moduleId": 642154,
+          "async": true,
+          "exportedName": "updateCustomer",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/new/page": "action-browser"
+      },
+      "exportedName": "updateCustomer",
+      "filename": "app/(dashboard)/customers/actions.ts"
+    }
+  },
+  "edge": {}
+}

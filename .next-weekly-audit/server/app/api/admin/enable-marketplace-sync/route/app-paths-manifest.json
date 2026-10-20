@@ -1,0 +1,3 @@
+{
+  "/api/admin/enable-marketplace-sync/route": "app/api/admin/enable-marketplace-sync/route.js"
+}

@@ -1,0 +1,125 @@
+{
+  "node": {
+    "007146344c5cbed1464d1da827595f73988c07d68a": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "getWhatsNewEntries",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc"
+      },
+      "exportedName": "getWhatsNewEntries",
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+    },
+    "0093ffa582c62eaef1d54d9fc3045ccd78cb375a37": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "generateWhatsNewDraft",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc"
+      },
+      "exportedName": "generateWhatsNewDraft",
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+    },
+    "00f4fe0c732b4bcab510ab1f9e12ffa2143f985b62": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "getVersions",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc"
+      },
+      "exportedName": "getVersions",
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+    },
+    "00fe622d35b615be700d972f8d8c22eda663e31f86": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "getLandingPageSettings",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc"
+      },
+      "exportedName": "getLandingPageSettings",
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+    },
+    "407732c06a5c6d7b79966f8416a4418216f3bb0fb0": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "rollbackVersion",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc"
+      },
+      "exportedName": "rollbackVersion",
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+    },
+    "4090215822b34332e096d4d49c279aaddc2244a87e": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "deleteWhatsNewEntry",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc"
+      },
+      "exportedName": "deleteWhatsNewEntry",
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+    },
+    "40a08f00ff7316b42a76c3b7377655ace9ac40f19d": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "saveLandingPageSettings",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc"
+      },
+      "exportedName": "saveLandingPageSettings",
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+    },
+    "40e81587eb86b691a02c52b77735e9446f42a1c33e": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "addWhatsNewEntry",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc"
+      },
+      "exportedName": "addWhatsNewEntry",
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+    }
+  },
+  "edge": {}
+}

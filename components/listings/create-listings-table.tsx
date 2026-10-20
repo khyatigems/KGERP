@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { addListing } from "@/app/(dashboard)/inventory/listing-actions";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { ExternalLink } from "lucide-react";
 
 type InventoryRow = {

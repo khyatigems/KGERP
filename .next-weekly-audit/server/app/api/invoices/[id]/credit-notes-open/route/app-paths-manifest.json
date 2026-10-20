@@ -1,0 +1,3 @@
+{
+  "/api/invoices/[id]/credit-notes-open/route": "app/api/invoices/[id]/credit-notes-open/route.js"
+}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notifyAction, toast } from "@/lib/erp-feedback";
 import { Loader2 } from "lucide-react";
 import { decodeHtmlEntities, htmlToPlainText } from "@/lib/email/content";
 
@@ -205,16 +205,15 @@ export function CommunicationComposer({
         }
         throw new Error(result.error || "Email could not be saved");
       }
-      toast.success(
-        action === "DRAFT"
-          ? "Draft saved"
-          : action === "SCHEDULE"
-            ? "Email scheduled"
-            : result.status === "SENT"
-              ? "Email sent"
-              : "Email queued for processing",
-        { id: toastId },
-      );
+      const successMessage = action === "DRAFT"
+        ? "Draft saved"
+        : action === "SCHEDULE"
+          ? "Email scheduled"
+          : result.status === "SENT"
+            ? "Email sent"
+            : "Email queued for processing";
+      if (action === "DRAFT") toast.success(successMessage, { id: toastId });
+      else notifyAction(successMessage, "View email", () => router.push(`/communication/${result.logId}`), { id: toastId });
       router.push(`/communication/${result.logId}`);
       router.refresh();
     } catch (error) {

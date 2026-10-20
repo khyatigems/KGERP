@@ -1,0 +1,3 @@
+{
+  "/api/reports/inventory-summary/xlsx/route": "app/api/reports/inventory-summary/xlsx/route.js"
+}

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 import { WeeklyReports } from "@/components/settings/weekly-reports";
 import WorkTrackerPage from "@/app/(dashboard)/work-tracker/page";
+import { ErpConfirmationProvider } from "@/components/providers/erp-confirmation-provider";
 import { defaultSettings } from "@/lib/weekly-report/config";
 import postcss from "postcss";
 import tailwind from "@tailwindcss/postcss";
@@ -15,7 +16,8 @@ async function main() {
  const markup = renderToStaticMarkup(React.createElement(WeeklyReports, { initial: { settings: defaultSettings, version: null, sender: null, shops: [], nextScheduled: "2026-10-26T03:30:00Z", dispatcherLastSeen: null, latestAccepted: null } }));
  const browser = await puppeteer.launch({ headless: true });
  try {
-  for (const [name, content] of [["settings", markup], ["work-tracker-loading", renderToStaticMarkup(React.createElement(WorkTrackerPage))]]) for (const width of [1440, 390]) {
+  const trackerMarkup = renderToStaticMarkup(React.createElement(ErpConfirmationProvider, null, React.createElement(WorkTrackerPage)));
+  for (const [name, content] of [["settings", markup], ["work-tracker-loading", trackerMarkup]]) for (const width of [1440, 390]) {
    const page = await browser.newPage(); await page.setViewport({ width, height: 1050 });
    await page.setContent(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css.css}</style></head><body style="padding:20px;background:white;color:#172b42;font-family:Arial"><p style="font-size:11px">UI QA PREVIEW — actual component; Settings uses synthetic configuration, tracker shows initial loading state</p>${content}</body></html>`);
    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `Settings overflow at ${width}`);

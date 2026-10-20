@@ -1,0 +1,35 @@
+{
+  "node": {
+    "6082185e363dc0a89686462f83cb05f06eb0908e6f": {
+      "workers": {
+        "app/(dashboard)/purchases/new/page": {
+          "moduleId": 880442,
+          "async": true,
+          "exportedName": "createPurchase",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/purchases/new/page": "action-browser"
+      },
+      "exportedName": "createPurchase",
+      "filename": "app/(dashboard)/purchases/actions.ts"
+    },
+    "70491b606bd4318faa9e3339fd705c1ecb07e3e57c": {
+      "workers": {
+        "app/(dashboard)/purchases/new/page": {
+          "moduleId": 880442,
+          "async": true,
+          "exportedName": "updatePurchase",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/purchases/new/page": "action-browser"
+      },
+      "exportedName": "updatePurchase",
+      "filename": "app/(dashboard)/purchases/actions.ts"
+    }
+  },
+  "edge": {}
+}

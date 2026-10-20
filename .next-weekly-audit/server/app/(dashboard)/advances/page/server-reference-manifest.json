@@ -1,0 +1,65 @@
+{
+  "node": {
+    "40fd49f4cb76d5a77d0f882996fd9f9b45438d76d9": {
+      "workers": {
+        "app/(dashboard)/advances/page": {
+          "moduleId": 281637,
+          "async": true,
+          "exportedName": "recordAdvance",
+          "filename": "app/(dashboard)/advances/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/advances/page": "rsc"
+      },
+      "exportedName": "recordAdvance",
+      "filename": "app/(dashboard)/advances/actions.ts"
+    },
+    "000cff250e1b70a29768db162321d791420611361f": {
+      "workers": {
+        "app/(dashboard)/advances/page": {
+          "moduleId": 281637,
+          "async": true,
+          "exportedName": "getAdvances",
+          "filename": "app/(dashboard)/advances/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/advances/page": "rsc"
+      },
+      "exportedName": "getAdvances",
+      "filename": "app/(dashboard)/advances/actions.ts"
+    },
+    "4029e8783ccd5c3a21f2cdee8c15855f908d87fd20": {
+      "workers": {
+        "app/(dashboard)/advances/page": {
+          "moduleId": 281637,
+          "async": true,
+          "exportedName": "getCustomerAdvanceBalance",
+          "filename": "app/(dashboard)/advances/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/advances/page": "rsc"
+      },
+      "exportedName": "getCustomerAdvanceBalance",
+      "filename": "app/(dashboard)/advances/actions.ts"
+    },
+    "707dda75f5fdad1f74d9b4204ead1b610eaa9f7ec3": {
+      "workers": {
+        "app/(dashboard)/advances/page": {
+          "moduleId": 281637,
+          "async": true,
+          "exportedName": "adjustAdvanceAgainstInvoice",
+          "filename": "app/(dashboard)/advances/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/advances/page": "rsc"
+      },
+      "exportedName": "adjustAdvanceAgainstInvoice",
+      "filename": "app/(dashboard)/advances/actions.ts"
+    }
+  },
+  "edge": {}
+}

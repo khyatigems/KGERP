@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { ZohoMailConnector } from "@/lib/email/connectors/zoho";
-import { createRun, deliverRun, generateRun, readSettings, saveSettings } from "@/lib/weekly-report/service";
+import { createRun, deliverRun, generateRun, readSettings, retryFailedGeneration, saveSettings } from "@/lib/weekly-report/service";
 import { scheduledSlot, settingsSchema } from "@/lib/weekly-report/config";
 import { ensureWeeklyReportSchema } from "@/lib/weekly-report/schema";
 import { verifyPdf } from "@/lib/weekly-report/pdf";
@@ -62,24 +62,19 @@ export async function handleWeeklyReports(request: Request, context: Context, id
    const settings = settingsSchema.parse(JSON.parse(run.settingsJson));
    if (delivery.attempts >= settings.maxAttempts) throw new Error("Configured attempt limit reached. Review provider configuration before generating a new reporting period.");
    await prisma.weeklyReportDelivery.updateMany({ where: { id: delivery.id, status: delivery.status }, data: { status: "RETRY", nextAttemptAt: new Date() } });
-   await prisma.activityLog.create({ data: { userId: actor, module: "SETTINGS", action: "WEEKLY_REPORT_RETRY", referenceId: delivery.id } });
+   await prisma.activityLog.create({ data: { entityType: "WeeklyReportDelivery", actionType: "RETRY_DELIVERY", userId: actor, module: "SETTINGS", action: "WEEKLY_REPORT_RETRY", referenceId: delivery.id } });
    await deliverRun(delivery.runId); return NextResponse.json({ ok: true });
   }
   if (request.method === "POST" && action === "retry-generation" && typeof body.id === "string") {
    if (body.confirmSend !== true) throw new Error("Confirm retrying this report; its queued recipients may be emailed.");
-   const run = await prisma.weeklyReportRun.findUniqueOrThrow({ where: { id: body.id } });
-   const config = settingsSchema.parse(JSON.parse(run.settingsJson));
-   if (run.status !== "FAILED" || run.attempts >= config.maxAttempts) throw new Error("Only known failed generation below its attempt limit can be retried.");
-   await prisma.weeklyReportRun.updateMany({ where: { id: run.id, status: "FAILED" }, data: { nextAttemptAt: new Date() } });
-   await prisma.activityLog.create({ data: { userId: actor, module: "SETTINGS", action: "WEEKLY_REPORT_GENERATION_RETRY", referenceId: run.id } });
-   await generateRun(run.id); await deliverRun(run.id); return NextResponse.json({ id: run.id });
+   const run = await retryFailedGeneration(body.id, actor); return NextResponse.json({ id: run.id, status: run.status });
   }
   return NextResponse.json({ error: "Route not found" }, { status: 404 });
  } catch (error) {
   if (error instanceof Error && error.name === "ZodError") return NextResponse.json({ error: "Invalid report settings", details: JSON.parse(error.message) }, { status: 400 });
   const message = error instanceof Error ? error.message : "Report request failed";
-  const safe = /Confirm|preview|disabled|Settings changed|wait a minute|Only known|attempt limit|Connect Zoho/.test(message);
-  if (!safe) console.error("[weekly-report] request failed", error instanceof Error ? error.name : "Error");
+  const safe = /Confirm|preview|disabled|Settings changed|wait a minute|Only known|attempt limit|Connect Zoho|logo|PDF exceeds|failed while the retry/.test(message);
+  if (!safe) console.error("[weekly-report] request failed", { name: error instanceof Error ? error.name : "Error", message: message.slice(0, 250), code: typeof error === "object" && error && "code" in error ? String(error.code) : undefined });
   return NextResponse.json({ error: safe ? message : "Report request failed. Check server database and report configuration." }, { status: safe ? 409 : 500 });
  }
 }

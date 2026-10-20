@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RefreshCw, AlertTriangle, CheckCircle2, Clock, XCircle } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 interface RegenerateEbayModalProps {
   open: boolean;

@@ -51,7 +51,7 @@ import { QuickNotes } from "./quick-notes";
 import { ConnectionsStatusWidget } from "./connections-status-widget";
 import { MatchedPairsSummaryWidget } from "./matched-pairs-summary-widget";
 import { getDashboardLayout, saveDashboardLayout } from "@/app/actions/dashboard-layout";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 export interface DraggableWidgetConfig {
   id: string;

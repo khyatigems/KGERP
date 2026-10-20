@@ -1,0 +1,80 @@
+{
+  "node": {
+    "4008bb68c209b4273c1482e834b331cd37531429b8": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "createNewCustomer",
+          "filename": "app/(dashboard)/sales/new-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "exportedName": "createNewCustomer",
+      "filename": "app/(dashboard)/sales/new-actions.ts"
+    },
+    "708b2c0ded863df5ddb8d240da0e2feb59ce1accfc": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "validateCouponCode",
+          "filename": "app/(dashboard)/sales/new-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "exportedName": "validateCouponCode",
+      "filename": "app/(dashboard)/sales/new-actions.ts"
+    },
+    "40363717566a13e12acda06fc5759a22d44826e0c0": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "getCustomerLoyaltyPoints",
+          "filename": "app/(dashboard)/sales/new-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "exportedName": "getCustomerLoyaltyPoints",
+      "filename": "app/(dashboard)/sales/new-actions.ts"
+    },
+    "60caa48780145029762c4269aba3fd0c024c6d28c1": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "createSale",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "exportedName": "createSale",
+      "filename": "app/(dashboard)/sales/actions.ts"
+    },
+    "0050d6a1b8d0c5800f8d1f5989a3440d97e37ea2b1": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "getNextInvoiceNumber",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "exportedName": "getNextInvoiceNumber",
+      "filename": "app/(dashboard)/sales/actions.ts"
+    }
+  },
+  "edge": {}
+}

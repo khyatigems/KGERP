@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/reports/user-activity/page": "app/(dashboard)/reports/user-activity/page.js"
+}

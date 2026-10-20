@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Pencil, IndianRupee, XCircle, Loader2, Send, FileText } from "lucide-react";
 import { cancelQuotation, sendQuotation, convertQuotationToInvoice } from "@/app/(dashboard)/quotes/actions";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { useRouter } from "next/navigation";
+import { useErpConfirmation } from "@/components/providers/erp-confirmation-provider";
 
 interface QuotationActionsProps {
   id: string;
@@ -19,6 +20,7 @@ export function QuotationActions({ id, status, items }: QuotationActionsProps) {
   const [isSending, setIsSending] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const router = useRouter();
+  const confirm = useErpConfirmation();
 
   // Allow actions for DRAFT and SENT (and legacy ACTIVE)
   // Logic from spec:
@@ -33,7 +35,7 @@ export function QuotationActions({ id, status, items }: QuotationActionsProps) {
   if (!canCancel && !canEdit && !canSend && !canConvert && !canSell) return null;
 
   const handleCancel = async () => {
-      if (!confirm("Are you sure you want to cancel this quotation?")) return;
+      if (!(await confirm({ title: "Cancel quotation?", description: "This quotation will be marked as cancelled. You can still view it, but it cannot be converted or sent.", confirmLabel: "Cancel quotation", destructive: true }))) return;
       setIsCancelling(true);
       try {
           await cancelQuotation(id);
@@ -60,7 +62,7 @@ export function QuotationActions({ id, status, items }: QuotationActionsProps) {
   };
 
   const handleConvert = async () => {
-      if (!confirm("This will convert the quotation to an invoice and lock it. Continue?")) return;
+      if (!(await confirm({ title: "Convert quotation to invoice?", description: "This creates an invoice and locks the quotation. Review the quotation details before continuing.", confirmLabel: "Convert to invoice" }))) return;
       setIsConverting(true);
       try {
           const result = await convertQuotationToInvoice(id);

@@ -1,0 +1,3 @@
+{
+  "/api/integrations/marketplace/sync/retry/route": "app/api/integrations/marketplace/sync/retry/route.js"
+}

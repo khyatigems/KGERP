@@ -1,0 +1,50 @@
+{
+  "node": {
+    "00b7f00366219e373cd0db8e4a293643c2e483f905": {
+      "workers": {
+        "app/(dashboard)/settings/message-templates/page": {
+          "moduleId": 852932,
+          "async": true,
+          "exportedName": "getMessageTemplates",
+          "filename": "app/(dashboard)/settings/message-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/message-templates/page": "rsc"
+      },
+      "exportedName": "getMessageTemplates",
+      "filename": "app/(dashboard)/settings/message-templates/actions.ts"
+    },
+    "402fe7f9c9e291697115433113de0b28500ce32301": {
+      "workers": {
+        "app/(dashboard)/settings/message-templates/page": {
+          "moduleId": 852932,
+          "async": true,
+          "exportedName": "createMessageTemplate",
+          "filename": "app/(dashboard)/settings/message-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/message-templates/page": "action-browser"
+      },
+      "exportedName": "createMessageTemplate",
+      "filename": "app/(dashboard)/settings/message-templates/actions.ts"
+    },
+    "60a5623712645dbd111ad01a8ae2a47690df5ee975": {
+      "workers": {
+        "app/(dashboard)/settings/message-templates/page": {
+          "moduleId": 852932,
+          "async": true,
+          "exportedName": "toggleMessageTemplate",
+          "filename": "app/(dashboard)/settings/message-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/message-templates/page": "action-browser"
+      },
+      "exportedName": "toggleMessageTemplate",
+      "filename": "app/(dashboard)/settings/message-templates/actions.ts"
+    }
+  },
+  "edge": {}
+}

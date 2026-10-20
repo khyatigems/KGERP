@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
 import { emailCertificateForInventoryAction } from "@/app/(dashboard)/inventory/email-actions";

@@ -1,0 +1,20 @@
+{
+  "node": {
+    "60b3d5afdbfd56ecaf2f5feccfcced8253e0fec3a0": {
+      "workers": {
+        "app/(dashboard)/sales/[id]/create-invoice/page": {
+          "moduleId": 425708,
+          "async": true,
+          "exportedName": "createOrUpdateInvoiceFromSale",
+          "filename": "app/(dashboard)/invoices/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/[id]/create-invoice/page": "action-browser"
+      },
+      "exportedName": "createOrUpdateInvoiceFromSale",
+      "filename": "app/(dashboard)/invoices/actions.ts"
+    }
+  },
+  "edge": {}
+}

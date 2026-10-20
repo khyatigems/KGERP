@@ -1,0 +1,11 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/credit-notes/[id]/status/route.js")
+R.c("server/chunks/node_modules_next_dist_compiled_@opentelemetry_api_index_b15ce7cb.js")
+R.c("server/chunks/node_modules_next_dist_a1d8e66e._.js")
+R.c("server/chunks/node_modules_next_594ba3a6._.js")
+R.c("server/chunks/_c3f643f4._.js")
+R.c("server/chunks/[root-of-the-server]__ae5d6a65._.js")
+R.c("server/chunks/_40185923._.js")
+R.c("server/chunks/[root-of-the-server]__03480c35._.js")
+R.c("server/chunks/_next-internal_server_app_api_credit-notes_[id]_status_route_actions_4445c67e.js")
+R.m(789565)
+module.exports=R.m(789565).exports

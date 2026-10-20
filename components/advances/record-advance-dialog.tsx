@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { recordAdvance } from "@/app/(dashboard)/advances/actions";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Loader2, Wallet, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 

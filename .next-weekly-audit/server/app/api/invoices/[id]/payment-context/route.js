@@ -1,0 +1,11 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/invoices/[id]/payment-context/route.js")
+R.c("server/chunks/node_modules_next_dist_compiled_@opentelemetry_api_index_b15ce7cb.js")
+R.c("server/chunks/node_modules_next_594ba3a6._.js")
+R.c("server/chunks/[root-of-the-server]__acda155a._.js")
+R.c("server/chunks/_c3f643f4._.js")
+R.c("server/chunks/_40185923._.js")
+R.c("server/chunks/[root-of-the-server]__ae5d6a65._.js")
+R.c("server/chunks/node_modules_next_dist_a1d8e66e._.js")
+R.c("server/chunks/ce889_server_app_api_invoices_[id]_payment-context_route_actions_0ed6d05f.js")
+R.m(545075)
+module.exports=R.m(545075).exports

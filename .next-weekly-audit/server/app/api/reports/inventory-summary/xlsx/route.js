@@ -1,0 +1,13 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/reports/inventory-summary/xlsx/route.js")
+R.c("server/chunks/[root-of-the-server]__f0ba96a4._.js")
+R.c("server/chunks/_4bf3a98b._.js")
+R.c("server/chunks/node_modules_next_dist_compiled_@opentelemetry_api_index_b15ce7cb.js")
+R.c("server/chunks/node_modules_next_dist_a1d8e66e._.js")
+R.c("server/chunks/_c3f643f4._.js")
+R.c("server/chunks/node_modules_next_594ba3a6._.js")
+R.c("server/chunks/_40185923._.js")
+R.c("server/chunks/node_modules_xlsx_xlsx_mjs_539ebb60._.js")
+R.c("server/chunks/[root-of-the-server]__ae5d6a65._.js")
+R.c("server/chunks/ce889_server_app_api_reports_inventory-summary_xlsx_route_actions_c9aec911.js")
+R.m(100075)
+module.exports=R.m(100075).exports

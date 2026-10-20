@@ -25,7 +25,9 @@ export async function saveSettings(input: unknown, version: string | null, actor
    const changed = await tx.setting.updateMany({ where: { key: settingsKey, updatedAt: new Date(version) }, data: { value: JSON.stringify(settings) } });
    if (!changed.count) throw new Error("Settings changed in another window.");
   } else await tx.setting.create({ data: { key: settingsKey, value: JSON.stringify(settings), description: "Weekly BI report configuration; no credentials" } });
-  await tx.activityLog.create({ data: { module: "SETTINGS", action: "WEEKLY_REPORT_SETTINGS", userId: actor, entityType: "WeeklyReportSettings", details: JSON.stringify({ before: previous.settings, after: settings }) } });
+  // Existing production databases require these canonical audit fields. Keep
+  // module/action as well for older activity-log consumers.
+  await tx.activityLog.create({ data: { entityType: "WeeklyReportSettings", actionType: "UPDATE", module: "SETTINGS", action: "WEEKLY_REPORT_SETTINGS", userId: actor, details: JSON.stringify({ before: previous.settings, after: settings }) } });
  });
  return readSettings();
 }
@@ -59,6 +61,29 @@ export async function generateRun(id: string, dependencies = { collectMetrics, r
   await prisma.weeklyReportRun.updateMany({ where: { id, leaseOwner: owner }, data: { status: "FAILED", errorCode: "GENERATION_FAILED", errorSummary: safe, nextAttemptAt: run.attempts + 1 < settings.maxAttempts ? retryAt(run.attempts + 1, settings) : null, leaseOwner: null, leaseUntil: null } });
  }
  return prisma.weeklyReportRun.findUniqueOrThrow({ where: { id } });
+}
+export async function retryFailedGeneration(
+ id: string,
+ actor: string,
+ dependencies: { generateRun: typeof generateRun; deliverRun: typeof deliverRun } = { generateRun, deliverRun },
+) {
+ const run = await prisma.weeklyReportRun.findUniqueOrThrow({ where: { id } });
+ if (run.status !== "FAILED") throw new Error("Only a failed report generation can be retried.");
+ const previous = settingsSchema.parse(JSON.parse(run.settingsJson));
+ if (run.attempts >= previous.maxAttempts) throw new Error("Configured attempt limit reached. Review provider configuration before generating a new reporting period.");
+ // Keep the original report's period, recipient snapshot and metric choices.
+ // Refresh only branding assets so a corrected local logo can repair old runs.
+ const current = (await readSettings()).settings;
+ const retrySettings = { ...previous, logo: current.logo, footer: current.footer, confidentiality: current.confidentiality };
+ await prisma.$transaction(async tx => {
+  const claimed = await tx.weeklyReportRun.updateMany({ where: { id, status: "FAILED", attempts: run.attempts }, data: { settingsJson: JSON.stringify(retrySettings), configHash: configHash(retrySettings), nextAttemptAt: new Date() } });
+  if (!claimed.count) throw new Error("This failed run changed while the retry was being prepared. Refresh History and try again.");
+  await tx.activityLog.create({ data: { entityType: "WeeklyReportRun", actionType: "RETRY_GENERATION", module: "SETTINGS", action: "WEEKLY_REPORT_GENERATION_RETRY", userId: actor, referenceId: id, details: JSON.stringify({ previousLogo: previous.logo, retryLogo: retrySettings.logo }) } });
+ });
+ const generated = await dependencies.generateRun(id);
+ if (generated.status === "FAILED") throw new Error(generated.errorSummary || "Report generation failed. Review the run details in History.");
+ await dependencies.deliverRun(id);
+ return generated;
 }
 export async function deliverRun(id: string) {
  const run = await prisma.weeklyReportRun.findUniqueOrThrow({ where: { id } });

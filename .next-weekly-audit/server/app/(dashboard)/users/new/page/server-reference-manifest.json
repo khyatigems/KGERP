@@ -1,0 +1,20 @@
+{
+  "node": {
+    "40ad669ab9b9572e4d3bbbd2c6d701a4753b2d6c08": {
+      "workers": {
+        "app/(dashboard)/users/new/page": {
+          "moduleId": 648544,
+          "async": true,
+          "exportedName": "createUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/new/page": "action-browser"
+      },
+      "exportedName": "createUser",
+      "filename": "app/(dashboard)/users/actions.ts"
+    }
+  },
+  "edge": {}
+}

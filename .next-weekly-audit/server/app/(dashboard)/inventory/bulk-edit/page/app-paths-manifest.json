@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/inventory/bulk-edit/page": "app/(dashboard)/inventory/bulk-edit/page.js"
+}

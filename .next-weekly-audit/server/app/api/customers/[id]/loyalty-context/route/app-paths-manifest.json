@@ -1,0 +1,3 @@
+{
+  "/api/customers/[id]/loyalty-context/route": "app/api/customers/[id]/loyalty-context/route.js"
+}

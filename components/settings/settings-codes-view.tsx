@@ -15,6 +15,7 @@ import "@/components/ui/label";
 import { createCode, updateCode, setCodeStatus, importCodes, checkCodeDuplicate, type CsvRow } from "@/app/(dashboard)/settings/codes/actions";
 import { Download, Plus, Upload, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { toast } from "@/lib/erp-feedback";
 
 type CodeRow = {
   id: string;
@@ -207,7 +208,7 @@ function CodeRowItem({
     startTransition(async () => {
       const res = await updateCode(group, formData);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         router.refresh();
         onSave();
@@ -223,7 +224,7 @@ function CodeRowItem({
     startTransition(async () => {
       const res = await setCodeStatus(group, formData);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
       } else {
         router.refresh();
       }
@@ -357,7 +358,7 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
         if (res.error === "CODE_ALREADY_EXISTS") {
             setDuplicateError(true);
         } else {
-            alert(res.error);
+            toast.error(res.error);
         }
       } else {
         setOpen(false);

@@ -1,0 +1,20 @@
+{
+  "node": {
+    "607d2deb12d6570dd907075f51994ef4d43aa33f34": {
+      "workers": {
+        "app/(dashboard)/reports/discount-usage/page": {
+          "moduleId": 429603,
+          "async": true,
+          "exportedName": "getDiscountUsageReport",
+          "filename": "app/(dashboard)/reports/discount-usage/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/reports/discount-usage/page": "action-browser"
+      },
+      "exportedName": "getDiscountUsageReport",
+      "filename": "app/(dashboard)/reports/discount-usage/actions.ts"
+    }
+  },
+  "edge": {}
+}

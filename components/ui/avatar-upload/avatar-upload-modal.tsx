@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useErpConfirmation } from "@/components/providers/erp-confirmation-provider";
 
 interface AvatarUploadModalProps {
   open: boolean;
@@ -33,6 +34,7 @@ export function AvatarUploadModal({
   onSave,
   onRemove,
 }: AvatarUploadModalProps) {
+  const confirm = useErpConfirmation();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
@@ -257,7 +259,7 @@ export function AvatarUploadModal({
   };
 
   const handleRemove = async () => {
-    if (!confirm("Remove your profile photo?")) return;
+    if (!(await confirm({ title: "Remove profile photo?", description: "Your current profile photo will be removed from your account.", confirmLabel: "Remove photo", destructive: true }))) return;
     setUploading(true);
     try {
       await onRemove();

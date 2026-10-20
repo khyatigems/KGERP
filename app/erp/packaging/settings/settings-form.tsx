@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { updatePackagingSettings } from "@/app/erp/packaging/actions";
 import { Loader2 } from "lucide-react";
 import { PackagingLayoutPresets } from "@/components/packaging/packaging-layout-presets";

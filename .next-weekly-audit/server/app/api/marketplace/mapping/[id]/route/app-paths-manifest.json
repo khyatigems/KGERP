@@ -1,0 +1,3 @@
+{
+  "/api/marketplace/mapping/[id]/route": "app/api/marketplace/mapping/[id]/route.js"
+}

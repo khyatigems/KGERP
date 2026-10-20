@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updateInvoicePaymentStatus } from "@/app/(dashboard)/invoices/actions";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PaymentModal, PaymentDetails } from "./payment-modal";
 import { t } from "@/lib/i18n";
+import { useErpConfirmation } from "@/components/providers/erp-confirmation-provider";
 
 interface PaymentStatusSelectProps {
   invoiceId: string;
@@ -22,20 +23,24 @@ interface PaymentStatusSelectProps {
 export function PaymentStatusSelect({ invoiceId, currentStatus, amountDue, totalAmount, disabled }: PaymentStatusSelectProps) {
   void totalAmount;
   const router = useRouter();
+  const confirm = useErpConfirmation();
   const [status, setStatus] = useState(currentStatus);
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetStatus, setTargetStatus] = useState<"PAID" | "PARTIAL">("PAID");
 
-  const handleStatusChange = (value: string) => {
+  const handleStatusChange = async (value: string) => {
     if (value === "PAID" || value === "PARTIAL") {
       setTargetStatus(value as "PAID" | "PARTIAL");
       setIsModalOpen(true);
     } else {
-      // Handle UNPAID (revert) - strictly speaking, we might want to block this or warn
-      // For now, let's allow it but without modal (resetting payment)
-      // Or maybe we shouldn't allow reverting via this simple control if payments exist.
-      // Requirements didn't specify reverting logic, but let's keep it simple.
+      const confirmed = await confirm({
+        title: "Reset invoice payments?",
+        description: "This will remove the recorded payment entries and reset this invoice to Unpaid. This cannot be undone.",
+        confirmLabel: "Reset payments",
+        destructive: true,
+      });
+      if (!confirmed) return;
       updateStatus(value as "PAID" | "UNPAID" | "PARTIAL");
     }
   };

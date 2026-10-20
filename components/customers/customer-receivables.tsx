@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/lib/erp-feedback";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -54,18 +55,26 @@ export function CustomerReceivables({ customerId, customerName }: { customerId: 
   }, [data?.rows]);
 
   const addFollowUp = async (payload: { invoiceId: string; action?: string; note?: string; promisedDate?: string }) => {
-    await fetch(`/api/invoices/${payload.invoiceId}/followups`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        date: new Date().toISOString(),
-        action: payload.action || "CALL",
-        note: payload.note || "",
-        promisedDate: payload.promisedDate || null,
-      }),
-    });
-    await mutate(receivablesKey);
-    if (followupsKey) await mutate(followupsKey);
+    try {
+      const response = await fetch(`/api/invoices/${payload.invoiceId}/followups`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: new Date().toISOString(),
+          action: payload.action || "CALL",
+          note: payload.note || "",
+          promisedDate: payload.promisedDate || null,
+        }),
+      });
+      if (!response.ok) throw new Error("Could not save the invoice follow-up");
+      await mutate(receivablesKey);
+      if (followupsKey) await mutate(followupsKey);
+      toast.success("Invoice follow-up saved");
+      return true;
+    } catch {
+      toast.error("Could not save the invoice follow-up. Please try again.");
+      return false;
+    }
   };
 
   const printStatement = () => {
@@ -164,13 +173,13 @@ export function CustomerReceivables({ customerId, customerName }: { customerId: 
               <Button
                 onClick={async () => {
                   if (!addForInvoice) return;
-                  await addFollowUp({
+                  const saved = await addFollowUp({
                     invoiceId: addForInvoice.id,
                     action,
                     note,
                     promisedDate: promisedDate || undefined,
                   });
-                  setAddForInvoice(null);
+                  if (saved) setAddForInvoice(null);
                 }}
               >
                 Save

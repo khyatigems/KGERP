@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { addManyToCart } from "@/app/(dashboard)/labels/actions";
 import { toLabelItem } from "@/lib/label-items";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { ArrowDownWideNarrow, ArrowUpDown, Barcode, Check, ChevronLeft, ChevronRight, Copy, Gem, Layers3, Loader2, MapPin, Printer, Search, SearchX, ShoppingCart, SlidersHorizontal, X } from "lucide-react";
 import type { Inventory } from "@prisma/client";
 
@@ -62,7 +62,12 @@ export function LabelsManagementTable({ data }: { data: InventoryWithRelations[]
         try {
             const result = await addManyToCart(selected.map(item => item.id));
             if (!result.success) throw new Error(result.message || "Unable to update label queue");
-            toast.success(result.count ? `${result.count} products added to the print queue` : "Selected products are already queued");
+            toast.success(result.count ? `${result.count} products added to the print queue` : "Selected products are already queued", {
+                action: {
+                    label: "Open labels",
+                    onClick: () => { window.location.assign("/labels"); },
+                },
+            });
             setRowSelection({}); setSelectedOnly(false); window.dispatchEvent(new Event("label-cart-updated"));
         } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to update label queue"); }
         finally { setAdding(false); }

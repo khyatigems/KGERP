@@ -9,7 +9,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkContext } from "@/lib/work-tracker/browser-context";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { CheckCircle2, CircleAlert, Image as ImageIcon, Loader2, Sparkles, Video } from "lucide-react";
 import { buildMarketplaceTitle, InventoryPicker } from "@/components/listings/inventory-picker";
 import { Button } from "@/components/ui/button";

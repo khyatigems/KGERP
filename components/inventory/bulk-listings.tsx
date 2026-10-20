@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ListPlus, ExternalLink, Link, Check, Eye, ShoppingBag } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -132,7 +132,12 @@ export function BulkListings({
 
       const result = await response.json();
       setListings(result.listings || []);
-      toast.success(`Created ${result.count} listings`);
+      toast.success(`Created ${result.count} listings`, {
+        action: {
+          label: "Manage listings",
+          onClick: () => setActiveTab("manage"),
+        },
+      });
       
       if (result.listings?.length > 0) {
         setActiveTab("manage");

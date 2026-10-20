@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/reports/qr-scans/page": "app/(dashboard)/reports/qr-scans/page.js"
+}

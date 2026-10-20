@@ -1,0 +1,3 @@
+{
+  "/api/email/communications/compose/route": "app/api/email/communications/compose/route.js"
+}

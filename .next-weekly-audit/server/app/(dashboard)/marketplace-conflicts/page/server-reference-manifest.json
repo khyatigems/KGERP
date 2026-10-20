@@ -1,0 +1,20 @@
+{
+  "node": {
+    "40f6500c436a6917b51ed478787cc1f454b9e79cd1": {
+      "workers": {
+        "app/(dashboard)/marketplace-conflicts/page": {
+          "moduleId": 250331,
+          "async": true,
+          "exportedName": "markMarketplaceConflictResolved",
+          "filename": "app/(dashboard)/marketplace-conflicts/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/marketplace-conflicts/page": "rsc"
+      },
+      "exportedName": "markMarketplaceConflictResolved",
+      "filename": "app/(dashboard)/marketplace-conflicts/actions.ts"
+    }
+  },
+  "edge": {}
+}

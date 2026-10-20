@@ -1,0 +1,20 @@
+{
+  "node": {
+    "6027acb1324ca2f17b09f18701d5682420946230fc": {
+      "workers": {
+        "app/(dashboard)/reports/loyalty-points/page": {
+          "moduleId": 816273,
+          "async": true,
+          "exportedName": "getLoyaltyPointsReport",
+          "filename": "app/(dashboard)/reports/loyalty-points/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/reports/loyalty-points/page": "action-browser"
+      },
+      "exportedName": "getLoyaltyPointsReport",
+      "filename": "app/(dashboard)/reports/loyalty-points/actions.ts"
+    }
+  },
+  "edge": {}
+}

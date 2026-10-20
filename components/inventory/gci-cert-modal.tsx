@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, ShieldCheck } from "lucide-react";
 import { generateGciCertificate } from "@/app/actions/gci";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 interface GciCertModalProps {
   inventoryId: string;

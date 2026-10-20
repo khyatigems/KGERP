@@ -1,0 +1,20 @@
+{
+  "node": {
+    "40668cdea0f6a688698949d4a3b27edd6d7ad7bd63": {
+      "workers": {
+        "app/(dashboard)/customers/[id]/page": {
+          "moduleId": 664995,
+          "async": true,
+          "exportedName": "getCustomerLoyaltyLedger",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/[id]/page": "action-browser"
+      },
+      "exportedName": "getCustomerLoyaltyLedger",
+      "filename": "app/(dashboard)/customers/actions.ts"
+    }
+  },
+  "edge": {}
+}

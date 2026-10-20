@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Loader2 } from "lucide-react";
 import { generateInvoicePDF, type InvoiceData } from "@/lib/invoice-generator";
 

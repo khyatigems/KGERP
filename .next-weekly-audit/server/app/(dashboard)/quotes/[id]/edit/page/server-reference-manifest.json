@@ -1,0 +1,35 @@
+{
+  "node": {
+    "60fa6bc9ae7360d390069db6f64aa6f11cc37b2c30": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/edit/page": {
+          "moduleId": 635828,
+          "async": true,
+          "exportedName": "createQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/edit/page": "action-browser"
+      },
+      "exportedName": "createQuotation",
+      "filename": "app/(dashboard)/quotes/actions.ts"
+    },
+    "70d139b121a072a02ec885e456c60e498a499c3b15": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/edit/page": {
+          "moduleId": 635828,
+          "async": true,
+          "exportedName": "updateQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/edit/page": "action-browser"
+      },
+      "exportedName": "updateQuotation",
+      "filename": "app/(dashboard)/quotes/actions.ts"
+    }
+  },
+  "edge": {}
+}

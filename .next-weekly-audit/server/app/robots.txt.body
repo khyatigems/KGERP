@@ -1,0 +1,13 @@
+User-Agent: *
+Disallow: /erp/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /inventory/
+Disallow: /orders/
+Disallow: /customers/
+Disallow: /settings/
+Disallow: /reports/
+Disallow: /login/
+Disallow: /api/
+
+Sitemap: https://khyatigems.com/sitemap.xml

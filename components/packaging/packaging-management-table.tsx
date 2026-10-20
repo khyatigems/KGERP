@@ -22,7 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Search, ShoppingCart, Printer } from "lucide-react";
 import { Inventory } from "@prisma/client";
 import { addManyToPackagingCart, validatePackagingEligibility } from "@/app/erp/packaging/actions";

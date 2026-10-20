@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 import { generateLabelPDF, LabelConfig, DEFAULT_TAG_CONFIG, DEFAULT_A4_CONFIG, DEFAULT_THERMAL_CONFIG, LabelItem, DEFAULT_FIELDS } from "@/lib/label-generator";
 import { analyzeThermalLabel, buildThermalQrValue, suggestThermalFieldRemovals, THERMAL_FIELD_LABELS, ThermalLabelElement } from "@/lib/thermal-label-layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { createLabelJob, updateLabelJobStatus } from "@/app/(dashboard)/labels/actions";
 import { getCompanySettings } from "@/app/(dashboard)/settings/company/actions";
 
@@ -268,10 +268,14 @@ export function LabelPrintDialog({ item, items, trigger, onPrintComplete }: Labe
                 download.href = String(pdfUrl);
                 download.download = "KhyatiGems-Labels.pdf";
                 download.click();
-                toast.success("Labels generated. Open the downloaded PDF to print.");
+                toast.success("Labels generated. Open the downloaded PDF to print.", {
+                    action: { label: "Open labels", onClick: () => { window.location.assign("/labels"); } },
+                });
             } else {
                 printWindow.location.href = String(pdfUrl);
-                toast.success("Labels generated successfully");
+                toast.success("Labels generated successfully", {
+                    action: { label: "Open labels", onClick: () => { window.location.assign("/labels"); } },
+                });
             }
             
             if (onPrintComplete) {

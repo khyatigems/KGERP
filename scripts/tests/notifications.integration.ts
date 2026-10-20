@@ -4,8 +4,16 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { NextRequest } from "next/server";
+import { routeNotification } from "@/lib/notification-routing";
+import { safeErrorMessage } from "@/lib/erp-feedback";
 
 async function main() {
+  assert.equal(routeNotification("routine_success"), "toast");
+  assert.equal(routeNotification("recoverable_error"), "toast");
+  assert.equal(routeNotification("contextual_warning"), "inline");
+  assert.equal(routeNotification("operational_failure"), "persistent");
+  assert.equal(safeErrorMessage("Prisma P2021: SQL error: no such table"), "The action could not be completed. Please try again.");
+  assert.equal(safeErrorMessage("Duplicate mobile number"), "Duplicate mobile number");
   const temp = mkdtempSync(path.join(tmpdir(), "kg-notifications-"));
   process.env.DATABASE_URL = `file:${path.join(temp, "test.db").replaceAll("\\", "/")}`;
   process.env.TURSO_DATABASE_URL = "";

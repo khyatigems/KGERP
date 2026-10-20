@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { FileUpload } from "@/components/inventory/file-upload";
 import { updateCompanySettings } from "@/app/(dashboard)/settings/company/actions";
 import { CompanySettings } from "@prisma/client";

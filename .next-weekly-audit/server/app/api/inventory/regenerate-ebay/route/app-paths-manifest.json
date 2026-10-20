@@ -1,0 +1,3 @@
+{
+  "/api/inventory/regenerate-ebay/route": "app/api/inventory/regenerate-ebay/route.js"
+}

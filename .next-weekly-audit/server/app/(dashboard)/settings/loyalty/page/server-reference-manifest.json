@@ -1,0 +1,35 @@
+{
+  "node": {
+    "003db45b24b4a0e27db415fae7783a7c2c0963907e": {
+      "workers": {
+        "app/(dashboard)/settings/loyalty/page": {
+          "moduleId": 897759,
+          "async": true,
+          "exportedName": "getLoyaltySettings",
+          "filename": "app/(dashboard)/settings/loyalty/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/loyalty/page": "rsc"
+      },
+      "exportedName": "getLoyaltySettings",
+      "filename": "app/(dashboard)/settings/loyalty/actions.ts"
+    },
+    "4035789f2ed1261191e2a85c4149389715b7bc7f60": {
+      "workers": {
+        "app/(dashboard)/settings/loyalty/page": {
+          "moduleId": 897759,
+          "async": true,
+          "exportedName": "saveLoyaltySettings",
+          "filename": "app/(dashboard)/settings/loyalty/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/loyalty/page": "action-browser"
+      },
+      "exportedName": "saveLoyaltySettings",
+      "filename": "app/(dashboard)/settings/loyalty/actions.ts"
+    }
+  },
+  "edge": {}
+}

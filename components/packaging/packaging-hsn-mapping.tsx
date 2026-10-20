@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Loader2, Save } from "lucide-react";
 import { getPackagingCategoryHsnSettings, upsertPackagingCategoryHsns } from "@/app/erp/packaging/actions";
 

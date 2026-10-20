@@ -1,0 +1,3 @@
+{
+  "/api/integrations/marketplace/oauth/callback/route": "app/api/integrations/marketplace/oauth/callback/route.js"
+}

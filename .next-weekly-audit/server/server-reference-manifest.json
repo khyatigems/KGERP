@@ -1,0 +1,4176 @@
+{
+  "node": {
+    "007146344c5cbed1464d1da827595f73988c07d68a": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "getWhatsNewEntries",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/landing-page/page": {
+          "moduleId": 913866,
+          "async": true,
+          "exportedName": "getWhatsNewEntries",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "getWhatsNewEntries",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc",
+        "app/(dashboard)/settings/landing-page/page": "rsc",
+        "app/(dashboard)/settings/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts",
+      "exportedName": "getWhatsNewEntries"
+    },
+    "0093ffa582c62eaef1d54d9fc3045ccd78cb375a37": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "generateWhatsNewDraft",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/landing-page/page": {
+          "moduleId": 913866,
+          "async": true,
+          "exportedName": "generateWhatsNewDraft",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "generateWhatsNewDraft",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc",
+        "app/(dashboard)/settings/landing-page/page": "rsc",
+        "app/(dashboard)/settings/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts",
+      "exportedName": "generateWhatsNewDraft"
+    },
+    "00f4fe0c732b4bcab510ab1f9e12ffa2143f985b62": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "getVersions",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/landing-page/page": {
+          "moduleId": 913866,
+          "async": true,
+          "exportedName": "getVersions",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "getVersions",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc",
+        "app/(dashboard)/settings/landing-page/page": "rsc",
+        "app/(dashboard)/settings/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts",
+      "exportedName": "getVersions"
+    },
+    "00fe622d35b615be700d972f8d8c22eda663e31f86": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "getLandingPageSettings",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/landing-page/page": {
+          "moduleId": 913866,
+          "async": true,
+          "exportedName": "getLandingPageSettings",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "getLandingPageSettings",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc",
+        "app/(dashboard)/settings/landing-page/page": "rsc",
+        "app/(dashboard)/settings/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts",
+      "exportedName": "getLandingPageSettings"
+    },
+    "407732c06a5c6d7b79966f8416a4418216f3bb0fb0": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "rollbackVersion",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/landing-page/page": {
+          "moduleId": 913866,
+          "async": true,
+          "exportedName": "rollbackVersion",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "rollbackVersion",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc",
+        "app/(dashboard)/settings/landing-page/page": "rsc",
+        "app/(dashboard)/settings/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts",
+      "exportedName": "rollbackVersion"
+    },
+    "4090215822b34332e096d4d49c279aaddc2244a87e": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "deleteWhatsNewEntry",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/landing-page/page": {
+          "moduleId": 913866,
+          "async": true,
+          "exportedName": "deleteWhatsNewEntry",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "deleteWhatsNewEntry",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc",
+        "app/(dashboard)/settings/landing-page/page": "rsc",
+        "app/(dashboard)/settings/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts",
+      "exportedName": "deleteWhatsNewEntry"
+    },
+    "40a08f00ff7316b42a76c3b7377655ace9ac40f19d": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "saveLandingPageSettings",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/landing-page/page": {
+          "moduleId": 913866,
+          "async": true,
+          "exportedName": "saveLandingPageSettings",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "saveLandingPageSettings",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc",
+        "app/(dashboard)/settings/landing-page/page": "rsc",
+        "app/(dashboard)/settings/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts",
+      "exportedName": "saveLandingPageSettings"
+    },
+    "40e81587eb86b691a02c52b77735e9446f42a1c33e": {
+      "workers": {
+        "app/(auth)/login/page": {
+          "moduleId": 526476,
+          "async": true,
+          "exportedName": "addWhatsNewEntry",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/landing-page/page": {
+          "moduleId": 913866,
+          "async": true,
+          "exportedName": "addWhatsNewEntry",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        },
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "addWhatsNewEntry",
+          "filename": "app/(dashboard)/settings/landing-page/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(auth)/login/page": "rsc",
+        "app/(dashboard)/settings/landing-page/page": "rsc",
+        "app/(dashboard)/settings/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/landing-page/actions.ts",
+      "exportedName": "addWhatsNewEntry"
+    },
+    "00ba5f5b22aa4d53db47990d95817c4061ee2f95cc": {
+      "workers": {
+        "app/(dashboard)/page": {
+          "moduleId": 186674,
+          "async": true,
+          "exportedName": "getDashboardLayout",
+          "filename": "app/actions/dashboard-layout.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/page": "action-browser"
+      },
+      "filename": "app/actions/dashboard-layout.ts",
+      "exportedName": "getDashboardLayout"
+    },
+    "40c5ec0acd9a346945476da40b4f12d9703ce8bce2": {
+      "workers": {
+        "app/(dashboard)/page": {
+          "moduleId": 186674,
+          "async": true,
+          "exportedName": "saveDashboardLayout",
+          "filename": "app/actions/dashboard-layout.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/page": "action-browser"
+      },
+      "filename": "app/actions/dashboard-layout.ts",
+      "exportedName": "saveDashboardLayout"
+    },
+    "40fd49f4cb76d5a77d0f882996fd9f9b45438d76d9": {
+      "workers": {
+        "app/(dashboard)/advances/page": {
+          "moduleId": 281637,
+          "async": true,
+          "exportedName": "recordAdvance",
+          "filename": "app/(dashboard)/advances/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/advances/page": "rsc"
+      },
+      "filename": "app/(dashboard)/advances/actions.ts",
+      "exportedName": "recordAdvance"
+    },
+    "000cff250e1b70a29768db162321d791420611361f": {
+      "workers": {
+        "app/(dashboard)/advances/page": {
+          "moduleId": 281637,
+          "async": true,
+          "exportedName": "getAdvances",
+          "filename": "app/(dashboard)/advances/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/advances/page": "rsc"
+      },
+      "filename": "app/(dashboard)/advances/actions.ts",
+      "exportedName": "getAdvances"
+    },
+    "4029e8783ccd5c3a21f2cdee8c15855f908d87fd20": {
+      "workers": {
+        "app/(dashboard)/advances/page": {
+          "moduleId": 281637,
+          "async": true,
+          "exportedName": "getCustomerAdvanceBalance",
+          "filename": "app/(dashboard)/advances/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/advances/page": "rsc"
+      },
+      "filename": "app/(dashboard)/advances/actions.ts",
+      "exportedName": "getCustomerAdvanceBalance"
+    },
+    "707dda75f5fdad1f74d9b4204ead1b610eaa9f7ec3": {
+      "workers": {
+        "app/(dashboard)/advances/page": {
+          "moduleId": 281637,
+          "async": true,
+          "exportedName": "adjustAdvanceAgainstInvoice",
+          "filename": "app/(dashboard)/advances/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/advances/page": "rsc"
+      },
+      "filename": "app/(dashboard)/advances/actions.ts",
+      "exportedName": "adjustAdvanceAgainstInvoice"
+    },
+    "407324182e14f63400f24fb8bec30fa7979b1352ca": {
+      "workers": {
+        "app/(dashboard)/customers/page": {
+          "moduleId": 400261,
+          "async": true,
+          "exportedName": "deleteCustomer",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/customers/actions.ts",
+      "exportedName": "deleteCustomer"
+    },
+    "408cb28cd3a46823f2b9601817448d8363f4f5628e": {
+      "workers": {
+        "app/(dashboard)/customers/page": {
+          "moduleId": 400261,
+          "async": true,
+          "exportedName": "getCustomerDeleteImpact",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/customers/actions.ts",
+      "exportedName": "getCustomerDeleteImpact"
+    },
+    "40668cdea0f6a688698949d4a3b27edd6d7ad7bd63": {
+      "workers": {
+        "app/(dashboard)/customers/[id]/page": {
+          "moduleId": 664995,
+          "async": true,
+          "exportedName": "getCustomerLoyaltyLedger",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/[id]/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/customers/actions.ts",
+      "exportedName": "getCustomerLoyaltyLedger"
+    },
+    "60fa8132f7ba5c6371284d4662d33a07d25557c37e": {
+      "workers": {
+        "app/(dashboard)/customers/[id]/edit/page": {
+          "moduleId": 938578,
+          "async": true,
+          "exportedName": "createCustomer",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        },
+        "app/(dashboard)/customers/new/page": {
+          "moduleId": 642154,
+          "async": true,
+          "exportedName": "createCustomer",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/[id]/edit/page": "action-browser",
+        "app/(dashboard)/customers/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/customers/actions.ts",
+      "exportedName": "createCustomer"
+    },
+    "7017f7e41367c718b1018cd09ac4f2ac5e5bb39bc9": {
+      "workers": {
+        "app/(dashboard)/customers/[id]/edit/page": {
+          "moduleId": 938578,
+          "async": true,
+          "exportedName": "updateCustomer",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        },
+        "app/(dashboard)/customers/new/page": {
+          "moduleId": 642154,
+          "async": true,
+          "exportedName": "updateCustomer",
+          "filename": "app/(dashboard)/customers/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/customers/[id]/edit/page": "action-browser",
+        "app/(dashboard)/customers/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/customers/actions.ts",
+      "exportedName": "updateCustomer"
+    },
+    "60eed5753857a34f37c6b938a959e2e2c4702528dd": {
+      "workers": {
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "updateInventoryStatus",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "updateInventoryStatus",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/inventory/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/actions.ts",
+      "exportedName": "updateInventoryStatus"
+    },
+    "40fa65008a73fef15c39db60bce5ba7e69695a6332": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "addListing",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "addListing",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        },
+        "app/(dashboard)/listings/page": {
+          "moduleId": 437262,
+          "async": true,
+          "exportedName": "addListing",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser",
+        "app/(dashboard)/inventory/page": "action-browser",
+        "app/(dashboard)/listings/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/listing-actions.ts",
+      "exportedName": "addListing"
+    },
+    "6093230eea84eacf22eca63e04975e3adf3a0de0d8": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "updateListing",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "updateListing",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser",
+        "app/(dashboard)/inventory/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/listing-actions.ts",
+      "exportedName": "updateListing"
+    },
+    "40b877ae08e581c3e7ad539ab90e1e92b7a3ba8f2b": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "deleteListing",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "deleteListing",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser",
+        "app/(dashboard)/inventory/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/listing-actions.ts",
+      "exportedName": "deleteListing"
+    },
+    "402454bb27f05be981c4c865e13d1f1de9db306b9e": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "getListings",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "getListings",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser",
+        "app/(dashboard)/inventory/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/listing-actions.ts",
+      "exportedName": "getListings"
+    },
+    "4049261fa6331bf3650b8e020cd26e911fcaf05ca3": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "getListingHistory",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "getListingHistory",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        },
+        "app/(dashboard)/listings/page": {
+          "moduleId": 437262,
+          "async": true,
+          "exportedName": "getListingHistory",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser",
+        "app/(dashboard)/inventory/page": "action-browser",
+        "app/(dashboard)/listings/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/listing-actions.ts",
+      "exportedName": "getListingHistory"
+    },
+    "40cb70cbc297cb58aa472dfc782d3dd9179e3ea9f6": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "createLabelJob",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "createLabelJob",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "createLabelJob",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "createLabelJob",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser",
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/inventory/page": "action-browser",
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "filename": "app/(dashboard)/labels/actions.ts",
+      "exportedName": "createLabelJob"
+    },
+    "6059e68999deabda35538966bd5a401a29187e692e": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "updateLabelJobStatus",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "updateLabelJobStatus",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "updateLabelJobStatus",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "updateLabelJobStatus",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser",
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/inventory/page": "action-browser",
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "filename": "app/(dashboard)/labels/actions.ts",
+      "exportedName": "updateLabelJobStatus"
+    },
+    "00076d74415d880b410ee6ae045d6ae706b312d135": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "getCompanySettings",
+          "filename": "app/(dashboard)/settings/company/actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "getCompanySettings",
+          "filename": "app/(dashboard)/settings/company/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "getCompanySettings",
+          "filename": "app/(dashboard)/settings/company/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser",
+        "app/(dashboard)/inventory/page": "action-browser",
+        "app/(dashboard)/labels/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/company/actions.ts",
+      "exportedName": "getCompanySettings"
+    },
+    "60087de0848374eb59cb443a1211345b5a4fb1b597": {
+      "workers": {
+        "app/(dashboard)/inventory/bulk-edit/page": {
+          "moduleId": 891406,
+          "async": true,
+          "exportedName": "bulkUpdateInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        },
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "bulkUpdateInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        },
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "bulkUpdateInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/bulk-edit/page": "action-browser",
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/inventory/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/actions.ts",
+      "exportedName": "bulkUpdateInventory"
+    },
+    "406a36ba6415180c45e386cb3a2e246865a89e85af": {
+      "workers": {
+        "app/(dashboard)/inventory/page": {
+          "moduleId": 907295,
+          "async": true,
+          "exportedName": "generateBulkGciCertificates",
+          "filename": "app/actions/gci.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/page": "action-browser"
+      },
+      "filename": "app/actions/gci.ts",
+      "exportedName": "generateBulkGciCertificates"
+    },
+    "60af72a78ce8c2ae055cc098d9a753cdd81227eed2": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "generateGciCertificate",
+          "filename": "app/actions/gci.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser"
+      },
+      "filename": "app/actions/gci.ts",
+      "exportedName": "generateGciCertificate"
+    },
+    "403f952609dbe16b9d6b4e737bfd1916084f4f393e": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/page": {
+          "moduleId": 537342,
+          "async": true,
+          "exportedName": "emailCertificateForInventoryAction",
+          "filename": "app/(dashboard)/inventory/email-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/email-actions.ts",
+      "exportedName": "emailCertificateForInventoryAction"
+    },
+    "6006cbe094f2cce0b8a0440034a8728b2d30236765": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/copy/page": {
+          "moduleId": 517847,
+          "async": true,
+          "exportedName": "createInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        },
+        "app/(dashboard)/inventory/[id]/edit/page": {
+          "moduleId": 774810,
+          "async": true,
+          "exportedName": "createInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        },
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "createInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        },
+        "app/(dashboard)/inventory/new/page": {
+          "moduleId": 652543,
+          "async": true,
+          "exportedName": "createInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/copy/page": "action-browser",
+        "app/(dashboard)/inventory/[id]/edit/page": "action-browser",
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/inventory/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/actions.ts",
+      "exportedName": "createInventory"
+    },
+    "705fa6ecfc3cec9bdbecb45f842a0595df3e73a50b": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/copy/page": {
+          "moduleId": 517847,
+          "async": true,
+          "exportedName": "updateInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        },
+        "app/(dashboard)/inventory/[id]/edit/page": {
+          "moduleId": 774810,
+          "async": true,
+          "exportedName": "updateInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        },
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "updateInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        },
+        "app/(dashboard)/inventory/new/page": {
+          "moduleId": 652543,
+          "async": true,
+          "exportedName": "updateInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/copy/page": "action-browser",
+        "app/(dashboard)/inventory/[id]/edit/page": "action-browser",
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/inventory/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/actions.ts",
+      "exportedName": "updateInventory"
+    },
+    "600e2f9079190c45f286ef005aa10062d1ef17133a": {
+      "workers": {
+        "app/(dashboard)/inventory/[id]/copy/page": {
+          "moduleId": 517847,
+          "async": true,
+          "exportedName": "createCode",
+          "filename": "app/(dashboard)/settings/codes/actions.ts"
+        },
+        "app/(dashboard)/inventory/[id]/edit/page": {
+          "moduleId": 774810,
+          "async": true,
+          "exportedName": "createCode",
+          "filename": "app/(dashboard)/settings/codes/actions.ts"
+        },
+        "app/(dashboard)/inventory/new/page": {
+          "moduleId": 652543,
+          "async": true,
+          "exportedName": "createCode",
+          "filename": "app/(dashboard)/settings/codes/actions.ts"
+        },
+        "app/(dashboard)/settings/codes/page": {
+          "moduleId": 840000,
+          "async": true,
+          "exportedName": "createCode",
+          "filename": "app/(dashboard)/settings/codes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/[id]/copy/page": "action-browser",
+        "app/(dashboard)/inventory/[id]/edit/page": "action-browser",
+        "app/(dashboard)/inventory/new/page": "action-browser",
+        "app/(dashboard)/settings/codes/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/codes/actions.ts",
+      "exportedName": "createCode"
+    },
+    "40bbba8ef5850dcb13c8982a3954b93246de547174": {
+      "workers": {
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "importInventory",
+          "filename": "app/(dashboard)/inventory/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/import/page": "rsc"
+      },
+      "filename": "app/(dashboard)/inventory/actions.ts",
+      "exportedName": "importInventory"
+    },
+    "004436facfb940f1765a03be1a54fa16fc2c6269f1": {
+      "workers": {
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "clearCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "clearCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "filename": "app/(dashboard)/labels/actions.ts",
+      "exportedName": "clearCart"
+    },
+    "006178d2f2688d1cfb343fbea9b4903e36eba7552c": {
+      "workers": {
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "getCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "getCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "filename": "app/(dashboard)/labels/actions.ts",
+      "exportedName": "getCart"
+    },
+    "00d5eaf306e5df6a074dd6388c70a3cef984448918": {
+      "workers": {
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "getLabelJobs",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "getLabelJobs",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "filename": "app/(dashboard)/labels/actions.ts",
+      "exportedName": "getLabelJobs"
+    },
+    "402bd648ab87beb277f967c11ae1b28a8934e46a0f": {
+      "workers": {
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "getJobReprintItems",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "getJobReprintItems",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "filename": "app/(dashboard)/labels/actions.ts",
+      "exportedName": "getJobReprintItems"
+    },
+    "409b2d7c5fe203413d65fdf1bd9cbc767511a33208": {
+      "workers": {
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "addManyToCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "addManyToCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "filename": "app/(dashboard)/labels/actions.ts",
+      "exportedName": "addManyToCart"
+    },
+    "40a8f8daa15669ce31434eb5951caf3eba2986f318": {
+      "workers": {
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "addToCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "addToCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "filename": "app/(dashboard)/labels/actions.ts",
+      "exportedName": "addToCart"
+    },
+    "40e925046262587bdab70d91067affa98072d03b8b": {
+      "workers": {
+        "app/(dashboard)/inventory/import/page": {
+          "moduleId": 326724,
+          "async": true,
+          "exportedName": "removeFromCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        },
+        "app/(dashboard)/labels/page": {
+          "moduleId": 982596,
+          "async": true,
+          "exportedName": "removeFromCart",
+          "filename": "app/(dashboard)/labels/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/inventory/import/page": "rsc",
+        "app/(dashboard)/labels/page": "rsc"
+      },
+      "filename": "app/(dashboard)/labels/actions.ts",
+      "exportedName": "removeFromCart"
+    },
+    "70fb5979001fe4e5658ff54d146ed9e8af3d498a04": {
+      "workers": {
+        "app/(dashboard)/invoices/[id]/page": {
+          "moduleId": 962759,
+          "async": true,
+          "exportedName": "updateInvoicePaymentStatus",
+          "filename": "app/(dashboard)/invoices/actions.ts"
+        },
+        "app/(dashboard)/sales/page": {
+          "moduleId": 34719,
+          "async": true,
+          "exportedName": "updateInvoicePaymentStatus",
+          "filename": "app/(dashboard)/invoices/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/invoices/[id]/page": "action-browser",
+        "app/(dashboard)/sales/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/invoices/actions.ts",
+      "exportedName": "updateInvoicePaymentStatus"
+    },
+    "4054dcd67f3e08c66824fbc0b0021ca20e2456ce50": {
+      "workers": {
+        "app/(dashboard)/invoices/[id]/page": {
+          "moduleId": 962759,
+          "async": true,
+          "exportedName": "getInvoiceDataForThermal",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        },
+        "app/(dashboard)/sales/page": {
+          "moduleId": 34719,
+          "async": true,
+          "exportedName": "getInvoiceDataForThermal",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/invoices/[id]/page": "action-browser",
+        "app/(dashboard)/sales/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/sales/actions.ts",
+      "exportedName": "getInvoiceDataForThermal"
+    },
+    "78ca148793912bc2e72005614e1b0db67812b0f5cb": {
+      "workers": {
+        "app/(dashboard)/invoices/[id]/page": {
+          "moduleId": 962759,
+          "async": true,
+          "exportedName": "recordThermalInvoiceOutput",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        },
+        "app/(dashboard)/sales/page": {
+          "moduleId": 34719,
+          "async": true,
+          "exportedName": "recordThermalInvoiceOutput",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/invoices/[id]/page": "action-browser",
+        "app/(dashboard)/sales/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/sales/actions.ts",
+      "exportedName": "recordThermalInvoiceOutput"
+    },
+    "408fd664d343d4a6c4c5d5d7655c99fc889ab2023a": {
+      "workers": {
+        "app/(dashboard)/invoices/[id]/page": {
+          "moduleId": 962759,
+          "async": true,
+          "exportedName": "emailInvoiceAction",
+          "filename": "app/(dashboard)/invoices/email-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/invoices/[id]/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/invoices/email-actions.ts",
+      "exportedName": "emailInvoiceAction"
+    },
+    "401d414ae2a5502bdba924d7ffab60809b293fb47f": {
+      "workers": {
+        "app/(dashboard)/invoices/[id]/page": {
+          "moduleId": 962759,
+          "async": true,
+          "exportedName": "emailCertificateAction",
+          "filename": "app/(dashboard)/invoices/email-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/invoices/[id]/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/invoices/email-actions.ts",
+      "exportedName": "emailCertificateAction"
+    },
+    "405118665cb052a0ead14e195aee96d0436db7c661": {
+      "workers": {
+        "app/(dashboard)/invoices/[id]/page": {
+          "moduleId": 962759,
+          "async": true,
+          "exportedName": "emailInvoiceAndCertificateAction",
+          "filename": "app/(dashboard)/invoices/email-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/invoices/[id]/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/invoices/email-actions.ts",
+      "exportedName": "emailInvoiceAndCertificateAction"
+    },
+    "40d759424da3a9351ebe69bdeb577dcdc9f6286363": {
+      "workers": {
+        "app/(dashboard)/listings/page": {
+          "moduleId": 437262,
+          "async": true,
+          "exportedName": "deleteListings",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/listings/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/listing-actions.ts",
+      "exportedName": "deleteListings"
+    },
+    "6098d9c8a58d05cbc09500aead260375ea490e2d36": {
+      "workers": {
+        "app/(dashboard)/listings/page": {
+          "moduleId": 437262,
+          "async": true,
+          "exportedName": "updateListingsStatus",
+          "filename": "app/(dashboard)/inventory/listing-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/listings/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/inventory/listing-actions.ts",
+      "exportedName": "updateListingsStatus"
+    },
+    "607b34c26b4e9c80c28e480eaaf85c16c19e72a95f": {
+      "workers": {
+        "app/(dashboard)/listings/new/page": {
+          "moduleId": 86118,
+          "async": true,
+          "exportedName": "createListing",
+          "filename": "app/(dashboard)/listings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/listings/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/listings/actions.ts",
+      "exportedName": "createListing"
+    },
+    "40f6500c436a6917b51ed478787cc1f454b9e79cd1": {
+      "workers": {
+        "app/(dashboard)/marketplace-conflicts/page": {
+          "moduleId": 250331,
+          "async": true,
+          "exportedName": "markMarketplaceConflictResolved",
+          "filename": "app/(dashboard)/marketplace-conflicts/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/marketplace-conflicts/page": "rsc"
+      },
+      "filename": "app/(dashboard)/marketplace-conflicts/actions.ts",
+      "exportedName": "markMarketplaceConflictResolved"
+    },
+    "40078805bdc202810f7fb97e78ae7bf7bf11ea9881": {
+      "workers": {
+        "app/(dashboard)/purchases/[id]/page": {
+          "moduleId": 84865,
+          "async": true,
+          "exportedName": "deletePurchaseAction",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/purchases/[id]/page": "rsc"
+      },
+      "filename": "app/(dashboard)/purchases/actions.ts",
+      "exportedName": "deletePurchaseAction"
+    },
+    "402dd38900244ee85816db6ba8acefef8fe7c25ab8": {
+      "workers": {
+        "app/(dashboard)/purchases/[id]/page": {
+          "moduleId": 84865,
+          "async": true,
+          "exportedName": "updatePurchaseInvoice",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/purchases/[id]/page": "rsc"
+      },
+      "filename": "app/(dashboard)/purchases/actions.ts",
+      "exportedName": "updatePurchaseInvoice"
+    },
+    "408f90793a5e252e423c069f27632837926b600f0a": {
+      "workers": {
+        "app/(dashboard)/purchases/[id]/page": {
+          "moduleId": 84865,
+          "async": true,
+          "exportedName": "importPurchases",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        },
+        "app/(dashboard)/purchases/import/page": {
+          "moduleId": 656616,
+          "async": true,
+          "exportedName": "importPurchases",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/purchases/[id]/page": "rsc",
+        "app/(dashboard)/purchases/import/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/purchases/actions.ts",
+      "exportedName": "importPurchases"
+    },
+    "6082185e363dc0a89686462f83cb05f06eb0908e6f": {
+      "workers": {
+        "app/(dashboard)/purchases/[id]/edit/page": {
+          "moduleId": 669795,
+          "async": true,
+          "exportedName": "createPurchase",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        },
+        "app/(dashboard)/purchases/[id]/page": {
+          "moduleId": 84865,
+          "async": true,
+          "exportedName": "createPurchase",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        },
+        "app/(dashboard)/purchases/new/page": {
+          "moduleId": 880442,
+          "async": true,
+          "exportedName": "createPurchase",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/purchases/[id]/edit/page": "action-browser",
+        "app/(dashboard)/purchases/[id]/page": "rsc",
+        "app/(dashboard)/purchases/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/purchases/actions.ts",
+      "exportedName": "createPurchase"
+    },
+    "70491b606bd4318faa9e3339fd705c1ecb07e3e57c": {
+      "workers": {
+        "app/(dashboard)/purchases/[id]/edit/page": {
+          "moduleId": 669795,
+          "async": true,
+          "exportedName": "updatePurchase",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        },
+        "app/(dashboard)/purchases/[id]/page": {
+          "moduleId": 84865,
+          "async": true,
+          "exportedName": "updatePurchase",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        },
+        "app/(dashboard)/purchases/new/page": {
+          "moduleId": 880442,
+          "async": true,
+          "exportedName": "updatePurchase",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/purchases/[id]/edit/page": "action-browser",
+        "app/(dashboard)/purchases/[id]/page": "rsc",
+        "app/(dashboard)/purchases/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/purchases/actions.ts",
+      "exportedName": "updatePurchase"
+    },
+    "40429eecbe1f2fa521e99838f84f1ae5d62f70f96f": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/page": {
+          "moduleId": 417484,
+          "async": true,
+          "exportedName": "cancelQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/quotes/actions.ts",
+      "exportedName": "cancelQuotation"
+    },
+    "4031841b6fd4f04a6e7397c284bd9aa4e3f08f42f5": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/page": {
+          "moduleId": 417484,
+          "async": true,
+          "exportedName": "sendQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/quotes/actions.ts",
+      "exportedName": "sendQuotation"
+    },
+    "40ce3d42739ee7518daf8205b8862f0a9a46b9ae35": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/page": {
+          "moduleId": 417484,
+          "async": true,
+          "exportedName": "convertQuotationToInvoice",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/quotes/actions.ts",
+      "exportedName": "convertQuotationToInvoice"
+    },
+    "60fa6bc9ae7360d390069db6f64aa6f11cc37b2c30": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/edit/page": {
+          "moduleId": 635828,
+          "async": true,
+          "exportedName": "createQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        },
+        "app/(dashboard)/quotes/new/page": {
+          "moduleId": 15419,
+          "async": true,
+          "exportedName": "createQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/edit/page": "action-browser",
+        "app/(dashboard)/quotes/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/quotes/actions.ts",
+      "exportedName": "createQuotation"
+    },
+    "70d139b121a072a02ec885e456c60e498a499c3b15": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/edit/page": {
+          "moduleId": 635828,
+          "async": true,
+          "exportedName": "updateQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        },
+        "app/(dashboard)/quotes/new/page": {
+          "moduleId": 15419,
+          "async": true,
+          "exportedName": "updateQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/edit/page": "action-browser",
+        "app/(dashboard)/quotes/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/quotes/actions.ts",
+      "exportedName": "updateQuotation"
+    },
+    "607d2deb12d6570dd907075f51994ef4d43aa33f34": {
+      "workers": {
+        "app/(dashboard)/reports/discount-usage/page": {
+          "moduleId": 429603,
+          "async": true,
+          "exportedName": "getDiscountUsageReport",
+          "filename": "app/(dashboard)/reports/discount-usage/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/reports/discount-usage/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/reports/discount-usage/actions.ts",
+      "exportedName": "getDiscountUsageReport"
+    },
+    "6027acb1324ca2f17b09f18701d5682420946230fc": {
+      "workers": {
+        "app/(dashboard)/reports/loyalty-points/page": {
+          "moduleId": 816273,
+          "async": true,
+          "exportedName": "getLoyaltyPointsReport",
+          "filename": "app/(dashboard)/reports/loyalty-points/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/reports/loyalty-points/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/reports/loyalty-points/actions.ts",
+      "exportedName": "getLoyaltyPointsReport"
+    },
+    "40f6f2ea1e6860e83c87caa84833c5c3b33fc0e30d": {
+      "workers": {
+        "app/(dashboard)/sales/page": {
+          "moduleId": 34719,
+          "async": true,
+          "exportedName": "deleteSale",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/sales/actions.ts",
+      "exportedName": "deleteSale"
+    },
+    "60b3d5afdbfd56ecaf2f5feccfcced8253e0fec3a0": {
+      "workers": {
+        "app/(dashboard)/sales/[id]/create-invoice/page": {
+          "moduleId": 425708,
+          "async": true,
+          "exportedName": "createOrUpdateInvoiceFromSale",
+          "filename": "app/(dashboard)/invoices/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/[id]/create-invoice/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/invoices/actions.ts",
+      "exportedName": "createOrUpdateInvoiceFromSale"
+    },
+    "4008bb68c209b4273c1482e834b331cd37531429b8": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "createNewCustomer",
+          "filename": "app/(dashboard)/sales/new-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/sales/new-actions.ts",
+      "exportedName": "createNewCustomer"
+    },
+    "708b2c0ded863df5ddb8d240da0e2feb59ce1accfc": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "validateCouponCode",
+          "filename": "app/(dashboard)/sales/new-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/sales/new-actions.ts",
+      "exportedName": "validateCouponCode"
+    },
+    "40363717566a13e12acda06fc5759a22d44826e0c0": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "getCustomerLoyaltyPoints",
+          "filename": "app/(dashboard)/sales/new-actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/sales/new-actions.ts",
+      "exportedName": "getCustomerLoyaltyPoints"
+    },
+    "60caa48780145029762c4269aba3fd0c024c6d28c1": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "createSale",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/sales/actions.ts",
+      "exportedName": "createSale"
+    },
+    "0050d6a1b8d0c5800f8d1f5989a3440d97e37ea2b1": {
+      "workers": {
+        "app/(dashboard)/sales/new/page": {
+          "moduleId": 112530,
+          "async": true,
+          "exportedName": "getNextInvoiceNumber",
+          "filename": "app/(dashboard)/sales/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/sales/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/sales/actions.ts",
+      "exportedName": "getNextInvoiceNumber"
+    },
+    "40a0b384ba56f3084deba60d9e02af59e01094a4fa": {
+      "workers": {
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "updateSettings",
+          "filename": "app/(dashboard)/settings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/actions.ts",
+      "exportedName": "updateSettings"
+    },
+    "400e7f23d915ca14e3d9cb5ddfb3a7bf25c7e6cce2": {
+      "workers": {
+        "app/(dashboard)/settings/page": {
+          "moduleId": 269516,
+          "async": true,
+          "exportedName": "updateCompanySettings",
+          "filename": "app/(dashboard)/settings/company/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/company/actions.ts",
+      "exportedName": "updateCompanySettings"
+    },
+    "6035fe3f90d1507e2e15444ce3ac7fc66a85afedf5": {
+      "workers": {
+        "app/(dashboard)/settings/codes/page": {
+          "moduleId": 840000,
+          "async": true,
+          "exportedName": "updateCode",
+          "filename": "app/(dashboard)/settings/codes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/codes/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/codes/actions.ts",
+      "exportedName": "updateCode"
+    },
+    "60597b684d7203dc7c46a5691ac4536013ba88df82": {
+      "workers": {
+        "app/(dashboard)/settings/codes/page": {
+          "moduleId": 840000,
+          "async": true,
+          "exportedName": "setCodeStatus",
+          "filename": "app/(dashboard)/settings/codes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/codes/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/codes/actions.ts",
+      "exportedName": "setCodeStatus"
+    },
+    "60ba56a7f871ea8a3a1ee48ad27866a0250e58a23f": {
+      "workers": {
+        "app/(dashboard)/settings/codes/page": {
+          "moduleId": 840000,
+          "async": true,
+          "exportedName": "importCodes",
+          "filename": "app/(dashboard)/settings/codes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/codes/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/codes/actions.ts",
+      "exportedName": "importCodes"
+    },
+    "60e3d7e148f0b30ff86316033c354136a577c72a48": {
+      "workers": {
+        "app/(dashboard)/settings/codes/page": {
+          "moduleId": 840000,
+          "async": true,
+          "exportedName": "checkCodeDuplicate",
+          "filename": "app/(dashboard)/settings/codes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/codes/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/codes/actions.ts",
+      "exportedName": "checkCodeDuplicate"
+    },
+    "002512747ba2528a9c39d8350bb953d0d4ee13ab2a": {
+      "workers": {
+        "app/(dashboard)/settings/coupons/page": {
+          "moduleId": 215558,
+          "async": true,
+          "exportedName": "getCoupons",
+          "filename": "app/(dashboard)/settings/coupons/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/coupons/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/coupons/actions.ts",
+      "exportedName": "getCoupons"
+    },
+    "40eeeee87c059b39437afe0e95e44510a2c66ec7da": {
+      "workers": {
+        "app/(dashboard)/settings/coupons/page": {
+          "moduleId": 215558,
+          "async": true,
+          "exportedName": "createCoupon",
+          "filename": "app/(dashboard)/settings/coupons/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/coupons/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/coupons/actions.ts",
+      "exportedName": "createCoupon"
+    },
+    "60b5fa98476e33bbdb353cb03271f4342798306313": {
+      "workers": {
+        "app/(dashboard)/settings/coupons/page": {
+          "moduleId": 215558,
+          "async": true,
+          "exportedName": "toggleCoupon",
+          "filename": "app/(dashboard)/settings/coupons/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/coupons/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/coupons/actions.ts",
+      "exportedName": "toggleCoupon"
+    },
+    "409b8be2d14a0ff400cae2014ec90f3c00cabf145a": {
+      "workers": {
+        "app/(dashboard)/settings/customer/page": {
+          "moduleId": 140621,
+          "async": true,
+          "exportedName": "saveCustomerSettings",
+          "filename": "app/(dashboard)/settings/customer/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/customer/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/customer/actions.ts",
+      "exportedName": "saveCustomerSettings"
+    },
+    "40b2239c1e8d0beb9db01289db38bcaf1c2a6e69e4": {
+      "workers": {
+        "app/(dashboard)/settings/ebay-settings/page": {
+          "moduleId": 940529,
+          "async": true,
+          "exportedName": "updateEbaySettingsAction",
+          "filename": "app/settings/ebay/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/ebay-settings/page": "rsc"
+      },
+      "filename": "app/settings/ebay/actions.ts",
+      "exportedName": "updateEbaySettingsAction"
+    },
+    "403ad460712529e582721f30aee3aa4620bd6db23e": {
+      "workers": {
+        "app/(dashboard)/settings/ebay-settings/page": {
+          "moduleId": 940529,
+          "async": true,
+          "exportedName": "deleteCategoryImagesAction",
+          "filename": "app/settings/ebay/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/ebay-settings/page": "rsc"
+      },
+      "filename": "app/settings/ebay/actions.ts",
+      "exportedName": "deleteCategoryImagesAction"
+    },
+    "60dd1be60dc4e5c08ceb32c44d0f05c4e5f47e562a": {
+      "workers": {
+        "app/(dashboard)/settings/ebay-settings/page": {
+          "moduleId": 940529,
+          "async": true,
+          "exportedName": "updateCategoryImagesAction",
+          "filename": "app/settings/ebay/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/ebay-settings/page": "rsc"
+      },
+      "filename": "app/settings/ebay/actions.ts",
+      "exportedName": "updateCategoryImagesAction"
+    },
+    "00e3ba52cabca0b24d109d19227b5b5e768e62c9d4": {
+      "workers": {
+        "app/(dashboard)/settings/ebay-settings/page": {
+          "moduleId": 940529,
+          "async": true,
+          "exportedName": "getEbaySettingsAction",
+          "filename": "app/settings/ebay/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/ebay-settings/page": "rsc"
+      },
+      "filename": "app/settings/ebay/actions.ts",
+      "exportedName": "getEbaySettingsAction"
+    },
+    "007e4cf96c3d6a0dfb74733afbc55766fbaa256a7d": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "disconnectZohoAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts",
+      "exportedName": "disconnectZohoAction"
+    },
+    "008a76f68adff34743c7c9998fcf01a1a4f019d5db": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "pollZohoInboxAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts",
+      "exportedName": "pollZohoInboxAction"
+    },
+    "008cb1d8a7b8c471387669d143d3c8622ecec2659c": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "getZohoConnectionStatus",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts",
+      "exportedName": "getZohoConnectionStatus"
+    },
+    "00d8788ce11a9866c8b01cf31057b27b9e61c59528": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "getEmailTemplates",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts",
+      "exportedName": "getEmailTemplates"
+    },
+    "40b3e4ec160aae7ace829422ff9867c24d98c4b491": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "updateEmailTemplateAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts",
+      "exportedName": "updateEmailTemplateAction"
+    },
+    "40f35f162b9d9a7097c299525da1c952cea26529ac": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "createEmailTemplateAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts",
+      "exportedName": "createEmailTemplateAction"
+    },
+    "60ae230585d8f9f8ea9c383d8981698968a689e77f": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "toggleEmailTemplateAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts",
+      "exportedName": "toggleEmailTemplateAction"
+    },
+    "004e5aa2efe3ab5e052e9f85e73ae598428414d8cf": {
+      "workers": {
+        "app/(dashboard)/settings/invoice/page": {
+          "moduleId": 485573,
+          "async": true,
+          "exportedName": "getInvoiceSettings",
+          "filename": "app/(dashboard)/settings/invoice/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/invoice/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/invoice/actions.ts",
+      "exportedName": "getInvoiceSettings"
+    },
+    "60a3e420a073ed9510821c93b09f1785b8075aefa1": {
+      "workers": {
+        "app/(dashboard)/settings/invoice/page": {
+          "moduleId": 485573,
+          "async": true,
+          "exportedName": "updateInvoiceSettings",
+          "filename": "app/(dashboard)/settings/invoice/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/invoice/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/invoice/actions.ts",
+      "exportedName": "updateInvoiceSettings"
+    },
+    "00f67420306e926167d08c0513273d3ad11ce50cce": {
+      "workers": {
+        "app/(dashboard)/settings/invoice-promotions/page": {
+          "moduleId": 891712,
+          "async": true,
+          "exportedName": "getInvoicePromotionSettings",
+          "filename": "app/(dashboard)/settings/invoice-promotions/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/invoice-promotions/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/invoice-promotions/actions.ts",
+      "exportedName": "getInvoicePromotionSettings"
+    },
+    "400ac3f77651fbc54405d8b095c03ec323e33c88c6": {
+      "workers": {
+        "app/(dashboard)/settings/invoice-promotions/page": {
+          "moduleId": 891712,
+          "async": true,
+          "exportedName": "createOfferBanner",
+          "filename": "app/(dashboard)/settings/invoice-promotions/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/invoice-promotions/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/invoice-promotions/actions.ts",
+      "exportedName": "createOfferBanner"
+    },
+    "40c8768abe12e80d4f45b5cff6260a50f2e5f5ca6d": {
+      "workers": {
+        "app/(dashboard)/settings/invoice-promotions/page": {
+          "moduleId": 891712,
+          "async": true,
+          "exportedName": "saveInvoicePromotionSettings",
+          "filename": "app/(dashboard)/settings/invoice-promotions/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/invoice-promotions/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/invoice-promotions/actions.ts",
+      "exportedName": "saveInvoicePromotionSettings"
+    },
+    "6091e30879792fdec86f5811b0ed97789fbd6b7e36": {
+      "workers": {
+        "app/(dashboard)/settings/invoice-promotions/page": {
+          "moduleId": 891712,
+          "async": true,
+          "exportedName": "toggleOfferBanner",
+          "filename": "app/(dashboard)/settings/invoice-promotions/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/invoice-promotions/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/invoice-promotions/actions.ts",
+      "exportedName": "toggleOfferBanner"
+    },
+    "003db45b24b4a0e27db415fae7783a7c2c0963907e": {
+      "workers": {
+        "app/(dashboard)/settings/loyalty/page": {
+          "moduleId": 897759,
+          "async": true,
+          "exportedName": "getLoyaltySettings",
+          "filename": "app/(dashboard)/settings/loyalty/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/loyalty/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/loyalty/actions.ts",
+      "exportedName": "getLoyaltySettings"
+    },
+    "4035789f2ed1261191e2a85c4149389715b7bc7f60": {
+      "workers": {
+        "app/(dashboard)/settings/loyalty/page": {
+          "moduleId": 897759,
+          "async": true,
+          "exportedName": "saveLoyaltySettings",
+          "filename": "app/(dashboard)/settings/loyalty/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/loyalty/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/loyalty/actions.ts",
+      "exportedName": "saveLoyaltySettings"
+    },
+    "4066c3e90785ab81386863279b5dd6c6660713c62b": {
+      "workers": {
+        "app/(dashboard)/settings/marketplaces/page": {
+          "moduleId": 325481,
+          "async": true,
+          "exportedName": "saveMarketplaceProfile",
+          "filename": "app/(dashboard)/settings/marketplaces/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/marketplaces/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/marketplaces/actions.ts",
+      "exportedName": "saveMarketplaceProfile"
+    },
+    "4082e99f6779a6a33ba9f21794b47df56534c8fd50": {
+      "workers": {
+        "app/(dashboard)/settings/marketplaces/page": {
+          "moduleId": 325481,
+          "async": true,
+          "exportedName": "duplicateMarketplaceProfile",
+          "filename": "app/(dashboard)/settings/marketplaces/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/marketplaces/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/marketplaces/actions.ts",
+      "exportedName": "duplicateMarketplaceProfile"
+    },
+    "00443b305aadf3f25e82e76103d60b17e0dde9875e": {
+      "workers": {
+        "app/(dashboard)/settings/marketplaces/page": {
+          "moduleId": 325481,
+          "async": true,
+          "exportedName": "exportMarketplaceSettings",
+          "filename": "app/(dashboard)/settings/marketplaces/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/marketplaces/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/marketplaces/actions.ts",
+      "exportedName": "exportMarketplaceSettings"
+    },
+    "4012fa6e85f48d90cd6d188d58c0d3cbcadea13032": {
+      "workers": {
+        "app/(dashboard)/settings/marketplaces/page": {
+          "moduleId": 325481,
+          "async": true,
+          "exportedName": "importMarketplaceSettings",
+          "filename": "app/(dashboard)/settings/marketplaces/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/marketplaces/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/marketplaces/actions.ts",
+      "exportedName": "importMarketplaceSettings"
+    },
+    "4068ffbcc3f897f16e837c89bf10d3e037fb6c3f80": {
+      "workers": {
+        "app/(dashboard)/settings/marketplaces/page": {
+          "moduleId": 325481,
+          "async": true,
+          "exportedName": "saveCurrencyRates",
+          "filename": "app/(dashboard)/settings/marketplaces/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/marketplaces/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/marketplaces/actions.ts",
+      "exportedName": "saveCurrencyRates"
+    },
+    "00637ae826e52b4401ef385f48d740152d212721fd": {
+      "workers": {
+        "app/(dashboard)/settings/marketplaces/page": {
+          "moduleId": 325481,
+          "async": true,
+          "exportedName": "getCurrencyRatesDto",
+          "filename": "app/(dashboard)/settings/marketplaces/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/marketplaces/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/marketplaces/actions.ts",
+      "exportedName": "getCurrencyRatesDto"
+    },
+    "00b7f00366219e373cd0db8e4a293643c2e483f905": {
+      "workers": {
+        "app/(dashboard)/settings/message-templates/page": {
+          "moduleId": 852932,
+          "async": true,
+          "exportedName": "getMessageTemplates",
+          "filename": "app/(dashboard)/settings/message-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/message-templates/page": "rsc"
+      },
+      "filename": "app/(dashboard)/settings/message-templates/actions.ts",
+      "exportedName": "getMessageTemplates"
+    },
+    "402fe7f9c9e291697115433113de0b28500ce32301": {
+      "workers": {
+        "app/(dashboard)/settings/message-templates/page": {
+          "moduleId": 852932,
+          "async": true,
+          "exportedName": "createMessageTemplate",
+          "filename": "app/(dashboard)/settings/message-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/message-templates/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/message-templates/actions.ts",
+      "exportedName": "createMessageTemplate"
+    },
+    "60a5623712645dbd111ad01a8ae2a47690df5ee975": {
+      "workers": {
+        "app/(dashboard)/settings/message-templates/page": {
+          "moduleId": 852932,
+          "async": true,
+          "exportedName": "toggleMessageTemplate",
+          "filename": "app/(dashboard)/settings/message-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/message-templates/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/settings/message-templates/actions.ts",
+      "exportedName": "toggleMessageTemplate"
+    },
+    "0009211dad9283851a0811a746e14c68a66dafd2f5": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "getPackagingCategoryHsnSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "getPackagingCategoryHsnSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "getPackagingCategoryHsnSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "getPackagingCategoryHsnSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "getPackagingCategoryHsnSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "getPackagingCategoryHsnSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "getPackagingCategoryHsnSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "getPackagingCategoryHsnSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "action-browser",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "action-browser",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "getPackagingCategoryHsnSettings"
+    },
+    "004c81983e9a2167f4bea4d652deb5340014d11547": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/create/page": {
+          "moduleId": 285830,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/create/page": "action-browser",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/page": "action-browser",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "getPackagingCart"
+    },
+    "004da3e18b8b0862243c10593ea36988619d1cb719": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "getDefaultPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "getDefaultPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "getDefaultPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "getDefaultPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "getDefaultPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "getDefaultPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "getDefaultPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "getDefaultPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "action-browser",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "getDefaultPackagingLayoutPreset"
+    },
+    "007b79ce31137d95e5ef0e349d41b716bbb0051cbe": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "getPackagingLayoutPresets",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "getPackagingLayoutPresets",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "getPackagingLayoutPresets",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "getPackagingLayoutPresets",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "getPackagingLayoutPresets",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "getPackagingLayoutPresets",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "getPackagingLayoutPresets",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "getPackagingLayoutPresets",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "action-browser",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "action-browser",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "action-browser",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "getPackagingLayoutPresets"
+    },
+    "00d0935339bc3b18f3273709686461f737f0f53083": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "getPackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "getPackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "getPackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "getPackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "getPackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "getPackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "getPackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "getPackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "action-browser",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "getPackagingSettings"
+    },
+    "00f0ef282a41cf6aea2fdd04654063597eb61d6859": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/create/page": {
+          "moduleId": 285830,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/create/page": "action-browser",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/page": "action-browser",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "clearPackagingCart"
+    },
+    "400f2e6ff7088c1029e122214a108d312de203ad62": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/create/page": {
+          "moduleId": 285830,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/create/page": "action-browser",
+        "app/erp/packaging/ledger/page": "action-browser",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/page": "action-browser",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "completePackagingThermalPrint"
+    },
+    "40304be18204768108e07c1b886566a6844bdc6e8f": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "upsertPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "upsertPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "upsertPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "upsertPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "upsertPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "upsertPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "upsertPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "upsertPackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "action-browser",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "action-browser",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "upsertPackagingLayoutPreset"
+    },
+    "403d63d5a690c4a4c73f6a6f83f6b1623758c74009": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/create/page": {
+          "moduleId": 285830,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/create/page": "action-browser",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/page": "action-browser",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "previewPackagingFromCart"
+    },
+    "4046ec3944bed1a6342b0e8740654676da36c49596": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "getPublicLabelData",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "getPublicLabelData",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "getPublicLabelData",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "getPublicLabelData",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "getPublicLabelData",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "getPublicLabelData",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "getPublicLabelData",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "getPublicLabelData",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "action-browser",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "getPublicLabelData"
+    },
+    "40482620e491c4174145c5811b1a8875bd611a1dfa": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/create/page": {
+          "moduleId": 285830,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/create/page": "action-browser",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/page": "action-browser",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "createPackagingPrintFromCart"
+    },
+    "4054307db9e8e89ceab722df78d602db5615bde738": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/create/page": {
+          "moduleId": 285830,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/create/page": "action-browser",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/page": "action-browser",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "removeFromPackagingCart"
+    },
+    "4057829ddef738f0b5e5442864672fef48f957f88b": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "createPrintJob",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "createPrintJob",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "createPrintJob",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "createPrintJob",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "createPrintJob",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "createPrintJob",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "createPrintJob",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "createPrintJob",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "createPrintJob"
+    },
+    "40854c4e5acdaf382130e7a6295ad575edc983a5ae": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "updatePackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "updatePackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "updatePackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "updatePackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "updatePackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "updatePackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "updatePackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "updatePackagingSettings",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "action-browser",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "action-browser",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "updatePackagingSettings"
+    },
+    "408ba90b6ef66f5c49fc616b38d5a9c41b06bd7f66": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "upsertPackagingCategoryHsns",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "upsertPackagingCategoryHsns",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "upsertPackagingCategoryHsns",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "upsertPackagingCategoryHsns",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "upsertPackagingCategoryHsns",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "upsertPackagingCategoryHsns",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "upsertPackagingCategoryHsns",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "upsertPackagingCategoryHsns",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "action-browser",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "action-browser",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "upsertPackagingCategoryHsns"
+    },
+    "4098a1cbbbfca96a2b6cdacfdb3c0f66693c41cb83": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "deletePackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "deletePackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "deletePackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "deletePackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "deletePackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "deletePackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "deletePackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "deletePackagingLayoutPreset",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "action-browser",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "action-browser",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "deletePackagingLayoutPreset"
+    },
+    "40cd5ede54046151bacc416f711163939368c31f04": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/create/page": {
+          "moduleId": 285830,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/create/page": "action-browser",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/page": "action-browser",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "getPackagingInventory"
+    },
+    "40fa779ceca7d63ed85aceaf18c72481682c9bca00": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "validatePackagingEligibility",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "validatePackagingEligibility",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "validatePackagingEligibility",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "validatePackagingEligibility",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "validatePackagingEligibility",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "validatePackagingEligibility",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "validatePackagingEligibility",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "validatePackagingEligibility",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "validatePackagingEligibility"
+    },
+    "60392e130d16f476c7962c3c115bf13b25c11744e7": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "getVerificationLogs",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "getVerificationLogs",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "getVerificationLogs",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "getVerificationLogs",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "getVerificationLogs",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "getVerificationLogs",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "getVerificationLogs",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "getVerificationLogs",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "getVerificationLogs"
+    },
+    "608c275030855ab497aae5bfcc64aa1cf469661da8": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "validateInventoryForPackaging",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "validateInventoryForPackaging",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "validateInventoryForPackaging",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "validateInventoryForPackaging",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "validateInventoryForPackaging",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "validateInventoryForPackaging",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "validateInventoryForPackaging",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "validateInventoryForPackaging",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "validateInventoryForPackaging"
+    },
+    "609f296fb508cb42516641e8f463000c95040af92c": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "reprintSerial",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "reprintSerial",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "reprintSerial",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "reprintSerial",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "reprintSerial",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "reprintSerial",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "reprintSerial",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "reprintSerial",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "reprintSerial"
+    },
+    "60b6a8aa12453ce2ba67bda4d38c85b41998fb318f": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "addManyToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "addManyToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "addManyToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "addManyToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "addManyToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "addManyToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "addManyToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "addManyToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "addManyToPackagingCart"
+    },
+    "60d6f1a81590523316582c0dd877f385505432189b": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "previewPackagingIdentities",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "previewPackagingIdentities",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "previewPackagingIdentities",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "previewPackagingIdentities",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "previewPackagingIdentities",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "previewPackagingIdentities",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "previewPackagingIdentities",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "previewPackagingIdentities",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "action-browser",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "previewPackagingIdentities"
+    },
+    "7010419ee9c271972530f00a814282097ff0316002": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "verifySerialPublic",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "verifySerialPublic",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "verifySerialPublic",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "verifySerialPublic",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "verifySerialPublic",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "verifySerialPublic",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "verifySerialPublic",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "verifySerialPublic",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "verifySerialPublic"
+    },
+    "7010445395eee8c96edbbff727e7355938617cf00d": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "getSerialHistory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "getSerialHistory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "getSerialHistory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "getSerialHistory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "getSerialHistory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "getSerialHistory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "getSerialHistory",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "getSerialHistory",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "getSerialHistory"
+    },
+    "705b6bd2c555b043387e5d9374afa5bbf3ad64f208": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "processPackagingPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "processPackagingPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "processPackagingPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "processPackagingPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "processPackagingPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "processPackagingPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "processPackagingPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "processPackagingPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "action-browser",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "processPackagingPrint"
+    },
+    "705dd910c2436e718f40c5edb7e0561fb60388d9a6": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/create/page": {
+          "moduleId": 285830,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/create/page": "action-browser",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/page": "action-browser",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "addToPackagingCart"
+    },
+    "707198ac8e10934a49eb3d4db0699ceaafc025f8d4": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "verifyMultiSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "verifyMultiSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "verifyMultiSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "verifyMultiSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "verifyMultiSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "verifyMultiSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "verifyMultiSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "verifyMultiSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "verifyMultiSerials"
+    },
+    "782d1ceaad2b6585cb61c3a199baef5ac72a6a8af1": {
+      "workers": {
+        "app/(dashboard)/settings/packaging/page": {
+          "moduleId": 368412,
+          "async": true,
+          "exportedName": "generateSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/V/[serial]/page": {
+          "moduleId": 83915,
+          "async": true,
+          "exportedName": "generateSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/ledger/page": {
+          "moduleId": 671723,
+          "async": true,
+          "exportedName": "generateSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/logs/page": {
+          "moduleId": 416630,
+          "async": true,
+          "exportedName": "generateSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/erp/packaging/settings/page": {
+          "moduleId": 808180,
+          "async": true,
+          "exportedName": "generateSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/[slug]/page": {
+          "moduleId": 169081,
+          "async": true,
+          "exportedName": "generateSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/preview/label/[serial]/page": {
+          "moduleId": 698105,
+          "async": true,
+          "exportedName": "generateSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        },
+        "app/verify/[serial]/page": {
+          "moduleId": 575047,
+          "async": true,
+          "exportedName": "generateSerials",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/packaging/page": "rsc",
+        "app/V/[serial]/page": "rsc",
+        "app/erp/packaging/ledger/page": "rsc",
+        "app/erp/packaging/logs/page": "rsc",
+        "app/erp/packaging/settings/page": "rsc",
+        "app/preview/[slug]/page": "rsc",
+        "app/preview/label/[serial]/page": "rsc",
+        "app/verify/[serial]/page": "rsc"
+      },
+      "filename": "app/erp/packaging/actions.ts",
+      "exportedName": "generateSerials"
+    },
+    "406703f3a7a7f33ff658b269ed3de1e39aace57882": {
+      "workers": {
+        "app/(dashboard)/users/page": {
+          "moduleId": 374041,
+          "async": true,
+          "exportedName": "$$RSC_SERVER_ACTION_0",
+          "filename": "app/(dashboard)/users/page.tsx"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/page": "rsc"
+      },
+      "filename": "app/(dashboard)/users/page.tsx",
+      "exportedName": "$$RSC_SERVER_ACTION_0"
+    },
+    "40ad669ab9b9572e4d3bbbd2c6d701a4753b2d6c08": {
+      "workers": {
+        "app/(dashboard)/users/new/page": {
+          "moduleId": 648544,
+          "async": true,
+          "exportedName": "createUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        },
+        "app/(dashboard)/users/page": {
+          "moduleId": 374041,
+          "async": true,
+          "exportedName": "createUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/new/page": "action-browser",
+        "app/(dashboard)/users/page": "rsc"
+      },
+      "filename": "app/(dashboard)/users/actions.ts",
+      "exportedName": "createUser"
+    },
+    "40e44722c529ca089254e19977fa9302f8d9de7655": {
+      "workers": {
+        "app/(dashboard)/users/page": {
+          "moduleId": 374041,
+          "async": true,
+          "exportedName": "deleteUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/page": "rsc"
+      },
+      "filename": "app/(dashboard)/users/actions.ts",
+      "exportedName": "deleteUser"
+    },
+    "6035a7bb7d4f231656cd8535a534276568a534b8a7": {
+      "workers": {
+        "app/(dashboard)/users/[id]/edit/page": {
+          "moduleId": 44883,
+          "async": true,
+          "exportedName": "updateUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        },
+        "app/(dashboard)/users/page": {
+          "moduleId": 374041,
+          "async": true,
+          "exportedName": "updateUser",
+          "filename": "app/(dashboard)/users/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/users/[id]/edit/page": "action-browser",
+        "app/(dashboard)/users/page": "rsc"
+      },
+      "filename": "app/(dashboard)/users/actions.ts",
+      "exportedName": "updateUser"
+    },
+    "60d54a1ac4b166ceaa30373cc02c4677d59081cfbe": {
+      "workers": {
+        "app/(dashboard)/vendors/[id]/edit/page": {
+          "moduleId": 148263,
+          "async": true,
+          "exportedName": "createVendor",
+          "filename": "app/(dashboard)/vendors/actions.ts"
+        },
+        "app/(dashboard)/vendors/new/page": {
+          "moduleId": 403410,
+          "async": true,
+          "exportedName": "createVendor",
+          "filename": "app/(dashboard)/vendors/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/vendors/[id]/edit/page": "action-browser",
+        "app/(dashboard)/vendors/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/vendors/actions.ts",
+      "exportedName": "createVendor"
+    },
+    "70fc17b84bb702343c272dce497640275b387893c4": {
+      "workers": {
+        "app/(dashboard)/vendors/[id]/edit/page": {
+          "moduleId": 148263,
+          "async": true,
+          "exportedName": "updateVendor",
+          "filename": "app/(dashboard)/vendors/actions.ts"
+        },
+        "app/(dashboard)/vendors/new/page": {
+          "moduleId": 403410,
+          "async": true,
+          "exportedName": "updateVendor",
+          "filename": "app/(dashboard)/vendors/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/vendors/[id]/edit/page": "action-browser",
+        "app/(dashboard)/vendors/new/page": "action-browser"
+      },
+      "filename": "app/(dashboard)/vendors/actions.ts",
+      "exportedName": "updateVendor"
+    }
+  },
+  "edge": {},
+  "encryptionKey": "cM7OeFZhsXFd5dTV32LqvHgAaFvgb+Vky+LLxsvus0Q="
+}

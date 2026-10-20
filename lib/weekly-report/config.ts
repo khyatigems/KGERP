@@ -13,6 +13,7 @@ export const settingsSchema = z.object({
  recipients: z.array(recipient).min(1).max(30), subject: z.string().min(1).max(300).refine(v => !/[\r\n]/.test(v), "Subject cannot contain newlines"), body: z.string().min(1).max(8000),
  sections: z.record(z.enum(sections), z.boolean()), rules: z.record(z.enum(ruleNames), rule),
  requiredFields: z.array(z.enum(["itemName", "category", "gemType", "weight", "description", "price", "shape", "color"])).max(8),
+ // Retained only for backward compatibility with previously persisted settings. Certificate reporting now mirrors Inventory > Missing Certification.
  certificateCategories: z.array(z.string().trim().min(1).max(100)).max(50), requiredFieldCategories: z.array(z.string().trim().min(1).max(100)).max(50),
  logo: z.enum(["COMPANY", "APPROVED_DEFAULT"]), footer: z.string().max(250), confidentiality: z.string().max(100),
  retentionDays: z.number().int().min(7).max(730), retryMinutes: z.array(z.number().int().min(1).max(1440)).min(1).max(8), maxAttempts: z.number().int().min(1).max(8),

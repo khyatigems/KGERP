@@ -1,0 +1,110 @@
+{
+  "node": {
+    "007e4cf96c3d6a0dfb74733afbc55766fbaa256a7d": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "disconnectZohoAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "action-browser"
+      },
+      "exportedName": "disconnectZohoAction",
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+    },
+    "008a76f68adff34743c7c9998fcf01a1a4f019d5db": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "pollZohoInboxAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "action-browser"
+      },
+      "exportedName": "pollZohoInboxAction",
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+    },
+    "008cb1d8a7b8c471387669d143d3c8622ecec2659c": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "getZohoConnectionStatus",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "rsc"
+      },
+      "exportedName": "getZohoConnectionStatus",
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+    },
+    "00d8788ce11a9866c8b01cf31057b27b9e61c59528": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "getEmailTemplates",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "rsc"
+      },
+      "exportedName": "getEmailTemplates",
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+    },
+    "40b3e4ec160aae7ace829422ff9867c24d98c4b491": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "updateEmailTemplateAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "action-browser"
+      },
+      "exportedName": "updateEmailTemplateAction",
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+    },
+    "40f35f162b9d9a7097c299525da1c952cea26529ac": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "createEmailTemplateAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "rsc"
+      },
+      "exportedName": "createEmailTemplateAction",
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+    },
+    "60ae230585d8f9f8ea9c383d8981698968a689e77f": {
+      "workers": {
+        "app/(dashboard)/settings/email-templates/page": {
+          "moduleId": 1131,
+          "async": true,
+          "exportedName": "toggleEmailTemplateAction",
+          "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/settings/email-templates/page": "action-browser"
+      },
+      "exportedName": "toggleEmailTemplateAction",
+      "filename": "app/(dashboard)/settings/email-templates/actions.ts"
+    }
+  },
+  "edge": {}
+}

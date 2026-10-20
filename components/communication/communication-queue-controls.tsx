@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
+import { notifyAction, toast } from "@/lib/erp-feedback";
 import { Loader2 } from "lucide-react";
+import { useErpConfirmation } from "@/components/providers/erp-confirmation-provider";
 
 interface EligibleEmail {
   id: string;
@@ -26,10 +27,11 @@ export function CommunicationQueueActions({
   canCancel: boolean;
 }) {
   const router = useRouter();
+  const confirm = useErpConfirmation();
   const [busy, setBusy] = useState(false);
 
   async function runAction(action: "RETRY" | "SEND_NOW" | "CANCEL") {
-    if (action === "CANCEL" && !window.confirm("Cancel this queued email?")) return;
+    if (action === "CANCEL" && !(await confirm({ title: "Cancel queued email?", description: "The queued email will not be sent. This action cannot be undone.", confirmLabel: "Cancel email", destructive: true }))) return;
     setBusy(true);
     try {
       const response = await fetch(`/api/email/communications/${encodeURIComponent(id)}/action`, {
@@ -100,7 +102,7 @@ export function CommunicationBulkRetry({
       if (!response.ok || !result.success) throw new Error(result.error || "Bulk retry failed");
       const count = result.queued || 0;
       if (count === 0) throw new Error("None of the selected emails remained eligible for retry");
-      toast.success(`${count} eligible email${count === 1 ? "" : "s"} queued; ${result.processed || 0} processed now`);
+      notifyAction(`${count} eligible email${count === 1 ? "" : "s"} queued; ${result.processed || 0} processed now`, "View queue", () => router.push("/communication"));
       setSelected([]);
       router.refresh();
     } catch (error) {

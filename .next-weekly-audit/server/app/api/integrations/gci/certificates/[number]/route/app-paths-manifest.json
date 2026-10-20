@@ -1,0 +1,3 @@
+{
+  "/api/integrations/gci/certificates/[number]/route": "app/api/integrations/gci/certificates/[number]/route.js"
+}

@@ -1,0 +1,50 @@
+{
+  "node": {
+    "40429eecbe1f2fa521e99838f84f1ae5d62f70f96f": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/page": {
+          "moduleId": 417484,
+          "async": true,
+          "exportedName": "cancelQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/page": "action-browser"
+      },
+      "exportedName": "cancelQuotation",
+      "filename": "app/(dashboard)/quotes/actions.ts"
+    },
+    "4031841b6fd4f04a6e7397c284bd9aa4e3f08f42f5": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/page": {
+          "moduleId": 417484,
+          "async": true,
+          "exportedName": "sendQuotation",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/page": "action-browser"
+      },
+      "exportedName": "sendQuotation",
+      "filename": "app/(dashboard)/quotes/actions.ts"
+    },
+    "40ce3d42739ee7518daf8205b8862f0a9a46b9ae35": {
+      "workers": {
+        "app/(dashboard)/quotes/[id]/page": {
+          "moduleId": 417484,
+          "async": true,
+          "exportedName": "convertQuotationToInvoice",
+          "filename": "app/(dashboard)/quotes/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/quotes/[id]/page": "action-browser"
+      },
+      "exportedName": "convertQuotationToInvoice",
+      "filename": "app/(dashboard)/quotes/actions.ts"
+    }
+  },
+  "edge": {}
+}

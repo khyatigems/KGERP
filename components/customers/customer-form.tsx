@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,7 +168,12 @@ export function CustomerForm({ customer }: { customer?: CustomerModel }) {
     try {
       const res = customer ? await updateCustomer(customer.id, null, fd) : await createCustomer(null, fd);
       if (res && (res as { success?: boolean }).success) {
-        toast.success(customer ? "Customer updated" : "Customer created");
+        toast.success(customer ? "Customer updated" : "Customer created", {
+          action: {
+            label: "View customers",
+            onClick: () => router.push("/customers"),
+          },
+        });
         router.push("/customers");
       } else if (res && (res as { message?: string }).message) {
         toast.error((res as { message: string }).message);

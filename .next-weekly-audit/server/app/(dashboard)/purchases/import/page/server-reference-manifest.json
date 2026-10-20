@@ -1,0 +1,20 @@
+{
+  "node": {
+    "408f90793a5e252e423c069f27632837926b600f0a": {
+      "workers": {
+        "app/(dashboard)/purchases/import/page": {
+          "moduleId": 656616,
+          "async": true,
+          "exportedName": "importPurchases",
+          "filename": "app/(dashboard)/purchases/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/purchases/import/page": "action-browser"
+      },
+      "exportedName": "importPurchases",
+      "filename": "app/(dashboard)/purchases/actions.ts"
+    }
+  },
+  "edge": {}
+}

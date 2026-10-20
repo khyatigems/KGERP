@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useErpConfirmation } from "@/components/providers/erp-confirmation-provider";
 import { Loader2, Trash2, ExternalLink, Globe, History, Pencil, Check, X, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
@@ -33,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { addListing, updateListing, deleteListing, getListings, getListingHistory } from "@/app/(dashboard)/inventory/listing-actions";
 
 const formSchema = z.object({
@@ -117,6 +118,7 @@ function ListingPriceHistory({ listingId, currency = "USD" }: { listingId: strin
 }
 
 export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }: ListingManagerProps) {
+    const confirm = useErpConfirmation();
     const [listings, setListings] = useState<Listing[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -167,7 +169,7 @@ export function ListingManager({ inventoryId, sku, trigger, open, onOpenChange }
     }
 
     async function handleDelete(id: string) {
-        if (!confirm("Are you sure you want to delete this listing?")) return;
+        if (!(await confirm({ title: "Delete marketplace listing?", description: "This removes the listing record from this inventory item. This action cannot be undone.", confirmLabel: "Delete listing", destructive: true }))) return;
         await deleteListing(id);
         loadListings();
     }

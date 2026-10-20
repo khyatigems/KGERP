@@ -1,0 +1,3 @@
+{
+  "/api/cron/quotations/route": "app/api/cron/quotations/route.js"
+}

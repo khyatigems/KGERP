@@ -3,7 +3,7 @@
 import { ExportButton } from "@/components/ui/lottie";
 import { generateInvoicePDF, InvoiceData } from "@/lib/invoice-generator";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 
 export function DownloadPdfButton({ data }: { data: InvoiceData }) {
   const [loading, setLoading] = useState(false);

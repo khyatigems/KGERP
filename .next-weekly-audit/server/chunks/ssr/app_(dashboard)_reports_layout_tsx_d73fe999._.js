@@ -1,0 +1,3 @@
+module.exports=[943757,a=>a.a(async(b,c)=>{try{var d=a.i(409223),e=a.i(302316);a.i(570396);var f=a.i(673727),g=b([e]);async function h({children:a}){let b=await (0,d.auth)();return b?.user?.id||(0,f.redirect)("/login"),await (0,e.checkUserPermission)(b.user.id,e.PERMISSIONS.REPORTS_VIEW)||(0,f.redirect)("/"),a}[e]=g.then?(await g)():g,a.s(["default",()=>h]),c()}catch(a){c(a)}},!1)];
+
+//# sourceMappingURL=app_%28dashboard%29_reports_layout_tsx_d73fe999._.js.map

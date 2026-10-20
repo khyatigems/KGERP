@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Bell, Check, CheckCheck, CircleAlert, Info, LoaderCircle } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { Button } from "@/components/ui/button";
 import { RetryMarketplaceSyncButton } from "@/components/marketplace/retry-sync-button";
 import { cn } from "@/lib/utils";

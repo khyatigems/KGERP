@@ -1,0 +1,125 @@
+{
+  "node": {
+    "40cd5ede54046151bacc416f711163939368c31f04": {
+      "workers": {
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "getPackagingInventory",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/erp/packaging/page": "action-browser"
+      },
+      "exportedName": "getPackagingInventory",
+      "filename": "app/erp/packaging/actions.ts"
+    },
+    "705dd910c2436e718f40c5edb7e0561fb60388d9a6": {
+      "workers": {
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "addToPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/erp/packaging/page": "action-browser"
+      },
+      "exportedName": "addToPackagingCart",
+      "filename": "app/erp/packaging/actions.ts"
+    },
+    "00f0ef282a41cf6aea2fdd04654063597eb61d6859": {
+      "workers": {
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "clearPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/erp/packaging/page": "action-browser"
+      },
+      "exportedName": "clearPackagingCart",
+      "filename": "app/erp/packaging/actions.ts"
+    },
+    "40482620e491c4174145c5811b1a8875bd611a1dfa": {
+      "workers": {
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "createPackagingPrintFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/erp/packaging/page": "action-browser"
+      },
+      "exportedName": "createPackagingPrintFromCart",
+      "filename": "app/erp/packaging/actions.ts"
+    },
+    "004c81983e9a2167f4bea4d652deb5340014d11547": {
+      "workers": {
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "getPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/erp/packaging/page": "action-browser"
+      },
+      "exportedName": "getPackagingCart",
+      "filename": "app/erp/packaging/actions.ts"
+    },
+    "4054307db9e8e89ceab722df78d602db5615bde738": {
+      "workers": {
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "removeFromPackagingCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/erp/packaging/page": "action-browser"
+      },
+      "exportedName": "removeFromPackagingCart",
+      "filename": "app/erp/packaging/actions.ts"
+    },
+    "403d63d5a690c4a4c73f6a6f83f6b1623758c74009": {
+      "workers": {
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "previewPackagingFromCart",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/erp/packaging/page": "action-browser"
+      },
+      "exportedName": "previewPackagingFromCart",
+      "filename": "app/erp/packaging/actions.ts"
+    },
+    "400f2e6ff7088c1029e122214a108d312de203ad62": {
+      "workers": {
+        "app/erp/packaging/page": {
+          "moduleId": 793543,
+          "async": true,
+          "exportedName": "completePackagingThermalPrint",
+          "filename": "app/erp/packaging/actions.ts"
+        }
+      },
+      "layer": {
+        "app/erp/packaging/page": "action-browser"
+      },
+      "exportedName": "completePackagingThermalPrint",
+      "filename": "app/erp/packaging/actions.ts"
+    }
+  },
+  "edge": {}
+}

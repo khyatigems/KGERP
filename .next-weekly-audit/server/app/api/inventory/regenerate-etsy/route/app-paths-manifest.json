@@ -1,0 +1,3 @@
+{
+  "/api/inventory/regenerate-etsy/route": "app/api/inventory/regenerate-etsy/route.js"
+}

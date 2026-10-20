@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { toast } from "sonner";
+import { toast } from "@/lib/erp-feedback";
 import { APPEARANCE_STORAGE_KEY, DEFAULT_APPEARANCE, normalizeWorkspacePalette, parseWorkspaceAppearance, type WorkspaceAppearance } from "@/lib/workspace-appearance";
 type AppearanceContext = { appearance: WorkspaceAppearance; updateAppearance: (patch: Partial<WorkspaceAppearance>) => void; ready: boolean };
 const Context = createContext<AppearanceContext | null>(null);

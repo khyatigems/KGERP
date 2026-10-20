@@ -16,8 +16,8 @@ async function main() {
   for (const statement of migration.split(";").map(x => x.replace(/--[^\n]*/g, "").trim()).filter(Boolean)) await prisma.$executeRawUnsafe(statement);
   assert.ok(weeklyReportDdl.length > 5);
   const diff = execFileSync(process.execPath, [path.resolve("node_modules/prisma/build/index.js"), "migrate", "diff", "--from-url", process.env.DATABASE_URL!, "--to-schema-datamodel", "prisma/schema.prisma", "--script"], { encoding: "utf8" }); assert.match(diff, /empty migration/);
-  const { createRun, generateRun, deliverRun, readSettings, saveSettings, dispatch } = await import("@/lib/weekly-report/service");
-  const { defaultSettings, settingsKey } = await import("@/lib/weekly-report/config");
+  const { createRun, generateRun, deliverRun, readSettings, retryFailedGeneration, saveSettings, dispatch } = await import("@/lib/weekly-report/service");
+  const { defaultSettings, settingsKey, reportingPeriod } = await import("@/lib/weekly-report/config");
   const { ZohoMailConnector } = await import("@/lib/email/connectors/zoho");
   const { handleWeeklyReports } = await import("@/lib/weekly-report/http");
   const unauthenticated = (async () => null) as never, authenticated = (async () => ({ user: { id: "admin" } })) as never;
@@ -26,7 +26,11 @@ async function main() {
   assert.equal((await handleWeeklyReports(new Request("https://erp.test/api/settings/weekly-reports", { method: "PUT", headers: { origin: "https://evil.test" } }), { params: Promise.resolve({}) }, authenticated, async () => true)).status, 403);
   const s = { ...structuredClone(defaultSettings), deliveryEnabled: true, recipients: [{ email: "one@example.com", enabled: true }, { email: "two@example.com", enabled: true }] };
   await assert.rejects(saveSettings(s, null, "admin", true), /preview/);
-  await prisma.setting.create({ data: { key: settingsKey, value: JSON.stringify(s) } }); // isolated fixture, not a production enablement
+  const savedLogoConfig = await saveSettings({ ...structuredClone(defaultSettings), logo: "APPROVED_DEFAULT" }, null, "admin", true);
+  assert.equal(savedLogoConfig.settings.logo, "APPROVED_DEFAULT");
+  const settingsAudit = await prisma.activityLog.findFirstOrThrow({ where: { action: "WEEKLY_REPORT_SETTINGS" } });
+  assert.equal(settingsAudit.entityType, "WeeklyReportSettings"); assert.equal(settingsAudit.actionType, "UPDATE");
+  await prisma.setting.update({ where: { key: settingsKey }, data: { value: JSON.stringify(s) } }); // isolated fixture, not a production enablement
   const scheduled = new Date("2026-10-26T03:30:00Z");
   const runs = await Promise.all([createRun("LIVE", s, undefined, scheduled), createRun("LIVE", s, undefined, scheduled)]); assert.equal(runs[0].id, runs[1].id); assert.equal(await prisma.weeklyReportRun.count(), 1);
   const { buildMetrics } = await import("@/lib/weekly-report/metrics");
@@ -67,6 +71,21 @@ async function main() {
    ZohoMailConnector.prototype.send = async message => ({ status: "SENT", providerMessageId: `accepted-${message.to}` });
    await deliverRun(nextRun.id);
    assert.equal((await prisma.weeklyReportDelivery.findUniqueOrThrow({ where: { runId_recipient: { runId: nextRun.id, recipient: "one@example.com" } } })).status, "CANCELLED", "Disabling a recipient also stops unsent queued production delivery");
+   await prisma.setting.update({ where: { key: settingsKey }, data: { value: JSON.stringify({ ...s, logo: "APPROVED_DEFAULT" }) } });
+   const retryPeriod = reportingPeriod(s, scheduled), failedRetry = await prisma.weeklyReportRun.create({ data: { executionKey: "failed-preview-retry-test", mode: "PREVIEW", status: "FAILED", periodStart: retryPeriod.start, periodEnd: retryPeriod.end, timezone: s.timezone, scheduledFor: scheduled, configHash: "old-config", settingsJson: JSON.stringify({ ...s, logo: "COMPANY" }), attempts: 1, nextAttemptAt: new Date(0) } });
+   const retried = await retryFailedGeneration(failedRetry.id, "admin", {
+    generateRun: async id => {
+     const run = await prisma.weeklyReportRun.findUniqueOrThrow({ where: { id } }), retryConfig = JSON.parse(run.settingsJson);
+     assert.equal(retryConfig.logo, "APPROVED_DEFAULT", "retry uses the corrected saved logo");
+     assert.deepEqual(retryConfig.recipients, s.recipients, "retry preserves the original recipient snapshot");
+     assert.equal(run.periodStart.toISOString(), retryPeriod.start.toISOString(), "retry preserves the original reporting period");
+     return prisma.weeklyReportRun.update({ where: { id }, data: { status: "READY", pdfBase64: "fixture" } });
+    },
+    deliverRun: async () => {},
+   });
+   assert.equal(retried.status, "READY");
+   const retryAudit = await prisma.activityLog.findFirstOrThrow({ where: { action: "WEEKLY_REPORT_GENERATION_RETRY", referenceId: failedRetry.id } });
+   assert.equal(retryAudit.entityType, "WeeklyReportRun"); assert.equal(retryAudit.actionType, "RETRY_GENERATION");
   } finally { ZohoMailConnector.prototype.send = original; }
   console.log("Weekly report integration passed: additive migrations/schema parity, authentication/authorization/origin guards, preview gate, concurrent period idempotency and render lease, attachments, partial recipient failure, rate-limit retry and accepted/unknown duplicate-send protection. Disposable database only; no emails sent.");
  } finally { await prisma.$disconnect(); rmSync(temp, { recursive: true, force: true }); }

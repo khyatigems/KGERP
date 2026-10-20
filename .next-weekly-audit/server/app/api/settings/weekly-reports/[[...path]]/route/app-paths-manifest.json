@@ -1,0 +1,3 @@
+{
+  "/api/settings/weekly-reports/[[...path]]/route": "app/api/settings/weekly-reports/[[...path]]/route.js"
+}

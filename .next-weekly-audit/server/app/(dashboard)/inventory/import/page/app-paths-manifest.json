@@ -1,0 +1,3 @@
+{
+  "/(dashboard)/inventory/import/page": "app/(dashboard)/inventory/import/page.js"
+}

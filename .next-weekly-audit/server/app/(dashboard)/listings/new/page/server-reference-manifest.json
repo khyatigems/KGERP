@@ -1,0 +1,20 @@
+{
+  "node": {
+    "607b34c26b4e9c80c28e480eaaf85c16c19e72a95f": {
+      "workers": {
+        "app/(dashboard)/listings/new/page": {
+          "moduleId": 86118,
+          "async": true,
+          "exportedName": "createListing",
+          "filename": "app/(dashboard)/listings/actions.ts"
+        }
+      },
+      "layer": {
+        "app/(dashboard)/listings/new/page": "action-browser"
+      },
+      "exportedName": "createListing",
+      "filename": "app/(dashboard)/listings/actions.ts"
+    }
+  },
+  "edge": {}
+}

@@ -2,9 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, Suspense, useRef, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Toaster } from "sonner";
+import { Toaster } from "@/lib/erp-feedback";
 import { MarketplaceSyncToastMonitor } from "@/components/marketplace/sync-toast-monitor";
 import { TopLoader } from "@/components/ui/top-loader";
+import { ErpConfirmationProvider } from "@/components/providers/erp-confirmation-provider";
 
 interface GlobalLoaderContextType {
   isLoading: boolean;
@@ -97,20 +98,24 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <GlobalLoaderContext.Provider value={{ isLoading, setIsLoading, showLoader, hideLoader }}>
-      {children}
-      <MarketplaceSyncToastMonitor />
-      <TopLoader isLoading={isLoading} progress={progress} />
-      {isLoading && <div role="status" className="pointer-events-none fixed bottom-5 right-5 z-[9998] rounded-xl border bg-card px-4 py-2 text-xs text-muted-foreground shadow-sm">Loading…</div>}
-      <Toaster
-        richColors
-        expand
-        visibleToasts={4}
-        toastOptions={{
-          unstyled: false,
-        }}
-      />
-    </GlobalLoaderContext.Provider>
+    <ErpConfirmationProvider>
+      <GlobalLoaderContext.Provider value={{ isLoading, setIsLoading, showLoader, hideLoader }}>
+        {children}
+        <MarketplaceSyncToastMonitor />
+        <TopLoader isLoading={isLoading} progress={progress} />
+        {isLoading && <div role="status" className="pointer-events-none fixed bottom-5 right-5 z-[9998] rounded-xl border bg-card px-4 py-2 text-xs text-muted-foreground shadow-sm">Loading…</div>}
+        <Toaster
+          richColors
+          expand
+          visibleToasts={4}
+          toastOptions={{
+            unstyled: false,
+            className: "erp-toast",
+            duration: 4_500,
+          }}
+        />
+      </GlobalLoaderContext.Provider>
+    </ErpConfirmationProvider>
   );
 }
 
