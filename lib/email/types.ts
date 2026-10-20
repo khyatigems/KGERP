@@ -32,6 +32,9 @@ export interface EmailMessage {
 }
 
 export interface EmailSendResult {
+  outcomeUnknown?: boolean;
+  retryAfterSeconds?: number;
+  retryable?: boolean;
   providerMessageId?: string;
   status: "SENT" | "QUEUED" | "FAILED";
   error?: string;

@@ -45,6 +45,7 @@ function responseErrorMessage(body: unknown): string | undefined {
 export class HttpError extends Error {
   status: number;
   body: unknown;
+  retryAfterSeconds?: number;
 
   constructor(message: string, status: number, body?: unknown) {
     const detail = responseErrorMessage(body);
@@ -150,7 +151,14 @@ export async function httpRequest(
       }
 
       const body = await readErrorBody(response);
-      throw new HttpError(`HTTP ${response.status}`, response.status, body);
+      const error = new HttpError(`HTTP ${response.status}`, response.status, body);
+      const retryHeader = response.headers.get("retry-after");
+      if (retryHeader) {
+        const seconds = Number(retryHeader);
+        const parsed = Number.isFinite(seconds) ? seconds : (Date.parse(retryHeader) - Date.now()) / 1000;
+        if (Number.isFinite(parsed)) error.retryAfterSeconds = Math.max(0, parsed);
+      }
+      throw error;
     } catch (error) {
       clearTimeout(timeout);
       if (error instanceof HttpError) throw error;

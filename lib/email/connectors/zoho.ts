@@ -171,6 +171,11 @@ export class ZohoMailConnector implements EmailProvider {
     }
   }
 
+  async getSenderIdentity(): Promise<string | null> {
+    const account = await this.getConnectedAccount();
+    return account ? formatZohoFromAddress(this.fromAddress || account.email, this.fromName) : null;
+  }
+
   getAuthorizationUrl(state: string): string {
     const params = new URLSearchParams({
       scope: SCOPES,
@@ -270,6 +275,7 @@ export class ZohoMailConnector implements EmailProvider {
       return { status: "FAILED", error: "Zoho Mail client credentials not configured" };
     }
 
+    let submissionStarted = false;
     try {
       const token = await this.getAccessToken();
       const headers = await this.getHeaders(token);
@@ -301,7 +307,7 @@ export class ZohoMailConnector implements EmailProvider {
             attachmentPath: uploaded.attachmentPath,
             attachmentName: uploaded.attachmentName || a.fileName,
           });
-        }
+          } else throw new Error("Zoho attachment upload did not return attachment metadata");
       }
 
       const payload: Record<string, unknown> = {
@@ -315,25 +321,27 @@ export class ZohoMailConnector implements EmailProvider {
         ...(attachments.length ? { attachments } : {}),
       };
 
-      console.log("[zoho] sending to", message.to, "attachments:", attachments.length);
-
+      submissionStarted = true;
       const data = await httpJson<{ data?: { messageId?: string } }>(
         `${MAIL_API}/accounts/${accountId}/messages`,
         {
           method: "POST",
           headers: { ...headers, "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-        }
+        }, { maxRetries: 0 }
       );
 
-      return { status: "SENT", providerMessageId: data?.data?.messageId || undefined };
+      if (!data?.data?.messageId) return { status: "FAILED", outcomeUnknown: true, error: "Zoho submission returned no message ID; verify in Sent before retrying." };
+      return { status: "SENT", providerMessageId: data.data.messageId };
     } catch (error) {
-      const err = error as { message?: string; body?: unknown };
-      const detail = err.body ? JSON.stringify(err.body) : "";
-      console.error("[zoho] send failed:", err.message, detail);
+      const err = error as { status?: number; retryAfterSeconds?: number };
+      const unknown = submissionStarted && (!err.status || err.status >= 500 || err.status === 408);
       return {
         status: "FAILED",
-        error: detail ? `${err.message} — ${detail}` : (err.message ?? String(error)),
+        error: unknown ? "Zoho submission outcome is unknown; verify in Sent before retrying." : `Zoho ${submissionStarted ? "submission" : "preparation/attachment upload"} failed${err.status ? ` (HTTP ${err.status})` : ""}.`,
+        outcomeUnknown: unknown,
+        retryable: !unknown && (!submissionStarted || err.status === 429),
+        retryAfterSeconds: err.retryAfterSeconds,
       };
     }
   }

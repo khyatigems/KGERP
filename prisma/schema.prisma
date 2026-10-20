@@ -26,6 +26,12 @@ model User {
   forceLogoutBefore  DateTime?
   createdAt          DateTime  @default(now())
 
+  workSessions               WorkSession[]
+  workTargets                WorkTarget[]
+  workActivityEvents         WorkActivityEvent[]
+  workTrackerCredentials     WorkTrackerCredential[]
+  notifications              Notification[]
+
   roleRelation               Role?                  @relation(fields: [roleId], references: [id])
   userPermissions            UserPermission[]
   labelCartItems             LabelCartItem[]
@@ -49,6 +55,22 @@ model User {
   confirmedSets              InventorySet[]       @relation("SetConfirmedBy")
 
   @@index([roleId])
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  eventKey    String
+  type        String   @default("info")
+  title       String
+  message     String
+  href        String?
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventKey])
+  @@index([userId, readAt, createdAt])
 }
 
 model Permission {
@@ -1960,4 +1982,136 @@ model EmailProviderEvent {
 
   @@index([communicationId, occurredAt])
   @@index([providerMessageId])
+}
+
+// Work tracker uses strings for enums, matching the SQLite schema conventions.
+model WorkSession {
+  id String @id @default(uuid())
+  userId String
+  platform String
+  activityType String
+  description String @default("")
+  sku String?
+  marketplaceListingId String?
+  inventoryId String?
+  marketplaceShopId String?
+  listingRecordId String?
+  startedAt DateTime
+  endedAt DateTime?
+  durationSeconds Int @default(0)
+  status String @default("RUNNING")
+  trackingSource String @default("MANUAL")
+  notes String?
+  requestId String
+  // Unique non-null user ID while RUNNING or PAUSED; database-enforced timer lock.
+  activeUserId String? @unique
+  revision Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id])
+  intervals WorkInterval[]
+  events WorkActivityEvent[]
+  @@unique([userId, requestId])
+  @@index([userId, startedAt])
+  @@index([platform, startedAt])
+  @@index([status])
+}
+model WorkInterval {
+  id String @id @default(uuid())
+  sessionId String
+  startedAt DateTime
+  endedAt DateTime?
+  session WorkSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId, startedAt])
+}
+model WorkTarget {
+  id String @id @default(uuid())
+  userId String
+  platform String
+  period String
+  targetMinutes Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id])
+  @@unique([userId, platform, period])
+}
+model WorkActivityEvent {
+  id String @id
+  userId String
+  platform String
+  domain String
+  eventType String
+  occurredAt DateTime
+  durationSeconds Int @default(0)
+  source String @default("EXTENSION")
+  sessionId String?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id])
+  session WorkSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  @@index([userId, occurredAt])
+  @@index([sessionId])
+}
+model WorkTrackerCredential {
+  id String @id @default(uuid())
+  userId String
+  name String
+  tokenHash String @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id])
+  @@index([userId])
+}
+
+model WeeklyReportRun {
+ id String @id @default(uuid())
+ executionKey String @unique
+ mode String
+ status String @default("QUEUED")
+ periodStart DateTime
+ periodEnd DateTime
+ timezone String
+ scheduledFor DateTime?
+ configHash String
+ settingsJson String
+ metricsJson String?
+ dataQuality String @default("PENDING")
+ pdfBase64 String?
+ pdfChecksum String?
+ pdfBytes Int?
+ attempts Int @default(0)
+ leaseOwner String?
+ leaseUntil DateTime?
+ nextAttemptAt DateTime?
+ requestedById String?
+ errorCode String?
+ errorSummary String?
+ startedAt DateTime?
+ completedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ deliveries WeeklyReportDelivery[]
+ @@index([status, nextAttemptAt])
+ @@index([periodStart, periodEnd])
+ @@index([createdAt])
+}
+model WeeklyReportDelivery {
+ id String @id @default(uuid())
+ runId String
+ recipient String
+ status String @default("PENDING")
+ attempts Int @default(0)
+ attemptedAt DateTime?
+ acceptedAt DateTime?
+ nextAttemptAt DateTime?
+ providerMessageId String?
+ emailLogId String?
+ errorCode String?
+ errorSummary String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ run WeeklyReportRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+ @@unique([runId, recipient])
+ @@index([status, nextAttemptAt])
+ @@index([runId])
 }

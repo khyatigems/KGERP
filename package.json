@@ -53,7 +53,13 @@
     "test:pdf-generation": "tsx scripts/tests/pdf-generation-and-loyalty.test.ts",
     "test:all": "npm run test:attention && npm run test:invoice && npm run test:reports && npm run test:customers && npm run test:pdf-generation",
     "analytics:daily": "tsx scripts/generate-daily-analytics.ts",
-    "postinstall": "node scripts/prisma-generate.mjs && node scripts/patch-lottie-player.mjs"
+    "postinstall": "node scripts/prisma-generate.mjs && node scripts/patch-lottie-player.mjs",
+    "test:work-tracker": "tsx scripts/tests/work-tracker.unit.ts && tsx scripts/tests/work-tracker.integration.ts && node scripts/tests/work-tracker-extension.mjs",
+    "build:work-tracker-extension": "node extensions/work-tracker/build.mjs",
+    "test:weekly-reports": "tsx scripts/tests/weekly-report.unit.ts && tsx scripts/tests/weekly-report.integration.ts && tsx scripts/tests/weekly-report.zoho.ts",
+    "test:weekly-reports:pdf": "tsx scripts/tests/weekly-report.pdf.ts",
+    "test:weekly-reports:ui": "tsx scripts/tests/weekly-report.ui.ts",
+    "test:notifications": "tsx scripts/tests/notifications.integration.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -78,7 +84,6 @@
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-switch": "^1.2.6",
-    "@radix-ui/react-toast": "^1.2.15",
     "@tanstack/react-table": "^8.21.3",
     "@vercel/speed-insights": "^2.0.0",
     "canvas": "^3.2.1",

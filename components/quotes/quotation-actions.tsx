@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Pencil, IndianRupee, XCircle, Loader2, Send, FileText } from "lucide-react";
 import { cancelQuotation, sendQuotation, convertQuotationToInvoice } from "@/app/(dashboard)/quotes/actions";
 import { useState } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 interface QuotationActionsProps {
@@ -18,7 +18,6 @@ export function QuotationActions({ id, status, items }: QuotationActionsProps) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
-  const { toast } = useToast();
   const router = useRouter();
 
   // Allow actions for DRAFT and SENT (and legacy ACTIVE)
@@ -38,10 +37,10 @@ export function QuotationActions({ id, status, items }: QuotationActionsProps) {
       setIsCancelling(true);
       try {
           await cancelQuotation(id);
-          toast({ title: "Quotation cancelled" });
+          toast.success("Quotation cancelled");
       } catch (e) {
           console.error(e);
-          toast({ title: "Failed to cancel quotation", variant: "destructive" });
+          toast.error("Failed to cancel quotation");
       } finally {
           setIsCancelling(false);
       }
@@ -51,10 +50,10 @@ export function QuotationActions({ id, status, items }: QuotationActionsProps) {
       setIsSending(true);
       try {
           await sendQuotation(id);
-          toast({ title: "Quotation sent" });
+          toast.success("Quotation sent");
       } catch (e) {
           console.error(e);
-          toast({ title: "Failed to send quotation", variant: "destructive" });
+          toast.error("Failed to send quotation");
       } finally {
           setIsSending(false);
       }
@@ -66,14 +65,14 @@ export function QuotationActions({ id, status, items }: QuotationActionsProps) {
       try {
           const result = await convertQuotationToInvoice(id);
           if (result.success && result.invoiceId) {
-              toast({ title: "Converted to Invoice" });
+              toast.success("Converted to Invoice");
               router.push(`/invoices/${result.invoiceId}`);
           } else {
-             toast({ title: result.message || "Failed to convert", variant: "destructive" });
+             toast.error(result.message || "Failed to convert");
           }
       } catch (e) {
           console.error(e);
-          toast({ title: "Failed to convert", variant: "destructive" });
+          toast.error("Failed to convert");
       } finally {
           setIsConverting(false);
       }

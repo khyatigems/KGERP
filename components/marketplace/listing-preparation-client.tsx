@@ -8,6 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useWorkContext } from "@/lib/work-tracker/browser-context";
 import { toast } from "sonner";
 import { CheckCircle2, CircleAlert, Image as ImageIcon, Loader2, Sparkles, Video } from "lucide-react";
 import { buildMarketplaceTitle, InventoryPicker } from "@/components/listings/inventory-picker";
@@ -415,6 +416,7 @@ export function ListingPreparationClient({
   selectedMediaRef.current = selectedMediaUrls;
   const activeShops = marketplace === "EBAY" ? ebayShops : marketplace === "ETSY" ? etsyShops : [];
   const selectedShop = activeShops.find((shop) => shop.id === shopId);
+  useWorkContext({ platform: marketplace || "ERP", activityType: "LISTING_PREPARATION", inventoryId: inventoryId || null, marketplaceShopId: shopId || null, label: selectedInventory?.sku || "Listing preparation" });
   const etsyRequirementsChecked = areEtsyRequirementsCurrent(loadedEtsyRequirements, shopId, etsyListingDetails.taxonomyId)
     && loadedEtsyRequirements?.inventoryId === inventoryId
     && loadedEtsyRequirements?.reload === etsyRequirementsReload

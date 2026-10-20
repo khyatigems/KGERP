@@ -1,0 +1,135 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { PrismaClient } from "@prisma/client";
+
+async function main() {
+  const temp = mkdtempSync(path.join(tmpdir(), "kg-work-tracker-"));
+  const url = `file:${path.join(temp, "test.db").replaceAll("\\", "/")}`;
+  // Set before importing application modules; never connect the suite to the configured ERP database.
+  process.env.DATABASE_URL = url; process.env.TURSO_DATABASE_URL = ""; process.env.TURSO_URL = "";
+  const db = new PrismaClient({ datasources: { db: { url } } });
+  try {
+    const cli = path.resolve("node_modules/prisma/build/index.js");
+    const fullSchema = execFileSync(process.execPath, [cli, "migrate", "diff", "--from-empty", "--to-schema-datamodel", "prisma/schema.prisma", "--script"], { encoding: "utf8", env: process.env });
+    const statements = fullSchema.split(";").map(s => s.replace(/--[^\n]*/g, "").trim()).filter(Boolean);
+    for (const statement of statements.filter(s => !/CREATE (?:TABLE|UNIQUE INDEX|INDEX) "Work(?:Session|Interval|Target|ActivityEvent|TrackerCredential)/.test(s))) await db.$executeRawUnsafe(statement);
+    const migration = readFileSync("prisma/migrations/20261020000000_work_tracker/migration.sql", "utf8");
+    for (const statement of migration.split(";").map(s => s.replace(/--[^\n]*/g, "").trim()).filter(Boolean)) await db.$executeRawUnsafe(statement);
+    for (const statement of readFileSync("prisma/migrations/20261020010000_work_tracker_context/migration.sql", "utf8").split(";").map(s => s.replace(/--[^\n]*/g, "").trim()).filter(Boolean)) await db.$executeRawUnsafe(statement);
+    const diff = execFileSync(process.execPath, [cli, "migrate", "diff", "--from-url", url, "--to-schema-datamodel", "prisma/schema.prisma", "--script"], { encoding: "utf8", env: process.env });
+    writeFileSync(path.join(temp, "diff.sql"), diff); assert.match(diff, /empty migration/);
+    const { startTimer, transition, correctSession, ingestEvents, deleteSession } = await import("@/lib/work-tracker/service");
+    const { report, reportQuery, productivity } = await import("@/lib/work-tracker/reports");
+    const { handleTracker } = await import("@/lib/work-tracker/http");
+    const { trackerIdentity, newToken, hashToken } = await import("@/lib/work-tracker/auth");
+    const { TrackerError } = await import("@/lib/work-tracker/core");
+    const { ensureWorkTrackerSchema, workTrackerDdl } = await import("@/lib/work-tracker/schema");
+    const normalizedMigration = migration.split(";").map(s => s.replace(/--[^\n]*/g, "").trim()).filter(Boolean).map(s => s.replace(/CREATE (TABLE|UNIQUE INDEX|INDEX) (?!IF NOT EXISTS)/, "CREATE $1 IF NOT EXISTS "));
+    assert.deepEqual(workTrackerDdl.map(s => s.replace(/\r\n/g, "\n")), normalizedMigration.map(s => s.replace(/\r\n/g, "\n")));
+    const bootstrapDb = new PrismaClient({ datasources: { db: { url: `file:${path.join(temp, "bootstrap.db").replaceAll("\\", "/")}` } } });
+    try {
+      for (const statement of statements.filter(s => !/CREATE (?:TABLE|UNIQUE INDEX|INDEX) "Work(?:Session|Interval|Target|ActivityEvent|TrackerCredential)/.test(s))) await bootstrapDb.$executeRawUnsafe(statement);
+      await bootstrapDb.user.create({ data: { id: "bootstrap", name: "Bootstrap", email: "bootstrap@example.test", password: "fixture", role: "STAFF" } });
+      const inventory = await bootstrapDb.inventory.create({ data: { sku: "KEEP-EXISTING", itemName: "Existing inventory", category: "Gemstone", costPrice: 1, sellingPrice: 2 } });
+      const identifyBootstrap = async () => ({ userId: "bootstrap", extension: false });
+      const responses = await Promise.all(["sessions", "reports/summary", "reports/productivity", "credentials"].map(route => handleTracker(new Request(`https://erp.khyatigems.com/api/work-tracker/${route}`), { params: Promise.resolve({ path: route.split("/") }) }, bootstrapDb, identifyBootstrap)));
+      for (const response of responses) assert.equal(response.status, 200, await response.text());
+      const credentialResponse = await handleTracker(new Request("https://erp.khyatigems.com/api/work-tracker/credentials", { method: "POST", headers: { origin: "https://erp.khyatigems.com" }, body: JSON.stringify({ name: "Chrome after initialization" }) }), { params: Promise.resolve({ path: ["credentials"] }) }, bootstrapDb, identifyBootstrap);
+      assert.equal(credentialResponse.status, 200);
+      assert.match((await credentialResponse.json()).token, /^kgwt_/);
+      await ensureWorkTrackerSchema(bootstrapDb);
+      assert.equal((await bootstrapDb.inventory.findUniqueOrThrow({ where: { id: inventory.id } })).sku, "KEEP-EXISTING");
+      for (const statement of migration.split(";").map(s => s.replace(/--[^\n]*/g, "").trim()).filter(Boolean)) await bootstrapDb.$executeRawUnsafe(statement);
+      assert.equal(await bootstrapDb.workTrackerCredential.count(), 1);
+      console.log("Missing-schema regression passed: simultaneous dashboard requests and credential creation initialize tracker tables while preserving inventory");
+    } finally { await bootstrapDb.$disconnect(); }
+    for (const id of ["alice", "bob"]) await db.user.create({ data: { id, name: id, email: `${id}@example.test`, role: "STAFF", password: "test-only" } });
+    const input = { requestId: crypto.randomUUID(), platform: "EBAY", activityType: "LISTING_CREATION" };
+    let session = await startTimer("alice", input, db);
+    assert.equal((await startTimer("alice", input, db)).id, session.id);
+    await assert.rejects(startTimer("alice", { ...input, requestId: crypto.randomUUID() }, db), /existing/);
+    const race = await Promise.allSettled([startTimer("bob", { ...input, requestId: crypto.randomUUID() }, db), startTimer("bob", { ...input, requestId: crypto.randomUUID() }, db)]);
+    assert.equal(race.filter(r => r.status === "fulfilled").length, 1);
+    assert.equal(await db.workSession.count({ where: { userId: "bob", activeUserId: "bob" } }), 1);
+    await assert.rejects(transition("bob", session.id, "pause", session.revision, db), /not found/);
+    session = await transition("alice", session.id, "pause", session.revision, db);
+    assert.equal(session.status, "PAUSED"); assert.ok(session.intervals.every(i => i.endedAt));
+    session = await transition("alice", session.id, "resume", session.revision, db);
+    assert.equal(session.intervals.length, 2);
+    await assert.rejects(transition("alice", session.id, "pause", 0, db), /changed/);
+    session = await transition("alice", session.id, "stop", session.revision, db);
+    assert.equal(session.status, "COMPLETED"); assert.equal(session.activeUserId, null);
+    assert.equal((await transition("alice", session.id, "stop", session.revision - 1, db)).revision, session.revision);
+    const end = Math.floor((Date.now() - 600000) / 1000) * 1000, start = end - 60000;
+    const corrected = await correctSession("alice", session.id, { revision: session.revision, startedAt: new Date(start).toISOString(), endedAt: new Date(end).toISOString(), marketplaceListingId: "published-1" }, db);
+    assert.equal(corrected!.durationSeconds, 60);
+    const event = { id: crypto.randomUUID(), platform: "ETSY", domain: "www.etsy.com", eventType: "ACTIVE", activityType: "OTHER", startedAt: new Date(start).toISOString(), occurredAt: new Date(end).toISOString() };
+    await ingestEvents("alice", { events: [event] }, "erp.khyatigems.com", db);
+    await ingestEvents("alice", { events: [event] }, "erp.khyatigems.com", db);
+    assert.equal(await db.workActivityEvent.count(), 1);
+    await assert.rejects(ingestEvents("bob", { events: [event] }, "erp.khyatigems.com", db), /conflict/);
+    const q = reportQuery(new URL(`https://erp.khyatigems.com?from=${new Date(start - 60000).toISOString()}&to=${new Date(end + 60000).toISOString()}&timeZone=Asia/Kolkata`));
+    let summary = await report("alice", q, db); assert.equal(summary.totalSeconds, 60); assert.equal(summary.byPlatform.EBAY, 60); assert.equal(summary.byPlatform.ETSY, 0);
+    assert.equal((await report("alice", { ...q, start: new Date(start + 30000), end: new Date(end) }, db)).totalSeconds, 30);
+    assert.equal((await report("alice", { ...q, platform: "ETSY" }, db)).totalSeconds, 0);
+    assert.equal((await report("bob", q, db)).totalSeconds, 0);
+    const fixture = { listedPrice: 10, platform: "EBAY", externalId: "published-1", status: "ACTIVE", rawMetadata: JSON.stringify({ completeEbay: { state: "PUBLISHED" }, workPublication: { listingId: "published-1", userId: "alice", publishedAt: new Date(end).toISOString() } }) };
+    await db.listing.create({ data: fixture });
+    await db.listing.create({ data: fixture }); // duplicate import of same external ID
+    await db.listing.create({ data: { ...fixture, externalId: "imported-2", rawMetadata: null } });
+    // Duplicate records for one shop/listing must not hide valid attribution.
+    let metrics = await productivity("alice", q, db); assert.equal(metrics.platforms[1].publishedListings, 1); assert.equal(metrics.platforms[1].averageMinutesPerListing, 1);
+    const connection = await db.marketplaceConnection.create({ data: { marketplace: "EBAY", externalAccountId: "test-other-account" } });
+    const shop = await db.marketplaceShop.create({ data: { connectionId: connection.id, marketplace: "EBAY", externalShopId: "test-other-shop", name: "Other shop" } });
+    const ambiguous = await db.listing.create({ data: { ...fixture, marketplaceShopId: shop.id } });
+    metrics = await productivity("alice", q, db); assert.equal(metrics.platforms[1].publishedListings, 2); assert.equal(metrics.platforms[1].averageMinutesPerListing, null);
+    await db.listing.delete({ where: { id: ambiguous.id } });
+    const duplicates = await db.listing.findMany({ where: { externalId: "published-1" } }); await db.listing.delete({ where: { id: duplicates[1].id } });
+    metrics = await productivity("alice", q, db); assert.equal(metrics.platforms[1].averageMinutesPerListing, 1); assert.equal(metrics.platforms[1].listingsPerHour, 60); assert.equal(metrics.platforms[2].publishedListings, null);
+    assert.equal(Object.values(metrics.daily).reduce((n, values) => n + (values[1].publishedListings || 0), 0), 1);
+    assert.equal(Object.values(metrics.weekly).reduce((n, values) => n + (values[1].publishedListings || 0), 0), 1);
+    assert.equal((await productivity("bob", q, db)).platforms[1].publishedListings, 0);
+    const identify = async (req: Request) => { const userId = req.headers.get("x-test-user"); if (!userId) throw new TrackerError("Unauthorized", 401); return { userId, extension: false }; };
+    async function request(route: string, method = "GET", body?: unknown, user = "alice") {
+      return handleTracker(new Request(`https://erp.khyatigems.com/api/work-tracker/${route}`, { method, headers: { "x-test-user": user, origin: "https://erp.khyatigems.com" }, body: body === undefined ? undefined : JSON.stringify(body) }), { params: Promise.resolve({ path: route.split("?")[0].split("/") }) }, db, identify);
+    }
+    assert.equal((await request("sessions", "GET", undefined, "")).status, 401);
+    assert.equal((await request(`sessions/${session.id}`, "PATCH", { revision: corrected!.revision, notes: "forbidden" }, "bob")).status, 404);
+    const listed = await (await request("sessions")).json(); assert.ok(listed.entries.every((s: { userId: string }) => s.userId === "alice"));
+    assert.equal((await request("targets", "PUT", { platform: "ERP", period: "DAILY", targetMinutes: 60 })).status, 200);
+    assert.equal((await request("targets", "PUT", { platform: "ERP", period: "DAILY", targetMinutes: 90 })).status, 200);
+    assert.equal(await db.workTarget.count(), 1);
+    const credential = await (await request("credentials", "POST", { name: "Test Chrome" })).json(); assert.match(credential.token, /^kgwt_/);
+    const bearer = new Request("https://erp.khyatigems.com/api/work-tracker/activity-events", { headers: { Authorization: `Bearer ${credential.token}` } });
+    assert.equal((await trackerIdentity(bearer, false, db)).userId, "alice");
+    assert.equal((await db.workTrackerCredential.findUnique({ where: { id: credential.id } }))!.tokenHash, hashToken(credential.token));
+    const authenticated = (req: Request, cookieOnly = false) => trackerIdentity(req, cookieOnly, db, async () => null);
+    assert.equal((await handleTracker(new Request("https://erp.khyatigems.com/api/work-tracker/sessions"), { params: Promise.resolve({ path: ["sessions"] }) }, db, authenticated)).status, 401);
+    assert.equal((await handleTracker(bearer, { params: Promise.resolve({ path: ["credentials"] }) }, db, authenticated)).status, 401);
+    assert.equal((await handleTracker(bearer, { params: Promise.resolve({ path: ["reports", "summary"] }) }, db, authenticated)).status, 403);
+    await request(`credentials/${credential.id}`, "DELETE", {});
+    await assert.rejects(trackerIdentity(bearer, false, db), /revoked/);
+    await assert.rejects(trackerIdentity(new Request("https://erp.khyatigems.com", { method: "POST", headers: { origin: "https://evil.test" } }), false, db, async () => ({ user: { id: "alice" } })), /origin/);
+    const automatic = await db.workSession.findUniqueOrThrow({ where: { userId_requestId: { userId: "alice", requestId: event.id } } });
+    await deleteSession("alice", automatic.id, automatic.revision, db); await ingestEvents("alice", { events: [event] }, "erp.khyatigems.com", db);
+    assert.equal(await db.workSession.count({ where: { requestId: event.id } }), 0);
+    await correctSession("alice", session.id, { revision: corrected!.revision, endedAt: new Date(end + 30000).toISOString() }, db);
+    summary = await report("alice", q, db); assert.equal(summary.totalSeconds, 90);
+    const { ingestErpEvents } = await import("@/lib/work-tracker/service");
+    const product = await db.inventory.create({ data: { sku: "AUTO-CONTEXT", itemName: "Automatic context", category: "Gemstone", costPrice: 1, sellingPrice: 2 } });
+    const erpEvent = { ...event, id: crypto.randomUUID(), platform: "EBAY", domain: "erp.khyatigems.com", activityType: "LISTING_PREPARATION", classificationOverride: true, inventoryId: product.id, marketplaceShopId: shop.id, startedAt: new Date(start - 60000).toISOString(), occurredAt: new Date(start - 30000).toISOString() };
+    await ingestEvents("alice", { events: [{ ...event, id: crypto.randomUUID(), startedAt: erpEvent.startedAt, occurredAt: erpEvent.occurredAt }] }, "erp.khyatigems.com", db);
+    await ingestErpEvents("alice", { events: [erpEvent] }, "erp.khyatigems.com", db);
+    await ingestErpEvents("alice", { events: [erpEvent] }, "erp.khyatigems.com", db);
+    const automaticContext = await db.workSession.findUniqueOrThrow({ where: { userId_requestId: { userId: "alice", requestId: erpEvent.id } } });
+    assert.equal(automaticContext.trackingSource, "AUTOMATIC"); assert.equal(automaticContext.inventoryId, product.id); assert.equal(automaticContext.marketplaceShopId, shop.id);
+    summary = await report("alice", q, db); assert.equal(summary.totalSeconds, 120); assert.equal(summary.byPlatform.ETSY, 0, "ERP context wins over an overlapping extension estimate");
+    await assert.rejects(ingestErpEvents("alice", { events: [{ ...erpEvent, id: crypto.randomUUID(), platform: "ETSY" }] }, "erp.khyatigems.com", db), /context/);
+    assert.notEqual(newToken(), newToken());
+    console.log("Work tracker integration passed: additive migration parity, lifecycle, ownership, auth, CSRF, credentials, duplicate events, overlap reports, corrections, targets and confirmed listing metrics");
+  } finally { await db.$disconnect(); rmSync(temp, { recursive: true, force: true }); }
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });

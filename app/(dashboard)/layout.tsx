@@ -9,7 +9,7 @@ import { auth } from "@/lib/auth";
 import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema, ensurePasswordResetSchema, ensurePerformanceIndexes } from "@/lib/prisma";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { getPermissionsForRole } from "@/lib/permissions";
-import { SmartNotificationsProvider } from "@/components/ui/smart-notifications";
+import { AutomaticWorkTracker } from "@/components/work-tracker/automatic-tracker";
 
 const SCHEMA_CACHE_TTL = 5 * 60 * 1000;
 let schemaCache: { result: boolean; expiresAt: number } | null = null;
@@ -172,8 +172,8 @@ export default async function DashboardLayout({
   }
 
   return (
+    <AutomaticWorkTracker userId={session?.user?.id || ""}>
     <SidebarProvider>
-      <SmartNotificationsProvider>
         <SidebarGridClient>
           <div className="hidden border-r lg:block bg-sidebar border-sidebar-border premium-sidebar">
             <Sidebar allowedModules={allowedNavModules} />
@@ -186,7 +186,7 @@ export default async function DashboardLayout({
             </main>
           </div>
         </SidebarGridClient>
-      </SmartNotificationsProvider>
     </SidebarProvider>
+    </AutomaticWorkTracker>
   );
 }

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecordAdvanceDialog } from "@/components/advances/record-advance-dialog";
 import { formatCurrency } from "@/lib/utils";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { Plus, Search, Wallet, ArrowUpRight, ArrowDownRight, Download, Loader2 } from "lucide-react";
 import { generateAdvanceReceiptPDF, type AdvanceReceiptData } from "@/lib/advance-receipt-generator";
@@ -58,7 +58,6 @@ function DownloadAdvanceButton({
   companySettings?: AdvancesPageProps["companySettings"];
 }) {
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const handleDownload = async () => {
     setLoading(true);
@@ -99,17 +98,10 @@ function DownloadAdvanceButton({
       
       setTimeout(() => URL.revokeObjectURL(url), 100);
       
-      toast({
-        title: "Receipt Downloaded",
-        description: `Advance receipt ${pdfData.advanceNumber} has been downloaded.`,
-      });
+      toast.success(`Advance receipt ${pdfData.advanceNumber} downloaded`);
     } catch (error) {
       console.error("Failed to generate PDF:", error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to generate advance receipt. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to generate advance receipt. Please try again.");
     } finally {
       setLoading(false);
     }

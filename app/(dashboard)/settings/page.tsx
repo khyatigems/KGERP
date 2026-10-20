@@ -51,6 +51,11 @@ export default async function SettingsPage() {
       <SettingsWorkspace
         modules={
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <LoadingLink href="/settings/weekly-reports">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader><FileText className="h-8 w-8 mb-2 text-primary" /><CardTitle>Reports &amp; Email Alerts</CardTitle><CardDescription>Weekly business intelligence, branded PDFs, schedules and Zoho delivery history.</CardDescription></CardHeader>
+              </Card>
+            </LoadingLink>
             <LoadingLink href="/settings/codes">
               <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
                 <CardHeader>

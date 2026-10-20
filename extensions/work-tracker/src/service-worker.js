@@ -1,0 +1,107 @@
+import { defaults, validateSettings, sendEvents } from "./api-client.js";
+import { eligibleTab } from "./platform-detection.js";
+import { sliceInterval, removeIdle, readyEvents, acknowledge } from "./activity-tracker.js";
+
+// Serialize state changes; network requests must not block focus/idle sampling.
+let chain = Promise.resolve();
+let syncInFlight = null;
+function schedule(fn, onError) { chain = chain.catch(() => {}).then(fn).catch(async error => { await chrome.storage.local.set({ lastError: error.message }); await badge(false, "!"); onError?.(error); }); return chain; }
+async function settings() { return { ...defaults, ...(await chrome.storage.local.get("settings")).settings }; }
+async function badge(active, text) { await chrome.action.setBadgeText({ text: text || (active ? "ON" : "OFF") }); await chrome.action.setBadgeBackgroundColor({ color: active ? "#15803d" : "#64748b" }); await chrome.action.setTitle({ title: active ? "Work Tracker — estimating active work" : "Work Tracker — paused / idle / unsupported tab" }); }
+async function sample(eventType = "TAB_SWITCH", reset = false, idleOverride = null) {
+  const config = await settings();
+  chrome.idle.setDetectionInterval(config.idleSeconds);
+  const saved = await chrome.storage.local.get(["previous", "queue"]);
+  let queue = saved.queue || []; const now = Date.now();
+  const idle = idleOverride || await chrome.idle.queryState(config.idleSeconds);
+  let window; try { window = await chrome.windows.getLastFocused(); } catch { /* No browser windows */ }
+  const tabs = window?.focused && window.state !== "minimized" ? await chrome.tabs.query({ active: true, windowId: window.id }) : [];
+  const eligible = eligibleTab(tabs[0], !!window?.focused && window.state !== "minimized", idle, new URL(config.erpUrl).hostname);
+  // After a browser restart no interval bridges the downtime. Large alarm gaps are discarded.
+  const interval = !reset ? sliceInterval(saved.previous, now) : null;
+  if (interval) queue.push(interval);
+  // Locking is immediate, unlike the inactivity threshold. Preserve work done
+  // just before a lock; only an actual idle transition rolls back idle time.
+  if (idle === "idle") queue = removeIdle(queue, now - config.idleSeconds * 1000);
+  const next = config.enabled && eligible && eligible.platform !== "ERP" ? { ...eligible, platform: eligible.platform, classificationOverride: false, at: now, activityType: "OTHER" } : null;
+  const transition = saved.previous || next;
+  if (transition && eventType !== "HEARTBEAT") queue.push({ id: crypto.randomUUID(), platform: transition.platform, domain: transition.domain, classificationOverride: transition.classificationOverride, activityType: transition.activityType, eventType: idle !== "active" ? "IDLE" : eventType, occurredAt: new Date(now).toISOString() });
+  // Stop collecting at capacity and surface an actionable error; never silently evict unsent data.
+  if (queue.length > 10000) { config.enabled = false; await chrome.storage.local.set({ settings: config, lastError: "Queue full: tracking paused. Reconnect and sync before resuming." }); }
+  await chrome.storage.local.set({ queue, previous: config.enabled ? next : null, active: !!next && config.enabled });
+  await badge(!!next && config.enabled);
+}
+function sync() {
+  if (syncInFlight) return syncInFlight;
+  syncInFlight = performSync().catch(error => schedule(async () => { await chrome.storage.local.set({ lastError: error.message }); await badge(false, "!"); })).finally(() => { syncInFlight = null; });
+  return syncInFlight;
+}
+async function performSync() {
+  const config = await settings();
+  if (!config.token) return;
+  const stored = await chrome.storage.local.get(["queue", "retryAt", "failures"]);
+  if ((stored.retryAt || 0) > Date.now()) return;
+  let queue = stored.queue || [];
+  // Server accepts seven days of offline history. Expired records are retained for inspection.
+  const expired = queue.filter(e => +new Date(e.occurredAt) < Date.now() - 7 * 86400000);
+  if (expired.length) { await schedule(() => chrome.storage.local.set({ lastError: "Some queued records are over seven days old. Export or clear the queue in Settings." })); return; }
+  const batch = readyEvents(queue, Date.now(), config.idleSeconds).slice(0, 100);
+  if (!batch.length) return;
+  try {
+    const ids = await sendEvents(config, batch);
+    await schedule(async () => {
+      const currentConfig = await settings();
+      if (currentConfig.token !== config.token || currentConfig.erpUrl !== config.erpUrl) return;
+      const current = await chrome.storage.local.get("queue");
+      // New intervals can arrive during an upload. Acknowledge against the
+      // latest queue rather than replacing it with the old request snapshot.
+      queue = acknowledge(current.queue || [], ids);
+      await chrome.storage.local.set({ queue, failures: 0, retryAt: 0, lastError: "", lastSync: new Date().toISOString() });
+    });
+  } catch (error) {
+    const failures = (stored.failures || 0) + 1;
+    await schedule(async () => {
+      const currentConfig = await settings();
+      if (currentConfig.token !== config.token || currentConfig.erpUrl !== config.erpUrl) return;
+      await chrome.storage.local.set({ failures, retryAt: Date.now() + Math.min(3600000, 30000 * 2 ** Math.min(failures, 7)), lastError: error.message });
+      await badge(false, "!");
+    });
+  }
+}
+chrome.runtime.onInstalled.addListener(() => schedule(async () => { await chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }); await chrome.alarms.create("work-tracker", { periodInMinutes: 0.5 }); await sample("TAB_SWITCH", true); }));
+chrome.runtime.onStartup.addListener(() => schedule(async () => { await chrome.alarms.create("work-tracker", { periodInMinutes: 0.5 }); await sample("TAB_SWITCH", true); }).then(() => sync()));
+chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === "work-tracker") schedule(() => sample("HEARTBEAT")).then(() => sync()); });
+chrome.tabs.onActivated.addListener(() => schedule(() => sample("TAB_SWITCH")));
+chrome.tabs.onUpdated.addListener((_id, change, tab) => { if (change.url && tab.active) schedule(() => sample("TAB_SWITCH")); });
+chrome.tabs.onRemoved.addListener(() => schedule(() => sample("TAB_SWITCH")));
+chrome.windows.onFocusChanged.addListener(id => schedule(() => sample(id === chrome.windows.WINDOW_ID_NONE ? "WINDOW_BLUR" : "WINDOW_FOCUS")));
+chrome.idle.onStateChanged.addListener(state => schedule(() => sample(state === "active" ? "WINDOW_FOCUS" : "IDLE", false, state)));
+chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (sender.id !== chrome.runtime.id || !sender.url?.startsWith(chrome.runtime.getURL("src/"))) return false;
+  let responded = false;
+  const reply = result => { if (responded) return; responded = true; try { respond(result); } catch { /* The extension page may have closed while this operation ran. */ } };
+  if (message.action === "sync") {
+    schedule(() => chrome.storage.local.set({ retryAt: 0 }), error => reply({ error: error.message }))
+      .then(() => sync()).then(() => reply({ ok: true }), error => reply({ error: error.message }));
+    return true;
+  }
+  schedule(async () => {
+    if (message.action === "configure") {
+      const old = await settings(); const next = validateSettings({ ...old, ...message.settings });
+      await sample("TAB_SWITCH");
+      const { queue } = await chrome.storage.local.get("queue");
+      if ((next.erpUrl !== old.erpUrl || next.token !== old.token) && queue?.length) throw new Error("Sync or export and clear the pending queue before changing ERP or credential");
+      await chrome.storage.local.set({ settings: { ...next, enabled: false }, previous: null }); await sample("TAB_SWITCH", true);
+    } else if (["start", "resume", "pause", "stop"].includes(message.action)) {
+      await sample("TAB_SWITCH");
+      const config = await settings(); const enabled = ["start", "resume"].includes(message.action);
+      if (enabled) validateSettings(config);
+      const activityType = message.activityType || config.activityType, platform = message.platform || config.platform;
+      if (!["LISTING_PREPARATION", "LISTING_CREATION", "SEO", "IMAGES", "INVENTORY", "ORDERS", "CUSTOMER_SERVICE", "SYNCHRONIZATION", "TROUBLESHOOTING", "OTHER"].includes(activityType) || !["AUTO", "ERP", "EBAY", "ETSY", "AMAZON"].includes(platform)) throw new Error("Invalid activity or platform");
+      await chrome.storage.local.set({ settings: { ...config, enabled, activityType, platform }, previous: null }); await sample("TAB_SWITCH", true);
+    } else if (message.action === "clearQueue") { await chrome.storage.local.set({ queue: [], previous: null, lastError: "", settings: { ...await settings(), enabled: false } }); await badge(false); }
+    else { reply({ error: "Unknown action" }); return; }
+    reply({ ok: true });
+  }, error => reply({ error: error.message }));
+  return true;
+});

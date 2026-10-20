@@ -3,11 +3,10 @@
 import { ExportButton } from "@/components/ui/lottie";
 import { generateInvoicePDF, InvoiceData } from "@/lib/invoice-generator";
 import { useState } from "react";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 export function DownloadPdfButton({ data }: { data: InvoiceData }) {
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const handleDownload = async () => {
     setLoading(true);
@@ -27,7 +26,7 @@ export function DownloadPdfButton({ data }: { data: InvoiceData }) {
       setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (e) {
       console.error(e);
-      toast({ title: "Failed to generate PDF", variant: "destructive" });
+      toast.error("Failed to generate PDF");
     } finally {
       setLoading(false);
     }

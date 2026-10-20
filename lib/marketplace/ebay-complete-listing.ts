@@ -155,7 +155,7 @@ export async function prepareCompleteEbayListing(draftId: string, shopId: string
   }
 }
 
-export async function publishCompleteEbayListing(draftId: string, shopId: string, reviewToken: string, confirmationSku: string) {
+export async function publishCompleteEbayListing(draftId: string, shopId: string, reviewToken: string, confirmationSku: string, publishedByUserId?: string) {
   const { saved, metadata, connector, connectionId } = await load(draftId, shopId);
   const prepared = metadata.completeEbay;
   if (confirmationSku !== saved.listingSku) throw new Error("Type the exact SKU to confirm publishing this live listing.");
@@ -175,7 +175,7 @@ export async function publishCompleteEbayListing(draftId: string, shopId: string
   if (!claim.count) throw new Error("Another request changed this draft. Reload its status.");
   try {
     const listingId = await connector.publishMarketplaceOffer(connectionId, prepared.offerId);
-    return await finalize(listingId);
+    return await finalize(listingId, true);
   } catch (error) {
     prepared.state = error instanceof HttpError && [400, 422].includes(error.status) ? "PREPARE_FAILED" : "PUBLISH_UNCERTAIN";
     if (prepared.state === "PREPARE_FAILED") prepared.verified = false;
@@ -183,7 +183,8 @@ export async function publishCompleteEbayListing(draftId: string, shopId: string
     await prisma.listing.update({ where: { id: saved.id }, data: { rawMetadata: JSON.stringify(metadata), syncError: prepared.error } });
     throw error;
   }
-  async function finalize(listingId: string) {
+  async function finalize(listingId: string, confirmedNow = false) {
+    if (confirmedNow && publishedByUserId && !metadata.workPublication) metadata.workPublication = { publishedAt: new Date().toISOString(), userId: publishedByUserId, listingId };
     const listingUrl = `https://www.ebay.com/itm/${encodeURIComponent(listingId)}`;
     metadata.completeEbay = { ...prepared!, state: "PUBLISHED", listingId };
     await prisma.listing.update({ where: { id: saved.id }, data: { status: "ACTIVE", externalId: listingId, listingUrl, syncStatus: "SYNCED", syncError: null, rawMetadata: JSON.stringify(metadata) } });

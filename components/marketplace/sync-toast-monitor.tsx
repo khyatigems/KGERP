@@ -95,6 +95,9 @@ export function MarketplaceSyncToastMonitor() {
       const toastId = `marketplace-sync-${batchId}`;
       const active = jobs.some((job) => job.status === "QUEUED" || job.status === "PROCESSING");
       const failed = jobs.filter((job) => job.status === "FAILED" || job.status === "PARTIAL").length;
+      const terminal = jobs.length > 0 && jobs.every((job) => !["QUEUED", "PROCESSING"].includes(job.status));
+      const completedToastId = `${toastId}-completed`;
+      if (terminal) toast.dismiss(toastId);
       toast.custom((id) => (
         <div className="w-[min(520px,calc(100vw-32px))] rounded-md border bg-background p-3 text-foreground shadow-lg">
           <div className="flex items-start justify-between gap-3">
@@ -142,7 +145,7 @@ export function MarketplaceSyncToastMonitor() {
             </div>
           )}
         </div>
-      ), { id: toastId, duration: Infinity, position: "bottom-right" });
+      ), { id: terminal ? completedToastId : toastId, duration: terminal ? 12_000 : Infinity, position: "bottom-right" });
     }
   }, [jobsByBatch]);
 

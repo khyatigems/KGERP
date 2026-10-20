@@ -50,6 +50,7 @@ export const navGroups = [
     icon: Globe,
     items: [
       { href: "/settings/marketplace-connections", label: "Connections", icon: Link2, module: "settings:manage", animKey: "control-center" as NavAnimationKey },
+      { href: "/work-tracker", label: "Work Tracker", icon: Activity, module: "listings:view", animKey: "reports" as NavAnimationKey },
       { href: "/marketplace-control-center", label: "Control Center", icon: LayoutDashboard, module: "listings:view", animKey: "control-center" as NavAnimationKey, badge: "conflicts" },
       { href: "/marketplace-listings", label: "Listings", icon: Globe, module: "listings:view", animKey: "listings" as NavAnimationKey },
       { href: "/marketplace-create-listings", label: "Create Listings", icon: ListPlus, module: "listings:view", animKey: "listings" as NavAnimationKey },

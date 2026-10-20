@@ -872,7 +872,7 @@ export async function POST(request: NextRequest) {
       if (parsed.data.action === "reviewCompleteEbay") return NextResponse.json(await reviewCompleteEbayListing(parsed.data.draftId, parsed.data.shopId));
       if (parsed.data.action === "prepareCompleteEbay") return NextResponse.json(await prepareCompleteEbayListing(parsed.data.draftId, parsed.data.shopId, parsed.data.locationKey, parsed.data.dispatchAddress, parsed.data.completeEdits));
       if (!parsed.data.reviewToken || !parsed.data.confirmationSku) throw new ListingPreparationError("Review the prepared offer and type its SKU before publishing.", 400);
-      return NextResponse.json(await publishCompleteEbayListing(parsed.data.draftId, parsed.data.shopId, parsed.data.reviewToken, parsed.data.confirmationSku));
+      return NextResponse.json(await publishCompleteEbayListing(parsed.data.draftId, parsed.data.shopId, parsed.data.reviewToken, parsed.data.confirmationSku, session.user.id));
     }
     if (["sendEbaySellerHubDraft", "checkEbaySellerHubDraft", "downloadEbaySellerHubDraftCsv", "downloadEbayDescription"].includes(parsed.data.action)) {
       if (!parsed.data.draftId) throw new ListingPreparationError("Select a saved eBay draft.", 400);

@@ -1,0 +1,35 @@
+"use client";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { BarChart3 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Dashboard } from "./types";
+import { activityLabel, money, platformColors, platformNames } from "./types";
+import { weekKey } from "@/lib/work-tracker/core";
+
+export function periodKeys(from: string, to: string, weekly: boolean) {
+  const result = new Set<string>(); let day = from;
+  for (let n = 0; day <= to && n < 94; n++) { result.add(weekly ? weekKey(day) : day); day = new Date(+new Date(`${day}T12:00:00Z`) + 86400000).toISOString().slice(0, 10); }
+  return [...result];
+}
+const tooltipStyle = { borderRadius: 12, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)", fontSize: 12 };
+function EmptyChart({ message }: { message: string }) { return <div className="flex h-60 flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-muted/20 text-center text-sm text-muted-foreground"><BarChart3 className="h-8 w-8 opacity-40" /><p className="max-w-xs px-4">{message}</p></div>; }
+export function TrackerCharts({ data, from, to, group, currency }: { data: Dashboard | null; from: string; to: string; group: "daily" | "weekly"; currency: string }) {
+  const keys = periodKeys(from, to, group === "weekly");
+  const time = keys.map(day => ({ day: day.slice(5), ...Object.fromEntries(Object.entries(platformNames).map(([p]) => [p, Number(((data?.summary[group][day]?.[p] || 0) / 60).toFixed(2))])) }));
+  const values = keys.map(day => ({ day: day.slice(5), value: data?.revenue[group]?.[day]?.[currency] || 0 }));
+  const activities = Object.entries(data?.byActivity || {}).map(([name, seconds]) => ({ name: activityLabel(name), minutes: seconds / 60 }));
+  const activityColors = ["#3b82f6", "#8b5cf6", "#14b8a6", "#f59e0b", "#f1641e", "#ec4899", "#64748b"];
+  return <>
+    <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+      <Card className="min-w-0 overflow-hidden rounded-2xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-base">Active time history</CardTitle><p className="text-xs text-muted-foreground">Your deduplicated work minutes · {group === "daily" ? "by day" : "weeks starting Monday"}</p></CardHeader><CardContent>
+        {data && data.summary.totalSeconds > 0 ? <div className="h-[260px] min-w-0"><ResponsiveContainer width="100%" height="100%" minWidth={0}><BarChart data={time} margin={{ left: -18, right: 4, top: 16 }}><CartesianGrid strokeDasharray="3 5" vertical={false} stroke="var(--border)" /><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} minTickGap={26} /><YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} /><Tooltip contentStyle={tooltipStyle} formatter={(v, name) => [`${Number(v).toFixed(1)} min`, platformNames[String(name)] || name]} />{Object.entries(platformColors).map(([platform, color], index) => <Bar key={platform} dataKey={platform} stackId="time" fill={color} maxBarSize={32} radius={index === 3 ? [5, 5, 0, 0] : undefined} />)}</BarChart></ResponsiveContainer></div> : <EmptyChart message={data ? "Your activity history will appear here after tracked intervals synchronize." : "Loading your activity history…"} />}
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">{Object.entries(platformColors).map(([p, color]) => <span className="flex items-center gap-1.5" key={p}><span className="h-2 w-2 rounded-full" style={{ background: color }} />{platformNames[p]}</span>)}</div>
+      </CardContent></Card>
+      <Card className="min-w-0 overflow-hidden rounded-2xl shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-base">Marketplace order value</CardTitle><p className="text-xs text-muted-foreground">Shop-wide recorded order value · {currency} · excludes cancelled/refunded orders</p></CardHeader><CardContent>
+        {data?.revenue.available && values.some(v => v.value > 0) ? <div className="h-[260px] min-w-0"><ResponsiveContainer width="100%" height="100%" minWidth={0}><AreaChart data={values} margin={{ left: 0, right: 10, top: 16 }}><defs><linearGradient id="tracker-revenue-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#14b8a6" stopOpacity={0.25} /><stop offset="100%" stopColor="#14b8a6" stopOpacity={0.01} /></linearGradient></defs><CartesianGrid strokeDasharray="3 5" vertical={false} stroke="var(--border)" /><XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} minTickGap={26} /><YAxis axisLine={false} tickLine={false} width={55} tick={{ fontSize: 11 }} tickFormatter={v => Number(v) >= 1000 ? `${(Number(v) / 1000).toFixed(0)}k` : String(v)} /><Tooltip contentStyle={tooltipStyle} formatter={v => [money(Number(v), currency), "Order value"]} /><Area type="monotone" dataKey="value" stroke="#14b8a6" strokeWidth={2.5} fill="url(#tracker-revenue-fill)" /></AreaChart></ResponsiveContainer></div> : <EmptyChart message={data?.revenue.available ? "No recorded orders in this currency and date range." : data?.revenue.reason || "Loading marketplace order data…"} />}
+        <p className="mt-3 text-xs text-muted-foreground">Order totals may include tax and shipping. This is not net profit or revenue credited to your tracked work.</p>
+      </CardContent></Card>
+    </div>
+    <Card className="min-w-0 rounded-2xl shadow-sm"><CardHeader className="pb-0"><CardTitle className="text-base">Where your work time went</CardTitle><p className="text-xs text-muted-foreground">Activity breakdown for the selected window</p></CardHeader><CardContent>{activities.length ? <div className="grid items-center gap-3 md:grid-cols-[230px_1fr]"><div className="h-[230px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={activities} dataKey="minutes" nameKey="name" innerRadius={65} outerRadius={90} paddingAngle={3} stroke="none">{activities.map((a, i) => <Cell key={a.name} fill={activityColors[i % activityColors.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} formatter={v => `${Number(v).toFixed(1)} min`} /></PieChart></ResponsiveContainer></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{activities.map((a, i) => <div className="space-y-1.5" key={a.name}><div className="flex justify-between gap-4 text-xs"><span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ background: activityColors[i % activityColors.length] }} />{a.name}</span><span className="font-medium">{a.minutes.toFixed(1)}m</span></div><div className="h-1.5 rounded-full bg-muted"><div className="h-full rounded-full" style={{ width: `${Math.min(100, a.minutes * 60 / (data?.summary.totalSeconds || 1) * 100)}%`, background: activityColors[i % activityColors.length] }} /></div></div>)}</div></div> : <div className="py-10 text-center text-sm text-muted-foreground">Activity categories will appear as work is recorded.</div>}</CardContent></Card>
+  </>;
+}

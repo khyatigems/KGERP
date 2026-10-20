@@ -1,0 +1,11 @@
+import { cpSync, mkdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+const root = path.dirname(fileURLToPath(import.meta.url));
+const output = path.join(root, "dist");
+const manifest = JSON.parse(readFileSync(path.join(root, "manifest.json"), "utf8"));
+if (manifest.manifest_version !== 3) throw new Error("Expected Manifest V3");
+mkdirSync(output, { recursive: true });
+cpSync(path.join(root, "manifest.json"), path.join(output, "manifest.json"));
+cpSync(path.join(root, "src"), path.join(output, "src"), { recursive: true });
+console.log(`Load unpacked extension: ${output}`);

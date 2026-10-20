@@ -40,6 +40,7 @@ if (!databaseUrl) {
 }
 
 const globalForPrisma = global as unknown as {
+  workTrackerContextVersion?: number;
   prisma: PrismaClient | undefined
 }
 
@@ -63,6 +64,9 @@ const adapter = libsqlClient ? new PrismaLibSQL(libsqlClient) : null
 if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
   // Define a minimal interface for the potentially stale client
   interface StaleClient {
+    workSession?: unknown;
+    weeklyReportRun?: unknown;
+    weeklyReportDelivery?: unknown;
     expense?: unknown;
     reportExportJob?: unknown;
     workerLockHeartbeat?: unknown;
@@ -78,9 +82,19 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
   interface StaleClientWithMetrics extends StaleClient {
     listingOpportunity?: unknown;
     listingMetricSnapshot?: unknown;
+    _runtimeDataModel?: {
+      models?: Record<string, { fields?: Array<{ name: string }> }>;
+    };
   }
   const client2 = client as StaleClientWithMetrics;
+  const workSessionFields = new Set(client2._runtimeDataModel?.models?.WorkSession?.fields?.map((field) => field.name) ?? []);
+  const missingWorkTrackerContextFields = ["inventoryId", "marketplaceShopId", "listingRecordId"].some((field) => !workSessionFields.has(field));
   const staleMissingModel =
+    globalForPrisma.workTrackerContextVersion !== 3 ||
+    missingWorkTrackerContextFields ||
+    !client.workSession ||
+    !client.weeklyReportRun ||
+    !client.weeklyReportDelivery ||
     !client.expense ||
     !client.reportExportJob ||
     !client.workerLockHeartbeat ||
@@ -245,7 +259,7 @@ export function buildAddColumnStatements(checks: Array<[string, string, string]>
 }
 
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV !== 'production') { globalForPrisma.prisma = prisma; globalForPrisma.workTrackerContextVersion = 3; }
 
 export type { ActivityLog } from '@prisma/client'
 

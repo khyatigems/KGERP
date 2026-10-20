@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { useWorkContext } from "@/lib/work-tracker/browser-context";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,9 @@ export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
  const [checkingOfferId, setCheckingOfferId] = useState<string | null>(null);
  const [search, setSearch] = useState("");
  const [platform, setPlatform] = useState("ALL");
+ const [activeDraft, setActiveDraft] = useState<SavedDraft | null>(null);
+ const workPlatform = bulkMode ? bulkMarketplace : activeDraft?.platform || platform;
+ useWorkContext({ platform: workPlatform === "EBAY" || workPlatform === "ETSY" ? workPlatform : "ERP", activityType: "LISTING_CREATION", marketplaceShopId: bulkMode ? null : activeDraft?.shopId || null, listingRecordId: bulkMode ? null : activeDraft?.id || null, label: activeDraft?.sku || "Marketplace drafts" });
  const visibleDrafts = drafts.filter((draft) => (platform === "ALL" || draft.platform === platform) && `${draft.sku} ${draft.title} ${draft.shop}`.toLowerCase().includes(search.toLowerCase()));
  return <div className="space-y-5">
    <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-3xl font-semibold">Marketplace Drafts</h1><p className="mt-1 text-sm text-muted-foreground">Review saved eBay and Etsy drafts, resolve warnings and continue listing.</p></div><div className="flex gap-2"><Button type="button" variant={bulkMode ? "default" : "outline"} aria-pressed={bulkMode} disabled={bulkRunning || busy} onClick={() => setBulkMode((value) => !value)}>{bulkMode ? "Exit bulk mode" : "Bulk mode"}</Button><Button asChild><Link href="/marketplace-create-listings" onClick={(event) => { if (bulkRunning) event.preventDefault(); }} aria-disabled={bulkRunning}>Create listing</Link></Button></div></div>
@@ -66,7 +70,7 @@ export function MarketplaceDraftsClient({ drafts }: { drafts: SavedDraft[] }) {
                   <p className="mb-3 text-xs text-muted-foreground">Open confirmed drafts in the selected marketplace shop to review and publish.</p>
                   <div className="divide-y rounded-lg border">
                   {visibleDrafts.map((draft) => (
-                    <details key={draft.id} className="group min-w-0">
+                    <details key={draft.id} className="group min-w-0" onPointerDown={() => setActiveDraft(draft)} onFocusCapture={() => setActiveDraft(draft)}>
                       <summary className="cursor-pointer px-4 py-3 text-sm marker:text-muted-foreground">
                         <span className="font-medium break-words">{draft.title}</span>
                         <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs">{draft.platform}</span>

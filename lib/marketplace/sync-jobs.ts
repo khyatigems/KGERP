@@ -4,6 +4,8 @@ import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation"
 import { syncListingsForPlatform } from "@/lib/marketplace/sync-listings";
 import { syncOrdersForPlatform } from "@/lib/marketplace/sync-orders";
 import { closeListingsMissingFromActiveSync } from "@/lib/marketplace/close-listings";
+import { persistNotification } from "@/lib/notifications";
+import { routeNotification } from "@/lib/notification-routing";
 
 const PAGE_SIZE = 25;
 const MAX_ATTEMPTS = 3;
@@ -78,6 +80,25 @@ async function processOneJob(jobId: string) {
   });
   if (!job) return false;
 
+  const persistTerminalFailure = async (status: "FAILED" | "PARTIAL", failureCount = 0) => {
+    if (routeNotification("operational_failure") !== "persistent") return;
+    if (!job.requestedById) return;
+    try {
+      await persistNotification({
+        userId: job.requestedById,
+        eventKey: `marketplace-sync:${job.id}`,
+        severity: "error",
+        title: `${job.marketplaceShop.marketplace} ${job.syncType.toLowerCase()} sync ${status === "PARTIAL" ? "completed with errors" : "failed"}`,
+        message: status === "PARTIAL"
+          ? `${job.marketplaceShop.name}: ${failureCount} record${failureCount === 1 ? "" : "s"} failed. Review sync history or retry this shop.`
+          : `${job.marketplaceShop.name}: The sync stopped after automatic retries. Review sync history or retry this shop.`,
+        href: "/marketplace-sync-history",
+      });
+    } catch (error) {
+      console.error("Could not persist marketplace sync notification", { jobId: job.id, error });
+    }
+  };
+
   try {
     await prisma.marketplaceSyncJob.update({
       where: { id: job.id },
@@ -115,6 +136,9 @@ async function processOneJob(jobId: string) {
         endedAt: hasMore ? null : new Date(),
       },
     });
+    if (!hasMore && totalFailed > 0) {
+      await persistTerminalFailure("PARTIAL", totalFailed);
+    }
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -132,6 +156,7 @@ async function processOneJob(jobId: string) {
         endedAt: retry ? null : new Date(),
       },
     });
+    if (!retry) await persistTerminalFailure("FAILED");
     return false;
   }
 }
@@ -139,9 +164,9 @@ async function processOneJob(jobId: string) {
 export async function processQueuedMarketplaceSyncJobs(limit = 5) {
   await ensureMarketplaceFoundationSchema();
   const staleBefore = new Date(Date.now() - STALE_AFTER_MS);
-  const staleJobs = await prisma.marketplaceSyncJob.findMany({
+    const staleJobs = await prisma.marketplaceSyncJob.findMany({
     where: { status: "PROCESSING", updatedAt: { lt: staleBefore } },
-    select: { id: true, attempts: true, errorDetails: true },
+    select: { id: true, attempts: true, errorDetails: true, requestedById: true },
     take: 50,
   });
   let recovered = 0;
@@ -164,6 +189,20 @@ export async function processQueuedMarketplaceSyncJobs(limit = 5) {
       },
     });
     recovered += result.count;
+    if (result.count && !retry && job.requestedById) {
+      try {
+        await persistNotification({
+          userId: job.requestedById,
+          eventKey: `marketplace-sync:${job.id}`,
+          severity: "error",
+          title: "Marketplace sync failed",
+          message: "The sync worker stopped repeatedly before completing this page. Review sync history or retry this shop.",
+          href: "/marketplace-sync-history",
+        });
+      } catch (error) {
+        console.error("Could not persist recovered marketplace sync notification", { jobId: job.id, error });
+      }
+    }
   }
   const queued = await prisma.marketplaceSyncJob.findMany({
     where: { status: "QUEUED" },

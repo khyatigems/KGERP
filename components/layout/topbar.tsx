@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 const routeTitles: Record<string, string> = {
   "/": "Dashboard Overview",
@@ -228,6 +229,7 @@ export function Topbar({ user }: TopbarProps) {
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
          <span className="font-semibold text-lg md:hidden">KhyatiGems™</span>
+         <NotificationBell />
          
          <DropdownMenu>
             <DropdownMenuTrigger asChild>

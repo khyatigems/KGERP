@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getCapitalRotationAnalyticsUncached, getInventoryAgingAnalytics, getReportsAnalyticsSummaryUncached } from "@/lib/reports-analytics";
 import { randomUUID } from "crypto";
 import { ensureReportExportJobSchema, ensureWorkerLockHeartbeatSchema } from "@/lib/report-export-job-schema";
+import { persistNotification } from "@/lib/notifications";
 
 const EXPORT_WORKER_LOCK_ID = "REPORT_EXPORT_PROCESSOR";
 const LEASE_MS = 90_000;
@@ -62,7 +63,8 @@ async function processSingleJob(jobId: string) {
       id: true,
       reportType: true,
       format: true,
-      filtersJson: true
+      filtersJson: true,
+      requestedById: true,
     }
   });
   if (!job) return false;
@@ -89,6 +91,20 @@ async function processSingleJob(jobId: string) {
         errorMessage: `${message}`.slice(0, 500),
       }
     });
+    if (job.requestedById) {
+      try {
+        await persistNotification({
+          userId: job.requestedById,
+          eventKey: `report-export:${job.id}`,
+          severity: "error",
+          title: "Report export failed",
+          message: `Your ${job.reportType} ${job.format.toLowerCase()} export could not be prepared. View report operations for details.`,
+          href: "/reports/ops",
+        });
+      } catch (notificationError) {
+        console.error("Could not persist report export notification", { jobId: job.id, notificationError });
+      }
+    }
     return false;
   }
 }
