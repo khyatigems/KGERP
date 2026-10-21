@@ -4,7 +4,11 @@ const nextConfig: NextConfig = {
   // Allows an isolated local UI review without sharing the normal dev-server lock.
   distDir: process.env.ERP_REVIEW_DIST_DIR || ".next",
   /* config options here */
-  serverExternalPackages: ["puppeteer", "puppeteer-core", "canvas"],
+  serverExternalPackages: ["puppeteer", "puppeteer-core", "@sparticuz/chromium", "canvas"],
+  outputFileTracingIncludes: {
+    "/api/settings/weekly-reports/\\[\\[\\.\\.\\.path\\]\\]": ["./node_modules/@sparticuz/chromium/bin/**/*", "./public/brand/khyatigems-logo.png", "./public/fonts/brand-font-0.ttf"],
+    "/api/cron/reports/weekly": ["./node_modules/@sparticuz/chromium/bin/**/*", "./public/brand/khyatigems-logo.png", "./public/fonts/brand-font-0.ttf"],
+  },
   reactCompiler: true,
   experimental: {
     viewTransition: true,

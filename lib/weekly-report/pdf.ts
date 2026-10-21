@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import sanitizeHtml from "sanitize-html";
 import { prisma } from "@/lib/prisma";
 import { escapeHtml as h, percentChange, type ReportSettings } from "./config";
@@ -99,7 +100,13 @@ export async function reportAssets(s: ReportSettings) {
 export function verifyPdf(pdf: Buffer) { if (pdf.length < 1000 || pdf.subarray(0, 5).toString() !== "%PDF-" || !pdf.subarray(-100).toString().includes("%%EOF")) throw new Error("PDF validation failed"); }
 export async function renderReport(m: Metrics, s: ReportSettings, mode: string) {
  const assets = await reportAssets(s);
- const browser = await puppeteer.launch({ headless: true, executablePath: process.env.REPORT_CHROME_EXECUTABLE_PATH || undefined, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"] });
+ // Vercel's function image does not contain Puppeteer's install-time browser cache.
+ // Use the Chromium binary shipped as a production dependency there; local development
+ // still uses the developer's Puppeteer Chrome unless an explicit path is configured.
+ const useServerlessChromium = process.env.VERCEL === "1" && !process.env.REPORT_CHROME_EXECUTABLE_PATH;
+ const browser = useServerlessChromium
+  ? await puppeteer.launch({ args: await puppeteer.defaultArgs({ args: chromium.args, headless: "shell" }), executablePath: await chromium.executablePath(), headless: "shell" })
+  : await (await import("puppeteer")).default.launch({ headless: true, executablePath: process.env.REPORT_CHROME_EXECUTABLE_PATH || undefined, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"] });
  try {
   const page = await browser.newPage(); await page.setJavaScriptEnabled(false); await page.setRequestInterception(true);
   page.on("request", request => { if (request.url().startsWith("data:") || request.url() === "about:blank") void request.continue(); else void request.abort(); });

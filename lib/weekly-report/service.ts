@@ -52,13 +52,18 @@ export async function generateRun(id: string, dependencies = { collectMetrics, r
  }
  const claimed = await prisma.weeklyReportRun.updateMany({ where: { id, attempts: { lt: settings.maxAttempts }, OR: [{ status: "QUEUED" }, { status: "FAILED", nextAttemptAt: { lte: now } }, { status: "GENERATING", leaseUntil: { lt: now } }] }, data: { status: "GENERATING", leaseOwner: owner, leaseUntil: new Date(+now + 10 * 60000), startedAt: now, attempts: { increment: 1 }, errorSummary: null } });
  if (!claimed.count) return run;
+ let stage: "report data collection" | "PDF rendering" = "report data collection";
  try {
-  const metrics = await dependencies.collectMetrics(settings, run.scheduledFor || run.createdAt), pdf = await dependencies.renderReport(metrics, settings, run.mode);
+  const metrics = await dependencies.collectMetrics(settings, run.scheduledFor || run.createdAt);
+  stage = "PDF rendering";
+  const pdf = await dependencies.renderReport(metrics, settings, run.mode);
   if (pdf.length > settings.maxAttachmentMb * 1024 * 1024) throw new Error("PDF exceeds the configured attachment limit. Reduce optional sections or increase the limit in Settings.");
   await prisma.weeklyReportRun.updateMany({ where: { id, leaseOwner: owner }, data: { status: run.mode === "PREVIEW" ? "READY" : "DELIVERY_PENDING", metricsJson: JSON.stringify(metrics), dataQuality: metrics.dataQuality, pdfBase64: pdf.toString("base64"), pdfChecksum: createHash("sha256").update(pdf).digest("hex"), pdfBytes: pdf.length, completedAt: new Date(), nextAttemptAt: null, leaseOwner: null, leaseUntil: null } });
  } catch (error) {
-  const safe = error instanceof Error && /logo|PDF exceeds|Company logo/.test(error.message) ? error.message.slice(0, 250) : "Report generation failed. Check database availability and the configured server Chromium installation.";
-  await prisma.weeklyReportRun.updateMany({ where: { id, leaseOwner: owner }, data: { status: "FAILED", errorCode: "GENERATION_FAILED", errorSummary: safe, nextAttemptAt: run.attempts + 1 < settings.maxAttempts ? retryAt(run.attempts + 1, settings) : null, leaseOwner: null, leaseUntil: null } });
+  const detail = error instanceof Error ? error.message : String(error);
+  console.error("[weekly-report] generation failed", { runId: id, stage, name: error instanceof Error ? error.name : "Error", message: detail.slice(0, 1000), stack: error instanceof Error ? error.stack?.slice(0, 2500) : undefined });
+  const summary = /logo|PDF exceeds|Company logo/.test(detail) ? detail.slice(0, 350) : `${stage} failed: ${detail.slice(0, 350)}`;
+  await prisma.weeklyReportRun.updateMany({ where: { id, leaseOwner: owner }, data: { status: "FAILED", errorCode: stage === "report data collection" ? "DATA_COLLECTION_FAILED" : "PDF_RENDERING_FAILED", errorSummary: summary, nextAttemptAt: run.attempts + 1 < settings.maxAttempts ? retryAt(run.attempts + 1, settings) : null, leaseOwner: null, leaseUntil: null } });
  }
  return prisma.weeklyReportRun.findUniqueOrThrow({ where: { id } });
 }
@@ -84,6 +89,16 @@ export async function retryFailedGeneration(
  if (generated.status === "FAILED") throw new Error(generated.errorSummary || "Report generation failed. Review the run details in History.");
  await dependencies.deliverRun(id);
  return generated;
+}
+export async function cancelFailedGeneration(id: string, actor: string) {
+ const run = await prisma.weeklyReportRun.findUniqueOrThrow({ where: { id } });
+ if (run.status !== "FAILED") throw new Error("Only a failed report generation can be cancelled.");
+ await prisma.$transaction(async tx => {
+  const changed = await tx.weeklyReportRun.updateMany({ where: { id, status: "FAILED", attempts: run.attempts }, data: { status: "CANCELLED", nextAttemptAt: null, leaseOwner: null, leaseUntil: null, errorSummary: run.errorSummary ? `${run.errorSummary} (Cancelled by administrator.)` : "Cancelled by administrator." } });
+  if (!changed.count) throw new Error("This report changed while cancellation was being prepared. Refresh History and try again.");
+  await tx.activityLog.create({ data: { entityType: "WeeklyReportRun", actionType: "CANCEL_GENERATION", module: "SETTINGS", action: "WEEKLY_REPORT_GENERATION_CANCEL", userId: actor, referenceId: id } });
+ });
+ return prisma.weeklyReportRun.findUniqueOrThrow({ where: { id } });
 }
 export async function deliverRun(id: string) {
  const run = await prisma.weeklyReportRun.findUniqueOrThrow({ where: { id } });
