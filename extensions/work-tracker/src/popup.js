@@ -2,8 +2,11 @@ import { defaults } from "./api-client.js";
 async function refresh() {
  const data = await chrome.storage.local.get(["settings", "active", "queue", "lastError", "lastSync"]);
  const settings = { ...defaults, ...data.settings };
- document.getElementById("status").textContent = settings.enabled ? data.active ? "Automatically tracking the active marketplace" : "Waiting: ERP, idle, unfocused or unsupported tab" : "Tracking paused";
+ document.getElementById("status").textContent = settings.enabled ? data.active ? "Automatically tracking the active marketplace" : "Waiting for an eligible marketplace tab" : "Tracking paused";
  document.getElementById("queue").textContent = `${data.queue?.length || 0} pending records · Last sync: ${data.lastSync || "never"}`;
+ const readyCount = (data.queue || []).filter(record => Date.parse(record.occurredAt) <= Date.now() - (settings.idleSeconds * 1000 + 90000)).length;
+ const syncMessage = document.getElementById("syncStatus");
+ syncMessage.textContent = !settings.token ? "Connect the extension to your ERP to upload activity." : readyCount ? `${readyCount} records ready to upload automatically.` : data.queue?.length ? "Recent activity is still in the idle safety buffer. It uploads automatically when eligible." : "Ready records sync automatically while Chrome is running.";
  document.getElementById("error").textContent = data.lastError || "";
 }
 document.getElementById("settings").onclick = () => chrome.runtime.openOptionsPage();

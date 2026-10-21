@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 const listeners = {};
 const event = name => ({ addListener(fn) { listeners[name] = fn; } });
 let store = {}, idle = "active", focused = true, url = "https://www.ebay.com/itm/private?token=secret", now = Date.now();
+const alarms = { created: [], async create(name, info) { this.created.push({ name, info }); }, async clear(name) { this.created = this.created.filter(alarm => alarm.name !== name); } };
 const originalNow = Date.now;
 Date.now = () => now;
 let failed = true; const batches = [];
@@ -23,7 +24,7 @@ globalThis.chrome = {
   idle: { setDetectionInterval() {}, async queryState() { return idle; }, onStateChanged: event("idle") },
   windows: { WINDOW_ID_NONE: -1, async getLastFocused() { return { id: 1, focused, state: focused ? "normal" : "minimized" }; }, onFocusChanged: event("focus") },
   tabs: { async query() { return [{ url, active: true }]; }, onActivated: event("tab"), onUpdated: event("update"), onRemoved: event("remove") },
-  alarms: { async create() {}, onAlarm: event("alarm") },
+  alarms: { async create(name, info) { await alarms.create(name, info); }, async clear(name) { await alarms.clear(name); }, onAlarm: event("alarm") },
   action: { async setBadgeText() {}, async setBadgeBackgroundColor() {}, async setTitle() {} },
   runtime: { id: "test-extension", getURL(p) { return `chrome-extension://test-extension/${p}`; }, onInstalled: event("installed"), onStartup: event("startup"), onMessage: event("message") },
 };
@@ -53,12 +54,14 @@ try {
   const beforeRestart = store.queue.filter(e => e.eventType === "ACTIVE").length;
   now += 3600000; listeners.startup(); await flush();
   assert.equal(store.queue.filter(e => e.eventType === "ACTIVE").length, beforeRestart);
-  assert.ok(store.lastError.includes("offline"));
+  assert.ok(alarms.created.some(alarm => alarm.name === "work-tracker-sync-retry"), "failed uploads schedule an automatic retry alarm");
   const failedIds = batches.at(-1).map(e => e.id);
   assert.match((await message("sync")).error, /offline/, "Sync now must expose a failed upload instead of claiming success");
   failed = false; await message("sync"); await flush();
   assert.ok(failedIds.every(id => batches.at(-1).some(e => e.id === id)));
   assert.ok(store.queue.every(e => !failedIds.includes(e.id)));
+  await tick(31);
+  assert.ok(batches.length >= 3, "periodic alarm continues automatic background sync attempts");
   await tick(); await message("pause"); assert.equal(store.active, false);
   const paused = store.queue.length; await tick(); assert.equal(store.queue.length, paused);
   await message("resume"); await tick(); await message("stop"); assert.equal(store.settings.enabled, false);

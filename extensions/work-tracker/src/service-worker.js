@@ -5,8 +5,19 @@ import { sliceInterval, removeIdle, readyEvents, acknowledge } from "./activity-
 // Serialize state changes; network requests must not block focus/idle sampling.
 let chain = Promise.resolve();
 let syncInFlight = null;
+const ALARM_NAME = "work-tracker";
+const SYNC_RETRY_ALARM = "work-tracker-sync-retry";
+const SYNC_INTERVAL_MINUTES = 1;
 function schedule(fn, onError, propagate = false) { chain = chain.catch(() => {}).then(fn).catch(async error => { await chrome.storage.local.set({ lastError: error.message }); await badge(false, "!"); onError?.(error); if (propagate) throw error; }); return chain; }
 async function settings() { return { ...defaults, ...(await chrome.storage.local.get("settings")).settings }; }
+async function scheduleUploadAlarm(at) {
+  await chrome.alarms.clear(SYNC_RETRY_ALARM);
+  if (at > Date.now()) await chrome.alarms.create(SYNC_RETRY_ALARM, { when: at });
+}
+async function scheduleEligibleUpload(queue, idleSeconds) {
+  const next = Math.min(...queue.filter(e => +new Date(e.occurredAt) > Date.now() - (idleSeconds * 1000 + 90000)).map(e => +new Date(e.occurredAt) + (idleSeconds * 1000 + 90000)));
+  if (Number.isFinite(next)) await scheduleUploadAlarm(next);
+}
 async function badge(active, text) { await chrome.action.setBadgeText({ text: text || (active ? "ON" : "OFF") }); await chrome.action.setBadgeBackgroundColor({ color: active ? "#15803d" : "#64748b" }); await chrome.action.setTitle({ title: active ? "Work Tracker — estimating active work" : "Work Tracker — paused / idle / unsupported tab" }); }
 async function sample(eventType = "TAB_SWITCH", reset = false, idleOverride = null) {
   const config = await settings();
@@ -40,13 +51,19 @@ async function performSync() {
   const config = await settings();
   if (!config.token) return { error: "Connect the extension in Connection settings first." };
   const stored = await chrome.storage.local.get(["queue", "retryAt", "failures"]);
-  if ((stored.retryAt || 0) > Date.now()) return { ok: true, message: "Waiting before retrying the connection." };
+  if ((stored.retryAt || 0) > Date.now()) {
+    await scheduleUploadAlarm(stored.retryAt);
+    return { ok: true, message: "Waiting before retrying the connection." };
+  }
   let queue = stored.queue || [];
   // Server accepts seven days of offline history. Expired records are retained for inspection.
   const expired = queue.filter(e => +new Date(e.occurredAt) < Date.now() - 7 * 86400000);
   if (expired.length) { const error = "Some queued records are over seven days old. Export or clear the queue in Settings."; await schedule(() => chrome.storage.local.set({ lastError: error })); return { error }; }
   const batch = readyEvents(queue, Date.now(), config.idleSeconds).slice(0, 100);
-  if (!batch.length) return { ok: true, message: queue.length ? "Recent activity is still in the idle safety buffer. It uploads automatically when eligible." : "No pending activity. Open a supported marketplace and enable automatic tracking." };
+  if (!batch.length) {
+    await scheduleEligibleUpload(queue, config.idleSeconds);
+    return { ok: true, message: queue.length ? "Recent activity is still in the idle safety buffer. It uploads automatically when eligible." : "No pending activity. Open a supported marketplace and enable automatic tracking." };
+  }
   try {
     const ids = await sendEvents(config, batch);
     await schedule(async () => {
@@ -57,22 +74,29 @@ async function performSync() {
       // latest queue rather than replacing it with the old request snapshot.
       queue = acknowledge(current.queue || [], ids);
       await chrome.storage.local.set({ queue, failures: 0, retryAt: 0, lastError: "", lastSync: new Date().toISOString() });
+      await scheduleUploadAlarm(0);
+      if (queue.length) await scheduleEligibleUpload(queue, config.idleSeconds);
     }, undefined, true);
     return { ok: true, message: ids.length === batch.length ? `${ids.length} records synchronized. Recent records may still be in the idle safety buffer.` : `${ids.length} of ${batch.length} records accepted. Unaccepted records remain queued for retry.` };
   } catch (error) {
     const failures = (stored.failures || 0) + 1;
+    const retryAt = Date.now() + Math.min(3600000, 30000 * 2 ** Math.min(failures, 7));
     await schedule(async () => {
       const currentConfig = await settings();
       if (currentConfig.token !== config.token || currentConfig.erpUrl !== config.erpUrl) return;
-      await chrome.storage.local.set({ failures, retryAt: Date.now() + Math.min(3600000, 30000 * 2 ** Math.min(failures, 7)), lastError: error.message });
+      await chrome.storage.local.set({ failures, retryAt, lastError: error.message });
+      await scheduleUploadAlarm(retryAt);
       await badge(false, "!");
     });
     return { error: error.message };
   }
 }
-chrome.runtime.onInstalled.addListener(() => schedule(async () => { await chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }); await chrome.alarms.create("work-tracker", { periodInMinutes: 0.5 }); await sample("TAB_SWITCH", true); }));
-chrome.runtime.onStartup.addListener(() => schedule(async () => { await chrome.alarms.create("work-tracker", { periodInMinutes: 0.5 }); await sample("TAB_SWITCH", true); }).then(() => sync()));
-chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === "work-tracker") schedule(() => sample("HEARTBEAT")).then(() => sync()); });
+chrome.runtime.onInstalled.addListener(() => schedule(async () => { await chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }); await chrome.alarms.create(ALARM_NAME, { periodInMinutes: SYNC_INTERVAL_MINUTES }); await sample("TAB_SWITCH", true); }));
+chrome.runtime.onStartup.addListener(() => schedule(async () => { await chrome.alarms.create(ALARM_NAME, { periodInMinutes: SYNC_INTERVAL_MINUTES }); await sample("TAB_SWITCH", true); }).then(() => sync()));
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name === ALARM_NAME) schedule(() => sample("HEARTBEAT")).then(() => sync());
+  else if (alarm.name === SYNC_RETRY_ALARM) { schedule(() => sample("HEARTBEAT")).then(() => sync()); }
+});
 chrome.tabs.onActivated.addListener(() => schedule(() => sample("TAB_SWITCH")));
 chrome.tabs.onUpdated.addListener((_id, change, tab) => { if (change.url && tab.active) schedule(() => sample("TAB_SWITCH")); });
 chrome.tabs.onRemoved.addListener(() => schedule(() => sample("TAB_SWITCH")));
