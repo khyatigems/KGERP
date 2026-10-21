@@ -11,6 +11,7 @@ async function main() {
   // Set before importing application modules; never connect the suite to the configured ERP database.
   process.env.DATABASE_URL = url; process.env.TURSO_DATABASE_URL = ""; process.env.TURSO_URL = "";
   const db = new PrismaClient({ datasources: { db: { url } } });
+  let applicationPrisma: PrismaClient | null = null;
   try {
     const cli = path.resolve("node_modules/prisma/build/index.js");
     const fullSchema = execFileSync(process.execPath, [cli, "migrate", "diff", "--from-empty", "--to-schema-datamodel", "prisma/schema.prisma", "--script"], { encoding: "utf8", env: process.env });
@@ -24,6 +25,8 @@ async function main() {
     const { startTimer, transition, correctSession, ingestEvents, deleteSession } = await import("@/lib/work-tracker/service");
     const { report, reportQuery, productivity } = await import("@/lib/work-tracker/reports");
     const { handleTracker } = await import("@/lib/work-tracker/http");
+    const { revenue } = await import("@/lib/work-tracker/analytics");
+    applicationPrisma = (await import("@/lib/prisma")).prisma;
     const { trackerIdentity, newToken, hashToken } = await import("@/lib/work-tracker/auth");
     const { TrackerError } = await import("@/lib/work-tracker/core");
     const { ensureWorkTrackerSchema, workTrackerDdl } = await import("@/lib/work-tracker/schema");
@@ -84,6 +87,17 @@ async function main() {
     let metrics = await productivity("alice", q, db); assert.equal(metrics.platforms[1].publishedListings, 1); assert.equal(metrics.platforms[1].averageMinutesPerListing, 1);
     const connection = await db.marketplaceConnection.create({ data: { marketplace: "EBAY", externalAccountId: "test-other-account" } });
     const shop = await db.marketplaceShop.create({ data: { connectionId: connection.id, marketplace: "EBAY", externalShopId: "test-other-shop", name: "Other shop" } });
+    await db.marketplaceConnection.update({ where: { id: connection.id }, data: { status: "CONNECTED" } });
+    await db.marketplaceOrder.create({ data: { marketplace: "EBAY", marketplaceOrderId: "coverage-test-order", marketplaceShopId: shop.id, orderTotal: 100, currency: "USD", orderDate: new Date(+q.start + 1000), lastSyncedAt: new Date() } });
+    const staleSales = await revenue({ ...q, platform: "EBAY" }, db);
+    assert.equal(staleSales.available, false, "imported order rows are not treated as complete sales data without a successful fresh sync job");
+    const orderSync = await db.marketplaceSyncJob.create({ data: { marketplaceShopId: shop.id, syncType: "ORDERS", status: "SUCCESS", endedAt: new Date(), progressStep: "Complete" } });
+    const coveredSales = await revenue({ ...q, platform: "EBAY" }, db);
+    assert.equal(coveredSales.available, true);
+    if (!("orderCount" in coveredSales)) throw new Error(coveredSales.reason);
+    assert.equal(coveredSales.orderCount, 1); assert.equal(coveredSales.totals.USD, 100);
+    await db.marketplaceSyncJob.update({ where: { id: orderSync.id }, data: { endedAt: new Date(+q.end - 86400000) } });
+    assert.equal((await revenue({ ...q, platform: "EBAY" }, db)).available, false, "stale sync coverage makes imported rows unavailable, never zero or complete");
     const ambiguous = await db.listing.create({ data: { ...fixture, marketplaceShopId: shop.id } });
     metrics = await productivity("alice", q, db); assert.equal(metrics.platforms[1].publishedListings, 2); assert.equal(metrics.platforms[1].averageMinutesPerListing, null);
     await db.listing.delete({ where: { id: ambiguous.id } });
@@ -110,6 +124,16 @@ async function main() {
     assert.equal((await handleTracker(new Request("https://erp.khyatigems.com/api/work-tracker/sessions"), { params: Promise.resolve({ path: ["sessions"] }) }, db, authenticated)).status, 401);
     assert.equal((await handleTracker(bearer, { params: Promise.resolve({ path: ["credentials"] }) }, db, authenticated)).status, 401);
     assert.equal((await handleTracker(bearer, { params: Promise.resolve({ path: ["reports", "summary"] }) }, db, authenticated)).status, 403);
+    const beforeCheck = await db.workActivityEvent.count();
+    const sensorCheck = await handleTracker(new Request("https://erp.khyatigems.com/api/work-tracker/sensor-status", { headers: { authorization: `Bearer ${credential.token}` } }), { params: Promise.resolve({ path: ["sensor-status"] }) }, db, authenticated);
+    assert.equal(sensorCheck.status, 200); assert.equal((await sensorCheck.json()).connected, true);
+    assert.equal(await db.workActivityEvent.count(), beforeCheck, "connection checking must not create fake activity");
+    const dashboardResponse = await request("dashboard?entryPage=999", "GET");
+    assert.equal(dashboardResponse.status, 200);
+    const dashboard = await dashboardResponse.json();
+    assert.equal(dashboard.entryPage, 0, "detail pages clamp safely after filters or corrections");
+    assert.ok(dashboard.entries.length <= 15);
+    assert.equal(dashboard.activityGroups.reduce((n: number, row: {seconds: number}) => n+row.seconds,0), dashboard.summary.totalSeconds);
     await request(`credentials/${credential.id}`, "DELETE", {});
     await assert.rejects(trackerIdentity(bearer, false, db), /revoked/);
     await assert.rejects(trackerIdentity(new Request("https://erp.khyatigems.com", { method: "POST", headers: { origin: "https://evil.test" } }), false, db, async () => ({ user: { id: "alice" } })), /origin/);
@@ -130,6 +154,6 @@ async function main() {
     await assert.rejects(ingestErpEvents("alice", { events: [{ ...erpEvent, id: crypto.randomUUID(), platform: "ETSY" }] }, "erp.khyatigems.com", db), /context/);
     assert.notEqual(newToken(), newToken());
     console.log("Work tracker integration passed: additive migration parity, lifecycle, ownership, auth, CSRF, credentials, duplicate events, overlap reports, corrections, targets and confirmed listing metrics");
-  } finally { await db.$disconnect(); rmSync(temp, { recursive: true, force: true }); }
+  } finally { await db.$disconnect(); await applicationPrisma?.$disconnect(); rmSync(temp, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

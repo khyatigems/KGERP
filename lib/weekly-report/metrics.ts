@@ -10,7 +10,7 @@ type Listing = { id: string; inventoryId: string | null; platform: string; marke
 type Shop = { id: string; name: string; marketplace: string; status: string; connection: { status: string } };
 type Sync = { marketplaceShopId: string | null; syncType: string; status: string; startedAt: Date; endedAt: Date | null; recordsFailed: number };
 type SyncJob = { marketplaceShopId: string; syncType: string; status: string; createdAt: Date; endedAt: Date | null; recordsFailed: number };
-export type Data = { inventory: Inventory[]; orders: Order[]; listings: Listing[]; shops: Shop[]; syncs: Sync[]; syncJobs?: SyncJob[]; sales: { inventoryId: string; saleDate: Date }[]; returns: { returnDate: Date; items: { quantity: number }[] }[]; coverage: string[]; returnsAvailable?: boolean };
+export type Data = { inventory: Inventory[]; orders: Order[]; listings: Listing[]; shops: Shop[]; syncs: Sync[]; syncJobs?: SyncJob[]; sales: { inventoryId: string; saleDate: Date }[]; returns: { returnDate: Date; items: { quantity: number }[] }[]; coverage: string[]; returnsAvailable?: boolean; invoices?: { invoiceDate: Date | null; createdAt: Date; totalAmount: number; invoiceType: string; paymentStatus: string }[] };
 export type Exception = { sku: string; name: string; status: string; listings: string; missing: string[]; severity: "WARNING" | "CRITICAL"; action: string };
 type CurrencyTotals = Record<string, number>;
 const sum = (totals: CurrencyTotals, currency: string, amount: number) => { totals[currency] = Number(((totals[currency] || 0) + amount).toFixed(6)); };
@@ -44,7 +44,7 @@ export function inventoryIssues(item: Inventory, settings: ReportSettings) {
 function aggregateOrders(orders: Order[], start: Date, end: Date, timezone: string) {
  const grouped = new Map<string, Order[]>();
  for (const order of orders) if (inPeriod(order.orderDate, start, end)) {
-  const key = JSON.stringify([order.marketplace, order.marketplaceOrderId]);
+  const key = JSON.stringify([order.marketplace.toUpperCase(), order.marketplaceOrderId]);
   grouped.set(key, [...grouped.get(key) || [], order]);
  }
  const uniqueOrders: Order[] = [];
@@ -64,18 +64,18 @@ function aggregateOrders(orders: Order[], start: Date, end: Date, timezone: stri
    uniqueOrders.push({ ...latest, marketplaceShopId: null });
   } else uniqueOrders.push(latest);
  }
- const totals: CurrencyTotals = {}, amountOrderCounts: Record<string, number> = {}, daily: Record<string, CurrencyTotals> = {}, byShop: Record<string, { orders: number; units: number; value: CurrencyTotals; cancelled: number; refunded: number }> = {};
+ const totals: CurrencyTotals = {}, amountOrderCounts: Record<string, number> = {}, daily: Record<string, CurrencyTotals> = {}, byShop: Record<string, { orders: number; units: number; value: CurrencyTotals; cancelled: number; refunded: number; unknownAmounts: number }> = {};
  let count = 0, units = 0, cancelled = 0, refunded = 0, excluded = 0, unknownAmounts = 0;
  for (const order of uniqueOrders) {
   const shopKey = order.marketplaceShopId || `${order.marketplace}:unassigned`;
-  byShop[shopKey] ||= { orders: 0, units: 0, value: {}, cancelled: 0, refunded: 0 };
+  byShop[shopKey] ||= { orders: 0, units: 0, value: {}, cancelled: 0, refunded: 0, unknownAmounts: 0 };
   const status = order.status.toUpperCase();
   count++; byShop[shopKey].orders++;
   if (/CANCEL/.test(status)) { cancelled++; byShop[shopKey].cancelled++; excluded++; continue; }
   if (/REFUND/.test(status)) { refunded++; byShop[shopKey].refunded++; excluded++; continue; }
   if (/FAIL|UNPAID|PAYMENT_PENDING/.test(status)) { excluded++; continue; }
   const quantity = order.items.reduce((n, i) => n + (Number.isInteger(i.quantity) && i.quantity > 0 ? i.quantity : 0), 0); units += quantity; byShop[shopKey].units += quantity;
-  if (order.orderTotal === null || !Number.isFinite(order.orderTotal) || order.orderTotal < 0 || !/^[A-Z]{3}$/.test(order.currency)) { unknownAmounts++; continue; }
+  if (order.orderTotal === null || !Number.isFinite(order.orderTotal) || order.orderTotal < 0 || !/^[A-Z]{3}$/.test(order.currency)) { unknownAmounts++; byShop[shopKey].unknownAmounts++; continue; }
   const day = dayKey(+order.orderDate!, timezone); daily[day] ||= {};
   sum(totals, order.currency, order.orderTotal); sum(daily[day], order.currency, order.orderTotal); sum(byShop[shopKey].value, order.currency, order.orderTotal);
   amountOrderCounts[order.currency] = (amountOrderCounts[order.currency] || 0) + 1;
@@ -120,14 +120,17 @@ export function buildMetrics(data: Data, settings: ReportSettings, scheduled: Da
  const shopRows = data.shops.map(shop => {
   const syncs = data.syncs.filter(s => s.marketplaceShopId === shop.id).sort((a, b) => +(b.endedAt || b.startedAt) - +(a.endedAt || a.startedAt));
   const listingSyncs = syncs.filter(s => s.syncType === "LISTINGS");
-  const lastListingSync = listingSyncs.find(s => ["SUCCESS", "PARTIAL"].includes(s.status) && s.endedAt)?.endedAt || null;
+  const lastListingSync = listingSyncs.find(s => ["SUCCESS", "COMPLETED", "PARTIAL"].includes(s.status) && s.endedAt)?.endedAt || null;
   const listingHours = lastListingSync ? (+generated - +lastListingSync) / 3600000 : null;
   const orderJob = (data.syncJobs || []).filter(job => job.marketplaceShopId === shop.id && job.syncType === "ORDERS").sort((a, b) => +b.createdAt - +a.createdAt)[0] || null;
   const orderLog = syncs.find(s => s.syncType === "ORDERS" && s.endedAt) || null;
   const lastOrderSync = orderJob?.endedAt || orderLog?.endedAt || null;
   const orderSyncAgeHours = lastOrderSync ? (+generated - +lastOrderSync) / 3600000 : null;
   const connected = shop.status === "CONNECTED" && shop.connection.status === "CONNECTED";
-  const orderSyncState = !connected ? "DISCONNECTED" : !orderJob ? "NO_SYNC" : ["QUEUED", "PROCESSING"].includes(orderJob.status) ? "IN_PROGRESS" : orderJob.status !== "SUCCESS" || orderJob.recordsFailed > 0 ? orderJob.status === "FAILED" ? "FAILED" : "PARTIAL" : orderJob.endedAt && +orderJob.endedAt >= +period.end ? "CURRENT" : "STALE";
+  // Sync logs describe individual pages; only the persistent job verifies that
+  // pagination finished. A successful page cannot certify period coverage.
+  const orderEvidence = orderJob;
+  const orderSyncState = !connected ? "DISCONNECTED" : !orderEvidence ? "NO_SYNC" : ["QUEUED", "PROCESSING"].includes(orderEvidence.status) ? "IN_PROGRESS" : !["SUCCESS", "COMPLETED"].includes(orderEvidence.status) || orderEvidence.recordsFailed > 0 ? orderEvidence.status === "FAILED" ? "FAILED" : "PARTIAL" : orderEvidence.endedAt && +orderEvidence.endedAt >= +period.end ? "CURRENT" : "STALE";
   const orderDataAvailable = orderSyncState === "CURRENT";
   const listings = shopScopedListings.filter(l => l.marketplaceShopId === shop.id);
   const value = current.byShop[shop.id], prior = previous.byShop[shop.id];
@@ -135,13 +138,14 @@ export function buildMetrics(data: Data, settings: ReportSettings, scheduled: Da
   const revenueChange = Object.fromEntries([...valueCurrencies].map(currency => [currency, percentChange(value?.value[currency] || 0, prior?.value[currency] || 0)]));
   return { id: shop.id, name: shop.name, platform: shop.marketplace, connected, lastListingSyncAt: lastListingSync?.toISOString() || null, listingSyncAgeHours: listingHours, listingStale: !lastListingSync || listingHours! >= settings.rules.staleSyncHours.warning, stale: !lastListingSync || listingHours! >= settings.rules.staleSyncHours.warning, lastOrderSyncAt: lastOrderSync?.toISOString() || null, orderSyncState, orderSyncAgeHours, orderDataAvailable,
    activeListings: listings.filter(l => ["ACTIVE", "LISTED"].includes(l.status.toUpperCase())).length,
-   newListings: shop.marketplace === "EBAY" ? newListings.filter(l => l.shopId === shop.id).length : null,
+   newListings: shop.marketplace.toUpperCase() === "EBAY" ? newListings.filter(l => l.shopId === shop.id).length : null,
    failedListingRecords: data.listings.filter(l => l.marketplaceShopId === shop.id && (l.syncStatus === "FAILED" || l.syncError)).length,
    failedSyncs: syncs.filter(s => inPeriod(s.startedAt, period.start, period.end) && ["FAILED", "PARTIAL"].includes(s.status)).length,
    orders: value?.orders || 0, units: value?.units || 0, value: value?.value || {}, cancelled: value?.cancelled || 0, refunded: value?.refunded || 0,
    orderChange: settings.comparisons && orderDataAvailable ? percentChange(value?.orders || 0, prior?.orders || 0) : null,
    unitChange: settings.comparisons && orderDataAvailable ? percentChange(value?.units || 0, prior?.units || 0) : null,
-   revenueChange: settings.comparisons && orderDataAvailable ? revenueChange : {},
+   revenueDataAvailable: orderDataAvailable && !value?.unknownAmounts,
+   revenueChange: settings.comparisons && orderDataAvailable && !value?.unknownAmounts && !prior?.unknownAmounts ? revenueChange : {},
   };
  });
  const orderCoverage = {
@@ -156,7 +160,7 @@ export function buildMetrics(data: Data, settings: ReportSettings, scheduled: Da
  const incompletePercent = inventory.length ? exceptions.length / inventory.length * 100 : 0;
  alert("missingImages", missingFields.Image || 0, `${missingFields.Image || 0} products have no image URL or media reference.`, "Add clear product images.");
  if (inventory.some(isInventoryCertificateEligible)) alert("missingCertificates", missingFields["Certificate number"] || 0, `${missingFields["Certificate number"] || 0} in-stock products with an image/media reference are missing a certificate number.`, "Review Inventory > Missing Certification and add or verify certificate details.");
- alert("incompletePercent", incompletePercent, `${incompletePercent.toFixed(1)}% of the current inventory snapshot is incomplete.`, "Resolve the SKU exception register.");
+ alert("incompletePercent", incompletePercent, `${incompletePercent.toFixed(1)}% of the current inventory snapshot is incomplete.`, "Review the Inventory completeness filters.");
  const staleShops = shopRows.filter(s => !s.connected || s.listingStale);
  for (const shop of staleShops) alert("staleSyncHours", shop.listingSyncAgeHours ?? settings.rules.staleSyncHours.critical, `${shop.name}: ${!shop.connected ? "marketplace connection is disconnected" : shop.lastListingSyncAt ? "listing synchronization is stale" : "no successful listing synchronization recorded"}.`, "Reconnect or synchronize listings before relying on active-listing snapshots.");
  for (const shop of shopRows.filter(s => !s.orderDataAvailable)) {
@@ -167,7 +171,9 @@ export function buildMetrics(data: Data, settings: ReportSettings, scheduled: Da
  alert("failedListings", shopRows.reduce((n, s) => n + s.failedListingRecords, 0), "Listing records currently contain synchronization errors.", "Review failed listing records; these are not dated publication attempts.");
  alert("inventoryInconsistencies", inconsistencies, `${inconsistencies} inventory records have invalid prices or piece counts.`, "Review these inventory values.");
  const revenueChanges = Object.fromEntries([...new Set([...Object.keys(current.totals), ...Object.keys(previous.totals)])].map(c => [c, percentChange(current.totals[c] || 0, previous.totals[c] || 0)]));
- if (settings.comparisons && orderCoverage.complete) for (const [currency, change] of Object.entries(revenueChanges)) if (change !== null && change < 0) alert("revenueDeclinePercent", -change, `${currency} recorded order value declined ${(-change).toFixed(1)}%.`, "Review shop-level demand and data freshness.");
+ const revenueAvailable = orderCoverage.complete && current.unknownAmounts === 0;
+ const revenueComparisonAvailable = revenueAvailable && previous.unknownAmounts === 0;
+ if (settings.comparisons && revenueComparisonAvailable) for (const [currency, change] of Object.entries(revenueChanges)) if (change !== null && change < 0) alert("revenueDeclinePercent", -change, `${currency} recorded order value declined ${(-change).toFixed(1)}%.`, "Review shop-level demand and data freshness.");
  const sold = new Set(data.sales.filter(s => inPeriod(s.saleDate, period.start, period.end)).map(s => s.inventoryId));
  const returns = data.returns.filter(r => inPeriod(r.returnDate, period.start, period.end));
  if (current.conflicts) coverage.push(`${current.conflicts} external order IDs have conflicting shop assignment; each order counted once.`);
@@ -180,9 +186,15 @@ export function buildMetrics(data: Data, settings: ReportSettings, scheduled: Da
  if (data.orders.some(o => !o.orderDate)) coverage.push("Some imported orders have no source order date and are excluded from dated metrics.");
  coverage.push("Inventory completeness, availability, valuation and active listings are generation-time snapshots. Historical week-end inventory and prior-week completeness are unavailable. Image completeness checks for a populated image URL/media reference; remote asset reachability is not probed.", "New listings cover confirmed ERP eBay publications only; imported creation dates and Etsy draft dates are not publication evidence. Historical failed publication-attempt counts are unavailable.", "Cancellation/refund/unpaid exclusions recognize recorded status strings only. Order-record counts include marketplace rows with recorded cancellation/refund statuses; eligible unit/value totals exclude known cancelled/refunded/failed/unpaid/payment-pending statuses. The eBay connector stores fulfillment status rather than a verified payment/refund ledger; comprehensive cancellation/refund counts and payment confirmation are unavailable. Marketplace amounts are recorded order totals, may include shipping/tax, and are not cash receipts, settlements or net profit. Refund, tax, discount and shipping amounts cannot be reliably separated. Net sales and consolidated historical INR are unavailable.", "Physical SKU counts, marketplace listing counts, order counts and item quantities are distinct measures. ERP sales/returns are separate ledgers and are not added to marketplace revenue.");
  if (inventory.some(isInventoryCertificateEligible)) coverage.push("Certificate completeness follows Inventory > Missing Certification: in-stock SKUs with an image URL or media record are checked for both certificateNo and certificateNumber. Null or empty-string identifier fields count as missing; certificate document availability is not assessed.");
- return { schemaVersion: 1, generatedAt: generated.toISOString(), period: { start: period.start.toISOString(), end: period.end.toISOString(), startDay: period.startDay, endDay: period.endDay, previousStart: period.previousStart.toISOString(), timezone: settings.timezone },
+ const invoiceSummary = (start: Date, end: Date) => {
+  if (!data.invoices) return null;
+  const rows = data.invoices.filter(i => inPeriod(i.invoiceDate || i.createdAt, start, end));
+  return { count: rows.length, export: rows.filter(i => ["EXPORT", "EXPORT_INVOICE"].includes(i.invoiceType)).length, tax: rows.filter(i => ["TAX", "TAX_INVOICE"].includes(i.invoiceType)).length, unpaid: rows.filter(i => i.paymentStatus !== "PAID").length, recordedValueInr: Number(rows.reduce((sum, i) => sum + i.totalAmount, 0).toFixed(2)) };
+ };
+ return { schemaVersion: 2, generatedAt: generated.toISOString(), period: { start: period.start.toISOString(), end: period.end.toISOString(), startDay: period.startDay, endDay: period.endDay, previousStart: period.previousStart.toISOString(), timezone: settings.timezone },
   inventory: { physicalSkus: inventory.length, inStock: byStatus.IN_STOCK || 0, byStatus, byGemstone, costValuation: settings.valuation ? Number(cost.toFixed(2)) : null, askingValuation: settings.valuation ? Number(asking.toFixed(2)) : null, valuationCurrency: "INR (existing inventory cost/selling-price convention)", incomplete: exceptions.length, incompletePercent, missingFields, certificateEligible: inventory.filter(isInventoryCertificateEligible).length, inconsistencies },
-  current, previous: settings.comparisons ? previous : null, comparisons: settings.comparisons ? { orders: orderCoverage.complete ? percentChange(current.count, previous.count) : null, units: orderCoverage.complete ? percentChange(current.units, previous.units) : null, revenue: orderCoverage.complete ? revenueChanges : {}, newListings: percentChange(newListings.length, previousPublished) } : null,
+  current, previous: settings.comparisons ? previous : null, comparisons: settings.comparisons ? { orders: orderCoverage.complete ? percentChange(current.count, previous.count) : null, units: orderCoverage.complete ? percentChange(current.units, previous.units) : null, revenue: revenueComparisonAvailable ? revenueChanges : {}, newListings: percentChange(newListings.length, previousPublished) } : null,
+  revenueAvailable, revenueComparisonAvailable, erpInvoices: { current: invoiceSummary(period.start, period.end), previous: settings.comparisons ? invoiceSummary(period.previousStart, period.start) : null },
   orderCoverage, shops: shopRows, newListings, previousPublished, newListingsCoverage: "PARTIAL", soldPhysicalSkus: sold.size, erpSaleRows: data.sales.filter(s => inPeriod(s.saleDate, period.start, period.end)).length,
   erpReturns: { records: data.returnsAvailable === false ? null : returns.length, units: data.returnsAvailable === false ? null : returns.reduce((n, r) => n + r.items.reduce((v, i) => v + i.quantity, 0), 0), amount: null },
   alerts: alerts.sort((a, b) => Number(b.severity === "CRITICAL") - Number(a.severity === "CRITICAL")), exceptions, coverage,
@@ -197,16 +209,17 @@ export async function collectMetrics(settings: ReportSettings, scheduled: Date, 
  const shops = allShops.filter(s => settings.scope === "SHOPS" ? settings.shopIds.includes(s.id) : settings.scope === "MARKETPLACES" ? settings.marketplaces.includes(s.marketplace) : true);
  const ids = shops.map(s => s.id);
  const cursorPage = (cursor?: string) => ({ take: 500, orderBy: { id: "asc" as const }, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) });
- const [inventory, orders, listings, syncs, sales, returns] = await Promise.all([
+ const [inventory, orders, listings, syncs, sales, returns, invoices] = await Promise.all([
   paged(cursor => db.inventory.findMany({ ...cursorPage(cursor), select: inventorySelect })),
   paged(cursor => db.marketplaceOrder.findMany({ ...cursorPage(cursor), where: { ...(settings.scope === "ALL_CONNECTED" ? {} : { marketplaceShopId: { in: ids } }), OR: [{ orderDate: { gte: settings.comparisons ? period.previousStart : period.start, lt: period.end } }, { orderDate: null }] }, include: { items: { select: { quantity: true } } } })),
   paged(cursor => db.listing.findMany({ ...cursorPage(cursor), where: settings.scope === "ALL_CONNECTED" ? {} : { marketplaceShopId: { in: ids } }, select: { id: true, inventoryId: true, platform: true, marketplaceShopId: true, externalId: true, status: true, syncStatus: true, syncError: true, listingSku: true, marketplaceTitle: true, rawMetadata: true } })),
   paged(cursor => db.marketplaceSyncLog.findMany({ ...cursorPage(cursor), where: { marketplaceShopId: { in: ids } }, select: { id: true, marketplaceShopId: true, syncType: true, status: true, startedAt: true, endedAt: true, recordsFailed: true } })),
   paged(cursor => db.sale.findMany({ ...cursorPage(cursor), where: { saleDate: { gte: settings.comparisons ? period.previousStart : period.start, lt: period.end } }, select: { id: true, inventoryId: true, saleDate: true } })),
   paged(cursor => db.salesReturn.findMany({ ...cursorPage(cursor), where: { returnDate: { gte: period.start, lt: period.end } }, select: { id: true, returnDate: true, items: { select: { quantity: true } } } })).catch(() => { coverage.push("ERP returns data could not be read; return counts are unavailable."); return []; }),
+  paged(cursor => db.invoice.findMany({ ...cursorPage(cursor), where: { isActive: true, status: { notIn: ["DRAFT", "CANCELLED", "VOID"] }, OR: [{ invoiceDate: { gte: settings.comparisons ? period.previousStart : period.start, lt: period.end } }, { invoiceDate: null, createdAt: { gte: settings.comparisons ? period.previousStart : period.start, lt: period.end } }] }, select: { id: true, invoiceDate: true, createdAt: true, totalAmount: true, invoiceType: true, paymentStatus: true } })),
  ]);
  const syncJobs = (await Promise.all(shops.flatMap(shop => ["LISTINGS", "ORDERS"].map(syncType => db.marketplaceSyncJob.findFirst({ where: { marketplaceShopId: shop.id, syncType }, orderBy: { createdAt: "desc" }, select: { marketplaceShopId: true, syncType: true, status: true, createdAt: true, endedAt: true, recordsFailed: true } }))))).filter((job): job is NonNullable<typeof job> => Boolean(job));
  if (!shops.length) coverage.push("No shops match the configured scope; marketplace metrics have no coverage.");
  if (orders.some(o => !o.marketplaceShopId || !ids.includes(o.marketplaceShopId))) coverage.push("Some orders have no recognized shop assignment. They are included in all-shop platform totals but cannot be assigned to a named shop row.");
- return buildMetrics({ inventory, orders, listings, syncs, syncJobs, shops, sales, returns, coverage, returnsAvailable: !coverage.some(c => c.startsWith("ERP returns data could not")) }, settings, scheduled);
+ return buildMetrics({ inventory, orders, listings, syncs, syncJobs, shops, sales, returns, invoices, coverage, returnsAvailable: !coverage.some(c => c.startsWith("ERP returns data could not")) }, settings, scheduled);
 }

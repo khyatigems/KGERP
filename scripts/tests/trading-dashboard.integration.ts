@@ -36,7 +36,7 @@ async function main() {
       ["TEST-TAX", "TAX_INVOICE", "INR", "UNPAID", "ISSUED", new Date()],
       ["TEST-DRAFT", "EXPORT_INVOICE", "USD", "UNPAID", "DRAFT", new Date()],
       ["TEST-OLD", "EXPORT_INVOICE", "USD", "PAID", "ISSUED", new Date("2020-01-01")],
-    ] as const) await prisma.invoice.create({ data: { invoiceNumber: number, invoiceType, invoiceCurrency: currency, paymentStatus, status, invoiceDate, subtotal: 100, taxTotal: 0, discountTotal: 0, totalAmount: 100 } });
+    ] as const) await prisma.invoice.create({ data: { invoiceNumber: number, invoiceType, invoiceCurrency: currency, conversionRate: currency === "USD" ? 80 : 1, paymentStatus, status, invoiceDate, subtotal: 100, taxTotal: 0, discountTotal: 0, totalAmount: 100 } });
     const started = performance.now();
     const data = await getTradingDashboard(admin.id, true);
     const elapsed = performance.now() - started;
@@ -48,6 +48,8 @@ async function main() {
     assert.equal(data.invoices?.recent.find(row => row.number === "TEST-EXPORT")?.type, "EXPORT");
     assert.equal(data.invoices?.recent.find(row => row.number === "TEST-TAX")?.type, "TAX");
     assert.equal(data.invoices?.recent.find(row => row.number === "TEST-TAX")?.currency, "INR");
+    assert.equal(data.invoices?.recent.find(row => row.number === "TEST-EXPORT")?.amount, 1.25, "INR ledger total is divided by stored invoice conversion rate");
+    assert.equal(data.invoices?.recent.find(row => row.number === "TEST-EXPORT")?.inrAmount, 100);
     assert.equal(data.inventory?.total, 2);
     assert.equal(data.inventory?.listed, 1, "Cross-listed gemstones count once in stock coverage");
     assert.equal(data.inventory?.preparedUnlisted, 1);

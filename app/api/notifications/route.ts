@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
-import { ensureNotificationSchema } from "@/lib/notifications";
+import { backfillRecentActivityNotifications, ensureNotificationSchema } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,7 @@ export async function handleNotificationsGet(request: NextRequest, identify: Ide
   const offset = Math.min(500, Math.max(0, Number(request.nextUrl.searchParams.get("offset")) || 0));
   try {
     await ensureNotificationSchema();
+    await backfillRecentActivityNotifications(userId);
     const [rows, unreadCount] = await Promise.all([
       prisma.notification.findMany({ where: { userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: offset, take: limit + 1 }),
       prisma.notification.count({ where: { userId, readAt: null } }),

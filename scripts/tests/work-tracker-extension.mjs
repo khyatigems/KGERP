@@ -7,7 +7,7 @@ let store = {}, idle = "active", focused = true, url = "https://www.ebay.com/itm
 const originalNow = Date.now;
 Date.now = () => now;
 let failed = true; const batches = [];
-let holdFetch = false, releaseFetch;
+let holdFetch = false, releaseFetch, failAckWrite = false;
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (_url, init) => {
   const events = JSON.parse(init.body).events; batches.push(events);
@@ -18,7 +18,7 @@ globalThis.fetch = async (_url, init) => {
 globalThis.chrome = {
   storage: { local: {
     async get(keys) { const list = typeof keys === "string" ? [keys] : keys; return structuredClone(Object.fromEntries(list.map(k => [k, store[k]]))); },
-    async set(values) { Object.assign(store, structuredClone(values)); }, async setAccessLevel() {},
+    async set(values) { if (failAckWrite && Object.hasOwn(values, "lastSync")) { failAckWrite = false; throw new Error("local queue acknowledgement failed"); } Object.assign(store, structuredClone(values)); }, async setAccessLevel() {},
   } },
   idle: { setDetectionInterval() {}, async queryState() { return idle; }, onStateChanged: event("idle") },
   windows: { WINDOW_ID_NONE: -1, async getLastFocused() { return { id: 1, focused, state: focused ? "normal" : "minimized" }; }, onFocusChanged: event("focus") },
@@ -55,6 +55,7 @@ try {
   assert.equal(store.queue.filter(e => e.eventType === "ACTIVE").length, beforeRestart);
   assert.ok(store.lastError.includes("offline"));
   const failedIds = batches.at(-1).map(e => e.id);
+  assert.match((await message("sync")).error, /offline/, "Sync now must expose a failed upload instead of claiming success");
   failed = false; await message("sync"); await flush();
   assert.ok(failedIds.every(id => batches.at(-1).some(e => e.id === id)));
   assert.ok(store.queue.every(e => !failedIds.includes(e.id)));
@@ -75,6 +76,10 @@ try {
   const nearExpiry = new Date(now - 7 * 86400000 + 60000).toISOString();
   store.queue = [{ id: crypto.randomUUID(), platform: "ERP", domain: "erp.khyatigems.com", eventType: "TAB_SWITCH", occurredAt: nearExpiry, activityType: "OTHER", classificationOverride: false }];
   await message("sync"); assert.equal(store.queue.length, 0, "Records just under seven days must still sync");
+  await message("start"); await tick(); await message("stop"); now += 200000; failAckWrite = true;
+  const ackFailure = await message("sync"); assert.match(ackFailure.error, /local queue acknowledgement failed/, "a local ack failure must not be reported as a successful sync");
+  assert.ok(store.queue.length > 0, "records remain queued if the local acknowledgement could not be committed");
+  await message("sync"); assert.equal(store.queue.length, 0, "queued records can be safely replayed after an acknowledgement failure");
   await message("start"); await tick(); await message("stop");
   now += 200000;
   holdFetch = true;

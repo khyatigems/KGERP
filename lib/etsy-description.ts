@@ -34,6 +34,8 @@ type DescriptionResult = {
   warning?: string;
 };
 
+const DESCRIPTION_PROVIDER_TIMEOUT_MS = 15_000;
+
 function clean(value: string | number | null | undefined): string {
   return value === undefined || value === null ? "" : String(value).trim();
 }
@@ -208,12 +210,13 @@ async function generateWithProvider(prompt: string): Promise<{ text: string; pro
         body: JSON.stringify({
           model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
           temperature: 0.25,
+          max_tokens: 1_200,
           messages: [
             { role: "system", content: "You write factual, policy-conscious Etsy listing copy. Follow the supplied facts and structure exactly. Return only plain text." },
             { role: "user", content: prompt },
           ],
         }),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(DESCRIPTION_PROVIDER_TIMEOUT_MS),
       });
       if (!response.ok) throw new Error(`OpenAI description generation failed with status ${response.status}.`);
       const result = await response.json();
@@ -233,8 +236,11 @@ async function generateWithProvider(prompt: string): Promise<{ text: string; pro
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-          signal: AbortSignal.timeout(20000),
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.25, maxOutputTokens: 1_200 },
+          }),
+          signal: AbortSignal.timeout(DESCRIPTION_PROVIDER_TIMEOUT_MS),
         }
       );
       if (!response.ok) throw new Error(`Gemini description generation failed with status ${response.status}.`);

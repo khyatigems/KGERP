@@ -9,7 +9,7 @@ async function refresh() {
 document.getElementById("settings").onclick = () => chrome.runtime.openOptionsPage();
 for (const button of document.querySelectorAll("[data-action]")) button.onclick = async () => {
  button.disabled = true;
- try { const result = await chrome.runtime.sendMessage({ action: button.dataset.action, platform: "AUTO", activityType: "OTHER" }); await refresh(); if (result.error) document.getElementById("error").textContent = result.error; }
+ try { const result = await chrome.runtime.sendMessage({ action: button.dataset.action, platform: "AUTO", activityType: "OTHER" }); await refresh(); document.getElementById("message").textContent = result.message || ""; if (result.error) document.getElementById("error").textContent = result.error; }
  catch (e) { document.getElementById("error").textContent = e.message; } finally { button.disabled = false; }
 };
 await refresh();

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
+import { persistNotificationSafely } from "@/lib/notifications";
 import { logActivity } from "@/lib/activity-logger";
 import { triggerMarketplaceConflict } from "@/lib/marketplace-control-center";
 import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
@@ -205,6 +206,16 @@ export async function createQuotation(prevState: unknown, formData: FormData) {
       source: "WEB",
       userId: session.user?.id || "system",
       userName: session.user?.name || "Unknown",
+    });
+
+    await persistNotificationSafely({
+      userId: session.user.id,
+      eventKey: `quotation-created:${quotation.id}`,
+      delivery: "important_activity",
+      severity: "success",
+      title: "Quotation created",
+      message: `Quotation ${quotation.quotationNumber} was saved.`,
+      href: `/quotes/${quotation.id}`,
     });
 
     revalidatePath("/quotes");

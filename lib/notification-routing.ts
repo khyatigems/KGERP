@@ -2,6 +2,7 @@ export type NotificationEventKind =
   | "routine_success"
   | "recoverable_error"
   | "contextual_warning"
+  | "important_activity"
   | "operational_failure";
 
 export type NotificationRoute = "toast" | "inline" | "persistent";
@@ -14,6 +15,7 @@ export function routeNotification(kind: NotificationEventKind): NotificationRout
       return "toast";
     case "contextual_warning":
       return "inline";
+    case "important_activity":
     case "operational_failure":
       return "persistent";
   }

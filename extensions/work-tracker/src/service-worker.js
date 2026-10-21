@@ -5,7 +5,7 @@ import { sliceInterval, removeIdle, readyEvents, acknowledge } from "./activity-
 // Serialize state changes; network requests must not block focus/idle sampling.
 let chain = Promise.resolve();
 let syncInFlight = null;
-function schedule(fn, onError) { chain = chain.catch(() => {}).then(fn).catch(async error => { await chrome.storage.local.set({ lastError: error.message }); await badge(false, "!"); onError?.(error); }); return chain; }
+function schedule(fn, onError, propagate = false) { chain = chain.catch(() => {}).then(fn).catch(async error => { await chrome.storage.local.set({ lastError: error.message }); await badge(false, "!"); onError?.(error); if (propagate) throw error; }); return chain; }
 async function settings() { return { ...defaults, ...(await chrome.storage.local.get("settings")).settings }; }
 async function badge(active, text) { await chrome.action.setBadgeText({ text: text || (active ? "ON" : "OFF") }); await chrome.action.setBadgeBackgroundColor({ color: active ? "#15803d" : "#64748b" }); await chrome.action.setTitle({ title: active ? "Work Tracker — estimating active work" : "Work Tracker — paused / idle / unsupported tab" }); }
 async function sample(eventType = "TAB_SWITCH", reset = false, idleOverride = null) {
@@ -33,31 +33,32 @@ async function sample(eventType = "TAB_SWITCH", reset = false, idleOverride = nu
 }
 function sync() {
   if (syncInFlight) return syncInFlight;
-  syncInFlight = performSync().catch(error => schedule(async () => { await chrome.storage.local.set({ lastError: error.message }); await badge(false, "!"); })).finally(() => { syncInFlight = null; });
+  syncInFlight = performSync().catch(async error => { await schedule(async () => { await chrome.storage.local.set({ lastError: error.message }); await badge(false, "!"); }); return { error: error.message }; }).finally(() => { syncInFlight = null; });
   return syncInFlight;
 }
 async function performSync() {
   const config = await settings();
-  if (!config.token) return;
+  if (!config.token) return { error: "Connect the extension in Connection settings first." };
   const stored = await chrome.storage.local.get(["queue", "retryAt", "failures"]);
-  if ((stored.retryAt || 0) > Date.now()) return;
+  if ((stored.retryAt || 0) > Date.now()) return { ok: true, message: "Waiting before retrying the connection." };
   let queue = stored.queue || [];
   // Server accepts seven days of offline history. Expired records are retained for inspection.
   const expired = queue.filter(e => +new Date(e.occurredAt) < Date.now() - 7 * 86400000);
-  if (expired.length) { await schedule(() => chrome.storage.local.set({ lastError: "Some queued records are over seven days old. Export or clear the queue in Settings." })); return; }
+  if (expired.length) { const error = "Some queued records are over seven days old. Export or clear the queue in Settings."; await schedule(() => chrome.storage.local.set({ lastError: error })); return { error }; }
   const batch = readyEvents(queue, Date.now(), config.idleSeconds).slice(0, 100);
-  if (!batch.length) return;
+  if (!batch.length) return { ok: true, message: queue.length ? "Recent activity is still in the idle safety buffer. It uploads automatically when eligible." : "No pending activity. Open a supported marketplace and enable automatic tracking." };
   try {
     const ids = await sendEvents(config, batch);
     await schedule(async () => {
       const currentConfig = await settings();
-      if (currentConfig.token !== config.token || currentConfig.erpUrl !== config.erpUrl) return;
+      if (currentConfig.token !== config.token || currentConfig.erpUrl !== config.erpUrl) throw new Error("ERP connection changed while syncing. The records remain queued; sync again with the original ERP connection.");
       const current = await chrome.storage.local.get("queue");
       // New intervals can arrive during an upload. Acknowledge against the
       // latest queue rather than replacing it with the old request snapshot.
       queue = acknowledge(current.queue || [], ids);
       await chrome.storage.local.set({ queue, failures: 0, retryAt: 0, lastError: "", lastSync: new Date().toISOString() });
-    });
+    }, undefined, true);
+    return { ok: true, message: ids.length === batch.length ? `${ids.length} records synchronized. Recent records may still be in the idle safety buffer.` : `${ids.length} of ${batch.length} records accepted. Unaccepted records remain queued for retry.` };
   } catch (error) {
     const failures = (stored.failures || 0) + 1;
     await schedule(async () => {
@@ -66,6 +67,7 @@ async function performSync() {
       await chrome.storage.local.set({ failures, retryAt: Date.now() + Math.min(3600000, 30000 * 2 ** Math.min(failures, 7)), lastError: error.message });
       await badge(false, "!");
     });
+    return { error: error.message };
   }
 }
 chrome.runtime.onInstalled.addListener(() => schedule(async () => { await chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }); await chrome.alarms.create("work-tracker", { periodInMinutes: 0.5 }); await sample("TAB_SWITCH", true); }));
@@ -81,8 +83,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   let responded = false;
   const reply = result => { if (responded) return; responded = true; try { respond(result); } catch { /* The extension page may have closed while this operation ran. */ } };
   if (message.action === "sync") {
-    schedule(() => chrome.storage.local.set({ retryAt: 0 }), error => reply({ error: error.message }))
-      .then(() => sync()).then(() => reply({ ok: true }), error => reply({ error: error.message }));
+    schedule(() => chrome.storage.local.set({ retryAt: 0 }), error => reply({ error: error.message }), true)
+      .then(() => sync()).then(result => reply(result || { ok: true }), error => reply({ error: error.message }));
     return true;
   }
   schedule(async () => {

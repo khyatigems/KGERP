@@ -1,5 +1,13 @@
 # Work Tracker validation — 20 October 2026
 
+## Follow-up audit — 21 October 2026
+
+The order-value context now requires a recent successful, zero-failure ORDERS sync for every connected shop in scope, plus complete valid amounts/currencies for eligible imported orders. Missing or stale coverage returns an explicit unavailable reason naming affected shops; imported rows by themselves cannot imply complete sales coverage. Isolated integration coverage verifies stale rows remain unavailable, fresh coverage permits totals, and later staleness disables them again.
+
+The extension now validates event acknowledgements against the submitted batch, propagates queue acknowledgement/storage failures to **Sync now**, and leaves unacknowledged records queued for idempotent retry. Tests simulate offline uploads, invalid acknowledgements and local acknowledgement-write failure. The compact history shows day/platform/activity totals first; individual intervals and corrections are paged in an opt-in detail view. Marketplace-wide order-value context is separated from personal work KPI cards. The extension settings page verifies the saved credential against an authenticated sensor-status endpoint. The weekly report's email test action is tucked under an optional recipient section because preview validates PDF content while test delivery validates Zoho delivery and the attachment.
+
+Follow-up verification: `npm run test:work-tracker`, `npm run test:weekly-reports`, `npm run test:weekly-reports:ui`, targeted ESLint, `npx tsc --noEmit`, `npm run build:work-tracker-extension`, and `npm run build` passed. The full build retains only the existing Next.js middleware convention deprecation notice. Actual Chrome installation and credential-based interactive acceptance remain to be confirmed in the user's Chrome profile.
+
 ## Follow-up: calculation and extension behavior review
 
 Reviewed manual active intervals, report overlap allocation, daily/weekly timezone boundaries, targets and publication attribution while preparing the user walkthrough. Corrected immediate screen lock being treated as a full idle-threshold rollback; screen lock now preserves preceding active time while stopping new counting. Corrected the extension's offline age constant to a full seven days. Uploads now run outside the state-change queue, so slow requests cannot block focus/idle/control handling; acknowledgements remove accepted IDs from the latest queue without losing new intervals. Worker regression tests explicitly hold a network request open and verify controls, focus loss and new queued records remain correct.

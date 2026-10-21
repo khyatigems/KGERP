@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { classifyDomain, subtract, splitDays, dateBoundary, weekKey, occupy, startSchema, eventSchema, targetSchema } from "@/lib/work-tracker/core";
 import { eligibleTab, classifyDomain as extensionClassify } from "../../extensions/work-tracker/src/platform-detection.js";
 import { sliceInterval, removeIdle, readyEvents, acknowledge } from "../../extensions/work-tracker/src/activity-tracker.js";
-import { sendEvents, validateSettings, defaults } from "../../extensions/work-tracker/src/api-client.js";
+import { sendEvents, validateSettings, defaults, checkConnection } from "../../extensions/work-tracker/src/api-client.js";
+import { activitySummary } from "@/lib/work-tracker/activity-summary";
+import { orderValueReport } from "@/lib/work-tracker/analytics";
 
 async function main() {
   for (const [host, expected] of Object.entries({ "erp.khyatigems.com": "ERP", "www.ebay.com": "EBAY", "sellercentral.amazon.in": "AMAZON", "www.etsy.com": "ETSY", "ebay.com.evil.test": null, "evil-etsy.com": null, "random.amazon.com": null, "erp.khyatigems.com.evil.test": null })) {
@@ -35,6 +37,21 @@ async function main() {
   assert.throws(() => validateSettings({ ...defaults, erpUrl: "http://evil.test", token: "x" }));
   const sent: string[] = [];
   const config = { ...defaults, token: `kgwt_${"x".repeat(43)}` };
+  await checkConnection(config, async (url, options) => {
+    assert.ok(String(url).endsWith("/api/work-tracker/sensor-status"));
+    assert.equal(options?.credentials, "omit");
+    assert.equal(new Headers(options?.headers).get("authorization"), `Bearer ${config.token}`);
+    return new Response(JSON.stringify({ connected: true }));
+  });
+  await assert.rejects(checkConnection(config, async () => new Response("{}", { status: 401 })), /expired, revoked/);
+  const grouped = activitySummary(Array.from({ length: 500 }, (_, i) => ({ sessionId: String(i), day: "2026-10-20", platform: i % 2 ? "EBAY" : "ETSY", activityType: "OTHER", seconds: 20 })));
+  assert.equal(grouped.length, 2, "500 raw samples become two useful summary rows");
+  assert.equal(grouped.reduce((n,row) => n+row.seconds,0), 10000);
+  assert.equal(grouped[0].intervalCount, 250);
+  const order = { marketplace: "EBAY", marketplaceOrderId: "external", marketplaceShopId: "shop", status: "PAID", orderTotal: 10, currency: "USD", orderDate: new Date("2026-10-20T10:00:00Z") };
+  const values = orderValueReport([order, { ...order, marketplaceShopId: null }], { start: new Date("2026-10-20"), end: new Date("2026-10-21"), timeZone: "UTC", platform: undefined, activityType: undefined });
+  assert.equal(values.orderCount, 1, "legacy unassigned copies cannot inflate business totals");
+  assert.equal(values.totals.USD, 10);
   let first = true;
   const fakeFetch: typeof fetch = async (_url, options) => {
     sent.push(JSON.parse(options!.body as string).events[0].id);
@@ -43,6 +60,7 @@ async function main() {
   };
   await assert.rejects(sendEvents(config, [event], fakeFetch));
   assert.deepEqual(await sendEvents(config, [event], fakeFetch), [event.id]); assert.deepEqual(sent, [event.id, event.id]);
+  await assert.rejects(sendEvents(config, [event], async () => new Response(JSON.stringify({ accepted: ["unrequested-id"] }))), /invalid event acknowledgement/);
   console.log("Work tracker unit tests passed: domains, focus, idle, transitions, retries, privacy, DST and overlap logic");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

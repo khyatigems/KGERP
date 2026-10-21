@@ -41,6 +41,8 @@ type TaskRow = {
 };
 
 const taskCache = new Map<string, EtsyRegenerationTask>();
+const activeProcessors = new Map<string, Promise<void>>();
+const ETSY_BATCH_SIZE = 4;
 let taskSchemaReady = false;
 
 async function ensureTaskSchema(): Promise<void> {
@@ -234,7 +236,7 @@ function descriptionFacts(item: SelectedInventory): EtsyDescriptionFacts {
   };
 }
 
-async function processNextItem(task: EtsyRegenerationTask): Promise<void> {
+async function processNextBatchWork(task: EtsyRegenerationTask): Promise<void> {
   if (task.status === "CANCELLED" || task.status === "COMPLETED" || task.status === "FAILED") return;
   const processed = task.updated + task.failed;
   if (processed >= task.total) {
@@ -243,47 +245,86 @@ async function processNextItem(task: EtsyRegenerationTask): Promise<void> {
   }
   task.status = "RUNNING";
   await saveTask(task);
-  const selectedId = task.selectedItemIds?.[processed];
-  const item = task.selectionMode === "selected"
-    ? selectedId
-      ? await prisma.inventory.findUnique({ where: { id: selectedId }, select: inventorySelect })
-      : null
-    : (await prisma.inventory.findMany({
+  const batchIds = task.selectedItemIds?.slice(processed, processed + ETSY_BATCH_SIZE);
+  const items = task.selectionMode === "selected"
+    ? batchIds?.length
+      ? await prisma.inventory.findMany({ where: { id: { in: batchIds } }, select: inventorySelect })
+      : []
+    : await prisma.inventory.findMany({
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         skip: processed,
-        take: 1,
+        take: ETSY_BATCH_SIZE,
         select: inventorySelect,
-      }))[0] || null;
+      });
 
-  if (!item) {
+  const foundIds = new Set(items.map((item) => item.id));
+  const missingIds = batchIds?.filter((id) => !foundIds.has(id)) || [];
+  for (const id of missingIds) {
     task.failed += 1;
-    task.errors.push({
-      id: selectedId || "inventory",
-      sku: selectedId || "unknown",
-      error: "Inventory item could not be found while processing the batch.",
-    });
+    task.errors.push({ id, sku: id, error: "Inventory item was removed before its description could be generated." });
+  }
+  if (task.selectionMode === "all" && !items.length) {
+    task.failed += task.pending;
+    task.errors.push({ id: "inventory", sku: "unknown", error: "No remaining inventory items could be found while processing the batch." });
+    await finishTask(task);
+    return;
+  }
+  if (!items.length) {
     await finishTask(task);
     return;
   }
 
-  try {
-    const result = await generateEtsyDescription(descriptionFacts(item));
+  const generated = await Promise.all(items.map(async (item) => {
+    try {
+      const result = await generateEtsyDescription(descriptionFacts(item));
+      return { item, description: result.description } as const;
+    } catch (error) {
+      return { item, error: error instanceof Error ? error.message : "Unable to generate Etsy description." } as const;
+    }
+  }));
+
+  for (const result of generated) {
     const latestTask = await getTask(task.id);
     if (latestTask?.status === "CANCELLED") return;
-    await prisma.inventory.update({
-      where: { id: item.id },
-      data: { etsyDescription: result.description },
-    });
-    task.updated += 1;
-  } catch (error) {
-    task.failed += 1;
-    task.errors.push({
-      id: item.id,
-      sku: item.sku,
-      error: error instanceof Error ? error.message : "Unable to generate Etsy description.",
-    });
+    if ("description" in result) {
+      try {
+        await prisma.inventory.update({ where: { id: result.item.id }, data: { etsyDescription: result.description } });
+        task.updated += 1;
+      } catch {
+        task.failed += 1;
+        task.errors.push({ id: result.item.id, sku: result.item.sku, error: "Description was generated but could not be saved. Please retry this item." });
+      }
+    } else {
+      task.failed += 1;
+      task.errors.push({ id: result.item.id, sku: result.item.sku, error: result.error });
+    }
+    task.pending = Math.max(0, task.total - task.updated - task.failed);
+    await saveTask(task);
   }
   await finishTask(task);
+}
+
+async function processNextBatch(task: EtsyRegenerationTask) {
+  const active = activeProcessors.get(task.id);
+  if (active) return active;
+  const work = processNextBatchWork(task);
+  activeProcessors.set(task.id, work);
+  try { await work; } finally { activeProcessors.delete(task.id); }
+}
+
+function taskResponse(task: EtsyRegenerationTask) {
+  const finished = ["COMPLETED", "FAILED", "CANCELLED"].includes(task.status);
+  return NextResponse.json({
+    success: true,
+    status: task.status,
+    total: task.total,
+    updated: task.updated,
+    failed: task.failed,
+    pending: task.pending,
+    errors: task.errors,
+    timeTaken: finished && task.endTime ? Math.round((task.endTime - task.startTime) / 1000) : undefined,
+    message: task.message,
+  });
 }
 
 async function authorized() {
@@ -359,30 +400,29 @@ export async function GET(request: NextRequest) {
   try {
     const task = await getTask(taskId);
     if (!task) return NextResponse.json({ error: "Regeneration task was not found." }, { status: 404 });
-    if (task.status === "PENDING" || task.status === "RUNNING") {
-      await processNextItem(task);
-    }
-    const current = await getTask(taskId);
-    if (!current) return NextResponse.json({ error: "Regeneration task was not found." }, { status: 404 });
-    const finished = ["COMPLETED", "FAILED", "CANCELLED"].includes(current.status);
-    return NextResponse.json({
-      success: true,
-      status: current.status,
-      total: current.total,
-      updated: current.updated,
-      failed: current.failed,
-      pending: current.pending,
-      errors: current.errors,
-      timeTaken: finished && current.endTime
-        ? Math.round((current.endTime - current.startTime) / 1000)
-        : undefined,
-      message: current.message,
-    });
+    return taskResponse(task);
   } catch (error) {
     console.error("[Regenerate Etsy] Task processing failed:", error);
     return NextResponse.json({
       error: error instanceof Error ? error.message : "Unable to process Etsy description regeneration.",
     }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const authorization = await authorized();
+  if (authorization.response) return authorization.response;
+  const taskId = request.nextUrl.searchParams.get("taskId") || "";
+  if (!z.string().uuid().safeParse(taskId).success) return NextResponse.json({ error: "A valid taskId is required." }, { status: 400 });
+  try {
+    const task = await getTask(taskId);
+    if (!task) return NextResponse.json({ error: "Regeneration task was not found." }, { status: 404 });
+    if (task.status === "PENDING" || task.status === "RUNNING") await processNextBatch(task);
+    const current = await getTask(taskId);
+    return current ? taskResponse(current) : NextResponse.json({ error: "Regeneration task was not found." }, { status: 404 });
+  } catch (error) {
+    console.error("[Regenerate Etsy] Batch processing failed:", error);
+    return NextResponse.json({ error: "Unable to process this Etsy description batch. Retry to continue from the last saved item." }, { status: 500 });
   }
 }
 

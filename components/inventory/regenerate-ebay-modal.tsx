@@ -57,8 +57,11 @@ export function RegenerateEbayModal({
     let consecutiveFailures = 0;
     const MAX_RETRIES = 3;
     while (!isFinished) {
+      // Advancing the job is an explicit PATCH. GET only reads progress so a
+      // transient poll retry can never start the same generation pass again.
       const response = await fetch(
-        `${endpoint}?taskId=${encodeURIComponent(taskId)}`
+        `${endpoint}?taskId=${encodeURIComponent(taskId)}`,
+        { method: "PATCH", headers: { Accept: "application/json" }, credentials: "same-origin" }
       );
 
       if (!response.ok) {
@@ -113,7 +116,7 @@ export function RegenerateEbayModal({
         break;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
   };
 
@@ -249,8 +252,8 @@ export function RegenerateEbayModal({
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
                 {selectedItemIds && selectedItemIds.length > 0
-                  ? `This operation will regenerate and save Etsy descriptions for ${selectedItemIds.length} selected item(s).`
-                  : `This operation will regenerate and save Etsy descriptions for all inventory items. AI generation can take longer for larger inventories; a factual template is used if AI is unavailable.`}
+                  ? `This operation will regenerate and save ${marketplaceName} descriptions for ${selectedItemIds.length} selected item(s).`
+                  : `This operation will regenerate and save ${marketplaceName} descriptions for all inventory items. Etsy uses a factual template if AI generation is unavailable.`}
               </AlertDescription>
             </Alert>
           )}

@@ -1,5 +1,23 @@
 # Weekly Business Intelligence reports
 
+## October 2026 audit corrections
+
+The PDF is now a concise count-based briefing (the current live-data preview is two A4 pages). Repeated sections are consolidated, no SKU/listing-detail registers are printed, and image/certificate issues are counts with denominators and percentages. Existing legacy detail flags remain parseable but do not produce long registers. Charts and section visibility remain configurable.
+
+Preview API responses only succeed after a PDF is persisted. Generation failures return the recorded error (422); downloading a failed run explains the failure, generating runs return 202, and expired artifacts return 410. The browser only opens a download after `pdfAvailable=true`. Remote Company logo selections fall back to the existing approved local logo, without fetching untrusted URLs.
+
+Order coverage requires a completed persistent pagination job; individual page sync logs do not prove completeness. Incomplete coverage suppresses misleading zero-order/decline claims in both PDF and email. Missing amounts also suppress financial totals/percentage comparisons. Marketplace and ERP invoice values remain separate ledgers. Prior-week zero yields N/A, and snapshot inventory never receives invented historical changes.
+
+Dashboard export amounts use the saved invoice conversion rate, with stored INR totals in brackets. For example, stored INR 2217.20 and USD rate 92 displays USD 24.10 (INR 2217.20). Missing rates show conversion unavailable.
+
+Read-only operational audit: `npx tsx scripts/weekly-report-audit.ts`. Add `--generate-preview` to persist a real-data preview and write `output/pdf/KhyatiGems-weekly-audited-preview.pdf`; this never sends email or changes report settings. Existing immutable report PDFs retain their original snapshot; generate a new preview to review updated logic.
+
+On Windows, `npm run build` may fail regenerating Prisma while the dev server holds query_engine-windows.dll.node. Stop that server before the normal build, or verify unchanged-schema application compilation using `ERP_REVIEW_DIST_DIR=.next-weekly-audit` with `npx next build`. Exclude that generated directory when linting. No database migration is required by these corrections.
+
+Regression commands: `npm run test:weekly-reports` (unit, disposable-database integration and mocked Zoho contract), `npm run test:weekly-reports:pdf`, `npm run test:weekly-reports:ui`, `npx tsx scripts/tests/invoice-amounts.unit.ts`, `npx tsx scripts/tests/trading-dashboard.integration.ts`, `npx tsc --noEmit --pretty false`, and `npm run lint`. The preview regression asserts that failed generation returns 422 and successful persisted generation returns `pdfAvailable=true`; missing amount, page-only sync evidence, invoice-period boundaries and saved-rate conversion have explicit tests. Synthetic data is confined to QA fixtures; the ERP Generate preview action reads real database data.
+
+Audit validation results: weekly unit/integration/Zoho-contract tests, real Chromium PDF rendering, desktop/mobile Settings smoke tests, dashboard integration, invoice-currency tests, changed-runtime-file lint and the final TypeScript check passed. A real-data PREVIEW was persisted as READY and exported as a visually checked, two-page A4 PDF. No live email was sent. Full repository lint reported 164 errors / 79 warnings across the repository; those unrelated findings are not a passing check. The normal build was blocked by the Windows Prisma DLL lock. Separate Next compilation was attempted with the existing client (Turbopack and webpack); the webpack attempt reached repeated network socket-hang-up/ECONNRESET retries and was stopped, so a production build is not claimed as verified. Re-run the normal build after releasing the DLL and restoring build-time network access. No deployment was performed.
+
 ## Architecture and access
 
 The repository uses Next.js App Router, React, Zod and **Prisma/SQLite or Turso**, not Drizzle. Existing inventory, marketplace, sales, returns, company settings, activity audit and email models are reused. Settings → **Reports & Email Alerts** opens `/settings/weekly-reports`. Every private API checks the authenticated user's database-backed `settings:manage` permission; writes require a matching Origin. PDF downloads recheck that permission and return private/no-store responses.

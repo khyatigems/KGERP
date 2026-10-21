@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { persistNotificationSafely } from "@/lib/notifications";
 import { logActivity } from "@/lib/activity-logger";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -195,6 +196,15 @@ export async function createPurchase(prevState: unknown, formData: FormData) {
       userId: session.user.id,
       userName: session.user.name || session.user.email || "Unknown",
       newData: data,
+    });
+    await persistNotificationSafely({
+      userId: session.user.id,
+      eventKey: `purchase-created:${purchase.id}`,
+      delivery: "important_activity",
+      severity: "success",
+      title: "Purchase recorded",
+      message: `Purchase ${purchase.invoiceNo || "record"} was added successfully.`,
+      href: `/purchases/${purchase.id}`,
     });
 
   } catch (e) {

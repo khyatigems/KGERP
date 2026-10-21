@@ -67,9 +67,21 @@ export function NotificationBell() {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void load(true);
+    };
+    const timer = window.setInterval(refreshWhenVisible, 60_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [load]);
+  useEffect(() => {
     if (!open) return;
     void load(true);
-    const timer = window.setInterval(() => void load(true), 60_000);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -90,7 +102,7 @@ export function NotificationBell() {
     };
     window.addEventListener("keydown", onKeyDown);
     requestAnimationFrame(() => panelRef.current?.focus());
-    return () => { window.clearInterval(timer); window.removeEventListener("keydown", onKeyDown); };
+    return () => { window.removeEventListener("keydown", onKeyDown); };
   }, [open, load]);
 
   const markRead = async (id: string) => {

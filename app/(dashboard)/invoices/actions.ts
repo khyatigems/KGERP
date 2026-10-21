@@ -12,6 +12,7 @@ import { normalizeDateToUtcNoon } from "@/lib/date";
 import { updateInvoiceBillingFromDisplayOptions } from "@/lib/invoice-billing";
 import { logActivity } from "@/lib/activity-logger";
 import { recordInvoicePayment } from "@/lib/invoice-payment";
+import { persistNotificationSafely } from "@/lib/notifications";
 
 async function computeNextInvoiceNumberUnsafe() {
   const year = new Date().getFullYear();
@@ -204,7 +205,7 @@ export async function createOrUpdateInvoiceFromSale(
 
       if (!invoiceId) return { success: false, message: "Failed to generate unique invoice number" };
 
-      const created = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { token: true } });
+      const created = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { token: true, invoiceNumber: true } });
 
       const userName = session.user.name || session.user.email || "Unknown";
       const billing = await updateInvoiceBillingFromDisplayOptions({
@@ -215,6 +216,16 @@ export async function createOrUpdateInvoiceFromSale(
       });
 
       if (!billing.success) return { success: false, message: billing.message };
+
+      await persistNotificationSafely({
+        userId: session.user.id,
+        eventKey: `invoice-created:${invoiceId}`,
+        delivery: "important_activity",
+        severity: "success",
+        title: "Invoice created",
+        message: `Invoice ${created?.invoiceNumber || invoiceId} is ready.`,
+        href: `/invoices/${invoiceId}`,
+      });
 
       return {
         success: true,
@@ -357,6 +368,15 @@ export async function updateInvoicePaymentStatus(
         actor: { userId: session.user.id, userName: session.user.name || session.user.email || "Unknown" }
       });
       if (!recordResult.success) return recordResult;
+      await persistNotificationSafely({
+        userId: session.user.id,
+        eventKey: `invoice-payment:${recordResult.paymentId}`,
+        delivery: "important_activity",
+        severity: "success",
+        title: "Invoice payment recorded",
+        message: `A ${payment.method.toLowerCase().replaceAll("_", " ")} payment was recorded for invoice ${invoice.invoiceNumber}.`,
+        href: `/invoices/${invoiceId}`,
+      });
     }
 
     revalidatePath(`/invoices/${invoiceId}`);

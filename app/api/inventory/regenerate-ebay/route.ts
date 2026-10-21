@@ -45,9 +45,10 @@ type EbaySettingsLike = {
   globalBannerImages?: string | string[] | null;
 };
 
-// In-memory store as fallback (regeneration is fast, completes within request timeout)
+// In-memory store is a cache; task progress remains in the database.
 const regenerationTasks = new Map<string, RegenerationTask>();
-const REGENERATION_BATCH_SIZE = 5;
+const activeBatchProcessors = new Map<string, Promise<void>>();
+const REGENERATION_BATCH_SIZE = 20;
 let regenerationTasksSchemaEnsured = false;
 let regenerationTasksSchemaPromise: Promise<void> | null = null;
 let inventoryDescriptionSchemaEnsured = false;
@@ -90,7 +91,6 @@ async function ensureRegenerationTasksSchema() {
     const existing = new Set((columns || []).map((column) => column.name));
     for (const [name, type] of REGENERATION_TASK_EXTRA_COLUMNS) {
       if (!existing.has(name)) {
-        console.log(`[Regenerate] Adding missing column regeneration_tasks.${name}`);
         await prisma.$executeRawUnsafe(
           `ALTER TABLE "regeneration_tasks" ADD COLUMN "${name}" ${type};`
         );
@@ -139,8 +139,6 @@ async function saveTask(task: RegenerationTask) {
 
   try {
     await ensureRegenerationTasksSchema();
-    console.log(`[Regenerate] Saving task to database: ${task.id}`);
-
     const errorsJson = JSON.stringify(task.errors);
     const selectedItemIdsJson = task.selectedItemIds ? JSON.stringify(task.selectedItemIds) : null;
 
@@ -161,7 +159,6 @@ async function saveTask(task: RegenerationTask) {
       selectedItemIdsJson,
       task.selectionMode || null
     );
-    console.log(`[Regenerate] Task saved to database: ${task.id}`);
   } catch (error) {
     console.error("[Regenerate] Failed to save task to DB:", error);
     // Retry with the original column set in case the table predates the
@@ -182,7 +179,6 @@ async function saveTask(task: RegenerationTask) {
         task.endTime || null,
         task.message || null
       );
-      console.log(`[Regenerate] Task saved with base columns: ${task.id}`);
     } catch (fallbackError) {
       console.error("[Regenerate] Fallback save failed, task kept in memory only:", fallbackError);
     }
@@ -195,7 +191,6 @@ async function getTask(taskId: string): Promise<RegenerationTask | null> {
     // Try in-memory first (fastest)
     const cached = regenerationTasks.get(taskId);
     if (cached) {
-      console.log(`[Regenerate] Task found in memory: ${taskId}`);
       return cached;
     }
 
@@ -217,7 +212,6 @@ async function getTask(taskId: string): Promise<RegenerationTask | null> {
     );
 
     if (!dbResult || dbResult.length === 0) {
-      console.log(`[Regenerate] Task not found in DB: ${taskId}`);
       return null;
     }
 
@@ -252,15 +246,11 @@ async function getTask(taskId: string): Promise<RegenerationTask | null> {
 
     // Cache in memory for next lookup
     regenerationTasks.set(taskId, task);
-    console.log(`[Regenerate] Task found in DB and cached: ${taskId}`);
     return task;
   } catch (error) {
     console.error("[Regenerate] Failed to fetch task:", error);
     // Return from memory if DB fails
     const fallback = regenerationTasks.get(taskId) || null;
-    if (fallback) {
-      console.log(`[Regenerate] Using in-memory fallback for: ${taskId}`);
-    }
     return fallback;
   }
 }
@@ -320,7 +310,7 @@ function normalizeCategoryGemtypeImageUrls(settings: EbaySettingsLike | null | u
     : {};
 }
 
-async function processRegenerationBatch(taskId: string) {
+async function processRegenerationBatchWork(taskId: string) {
   const task = await getTask(taskId);
   if (!task) {
     console.error("[Regenerate] Task not found:", taskId);
@@ -533,19 +523,22 @@ async function processRegenerationBatch(taskId: string) {
   }
 }
 
+async function processRegenerationBatch(taskId: string) {
+  const active = activeBatchProcessors.get(taskId);
+  if (active) return active;
+  const work = processRegenerationBatchWork(taskId);
+  activeBatchProcessors.set(taskId, work);
+  try { await work; } finally { activeBatchProcessors.delete(taskId); }
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
-  console.log("[Regenerate API] POST invoked");
-  console.log("[Regenerate API] session:", !!session, session?.user?.id || null);
   if (!session?.user) {
-    console.warn("[Regenerate API] No session.user - unauthorized");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const permission = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
-  console.log("[Regenerate API] permission result:", permission);
   if (!permission.success) {
-    console.warn("[Regenerate API] permission denied for user:", session.user.id, permission.message);
     return NextResponse.json({ error: permission.message || "Permission denied" }, { status: 403 });
   }
 
@@ -580,40 +573,27 @@ export async function POST(req: NextRequest) {
     selectionMode: selectedItemIds ? "selected" : "all",
   };
 
-  console.log(`[Regenerate API] Created task: ${taskId}`, { selectionMode: task.selectionMode, itemCount: selectedItemIds?.length });
   await saveTask(task);
-  console.log(`[Regenerate API] Task saved to storage`);
 
   return NextResponse.json({ success: true, taskId }, { status: 202 });
 }
 
 export async function GET(req: NextRequest) {
   const taskId = req.nextUrl.searchParams.get("taskId");
-  console.log(`[Regenerate API] GET invoked with taskId: ${taskId}`);
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const permission = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
+  if (!permission.success) return NextResponse.json({ error: permission.message || "Permission denied" }, { status: 403 });
   
   if (!taskId) {
-    console.warn("[Regenerate API] Missing taskId parameter");
     return NextResponse.json({ error: "taskId is required" }, { status: 400 });
   }
 
-  let task = await getTask(taskId);
-  console.log(`[Regenerate API] Task lookup result: ${task ? 'FOUND' : 'NOT_FOUND'}`);
-  
+  const task = await getTask(taskId);
   if (!task) {
-    console.warn(`[Regenerate API] Task not found: ${taskId}`);
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  if (task.status === "PENDING" || task.status === "RUNNING") {
-    await processRegenerationBatch(taskId);
-    task = await getTask(taskId);
-    if (!task) {
-      return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-  }
-
-  console.log(`[Regenerate API] Returning task status: ${task.status}`);
-  
   return NextResponse.json({
     success: true,
     status: task.status,
@@ -630,6 +610,35 @@ export async function GET(req: NextRequest) {
           ? Math.round((task.endTime - task.startTime) / 1000)
           : 0
         : undefined,
+    message: task.message,
+  });
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const permission = await checkPermission(PERMISSIONS.INVENTORY_EDIT);
+  if (!permission.success) return NextResponse.json({ error: permission.message || "Permission denied" }, { status: 403 });
+  const taskId = req.nextUrl.searchParams.get("taskId");
+  if (!taskId) return NextResponse.json({ error: "taskId is required" }, { status: 400 });
+  let task = await getTask(taskId);
+  if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  if (task.status === "PENDING" || task.status === "RUNNING") {
+    await processRegenerationBatch(taskId);
+    task = await getTask(taskId);
+    if (!task) return NextResponse.json({ error: "Task not found" }, { status: 404 });
+  }
+  return NextResponse.json({
+    success: true,
+    status: task.status,
+    total: task.total,
+    updated: task.updated,
+    failed: task.failed,
+    pending: task.pending,
+    errors: task.errors,
+    timeTaken: ["COMPLETED", "FAILED", "CANCELLED"].includes(task.status) && task.endTime && task.startTime
+      ? Math.round((task.endTime - task.startTime) / 1000)
+      : undefined,
     message: task.message,
   });
 }

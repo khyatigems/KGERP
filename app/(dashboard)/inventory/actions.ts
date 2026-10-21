@@ -16,6 +16,7 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS, checkUserPermission } from "@/lib/permissions";
 import { isValidBeadSizeLabel, normalizeBeadSizeLabel, parseBeadSizeMm } from "@/lib/bead-size";
 import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
+import { persistNotificationSafely } from "@/lib/notifications";
 import type { PriceSuggestionResult } from "@/lib/price-suggestion";
 
 // --- Integrity Check Helpers ---
@@ -474,6 +475,16 @@ export async function createInventory(prevState: unknown, formData: FormData) {
       })(),
     ]).catch(() => {});
   }
+
+  await persistNotificationSafely({
+    userId: session.user.id,
+    eventKey: `inventory-created:${createdInventory.id}`,
+    delivery: "important_activity",
+    severity: "success",
+    title: "Inventory item added",
+    message: `${createdInventory.sku} was added to inventory.`,
+    href: `/inventory/${createdInventory.id}`,
+  });
 
   return {
     success: true,

@@ -19,6 +19,7 @@ import { computeInvoiceGst } from "@/lib/invoice-gst";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
 import "@/lib/returns-schema-ensure";
 import { accrueLoyaltyPoints } from "@/lib/loyalty-accrual";
+import { persistNotificationSafely } from "@/lib/notifications";
 import { buildInvoiceData } from "@/lib/documents/invoice-data";
 import { invoicePrintHash, readThermalInvoiceSnapshot, saveThermalInvoiceSnapshot } from "@/lib/documents/thermal-invoice-snapshot";
 import { getPublicInvoicePdfUrl } from "@/lib/public-invoice-url";
@@ -1019,6 +1020,17 @@ export async function createSale(prevState: unknown, formData: FormData) {
 
   revalidatePath("/sales");
   revalidatePath("/inventory");
+  if (createdInvoiceId) {
+    await persistNotificationSafely({
+      userId: session.user.id,
+      eventKey: `sale-created:${createdInvoiceId}`,
+      delivery: "important_activity",
+      severity: "success",
+      title: "Sale recorded",
+      message: `Invoice ${createdInvoiceNumber || "created"} was recorded successfully.`,
+      href: `/invoices/${createdInvoiceId}`,
+    });
+  }
   // redirect("/sales");
   return { 
     success: true, 

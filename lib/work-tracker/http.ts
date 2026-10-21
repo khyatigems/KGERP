@@ -8,6 +8,7 @@ import { report, reportQuery, productivity } from "@/lib/work-tracker/reports";
 import { ensureWorkTrackerSchema } from "@/lib/work-tracker/schema";
 import { revenue } from "@/lib/work-tracker/analytics";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
+import { activitySummary } from "./activity-summary";
 
 type Context = { params: Promise<{ path: string[] }> };
 export async function handleTracker(request: Request, context: Context, db = prisma, identify = trackerIdentity, authorize = checkUserPermission) {
@@ -15,7 +16,7 @@ export async function handleTracker(request: Request, context: Context, db = pri
     const { path } = await context.params; const route = path.join("/"); const method = request.method;
     const identity = await identify(request, path[0] === "credentials");
     const { userId } = identity;
-    if (identity.extension && route !== "activity-events") throw new TrackerError("Credential scope does not permit this action", 403);
+    if (identity.extension && !(route === "activity-events" && method === "POST") && !(route === "sensor-status" && method === "GET")) throw new TrackerError("Credential scope does not permit this action", 403);
     await ensureWorkTrackerSchema(db);
     const url = new URL(request.url);
     let body: unknown;
@@ -24,7 +25,9 @@ export async function handleTracker(request: Request, context: Context, db = pri
       try { body = JSON.parse(text); } catch { throw new TrackerError("Invalid JSON"); }
     }
     let result: unknown;
-    if (route === "sessions" && method === "GET") {
+    if (route === "sensor-status" && method === "GET") {
+      result = { connected: true, serverTime: new Date().toISOString(), message: "Work Tracker credential verified. Enable automatic tracking in the Chrome popup." };
+    } else if (route === "sessions" && method === "GET") {
       const q = reportQuery(url);
       const page = z.coerce.number().int().min(0).max(10000).parse(url.searchParams.get("page") || "0");
       const where = { userId, ...(q.platform ? { platform: q.platform } : {}), ...(q.activityType ? { activityType: q.activityType } : {}), startedAt: { lt: q.end }, OR: [{ endedAt: null }, { endedAt: { gt: q.start } }] };
@@ -36,6 +39,7 @@ export async function handleTracker(request: Request, context: Context, db = pri
       result = { entries, total, page, pageSize: 100, current };
     } else if (route === "dashboard" && method === "GET") {
       const q = reportQuery(url);
+      const requestedEntryPage = z.coerce.number().int().min(0).max(10000).parse(url.searchParams.get("entryPage") || "0");
       const [selected, currentWeek, metrics, credentialList, canViewRevenue] = await Promise.all([
         report(userId, q, db), report(userId, { ...q, start: new Date(Date.now() - 8 * 86400000), end: new Date(), platform: undefined, activityType: undefined }, db),
         productivity(userId, q, db), db.workTrackerCredential.findMany({ where: { userId }, select: { id: true, name: true, createdAt: true, expiresAt: true, revokedAt: true } }), authorize(userId, PERMISSIONS.SALES_VIEW),
@@ -47,11 +51,14 @@ export async function handleTracker(request: Request, context: Context, db = pri
       const sessionMap = new Map(sessions.map(s => [s.id, s]));
       for (const row of rows) { byActivity[row.activityType] = (byActivity[row.activityType] || 0) + row.seconds; const source = sessionMap.get(row.sessionId)!.trackingSource; bySource[source] = (bySource[source] || 0) + row.seconds; }
       const matchingSessions = sessions.filter(s => (!q.platform || s.platform === q.platform) && (!q.activityType || s.activityType === q.activityType));
-      const recent = [...matchingSessions].sort((a, b) => +b.startedAt - +a.startedAt).slice(0, 60).map(s => ({ ...s, effectiveSeconds: rows.filter(r => r.sessionId === s.id).reduce((n, r) => n + r.seconds, 0) }));
+      const effective = new Map<string, number>(); for (const row of rows) effective.set(row.sessionId, (effective.get(row.sessionId) || 0) + row.seconds);
+      const visibleSessions = matchingSessions.filter(s => (effective.get(s.id) || 0) > 0).sort((a, b) => +b.startedAt - +a.startedAt || a.id.localeCompare(b.id));
+      const entryPage = Math.min(requestedEntryPage, Math.max(0, Math.ceil(visibleSessions.length / 15) - 1));
+      const recent = visibleSessions.slice(entryPage * 15, (entryPage + 1) * 15).map(s => ({ ...s, effectiveSeconds: effective.get(s.id) || 0 }));
       const orderValue = canViewRevenue ? await revenue(q, db).catch(() => ({ available: false, reason: "Order data could not be loaded. Time tracking is unaffected." })) : { available: false, reason: "Sales-view permission is required to view shop revenue." };
       const lastExtensionEvent = await db.workActivityEvent.findFirst({ where: { userId, source: "EXTENSION" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
       const currentManual = await db.workSession.findFirst({ where: { userId, activeUserId: userId }, orderBy: { startedAt: "desc" } });
-      result = { summary, live, metrics, byActivity, bySource, entries: recent, totalEntries: matchingSessions.length, credentials: credentialList, revenue: orderValue, extensionLastSync: lastExtensionEvent?.createdAt || null, currentManual };
+      result = { summary, live, metrics, byActivity, bySource, activityGroups: activitySummary(rows), entries: recent, entryPage, entryPageSize: 15, totalEntries: visibleSessions.length, credentials: credentialList, revenue: orderValue, extensionLastSync: lastExtensionEvent?.createdAt || null, currentManual };
     } else if (route === "erp-events" && method === "POST") result = await ingestErpEvents(userId, body, url.hostname, db);
     else if (route === "sessions/start" && method === "POST") result = await startTimer(userId, body, db);
     else if (path[0] === "sessions" && path.length === 3 && ["pause", "resume", "stop"].includes(path[2]) && method === "POST") {

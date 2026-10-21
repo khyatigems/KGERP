@@ -1,3 +1,4 @@
+import { invoiceAmounts } from "./invoice-amounts";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { checkUserPermissions, PERMISSIONS } from "@/lib/permissions";
@@ -99,12 +100,12 @@ export async function getTradingDashboard(userId: string, force = false): Promis
       access.sales ? section("invoices", async () => {
         const [counts, rows] = await Promise.all([
           prisma.invoice.groupBy({ by: ["invoiceType", "paymentStatus"], where: invoiceWhere, _count: { id: true } }),
-          prisma.invoice.findMany({ where: { isActive: true, status: { notIn: ["DRAFT", "CANCELLED", "VOID"] } }, take: 6, orderBy: { createdAt: "desc" }, select: { id: true, invoiceNumber: true, invoiceType: true, invoiceCurrency: true, totalAmount: true, paymentStatus: true, countryOfDestination: true, sales: { take: 1, select: { customerName: true, customer: { select: { name: true, country: true } } } } } }),
+          prisma.invoice.findMany({ where: { isActive: true, status: { notIn: ["DRAFT", "CANCELLED", "VOID"] } }, take: 6, orderBy: { createdAt: "desc" }, select: { id: true, invoiceNumber: true, invoiceType: true, invoiceCurrency: true, totalAmount: true, conversionRate: true, paymentStatus: true, countryOfDestination: true, sales: { take: 1, select: { customerName: true, customer: { select: { name: true, country: true } } } } } }),
         ]);
         const total = counts.reduce((sum, row) => sum + row._count.id, 0);
         const exportCount = counts.filter(row => ["EXPORT_INVOICE", "EXPORT"].includes(row.invoiceType)).reduce((sum, row) => sum + row._count.id, 0);
         const tax = counts.filter(row => ["TAX_INVOICE", "TAX"].includes(row.invoiceType)).reduce((sum, row) => sum + row._count.id, 0);
-        return { total, export: exportCount, tax, other: total - exportCount - tax, unpaid: counts.filter(row => row.paymentStatus !== "PAID").reduce((sum, row) => sum + row._count.id, 0), recent: rows.map(row => ({ id: row.id, number: row.invoiceNumber, type: ["EXPORT_INVOICE", "EXPORT"].includes(row.invoiceType) ? "EXPORT" : ["TAX_INVOICE", "TAX"].includes(row.invoiceType) ? "TAX" : row.invoiceType, currency: row.invoiceCurrency || (["TAX_INVOICE", "TAX"].includes(row.invoiceType) ? "INR" : null), amount: row.totalAmount, paymentStatus: row.paymentStatus, customer: row.sales[0]?.customer?.name || row.sales[0]?.customerName || "Customer not linked", country: row.countryOfDestination || row.sales[0]?.customer?.country || null })) };
+        return { total, export: exportCount, tax, other: total - exportCount - tax, unpaid: counts.filter(row => row.paymentStatus !== "PAID").reduce((sum, row) => sum + row._count.id, 0), recent: rows.map(row => ({ id: row.id, number: row.invoiceNumber, type: ["EXPORT_INVOICE", "EXPORT"].includes(row.invoiceType) ? "EXPORT" : ["TAX_INVOICE", "TAX"].includes(row.invoiceType) ? "TAX" : row.invoiceType, ...invoiceAmounts(row), paymentStatus: row.paymentStatus, customer: row.sales[0]?.customer?.name || row.sales[0]?.customerName || "Customer not linked", country: row.countryOfDestination || row.sales[0]?.customer?.country || null })) };
       }) : null,
       access.customers ? section("customers", async () => {
         const [newCount, returningBuyers] = await Promise.all([

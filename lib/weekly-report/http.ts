@@ -10,7 +10,7 @@ import { verifyPdf } from "@/lib/weekly-report/pdf";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 type Context = { params: Promise<{ path?: string[] }> };
-export async function handleWeeklyReports(request: Request, context: Context, identify = auth, authorize = checkUserPermission) {
+export async function handleWeeklyReports(request: Request, context: Context, identify = auth, authorize = checkUserPermission, workflow = { createRun, generateRun, deliverRun }) {
  try {
   const session = await identify();
   if (!session?.user?.id) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -36,7 +36,7 @@ export async function handleWeeklyReports(request: Request, context: Context, id
     const run = await prisma.weeklyReportRun.findUnique({ where: { id: paths[1] }, include: { deliveries: true } });
     if (!run) return NextResponse.json({ error: "Report not found" }, { status: 404 });
     if (paths[2] === "pdf") {
-     if (!run.pdfBase64) return NextResponse.json({ error: "PDF unavailable or retention expired" }, { status: 404 });
+     if (!run.pdfBase64) return NextResponse.json({ error: run.status === "FAILED" ? run.errorSummary || "Report generation failed. Review History and retry generation." : ["QUEUED", "GENERATING"].includes(run.status) ? "Report is still generating. Refresh History shortly." : "PDF retention expired. Generate a new preview.", status: run.status }, { status: run.status === "FAILED" ? 409 : ["QUEUED", "GENERATING"].includes(run.status) ? 202 : 410 });
      const bytes = Buffer.from(run.pdfBase64, "base64"); verifyPdf(bytes);
      if (createHash("sha256").update(bytes).digest("hex") !== run.pdfChecksum) throw new Error("PDF integrity check failed");
      return new Response(new Uint8Array(bytes), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `inline; filename="KhyatiGems-weekly-${run.id}.pdf"`, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
@@ -50,9 +50,12 @@ export async function handleWeeklyReports(request: Request, context: Context, id
   if (request.method === "POST" && ["preview", "generate", "test"].includes(action)) {
    const saved = await readSettings(), settings = action === "preview" ? settingsSchema.parse(body.settings || saved.settings) : saved.settings;
    if (action !== "preview" && body.confirmSend !== true) return NextResponse.json({ error: "Confirm sending this report first" }, { status: 400 });
-   const run = await createRun(action === "preview" ? "PREVIEW" : action === "test" ? "TEST" : "LIVE", settings, actor);
-   await generateRun(run.id); if (action !== "preview") await deliverRun(run.id);
-   return NextResponse.json({ id: run.id });
+   const run = await workflow.createRun(action === "preview" ? "PREVIEW" : action === "test" ? "TEST" : "LIVE", settings, actor);
+   const generated = await workflow.generateRun(run.id);
+   if (!generated.pdfBase64) return NextResponse.json({ id: run.id, status: generated.status, error: generated.errorSummary || "Report is still generating. Refresh History shortly." }, { status: generated.status === "FAILED" ? 422 : 409 });
+   if (action !== "preview") await workflow.deliverRun(run.id);
+   const result = await prisma.weeklyReportRun.findUniqueOrThrow({ where: { id: run.id }, select: { status: true } });
+   return NextResponse.json({ id: run.id, status: result.status, pdfAvailable: true });
   }
   if (request.method === "POST" && action === "retry" && typeof body.id === "string") {
    if (body.confirmSend !== true) throw new Error("Confirm retrying the failed recipient.");

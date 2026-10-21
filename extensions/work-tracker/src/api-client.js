@@ -11,5 +11,15 @@ export async function sendEvents(settings, events, fetcher = fetch) {
   if (!response.ok) { const error = new Error(`Sync failed (${response.status}); check credentials, server and queued event age`); error.status = response.status; throw error; }
   const result = await response.json();
   if (!Array.isArray(result.accepted)) throw new Error("Unexpected ERP response");
-  return result.accepted;
+  const requested = new Set(events.map(event => event.id));
+  if (result.accepted.some(id => typeof id !== "string" || !requested.has(id))) throw new Error("ERP returned an invalid event acknowledgement");
+  return [...new Set(result.accepted)];
+}
+export async function checkConnection(settings, fetcher = fetch) {
+  const config = validateSettings(settings);
+  const response = await fetcher(`${config.erpUrl}/api/work-tracker/sensor-status`, { credentials: "omit", redirect: "error", headers: { Authorization: `Bearer ${config.token}` }, signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error(response.status === 401 ? "Credential expired, revoked or belongs to a different ERP. Create a credential in this ERP environment." : `Connection failed (${response.status}). Check the ERP address and server.`);
+  const result = await response.json();
+  if (result.connected !== true) throw new Error("This ERP does not support the sensor connection check. Update the ERP first.");
+  return result;
 }

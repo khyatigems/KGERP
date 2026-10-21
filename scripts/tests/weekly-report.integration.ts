@@ -38,6 +38,16 @@ async function main() {
   let renders = 0;
   const pdf = Buffer.from("%PDF-1.7\n" + " ".repeat(1100) + "\n%%EOF");
   const dependencies = { collectMetrics: async () => metrics, renderReport: async () => { renders++; await new Promise(r => setTimeout(r, 50)); return pdf; } };
+  const previewRun = await createRun("PREVIEW", s, undefined, scheduled);
+  const previewRequest = () => new Request("https://erp.test/api/settings/weekly-reports/preview", { method: "POST", headers: { origin: "https://erp.test" }, body: "{}" });
+  const failedResponse = await handleWeeklyReports(previewRequest(), { params: Promise.resolve({ path: ["preview"] }) }, authenticated, async () => true, { createRun: async () => previewRun, generateRun: async () => ({ ...previewRun, status: "FAILED", errorSummary: "PDF generation failed in isolated fixture" }), deliverRun });
+  assert.equal(failedResponse.status, 422, "failed generation must not return success and open an absent PDF");
+  assert.match((await failedResponse.json()).error, /PDF generation failed/);
+  await generateRun(previewRun.id, dependencies);
+  const readyResponse = await handleWeeklyReports(previewRequest(), { params: Promise.resolve({ path: ["preview"] }) }, authenticated, async () => true, { createRun: async () => previewRun, generateRun: id => generateRun(id, dependencies), deliverRun });
+  assert.equal(readyResponse.status, 200);
+  assert.equal((await readyResponse.json()).pdfAvailable, true);
+  renders = 0;
   await Promise.all([generateRun(runs[0].id, dependencies), generateRun(runs[0].id, dependencies)]); assert.equal(renders, 1);
   const downloaded = await handleWeeklyReports(new Request(`https://erp.test/api/settings/weekly-reports/runs/${runs[0].id}/pdf`), { params: Promise.resolve({ path: ["runs", runs[0].id, "pdf"] }) }, authenticated, async () => true);
   assert.equal(downloaded.status, 200); assert.equal(downloaded.headers.get("Cache-Control"), "private, no-store"); assert.equal((await downloaded.arrayBuffer()).byteLength, pdf.length);
@@ -62,7 +72,7 @@ async function main() {
    const late = new Date("2026-10-27T03:30:00Z"); let intended: Date | undefined;
    await dispatch(late, { createRun: async (mode, config, actor, slot) => { intended = slot; return createRun(mode, config, actor, slot); }, generateRun: async id => prisma.weeklyReportRun.findUniqueOrThrow({ where: { id } }), deliverRun: async () => {} });
    assert.equal(intended?.toISOString(), scheduled.toISOString(), "A late dispatcher preserves the intended Monday slot and reporting period");
-   assert.equal(await prisma.weeklyReportRun.count(), 1); assert.equal((await prisma.setting.findUniqueOrThrow({ where: { key: "weekly_report_dispatcher_heartbeat" } })).value, late.toISOString());
+   assert.equal(await prisma.weeklyReportRun.count({ where: { mode: "LIVE" } }), 1); assert.equal((await prisma.setting.findUniqueOrThrow({ where: { key: "weekly_report_dispatcher_heartbeat" } })).value, late.toISOString());
    const abandoned = await createRun("PREVIEW", s, "admin", scheduled);
    await prisma.weeklyReportRun.update({ where: { id: abandoned.id }, data: { status: "GENERATING", attempts: s.maxAttempts, leaseOwner: "abandoned", leaseUntil: new Date(0) } });
    const exhausted = await generateRun(abandoned.id, dependencies); assert.equal(exhausted.status, "FAILED"); assert.equal(exhausted.nextAttemptAt, null);

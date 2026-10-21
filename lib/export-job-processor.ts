@@ -71,7 +71,7 @@ async function processSingleJob(jobId: string) {
 
   try {
     await ensureJobDataIsGeneratable(job);
-    await prisma.reportExportJob.update({
+    const completedJob = await prisma.reportExportJob.update({
       where: { id: job.id },
       data: {
         status: "COMPLETED",
@@ -79,6 +79,19 @@ async function processSingleJob(jobId: string) {
         errorMessage: null
       }
     });
+    if (job.requestedById) {
+      await persistNotification({
+        userId: job.requestedById,
+        eventKey: `report-export:${job.id}:completed`,
+        delivery: "important_activity",
+        severity: "success",
+        title: "Report export is ready",
+        message: `Your ${job.reportType} ${job.format.toLowerCase()} export is ready to download.`,
+        href: completedJob.downloadUrl || `/api/reports/export-jobs/${job.id}/download`,
+      }).catch((notificationError) => {
+        console.error("Could not persist report export notification", { jobId: job.id, notificationError });
+      });
+    }
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown export error";
@@ -95,7 +108,7 @@ async function processSingleJob(jobId: string) {
       try {
         await persistNotification({
           userId: job.requestedById,
-          eventKey: `report-export:${job.id}`,
+          eventKey: `report-export:${job.id}:failed`,
           severity: "error",
           title: "Report export failed",
           message: `Your ${job.reportType} ${job.format.toLowerCase()} export could not be prepared. View report operations for details.`,
