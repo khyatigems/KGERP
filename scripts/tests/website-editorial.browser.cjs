@@ -45,6 +45,8 @@ async function run() {
     assert.equal((await post('/api/website/editorial/setup', {}, { Origin: 'https://evil.example' })).status, 403);
     assert.equal((await post('/api/website/editorial/setup', {})).status, 200);
     assert.equal((await post('/api/website/editorial/setup', {})).status, 200);
+    const usageKey = crypto.createHash('sha256').update('qa usage').digest('hex');
+    assert.equal((await post('/api/website/content', { type: 'metric', key: usageKey, kind: 'view', path: '/' }, { Authorization: 'Bearer ' + process.env.WEBSITE_FEED_TOKEN })).status, 200);
     const first = await (await fetch(origin + '/api/website/editorial')).json(); assert.equal(first.articles.length, 187);
     const privatePreview = await (await post('/api/website/editorial/preview', first.settings.payload)).json(); assert.equal(privatePreview.preview.type,"homepage"); assert.equal(privatePreview.preview.feed.settings.heading,first.settings.payload.heading);
     assert.equal((await post('/api/website/editorial', { type: 'import-drafts' })).status, 200); assert.equal((await (await post('/api/website/editorial', { type: 'import-drafts' })).json()).imported, 0);

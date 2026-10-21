@@ -46,7 +46,8 @@ const inputSchema = z.discriminatedUnion("type", [
         .regex(/^\/[a-zA-Z0-9/\-]*$/)
         .max(250),
       target: z.string().url().optional(),
-      consent: z.literal(true),
+      // Accept the old website payload during a rolling deploy; it is not stored.
+      consent: z.literal(true).optional(),
     })
     .strict(),
   z
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Request too large" }, { status: 413 });
     const value = inputSchema.parse(JSON.parse(raw));
     if (value.type === "metric") {
-      if (!(await consumeLimit("metric:" + value.key, 60, 3600)))
+      if (!(await consumeLimit("metric:" + value.key, 10000, 3600)))
         return NextResponse.json(
           { error: "Too many requests" },
           { status: 429 },

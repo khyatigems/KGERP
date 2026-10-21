@@ -2291,10 +2291,11 @@ export function EditorialManager() {
                     Anonymous usage counts — last 30 days
                   </h2>
                   <p className="text-sm">
-                    Opted-in page views, verified storefront clicks and
-                    client-confirmed enquiry submissions. These are event
-                    counts, not unique visitors or search traffic. Personal
-                    details and query text are not recorded in this table.
+                    Automatically recorded public page views, verified
+                    storefront clicks and client-confirmed enquiry submissions.
+                    These are event counts, not unique visitors or search
+                    traffic. Personal details and query text are not recorded
+                    in this table.
                   </p>
                   <div className="studio-quick-actions">
                     {[
@@ -2349,17 +2350,16 @@ export function EditorialManager() {
                   </div>
                   {!data.metrics?.length && (
                     <div className="studio-panel">
-                      <h3>No opted-in visits recorded yet</h3>
+                      <h3>No visits recorded yet</h3>
                       <p>
-                        Visitors must allow anonymous usage counts using the
-                        website’s privacy control. Visits made without consent
-                        are deliberately excluded.
+                        New public visits are counted automatically. Only
+                        public page paths and action types are stored in these
+                        totals.
                       </p>
                       <p className="studio-help">
-                        To verify the connection, open the live website, enable
-                        “Allow anonymous usage counts for this browser tab”,
-                        visit a published page and refresh these counts. Counts
-                        are events, not unique visitors.
+                        To verify the connection, open the live website, visit
+                        a published page and refresh these counts. Counts are
+                        events, not unique visitors.
                       </p>
                       <a
                         href="https://www.khyatigems.com"

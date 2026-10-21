@@ -8,7 +8,7 @@ Reuse existing WEBSITE_DATABASE_URL, WEBSITE_DATABASE_AUTH_TOKEN, WEBSITE_FEED_T
 
 Articles progress through draft, factual review, image approval, SEO validation and publication. Supply only verified reviewer details. Existing publications remain stable while drafts change. Media uploads are pending and require actual licensing, specimen and rights confirmation. Cloudinary presence is not approval.
 
-The bearer-protected `/api/website/content` feed exposes approved published snapshots only. Its POST actions persist consented enquiries and hashed rate-limit counters. No email delivery is claimed. Search observations require manually supplied evidence and are not automatic indexing assertions.
+The bearer-protected `/api/website/content` feed exposes approved published snapshots only. Its POST actions persist enquiries submitted with consent, aggregate anonymous public website usage counts by day/action/path, and hashed rate-limit counters. Usage totals do not include search text, messages, or visitor identifiers. No email delivery is claimed. Search observations require manually supplied evidence and are not automatic indexing assertions.
 
 Previous website commerce routes now return 410. Existing commerce database records are retained for history; do not run the retired commerce importers. Website choices were removed from commerce listing creation without changing other marketplace or accounting workflows.
 
