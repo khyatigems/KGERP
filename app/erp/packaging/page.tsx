@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
 import { CreatePackagingWizard } from "./create/create-wizard";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +89,7 @@ export default async function PackagingDashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Fulfillment"><div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Packaging Identity</h1>
           <p className="text-muted-foreground">High-precision label workflow, serial control, and verification visibility.</p>
@@ -113,7 +114,7 @@ export default async function PackagingDashboard() {
             </Link>
           </Button>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <Card>

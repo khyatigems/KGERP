@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default function ImportPurchasesPage() {
   const headers = [
@@ -17,12 +18,12 @@ export default function ImportPurchasesPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <WorkspaceHeader eyebrow="KhyatiGems · Buy & partners"><div className="flex items-center gap-4">
         <Button variant="ghost" asChild>
             <Link href="/purchases"><ArrowLeft className="mr-2 h-4 w-4"/> Back</Link>
         </Button>
         <h1 className="text-3xl font-bold tracking-tight">Import Purchases</h1>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="prose dark:prose-invert">
         <p>Upload a CSV or Excel file. Each row will be created as a separate purchase record.</p>

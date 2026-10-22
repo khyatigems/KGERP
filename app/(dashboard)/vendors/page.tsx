@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -39,7 +40,9 @@ export default async function VendorsPage() {
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center justify-end">
+      <WorkspaceHeader eyebrow="KhyatiGems · Buy & partners">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div><h1>Vendors</h1><p>Manage supplier contacts and review your purchasing partners.</p></div>
         <Button asChild>
           <LoadingLink href="/vendors/new">
             <Plus className="mr-2 h-4 w-4" />
@@ -47,6 +50,7 @@ export default async function VendorsPage() {
           </LoadingLink>
         </Button>
       </div>
+      </WorkspaceHeader>
 
       <div className="rounded-md border">
         <Table>

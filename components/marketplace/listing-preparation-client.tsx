@@ -26,6 +26,7 @@ import { inventoryListingDefaults, type InventoryListingSource } from "@/lib/mar
 import { ETSY_WHEN_MADE_OPTIONS, etsyDraftValidationErrors } from "@/lib/marketplace/etsy-draft-validation";
 import { useEtsyDraftQueue } from "@/components/marketplace/use-etsy-draft-queue";
 import { EtsyDraftBatch } from "@/components/marketplace/etsy-draft-batch";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 const INR_FORMATTER = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -1003,8 +1004,7 @@ export function ListingPreparationClient({
   return (
     <div className="w-full max-w-none space-y-6 pb-8">
       <div>
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">Marketplace operations</p>
-        <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
+        <WorkspaceHeader eyebrow="KhyatiGems · Marketplaces"><div className="mt-1 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight">Create Listings</h1>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
@@ -1020,7 +1020,7 @@ export function ListingPreparationClient({
           {marketplace && <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
             {marketplace === "EBAY" ? "Save the complete ERP draft · verify its eBay offer · publish explicitly" : "Saves an unpublished Etsy draft · publish in Etsy when ready"}
           </span>}
-        </div>
+        </div></WorkspaceHeader>
       </div>
 
       <EtsyDraftBatch blocked={busy || photoUploading} items={etsyQueue} onChange={setEtsyQueue} onRunning={setEtsyBatchRunning} />

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { notifyAction, toast } from "@/lib/erp-feedback";
 import { Loader2 } from "lucide-react";
 import { decodeHtmlEntities, htmlToPlainText } from "@/lib/email/content";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 interface ContactOption {
   id: string;
@@ -229,9 +230,9 @@ export function CommunicationComposer({
         <Link href={initial.sourceId ? `/communication/${initial.sourceId}` : "/communication"} className="text-sm text-primary hover:underline">
           ← {initial.sourceId ? "Back to communication" : "Communication Center"}
         </Link>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <WorkspaceHeader eyebrow="KhyatiGems · Administration"><h1 className="text-3xl font-bold tracking-tight">
           {initial.mode === "forward" ? "Forward Email" : initial.sourceId ? "Reply to Email" : "Compose Email"}
-        </h1>
+        </h1></WorkspaceHeader>
       </div>
       {initial.sourceId && (
         <div className="flex flex-wrap gap-2 text-sm">

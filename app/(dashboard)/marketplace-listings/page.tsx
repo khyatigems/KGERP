@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { formatMarketplaceDateTime } from "@/lib/utils";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -97,7 +98,7 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
   const newSince = Number(databaseClock[0]?.nowMs ?? 0) - 24 * 60 * 60 * 1000;
 
   return <div className="space-y-5">
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold">Marketplace Listings</h1><p className="text-sm text-muted-foreground">External listings mapped to ERP products.</p></div><div className="flex flex-wrap gap-2"><MarketplaceListingsExport rows={exportRows} /><Button asChild variant="outline"><Link href="/marketplace-orders">Marketplace Orders</Link></Button></div></div>
+    <WorkspaceHeader eyebrow="KhyatiGems · Marketplaces"><div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold">Marketplace Listings</h1><p className="text-sm text-muted-foreground">External listings mapped to ERP products.</p></div><div className="flex flex-wrap gap-2"><MarketplaceListingsExport rows={exportRows} /><Button asChild variant="outline"><Link href="/marketplace-orders">Marketplace Orders</Link></Button></div></div></WorkspaceHeader>
     <MarketplaceSyncPanel shops={shops} syncType="LISTINGS" />
     <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">{shops.map((shop) => <div key={shop.id} className="rounded-md border px-3 py-2"><strong>{shop.marketplace} · {shop.name}</strong> · Last listings sync: {formatMarketplaceDateTime(lastSyncByShop.get(shop.id))}</div>)}</div>
     <form className="grid gap-2 rounded-md border p-3 md:grid-cols-6" action="/marketplace-listings" method="get">

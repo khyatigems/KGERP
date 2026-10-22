@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { MergeClient } from "@/components/masters/merge-client";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +22,9 @@ export default async function MergeCustomersPage() {
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Merge Customers</h1>
-      </div>
+      </div></WorkspaceHeader>
       <Card>
         <CardHeader><CardTitle>Search & Merge</CardTitle></CardHeader>
         <CardContent>

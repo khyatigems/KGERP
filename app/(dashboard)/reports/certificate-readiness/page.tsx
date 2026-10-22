@@ -8,6 +8,7 @@ import { ExportButton } from "@/components/ui/export-button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 type ChecklistRow = {
   id: string;
@@ -141,7 +142,7 @@ export default async function CertificateReadinessReportPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Certificate Checklist Report</h2>
         <ExportButton
           filename={`Certificate_Checklist_Report_${format(new Date(), "yyyyMMdd")}`}
@@ -149,7 +150,7 @@ export default async function CertificateReadinessReportPage() {
           columns={exportColumns}
           title="Certificate Readiness Checklist"
         />
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card>

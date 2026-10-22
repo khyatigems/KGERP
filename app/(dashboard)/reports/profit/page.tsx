@@ -2,6 +2,7 @@
 import { ProfitAnalytics } from "@/components/reports/profit-analytics";
 import { startOfMonth, subMonths, format } from "date-fns";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +81,7 @@ export default async function ProfitReportPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Profit & Margin Reports</h1>
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><h1 className="text-3xl font-bold tracking-tight">Profit & Margin Reports</h1></WorkspaceHeader>
       <ProfitAnalytics data={analyticsData} />
     </div>
     </AnimatedPage>

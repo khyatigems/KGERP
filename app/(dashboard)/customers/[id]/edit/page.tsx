@@ -6,6 +6,7 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { CustomerForm } from "@/components/customers/customer-form";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { ensureCustomerSecondaryPhoneSchema } from "@/lib/customer-schema-ensure";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Edit Customer | KhyatiGems™",
@@ -44,9 +45,9 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Administration"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Edit Customer</h1>
-      </div>
+      </div></WorkspaceHeader>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
           <CustomerForm customer={merged} />

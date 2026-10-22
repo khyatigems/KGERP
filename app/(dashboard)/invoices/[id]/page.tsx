@@ -28,6 +28,7 @@ import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { sanitizeNumberText } from "@/lib/number-formatting";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { resolveInventoryCertificateUrl } from "@/lib/certificate-url";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -500,7 +501,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
   
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
           <Link href="/invoices">
             <ArrowLeft className="h-4 w-4" />
@@ -547,7 +548,7 @@ export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
             <InvoiceWhatsAppButton invoiceId={invoice.id} data={pdfData} />
             <EmailDocumentButton invoiceId={invoice.id} />
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       {invoice.paidAmount > 0 && balanceDue > 0 && (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-900">

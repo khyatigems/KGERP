@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { deletePurchaseAction } from "../actions";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 type PurchasePageProps = {
   params: Promise<{
@@ -29,10 +30,10 @@ export default async function PurchaseDetailPage({
   if (!purchaseId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Purchase</h1>
+        <WorkspaceHeader eyebrow="KhyatiGems · Buy & partners"><h1 className="text-2xl font-bold">Purchase</h1>
         <p className="text-sm text-muted-foreground">
           Invalid purchase id in the URL.
-        </p>
+        </p></WorkspaceHeader>
       </div>
     );
   }
@@ -53,10 +54,10 @@ export default async function PurchaseDetailPage({
   if (!purchase) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Purchase</h1>
+        <WorkspaceHeader eyebrow="KhyatiGems · Buy & partners"><h1 className="text-2xl font-bold">Purchase</h1>
         <p className="text-sm text-muted-foreground">
           Purchase not found. It may have been deleted or the link is invalid.
-        </p>
+        </p></WorkspaceHeader>
       </div>
     );
   }
@@ -109,7 +110,7 @@ export default async function PurchaseDetailPage({
     <AnimatedPage>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
+        <WorkspaceHeader eyebrow="KhyatiGems · Buy & partners"><div>
           <h1 className="text-3xl font-bold tracking-tight">
             Purchase Details
           </h1>
@@ -117,7 +118,7 @@ export default async function PurchaseDetailPage({
             Purchase {purchase.invoiceNo || "Not set"} ·{" "}
             {formatDate(purchase.purchaseDate)}
           </p>
-        </div>
+        </div></WorkspaceHeader>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
             <Link href={`/purchases/${purchase.id}/edit`}>

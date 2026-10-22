@@ -26,6 +26,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { PurchaseSearch } from "@/components/purchases/purchase-search";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Purchases | KhyatiGems™",
@@ -165,6 +166,49 @@ export default async function PurchasesPage({
   return (
     <AnimatedPage>
     <div className="space-y-6">
+      <WorkspaceHeader eyebrow="KhyatiGems · Buy & partners"><div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <div>
+          <h1>Purchases</h1>
+          <p className="text-sm text-muted-foreground">Stock received from vendors</p>
+        </div>
+        <PurchaseSearch />
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem asChild>
+                <a href={`/api/purchases/export?type=summary&search=${search}`} download>
+                  Summary Report
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={`/api/purchases/export?type=detailed&search=${search}`} download>
+                  Detailed Report
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button variant="outline" asChild>
+            <LoadingLink href="/purchases/import">
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </LoadingLink>
+          </Button>
+          <Button asChild>
+            <LoadingLink href="/purchases/new">
+              <Plus className="mr-2 h-4 w-4" />
+              New Purchase
+            </LoadingLink>
+          </Button>
+        </div>
+      </div></WorkspaceHeader>
+
       {/* Stats Cards */}
       {stats && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-12">
@@ -247,48 +291,7 @@ export default async function PurchasesPage({
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Purchase Register</h2>
-          <p className="text-sm text-muted-foreground">Stock received from vendors</p>
-        </div>
-        <PurchaseSearch />
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem asChild>
-                <a href={`/api/purchases/export?type=summary&search=${search}`} download>
-                  Summary Report
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <a href={`/api/purchases/export?type=detailed&search=${search}`} download>
-                  Detailed Report
-                </a>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
 
-          <Button variant="outline" asChild>
-            <LoadingLink href="/purchases/import">
-              <Upload className="mr-2 h-4 w-4" />
-              Import
-            </LoadingLink>
-          </Button>
-          <Button asChild>
-            <LoadingLink href="/purchases/new">
-              <Plus className="mr-2 h-4 w-4" />
-              New Purchase
-            </LoadingLink>
-          </Button>
-        </div>
-      </div>
 
       <div className="rounded-md border">
         <Table>

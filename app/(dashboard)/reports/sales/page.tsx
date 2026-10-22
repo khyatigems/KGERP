@@ -4,6 +4,7 @@ import { startOfMonth, subMonths, format, endOfDay, startOfDay, parseISO } from 
 import { ReportFilters } from "@/components/reports/report-filters";
 import { ExportButton } from "@/components/ui/export-button";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -118,7 +119,7 @@ export default async function SalesReportPage({ searchParams }: SalesReportPageP
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
            <h1 className="text-3xl font-bold tracking-tight">Sales Reports</h1>
            <p className="text-muted-foreground text-sm mt-1">
@@ -133,7 +134,7 @@ export default async function SalesReportPage({ searchParams }: SalesReportPageP
                 title="Sales Report"
             />
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <ReportFilters />
 

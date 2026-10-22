@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { cachedMasters } from "@/lib/cache";
 import { InventoryForm } from "@/components/inventory/inventory-form";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Edit Inventory | KhyatiGems™",
@@ -57,7 +58,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
     console.error("Error loading inventory for edit:", error);
     return (
       <div className="space-y-6 p-6">
-        <h1 className="text-3xl font-bold tracking-tight text-destructive">Error Loading Inventory</h1>
+        <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><h1 className="text-3xl font-bold tracking-tight text-destructive">Error Loading Inventory</h1></WorkspaceHeader>
         <div className="p-4 border border-destructive/20 rounded-md bg-destructive/10 text-destructive">
           <p className="font-semibold">A database error occurred:</p>
           <pre className="mt-2 text-xs overflow-auto whitespace-pre-wrap">
@@ -96,7 +97,7 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
   if (inventory.status === "SOLD") {
       return (
           <div className="space-y-6">
-             <h1 className="text-3xl font-bold tracking-tight">Edit Inventory</h1>
+             <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><h1 className="text-3xl font-bold tracking-tight">Edit Inventory</h1></WorkspaceHeader>
              <div className="p-6 border rounded-xl bg-muted text-center">
                  <p>This item has been sold and cannot be edited.</p>
              </div>
@@ -107,9 +108,9 @@ export default async function EditInventoryPage({ params }: EditInventoryPagePro
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Edit Inventory</h1>
-      </div>
+      </div></WorkspaceHeader>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
           <InventoryForm 

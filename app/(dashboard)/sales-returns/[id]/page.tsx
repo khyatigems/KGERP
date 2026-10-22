@@ -8,6 +8,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -110,7 +111,7 @@ export default async function SalesReturnDetailsPage({ params }: { params: Promi
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Sales Return</h1>
           <div className="text-sm text-muted-foreground">
@@ -118,7 +119,7 @@ export default async function SalesReturnDetailsPage({ params }: { params: Promi
             <span className="font-medium">{srRow.invoiceNumber || "-"}</span> • Disposition: {srRow.disposition}
           </div>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

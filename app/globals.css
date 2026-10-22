@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./workspace.css";
 /* Local fixtures and generated review builds are not UI source files. */
 @source not "../tmp";
 

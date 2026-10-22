@@ -12,6 +12,7 @@ import { CheckCircle2, ImageOff, FileX2 } from "lucide-react";
 import { cachedMasters } from "@/lib/cache";
 import { ReportMultiFilter } from "@/components/reports/missing-media-filters";
 import type { Prisma } from "@prisma/client";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 function parseMulti(value: string | string[] | undefined): string[] {
   if (!value) return [];
@@ -170,7 +171,7 @@ export default async function MissingMediaReportPage({
   return (
     <AnimatedPage>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Missing Image & Certificate Report</h2>
             <p className="text-sm text-muted-foreground">
@@ -183,7 +184,7 @@ export default async function MissingMediaReportPage({
             columns={exportColumns}
             title="Missing Image & Certificate Report"
           />
-        </div>
+        </div></WorkspaceHeader>
 
         <div className="bg-card p-4 rounded-md border">
           <ReportMultiFilter

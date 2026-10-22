@@ -5,6 +5,7 @@ import { SettingsCodesView } from "@/components/settings/settings-codes-view";
 
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function SettingsCodesPage() {
   const session = await auth();
@@ -29,7 +30,7 @@ export default async function SettingsCodesPage() {
 
   return (
     <AnimatedPage><div className="max-w-6xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Code Management</h1>
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><h1 className="text-3xl font-bold tracking-tight">Code Management</h1></WorkspaceHeader>
       <SettingsCodesView
         categories={categories}
         gemstones={gemstones}

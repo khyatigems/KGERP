@@ -17,6 +17,7 @@ import { generateAdvanceReceiptPDF, type AdvanceReceiptData } from "@/lib/advanc
 import { exportAdvancesToCSV, exportAdvancesToExcel, exportAdvancesToPDF } from "@/lib/advances-export";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { FileSpreadsheet, FileText, File as FilePdf } from "lucide-react";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export interface Advance {
   id: string;
@@ -148,7 +149,7 @@ export function AdvancesPage({ advances, customers, companySettings, canManage }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Customer Advances</h1>
           <p className="text-muted-foreground">
@@ -185,7 +186,7 @@ export function AdvancesPage({ advances, customers, companySettings, canManage }
             Record Advance
           </Button>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">

@@ -14,6 +14,7 @@ import { SettingsWorkspace } from "@/components/settings/settings-workspace";
 
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -41,12 +42,12 @@ export default async function SettingsPage() {
 
   return (
     <AnimatedPage><div className="max-w-6xl mx-auto space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
           <p className="text-muted-foreground">Manage your application settings and preferences.</p>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <SettingsWorkspace
         modules={

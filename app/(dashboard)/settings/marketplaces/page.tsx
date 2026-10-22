@@ -7,6 +7,7 @@ import { AnimatedPage } from "@/components/ui/animated-page";
 import { MarketplaceSettingsForm } from "./marketplace-settings-form";
 import { CurrencyRatesEditor } from "./currency-rates-editor";
 import { getCurrencyRatesDto } from "./actions";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +24,13 @@ export default async function MarketplaceSettingsPage() {
   return (
     <AnimatedPage>
       <div className="space-y-6">
-        <div>
+        <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div>
           <h1 className="text-2xl font-bold tracking-tight">Marketplace Settings</h1>
           <p className="text-muted-foreground text-sm">
             Master source for marketplace costs and pricing. Configure fee schedules and profit margins
             per marketplace — nothing is hardcoded.
           </p>
-        </div>
+        </div></WorkspaceHeader>
         <MarketplaceSettingsForm initialProfiles={profiles} />
         <CurrencyRatesEditor initialRates={currencyRates} />
       </div>

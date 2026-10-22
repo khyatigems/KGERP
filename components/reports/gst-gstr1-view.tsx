@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -53,7 +54,7 @@ export function GstGstr1View() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex flex-col md:flex-row gap-3 items-start md:items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">GST → GSTR-1</h1>
           <p className="text-sm text-muted-foreground">B2B / B2C Large / B2C Small / Credit Notes / HSN summary</p>
@@ -62,7 +63,7 @@ export function GstGstr1View() {
           <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-[170px]" />
           <Button variant="outline" onClick={downloadV22}>Download JSON (v2.2)</Button>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className={isLoading ? "animate-pulse" : ""}>

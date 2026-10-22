@@ -17,6 +17,7 @@ import { Eye, Globe, Receipt } from "lucide-react";
 import type { ElementType } from "react";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import type { Invoice, Sale, Quotation } from "@prisma/client";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -144,7 +145,7 @@ export default async function InvoicesPage() {
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
         <div className="flex gap-2">
           <Badge variant="secondary" className="px-3 py-1">
@@ -154,7 +155,7 @@ export default async function InvoicesPage() {
             <Globe className="h-4 w-4 mr-1" /> EXPORT: {exportInvoices.length}
           </Badge>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       {invoices.length === 0 ? (
         <div className="rounded-md border">

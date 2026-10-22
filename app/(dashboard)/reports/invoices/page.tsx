@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { InvoiceAnalytics } from "@/components/reports/invoice-analytics";
 import { startOfMonth, subMonths, format } from "date-fns";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -137,7 +138,7 @@ export default async function InvoiceReportPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Invoice Analytics</h1>
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><h1 className="text-3xl font-bold tracking-tight">Invoice Analytics</h1></WorkspaceHeader>
       <InvoiceAnalytics data={analyticsData} />
     </div>
     </AnimatedPage>

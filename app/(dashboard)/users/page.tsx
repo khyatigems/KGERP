@@ -18,6 +18,7 @@ import { redirect } from "next/navigation";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { RolesPermissionsTable } from "@/components/roles-permissions-table";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function UsersPage() {
   const session = await auth();
@@ -41,7 +42,7 @@ export default async function UsersPage() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-6 mt-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <WorkspaceHeader eyebrow="KhyatiGems · Administration"><div className="flex flex-wrap items-center justify-between gap-4">
             <div><h1 className="text-2xl font-semibold">Your team</h1><p className="text-sm text-muted-foreground">Manage {users.length} user accounts and their access to the ERP.</p></div>
             <Button asChild>
               <LoadingLink href="/users/new">
@@ -49,7 +50,7 @@ export default async function UsersPage() {
                 Add User
               </LoadingLink>
             </Button>
-          </div>
+          </div></WorkspaceHeader>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {users.map(user => {

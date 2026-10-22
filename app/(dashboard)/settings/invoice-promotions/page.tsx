@@ -5,6 +5,7 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getInvoicePromotionSettings } from "./actions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { InvoicePromotionsForm } from "./invoice-promotions-form";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,10 @@ export default async function InvoicePromotionsPage() {
   const data = await getInvoicePromotionSettings();
   return (
     <AnimatedPage><div className="space-y-6">
-      <div>
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div>
         <h1 className="text-3xl font-bold tracking-tight">Invoice Promotions</h1>
         <p className="text-muted-foreground">Manage public invoice banners and review/referral CTA visibility.</p>
-      </div>
+      </div></WorkspaceHeader>
       <InvoicePromotionsForm initialSettings={data.settings} initialBanners={data.banners} />
     </div></AnimatedPage>
   );

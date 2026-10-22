@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PurchaseForm } from "@/components/purchases/purchase-form";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Edit Purchase | KhyatiGems™",
@@ -71,9 +72,9 @@ export default async function EditPurchasePage({
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Buy & partners"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Edit Purchase</h1>
-      </div>
+      </div></WorkspaceHeader>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
           <PurchaseForm vendors={vendors} initialData={transformedPurchase} />

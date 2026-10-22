@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { CustomerSettingsForm } from "./customer-settings-form";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Customer Settings | KhyatiGems™",
@@ -15,7 +16,7 @@ export default async function CustomerSettingsPage() {
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Customer Settings</h1>
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><h1 className="text-3xl font-bold tracking-tight">Customer Settings</h1></WorkspaceHeader>
       <CustomerSettingsForm settings={settings} />
     </div></AnimatedPage>
   );

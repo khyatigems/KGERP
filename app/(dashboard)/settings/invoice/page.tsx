@@ -4,6 +4,7 @@ import { InvoiceSettingsForm } from "./invoice-settings-form";
 import { ExportSettingsForm } from "@/components/settings/export-settings-form";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { prisma } from "@/lib/prisma";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +21,12 @@ export default async function InvoiceSettingsPage() {
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div className="flex items-center justify-between">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Invoice Settings</h1>
             <p className="text-muted-foreground">Configure invoice appearance, legal terms, and payment integrations.</p>
         </div>
-      </div>
+      </div></WorkspaceHeader>
       
       <InvoiceSettingsForm 
         initialSettings={settings} 

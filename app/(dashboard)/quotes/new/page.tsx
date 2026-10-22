@@ -5,6 +5,7 @@ import { QuotationForm } from "@/components/quotes/quotation-form";
 import { checkPermission } from "@/lib/permission-guard";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { PERMISSIONS } from "@/lib/permissions";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "New Quotation | KhyatiGems™",
@@ -50,9 +51,9 @@ export default async function NewQuotationPage() {
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Create Quotation</h1>
-      </div>
+      </div></WorkspaceHeader>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
           <Suspense fallback={null}>

@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { QuotesCardList } from "@/components/quotes/quotes-card-list";
 import { auth } from "@/lib/auth";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 
 export const metadata: Metadata = {
@@ -53,7 +54,10 @@ export default async function QuotationsPage() {
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center justify-end">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div><h1>Quotations</h1><p>Create offers, track customer decisions, and manage quote validity.</p></div>
+        <div className="flex flex-wrap items-center gap-2">
         {canCreate && (
           <>
             <Button asChild variant="outline" className="mr-2">
@@ -70,7 +74,9 @@ export default async function QuotationsPage() {
             </Button>
           </>
         )}
+        </div>
       </div>
+      </WorkspaceHeader>
 
       <div className="md:hidden">
         <QuotesCardList data={quotes} />

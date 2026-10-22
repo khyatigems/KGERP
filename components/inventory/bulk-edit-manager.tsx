@@ -13,6 +13,7 @@ import { toast } from "@/lib/erp-feedback";
 import { ArrowLeft, Check, Loader2, Pencil } from "lucide-react";
 import { bulkUpdateInventory } from "@/app/(dashboard)/inventory/actions";
 import { Badge } from "@/components/ui/badge";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 type InventoryItem = {
   id: string;
@@ -184,7 +185,7 @@ export function BulkEditManager({
 
   return (
     <div className="space-y-6 sass-enter">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
@@ -198,7 +199,7 @@ export function BulkEditManager({
           {isoloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           Apply Changes
         </Button>
-      </div>
+      </div></WorkspaceHeader>
 
       <Card>
         <CardHeader className="pb-3">

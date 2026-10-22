@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function TopCustomersReportPage() {
   const session = await auth();
@@ -17,7 +18,7 @@ export default async function TopCustomersReportPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Top Customers</h1>
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><h1 className="text-2xl font-bold">Top Customers</h1></WorkspaceHeader>
       <Card>
         <CardHeader><CardTitle>Highest Revenue Customers and Loyalty</CardTitle></CardHeader>
         <CardContent>

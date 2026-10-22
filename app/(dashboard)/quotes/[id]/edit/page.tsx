@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { QuotationForm } from "@/components/quotes/quotation-form";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { notFound } from "next/navigation";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Edit Quotation | KhyatiGems™",
@@ -45,9 +46,9 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Edit Quotation</h1>
-      </div>
+      </div></WorkspaceHeader>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
           <QuotationForm availableItems={availableItems} initialData={initialData} />

@@ -1,6 +1,7 @@
 import { EbaySettingsForm } from "./ebay-settings-form";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { getEbaySettingsAction } from "@/app/settings/ebay/actions";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata = {
   title: "eBay Settings",
@@ -12,12 +13,12 @@ export default async function EbaySettingsPage() {
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div>
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div>
         <h1 className="text-3xl font-bold tracking-tight">eBay Product Description Settings</h1>
         <p className="text-muted-foreground mt-2">
           Configure category-specific images for eBay product descriptions. These images will be used when generating HTML descriptions for items.
         </p>
-      </div>
+      </div></WorkspaceHeader>
 
       <EbaySettingsForm initialData={result.success ? result.data ?? null : null} />
     </div></AnimatedPage>

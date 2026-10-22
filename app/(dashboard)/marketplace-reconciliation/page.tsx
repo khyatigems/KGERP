@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Marketplace Reconciliation",
@@ -36,14 +37,14 @@ export default async function MarketplaceReconciliationPage() {
 
   return (
     <AnimatedPage>
-      <div className="space-y-6 p-6">
-        <div>
+      <div className="space-y-6">
+        <WorkspaceHeader eyebrow="KhyatiGems · Marketplaces"><div>
           <h1 className="text-3xl font-bold tracking-tight">Marketplace Reconciliation</h1>
           <p className="text-sm text-muted-foreground">
             Read-only comparison of ERP inventory against marketplace listings, orders and
             fulfillment records. Exceptions are surfaced for review — nothing is auto-corrected.
           </p>
-        </div>
+        </div></WorkspaceHeader>
 
         <Card>
           <CardHeader>

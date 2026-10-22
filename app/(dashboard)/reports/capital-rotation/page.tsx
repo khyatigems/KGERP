@@ -11,6 +11,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/ui/export-button";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 type SearchMap = { [key: string]: string | string[] | undefined };
 
@@ -59,7 +60,7 @@ export default async function CapitalRotationReportPage({ searchParams }: { sear
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Capital Rotation Report</h1>
           <p className="text-sm text-muted-foreground">Track how efficiently capital rotates across sold categories.</p>
@@ -81,7 +82,7 @@ export default async function CapitalRotationReportPage({ searchParams }: { sear
             <Link href="/reports">Back to Reports</Link>
           </Button>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card>

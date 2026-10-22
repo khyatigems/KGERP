@@ -15,6 +15,7 @@ import { formatMarketplaceDateTime } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { getUnifiedCommunicationDetail } from "@/lib/email/unified-communications";
 import { htmlToPlainText } from "@/lib/email/content";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Communication Details",
@@ -96,9 +97,9 @@ export default async function CommunicationDetailPage({
       ? `https://wa.me/${record.phone.replace(/\D/g, "")}?text=${encodeURIComponent(record.message || "")}`
       : null;
     return (
-      <div className="space-y-6 p-6">
+      <div className="space-y-6">
         <Link href="/communication" className="text-sm text-primary hover:underline">← Communication Center</Link>
-        <div>
+        <WorkspaceHeader eyebrow="KhyatiGems · Administration"><div>
           <p className="text-sm text-muted-foreground">{record.sourceType === "WHATSAPP" ? "WhatsApp handoff" : `${record.channel} follow-up`}</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight">{record.subject || "(untitled communication)"}</h1>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -107,7 +108,7 @@ export default async function CommunicationDetailPage({
               {record.status}
             </Badge>
           </div>
-        </div>
+        </div></WorkspaceHeader>
         <Card>
           <CardHeader><CardTitle>Communication Details</CardTitle></CardHeader>
           <CardContent>
@@ -191,11 +192,11 @@ export default async function CommunicationDetailPage({
       : "default";
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <Link href="/communication" className="text-sm text-primary hover:underline">← Communication Center</Link>
-          <h1 className="text-3xl font-bold tracking-tight">{communication.subject || "(no subject)"}</h1>
+          <WorkspaceHeader eyebrow="KhyatiGems · Administration"><h1 className="text-3xl font-bold tracking-tight">{communication.subject || "(no subject)"}</h1></WorkspaceHeader>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={communication.direction === "INBOUND" ? "default" : "secondary"}>
               {communication.direction === "INBOUND" ? "Inbound" : "Outbound"}

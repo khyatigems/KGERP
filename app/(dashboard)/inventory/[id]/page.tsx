@@ -13,6 +13,7 @@ import { EmailCertificateButton } from "@/components/inventory/email-certificate
 import type { InventoryMedia } from "@prisma/client";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { LoadingLink } from "@/components/ui/loading-link";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 // ISR: Revalidate every 60 seconds for near-instant page loads
 // Page is cached and refreshed in background
@@ -301,7 +302,7 @@ export default async function InventoryDetailPage({
     return (
         <AnimatedPage>
         <div className="space-y-6 pb-20 md:pb-0">
-            <div className="flex items-center justify-between">
+            <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">{detailedItem.itemName}</h1>
                     <div className="flex flex-col gap-1 mt-1">
@@ -335,7 +336,7 @@ export default async function InventoryDetailPage({
                         <LoadingLink href="/inventory">Back to Inventory</LoadingLink>
                     </Button>
                 </div>
-            </div>
+            </div></WorkspaceHeader>
             
             {/* Section 1: Media Gallery */}
             <div className="rounded-xl border bg-card p-6 shadow">

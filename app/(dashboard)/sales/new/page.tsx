@@ -6,6 +6,7 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { mergePlatformConfig } from "@/lib/platforms";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "New Sale | KhyatiGems™",
@@ -94,9 +95,9 @@ export default async function NewSalePage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Record New Sale</h1>
-      </div>
+      </div></WorkspaceHeader>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
           <Suspense fallback={<div>Loading form...</div>}>

@@ -12,6 +12,7 @@ import { CustomerDetailTabs } from "@/components/customers/customer-detail-tabs"
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { ensureReturnsSchema } from "@/lib/returns-schema-ensure";
 import { getCustomerPurchaseStats } from "@/lib/customer-purchase-stats";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Customer Details | KhyatiGems™",
@@ -125,7 +126,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <WorkspaceHeader eyebrow="KhyatiGems · Administration"><div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{customer.name}</h1>
           <p className="text-sm text-muted-foreground">
@@ -144,7 +145,7 @@ export default async function CustomerDetailPage(props: { params: Promise<{ id: 
             <Link href="/customers">Back</Link>
           </Button>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <CustomerDetailTabs
         customer={{

@@ -6,6 +6,7 @@ import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation"
 import { RetryMarketplaceSyncButton } from "@/components/marketplace/retry-sync-button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +30,10 @@ export default async function MarketplaceSyncHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <WorkspaceHeader eyebrow="KhyatiGems · Marketplaces"><div>
         <h1 className="text-2xl font-semibold">Marketplace Sync History</h1>
         <p className="text-sm text-muted-foreground">Queued jobs, page progress, results, and technical errors.</p>
-      </div>
+      </div></WorkspaceHeader>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Sync jobs</h2>

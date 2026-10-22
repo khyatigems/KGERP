@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import EditUserForm from "./edit-form";
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,7 +29,8 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   };
 
   return (
-    <AnimatedPage><div className="max-w-2xl mx-auto">
+    <AnimatedPage><div className="max-w-2xl mx-auto space-y-5">
+      <WorkspaceHeader eyebrow="KhyatiGems · Administration"><h1>Edit User</h1><p>Update account details and manage the user’s role.</p></WorkspaceHeader>
       <EditUserForm user={userData} roles={roles} />
     </div></AnimatedPage>
   );

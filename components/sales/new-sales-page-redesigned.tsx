@@ -22,6 +22,7 @@ import { createNewCustomer, validateCouponCode, getCustomerLoyaltyPoints } from 
 import { createSale, getNextInvoiceNumber } from "@/app/(dashboard)/sales/actions";
 import { CORE_PLATFORMS } from "@/lib/platforms";
 import { CURRENCY_OPTIONS } from "@/lib/pricing/currency";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 // Types
 interface InventoryItem {
@@ -980,7 +981,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header with Invoice Preview */}
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Record New Sale</h1>
           <p className="text-muted-foreground">Create a new sales invoice with professional ERP workflow</p>
@@ -1005,7 +1006,7 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
             </Button>
           )}
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Customer & Items */}

@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { ListingForm } from "@/components/listings/listing-form";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "New Listing | KhyatiGems™",
@@ -12,9 +13,9 @@ export default async function NewListingPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Marketplaces"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Add Listing</h1>
-      </div>
+      </div></WorkspaceHeader>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">
           <ListingForm />

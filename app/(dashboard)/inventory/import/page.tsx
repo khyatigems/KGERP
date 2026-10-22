@@ -6,6 +6,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function ImportInventoryPage() {
   const perm = await checkPermission(PERMISSIONS.INVENTORY_CREATE);
@@ -30,7 +31,7 @@ export default async function ImportInventoryPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
             <Button variant="ghost" asChild>
                 <Link href="/inventory"><ArrowLeft className="mr-2 h-4 w-4"/> Back</Link>
@@ -43,7 +44,7 @@ export default async function ImportInventoryPage() {
                 Download Template
             </a>
         </Button>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="prose dark:prose-invert">
         <p>Upload a CSV or Excel file with the following headers:</p>

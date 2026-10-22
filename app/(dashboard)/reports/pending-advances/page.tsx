@@ -10,6 +10,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Download, Search, Clock } from "lucide-react";
 import Link from "next/link";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 interface PendingAdvance {
   advanceId: string;
@@ -97,13 +98,13 @@ export default function PendingAdvancesReportPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Pending Advance Adjustment Report</h1>
         <Button variant="outline" onClick={handleExport}>
           <Download className="mr-2 h-4 w-4" />
           Export CSV
         </Button>
-      </div>
+      </div></WorkspaceHeader>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

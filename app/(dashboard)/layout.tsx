@@ -178,11 +178,11 @@ export default async function DashboardLayout({
           <div className="hidden border-r lg:block bg-sidebar border-sidebar-border premium-sidebar">
             <Sidebar allowedModules={allowedNavModules} />
           </div>
-          <div className="flex flex-col">
+          <div className="flex min-w-0 flex-col">
             <Topbar user={user}
             />
-            <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-background sass-enter">
-              {children}
+            <main className="erp-workspace flex min-w-0 flex-1 flex-col bg-background p-4 lg:p-6 sass-enter">
+              <div className="workspace-body mx-auto w-full min-w-0 max-w-[1500px] space-y-5 pb-8">{children}</div>
             </main>
           </div>
         </SidebarGridClient>

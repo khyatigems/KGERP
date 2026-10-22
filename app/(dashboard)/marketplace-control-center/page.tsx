@@ -21,6 +21,7 @@ import { getCurrencyRates, getDefaultProfile, getProfiles, isPricingEngineEnable
 import { toInr } from "@/lib/pricing/currency";
 import type { MarketplaceProfileConfig, PricingAnalysis } from "@/lib/pricing/types";
 import { OpportunityReportTable, OpportunityReportRowPayload } from "@/components/opportunity-report-table";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -148,7 +149,7 @@ export default async function MarketplaceControlCenterPage({
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <WorkspaceHeader eyebrow="KhyatiGems · Marketplaces"><div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Marketplace Control Center</h1>
         <div className="flex flex-wrap items-center gap-2">
           <MarketplaceNavButton href="/marketplace-conflicts" variant="outline" size="sm">
@@ -162,7 +163,7 @@ export default async function MarketplaceControlCenterPage({
           </MarketplaceNavButton>
           <MarketplacePriceAuditExport />
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       {!report && (
         <section className="space-y-4 border-b pb-5">

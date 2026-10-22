@@ -21,6 +21,7 @@ import { auth } from "@/lib/auth";
 import { checkUserPermissions, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { buildReadyToSellWhere } from "@/lib/inventory-ready-to-sell";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 // Short-lived in-memory cache for the main inventory query (5 seconds)
 // Prevents duplicate queries from InventoryStats + InventoryInsightBar firing simultaneously
@@ -515,7 +516,7 @@ export default async function InventoryPage({
     <AnimatedPage>
     <div className="space-y-6">
       <InventorySavedToast />
-      <div className="flex flex-col gap-4">
+      <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex flex-col gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
           <p className="text-muted-foreground">Manage your inventory items</p>
@@ -544,7 +545,7 @@ export default async function InventoryPage({
           <RegenerateEbayButton />
           <RegenerateEtsyButton />
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <InventoryStats searchParams={params} />
 

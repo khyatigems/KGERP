@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function LabelPrintingReportPage() {
   const session = await auth();
@@ -16,7 +17,7 @@ export default async function LabelPrintingReportPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Label Printing</h1>
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><h1 className="text-2xl font-bold">Label Printing</h1></WorkspaceHeader>
       <Card><CardHeader><CardTitle>Print Queue and Reprint History</CardTitle></CardHeader><CardContent>
         <Table>
           <TableHeader><TableRow><TableHead>Job</TableHead><TableHead>User</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Labels</TableHead><TableHead>Created</TableHead></TableRow></TableHeader>

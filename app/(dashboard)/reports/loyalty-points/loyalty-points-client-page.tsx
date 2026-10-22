@@ -6,6 +6,7 @@ import { toast } from "@/lib/erp-feedback";
 import { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Loader2 } from "lucide-react";
@@ -49,7 +50,8 @@ export default function LoyaltyPointsClientPage({ initialReport }: LoyaltyPoints
   // If dateRange changes and user clicks 'Generate Report', fetchReport will be called.
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><h1>Loyalty Points Report</h1><p>Review earned, redeemed, and outstanding customer loyalty points.</p></WorkspaceHeader>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-2xl font-bold">Loyalty Points Report</CardTitle>

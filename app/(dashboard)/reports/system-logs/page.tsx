@@ -4,6 +4,7 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getSystemLogsReportData } from "@/lib/report-module-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function SystemLogsReportPage() {
   const session = await auth();
@@ -14,7 +15,7 @@ export default async function SystemLogsReportPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">System Logs</h1>
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><h1 className="text-2xl font-bold">System Logs</h1></WorkspaceHeader>
       <div className="grid gap-4 md:grid-cols-3">
         <Card><CardHeader><CardTitle>Total Activity Logs</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{data.activityCount}</div></CardContent></Card>
         <Card><CardHeader><CardTitle>Unpaid Invoices</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{data.unpaidInvoices}</div></CardContent></Card>

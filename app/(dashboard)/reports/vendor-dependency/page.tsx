@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function VendorDependencyReportPage() {
   const session = await auth();
@@ -17,7 +18,7 @@ export default async function VendorDependencyReportPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Vendor Dependency</h1>
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><h1 className="text-2xl font-bold">Vendor Dependency</h1></WorkspaceHeader>
       <Card>
         <CardHeader><CardTitle>Dependency Risk Matrix</CardTitle></CardHeader>
         <CardContent>

@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/utils";
 import { endOfDay, parseISO, startOfDay, subDays, format } from "date-fns";
 import { InventorySummaryExport } from "@/components/reports/inventory-summary-export";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 type SearchMap = { [key: string]: string | string[] | undefined };
 
@@ -95,7 +96,7 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Inventory Reports</h1>
           <p className="text-sm text-muted-foreground">Category-wise and Gem Type-wise summary with export.</p>
@@ -103,7 +104,7 @@ export default async function InventoryReportsPage({ searchParams }: { searchPar
         <Button asChild variant="outline">
           <Link href="/reports">Back to Reports</Link>
         </Button>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <ReportFilters />

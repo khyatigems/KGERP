@@ -7,6 +7,7 @@ import { ListingTemplates } from "./listing-templates";
 import { Listing } from "@prisma/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 type EngagementMetric = {
   id: string;
@@ -40,10 +41,10 @@ export function ListingsView({ listings }: ListingsViewProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Marketplaces"><div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Catalog Listing Tools</h1>
         <Button asChild variant="outline"><Link href="/marketplace-listings">Marketplace Listings</Link></Button>
-      </div>
+      </div></WorkspaceHeader>
 
       <Tabs defaultValue="active" className="space-y-4">
         <TabsList>

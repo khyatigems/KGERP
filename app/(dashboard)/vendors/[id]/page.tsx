@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -62,7 +63,9 @@ export default async function VendorDetailPage({
   return (
     <AnimatedPage><div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Buy & partners">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div><h1>{vendor.name}</h1><p>Supplier details, inventory, and purchase history.</p></div>
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" asChild>
             <Link href="/vendors">
@@ -80,6 +83,7 @@ export default async function VendorDetailPage({
           </Button>
         )}
       </div>
+      </WorkspaceHeader>
 
       {/* Vendor Info */}
       <Card>

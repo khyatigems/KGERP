@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import type { FeatureFlagKey } from "@/lib/marketplace/feature-flags";
 import { rememberMarketplaceSyncBatch } from "@/components/marketplace/sync-client";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 interface Connection {
   id: string;
@@ -116,13 +117,13 @@ export function MarketplaceConnectionsClient({
   const syncEnabled = flags.marketplaceApiSyncEnabled;
 
   return (
-    <div className="container mx-auto max-w-4xl space-y-6 p-6">
-      <div>
+    <div className="container mx-auto max-w-4xl space-y-6">
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div>
         <h1 className="text-2xl font-bold">Marketplace Connections</h1>
         <p className="text-sm text-muted-foreground">
           Connect eBay and Etsy via official OAuth, then sync listings and orders into the ERP.
         </p>
-      </div>
+      </div></WorkspaceHeader>
 
       {!flags.marketplaceApiSyncEnabled && (
         <Card className="border-amber-500">

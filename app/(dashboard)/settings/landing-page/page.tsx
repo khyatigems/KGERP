@@ -20,7 +20,7 @@ export default async function LandingPageSettingsPage() {
   const settings = await getLandingPageSettings();
 
   return (
-    <AnimatedPage><div className="flex-1 space-y-4 p-8 pt-6">
+    <AnimatedPage><div className="flex-1 space-y-5">
       <LandingPageForm initialSettings={settings} />
     </div></AnimatedPage>
   );

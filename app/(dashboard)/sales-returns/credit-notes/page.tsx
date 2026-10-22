@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditNotesTable } from "../../../../components/sales-returns/credit-notes-table";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +46,9 @@ export default async function CreditNotesPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Credit Notes</h1>
-      </div>
+      </div></WorkspaceHeader>
       <Card>
         <CardHeader>
           <CardTitle>Active / Expired / Inactive</CardTitle>

@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { getCommunicationAnalytics } from "@/lib/email/analytics";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { formatMarketplaceDateTime } from "@/lib/utils";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Communication Analytics & Health",
@@ -38,8 +39,8 @@ export default async function CommunicationAnalyticsPage() {
     !configured ? "Not configured" : active ? "Active · configured" : "Configured";
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="space-y-6">
+      <WorkspaceHeader eyebrow="KhyatiGems · Administration"><div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/communication" className="text-sm text-primary hover:underline">← Communication Center</Link>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">Communication Analytics & Health</h1>
@@ -53,7 +54,7 @@ export default async function CommunicationAnalyticsPage() {
         >
           {analytics.health.label}
         </Badge>
-      </div>
+      </div></WorkspaceHeader>
 
       <section aria-label="Email delivery metrics" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric label="Sent" value={metric.sent} description="Provider accepted" />

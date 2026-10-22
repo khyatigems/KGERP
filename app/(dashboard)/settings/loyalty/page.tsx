@@ -5,6 +5,7 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getLoyaltySettings } from "./actions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { LoyaltySettingsForm } from "./loyalty-settings-form";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,10 @@ export default async function LoyaltySettingsPage() {
   const initial = await getLoyaltySettings();
   return (
     <AnimatedPage><div className="space-y-6">
-      <div>
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div>
         <h1 className="text-3xl font-bold tracking-tight">Loyalty Settings</h1>
         <p className="text-muted-foreground">Configure earn/redeem rules and profile-completion reward points (DOB/Anniversary).</p>
-      </div>
+      </div></WorkspaceHeader>
       <LoyaltySettingsForm initial={initial} />
     </div></AnimatedPage>
   );

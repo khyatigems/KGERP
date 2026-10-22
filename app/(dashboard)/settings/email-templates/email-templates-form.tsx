@@ -18,6 +18,7 @@ import {
   toggleEmailTemplateAction,
 } from "./actions";
 import { ZohoConnection } from "@/components/email/zoho-connection";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export interface EmailTemplateViewModel {
   id: string;
@@ -53,7 +54,7 @@ export function EmailTemplatesForm({
   zohoStatus?: { configured: boolean; connected: boolean; email?: string | null };
 }) {
   return (
-    <div className="container mx-auto max-w-4xl space-y-6 p-6">
+    <div className="container mx-auto max-w-4xl space-y-6">
       {zohoStatus && (
         <ZohoConnection
           configured={zohoStatus.configured}
@@ -61,7 +62,7 @@ export function EmailTemplatesForm({
           email={zohoStatus.email}
         />
       )}
-      <div>
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div>
         <h1 className="text-2xl font-bold">Email Templates</h1>
         <p className="text-sm text-muted-foreground">
           Templates used for customer emails (invoice, certificate). Use{" "}
@@ -75,7 +76,7 @@ export function EmailTemplatesForm({
             </code>
           ))}
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       {templates.map((template) => (
         <EmailTemplateCard key={template.id} template={template} />

@@ -13,6 +13,7 @@ import "@/lib/utils";
 import { MatchedPairCard } from "@/components/dashboard/matched-pair-card";
 import { MatchedPairModal } from "@/components/dashboard/matched-pair-modal";
 import { MatchedPairItem, MatchedPairsResponse, MatchedPairTab } from "@/components/dashboard/matched-pairs-types";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -170,12 +171,12 @@ export function InventoryMatchedPairsPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Matched Pairs & Sets</h1>
             <p className="text-muted-foreground">Find and manage matched gemstone pairs and sets</p>
           </div>
-        </div>
+        </div></WorkspaceHeader>
         <Card>
           <CardContent className="py-8 text-center">
             <p className="text-red-500">Failed to load matched pairs.</p>
@@ -189,12 +190,12 @@ export function InventoryMatchedPairsPage() {
   if (isLoading && !data) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Matched Pairs & Sets</h1>
             <p className="text-muted-foreground">Find and manage matched gemstone pairs and sets</p>
           </div>
-        </div>
+        </div></WorkspaceHeader>
         <Card>
           <CardContent className="py-8">
             <div className="space-y-3">
@@ -210,7 +211,7 @@ export function InventoryMatchedPairsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Matched Pairs & Sets</h1>
           <p className="text-muted-foreground">Find and manage matched gemstone pairs and sets</p>
@@ -221,7 +222,7 @@ export function InventoryMatchedPairsPage() {
             {exporting ? "Exporting..." : "Export"}
           </Button>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <Card>
         <CardHeader className="pb-3">

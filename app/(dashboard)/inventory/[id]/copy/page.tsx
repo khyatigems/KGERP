@@ -7,6 +7,7 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { Info } from "lucide-react";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Copy Inventory | KhyatiGems™",
@@ -73,7 +74,7 @@ export default async function CopyInventoryPage({ params }: CopyInventoryPagePro
     console.error("Error loading inventory for copy:", error);
     return (
       <div className="space-y-6 p-6">
-        <h1 className="text-3xl font-bold tracking-tight text-destructive">Error Loading Inventory</h1>
+        <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><h1 className="text-3xl font-bold tracking-tight text-destructive">Error Loading Inventory</h1></WorkspaceHeader>
         <div className="p-4 border border-destructive/20 rounded-md bg-destructive/10 text-destructive">
           <p className="font-semibold">A database error occurred:</p>
           <pre className="mt-2 text-xs overflow-auto whitespace-pre-wrap">
@@ -112,14 +113,14 @@ export default async function CopyInventoryPage({ params }: CopyInventoryPagePro
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Copy Inventory</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Creating a copy of <span className="font-mono font-medium">{inventory.sku}</span>
           </p>
         </div>
-      </div>
+      </div></WorkspaceHeader>
       <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3 flex items-start gap-3 text-sm text-blue-700 dark:text-blue-300">
         <Info className="h-4 w-4 mt-0.5 shrink-0" />
         <div>

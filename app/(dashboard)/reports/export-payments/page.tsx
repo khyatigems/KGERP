@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CalendarIcon, Download, DollarSign } from "lucide-react";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 interface PaymentReport {
   id: string;
@@ -134,13 +135,13 @@ export default function ExportPaymentsPage() {
   return (
     <AnimatedPage>
     <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Export Payment Reports</h1>
         <Button onClick={exportToCSV} variant="outline">
           <Download className="mr-2 h-4 w-4" />
           Export CSV
         </Button>
-      </div>
+      </div></WorkspaceHeader>
 
       {/* Date Range Filter */}
       <Card>

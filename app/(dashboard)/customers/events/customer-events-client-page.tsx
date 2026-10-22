@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 type Event = {
   customerId: string;
@@ -39,7 +40,7 @@ export default function CustomerEventsClientPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Administration"><div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Customer Events</h1>
           <p className="text-sm text-muted-foreground">Birthdays and anniversaries with WhatsApp Web quick actions.</p>
@@ -56,7 +57,7 @@ export default function CustomerEventsClientPage({
         >
           Back to Customers
         </Button>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="inline-flex rounded-md border bg-muted/20 p-1">
         {[

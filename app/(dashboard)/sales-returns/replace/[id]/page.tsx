@@ -5,6 +5,7 @@ import { ensureSalesReturnReplacementSchema, prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ReplacementDispatchClient } from "@/components/sales-returns/replacement-dispatch-client";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function SalesReturnReplacementPage({
     const inv = await prisma.invoice.findUnique({ where: { id: existing.invoiceId }, select: { id: true, invoiceNumber: true } });
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">Replacement Dispatch</h1>
+        <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><h1 className="text-3xl font-bold tracking-tight">Replacement Dispatch</h1></WorkspaceHeader>
         <div className="p-4 rounded-md border bg-card">
           Replacement already created for this Sales Return: <span className="font-semibold">{inv?.invoiceNumber || "REPLACEMENT"}</span>
         </div>
@@ -49,9 +50,9 @@ export default async function SalesReturnReplacementPage({
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Replacement Dispatch</h1>
-      </div>
+      </div></WorkspaceHeader>
       <Card>
         <CardHeader><CardTitle>Select Items</CardTitle></CardHeader>
         <CardContent>

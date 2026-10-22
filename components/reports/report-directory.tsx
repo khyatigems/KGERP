@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { reportPresentation } from "@/lib/report-presentation";
 import { REPORT_CATALOG } from "@/lib/report-catalog";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export function ReportDirectory({ financial, vendor, admin, overview = false }: { financial: boolean; vendor: boolean; admin: boolean; overview?: boolean }) {
   const [query, setQuery] = useState("");
@@ -14,7 +15,7 @@ export function ReportDirectory({ financial, vendor, admin, overview = false }: 
   const groups = ["All reports", ...new Set(REPORT_CATALOG.map(r => r.group))];
   const visible = REPORT_CATALOG.filter(r => (group === "All reports" || group === r.group) && `${r.title} ${r.description} ${r.group}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="space-y-6">
-    <div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-semibold tracking-tight">Reports</h1><p className="mt-1 text-sm text-muted-foreground">Find the right report for your workflow. Data loads when you open a report.</p></div><Button asChild variant="outline"><Link href={overview ? "/reports" : "/reports?view=overview"}><BarChart3 className="mr-2 h-4 w-4"/>{overview ? "Report library" : "Open overview"}</Link></Button></div>
+    <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex flex-wrap items-center justify-between gap-4"><div><h1 className="text-3xl font-semibold tracking-tight">Reports</h1><p className="mt-1 text-sm text-muted-foreground">Find the right report for your workflow. Data loads when you open a report.</p></div><Button asChild variant="outline"><Link href={overview ? "/reports" : "/reports?view=overview"}><BarChart3 className="mr-2 h-4 w-4"/>{overview ? "Report library" : "Open overview"}</Link></Button></div></WorkspaceHeader>
     <div className="rounded-2xl border bg-card p-4 space-y-4"><div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input className="pl-9" aria-label="Search reports" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search reports, tasks, or modules..."/></div><div className="flex flex-wrap gap-2">{groups.map(g => <Button key={g} size="sm" variant={g === group ? "default" : "outline"} aria-pressed={g === group} onClick={() => setGroup(g)}>{g}</Button>)}</div></div>
     <p className="text-xs text-muted-foreground">{visible.length} reports · Access follows your assigned role</p>
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{visible.map(r => {

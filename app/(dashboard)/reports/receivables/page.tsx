@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Receivables | KhyatiGems™",
@@ -81,10 +82,10 @@ export default async function ReceivablesPage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Accounts Receivable</h1>
         <ExportButton filename="receivables" data={rows} columns={columns} title="Receivables" label="Export CSV/Excel/PDF" />
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>

@@ -16,6 +16,7 @@ import { Plus, Trash2, History, RotateCcw, Save, Sparkles, ChevronUp, ChevronDow
 import { format } from "date-fns";
 import { saveLandingPageSettings, getVersions, rollbackVersion, addWhatsNewEntry, getWhatsNewEntries, deleteWhatsNewEntry, generateWhatsNewDraft } from "@/app/(dashboard)/settings/landing-page/actions";
 import { LandingPageSettings, LandingPageVersion } from "@prisma/client";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export type ExtendedLandingPageSettings = Omit<LandingPageSettings, "highlights"> & {
   highlights: string[];
@@ -183,12 +184,12 @@ export function LandingPageForm({ initialSettings }: LandingPageFormProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div className="flex items-center justify-between">
         <div>
             <h2 className="text-2xl font-bold tracking-tight">Landing Page Settings</h2>
             <p className="text-muted-foreground">Manage the internal ERP login landing page content. Changes apply immediately.</p>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         

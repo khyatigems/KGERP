@@ -17,6 +17,7 @@ import { CommunicationBulkRetry, CommunicationReadButton, MarkAllReadButton, Pro
 import { getCommunicationCenter } from "@/lib/email/communication-center";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { formatMarketplaceDateTime } from "@/lib/utils";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Communication Center",
@@ -72,11 +73,11 @@ export default async function CommunicationCenterPage({
   if (!result) {
     return (
       <AnimatedPage>
-        <div className="space-y-6 p-6">
-          <div>
+        <div className="space-y-6">
+          <WorkspaceHeader eyebrow="KhyatiGems · Administration"><div>
             <h1 className="text-3xl font-bold tracking-tight">Communication Center</h1>
             <p className="text-sm text-muted-foreground">Review inbound and outbound customer communications.</p>
-          </div>
+          </div></WorkspaceHeader>
           <Card>
             <CardContent className="py-10 text-center">
               <p className="font-medium">Unable to load communications.</p>
@@ -127,8 +128,8 @@ export default async function CommunicationCenterPage({
 
   return (
     <AnimatedPage>
-      <div className="space-y-6 p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="space-y-6">
+        <WorkspaceHeader eyebrow="KhyatiGems · Administration"><div className="flex flex-wrap items-start justify-between gap-4">
           <div>
           <h1 className="text-3xl font-bold tracking-tight">Communication Center</h1>
           <p className="text-sm text-muted-foreground">
@@ -142,7 +143,7 @@ export default async function CommunicationCenterPage({
             {canManage && <SyncCommunicationInboxButton />}
             <MarkAllReadButton unreadCount={stats.unread} />
           </div>
-        </div>
+        </div></WorkspaceHeader>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
           {kpis.map((kpi) => (

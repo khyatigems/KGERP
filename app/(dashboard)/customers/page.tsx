@@ -46,6 +46,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Customers | KhyatiGems™",
@@ -175,7 +176,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+      <WorkspaceHeader eyebrow="KhyatiGems · Administration"><div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
           <p className="text-sm text-muted-foreground">Central customer profile repository for invoices and quotations.</p>
@@ -197,7 +198,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             </LoadingLink>
           </Button>
         </div>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card className="overflow-hidden border-l-4 border-l-violet-500 bg-linear-to-br from-violet-500/[0.07] to-card">

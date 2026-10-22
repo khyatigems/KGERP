@@ -14,6 +14,7 @@ import { ExportJobCenter } from "@/components/reports/export-job-center";
 import { getGovernanceConfig } from "@/lib/governance";
 import { ReportsRangeSelect } from "@/components/reports/reports-range-select";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function ReportsHubPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
     const session = await auth();
@@ -352,7 +353,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
     return (
         <AnimatedPage>
         <div className="space-y-6 [&_[data-slot=card]]:rounded-2xl">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Reports Dashboard</h2>
                     <p className="text-sm text-muted-foreground">Analytics Command Center for operational and financial intelligence.</p>
@@ -361,7 +362,7 @@ export default async function ReportsHubPage({ searchParams }: { searchParams: P
                     <ReportsRangeSelect defaultDays={rangeDays} />
                     <Button asChild variant="outline"><Link href="/reports">Report library</Link></Button>
                 </div>
-            </div>
+            </div></WorkspaceHeader>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <Card><CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-sm">Inventory Health</CardTitle><Boxes className="h-4 w-4 text-primary" /></div></CardHeader><CardContent className="space-y-1 text-sm"><div>Items in Stock: <span className="font-semibold">{(latestSnapshot?.inventoryCount ?? 0) || liveInventory.count}</span></div><div>Inventory Value: <span className="font-semibold">{formatCurrency((latestSnapshot?.inventoryValueSell ?? 0) || liveInventory.sellValue)}</span></div><div>Slow Moving: <span className="font-semibold">{slowMoving.length}</span></div></CardContent></Card>

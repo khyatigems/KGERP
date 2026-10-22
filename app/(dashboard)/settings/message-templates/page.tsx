@@ -5,6 +5,7 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { getMessageTemplates } from "./actions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { MessageTemplatesForm } from "./message-templates-form";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,10 @@ export default async function MessageTemplatesPage() {
   const rows = await getMessageTemplates();
   return (
     <AnimatedPage><div className="space-y-6">
-      <div>
+      <WorkspaceHeader eyebrow="KhyatiGems · Settings"><div>
         <h1 className="text-3xl font-bold tracking-tight">WhatsApp Templates</h1>
         <p className="text-muted-foreground">Manage WhatsApp templates with placeholders for customer name, loyalty points and coupon references. Email templates are managed separately under Email Templates.</p>
-      </div>
+      </div></WorkspaceHeader>
       <MessageTemplatesForm initial={rows} />
     </div></AnimatedPage>
   );

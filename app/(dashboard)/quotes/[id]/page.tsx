@@ -16,6 +16,7 @@ import {
 import { ArrowLeft, ExternalLink, ShoppingCart } from "lucide-react";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { QuotationActions } from "@/components/quotes/quotation-actions";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Quote Details | KhyatiGems™",
@@ -58,7 +59,7 @@ export default async function QuoteDetailPage({
 
   return (
     <AnimatedPage><div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center gap-4">
         <Button variant="outline" size="icon" asChild>
           <Link href="/quotes">
             <ArrowLeft className="h-4 w-4" />
@@ -88,7 +89,7 @@ export default async function QuoteDetailPage({
             status={quote.status} 
             items={quote.items.filter(i => i.inventoryId !== null) as { inventoryId: string }[]} 
         />
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="rounded-md border p-6 bg-card text-card-foreground shadow-sm">

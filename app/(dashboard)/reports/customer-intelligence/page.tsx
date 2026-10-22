@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function CustomerIntelligencePage() {
   const session = await auth();
@@ -20,7 +21,7 @@ export default async function CustomerIntelligencePage() {
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Customer Intelligence</h1>
           <p className="text-sm text-muted-foreground">Repeat behavior, purchase timeline, and ticket-size analytics.</p>
@@ -28,7 +29,7 @@ export default async function CustomerIntelligencePage() {
         <Button asChild variant="outline">
           <Link href="/reports">Back to Reports</Link>
         </Button>
-      </div>
+      </div></WorkspaceHeader>
 
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Unique Customers</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{data.summary.uniqueCustomers}</div></CardContent></Card>

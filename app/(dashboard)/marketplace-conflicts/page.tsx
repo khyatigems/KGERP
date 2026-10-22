@@ -9,6 +9,7 @@ import { MarketplaceNavButton } from "@/components/marketplace-nav-button";
 import Link from "next/link";
 import { Filter } from "lucide-react";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const dynamic = "force-dynamic";
 
@@ -54,12 +55,12 @@ export default async function MarketplaceConflictsPage({
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <WorkspaceHeader eyebrow="KhyatiGems · Marketplaces"><div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Marketplace Conflicts</h1>
         <MarketplaceNavButton href="/marketplace-control-center" variant="ghost" size="sm">
           Back to Control Center
         </MarketplaceNavButton>
-      </div>
+      </div></WorkspaceHeader>
 
       <form className="flex flex-wrap items-end gap-3" method="get" action="/marketplace-conflicts">
         <div className="flex flex-col gap-1">

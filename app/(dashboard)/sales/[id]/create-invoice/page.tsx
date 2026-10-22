@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { CreateInvoiceForm } from "@/components/invoices/create-invoice-form";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Create Invoice | KhyatiGems™",
@@ -50,12 +51,12 @@ export default async function CreateInvoicePage({ params }: { params: Promise<{ 
 
   return (
     <AnimatedPage>
-    <div className="max-w-2xl mx-auto space-y-6 p-6">
+    <div className="max-w-2xl mx-auto space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Invoice Configuration</h1>
+        <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><h1 className="text-3xl font-bold tracking-tight">Invoice Configuration</h1>
         <p className="text-muted-foreground">
           Select the fields you want to display on the invoice for Sale #{sale.id.substring(0, 8).toUpperCase()}.
-        </p>
+        </p></WorkspaceHeader>
       </div>
       <div className="rounded-xl border bg-card text-card-foreground shadow">
         <div className="p-6">

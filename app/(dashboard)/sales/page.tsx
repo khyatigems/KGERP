@@ -24,6 +24,7 @@ import type { ElementType } from "react";
 import { checkPermission } from "@/lib/permission-guard";
 import { Input } from "@/components/ui/input";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export const metadata: Metadata = {
   title: "Sales History | KhyatiGems™",
@@ -556,7 +557,7 @@ export default async function SalesPage({
     <div className="space-y-6">
       {/* Header with Search */}
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+        <WorkspaceHeader eyebrow="KhyatiGems · Sell flow"><div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight">Sales History</h1>
           <div className="flex items-center gap-2">
             <div className="flex gap-2 mr-4">
@@ -594,7 +595,7 @@ export default async function SalesPage({
               </a>
             </Button>
           </div>
-        </div>
+        </div></WorkspaceHeader>
         
         {/* Search Bar */}
         <div className="flex items-center gap-4">

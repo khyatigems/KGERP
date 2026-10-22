@@ -1,5 +1,6 @@
 import { getSerialHistory } from "@/app/erp/packaging/actions";
 import { SerialLedgerTable } from "./ledger-table";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function LedgerPage({
   searchParams,
@@ -14,7 +15,7 @@ export default async function LedgerPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Serial Ledger</h1>
+      <WorkspaceHeader eyebrow="KhyatiGems · Fulfillment"><h1 className="text-3xl font-bold tracking-tight">Serial Ledger</h1></WorkspaceHeader>
       <SerialLedgerTable data={data} pagination={pagination} />
     </div>
   );

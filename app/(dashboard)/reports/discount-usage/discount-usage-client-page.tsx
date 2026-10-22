@@ -6,6 +6,7 @@ import { toast } from "@/lib/erp-feedback";
 import { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Loader2 } from "lucide-react";
@@ -44,7 +45,8 @@ export default function DiscountUsageClientPage({ initialReport }: DiscountUsage
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><h1>Discount Usage Report</h1><p>Review discounts applied to invoices for the selected period.</p></WorkspaceHeader>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-2xl font-bold">Discount Usage Report</CardTitle>

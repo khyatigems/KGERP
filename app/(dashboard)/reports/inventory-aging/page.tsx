@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExportButton } from "@/components/ui/export-button";
 import { AnimatedPage } from "@/components/ui/animated-page";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 type SearchMap = { [key: string]: string | string[] | undefined };
 
@@ -79,7 +80,7 @@ export default async function InventoryAgingReportPage({ searchParams }: { searc
   return (
     <AnimatedPage>
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
+      <WorkspaceHeader eyebrow="KhyatiGems · Insights"><div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Inventory Aging Report</h1>
           <p className="text-sm text-muted-foreground">Snapshot-backed aging analysis with bucket and value visibility.</p>
@@ -87,7 +88,7 @@ export default async function InventoryAgingReportPage({ searchParams }: { searc
         <Button asChild variant="outline">
           <Link href="/reports">Back to Reports</Link>
         </Button>
-      </div>
+      </div></WorkspaceHeader>
       <div className="flex justify-end">
         <ExportButton
           filename={`Inventory_Aging_${status || "ALL"}_${bucket || "ALL"}`}
