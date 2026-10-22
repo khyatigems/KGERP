@@ -111,7 +111,10 @@ export async function syncOrdersForPlatform(
             continue;
           }
 
-          const inventory = item.sku ? await prisma.inventory.findUnique({ where: { sku: item.sku }, select: { id: true } }) : null;
+          const inventory = item.sku ? await prisma.inventory.findUnique({ where: { sku: item.sku }, select: { id: true, imageUrl: true } }) : null;
+          const rawItem = item.raw && typeof item.raw === "object" && !Array.isArray(item.raw)
+            ? item.raw as Record<string, unknown>
+            : {};
           const itemData = {
             orderId,
             marketplaceItemId: itemId,
@@ -122,7 +125,10 @@ export async function syncOrdersForPlatform(
             currency: item.currency || order.currency || "USD",
             inventoryId: inventory?.id || null,
             status: inventory ? "MATCHED" : item.sku ? "UNKNOWN_SKU" : "NO_SKU",
-            rawMetadata: safeJson(item.raw),
+            // eBay's order line payload does not include the listing photo.
+            // Keep any marketplace-provided image and fall back to the ERP
+            // inventory photo so imported order items still have a thumbnail.
+            rawMetadata: safeJson({ ...rawItem, imageUrl: rawItem.imageUrl || rawItem.image_url || inventory?.imageUrl || null }),
           };
 
           const existingItem = await prisma.marketplaceOrderItem.findUnique({ where });
