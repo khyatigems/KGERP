@@ -67,7 +67,7 @@ export async function saveTokens(
       externalAccountId,
       name: accountName || externalAccountId,
       authType: "OAUTH2",
-      oauthAppProfile: platform === "ETSY" ? options.oauthAppProfile || "ETSY_SELLER_LEGACY" : null,
+      oauthAppProfile: platform === "ETSY" ? options.oauthAppProfile || "ETSY_PERSONAL" : null,
       tokenRef,
       status: "CONNECTED",
       scopes: tokens.scope ?? null,

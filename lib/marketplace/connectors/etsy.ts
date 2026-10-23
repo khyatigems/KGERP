@@ -105,38 +105,27 @@ function env(name: string): string {
   return (process.env[name] || "").trim();
 }
 
-/** Unknown/missing legacy values deliberately resolve to the existing app. */
+/** New connections default to the shared personal app; retain old profile identifiers for reconnect guidance. */
 export function normalizeEtsyAppProfile(value: unknown): EtsyOAuthAppProfile {
   return ETSY_APP_PROFILES.includes(value as EtsyOAuthAppProfile)
     ? value as EtsyOAuthAppProfile
-    : "ETSY_SELLER_LEGACY";
+    : "ETSY_PERSONAL";
 }
 
 export function isEtsyAppProfile(value: unknown): value is EtsyOAuthAppProfile {
   return typeof value === "string" && ETSY_APP_PROFILES.includes(value as EtsyOAuthAppProfile);
 }
 
-/**
- * App credentials are process configuration, never connection data. Personal
- * and Commercial profiles are intentionally unavailable until approved
- * credentials are explicitly added; silently falling back would be unsafe.
- */
+/** One application serves every shop; OAuth tokens remain per connection. */
 export function resolveEtsyCredentials(profile: EtsyOAuthAppProfile): EtsyAppCredentials {
-  if (profile === "ETSY_SELLER_LEGACY") {
-    return {
-      clientId: env("ETSY_CLIENT_ID") || env("ETSY_API_KEY") || env("ETSY_KEYSTRING"),
-      sharedSecret: env("ETSY_SHARED_SECRET") || env("ETSY_API_SECRET"),
-      redirectUri: env("ETSY_REDIRECT_URI"),
-    };
+  if (profile === "ETSY_SECONDARY" || profile === "ETSY_COMMERCIAL") {
+    throw new Error("This Etsy app has been retired. Reconnect this shop using the shared Etsy app.");
   }
-  if (profile === "ETSY_SECONDARY") {
-    return {
-      clientId: env("ETSY_SECONDARY_CLIENT_ID"),
-      sharedSecret: env("ETSY_SECONDARY_SHARED_SECRET"),
-      redirectUri: env("ETSY_SECONDARY_REDIRECT_URI"),
-    };
-  }
-  throw new Error(`${profile} has no configured Etsy credential set.`);
+  return {
+    clientId: env("ETSY_CLIENT_ID") || env("ETSY_API_KEY") || env("ETSY_KEYSTRING"),
+    sharedSecret: env("ETSY_SHARED_SECRET") || env("ETSY_API_SECRET"),
+    redirectUri: env("ETSY_REDIRECT_URI"),
+  };
 }
 
 export async function isEtsyProfileConfigured(profile: EtsyOAuthAppProfile): Promise<boolean> {
@@ -255,7 +244,7 @@ export class EtsyConnector implements MarketplaceConnector {
   }
 
   async isConfigured(): Promise<boolean> {
-    return isEtsyProfileConfigured("ETSY_SELLER_LEGACY");
+    return isEtsyProfileConfigured("ETSY_PERSONAL");
   }
 
   async getAuthorizationUrl(state: string, context?: MarketplaceOAuthContext): Promise<string> {

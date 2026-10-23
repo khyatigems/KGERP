@@ -30,7 +30,6 @@ interface PlatformConfig {
   marketplace: string;
   configured: boolean;
   missingConfiguration: string[];
-  appProfiles?: Partial<Record<"ETSY_SELLER_LEGACY" | "ETSY_SECONDARY", boolean>>;
 }
 
 export function MarketplaceConnectionsClient({
@@ -144,7 +143,7 @@ export function MarketplaceConnectionsClient({
                   <CardTitle className="text-base">{platform.marketplace}</CardTitle>
                   <CardDescription>{platform.configured ? "Application OAuth is ready" : "OAuth credentials are not configured"}</CardDescription>
                 </div>
-                <Button onClick={() => void connectAnother(platform.marketplace, platform.marketplace === "ETSY" ? "ETSY_SELLER_LEGACY" : undefined)} disabled={pending || Boolean(connectingPlatform) || !platform.configured}>
+                <Button onClick={() => void connectAnother(platform.marketplace, platform.marketplace === "ETSY" ? "ETSY_PERSONAL" : undefined)} disabled={pending || Boolean(connectingPlatform) || !platform.configured}>
                   {connectingPlatform === platform.marketplace ? "Opening OAuth..." : "Connect another shop"}
                 </Button>
               </div>
@@ -155,11 +154,6 @@ export function MarketplaceConnectionsClient({
                   {platform.missingConfiguration.join(" ") || "OAuth configuration is invalid."} Update the server environment and redeploy the app.
                 </p>
               )}
-              {platform.marketplace === "ETSY" && (
-                <Button variant="outline" size="sm" onClick={() => void connectAnother("ETSY", "ETSY_SECONDARY")} disabled={pending || Boolean(connectingPlatform) || !platform.appProfiles?.ETSY_SECONDARY}>
-                  Connect with secondary Etsy app
-                </Button>
-              )}
               {connections.filter((connection) => connection.marketplace === platform.marketplace).map((connection) => {
                 const connected = connection.status === "CONNECTED";
                 const platformEnabled = connection.marketplace === "EBAY" ? flags.ebaySyncEnabled : flags.etsySyncEnabled;
@@ -169,7 +163,7 @@ export function MarketplaceConnectionsClient({
                       <div className="min-w-0">
                         <div className="font-medium">{connection.name || connection.externalAccountId || "Marketplace account"}</div>
                         <div className="text-xs text-muted-foreground">{connection.externalAccountId || "Legacy connection; reconnect to register its shop"}</div>
-                        {connection.marketplace === "ETSY" && connection.oauthAppProfile && <div className="text-xs text-muted-foreground">App profile: {connection.oauthAppProfile}</div>}
+                        {connection.marketplace === "ETSY" && connection.oauthAppProfile && <div className="text-xs text-muted-foreground">{connection.oauthAppProfile === "ETSY_SECONDARY" || connection.oauthAppProfile === "ETSY_COMMERCIAL" ? "Reconnect this shop using the shared Etsy app" : "Shared Etsy application"}</div>}
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={connected ? "default" : "secondary"}>{connection.status || "Disconnected"}</Badge>

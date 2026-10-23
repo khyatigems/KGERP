@@ -5,7 +5,6 @@ import { getFeatureFlags, type FeatureFlagKey } from "@/lib/marketplace/feature-
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { prisma } from "@/lib/prisma";
 import { MarketplaceConnectionsClient } from "./marketplace-connections-client";
-import { isEtsyProfileConfigured } from "@/lib/marketplace/connectors/etsy";
 
 export const dynamic = "force-dynamic";
 
@@ -37,12 +36,7 @@ export default async function MarketplaceConnectionsPage({
         marketplace: connector.platform,
         configured: await connector.isConfigured(),
         missingConfiguration,
-        appProfiles: connector.platform === "ETSY"
-          ? {
-              ETSY_SELLER_LEGACY: await isEtsyProfileConfigured("ETSY_SELLER_LEGACY"),
-              ETSY_SECONDARY: await isEtsyProfileConfigured("ETSY_SECONDARY"),
-            }
-          : undefined,
+
       };
     })
   );

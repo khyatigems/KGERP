@@ -20,19 +20,12 @@ try {
     sharedSecret: "legacy-secret",
     redirectUri: "https://erp.example.test/oauth/callback",
   });
-  assert.deepEqual(resolveEtsyCredentials("ETSY_SECONDARY"), {
-    clientId: "secondary-client",
-    sharedSecret: "secondary-secret",
-    redirectUri: "https://erp.example.test/oauth/callback",
-  });
-  assert.notEqual(
-    resolveEtsyCredentials("ETSY_SELLER_LEGACY").clientId,
-    resolveEtsyCredentials("ETSY_SECONDARY").clientId,
-  );
-  assert.equal(normalizeEtsyAppProfile(null), "ETSY_SELLER_LEGACY");
+  assert.deepEqual(resolveEtsyCredentials("ETSY_PERSONAL"), resolveEtsyCredentials("ETSY_SELLER_LEGACY"));
+  assert.throws(() => resolveEtsyCredentials("ETSY_SECONDARY"), /Reconnect/);
+  assert.throws(() => resolveEtsyCredentials("ETSY_COMMERCIAL"), /Reconnect/);
+  assert.equal(normalizeEtsyAppProfile(null), "ETSY_PERSONAL");
   assert.equal(isEtsyAppProfile("ETSY_SECONDARY"), true);
   assert.equal(isEtsyAppProfile("not-an-etsy-profile"), false);
-  assert.throws(() => resolveEtsyCredentials("ETSY_PERSONAL"));
   console.log("Etsy app profile resolver tests passed.");
 } finally {
   for (const key of Object.keys(process.env)) {
