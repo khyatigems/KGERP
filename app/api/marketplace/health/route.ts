@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { withCache } from "@/lib/simple-cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrencyRates } from "@/lib/pricing/db";
 import { toInr } from "@/lib/pricing/currency";
@@ -10,88 +11,92 @@ export const revalidate = 30;
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const configuredRates = await getCurrencyRates();
     const usdOverride = parseFloat(req.nextUrl.searchParams.get("usdRate") || "");
-    const rates = {
-      ...configuredRates,
-      ...(Number.isFinite(usdOverride) && usdOverride > 0 ? { USD: usdOverride } : {}),
-    };
-    const MARGIN_THRESHOLD = 1.00; // Critical below 100%
-    const OPPORTUNITY_THRESHOLD = 0.50;
+    const rateKey = Number.isFinite(usdOverride) && usdOverride > 0 ? usdOverride : "default";
+    const payload = await withCache(`marketplace:health:${session.user.id}:${rateKey}`, 60_000, async () => {
+      const configuredRates = await getCurrencyRates();
+      const rates = {
+        ...configuredRates,
+        ...(Number.isFinite(usdOverride) && usdOverride > 0 ? { USD: usdOverride } : {}),
+      };
+      const MARGIN_THRESHOLD = 1.00; // Critical below 100%
+      const OPPORTUNITY_THRESHOLD = 0.50;
 
-    const [rows, activeListingRows] = await Promise.all([
-      prisma.$queryRawUnsafe<
-        Array<{
-          sku: string;
-          itemName: string;
-          platform: string;
-          listedPrice: number;
-          currency: string;
-          sellingPrice: number;
-          costPrice: number;
-        }>
-      >(`
-      SELECT
-        i."sku",
-        i."itemName",
-        l."platform",
-        l."listedPrice",
-        COALESCE(l."currency", 'USD') AS "currency",
-        i."sellingPrice",
-        i."costPrice"
-      FROM "Listing" l
-      ${marketplaceInventoryJoinSql("INNER")}
-      WHERE ${MARKETPLACE_LISTING_SCOPE_SQL}
-    `),
-      prisma.$queryRawUnsafe<Array<{ total: number }>>(
-        `SELECT COUNT(*) AS total FROM "Listing" WHERE "marketplaceShopId" IS NOT NULL AND UPPER("status") IN ('ACTIVE', 'LISTED')`
-      ),
-    ]);
+      const [rows, activeListingRows] = await Promise.all([
+        prisma.$queryRawUnsafe<
+          Array<{
+            sku: string;
+            itemName: string;
+            platform: string;
+            listedPrice: number;
+            currency: string;
+            sellingPrice: number;
+            costPrice: number;
+          }>
+        >(`
+        SELECT
+          i."sku",
+          i."itemName",
+          l."platform",
+          l."listedPrice",
+          COALESCE(l."currency", 'USD') AS "currency",
+          i."sellingPrice",
+          i."costPrice"
+        FROM "Listing" l
+        ${marketplaceInventoryJoinSql("INNER")}
+        WHERE ${MARKETPLACE_LISTING_SCOPE_SQL}
+      `),
+        prisma.$queryRawUnsafe<Array<{ total: number }>>(
+          `SELECT COUNT(*) AS total FROM "Listing" WHERE "marketplaceShopId" IS NOT NULL AND UPPER("status") IN ('ACTIVE', 'LISTED')`
+        ),
+      ]);
 
-    const activeListingTotal = Number(activeListingRows[0]?.total || 0);
+      const activeListingTotal = Number(activeListingRows[0]?.total || 0);
 
-    let priceAlertCount = 0;
-    let lowMarginCount = 0;
-    let revenueLeakage = 0;
-    let opportunityCount = 0;
+      let priceAlertCount = 0;
+      let lowMarginCount = 0;
+      let revenueLeakage = 0;
+      let opportunityCount = 0;
 
-    for (const row of rows) {
-      const listedPrice = Number(row.listedPrice) || 0;
-      const currency = String(row.currency || "INR");
-      let listedPriceInr = toInr(listedPrice, currency, rates);
-      if (!Number.isFinite(listedPriceInr)) listedPriceInr = listedPrice;
-      const sellingPrice = Number(row.sellingPrice) || 0;
-      const costPrice = Number(row.costPrice) || 0;
-      const marginPct = costPrice > 0 ? (listedPriceInr - costPrice) / costPrice : 0;
+      for (const row of rows) {
+        const listedPrice = Number(row.listedPrice) || 0;
+        const currency = String(row.currency || "INR");
+        let listedPriceInr = toInr(listedPrice, currency, rates);
+        if (!Number.isFinite(listedPriceInr)) listedPriceInr = listedPrice;
+        const sellingPrice = Number(row.sellingPrice) || 0;
+        const costPrice = Number(row.costPrice) || 0;
+        const marginPct = costPrice > 0 ? (listedPriceInr - costPrice) / costPrice : 0;
 
-      if (listedPriceInr < sellingPrice) {
-        priceAlertCount++;
-        revenueLeakage += sellingPrice - listedPriceInr;
+        if (listedPriceInr < sellingPrice) {
+          priceAlertCount++;
+          revenueLeakage += sellingPrice - listedPriceInr;
+        }
+
+        if (marginPct < MARGIN_THRESHOLD) {
+          lowMarginCount++;
+        }
+
+        if (listedPriceInr > sellingPrice * (1 + OPPORTUNITY_THRESHOLD)) {
+          opportunityCount++;
+        }
       }
 
-      if (marginPct < MARGIN_THRESHOLD) {
-        lowMarginCount++;
-      }
-
-      if (listedPriceInr > sellingPrice * (1 + OPPORTUNITY_THRESHOLD)) {
-        opportunityCount++;
-      }
-    }
-
-    return NextResponse.json({
-      priceAlertCount,
-      lowMarginCount,
-      revenueLeakage: Math.round(revenueLeakage),
-      opportunityCount,
-      marginThreshold: 100,
-      opportunityThreshold: 50,
-      totalListings: activeListingTotal,
-      pricedListings: rows.length,
+      return {
+        priceAlertCount,
+        lowMarginCount,
+        revenueLeakage: Math.round(revenueLeakage),
+        opportunityCount,
+        marginThreshold: 100,
+        opportunityThreshold: 50,
+        totalListings: activeListingTotal,
+        pricedListings: rows.length,
+      };
     });
+    return NextResponse.json(payload);
   } catch (error) {
     console.error("[marketplace/health] Error:", error);
     return NextResponse.json({

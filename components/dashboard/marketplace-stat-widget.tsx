@@ -10,7 +10,10 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function MarketplaceStatWidget() {
   const { data } = useSWR("/api/marketplace/stats", fetcher, {
-    refreshInterval: 15000,
+    refreshInterval: 120_000,
+    dedupingInterval: 30_000,
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
   });
 
   const pending = data?.pendingConflicts ?? 0;

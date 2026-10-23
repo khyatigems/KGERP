@@ -53,11 +53,17 @@ const statusConfig: Record<string, { color: string; bg: string; label: string }>
 
 export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
   const { data: syncData } = useSWR<SyncStatsData>("/api/marketplace/stats", fetcher, {
-    refreshInterval: 30000,
+    refreshInterval: 120_000,
+    dedupingInterval: 30_000,
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
   });
 
   const { data: healthData } = useSWR<HealthData>("/api/marketplace/health", fetcher, {
-    refreshInterval: 30000,
+    refreshInterval: 120_000,
+    dedupingInterval: 30_000,
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
   });
 
   const savedShops = (listings.shops ?? []).filter((shop) => ["ETSY", "EBAY"].includes(shop.marketplace.toUpperCase()));

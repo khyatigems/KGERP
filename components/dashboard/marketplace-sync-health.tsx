@@ -31,7 +31,10 @@ const platformColors: Record<string, { color: string; bg: string }> = {
 
 export function MarketplaceSyncHealth() {
   const { data: syncData } = useSWR<SyncStats>("/api/marketplace/stats", fetcher, {
-    refreshInterval: 30000,
+    refreshInterval: 120_000,
+    dedupingInterval: 30_000,
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
   });
 
   if (!syncData) return null;

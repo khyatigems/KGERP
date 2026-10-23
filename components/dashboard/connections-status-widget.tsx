@@ -59,7 +59,10 @@ function SyncStatus({ status, syncedAt }: { status: string | null; syncedAt: str
 
 export function ConnectionsStatusWidget() {
   const { data, error, isLoading } = useSWR<IntegrationStatus>("/api/dashboard/integration-status", fetcher, {
-    refreshInterval: 60000,
+    refreshInterval: 120_000,
+    dedupingInterval: 30_000,
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
     revalidateOnFocus: true,
   });
   const connectedShopCount = data?.shops.filter((shop) => shop.connected).length ?? 0;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -141,7 +142,6 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
   const [expandedGroups, setExpandedGroups] = useState<string[]>(() => 
     navGroups.map(g => g.id)
   );
-  const [pendingConflicts, setPendingConflicts] = useState(0);
   const [unreadCommunications, setUnreadCommunications] = useState(0);
   const canSeeCommunication =
     allowedModules.includes("ALL") ||
@@ -151,31 +151,22 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
     allowedModules.includes("listings:view") ||
     allowedModules.includes("dashboard");
   
-  useEffect(() => {
-    if (!canSeeControlCenter) return;
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/marketplace/stats", { cache: "no-store" });
-        if (!res.ok) return;
-        const json = await res.json();
-        if (!cancelled && typeof json.pendingConflicts === "number") {
-          setPendingConflicts(json.pendingConflicts);
-        }
-      } catch {}
-    };
-    load();
-    const id = setInterval(load, 60_000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [canSeeControlCenter]);
+  const { data: marketplaceStats } = useSWR(
+    canSeeControlCenter ? "/api/marketplace/stats" : null,
+    async (url: string) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Marketplace stats unavailable");
+      return response.json();
+    },
+    { refreshInterval: 120_000, dedupingInterval: 30_000, refreshWhenHidden: false, refreshWhenOffline: false },
+  );
+  const pendingConflicts = marketplaceStats?.pendingConflicts ?? 0;
 
   useEffect(() => {
     if (!canSeeCommunication) return;
     let cancelled = false;
     const loadUnread = async () => {
+      if (document.visibilityState !== "visible") return;
       try {
         const response = await fetch("/api/email/communication/unread-count", { cache: "no-store" });
         if (!response.ok) return;

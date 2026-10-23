@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { withCache } from "@/lib/simple-cache";
 import { prisma } from "@/lib/prisma";
 import { ensureMarketplaceControlCenterSchema } from "@/lib/marketplace-control-center";
 
@@ -7,79 +8,82 @@ export const revalidate = 30;
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    await ensureMarketplaceControlCenterSchema();
+    const payload = await withCache(`marketplace:stats:${session.user.id}`, 60_000, async () => {
+      await ensureMarketplaceControlCenterSchema();
 
-    const [
-      countRows,
-      conflictRows,
-      statusBreakdown,
-      recentActivity,
-    ] = await Promise.all([
-      prisma.$queryRawUnsafe<Array<{ total: number }>>(
-        `SELECT COUNT(*) AS total FROM "Listing" WHERE "marketplaceShopId" IS NOT NULL AND UPPER("status") IN ('ACTIVE', 'LISTED')`
-      ),
-      prisma.$queryRawUnsafe<Array<{ conflictStatus: string; activePlatforms: string | null; currentQuantity: number }>>(
-        `SELECT "conflictStatus", "activePlatforms", "currentQuantity" FROM "MarketplaceConflict"`
-      ),
-      prisma.listing.groupBy({
-        by: ["status"],
-        where: { marketplaceShopId: { not: null } },
-        _count: { id: true },
-      }).catch(() => []),
-      prisma.listing.findMany({
-        take: 4,
-        where: { marketplaceShopId: { not: null } },
-        orderBy: { updatedAt: "desc" },
-        include: {
-          inventory: { select: { sku: true, itemName: true } },
-        },
-      }).catch(() => []),
-    ]);
+      const [
+        countRows,
+        conflictRows,
+        statusBreakdown,
+        recentActivity,
+      ] = await Promise.all([
+        prisma.$queryRawUnsafe<Array<{ total: number }>>(
+          `SELECT COUNT(*) AS total FROM "Listing" WHERE "marketplaceShopId" IS NOT NULL AND UPPER("status") IN ('ACTIVE', 'LISTED')`
+        ),
+        prisma.$queryRawUnsafe<Array<{ conflictStatus: string; activePlatforms: string | null; currentQuantity: number }>>(
+          `SELECT "conflictStatus", "activePlatforms", "currentQuantity" FROM "MarketplaceConflict"`
+        ),
+        prisma.listing.groupBy({
+          by: ["status"],
+          where: { marketplaceShopId: { not: null } },
+          _count: { id: true },
+        }).catch(() => []),
+        prisma.listing.findMany({
+          take: 4,
+          where: { marketplaceShopId: { not: null } },
+          orderBy: { updatedAt: "desc" },
+          include: {
+            inventory: { select: { sku: true, itemName: true } },
+          },
+        }).catch(() => []),
+      ]);
 
-    const totalListings = Number(countRows[0]?.total || 0);
+      const totalListings = Number(countRows[0]?.total || 0);
 
-    let pendingConflicts = 0;
-    let criticalConflicts = 0;
+      let pendingConflicts = 0;
+      let criticalConflicts = 0;
 
-    for (const row of conflictRows) {
-      if (row.conflictStatus === "Pending") {
-        pendingConflicts++;
-        const active = parseActivePlatforms(row.activePlatforms);
-        if (active.length > 1 || Number(row.currentQuantity || 0) === 0) {
-          criticalConflicts++;
+      for (const row of conflictRows) {
+        if (row.conflictStatus === "Pending") {
+          pendingConflicts++;
+          const active = parseActivePlatforms(row.activePlatforms);
+          if (active.length > 1 || Number(row.currentQuantity || 0) === 0) {
+            criticalConflicts++;
+          }
         }
       }
-    }
 
-    const listingStatusBreakdown: Record<string, number> = {};
-    for (const entry of statusBreakdown) {
-      listingStatusBreakdown[entry.status] = entry._count.id;
-    }
+      const listingStatusBreakdown: Record<string, number> = {};
+      for (const entry of statusBreakdown) {
+        listingStatusBreakdown[entry.status] = entry._count.id;
+      }
 
-    const mappedActivity = recentActivity.map((item) => ({
-      id: item.id,
-      inventoryId: item.inventoryId,
-      platform: item.platform,
-      status: item.status,
-      listedPrice: item.listedPrice,
-      currency: item.currency,
-      listingUrl: item.listingUrl || null,
-      updatedAt: item.updatedAt.toISOString(),
-      sku: item.inventory?.sku || null,
-      itemName: item.inventory?.itemName || null,
-    }));
+      const mappedActivity = recentActivity.map((item) => ({
+        id: item.id,
+        inventoryId: item.inventoryId,
+        platform: item.platform,
+        status: item.status,
+        listedPrice: item.listedPrice,
+        currency: item.currency,
+        listingUrl: item.listingUrl || null,
+        updatedAt: item.updatedAt.toISOString(),
+        sku: item.inventory?.sku || null,
+        itemName: item.inventory?.itemName || null,
+      }));
 
-    return NextResponse.json({
-      totalListings,
-      pendingConflicts,
-      criticalConflicts,
-      listingStatusBreakdown,
-      recentActivity: mappedActivity,
+      return {
+        totalListings,
+        pendingConflicts,
+        criticalConflicts,
+        listingStatusBreakdown,
+        recentActivity: mappedActivity,
+      };
     });
+    return NextResponse.json(payload);
   } catch (error) {
     console.error("[Marketplace Stats] Error:", error);
     return NextResponse.json({
