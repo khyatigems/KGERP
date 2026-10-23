@@ -125,7 +125,7 @@ async function processOneJob(jobId: string) {
         progressStep: hasMore ? "Page saved" : totalFailed > 0 ? "Completed with errors" : "Completed",
         progressDetail: hasMore
           ? `${nextOffset} records processed; next page queued`
-          : `${job.recordsScanned + result.scanned} records scanned in total${closedMissing ? `; ${closedMissing} sold/ended listing${closedMissing === 1 ? "" : "s"} closed` : ""}`,
+          : `${job.recordsScanned + result.scanned} records scanned in total${closedMissing ? `; ${closedMissing} listing${closedMissing === 1 ? "" : "s"} no longer active` : ""}`,
         cursor: hasMore ? String(nextOffset) : job.cursor,
         recordsScanned: { increment: result.scanned },
         recordsCreated: { increment: result.created },

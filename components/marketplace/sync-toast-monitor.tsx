@@ -57,6 +57,17 @@ export function MarketplaceSyncToastMonitor() {
               if (job.status !== "PROCESSING") return false;
               return Date.now() - new Date(job.updatedAt).getTime() > 2 * 60 * 1000;
             })) hasQueuedJobs = true;
+            // Old completed batches retained in browser storage are history, not a new sync result.
+            const terminal = jobs.length > 0 && jobs.every((job) => !["QUEUED", "PROCESSING"].includes(job.status));
+            const completedAt = Math.max(...jobs.map((job) => Date.parse(job.updatedAt)));
+            if (terminal && Number.isFinite(completedAt) && Date.now() - completedAt > 15 * 60 * 1000) {
+              forgetMarketplaceSyncBatch(batchId);
+              toast.dismiss(`marketplace-sync-${batchId}`);
+              toast.dismiss(`marketplace-sync-${batchId}-completed`);
+              setJobsByBatch((current) => { const next = { ...current }; delete next[batchId]; return next; });
+              setBatches((current) => current.filter((id) => id !== batchId));
+              continue;
+            }
             setJobsByBatch((current) => ({ ...current, [batchId]: jobs }));
             if (jobs.length && jobs.every((job) => !["QUEUED", "PROCESSING"].includes(job.status))) {
               setFinishedBatches((current) => current.includes(batchId) ? current : [...current, batchId]);

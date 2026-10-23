@@ -38,7 +38,7 @@ export async function GET() {
       const uid = userId ?? "00000000-0000-0000-0000-000000000000";
 
       const [
-        totalInventory, activeListingsRaw, marketplaceShops, activeQuotations, invoicesGenerated,
+        totalInventory, activeListingsRaw, marketplaceShops, inactiveListingsByShop, activeQuotations, invoicesGenerated,
         labelCartCount, recentSales,
         expiringQuotations, overdueInvoices, pendingVendors,
         unsoldInventory, missingCertifications, missingImages, pendingExpenses, highValueUnsold,
@@ -68,6 +68,7 @@ export async function GET() {
           },
           orderBy: [{ marketplace: "asc" }, { name: "asc" }],
         }).catch(() => []),
+        prisma.listing.groupBy({ by: ["marketplaceShopId"], where: { marketplaceShopId: { not: null }, status: "INACTIVE" }, _count: { id: true } }).catch(() => []),
         prisma.quotation.count({ where: { status: "ACTIVE", OR: [{ expiryDate: null }, { expiryDate: { gte: now } }] } }).catch(() => 0),
         prisma.invoice.count().catch(() => 0),
         prisma.labelCartItem.count({ where: { userId: uid, inventory: { id: { not: "" } } } }).catch(() => 0),
@@ -150,6 +151,7 @@ export async function GET() {
           name: shop.name,
           marketplace: shop.marketplace,
           count: shop._count.listings,
+          inactiveCount: inactiveListingsByShop.find((row) => row.marketplaceShopId === shop.id)?._count.id ?? 0,
         })),
       };
 

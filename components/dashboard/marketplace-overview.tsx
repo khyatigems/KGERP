@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface ListingsData {
   total: number;
   eBay?: number;
-  shops?: Array<{ id: string; name: string; marketplace: string; count: number }>;
+  shops?: Array<{ id: string; name: string; marketplace: string; count: number; inactiveCount?: number }>;
 }
 
 interface MarketplaceOverviewProps {
@@ -47,6 +47,7 @@ const statusConfig: Record<string, { color: string; bg: string; label: string }>
   LISTED: { color: "text-primary dark:text-primary", bg: "bg-primary/10", label: "Listed" },
   DRAFT: { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", label: "Draft" },
   PAUSED: { color: "text-gray-600 dark:text-gray-400", bg: "bg-gray-500/10", label: "Paused" },
+  INACTIVE: { color: "text-gray-600 dark:text-gray-400", bg: "bg-gray-500/10", label: "Inactive" },
   SOLD: { color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", label: "Sold" },
 };
 
@@ -59,23 +60,25 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
     refreshInterval: 30000,
   });
 
+  const savedShops = (listings.shops ?? []).filter((shop) => ["ETSY", "EBAY"].includes(shop.marketplace.toUpperCase()));
   const marketplaceTiles = [
-    { key: "EBAY", label: "eBay", count: listings.eBay ?? 0, marketplace: "EBAY", shopId: undefined as string | undefined },
-    ...(listings.shops ?? [])
-      .filter((shop) => shop.marketplace.toUpperCase() === "ETSY")
-      .map((shop) => ({
-        key: shop.id,
-        label: `Etsy · ${shop.name}`,
-        count: shop.count,
-        marketplace: "ETSY",
-        shopId: shop.id,
-      })),
+    ...(!savedShops.some((shop) => shop.marketplace.toUpperCase() === "EBAY")
+      ? [{ key: "EBAY", label: "eBay", count: listings.eBay ?? 0, inactiveCount: 0, marketplace: "EBAY", shopId: undefined as string | undefined }]
+      : []),
+    ...savedShops.map((shop) => ({
+      key: shop.id,
+      label: `${shop.marketplace.toUpperCase() === "EBAY" ? "eBay" : "Etsy"} · ${shop.name}`,
+      count: shop.count,
+      inactiveCount: shop.inactiveCount ?? 0,
+      marketplace: shop.marketplace.toUpperCase(),
+      shopId: shop.id,
+    })),
   ];
   const totalListings = listings.total ?? 0;
   const hasConflicts = syncData && ((syncData.pendingConflicts ?? 0) > 0 || (syncData.criticalConflicts ?? 0) > 0);
   const breakdown = syncData?.listingStatusBreakdown;
   const hasStatusData = breakdown && Object.keys(breakdown).length > 0;
-  const statusOrder = ["ACTIVE", "LISTED", "DRAFT", "PAUSED", "SOLD"];
+  const statusOrder = ["ACTIVE", "LISTED", "DRAFT", "PAUSED", "INACTIVE", "SOLD"];
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter gem-fade-in">
@@ -101,7 +104,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
         {marketplaceTiles.map((tile) => {
           const cfg = platformConfig[tile.marketplace === "EBAY" ? "eBay" : "Etsy"];
           const listingHref = tile.shopId
-            ? `/marketplace-listings?marketplace=${tile.marketplace}&shop=${encodeURIComponent(tile.shopId)}`
+            ? `/marketplace-listings?marketplace=${tile.marketplace}&shop=${encodeURIComponent(tile.shopId)}${tile.count === 0 && tile.inactiveCount > 0 ? "&status=INACTIVE" : ""}`
             : `/marketplace-listings?marketplace=${tile.marketplace}`;
           return (
             <Link
@@ -112,14 +115,16 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
                 "flex min-w-0 flex-col items-center justify-center rounded-lg border border-border p-3 text-center transition-all duration-150",
                 tile.count > 0
                   ? "hover:border-primary/20 hover:bg-primary/5"
-                  : "opacity-40"
+                  : "hover:border-primary/20 hover:bg-primary/5"
               )}
             >
               <div className={cn("flex h-7 w-7 items-center justify-center rounded-md mb-1.5", cfg.bg)}>
                 <Globe className={cn("h-3.5 w-3.5", cfg.color)} />
               </div>
               <span className="text-lg font-bold text-foreground leading-tight">{tile.count}</span>
+              <span className="text-[10px] text-muted-foreground">Active listings</span>
               <span className="max-w-full truncate text-[10px] leading-tight text-muted-foreground">{tile.label}</span>
+              {tile.inactiveCount > 0 && <span className="mt-1 text-[10px] text-muted-foreground">{tile.inactiveCount} inactive listings</span>}
             </Link>
           );
         })}

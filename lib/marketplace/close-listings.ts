@@ -83,13 +83,14 @@ export async function markMarketplaceListingsSold(
 
 /**
  * After a complete active-listing crawl, anything still ACTIVE for the shop
- * that was not seen in this job is no longer live on the marketplace.
+ * that was not seen in this job is no longer active. Absence does not prove a sale.
  */
 export async function closeListingsMissingFromActiveSync(
   shopId: string,
-  syncedBefore: Date
+  syncedBefore: Date,
+  db: Pick<ListingDb, "listing"> = prisma
 ): Promise<number> {
-  const result = await prisma.listing.updateMany({
+  const result = await db.listing.updateMany({
     where: {
       marketplaceShopId: shopId,
       status: { in: [...ACTIVE_MARKETPLACE_LISTING_STATUSES] },
@@ -98,7 +99,7 @@ export async function closeListingsMissingFromActiveSync(
         { lastSyncedAt: { lt: syncedBefore } },
       ],
     },
-    data: SOLD_UPDATE,
+    data: { status: "INACTIVE" },
   });
   return result.count;
 }

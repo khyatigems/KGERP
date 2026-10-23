@@ -96,4 +96,17 @@ assert.deepEqual(
   { trackingCode: "1Z999", carrier: "UPS" }
 );
 
-console.log("Marketplace listing sync unit tests passed.");
+async function testMissingListingReconciliation() {
+  const { closeListingsMissingFromActiveSync } = await import("@/lib/marketplace/close-listings");
+  const cutoff = new Date("2026-10-23T00:00:00Z");
+  let mutation: any;
+  const count = await closeListingsMissingFromActiveSync("shop-a", cutoff, {
+    listing: { updateMany: async (args) => { mutation = args; return { count: 15 }; } },
+  });
+  assert.equal(count, 15);
+  assert.equal(mutation.where.marketplaceShopId, "shop-a");
+  assert.deepEqual(mutation.where.status.in, ["ACTIVE", "LISTED"]);
+  assert.deepEqual(mutation.data, { status: "INACTIVE" }, "Missing from an active feed does not prove a sale or zero quantity");
+  console.log("Marketplace listing sync unit tests passed.");
+}
+void testMissingListingReconciliation().catch((error) => { console.error(error); process.exitCode = 1; });

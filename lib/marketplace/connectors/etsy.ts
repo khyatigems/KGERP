@@ -658,7 +658,8 @@ export class EtsyConnector implements MarketplaceConnector {
       `${API_BASE}/v3/application/shops/${encodeURIComponent(context.externalShopId)}/listings?state=active&includes=Images,Inventory&limit=${pageSize}&offset=${offset}`,
       { headers }
     );
-    return (data.results || []).map((listing) => ({
+    if (!Array.isArray(data.results)) throw new Error("Etsy returned an invalid listings response; saved listings were not reconciled.");
+    return data.results.map((listing) => ({
       ...this.normalizeListing(listing),
       marketplaceShopId: context.shopId,
       externalShopId: context.externalShopId,
