@@ -53,7 +53,7 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
     priceHistory: { orderBy: { changedAt: "desc" as const }, take: 2, select: { price: true, changedAt: true } },
   };
   const [shops, total, listings, exportListings, syncJobs, databaseClock] = await Promise.all([
-    prisma.marketplaceShop.findMany({ where: { status: "CONNECTED", connection: { status: "CONNECTED" } }, select: { id: true, marketplace: true, name: true }, orderBy: [{ marketplace: "asc" }, { name: "asc" }] }),
+    prisma.marketplaceShop.findMany({ select: { id: true, marketplace: true, name: true, status: true, connection: { select: { status: true } } }, orderBy: [{ marketplace: "asc" }, { name: "asc" }] }),
     prisma.listing.count({ where }),
     prisma.listing.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE, include: listingInclude }),
     prisma.listing.findMany({ where, orderBy: { createdAt: "desc" }, take: 5000, include: { marketplaceShop: { select: { name: true } }, inventory: { select: { sku: true } } } }),
@@ -99,7 +99,7 @@ export default async function MarketplaceListingsPage({ searchParams }: { search
 
   return <div className="space-y-5">
     <WorkspaceHeader eyebrow="KhyatiGems · Marketplaces"><div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-semibold">Marketplace Listings</h1><p className="text-sm text-muted-foreground">External listings mapped to ERP products.</p></div><div className="flex flex-wrap gap-2"><MarketplaceListingsExport rows={exportRows} /><Button asChild variant="outline"><Link href="/marketplace-orders">Marketplace Orders</Link></Button></div></div></WorkspaceHeader>
-    <MarketplaceSyncPanel shops={shops} syncType="LISTINGS" />
+    <MarketplaceSyncPanel shops={shops.filter((shop) => shop.status === "CONNECTED" && shop.connection.status === "CONNECTED")} syncType="LISTINGS" />
     <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">{shops.map((shop) => <div key={shop.id} className="rounded-md border px-3 py-2"><strong>{shop.marketplace} · {shop.name}</strong> · Last listings sync: {formatMarketplaceDateTime(lastSyncByShop.get(shop.id))}</div>)}</div>
     <form className="grid gap-2 rounded-md border p-3 md:grid-cols-6" action="/marketplace-listings" method="get">
       <input name="q" defaultValue={query} placeholder="Search title, SKU or ID" className="h-9 rounded-md border bg-background px-3 text-sm md:col-span-2" />

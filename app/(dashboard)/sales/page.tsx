@@ -376,8 +376,8 @@ export default async function SalesPage({
     };
 
     return (
-      <div className="flex items-center justify-between px-4 py-3 border-t bg-gray-50/50">
-        <div className="text-sm text-gray-500">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t bg-muted/30 px-4 py-3 text-foreground">
+        <div className="text-sm text-foreground">
           Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, totalItems)} - {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)} of {totalItems}
         </div>
         <div className="flex items-center gap-2">
@@ -391,7 +391,7 @@ export default async function SalesPage({
               <ChevronLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-foreground">
             Page {currentPage} of {totalPages}
           </span>
           <Button

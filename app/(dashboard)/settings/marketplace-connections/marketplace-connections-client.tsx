@@ -21,7 +21,6 @@ interface Connection {
   externalAccountId: string | null;
   name: string | null;
   status: string | null;
-  oauthAppProfile?: string | null;
   lastConnectedAt: Date | string | null;
   shops: Array<{ id: string; externalShopId: string; name: string; status: string }>;
 }
@@ -55,14 +54,14 @@ export function MarketplaceConnectionsClient({
     else if (oauthConnected) toast.success(`${oauthConnected} connected${oauthShopCount ? ` · ${oauthShopCount} shop${oauthShopCount === 1 ? "" : "s"} available` : ""}`, { duration: 8000 });
   }, [oauthError, oauthConnected, oauthShopCount]);
 
-  const connect = async (marketplace: string, appProfile?: string) => {
+  const connect = async (marketplace: string) => {
     if (connectingPlatform || pending) return;
     setConnectingPlatform(marketplace);
     try {
       const res = await fetch("/api/integrations/marketplace/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ marketplace, appProfile }),
+        body: JSON.stringify({ marketplace }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Failed to start ${marketplace} OAuth (HTTP ${res.status})`);
@@ -111,7 +110,15 @@ export function MarketplaceConnectionsClient({
     });
   };
 
-  const connectAnother = (marketplace: string, appProfile?: string) => connect(marketplace, appProfile);
+  const connectAnother = (marketplace: string) => connect(marketplace);
+
+  // Keep this page focused on active connections; saved history remains available after reconnection.
+  const visibleConnections = connections.filter((connection) =>
+    connection.status === "CONNECTED"
+  ).map((connection) => ({
+    ...connection,
+    shops: connection.shops.filter((shop) => shop.status === "CONNECTED"),
+  }));
 
   const syncEnabled = flags.marketplaceApiSyncEnabled;
 
@@ -143,7 +150,7 @@ export function MarketplaceConnectionsClient({
                   <CardTitle className="text-base">{platform.marketplace}</CardTitle>
                   <CardDescription>{platform.configured ? "Application OAuth is ready" : "OAuth credentials are not configured"}</CardDescription>
                 </div>
-                <Button onClick={() => void connectAnother(platform.marketplace, platform.marketplace === "ETSY" ? "ETSY_PERSONAL" : undefined)} disabled={pending || Boolean(connectingPlatform) || !platform.configured}>
+                <Button onClick={() => void connectAnother(platform.marketplace)} disabled={pending || Boolean(connectingPlatform) || !platform.configured}>
                   {connectingPlatform === platform.marketplace ? "Opening OAuth..." : "Connect another shop"}
                 </Button>
               </div>
@@ -154,16 +161,15 @@ export function MarketplaceConnectionsClient({
                   {platform.missingConfiguration.join(" ") || "OAuth configuration is invalid."} Update the server environment and redeploy the app.
                 </p>
               )}
-              {connections.filter((connection) => connection.marketplace === platform.marketplace).map((connection) => {
+              {visibleConnections.filter((connection) => connection.marketplace === platform.marketplace).map((connection) => {
                 const connected = connection.status === "CONNECTED";
                 const platformEnabled = connection.marketplace === "EBAY" ? flags.ebaySyncEnabled : flags.etsySyncEnabled;
                 return (
                   <div key={connection.id} className="border-t pt-3 first:border-0 first:pt-0">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                       <div className="min-w-0">
-                        <div className="font-medium">{connection.name || connection.externalAccountId || "Marketplace account"}</div>
-                        <div className="text-xs text-muted-foreground">{connection.externalAccountId || "Legacy connection; reconnect to register its shop"}</div>
-                        {connection.marketplace === "ETSY" && connection.oauthAppProfile && <div className="text-xs text-muted-foreground">{connection.oauthAppProfile === "ETSY_SECONDARY" || connection.oauthAppProfile === "ETSY_COMMERCIAL" ? "Reconnect this shop using the shared Etsy app" : "Shared Etsy application"}</div>}
+                        <div className="font-medium">{(connection.marketplace === "ETSY" ? connection.shops.map((shop) => shop.name).join(", ") : null) || connection.name || connection.externalAccountId || "Marketplace account"}</div>
+                        <div className="text-xs text-muted-foreground">{connection.externalAccountId || "Reconnect to register this account's shop"}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={connected ? "default" : "secondary"}>{connection.status || "Disconnected"}</Badge>
@@ -183,7 +189,7 @@ export function MarketplaceConnectionsClient({
                         ))}
                       </div>
                     ) : connected ? (
-                      <p className="mt-3 text-xs text-amber-700">Reconnect this legacy account to register its shop identity before syncing.</p>
+                      <p className="mt-3 text-xs text-amber-700">Reconnect this account to register its shop before syncing.</p>
                     ) : null}
                     {connection.shops.some((shop) => shop.status === "CONNECTED") && (
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -194,7 +200,7 @@ export function MarketplaceConnectionsClient({
                   </div>
                 );
               })}
-              {!connections.some((connection) => connection.marketplace === platform.marketplace) && (
+              {!visibleConnections.some((connection) => connection.marketplace === platform.marketplace) && (
                 <p className="text-sm text-muted-foreground">No shops connected yet.</p>
               )}
             </CardContent>

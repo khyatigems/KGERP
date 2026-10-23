@@ -38,7 +38,7 @@ export async function GET() {
       const uid = userId ?? "00000000-0000-0000-0000-000000000000";
 
       const [
-        totalInventory, activeListingsRaw, activeMarketplaceShops, activeQuotations, invoicesGenerated,
+        totalInventory, activeListingsRaw, marketplaceShops, activeQuotations, invoicesGenerated,
         labelCartCount, recentSales,
         expiringQuotations, overdueInvoices, pendingVendors,
         unsoldInventory, missingCertifications, missingImages, pendingExpenses, highValueUnsold,
@@ -57,10 +57,9 @@ export async function GET() {
         // Count active marketplace listings attached to a marketplace shop;
         // internal or imported rows without a shop are not platform listings.
         prisma.listing.groupBy({ by: ['platform'], where: { status: { in: ["LISTED", "ACTIVE"] }, marketplaceShopId: { not: null } }, _count: { id: true } }).catch(() => []),
-        // Keep connected sales channels separate. Platform aggregation alone
-        // hides the difference between two Etsy shops.
+        // Keep saved shop counts visible even when OAuth is disconnected.
+        // Connection status controls syncing, not historical listing visibility.
         prisma.marketplaceShop.findMany({
-          where: { status: "CONNECTED", connection: { status: "CONNECTED" } },
           select: {
             id: true,
             name: true,
@@ -146,7 +145,7 @@ export async function GET() {
       }, { total: 0 } as Record<string, number>);
       const activeListings = {
         ...activeListingsByPlatform,
-        shops: activeMarketplaceShops.map((shop) => ({
+        shops: marketplaceShops.map((shop) => ({
           id: shop.id,
           name: shop.name,
           marketplace: shop.marketplace,

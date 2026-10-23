@@ -48,7 +48,6 @@ export default async function MarketplaceConnectionsPage({
       externalAccountId: true,
       name: true,
       status: true,
-      oauthAppProfile: true,
       lastConnectedAt: true,
       shops: {
         orderBy: { name: "asc" },
