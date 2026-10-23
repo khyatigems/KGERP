@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import { trustedErpSender, connectFromErp } from "../../extensions/work-tracker/src/erp-connection.js";
+import { defaults } from "../../extensions/work-tracker/src/api-client.js";
+const sender = { url: "https://erp.khyatigems.com/work-tracker" };
+const message = { erpUrl: "https://erp.khyatigems.com", token: `kgwt_${"x".repeat(43)}`, browserName: "Office PC", credentialId: "test" };
+const verify = async () => new Response(JSON.stringify({ connected: true }));
+assert.equal(trustedErpSender({ url: "https://erp.khyatigems.com.evil.test" }), false);
+assert.equal(trustedErpSender({ url: "https://evil.test" }), false);
+assert.equal(trustedErpSender({ url: "http://localhost:3000/work-tracker" }), true);
+await assert.rejects(connectFromErp(message, { url: "https://evil.test" }, defaults, [], verify), /Untrusted/);
+await assert.rejects(connectFromErp({ ...message, erpUrl: "https://other.test" }, sender, defaults, [], verify), /mismatch/);
+await assert.rejects(connectFromErp(message, sender, { ...defaults, token: message.token }, [], verify), /already/);
+await assert.rejects(connectFromErp(message, sender, defaults, [{}], verify), /pending/);
+await assert.rejects(connectFromErp(message, sender, defaults, [], async () => new Response("{}", { status: 401 })), /expired/);
+const next = await connectFromErp(message, sender, defaults, [], verify);
+assert.equal(next.enabled, false);
+assert.equal(next.browserName, "Office PC");
+console.log("Work tracker pairing tests passed: trusted origins, queue isolation, credential verification and opt-in tracking");

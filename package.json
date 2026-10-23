@@ -54,7 +54,7 @@
     "test:all": "npm run test:attention && npm run test:invoice && npm run test:reports && npm run test:customers && npm run test:pdf-generation",
     "analytics:daily": "tsx scripts/generate-daily-analytics.ts",
     "postinstall": "node scripts/prisma-generate.mjs && node scripts/patch-lottie-player.mjs",
-    "test:work-tracker": "tsx scripts/tests/work-tracker.unit.ts && tsx scripts/tests/work-tracker.integration.ts && node scripts/tests/work-tracker-extension.mjs",
+    "test:work-tracker": "tsx scripts/tests/work-tracker.unit.ts && tsx scripts/tests/work-tracker.integration.ts && node scripts/tests/work-tracker-extension.mjs && node scripts/tests/work-tracker-pairing.mjs",
     "build:work-tracker-extension": "node extensions/work-tracker/build.mjs",
     "test:weekly-reports": "tsx scripts/tests/weekly-report.unit.ts && tsx scripts/tests/weekly-report.integration.ts && tsx scripts/tests/weekly-report.zoho.ts",
     "test:weekly-reports:pdf": "tsx scripts/tests/weekly-report.pdf.ts",

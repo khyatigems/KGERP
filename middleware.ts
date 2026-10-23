@@ -22,6 +22,7 @@ export default auth((req) => {
   }
 
   const isPublicRoute =
+    pathname === "/work-tracker-extension-privacy" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/verify") ||
     pathname.startsWith("/V/") || // Compact public packaging verification QR

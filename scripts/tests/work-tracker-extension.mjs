@@ -26,7 +26,7 @@ globalThis.chrome = {
   tabs: { async query() { return [{ url, active: true }]; }, onActivated: event("tab"), onUpdated: event("update"), onRemoved: event("remove") },
   alarms: { async create(name, info) { await alarms.create(name, info); }, async clear(name) { await alarms.clear(name); }, onAlarm: event("alarm") },
   action: { async setBadgeText() {}, async setBadgeBackgroundColor() {}, async setTitle() {} },
-  runtime: { id: "test-extension", getURL(p) { return `chrome-extension://test-extension/${p}`; }, onInstalled: event("installed"), onStartup: event("startup"), onMessage: event("message") },
+  runtime: { id: "test-extension", getURL(p) { return `chrome-extension://test-extension/${p}`; }, onInstalled: event("installed"), onStartup: event("startup"), onMessageExternal: event("external"), onMessage: event("message") },
 };
 async function flush() { await new Promise(resolve => setImmediate(resolve)); }
 async function tick(seconds = 30) { now += seconds * 1000; listeners.alarm({ name: "work-tracker" }); await flush(); }
@@ -35,6 +35,10 @@ async function message(action, extra = {}) {
 }
 try {
   await import("../../extensions/work-tracker/src/service-worker.js");
+  assert.equal(listeners.external({ action: "erp-status" }, { url: "https://evil.test" }, () => assert.fail("untrusted reply")), false);
+  const externalStatus = await new Promise(resolve => listeners.external({ action: "erp-status" }, { url: "https://erp.khyatigems.com/work-tracker" }, resolve));
+  assert.equal(externalStatus.connected, false);
+  assert.equal(Object.hasOwn(externalStatus, "token"), false);
   store.settings = { erpUrl: "https://erp.khyatigems.com", token: `kgwt_${"x".repeat(43)}`, idleSeconds: 60, enabled: false, activityType: "LISTING_CREATION", platform: "AUTO" };
   listeners.installed(); await flush();
   assert.equal((await message("start")).ok, true);

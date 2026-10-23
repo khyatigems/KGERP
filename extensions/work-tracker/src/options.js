@@ -32,3 +32,9 @@ document.getElementById("clear").onclick = async () => {
   if (!confirm("Permanently discard all unsent time records and pause tracking? Export first if needed.")) return;
   await chrome.runtime.sendMessage({ action: "clearQueue" }); document.getElementById("message").textContent = "Queue cleared and tracking paused.";
 };
+
+document.getElementById("disconnect").onclick = async () => {
+  const result = await chrome.runtime.sendMessage({ action: "disconnect" });
+  if (result.error) document.getElementById("error").textContent = result.error;
+  else location.reload();
+};

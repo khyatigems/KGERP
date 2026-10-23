@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KhyatiGems Work Tracker",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "minimum_chrome_version": "120",
   "description": "Opt-in active-tab work estimates for KhyatiGems ERP and supported marketplaces.",
   "permissions": [
@@ -11,7 +11,9 @@
     "alarms"
   ],
   "host_permissions": [
-    "https://erp.khyatigems.com/*"
+    "https://erp.khyatigems.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "optional_host_permissions": [
     "https://*/*",
@@ -26,5 +28,18 @@
     "default_popup": "src/popup.html",
     "default_title": "Work Tracker \u2014 paused"
   },
-  "options_page": "src/options.html"
+  "options_page": "src/options.html",
+  "externally_connectable": {
+    "matches": [
+      "https://erp.khyatigems.com/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*"
+    ]
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
 }

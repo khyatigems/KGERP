@@ -1,3 +1,4 @@
+import { trustedErpSender, connectFromErp } from "./erp-connection.js";
 import { defaults, validateSettings, sendEvents } from "./api-client.js";
 import { eligibleTab } from "./platform-detection.js";
 import { sliceInterval, removeIdle, readyEvents, acknowledge } from "./activity-tracker.js";
@@ -125,9 +126,34 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       const activityType = message.activityType || config.activityType, platform = message.platform || config.platform;
       if (!["LISTING_PREPARATION", "LISTING_CREATION", "SEO", "IMAGES", "INVENTORY", "ORDERS", "CUSTOMER_SERVICE", "SYNCHRONIZATION", "TROUBLESHOOTING", "OTHER"].includes(activityType) || !["AUTO", "ERP", "EBAY", "ETSY", "AMAZON"].includes(platform)) throw new Error("Invalid activity or platform");
       await chrome.storage.local.set({ settings: { ...config, enabled, activityType, platform }, previous: null }); await sample("TAB_SWITCH", true);
+    } else if (message.action === "disconnect") {
+      await sample("TAB_SWITCH");
+      const { queue = [] } = await chrome.storage.local.get("queue");
+      if (queue.length) throw new Error("Sync or export and clear pending records before disconnecting.");
+      await chrome.storage.local.set({ settings: { ...defaults }, previous: null, active: false });
+      await badge(false);
     } else if (message.action === "clearQueue") { await chrome.storage.local.set({ queue: [], previous: null, lastError: "", settings: { ...await settings(), enabled: false } }); await badge(false); }
     else { reply({ error: "Unknown action" }); return; }
     reply({ ok: true });
   }, error => reply({ error: error.message }));
+  return true;
+});
+
+// Only explicitly allowed ERP pages can pair. Never return a credential to a page.
+chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
+  if (!trustedErpSender(sender)) return false;
+  if (!["erp-status", "erp-connect"].includes(message?.action)) return false;
+  schedule(async () => {
+    const old = await settings();
+    if (message.action === "erp-status") {
+      respond({ ok: true, connected: !!old.token, browserName: old.browserName || "" });
+      return;
+    }
+    const { queue = [] } = await chrome.storage.local.get("queue");
+    const next = await connectFromErp(message, sender, old, queue);
+    await chrome.storage.local.set({ settings: next, previous: null, lastError: "" });
+    await sample("TAB_SWITCH", true);
+    respond({ ok: true });
+  }, error => respond({ error: error.message }));
   return true;
 });

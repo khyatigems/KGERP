@@ -8,4 +8,5 @@ if (manifest.manifest_version !== 3) throw new Error("Expected Manifest V3");
 mkdirSync(output, { recursive: true });
 cpSync(path.join(root, "manifest.json"), path.join(output, "manifest.json"));
 cpSync(path.join(root, "src"), path.join(output, "src"), { recursive: true });
+cpSync(path.join(root, "icons"), path.join(output, "icons"), { recursive: true });
 console.log(`Load unpacked extension: ${output}`);

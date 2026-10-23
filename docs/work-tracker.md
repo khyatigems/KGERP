@@ -152,3 +152,10 @@ Rollback: pause/uninstall the extension, revoke tracker credentials, redeploy th
 Run `npm run test:work-tracker`, `npx tsc --noEmit`, `npm run lint`, `npm run migrate:guard`, `npm run build`, and the existing regression scripts on disposable databases. Tracker suites cover lifecycle, database lock/retries, auth/origin/scope/revocation, ownership, event replay/tombstones, report overlap/filter behavior, correction changes, targets, true publication evidence, IANA/DST boundaries, exact domains, offline retries and actual worker behavior using mocked Chrome APIs. Additive migration is applied to a generated baseline and checked for Prisma schema parity.
 
 Actual interactive Chrome installation, staging/production migrations, live marketplace requests and real deployment acceptance require an authorized environment. They are not implied by mocked tests. Broader lint/build/regression outcomes and executed commands are recorded in `work-tracker-validation.md`.
+
+
+## Named Chrome pairing (1.1.0)
+
+Connections now offers a browser name and Connect this browser button. It creates a personal credential after detecting the extension, verifies the credential in the worker and stores it directly in this Chrome profile. Tracking remains paused until explicitly enabled. Existing credentials and pending queues cannot be overwritten by pairing. Failed handshakes revoke the newly created credential; if cleanup fails, ERP directs the user to revoke it manually. A timeout can leave a revoked credential saved in Chrome; disconnect in extension Settings before retrying.
+
+Set `NEXT_PUBLIC_WORK_TRACKER_EXTENSION_ID` to the Chrome Web Store item ID and rebuild ERP to enable its installation link. Until then, load the rebuilt unpacked extension and enter its ID. See `docs/work-tracker-store-submission.md` for publication and privacy details. Publication and real Chrome installation are separate acceptance steps from mocked worker tests.
