@@ -914,6 +914,45 @@ model Payment {
   @@index([invoiceId])
 }
 
+model InventoryQrPaymentAuthorization {
+  id                String   @id @default(uuid())
+  inventoryId       String   @unique
+  enabled           Boolean  @default(false)
+  totalAmount       Float
+  amountToCollect   Float
+  currency          String   @default("INR")
+  allowPartial      Boolean  @default(false)
+  paidAmount        Float    @default(0)
+  customerName      String?
+  customerEmail     String?
+  customerPhone     String?
+  orderReference    String?
+  saleId            String?
+  updatedByUserId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([enabled])
+}
+
+model InventoryQrPaymentAttempt {
+  id                  String   @id @default(uuid())
+  authorizationId     String
+  inventoryId         String
+  amount              Float
+  currency            String   @default("INR")
+  status              String   @default("CREATING")
+  razorpayOrderId     String?  @unique
+  razorpayPaymentId   String?  @unique
+  activeKey           String?  @unique
+  failureReason       String?
+  createdAt           DateTime @default(now())
+  paidAt              DateTime?
+
+  @@index([authorizationId, status])
+  @@index([inventoryId, createdAt])
+}
+
 model InvoiceVersion {
   id            String   @id @default(uuid())
   invoiceId     String

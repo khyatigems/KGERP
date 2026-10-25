@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/prisma-generate.mjs && next dev",
     "build": "node scripts/vercel-build.mjs",
     "migrate:safe": "node scripts/safe-migrate.mjs",
     "migrate:guard": "node scripts/migration/guard-destructive-migrations.mjs",

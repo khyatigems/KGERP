@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -7,6 +8,7 @@ import { SidebarGridClient } from "@/components/layout/sidebar-grid-client";
 import { auth } from "@/lib/auth";
 import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema } from "@/lib/prisma";
 import { Permission } from "@/lib/permissions";
+import { parseSidebarExpandedGroups, SIDEBAR_COLLAPSED_COOKIE, SIDEBAR_GROUPS_COOKIE } from "@/lib/sidebar-preferences";
 
 export const metadata: Metadata = {
   robots: {
@@ -24,6 +26,9 @@ export default async function ErpLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
+  const cookieStore = await cookies();
+  const initialCollapsed = cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === "1";
+  const initialExpandedGroups = parseSidebarExpandedGroups(cookieStore.get(SIDEBAR_GROUPS_COOKIE)?.value);
   
   // Fetch fresh user data to ensure avatar is up-to-date
   let user = session?.user;
@@ -111,13 +116,13 @@ export default async function ErpLayout({
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider initialCollapsed={initialCollapsed}>
       <SidebarGridClient>
         <div className="hidden border-r lg:block bg-sidebar border-sidebar-border premium-sidebar">
-          <Sidebar allowedModules={allowedNavModules} />
+          <Sidebar allowedModules={allowedNavModules} initialExpandedGroups={initialExpandedGroups} />
         </div>
         <div className="flex min-w-0 flex-col">
-          <Topbar user={user} />
+          <Topbar user={user} initialExpandedGroups={initialExpandedGroups} />
           <main className="erp-workspace flex min-w-0 flex-1 flex-col bg-background p-4 lg:p-6 sass-enter">
             <div className="workspace-body mx-auto w-full min-w-0 max-w-[1500px] space-y-5 pb-8">{children}</div>
           </main>

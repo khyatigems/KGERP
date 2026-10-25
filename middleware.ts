@@ -22,6 +22,7 @@ export default auth((req) => {
   }
 
   const isPublicRoute =
+    pathname === "/downloads/work-tracker-extension.zip" ||
     pathname === "/work-tracker-extension-privacy" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/verify") ||

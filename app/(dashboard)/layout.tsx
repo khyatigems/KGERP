@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
 
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -10,6 +11,7 @@ import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { getPermissionsForRole } from "@/lib/permissions";
 import { AutomaticWorkTracker } from "@/components/work-tracker/automatic-tracker";
+import { parseSidebarExpandedGroups, SIDEBAR_COLLAPSED_COOKIE, SIDEBAR_GROUPS_COOKIE } from "@/lib/sidebar-preferences";
 
 const SCHEMA_CACHE_TTL = 5 * 60 * 1000;
 let schemaCache: { result: boolean; expiresAt: number } | null = null;
@@ -69,6 +71,9 @@ export default async function DashboardLayout({
   children: ReactNode;
 }) {
   const session = await auth();
+  const cookieStore = await cookies();
+  const initialCollapsed = cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === "1";
+  const initialExpandedGroups = parseSidebarExpandedGroups(cookieStore.get(SIDEBAR_GROUPS_COOKIE)?.value);
 
   let user: DashboardUser | undefined = session?.user
     ? {
@@ -173,13 +178,13 @@ export default async function DashboardLayout({
 
   return (
     <AutomaticWorkTracker userId={session?.user?.id || ""}>
-    <SidebarProvider>
+    <SidebarProvider initialCollapsed={initialCollapsed}>
         <SidebarGridClient>
           <div className="hidden border-r lg:block bg-sidebar border-sidebar-border premium-sidebar">
-            <Sidebar allowedModules={allowedNavModules} />
+            <Sidebar allowedModules={allowedNavModules} initialExpandedGroups={initialExpandedGroups} />
           </div>
           <div className="flex min-w-0 flex-col">
-            <Topbar user={user}
+            <Topbar user={user} initialExpandedGroups={initialExpandedGroups}
             />
             <main className="erp-workspace flex min-w-0 flex-1 flex-col bg-background p-4 lg:p-6 sass-enter">
               <div className="workspace-body mx-auto w-full min-w-0 max-w-[1500px] space-y-5 pb-8">{children}</div>

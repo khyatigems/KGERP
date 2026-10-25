@@ -126,7 +126,18 @@ async function main() {
     assert.equal((await handleTracker(bearer, { params: Promise.resolve({ path: ["reports", "summary"] }) }, db, authenticated)).status, 403);
     const beforeCheck = await db.workActivityEvent.count();
     const sensorCheck = await handleTracker(new Request("https://erp.khyatigems.com/api/work-tracker/sensor-status", { headers: { authorization: `Bearer ${credential.token}` } }), { params: Promise.resolve({ path: ["sensor-status"] }) }, db, authenticated);
-    assert.equal(sensorCheck.status, 200); assert.equal((await sensorCheck.json()).connected, true);
+    assert.equal(sensorCheck.status, 200);
+    const sensor = await sensorCheck.json();
+    assert.equal(sensor.connected, true); assert.equal(sensor.credential.id, credential.id); assert.equal(sensor.credential.name, "Test Chrome");
+    assert.equal(JSON.stringify(sensor).includes(credential.token), false);
+    assert.equal(JSON.stringify(sensor).includes(hashToken(credential.token)), false);
+    assert.equal((await request(`credentials/${credential.id}`, "PATCH", { name: "Office PC" }, "bob")).status, 404);
+    assert.equal((await request(`credentials/${credential.id}`, "PATCH", { name: " " })).status, 400);
+    assert.equal((await request(`credentials/${credential.id}`, "PATCH", { name: "Office PC" })).status, 200);
+    assert.equal((await db.workTrackerCredential.findUniqueOrThrow({ where: { id: credential.id } })).name, "Office PC");
+    assert.equal((await trackerIdentity(bearer, false, db)).credential?.name, "Office PC");
+    const hostileRename = await handleTracker(new Request(`https://erp.khyatigems.com/api/work-tracker/credentials/${credential.id}`, { method: "PATCH", headers: { origin: "https://evil.test" }, body: JSON.stringify({ name: "bad" }) }), { params: Promise.resolve({ path: ["credentials", credential.id] }) }, db, (req, cookieOnly) => trackerIdentity(req, cookieOnly, db, async () => ({ user: { id: "alice" } })));
+    assert.equal(hostileRename.status, 403);
     assert.equal(await db.workActivityEvent.count(), beforeCheck, "connection checking must not create fake activity");
     const dashboardResponse = await request("dashboard?entryPage=999", "GET");
     assert.equal(dashboardResponse.status, 200);
@@ -135,6 +146,7 @@ async function main() {
     assert.ok(dashboard.entries.length <= 15);
     assert.equal(dashboard.activityGroups.reduce((n: number, row: {seconds: number}) => n+row.seconds,0), dashboard.summary.totalSeconds);
     await request(`credentials/${credential.id}`, "DELETE", {});
+    assert.equal((await request(`credentials/${credential.id}`, "PATCH", { name: "Revoked" })).status, 404);
     await assert.rejects(trackerIdentity(bearer, false, db), /revoked/);
     await assert.rejects(trackerIdentity(new Request("https://erp.khyatigems.com", { method: "POST", headers: { origin: "https://evil.test" } }), false, db, async () => ({ user: { id: "alice" } })), /origin/);
     const automatic = await db.workSession.findUniqueOrThrow({ where: { userId_requestId: { userId: "alice", requestId: event.id } } });

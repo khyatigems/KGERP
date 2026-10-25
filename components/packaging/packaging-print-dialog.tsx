@@ -29,7 +29,7 @@ import {
   completePackagingThermalPrint,
 } from "@/app/erp/packaging/actions";
 import { computeWeightGrams } from "@/lib/utils";
-import { analyzePackagingThermalBatch, type PackagingThermalBatch } from "@/lib/packaging-thermal-layout";
+import { analyzePackagingThermalBatch, preparePackagingThermalLabels, PACKAGING_THERMAL_FIELDS, type PackagingThermalField, type PackagingThermalBatch } from "@/lib/packaging-thermal-layout";
 import { PackagingThermalPreview } from "@/components/packaging/packaging-thermal-preview";
 
 type Preset = {
@@ -61,6 +61,19 @@ const FIELD_OPTIONS: Array<{ id: PackagingFieldId; label: string }> = [
   { id: "origin", label: "Origin" },
   { id: "weight", label: "Weight" },
   { id: "footer", label: "Footer" },
+];
+
+const THERMAL_FIELD_OPTIONS: Array<{ id: PackagingThermalField; label: string }> = [
+  { id: "branding", label: "Company logo / name" },
+  { id: "name", label: "Gemstone name" },
+  { id: "weight", label: "Weight & quantity" },
+  { id: "sku", label: "SKU" },
+  { id: "treatment", label: "Treatment" },
+  { id: "manufacturingDate", label: "Mfg date" },
+  { id: "price", label: "MRP" },
+  { id: "origin", label: "Gem origin" },
+  { id: "reference", label: "Serial number" },
+  { id: "qr", label: "Verification QR" },
 ];
 
 const DEFAULT_FIELDS: PackagingFieldId[] = ["header", "footer", "qr", "barcode", "price", "origin", "weight"];
@@ -154,6 +167,7 @@ export type PackagingPrintDialogProps = {
   labels?: PackagingLabelData[];
   bypass?: boolean;
   onPrintComplete?: () => void;
+  initialMedium?: "STICKER" | "THERMAL_50X25";
 };
 
 export function PackagingPrintDialog({
@@ -164,10 +178,11 @@ export function PackagingPrintDialog({
   labels,
   bypass,
   onPrintComplete,
+  initialMedium = "STICKER",
 }: PackagingPrintDialogProps) {
   const [activeTab, setActiveTab] = useState<"preview" | "layout">("preview");
-  const [printMedium, setPrintMedium] = useState<"STICKER" | "THERMAL_50X25">("STICKER");
-  const isThermal = printMedium === "THERMAL_50X25";
+  const [printMedium, setPrintMedium] = useState<"STICKER" | "THERMAL_50X25">(initialMedium);
+  const isThermal = printMedium !== "STICKER";
   const [thermalBatch, setThermalBatch] = useState<PackagingThermalBatch | null>(null);
   const [previewError, setPreviewError] = useState("");
   const [previewReadyKey, setPreviewReadyKey] = useState("");
@@ -202,6 +217,7 @@ export function PackagingPrintDialog({
   });
 
   const [selectedFields, setSelectedFields] = useState<PackagingFieldId[]>([...DEFAULT_FIELDS]);
+  const [thermalFields, setThermalFields] = useState<PackagingThermalField[]>([...PACKAGING_THERMAL_FIELDS]);
   const [itemsPerLabel, setItemsPerLabel] = useState<number>(1);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -238,6 +254,7 @@ export function PackagingPrintDialog({
       printMedium,
       labelVariant,
       selectedFields,
+      thermalFields,
       settingsKey,
       labelData: labels,
       previewData: previewItems,
@@ -245,7 +262,7 @@ export function PackagingPrintDialog({
       manufacturingDate,
       itemsPerLabel,
     });
-  }, [layoutMm, selectedFields, settingsKey, labels, previewItems, inventoryIds, manufacturingDate, itemsPerLabel, printMedium, labelVariant]);
+  }, [layoutMm, selectedFields, settingsKey, labels, previewItems, inventoryIds, manufacturingDate, itemsPerLabel, printMedium, labelVariant, thermalFields]);
 
   const previewBase = useMemo(() => {
     const mmToPx = 3.7795275591;
@@ -266,12 +283,13 @@ export function PackagingPrintDialog({
     () => ({
       medium: printMedium,
       thermalOrigin: typeof window !== "undefined" ? window.location.origin : "",
-      selectedFields: isThermal ? DEFAULT_FIELDS : selectedFields,
+      selectedFields,
+      thermalFields,
       drawGuides: true,
       drawCellNumbers: false,
       itemsPerLabel: isThermal ? 1 : itemsPerLabel,
     }),
-    [selectedFields, itemsPerLabel, printMedium, isThermal]
+    [selectedFields, itemsPerLabel, printMedium, isThermal, thermalFields]
   );
 
   const applyPreset = useCallback((p: Preset) => {
@@ -396,15 +414,24 @@ export function PackagingPrintDialog({
                 };
               });
         if (cancelled) return;
-        setThermalBatch(isThermal ? analyzePackagingThermalBatch(previewLabels, window.location.origin) : null);
-        setPreviewReadyKey(previewKey);
-        setPreviewError("");
-        const blob = await generatePackagingPdfBlob(previewLabels.map(label => ({ ...label, labelVariant })), layoutMm, renderOptions);
+        const prepared = isThermal ? await preparePackagingThermalLabels(previewLabels, { fields: thermalFields }) : previewLabels;
+        if (cancelled) return;
+        const batch = isThermal ? analyzePackagingThermalBatch(prepared, window.location.origin, { fields: thermalFields }) : null;
+        setThermalBatch(batch);
+        if (batch && !batch.fits) {
+          setPreviewReadyKey(previewKey);
+          setPreviewUrl(null);
+          setPreviewError("");
+          return;
+        }
+        const blob = await generatePackagingPdfBlob(prepared.map(label => ({ ...label, labelVariant })), layoutMm, renderOptions);
         if (cancelled) return;
         const url = createObjectUrl(blob);
         const prev = previewUrlRef.current;
         previewUrlRef.current = url;
         setPreviewUrl(url);
+        setPreviewReadyKey(previewKey);
+        setPreviewError("");
         if (prev) URL.revokeObjectURL(prev);
       } catch (err) {
         console.error("Preview generation failed:", err);
@@ -414,7 +441,7 @@ export function PackagingPrintDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, previewKey, labels, previewItems, settings, layoutMm, renderOptions, manufacturingDate, labelVariant, isThermal, inventoryIds]);
+  }, [open, previewKey, labels, previewItems, settings, layoutMm, renderOptions, manufacturingDate, labelVariant, isThermal, inventoryIds, thermalFields]);
 
   useEffect(() => {
     if (open) return;
@@ -513,7 +540,7 @@ export function PackagingPrintDialog({
       if (labels && labels.length) {
         labelData = labels;
       } else if (inventoryIds && inventoryIds.length) {
-        const res = await processPackagingPrint(inventoryIds, bypass, { printMedium, thermalOrigin: window.location.origin, labelVariant, packingDate: resolvePackingDate(dateValue) });
+        const res = await processPackagingPrint(inventoryIds, bypass, { printMedium, thermalOrigin: window.location.origin, labelVariant, packingDate: resolvePackingDate(dateValue), thermalFields });
         if (!res.success) {
           printWindow?.close();
           toast.error(res.message || "Failed to prepare print");
@@ -549,6 +576,10 @@ export function PackagingPrintDialog({
   };
 
   const handlePrint = async () => {
+    if (isThermal && !thermalFields.includes("manufacturingDate")) {
+      await runPrint(manufacturingDate || new Date().toISOString().slice(0, 10));
+      return;
+    }
     if (!manufacturingDate) {
       pendingPrintRef.current = true;
       setDateDraft(new Date().toISOString().slice(0, 10));
@@ -574,23 +605,23 @@ export function PackagingPrintDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-6xl w-[min(96vw,1200px)] h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-6xl w-[min(96vw,1200px)] h-[90dvh] top-[5dvh] translate-y-0 overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Print Packaging Labels</DialogTitle>
-            <DialogDescription>Choose the existing sticker sheet or a complete 50 × 25 mm thermal identity.</DialogDescription>
+            <DialogDescription>Choose a sticker sheet or a 50 × 25 mm thermal packaging identity.</DialogDescription>
           </DialogHeader>
 
           <Tabs
             value={activeTab}
             onValueChange={(v) => setActiveTab(v === "layout" ? "layout" : "preview")}
-            className="w-full flex-1 overflow-hidden min-h-0"
+            className="w-full flex flex-col flex-1 overflow-hidden min-h-0"
           >
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full shrink-0 grid-cols-2">
               <TabsTrigger value="preview">Preview & Print</TabsTrigger>
               <TabsTrigger value="layout" disabled={isThermal}>Sticker Layout Settings</TabsTrigger>
             </TabsList>
 
-          <TabsContent value="preview" className="h-full pt-4 overflow-hidden min-h-0">
+          <TabsContent value="preview" className="flex-1 pt-2 overflow-hidden min-h-0">
             <div className="flex h-full flex-col gap-4 min-h-0 overflow-auto md:flex-row md:overflow-hidden">
               <div className="w-full md:w-80 shrink-0 flex flex-col gap-3 min-h-0">
                 <div className="rounded-md border p-3 space-y-2"><Label>Print format</Label><Select value={printMedium} onValueChange={value => setPrintMedium(value === "THERMAL_50X25" ? "THERMAL_50X25" : "STICKER")}><SelectTrigger aria-label="Packaging print format"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="STICKER">Sticker sheet · Existing layout</SelectItem><SelectItem value="THERMAL_50X25">Thermal · 50 × 25 mm</SelectItem></SelectContent></Select></div>
@@ -652,13 +683,18 @@ export function PackagingPrintDialog({
 
                   <div className="rounded-md border p-3 space-y-2">
                     <div className="text-sm font-medium">Fields</div>
-                    {isThermal && <p className="text-xs text-muted-foreground">One label per package: gemstone identity, weight, quantity, SKU, treatment, serial and QR. Retail adds MRP; International adds recorded gemstone origin. Minimum 6 pt text.</p>}
+                    {isThermal && <p className="text-xs text-muted-foreground">Choose what to print. The remaining fields reflow automatically on 50 × 25 mm. Your logo replaces the brand text. QR size and its clear space stay fixed.</p>}
                     <div className="grid grid-cols-2 gap-2">
-                      {FIELD_OPTIONS.map(f => (
-                        <div key={f.id} className="flex items-center gap-2">
-                          <Checkbox disabled={isThermal} checked={isThermal || selectedFields.includes(f.id)} onCheckedChange={(v) => setField(f.id, !!v)} />
-                          <span className="text-sm">{f.label}</span>
-                        </div>
+                      {isThermal ? THERMAL_FIELD_OPTIONS.filter(f => f.id !== (labelVariant === "EXPORT" ? "price" : "origin")).map(f => (
+                        <label key={f.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                          <Checkbox aria-label={f.label} checked={thermalFields.includes(f.id)} onCheckedChange={checked => setThermalFields(current => checked ? [...current.filter(id => id !== f.id), f.id] : current.filter(id => id !== f.id))} />
+                          <span>{f.label}</span>
+                        </label>
+                      )) : FIELD_OPTIONS.map(f => (
+                        <label key={f.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                          <Checkbox aria-label={f.label} checked={selectedFields.includes(f.id)} onCheckedChange={v => setField(f.id, !!v)} />
+                          <span>{f.label}</span>
+                        </label>
                       ))}
                     </div>
                   </div>
@@ -719,17 +755,7 @@ export function PackagingPrintDialog({
                   </div>}
                 </div>
 
-                <div className="rounded-md border p-3 flex flex-col gap-2">
-                  <Button onClick={handlePrint} disabled={isWorking || !fitsSheet || !previewUrl || previewReadyKey !== previewKey || (isThermal && !thermalBatch?.fits)}>
-                    {isWorking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print
-                  </Button>
-                  {!isThermal && <Button variant="outline" onClick={handleTestPrint} disabled={isWorking}>
-                    <TestTube2 className="h-4 w-4 mr-2" />
-                    Test Print Sheet
-                  </Button>}
-                </div>
+
               </div>
 
               <div className="flex-1 min-w-0 rounded-md border bg-muted/20 overflow-hidden flex flex-col">
@@ -759,7 +785,7 @@ export function PackagingPrintDialog({
             </div>
           </TabsContent>
 
-          <TabsContent value="layout" className="pt-4 space-y-4 overflow-auto max-h-[70vh] min-h-0">
+          <TabsContent value="layout" className="flex-1 pt-4 space-y-4 overflow-auto min-h-0">
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Units</Label>
@@ -851,6 +877,15 @@ export function PackagingPrintDialog({
             {!fitsSheet && <div className="text-sm text-destructive">Layout exceeds page size.</div>}
           </TabsContent>
           </Tabs>
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t pt-3" data-testid="packaging-print-footer">
+            {!isThermal && <Button variant="outline" onClick={handleTestPrint} disabled={isWorking}>
+              <TestTube2 className="h-4 w-4 mr-2" /> Test Print Sheet
+            </Button>}
+            <Button onClick={handlePrint} disabled={isWorking || !fitsSheet || !previewUrl || previewReadyKey !== previewKey || (isThermal && !thermalBatch?.fits)}>
+              {isWorking && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Printer className="h-4 w-4 mr-2" /> Print
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

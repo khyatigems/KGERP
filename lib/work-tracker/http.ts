@@ -26,7 +26,7 @@ export async function handleTracker(request: Request, context: Context, db = pri
     }
     let result: unknown;
     if (route === "sensor-status" && method === "GET") {
-      result = { connected: true, serverTime: new Date().toISOString(), message: "Work Tracker credential verified. Enable automatic tracking in the Chrome popup." };
+      result = { connected: true, credential: identity.credential, serverTime: new Date().toISOString(), message: "Work Tracker credential verified. Enable automatic tracking in the Chrome popup." };
     } else if (route === "sessions" && method === "GET") {
       const q = reportQuery(url);
       const page = z.coerce.number().int().min(0).max(10000).parse(url.searchParams.get("page") || "0");
@@ -83,6 +83,11 @@ export async function handleTracker(request: Request, context: Context, db = pri
       const token = newToken();
       const credential = await db.workTrackerCredential.create({ data: { userId, name, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + 90 * 86400000) }, select: { id: true, expiresAt: true } });
       result = { ...credential, token };
+    } else if (path[0] === "credentials" && path.length === 2 && method === "PATCH") {
+      const { name } = z.object({ name: z.string().trim().min(1).max(80) }).strict().parse(body);
+      const changed = await db.workTrackerCredential.updateMany({ where: { id: path[1], userId, revokedAt: null, expiresAt: { gt: new Date() } }, data: { name } });
+      if (!changed.count) throw new TrackerError("Active browser credential not found", 404);
+      result = { renamed: true };
     } else if (path[0] === "credentials" && path.length === 2 && method === "DELETE") {
       const changed = await db.workTrackerCredential.updateMany({ where: { id: path[1], userId }, data: { revokedAt: new Date() } });
       if (!changed.count) throw new TrackerError("Credential not found", 404);

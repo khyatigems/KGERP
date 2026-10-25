@@ -25,6 +25,10 @@ const ListingManager = dynamic(
   () => import("./listing-manager").then((m) => ({ default: m.ListingManager })),
   { ssr: false }
 );
+const PackagingPrintDialog = dynamic(
+  () => import("@/components/packaging/packaging-print-dialog").then(m => ({ default: m.PackagingPrintDialog })),
+  { ssr: false }
+);
 const LabelPrintDialog = dynamic(
   () => import("./label-print-dialog").then((m) => ({ default: m.LabelPrintDialog })),
   { ssr: false }
@@ -68,6 +72,7 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
   const router = useRouter();
   const { showLoader } = useGlobalLoader();
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
+  const [packagingOpen, setPackagingOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<"IN_STOCK" | "RESERVED" | "MEMO">("RESERVED");
   const [statusReason, setStatusReason] = useState("");
@@ -186,6 +191,9 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
                     </DropdownMenuItem>
                   } 
               />
+              <DropdownMenuItem onSelect={() => setPackagingOpen(true)}>
+                <Printer className="mr-2 h-4 w-4" /> Print Thermal Packaging
+              </DropdownMenuItem>
               <LabelPrintDialog
                  item={{
                     id: item.id,
@@ -249,6 +257,8 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {packagingOpen && <PackagingPrintDialog open={packagingOpen} onOpenChange={setPackagingOpen} inventoryIds={[item.id]} initialMedium="THERMAL_50X25" />}
 
       <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
         <AlertDialogContent>

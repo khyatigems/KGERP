@@ -55,6 +55,7 @@ Base: `/api/work-tracker`. Responses are JSON with `Cache-Control: no-store`. Co
 | PUT | `/targets` | platform, period DAILY/WEEKLY, integer targetMinutes 1–1440 DAILY or 1–10080 WEEKLY; upsert by user/platform/period |
 | GET | `/credentials` | own credential metadata, never token hashes |
 | POST | `/credentials` | `{ "name": "Chrome" }`; returns token **once** and expiry; max 10 unexpired active credentials |
+| PATCH | `/credentials/:id` | `{ "name": "Office PC" }`; rename own active credential without replacing its token |
 | DELETE | `/credentials/:id` | `{}`; revoke own credential |
 
 Platforms: ERP, EBAY, ETSY, AMAZON. Activities: LISTING_PREPARATION, LISTING_CREATION, SEO, IMAGES, INVENTORY, ORDERS, CUSTOMER_SERVICE, SYNCHRONIZATION, TROUBLESHOOTING, OTHER. Labels in the page are human-readable.
@@ -120,11 +121,11 @@ This repository's historical migrations cannot currently bootstrap an empty data
 
 ## Chrome installation and operation
 
-1. Run `npm run build:work-tracker-extension`. It copies manifest and source into `extensions/work-tracker/dist`; no bundler, remote scripts or secret injection is required. Source folder itself also works unpacked.
-2. Open `chrome://extensions`, turn Developer mode on, choose **Load unpacked**, select `D:\Tools by Akansh\khyatigems-erp\extensions\work-tracker\dist`.
-3. In ERP Work Tracker create a personal credential. Open extension Settings, enter the ERP origin, paste credential, set idle threshold (default 300 seconds), save and grant that origin permission.
-4. Pin the extension. Open its popup, select automatic platform detection or a platform correction, select activity, and Start. Pause/Resume/Stop control browser tracking. Manual timers remain available in ERP even while tracking is paused or the extension is absent.
-5. ON means eligible active tracking; OFF means paused, idle, unsupported tab or unfocused/minimized window; ! indicates a sync/queue/configuration error. Popup shows pending count, errors and last successful sync. Start/Resume changes activity/platform for subsequent intervals; historical corrections are made in ERP.
+1. Download the free extension from ERP Work Tracker > Connections, extract into a permanent folder, then Load unpacked in `chrome://extensions`. Developers can run `npm run build:work-tracker-extension` and load `extensions/work-tracker/dist` instead. The normal ERP build also regenerates the download archive automatically.
+2. Enter the installed extension ID in ERP and choose **Check this browser**. The extension verifies saved access and recovers legacy credential names from ERP.
+3. Connect an unconfigured profile with a recognizable browser name, or rename its verified existing connection. No manual credential creation or token copying is needed. Another account/address, an unverifiable connection, or unresolved pending records blocks replacement access.
+4. Pin the extension and choose **Enable automatic tracking**. Pause in the popup as needed. Settings allows idle threshold changes, connection checks and pending-record export or clear.
+5. ON means eligible active tracking; OFF means paused, idle, unsupported tab or unfocused/minimized window; ! indicates a sync/queue/configuration error. Updates require replacing the unpacked files in the same folder and clicking Reload in Chrome, then reloading ERP.
 
 Permissions: `tabs` reads the active tab URL solely for exact hostname classification; `idle` detects idle/lock; `storage` stores settings and pending minimal events on this profile; `alarms` checkpoints every 30 seconds. The default ERP host permission allows authenticated background fetch. Optional host permissions are requested only for the configured ERP origin. No content scripts, screenshot capture, form access or marketplace token access. Local storage access is restricted to trusted extension contexts. Credential is not put in Chrome sync storage.
 
@@ -154,8 +155,10 @@ Run `npm run test:work-tracker`, `npx tsc --noEmit`, `npm run lint`, `npm run mi
 Actual interactive Chrome installation, staging/production migrations, live marketplace requests and real deployment acceptance require an authorized environment. They are not implied by mocked tests. Broader lint/build/regression outcomes and executed commands are recorded in `work-tracker-validation.md`.
 
 
-## Named Chrome pairing (1.1.0)
+## Named Chrome pairing (1.2.0)
 
-Connections now offers a browser name and Connect this browser button. It creates a personal credential after detecting the extension, verifies the credential in the worker and stores it directly in this Chrome profile. Tracking remains paused until explicitly enabled. Existing credentials and pending queues cannot be overwritten by pairing. Failed handshakes revoke the newly created credential; if cleanup fails, ERP directs the user to revoke it manually. A timeout can leave a revoked credential saved in Chrome; disconnect in extension Settings before retrying.
+Connections has one setup path: check the installed extension, then either connect a new profile or rename its existing access. The protocol 2 status reply verifies the saved token against ERP's sensor-status endpoint, which returns only credential ID, name and expiry alongside the existing status. Legacy profiles recover those fields from their token. ERP checks that the returned ID belongs to the current session's active credential list before exposing the rename action. Another account/address, offline verification, old extension protocol or a pending queue blocks new credential creation. Revoked/expired credentials can be replaced when paused and the queue is empty. A failed handshake revokes its newly created credential; failed cleanup directs the user to revoke it manually. Sampling remains responsive while status verification performs network requests. Commit rechecks settings and queue to handle concurrent connects and tab activity.
 
-Set `NEXT_PUBLIC_WORK_TRACKER_EXTENSION_ID` to the Chrome Web Store item ID and rebuild ERP to enable its installation link. Until then, load the rebuilt unpacked extension and enter its ID. See `docs/work-tracker-store-submission.md` for publication and privacy details. Publication and real Chrome installation are separate acceptance steps from mocked worker tests.
+The duplicate manual credential UI and raw-token display are removed. Active keys support authenticated owner-only rename/revoke; history is collapsed. The last received activity in the source card is account-wide, while extension status provides this profile's last successful upload. Keys do not imply online browser status. No database migration is required.
+
+`npm run build:work-tracker-extension` regenerates dist and the extension-only archive at `public/downloads/work-tracker-extension.zip`. The ERP offers that free download with extract/load-unpacked instructions. The archive is public and contains no credentials or ERP source. Keep the extracted folder permanently and update it in place to retain its unpacked extension ID. The optional `NEXT_PUBLIC_WORK_TRACKER_EXTENSION_ID` still supports a future store listing, but publication remains deferred per the owner's choice.

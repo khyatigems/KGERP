@@ -5,8 +5,19 @@ import { sliceInterval, removeIdle, readyEvents, acknowledge } from "../../exten
 import { sendEvents, validateSettings, defaults, checkConnection } from "../../extensions/work-tracker/src/api-client.js";
 import { activitySummary } from "@/lib/work-tracker/activity-summary";
 import { orderValueReport } from "@/lib/work-tracker/analytics";
+import { browserConnectionAction, type BrowserStatus } from "@/lib/work-tracker/browser-connection-state";
 
 async function main() {
+  const browser: BrowserStatus = { protocol: 2, state: "connected", connected: true, credentialId: "mine" };
+  assert.equal(browserConnectionAction(null, false), "check");
+  assert.equal(browserConnectionAction(browser, true), "rename", "an existing browser renames without minting another key");
+  assert.equal(browserConnectionAction(browser, false), "blocked", "a different account cannot replace working access");
+  assert.equal(browserConnectionAction({ ...browser, state: "invalid", connected: false }, false), "connect");
+  assert.equal(browserConnectionAction({ ...browser, state: "invalid", pendingCount: 1 }, false), "blocked");
+  assert.equal(browserConnectionAction({ ...browser, state: "invalid", enabled: true }, false), "blocked");
+  assert.equal(browserConnectionAction({ ...browser, state: "unreachable" }, false), "blocked", "offline checks cannot create duplicate access");
+  assert.equal(browserConnectionAction({ ...browser, state: "other-erp" }, false), "blocked");
+  assert.equal(browserConnectionAction({ ...browser, protocol: 1 }, true), "check");
   for (const [host, expected] of Object.entries({ "erp.khyatigems.com": "ERP", "www.ebay.com": "EBAY", "sellercentral.amazon.in": "AMAZON", "www.etsy.com": "ETSY", "ebay.com.evil.test": null, "evil-etsy.com": null, "random.amazon.com": null, "erp.khyatigems.com.evil.test": null })) {
     assert.equal(classifyDomain(host), expected); assert.equal(extensionClassify(host), expected);
   }
@@ -43,7 +54,7 @@ async function main() {
     assert.equal(new Headers(options?.headers).get("authorization"), `Bearer ${config.token}`);
     return new Response(JSON.stringify({ connected: true }));
   });
-  await assert.rejects(checkConnection(config, async () => new Response("{}", { status: 401 })), /expired, revoked/);
+  await assert.rejects(checkConnection(config, async () => new Response("{}", { status: 401 })), /expired or revoked/);
   const grouped = activitySummary(Array.from({ length: 500 }, (_, i) => ({ sessionId: String(i), day: "2026-10-20", platform: i % 2 ? "EBAY" : "ETSY", activityType: "OTHER", seconds: 20 })));
   assert.equal(grouped.length, 2, "500 raw samples become two useful summary rows");
   assert.equal(grouped.reduce((n,row) => n+row.seconds,0), 10000);

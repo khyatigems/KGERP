@@ -1,4 +1,4 @@
-import { trustedErpSender, connectFromErp } from "./erp-connection.js";
+import { trustedErpSender, connectFromErp, connectionStatus } from "./erp-connection.js";
 import { defaults, validateSettings, sendEvents } from "./api-client.js";
 import { eligibleTab } from "./platform-detection.js";
 import { sliceInterval, removeIdle, readyEvents, acknowledge } from "./activity-tracker.js";
@@ -130,7 +130,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       await sample("TAB_SWITCH");
       const { queue = [] } = await chrome.storage.local.get("queue");
       if (queue.length) throw new Error("Sync or export and clear pending records before disconnecting.");
-      await chrome.storage.local.set({ settings: { ...defaults }, previous: null, active: false });
+      await chrome.storage.local.set({ settings: { ...defaults }, previous: null, active: false, lastSync: null, lastError: "", retryAt: 0, failures: 0 });
       await badge(false);
     } else if (message.action === "clearQueue") { await chrome.storage.local.set({ queue: [], previous: null, lastError: "", settings: { ...await settings(), enabled: false } }); await badge(false); }
     else { reply({ error: "Unknown action" }); return; }
@@ -139,21 +139,37 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   return true;
 });
 
-// Only explicitly allowed ERP pages can pair. Never return a credential to a page.
+// Verify remotely without holding the sampling queue during network requests.
 chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
   if (!trustedErpSender(sender)) return false;
-  if (!["erp-status", "erp-connect"].includes(message?.action)) return false;
-  schedule(async () => {
+  if (!["erp-status", "erp-connect", "erp-open-settings"].includes(message?.action)) return false;
+  let responded = false;
+  const reply = value => { if (!responded) { responded = true; try { respond(value); } catch { /* Page closed */ } } };
+  (async () => {
+    if (message.action === "erp-open-settings") { await chrome.runtime.openOptionsPage(); reply({ ok: true, protocol: 2 }); return; }
     const old = await settings();
+    const stored = await chrome.storage.local.get(["queue", "lastSync"]);
     if (message.action === "erp-status") {
-      respond({ ok: true, connected: !!old.token, browserName: old.browserName || "" });
+      const state = await connectionStatus(sender, old, stored);
+      await schedule(async () => {
+        const current = await settings();
+        if (current.token !== old.token || current.erpUrl !== old.erpUrl) throw new Error("Connection changed. Check this browser again.");
+        if (state.connected) await chrome.storage.local.set({ settings: { ...current, browserName: state.browserName, credentialId: state.credentialId } });
+        reply(state);
+      }, error => reply({ error: error.message }));
       return;
     }
-    const { queue = [] } = await chrome.storage.local.get("queue");
-    const next = await connectFromErp(message, sender, old, queue);
-    await chrome.storage.local.set({ settings: next, previous: null, lastError: "" });
-    await sample("TAB_SWITCH", true);
-    respond({ ok: true });
-  }, error => respond({ error: error.message }));
+    const next = await connectFromErp(message, sender, old, stored.queue || []);
+    await schedule(async () => {
+      const current = await settings();
+      if (current.token !== old.token || current.erpUrl !== old.erpUrl) throw new Error("Connection changed. Check this browser again.");
+      await sample("TAB_SWITCH");
+      const { queue = [] } = await chrome.storage.local.get("queue");
+      if (queue.length) throw new Error("Pause tracking, then sync or export and clear pending records before reconnecting.");
+      await chrome.storage.local.set({ settings: next, previous: null, active: false, lastError: "", lastSync: null, retryAt: 0, failures: 0 });
+      await badge(false);
+      reply({ ok: true, protocol: 2, credentialId: next.credentialId });
+    }, error => reply({ error: error.message }));
+  })().catch(error => reply({ error: error.message }));
   return true;
 });

@@ -1,5 +1,13 @@
 # Work Tracker validation — 20 October 2026
 
+## Browser connection audit — 25 October 2026
+
+Removed the simultaneous automatic/manual credential forms and raw-token display. One status-led flow verifies this profile with ERP, distinguishes expired/revoked, offline, another account/address and older extension versions, and renames existing access without minting another key. Active access is separated from collapsed history. Only a verified ID owned by the current account is marked This browser. Status network calls run outside the worker sampling queue; commit checks prevent concurrent replacement and preserve pending records.
+
+Verification: full tracker unit/isolated-database integration/worker/pairing suites passed. Added tests for owner-only credential renaming, CSRF, metadata without token/hash exposure, legacy token identity recovery, revoked-token recovery, offline rejection, paused/empty-queue requirements, concurrent connects and responsive controls during status requests. Targeted lint and TypeScript checks passed. Production build completed successfully, including the final build with automatic ZIP regeneration. A separate production server returned logged-out HTTP 200 for the download route, with a valid ZIP signature and the expected 40,239-byte archive. Extension archive 1.2.0 passed independent Python ZIP CRC, contents and UTF-8 validation. Relevant source UTF-8 scan passed.
+
+An isolated browser harness rendered the real connection component with mocked Chrome messaging and ERP endpoints. Verified new connection creates one credential; renaming preserves its count; revocation confirms consequences and moves the key to history; another account, offline, old extension and pending queue do not offer replacement creation. This does not replace an actual installed-extension test against deployed ERP, which requires updating the user's unpacked Chrome extension and deploying the matching ERP code. No production credentials or retained activity were modified during tests.
+
 ## Follow-up audit — 21 October 2026
 
 The order-value context now requires a recent successful, zero-failure ORDERS sync for every connected shop in scope, plus complete valid amounts/currencies for eligible imported orders. Missing or stale coverage returns an explicit unavailable reason naming affected shops; imported rows by themselves cannot imply complete sales coverage. Isolated integration coverage verifies stale rows remain unavailable, fresh coverage permits totals, and later staleness disables them again.

@@ -19,7 +19,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         };
       case "SOLD":
         return {
-          label: "Sold Out",
+          label: "Sold",
           icon: XCircle,
           className: "bg-red-50 text-red-700 border-red-200 ring-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)]",
           iconClass: "text-red-600"
@@ -33,7 +33,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         };
       case "MEMO":
         return {
-          label: "On Memo",
+          label: "Memo",
           icon: Clock,
           className: "bg-primary/10 text-primary border-primary/20 ring-primary/20 shadow-[0_0_15px_rgba(59,130,246,0.15)]",
           iconClass: "text-primary"

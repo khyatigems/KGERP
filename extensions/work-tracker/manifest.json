@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KhyatiGems Work Tracker",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "minimum_chrome_version": "120",
   "description": "Opt-in active-tab work estimates for KhyatiGems ERP and supported marketplaces.",
   "permissions": [

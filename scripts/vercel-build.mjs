@@ -1,5 +1,8 @@
 import { execSync } from "node:child_process";
 
+// Keep the ERP's free extension download in step with its connection protocol.
+execSync("node extensions/work-tracker/build.mjs", { stdio: "inherit" });
+
 const dbUrl = process.env.DATABASE_URL;
 const safeUrl = dbUrl && dbUrl.startsWith("file:") ? dbUrl : "file:./dev.db";
 const envForGenerate = {

@@ -8,9 +8,15 @@ const alarms = { created: [], async create(name, info) { this.created.push({ nam
 const originalNow = Date.now;
 Date.now = () => now;
 let failed = true; const batches = [];
-let holdFetch = false, releaseFetch, failAckWrite = false;
+let holdFetch = false, releaseFetch, failAckWrite = false, revoked = false, holdSensor = false, releaseSensor;
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (_url, init) => {
+  if (_url.endsWith("/sensor-status")) {
+    if (holdSensor) await new Promise(resolve => { releaseSensor = resolve; });
+    if (revoked && init.headers.Authorization === `Bearer kgwt_${"x".repeat(43)}`) return new Response("{}", { status: 401 });
+    const id = init.headers.Authorization === `Bearer kgwt_${"y".repeat(43)}` ? "browser-2" : "browser-1";
+    return new Response(JSON.stringify({ connected: true, credential: { id, name: "Office PC", expiresAt: "2099-01-01" } }));
+  }
   const events = JSON.parse(init.body).events; batches.push(events);
   if (failed) throw new Error("offline");
   if (holdFetch) await new Promise(resolve => { releaseFetch = resolve; });
@@ -33,12 +39,34 @@ async function tick(seconds = 30) { now += seconds * 1000; listeners.alarm({ nam
 async function message(action, extra = {}) {
   return new Promise(resolve => listeners.message({ action, ...extra }, { id: chrome.runtime.id, url: chrome.runtime.getURL("src/popup.html") }, resolve));
 }
+async function external(action, extra = {}) {
+  return new Promise(resolve => listeners.external({ action, ...extra }, { url: "https://erp.khyatigems.com/work-tracker" }, resolve));
+}
 try {
   await import("../../extensions/work-tracker/src/service-worker.js");
   assert.equal(listeners.external({ action: "erp-status" }, { url: "https://evil.test" }, () => assert.fail("untrusted reply")), false);
   const externalStatus = await new Promise(resolve => listeners.external({ action: "erp-status" }, { url: "https://erp.khyatigems.com/work-tracker" }, resolve));
   assert.equal(externalStatus.connected, false);
   assert.equal(Object.hasOwn(externalStatus, "token"), false);
+  const pair = { erpUrl: "https://erp.khyatigems.com", token: `kgwt_${"x".repeat(43)}`, credentialId: "browser-1", browserName: "Office PC" };
+  const paired = await Promise.all([external("erp-connect", pair), external("erp-connect", pair)]);
+  assert.equal(paired.filter(reply => reply.ok).length, 1, "concurrent pairing saves only one connection");
+  assert.equal(store.settings.enabled, false);
+  assert.equal((await external("erp-status")).browserName, "Office PC");
+  assert.match((await external("erp-connect", pair)).error, /already/);
+  revoked = true;
+  assert.equal((await external("erp-status")).state, "invalid");
+  store.queue = [{ id: "pending" }];
+  assert.match((await external("erp-connect", { ...pair, token: `kgwt_${"y".repeat(43)}`, credentialId: "browser-2" })).error, /pending/);
+  store.queue = [];
+  assert.equal((await external("erp-connect", { ...pair, token: `kgwt_${"y".repeat(43)}`, credentialId: "browser-2" })).ok, true);
+  assert.equal(store.settings.credentialId, "browser-2");
+  holdSensor = true;
+  const checking = external("erp-status"); await flush();
+  assert.equal(typeof releaseSensor, "function");
+  assert.equal((await message("pause")).ok, true, "network verification must not block tracking controls");
+  holdSensor = false; releaseSensor(); await checking;
+  revoked = false; store = {};
   store.settings = { erpUrl: "https://erp.khyatigems.com", token: `kgwt_${"x".repeat(43)}`, idleSeconds: 60, enabled: false, activityType: "LISTING_CREATION", platform: "AUTO" };
   listeners.installed(); await flush();
   assert.equal((await message("start")).ok, true);

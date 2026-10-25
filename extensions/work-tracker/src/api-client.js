@@ -18,7 +18,10 @@ export async function sendEvents(settings, events, fetcher = fetch) {
 export async function checkConnection(settings, fetcher = fetch) {
   const config = validateSettings(settings);
   const response = await fetcher(`${config.erpUrl}/api/work-tracker/sensor-status`, { credentials: "omit", redirect: "error", headers: { Authorization: `Bearer ${config.token}` }, signal: AbortSignal.timeout(15000) });
-  if (!response.ok) throw new Error(response.status === 401 ? "Credential expired, revoked or belongs to a different ERP. Create a credential in this ERP environment." : `Connection failed (${response.status}). Check the ERP address and server.`);
+  if (!response.ok) {
+    const error = new Error(response.status === 401 ? "Credential expired or revoked. Reconnect this browser from ERP." : `Connection failed (${response.status}). Check the ERP address and server.`);
+    error.status = response.status; throw error;
+  }
   const result = await response.json();
   if (result.connected !== true) throw new Error("This ERP does not support the sensor connection check. Update the ERP first.");
   return result;

@@ -6,7 +6,7 @@ import { checkPermission } from "@/lib/permission-guard";
 import { PERMISSIONS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { computeWeightGrams } from "@/lib/utils";
-import { analyzePackagingThermalBatch } from "@/lib/packaging-thermal-layout";
+import { analyzePackagingThermalBatch, type PackagingThermalField } from "@/lib/packaging-thermal-layout";
 import type { PackagingLabelData } from "@/lib/packaging-pdf-generator";
 
 type PrismaRecord = Record<string, unknown>;
@@ -1151,7 +1151,7 @@ function buildGpisLabelData(params: {
   };
 }
 
-export async function createPackagingPrintFromCart(params?: { bypass?: boolean; packingDate?: Date; labelVariant?: string; printMedium?: "STICKER" | "THERMAL_50X25"; thermalOrigin?: string }) {
+export async function createPackagingPrintFromCart(params?: { bypass?: boolean; packingDate?: Date; labelVariant?: string; printMedium?: "STICKER" | "THERMAL_50X25"; thermalOrigin?: string; thermalFields?: PackagingThermalField[] }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
   const perm = await checkPermission(PERMISSIONS.PACKAGING_PRINT);
@@ -1203,7 +1203,7 @@ export async function createPackagingPrintFromCart(params?: { bypass?: boolean; 
   }
 
   if (thermal) {
-    const preflight = analyzePackagingThermalBatch(allLabels as unknown as PackagingLabelData[], params?.thermalOrigin || "");
+    const preflight = analyzePackagingThermalBatch(allLabels as unknown as PackagingLabelData[], params?.thermalOrigin || "", { fields: params?.thermalFields });
     if (!preflight.fits) return { success: false, message: preflight.entries.find(entry => !entry.layout.fits)?.layout.errors.join(" ") || "Thermal identities do not fit. Your batch has been retained." };
     return { success: true, labels: allLabels, thermalReceipt: { cart: cartItems.map(item => ({ id: item.id, quantity: item.quantity })), jobs: Array.from(new Set(allLabels.map(label => String(label.printJobId)))) } };
   }
@@ -1305,7 +1305,7 @@ export async function previewPackagingIdentities(inventoryIds: string[], packing
   } }));
 }
 
-export async function processPackagingPrint(inventoryIds: string[], bypass?: boolean, printOptions?: { printMedium: "STICKER" | "THERMAL_50X25"; thermalOrigin: string; labelVariant: "RETAIL" | "EXPORT"; packingDate?: Date }) {
+export async function processPackagingPrint(inventoryIds: string[], bypass?: boolean, printOptions?: { printMedium: "STICKER" | "THERMAL_50X25"; thermalOrigin: string; labelVariant: "RETAIL" | "EXPORT"; packingDate?: Date; thermalFields?: PackagingThermalField[] }) {
   const session = await auth();
   if (!session?.user) throw new Error("Unauthorized");
   const perm = await checkPermission(PERMISSIONS.PACKAGING_PRINT);
@@ -1344,7 +1344,7 @@ export async function processPackagingPrint(inventoryIds: string[], bypass?: boo
   }
 
   if (thermal) {
-    const preflight = analyzePackagingThermalBatch(allLabels as unknown as PackagingLabelData[], printOptions?.thermalOrigin || "");
+    const preflight = analyzePackagingThermalBatch(allLabels as unknown as PackagingLabelData[], printOptions?.thermalOrigin || "", { fields: printOptions?.thermalFields });
     if (!preflight.fits) return { success: false, message: preflight.entries.find(entry => !entry.layout.fits)?.layout.errors.join(" ") || "Thermal labels do not fit" };
     return { success: true, labels: allLabels, thermalReceipt: { cart: [], jobs: Array.from(new Set(allLabels.map(label => String(label.printJobId)))) } };
   }

@@ -30,7 +30,7 @@ const ALL_COLS: Array<{ key: ColKey; label: string; description: string }> = [
 
 const DEFAULT_COLS: ColKey[] = ["sku", "itemName", "category", "gemType", "weightValue", "sellingPrice"];
 
-export function InventorySummaryExport() {
+export function InventorySummaryExport({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Record<ColKey, boolean>>(() => {
     return Object.fromEntries(
@@ -55,7 +55,7 @@ export function InventorySummaryExport() {
     <>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={() => setOpen(true)} title="Exports sheets: InStock, Sold, Summary, ByCategory, ByGemType, ByCollection, Items_Collection">
-          Export Inventory Summary
+          {compact ? "Export Summary" : "Export Inventory Summary"}
         </Button>
         <Button variant="outline" size="sm" onClick={downloadCollections} title="Exports collection-wise items + full collection summary (includes zero-stock collections)">
           Export Collections

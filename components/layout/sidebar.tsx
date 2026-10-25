@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { useSidebar } from "./sidebar-context";
 import { useTheme } from "next-themes";
+import { parseSidebarExpandedGroups, SIDEBAR_GROUPS_COOKIE, SIDEBAR_GROUPS_STORAGE_KEY, SIDEBAR_GROUP_IDS } from "@/lib/sidebar-preferences";
 
 type NavAnimationKey = string;
 
@@ -131,17 +132,21 @@ interface NavGroup {
 interface SidebarContentProps {
   onNavigate?: () => void;
   allowedModules?: string[];
+  initialExpandedGroups?: string[];
 }
 
-export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: SidebarContentProps) {
+function persistExpandedGroupsCookie(groups: string[]) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${SIDEBAR_GROUPS_COOKIE}=${encodeURIComponent(groups.join(","))}; Path=/; SameSite=Lax; Max-Age=31536000${secure}`;
+}
+
+export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialExpandedGroups = [...SIDEBAR_GROUP_IDS] }: SidebarContentProps) {
   const pathname = usePathname();
   const { showLoader } = useGlobalLoader();
   const { collapsed, toggleCollapsed } = useSidebar();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(() => 
-    navGroups.map(g => g.id)
-  );
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(() => initialExpandedGroups);
   const [unreadCommunications, setUnreadCommunications] = useState(0);
   const canSeeCommunication =
     allowedModules.includes("ALL") ||
@@ -183,14 +188,16 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
   }, [canSeeCommunication]);
   
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    try {
-      const stored = window.localStorage.getItem("khyatigems-sidebar-groups");
-      if (stored) {
-        setExpandedGroups(JSON.parse(stored));
+    const syncFromStorage = (event: StorageEvent) => {
+      if (event.key === SIDEBAR_GROUPS_STORAGE_KEY || event.key === null) {
+        const next = parseSidebarExpandedGroups(event.key === null ? null : event.newValue);
+        setExpandedGroups(next);
+        persistExpandedGroupsCookie(next);
       }
-    } catch {}
+    };
+    window.addEventListener("storage", syncFromStorage);
+    return () => window.removeEventListener("storage", syncFromStorage);
   }, []);
   
   const isDark = mounted && resolvedTheme === "dark";
@@ -203,8 +210,9 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
         ? prev.filter(id => id !== groupId)
         : [...prev, groupId];
       try {
-        window.localStorage.setItem("khyatigems-sidebar-groups", JSON.stringify(next));
+        window.localStorage.setItem(SIDEBAR_GROUPS_STORAGE_KEY, JSON.stringify(next));
       } catch {}
+      persistExpandedGroupsCookie(next);
       return next;
     });
   };
@@ -278,7 +286,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
 
     const GroupIcon = group.icon;
     // Use mounted state to prevent hydration mismatch: always expanded on server/initial render
-    const expanded = mounted ? isGroupExpanded(group.id) : true;
+    const expanded = isGroupExpanded(group.id);
 
     if (collapsed) {
       return (
@@ -390,6 +398,6 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"] }: Sidebar
   );
 }
 
-export function Sidebar({ allowedModules = ["ALL"] }: { allowedModules?: string[] }) {
-  return <SidebarContent allowedModules={allowedModules} />;
+export function Sidebar({ allowedModules = ["ALL"], initialExpandedGroups }: { allowedModules?: string[]; initialExpandedGroups?: string[] }) {
+  return <SidebarContent allowedModules={allowedModules} initialExpandedGroups={initialExpandedGroups} />;
 }

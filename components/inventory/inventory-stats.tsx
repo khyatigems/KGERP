@@ -32,7 +32,7 @@ const fetcher = async (url: string) => {
   return r.json();
 };
 
-export function InventoryStats({ searchParams }: { searchParams: Record<string, string | undefined> }) {
+export function InventoryStats({ searchParams, exportsOnly = false }: { searchParams: Record<string, string | undefined>; exportsOnly?: boolean }) {
   const qs = useMemo(() => {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(searchParams)) {
@@ -199,26 +199,9 @@ export function InventoryStats({ searchParams }: { searchParams: Record<string, 
   const imagesPct = data && data.totalItems ? Math.round((data.withImagesCount / data.totalItems) * 100) : 0;
   const certPct = data && data.totalItems ? Math.round((data.withCertificateCount / data.totalItems) * 100) : 0;
 
-  if (error) {
+  if (exportsOnly) {
+    if (!data || error) return <span role="status" className="text-xs text-muted-foreground">{error ? "Summary exports unavailable" : "Loading exports…"}</span>;
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Inventory Overview</h2>
-        </div>
-        <div className="bg-destructive/15 text-destructive border border-destructive/20 rounded-md p-4 text-sm">
-          Failed to load inventory stats. Please try again.
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Inventory Overview</h2>
-          <p className="text-sm text-muted-foreground">Updates automatically based on selected filters.</p>
-        </div>
         <div className="flex flex-wrap gap-2 [&_button]:rounded-xl">
           <ExportButton
             filename="inventory_by_category"
@@ -233,7 +216,21 @@ export function InventoryStats({ searchParams }: { searchParams: Record<string, 
             label="Export by Gem Type"
           />
         </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-destructive/15 text-destructive border border-destructive/20 rounded-md p-4 text-sm">
+          Failed to load inventory stats. Please try again.
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className={statCardClass}>

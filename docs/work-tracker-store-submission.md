@@ -1,12 +1,12 @@
-# Chrome Web Store submission — Work Tracker 1.1.0
+# Chrome Web Store submission — Work Tracker 1.2.0
 
 Publication is optional and currently deferred: the owner chose to avoid the registration fee. No payment or submission was made. Use the free unpacked setup below.
 
 ## Free setup currently selected
 
-1. Run `npm run build:work-tracker-extension`.
-2. In `chrome://extensions`, enable Developer mode, choose Load unpacked, and select `extensions/work-tracker/dist`.
-3. Copy the installed extension's ID. In ERP Work Tracker → Connections, enter that ID and a recognizable browser name, then select Connect this browser.
+1. Download the extension ZIP from Work Tracker > Connections > Install or update the free extension and extract it into a permanent folder. Developers can instead run `npm run build:work-tracker-extension`.
+2. In `chrome://extensions`, enable Developer mode, choose Load unpacked, and select the extracted folder containing manifest.json (or `extensions/work-tracker/dist` for developers).
+3. Copy the installed extension's ID. In ERP Work Tracker → Connections, enter that ID and select Check this browser. Connect an unconfigured profile with a recognizable name, or rename its existing verified connection.
 4. Enable automatic tracking in the extension popup. No token copying is needed.
 
 Repeat for each Chrome profile. Keep the unpacked folder in place. After extension updates rebuild and use Reload in Chrome. Reload the ERP page if Chrome's website messaging API is unavailable immediately after installation. Leave `NEXT_PUBLIC_WORK_TRACKER_EXTENSION_ID` unset for this setup.

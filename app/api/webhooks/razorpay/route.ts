@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-logger";
 import { createInvoiceVersion } from "@/lib/invoice-versioning";
 import { withFreezeGuard } from "@/lib/governance";
+import { ensureInventoryQrPaymentSchema } from "@/lib/inventory-qr-payment-schema";
+import { recordCapturedInventoryQrPayment } from "@/lib/inventory-qr-payment";
 
 async function handleRazorpayWebhook(req: NextRequest) {
   try {
@@ -42,6 +44,20 @@ async function handleRazorpayWebhook(req: NextRequest) {
 
     if (event.event === "payment.captured") {
       const payment = event.payload.payment.entity;
+      if (payment.notes?.qrPaymentAttemptId) {
+        await ensureInventoryQrPaymentSchema();
+        const settlement = await recordCapturedInventoryQrPayment({
+          orderId: String(payment.order_id || ""),
+          paymentId: String(payment.id || ""),
+          amount: Number(payment.amount || 0),
+          currency: String(payment.currency || ""),
+        });
+        if (!settlement.handled) {
+          console.error("QR payment webhook could not be settled:", settlement.reason);
+          return NextResponse.json({ message: settlement.reason || "QR payment settlement failed" }, { status: 500 });
+        }
+        return NextResponse.json({ status: "ok", duplicate: settlement.duplicate });
+      }
       const invoiceId = payment.notes?.invoiceId;
       
       console.log(`Payment captured for invoice: ${invoiceId}, Payment ID: ${payment.id}`);
@@ -122,6 +138,14 @@ async function handleRazorpayWebhook(req: NextRequest) {
       }
     } else if (event.event === "payment.failed") {
         const payment = event.payload.payment.entity;
+        if (payment.notes?.qrPaymentAttemptId) {
+            await ensureInventoryQrPaymentSchema();
+            await prisma.inventoryQrPaymentAttempt.updateMany({
+              where: { id: String(payment.notes.qrPaymentAttemptId), status: { not: "PAID" } },
+              data: { status: "FAILED", failureReason: String(payment.error_description || "Payment failed").slice(0, 240) },
+            });
+            return NextResponse.json({ status: "ok" });
+        }
         const invoiceId = payment.notes?.invoiceId;
         
         if (invoiceId) {

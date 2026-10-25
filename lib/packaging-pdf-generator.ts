@@ -1,3 +1,4 @@
+import type { PackagingThermalField } from "@/lib/packaging-thermal-layout";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
@@ -105,6 +106,7 @@ export type PackagingSheetLayout = {
 export type PackagingRenderOptions = {
   medium?: "STICKER" | "THERMAL_50X25";
   thermalOrigin?: string;
+  thermalFields?: readonly PackagingThermalField[];
   selectedFields: PackagingFieldId[];
   drawGuides?: boolean;
   drawCellNumbers?: boolean;
@@ -151,6 +153,7 @@ export interface PackagingLabelData {
   tagline?: string;
   estYear?: string;
   logoUrl?: string;
+  thermalLogoAspectRatio?: number;
   careInstruction?: string;
   legalMetrology?: string;
   supportEmail?: string;
@@ -202,7 +205,7 @@ export async function generatePackagingPdfBlob(
   if (options.medium === "THERMAL_50X25") {
     const { generatePackagingThermalPdfBlob } = await import("@/lib/packaging-thermal-layout");
     const origin = options.thermalOrigin || (typeof window !== "undefined" ? window.location.origin : "");
-    return generatePackagingThermalPdfBlob(labels, origin);
+    return generatePackagingThermalPdfBlob(labels, origin, { fields: options.thermalFields });
   }
   try {
     const doc = new jsPDF({

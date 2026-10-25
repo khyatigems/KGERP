@@ -14,6 +14,8 @@ import type { InventoryMedia } from "@prisma/client";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { LoadingLink } from "@/components/ui/loading-link";
 import { WorkspaceHeader } from "@/components/layout/workspace-header";
+import { QrPaymentAuthorizationPanel } from "@/components/inventory/qr-payment-authorization-panel";
+import { ensureInventoryQrPaymentSchema } from "@/lib/inventory-qr-payment-schema";
 
 // ISR: Revalidate every 60 seconds for near-instant page loads
 // Page is cached and refreshed in background
@@ -121,6 +123,7 @@ export default async function InventoryDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  await ensureInventoryQrPaymentSchema();
 
   // Fetch main inventory data with ALL relations in ONE query
   const inventory = await prisma.inventory.findUnique({
@@ -140,6 +143,8 @@ export default async function InventoryDetailPage({
   if (!inventory) {
     return <div className="p-6">Inventory Item not found</div>;
   }
+
+  const qrPaymentAuthorization = await prisma.inventoryQrPaymentAuthorization.findUnique({ where: { inventoryId: inventory.id } });
 
   // Fetch all related data in PARALLEL using inventory SKU
   const [
@@ -367,6 +372,14 @@ export default async function InventoryDetailPage({
                     </div>
                 )}
             </div>
+
+            <QrPaymentAuthorizationPanel
+                inventoryId={inventory.id}
+                sku={inventory.sku}
+                status={inventory.status}
+                defaultTotalAmount={inventory.pricingMode === "PER_CARAT" ? (inventory.weightValue || 0) * (inventory.sellingRatePerCarat || 0) : (inventory.flatSellingPrice || inventory.sellingPrice || 0)}
+                authorization={qrPaymentAuthorization}
+            />
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                  {/* Section 2: Basic Information */}

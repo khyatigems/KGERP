@@ -51,6 +51,7 @@ const routeTitles: Record<string, string> = {
 };
 
 interface TopbarProps {
+  initialExpandedGroups?: string[];
   user?: {
     name?: string | null;
     email?: string | null;
@@ -62,7 +63,7 @@ interface TopbarProps {
   };
 }
 
-export function Topbar({ user }: TopbarProps) {
+export function Topbar({ user, initialExpandedGroups }: TopbarProps) {
   const [open, setOpen] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -195,7 +196,7 @@ export function Topbar({ user }: TopbarProps) {
             <SheetDescription className="sr-only">
               Mobile navigation menu
             </SheetDescription>
-            <SidebarContent onNavigate={() => setOpen(false)} />
+            <SidebarContent onNavigate={() => setOpen(false)} initialExpandedGroups={initialExpandedGroups} />
           </SheetContent>
         </Sheet>
         

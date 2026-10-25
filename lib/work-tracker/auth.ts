@@ -5,13 +5,14 @@ import { TrackerError } from "./core";
 
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 export const newToken = () => `kgwt_${randomBytes(32).toString("base64url")}`;
-export async function trackerIdentity(request: Request, cookieOnly = false, db = prisma, readSession: () => Promise<{ user?: { id?: string } } | null> = async () => auth()) {
+export type TrackerIdentity = { userId: string; extension: boolean; credential?: { id: string; name: string; expiresAt: Date } };
+export async function trackerIdentity(request: Request, cookieOnly = false, db = prisma, readSession: () => Promise<{ user?: { id?: string } } | null> = async () => auth()): Promise<TrackerIdentity> {
   const authorization = request.headers.get("authorization");
   if (authorization && !cookieOnly) {
     if (!/^Bearer kgwt_[A-Za-z0-9_-]{43}$/.test(authorization)) throw new TrackerError("Unauthorized", 401);
     const credential = await db.workTrackerCredential.findUnique({ where: { tokenHash: hashToken(authorization.slice(7)) }, include: { user: { select: { id: true } } } });
     if (!credential || !credential.user || credential.revokedAt || +credential.expiresAt <= Date.now()) throw new TrackerError("Credential expired or revoked", 401);
-    return { userId: credential.userId, extension: true };
+    return { userId: credential.userId, extension: true, credential: { id: credential.id, name: credential.name, expiresAt: credential.expiresAt } };
   }
   const session = await readSession();
   if (!session?.user?.id || !await db.user.findUnique({ where: { id: session.user.id }, select: { id: true } })) throw new TrackerError("Unauthorized", 401);

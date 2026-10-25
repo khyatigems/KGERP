@@ -7,7 +7,7 @@ import { cachedMasters } from "@/lib/cache";
 import { Button } from "@/components/ui/button";
 import { InventorySummaryExport } from "@/components/reports/inventory-summary-export";
 import { LoadingLink } from "@/components/ui/loading-link";
-import { InventoryView } from "@/components/inventory/inventory-view";
+import { InventoryView, InventoryViewProvider, InventoryViewToggle } from "@/components/inventory/inventory-view";
 import { InventorySearch } from "@/components/inventory/inventory-search";
 import { InventoryStats } from "@/components/inventory/inventory-stats";
 import { InventorySavedToast } from "@/components/inventory/inventory-saved-toast";
@@ -514,15 +514,19 @@ export default async function InventoryPage({
 
   return (
     <AnimatedPage>
+    <InventoryViewProvider>
     <div className="space-y-6">
       <InventorySavedToast />
-      <WorkspaceHeader eyebrow="KhyatiGems · Inventory & catalog"><div className="flex flex-col gap-4">
+      <WorkspaceHeader className="inventory-header" eyebrow="KhyatiGems · Inventory & catalog"><div className="space-y-3">
+        <div className="inventory-heading-row">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
           <p className="text-muted-foreground">Manage your inventory items</p>
         </div>
+          <InventoryViewToggle />
+        </div>
 
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-card p-3 shadow-sm [&_button]:rounded-xl [&_a[data-slot=button]]:rounded-xl">
+        <div className="inventory-header-actions" role="group" aria-label="Inventory actions">
           {data.canCreate && (
             <>
               <Button asChild variant="outline">
@@ -537,13 +541,14 @@ export default async function InventoryPage({
               </Button>
             </>
           )}
-          <InventorySummaryExport />
-          <ComprehensiveExport />
+          <InventorySummaryExport compact />
+          <ComprehensiveExport label="Complete Export" />
           <Suspense fallback={null}>
             <InventoryFilteredExport />
           </Suspense>
-          <RegenerateEbayButton />
-          <RegenerateEtsyButton />
+          <InventoryStats searchParams={params} exportsOnly />
+          <RegenerateEbayButton label="eBay Descriptions" />
+          <RegenerateEtsyButton label="Etsy Descriptions" />
         </div>
       </div></WorkspaceHeader>
 
@@ -609,6 +614,7 @@ export default async function InventoryPage({
         )}
       </div>
     </div>
+    </InventoryViewProvider>
     </AnimatedPage>
   );
 }

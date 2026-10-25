@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { SIDEBAR_COLLAPSED_COOKIE, SIDEBAR_COLLAPSED_STORAGE_KEY } from "@/lib/sidebar-preferences";
 
 interface SidebarContextValue {
   collapsed: boolean;
@@ -10,22 +11,22 @@ interface SidebarContextValue {
 
 const SidebarContext = createContext<SidebarContextValue | null>(null);
 
-const STORAGE_KEY = "khyatigems-sidebar-collapsed";
+function persistCollapsedCookie(value: boolean) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${SIDEBAR_COLLAPSED_COOKIE}=${value ? "1" : "0"}; Path=/; SameSite=Lax; Max-Age=31536000${secure}`;
+}
 
-export function SidebarProvider({ children }: { children: ReactNode }) {
-  // Keep the server render and the client's hydration render structurally
-  // identical. Reading localStorage during the first render can change the
-  // sidebar tree before Radix components hydrate, producing mismatched useId
-  // values for their aria-controls/id attributes.
-  const [collapsed, setCollapsed] = useState(false);
+export function SidebarProvider({ children, initialCollapsed = false }: { children: ReactNode; initialCollapsed?: boolean }) {
+  // The server reads this preference from a cookie so its first render and
+  // React's hydration render use the same sidebar tree and Radix IDs.
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    try { setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "1"); } catch {}
-
     const syncFromStorage = (event: StorageEvent) => {
-      if (event.key === STORAGE_KEY || event.key === null) {
-        setCollapsed(event.key === null ? false : event.newValue === "1");
+      if (event.key === SIDEBAR_COLLAPSED_STORAGE_KEY || event.key === null) {
+        const next = event.key === null ? false : event.newValue === "1";
+        setCollapsed(next);
+        persistCollapsedCookie(next);
       }
     };
     window.addEventListener("storage", syncFromStorage);
@@ -34,7 +35,8 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
 
   const setCollapsedPersist = useCallback((value: boolean) => {
     setCollapsed(value);
-    try { window.localStorage.setItem(STORAGE_KEY, value ? "1" : "0"); } catch {}
+    try { window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, value ? "1" : "0"); } catch {}
+    persistCollapsedCookie(value);
   }, []);
   const toggleCollapsed = useCallback(() => setCollapsedPersist(!collapsed), [collapsed, setCollapsedPersist]);
   const contextValue = useMemo(

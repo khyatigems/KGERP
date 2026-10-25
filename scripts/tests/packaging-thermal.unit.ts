@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
-import { analyzePackagingThermal, analyzePackagingThermalBatch, packagingThermalBlocks, packagingThermalVerifyUrl, generatePackagingThermalPdfBlob } from "../../lib/packaging-thermal-layout";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { analyzePackagingThermal, analyzePackagingThermalBatch, packagingThermalBlocks, packagingThermalVerifyUrl, generatePackagingThermalPdfBlob, PACKAGING_THERMAL_FIELDS, preparePackagingThermalLogo, preparePackagingThermalLabels } from "../../lib/packaging-thermal-layout";
 import { generatePackagingPdfBlob, type PackagingLabelData } from "../../lib/packaging-pdf-generator";
 
 export const packagingFixture: PackagingLabelData = {
@@ -48,6 +48,89 @@ async function run() {
     assert((await blob.text()).startsWith("%PDF-"));
     if (process.argv.includes("--render-fixtures")) { await mkdir("tmp/pdfs", { recursive: true }); await writeFile(`tmp/pdfs/packaging-thermal-${variant.toLowerCase()}.pdf`, Buffer.from(await blob.arrayBuffer())); }
   }
+  for (const variant of ["RETAIL", "EXPORT"] as const) {
+    const fixture = { ...packagingFixture, labelVariant: variant, logoUrl: "/brand/khyatigems-logo.png" };
+    const layout = analyzePackagingThermal(fixture, origin);
+    assert(layout.fits, `${variant} must fit with logo and manufacturing date on 50 x 25 mm`);
+    assert.equal(layout.height, 25);
+    assert(layout.elements.some(el => el.kind === "logo"));
+    assert(layout.elements.some(el => el.kind === "text" && el.field === "manufacturingDate" && el.text === "Mfg: 19/10/2026"));
+    const sku = layout.elements.filter(el => el.field === "sku");
+    assert.equal(sku.length, 1, "SKU must shrink to one complete line before wrapping");
+    assert(sku[0].kind === "text" && sku[0].text === fixture.sku);
+    assert(new Set(allFontSizes(layout)).size > 1, "Long lines adapt independently of short lines");
+    assert(!layout.elements.some(el => el.field === "address" || el.field === "contact"));
+    for (const [index, el] of layout.elements.entries()) {
+      assert(el.x >= .999 && el.y >= .999 && el.x + el.width <= 49.001 && el.y + el.height <= 24.001, `${el.field} outside 50 x 25 safe area`);
+      for (const other of layout.elements.slice(index + 1)) {
+        const horizontal = Math.min(el.x + el.width, other.x + other.width) - Math.max(el.x, other.x);
+        const vertical = Math.min(el.y + el.height, other.y + other.height) - Math.max(el.y, other.y);
+        assert(horizontal <= .001 || vertical <= .001, `${el.field} overlaps ${other.field}`);
+      }
+    }
+    if (process.argv.includes("--render-fixtures")) {
+      // Exercise the same browser image/canvas conversion with the real company logo.
+      const { createCanvas, Image } = await import("canvas");
+      const previousDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
+      const previousImage = Object.getOwnPropertyDescriptor(globalThis, "Image");
+      try {
+        Object.defineProperty(globalThis, "document", { configurable: true, value: { createElement: () => createCanvas(160, 160) } });
+        Object.defineProperty(globalThis, "Image", { configurable: true, value: Image });
+        const padded = createCanvas(100, 80);
+        const context = padded.getContext("2d");
+        context.fillStyle = "white"; context.fillRect(0, 0, 100, 80);
+        context.fillStyle = "black"; context.fillRect(20, 25, 40, 20);
+        const cropped = await preparePackagingThermalLogo(padded.toDataURL());
+        assert.equal(cropped.aspectRatio, 2, "White margins must be removed precisely");
+        const cropImage = new Image(); cropImage.src = cropped.source;
+        assert.equal(cropImage.width, 40); assert.equal(cropImage.height, 20);
+        const logoUrl = `data:image/png;base64,${(await readFile("public/brand/khyatigems-logo.png")).toString("base64")}`;
+        const prepared = await preparePackagingThermalLabels([{ ...fixture, logoUrl }]);
+        const preparedLayout = analyzePackagingThermal(prepared[0], origin);
+        assert(preparedLayout.fits);
+        assert(!preparedLayout.elements.some(el => el.kind === "text" && el.field === "branding"), "The actual logo replaces repeated brand text");
+        assert(preparedLayout.elements.some(el => el.kind === "logo" && el.height > 3), "Logo should be larger than the previous 3 mm thumbnail");
+        const fields = ["name", "sku", "qr"] as const;
+        const sparseBlob = await generatePackagingPdfBlob([{ ...fixture, logoUrl }], stickerLayout, { medium: "THERMAL_50X25", thermalOrigin: origin, selectedFields: [], thermalFields: fields });
+        await writeFile(`tmp/pdfs/packaging-50x25-selected-${variant.toLowerCase()}.pdf`, Buffer.from(await sparseBlob.arrayBuffer()));
+        const blob = await generatePackagingPdfBlob([{ ...fixture, logoUrl }], stickerLayout, { medium: "THERMAL_50X25", thermalOrigin: origin, selectedFields: [] });
+        await writeFile(`tmp/pdfs/packaging-50x25-logo-${variant.toLowerCase()}.pdf`, Buffer.from(await blob.arrayBuffer()));
+      } finally {
+        if (previousDocument) Object.defineProperty(globalThis, "document", previousDocument); else Reflect.deleteProperty(globalThis, "document");
+        if (previousImage) Object.defineProperty(globalThis, "Image", previousImage); else Reflect.deleteProperty(globalThis, "Image");
+      }
+    }
+  }
+  for (const field of PACKAGING_THERMAL_FIELDS) {
+    const fixture = { ...packagingFixture, logoUrl: "/brand/khyatigems-logo.png" };
+    const fields = PACKAGING_THERMAL_FIELDS.filter(id => id !== field);
+    const layout = analyzePackagingThermal(fixture, origin, { fields });
+    assert(layout.fits, `Unchecking ${field} should reflow a printable identity`);
+    assert(!layout.elements.some(el => el.field === field || (field === "branding" && el.field === "logo")), `Unchecked ${field} must not appear`);
+    for (const [index, el] of layout.elements.entries()) {
+      assert(el.x >= .999 && el.y >= .999 && el.x + el.width <= 49.001 && el.y + el.height <= 24.001);
+      for (const other of layout.elements.slice(index + 1)) {
+        const horizontal = Math.min(el.x + el.width, other.x + other.width) - Math.max(el.x, other.x);
+        const vertical = Math.min(el.y + el.height, other.y + other.height) - Math.max(el.y, other.y);
+        assert(horizontal <= .001 || vertical <= .001, `${field} deselected: ${el.field} overlaps ${other.field}`);
+      }
+    }
+  }
+  const full = analyzePackagingThermal(packagingFixture, origin);
+  const reduced = analyzePackagingThermal(packagingFixture, origin, { fields: ["name", "sku", "qr"] });
+  assert(reduced.elements.find(el => el.field === "sku")!.y < full.elements.find(el => el.field === "sku")!.y, "Removed fields must leave no reserved rows");
+  const noQr = analyzePackagingThermal(packagingFixture, origin, { fields: ["name", "sku"] });
+  assert.equal(noQr.qrSize, 0);
+  assert.equal(noQr.elements.filter(el => el.field === "name").length, 1, "Removing QR must free the full label width");
+  assert(!analyzePackagingThermal(packagingFixture, origin, { fields: [] }).fits, "Do not print an empty label");
+  const hiddenInvalid = analyzePackagingThermal({ ...packagingFixture, mrp: NaN, weightCarat: NaN }, origin, { fields: ["sku", "qr"] });
+  assert(hiddenInvalid.fits, "Hidden values must not cause print validation failures");
+  const crowded = Array.from({ length: 40 }, (_, n) => analyzePackagingThermal({ ...packagingFixture, logoUrl: "/brand/khyatigems-logo.png", gemstoneName: `Natural ${"A".repeat(n + 20)} Emerald` }, origin));
+  assert(crowded.some(layout => layout.fits && layout.warnings.some(warning => warning.includes("omitted"))), "Optional additions must be omitted before rejecting an otherwise printable identity");
+  const wrapped = analyzePackagingThermal(packagingFixture, origin).elements.filter(el => el.kind === "text" && el.field === "name");
+  assert(wrapped.every(el => el.kind === "text" && wrapped[0].kind === "text" && el.fontSize === wrapped[0].fontSize), "Wrapped name lines must use a consistent size");
+  const noDate = analyzePackagingThermal({ ...packagingFixture, packingDate: undefined }, origin);
+  assert(noDate.fits && !noDate.elements.some(el => el.field === "manufacturingDate"), "Never invent a manufacturing date");
   const withCare = { ...packagingFixture, careInstruction: "Handle with care, Avoid chemicals & impact", certificateLab: "Example lab", certificateNumber: "REPORT-123", tagline: "Optional promotional tagline", printJobId: "PJ-261019-9999" };
   assert(analyzePackagingThermal(withCare, origin).fits, "Saved care instructions must remain readable");
   assert(!packagingThermalBlocks(withCare).some(block => block.text.includes("REPORT-123") || block.text.includes("PJ-261019-9999") || block.text.includes("promotional tagline")), "Optional report references, job metadata and marketing must not crowd the thermal label");

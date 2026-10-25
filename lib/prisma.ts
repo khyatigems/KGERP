@@ -70,6 +70,8 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
     expense?: unknown;
     reportExportJob?: unknown;
     workerLockHeartbeat?: unknown;
+    inventoryQrPaymentAuthorization?: unknown;
+    inventoryQrPaymentAttempt?: unknown;
     analyticsDailySnapshot?: unknown;
     analyticsInventorySnapshot?: unknown;
     analyticsVendorSnapshot?: unknown;
@@ -98,6 +100,8 @@ if (process.env.NODE_ENV !== 'production' && globalForPrisma.prisma) {
     !client.expense ||
     !client.reportExportJob ||
     !client.workerLockHeartbeat ||
+    !client.inventoryQrPaymentAuthorization ||
+    !client.inventoryQrPaymentAttempt ||
     !client.analyticsDailySnapshot ||
     !client.analyticsInventorySnapshot ||
     !client.analyticsVendorSnapshot ||

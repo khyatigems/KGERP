@@ -1,0 +1,2169 @@
+generator client {
+  output          = "./client"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider     = "sqlite"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  name               String
+  email              String    @unique
+  password           String
+  role               String
+  roleId             String?
+  avatar             String?
+  avatarUrl          String?
+  avatarHistory      String?   @default("[]")
+  themePreference    String?   @default("default")
+  premiumMode        Boolean?  @default(false)
+  lastLogin          DateTime?
+  lastPasswordChange DateTime?
+  forceLogoutBefore  DateTime?
+  createdAt          DateTime  @default(now())
+
+  workSessions           WorkSession[]
+  workTargets            WorkTarget[]
+  workActivityEvents     WorkActivityEvent[]
+  workTrackerCredentials WorkTrackerCredential[]
+  notifications          Notification[]
+
+  roleRelation               Role?                  @relation(fields: [roleId], references: [id])
+  userPermissions            UserPermission[]
+  labelCartItems             LabelCartItem[]
+  packagingCartItems         PackagingCartItem[]
+  labelPrintJobs             LabelPrintJob[]
+  createdLandingPageVersions LandingPageVersion[]
+  createdQuotations          Quotation[]            @relation("CreatedQuotations")
+  createdSerials             SerializedUnit[]       @relation("CreatedSerials")
+  printedSerials             SerializedUnit[]       @relation("PrintedSerials")
+  approvedQuotations         Quotation[]            @relation("ApprovedQuotations")
+  marginAnalytics            SalesMarginAnalytics[]
+  priceOverrides             PriceOverrideAudit[]
+  dashboardNotes             DashboardNote[]
+  expenses                   Expense[]
+  vouchers                   Voucher[]
+  journalEntries             JournalEntry[]
+  followUps                  FollowUp[]
+  createdPairs               InventoryPair[]        @relation("PairCreatedBy")
+  confirmedPairs             InventoryPair[]        @relation("PairConfirmedBy")
+  createdSets                InventorySet[]         @relation("SetCreatedBy")
+  confirmedSets              InventorySet[]         @relation("SetConfirmedBy")
+
+  @@index([roleId])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  eventKey  String
+  type      String    @default("info")
+  title     String
+  message   String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventKey])
+  @@index([userId, readAt, createdAt])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  module      String
+  action      String
+  key         String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isSystem  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
+model UserPermission {
+  id           String  @id @default(uuid())
+  userId       String
+  permissionId String
+  allow        Boolean
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+}
+
+model InventoryMetrics {
+  inventoryId String   @id
+  daysInStock Int
+  memoDays    Int?
+  lastUpdated DateTime @updatedAt
+}
+
+model LandingPageSettings {
+  id                String    @id @default(uuid())
+  brandTitle        String    @default("KhyatiGems™ ERP")
+  subtitle          String    @default("Internal Operations & Management Platform")
+  accessNotice      String    @default("Authorized internal access only")
+  highlightsEnabled Boolean   @default(true)
+  whatsNewEnabled   Boolean   @default(false)
+  highlights        String    @default("[]")
+  whatsNewText      String?
+  whatsNewUpdatedAt DateTime?
+  activeVersion     Int       @default(1)
+  updatedByUserId   String
+  updatedAt         DateTime  @updatedAt
+}
+
+model LandingPageVersion {
+  id              String   @id @default(uuid())
+  versionNumber   Int
+  snapshot        String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  isRollback      Boolean  @default(false)
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+
+  @@index([createdByUserId])
+}
+
+model WhatsNewEntry {
+  id        String   @id @default(uuid())
+  message   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CategoryCode {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  status      String      @default("ACTIVE")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  inventories Inventory[]
+}
+
+model GemstoneCode {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  status      String      @default("ACTIVE")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  inventories Inventory[]
+}
+
+model ColorCode {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  status      String      @default("ACTIVE")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  inventories Inventory[]
+}
+
+model CutCode {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  status      String      @default("ACTIVE")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  inventories Inventory[]
+}
+
+model ShapeCode {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CollectionCode {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  status      String      @default("ACTIVE")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  inventories Inventory[]
+}
+
+model RashiCode {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  status      String      @default("ACTIVE")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  inventories Inventory[]
+}
+
+model CertificateCode {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  code        String      @unique
+  remarks     String?
+  status      String      @default("ACTIVE")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  inventories Inventory[]
+}
+
+model Vendor {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  phone       String?
+  email       String?
+  address     String?
+  city        String?
+  state       String?
+  country     String?
+  vendorType  String?
+  gstin       String?
+  pan         String?
+  notes       String?
+  status      String      @default("PENDING")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  purchases   Purchase[]
+  inventories Inventory[]
+
+  @@index([status])
+}
+
+model Customer {
+  id                  String            @id @default(uuid())
+  name                String
+  email               String?
+  phone               String?
+  phoneSecondary      String?
+  address             String?
+  city                String?
+  state               String?
+  country             String?
+  pincode             String?
+  pan                 String?
+  gstin               String?
+  notes               String?
+  customerType        String?           @default("Retail")
+  assignedSalesperson String?
+  interestedIn        String?
+  budgetRange         String?
+  whatsappNumber      String?
+  preferredContact    String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  stateCode           String?
+  countryCode         String?
+  isInternational     Boolean           @default(false)
+  quotations          Quotation[]
+  sales               Sale[]
+  creditNotes         CreditNote[]
+  advances            CustomerAdvance[]
+}
+
+model CustomerAdvance {
+  id              String   @id @default(uuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id])
+  amount          Float
+  paymentMode     String   @default("CASH")
+  paymentRef      String?
+  notes           String?
+  isAdjusted      Boolean  @default(false)
+  adjustedAmount  Float    @default(0)
+  remainingAmount Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  adjustments CustomerAdvanceAdjustment[]
+
+  @@index([customerId])
+}
+
+model CustomerAdvanceAdjustment {
+  id         String          @id @default(uuid())
+  advanceId  String
+  advance    CustomerAdvance @relation(fields: [advanceId], references: [id])
+  saleId     String
+  sale       Sale            @relation(fields: [saleId], references: [id])
+  amountUsed Float
+  createdAt  DateTime        @default(now())
+
+  @@index([advanceId])
+  @@index([saleId])
+}
+
+model Inventory {
+  id                   String                  @id @default(uuid())
+  sku                  String                  @unique
+  itemName             String
+  internalName         String?
+  category             String
+  gemType              String?
+  stoneType            String?                 @map("stone_type")
+  description          String?
+  productDescription   String?
+  etsyDescription      String?
+  pieces               Int                     @default(1)
+  weightValue          Float?                  @default(0)
+  weightUnit           String?
+  carats               Float                   @default(0)
+  weightRatti          Float?
+  weightGrams          Float?                  @map("weight_grams")
+  costPrice            Float
+  sellingPrice         Float
+  profit               Float?
+  condition            String                  @default("New")
+  status               String                  @default("IN_STOCK")
+  hideFromAttention    Boolean                 @default(false)
+  location             String?
+  certificateNo        String?
+  certificateNumber    String?                 @map("certificate_number")
+  certification        String?
+  lab                  String?
+  certificateLab       String?                 @map("certificate_lab")
+  shape                String?
+  color                String?
+  clarity              String?
+  clarityGrade         String?                 @map("clarity_grade")
+  cut                  String?
+  cutGrade             String?                 @map("cut_grade")
+  polish               String?
+  symmetry             String?
+  fluorescence         String?
+  measurements         String?
+  dimensionsMm         String?
+  tablePercent         Float?
+  depthPercent         Float?
+  ratio                Float?
+  origin               String?
+  originCountry        String?                 @map("origin_country")
+  treatment            String?
+  cutPolishedIn        String?                 @default("India") @map("cut_polished_in")
+  qcCode               String?                 @map("qc_code")
+  hsnCode              String?                 @map("hsn_code")
+  transparency         String?
+  braceletType         String?
+  standardSize         String?
+  beadSizeMm           Float?
+  beadSizeLabel        String?                 @map("bead_size_label")
+  beadCount            Int?
+  holeSizeMm           Float?
+  innerCircumferenceMm Float?
+  pricingMode          String                  @default("FIXED")
+  sellingRatePerCarat  Float?
+  flatSellingPrice     Float?
+  purchaseRatePerCarat Float?
+  flatPurchaseCost     Float?
+  notes                String?
+  certificateComments  String?
+  stockLocation        String?
+  salesReturnItems     SalesReturnItem[]
+  purchaseId           String?
+  vendorId             String?
+  batchId              String?
+  imageUrl             String?
+  videoUrl             String?
+  rapPrice             Float?                  @default(0)
+  discountPercent      Float?                  @default(0)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  categoryCodeId       String?
+  gemstoneCodeId       String?
+  colorCodeId          String?
+  cutCodeId            String?
+  collectionCodeId     String?
+  categoryCode         CategoryCode?           @relation(fields: [categoryCodeId], references: [id])
+  gemstoneCode         GemstoneCode?           @relation(fields: [gemstoneCodeId], references: [id])
+  colorCode            ColorCode?              @relation(fields: [colorCodeId], references: [id])
+  cutCode              CutCode?                @relation(fields: [cutCodeId], references: [id])
+  collectionCode       CollectionCode?         @relation(fields: [collectionCodeId], references: [id])
+  rashis               RashiCode[]
+  certificates         CertificateCode[]
+  media                InventoryMedia[]
+  purchase             Purchase?               @relation(fields: [purchaseId], references: [id])
+  vendor               Vendor?                 @relation(fields: [vendorId], references: [id])
+  listings             Listing[]
+  metricSnapshots      ListingMetricSnapshot[]
+  opportunities        ListingOpportunity[]
+  sales                Sale[]
+  memoItems            MemoItem[]
+  quotationItems       QuotationItem[]
+  labelCartItems       LabelCartItem[]
+  packagingCartItems   PackagingCartItem[]
+  serializedUnits      SerializedUnit[]
+  pairsAsA             InventoryPair[]         @relation("PairA")
+  pairsAsB             InventoryPair[]         @relation("PairB")
+  setItems             InventorySetItem[]
+
+  @@index([purchaseId])
+  @@index([status])
+  @@index([vendorId])
+  @@index([category])
+  @@index([categoryCodeId])
+  @@index([gemstoneCodeId])
+  @@index([colorCodeId])
+  @@index([cutCodeId])
+  @@index([collectionCodeId])
+  // Performance indexes for common queries
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([status, createdAt])
+  @@index([gemType])
+  @@index([color])
+  @@index([weightValue])
+  @@index([itemName])
+  @@index([status, category])
+  @@index([status, gemType])
+  @@index([status, color])
+  @@index([status, vendorId])
+  @@index([gemstoneCodeId, weightValue, status])
+  // Matched pairs/set indexes
+  @@index([status, gemType, color, shape, carats])
+  @@index([status, gemType, clarity, cut, carats])
+}
+
+model InventoryPair {
+  id             String    @id @default(uuid())
+  inventoryIdA   String
+  inventoryIdB   String
+  matchType      String    @default("PAIR") // PAIR | SET_3 | SET_4
+  score          Int
+  matchDetails   String
+  status         String    @default("SUGGESTED") // SUGGESTED | CONFIRMED | REJECTED | SOLD_AS_PAIR
+  suggestedPrice Float?
+  createdById    String?
+  confirmedById  String?
+  createdAt      DateTime  @default(now())
+  confirmedAt    DateTime?
+  soldAt         DateTime?
+
+  inventoryA  Inventory @relation("PairA", fields: [inventoryIdA], references: [id], onDelete: Cascade)
+  inventoryB  Inventory @relation("PairB", fields: [inventoryIdB], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("PairCreatedBy", fields: [createdById], references: [id])
+  confirmedBy User?     @relation("PairConfirmedBy", fields: [confirmedById], references: [id])
+
+  @@unique([inventoryIdA, inventoryIdB])
+  @@index([inventoryIdA])
+  @@index([inventoryIdB])
+  @@index([status])
+  @@index([matchType])
+  @@index([createdAt])
+}
+
+model InventorySet {
+  id             String    @id @default(uuid())
+  name           String?
+  matchType      String // SET_3 | SET_4
+  itemCount      Int
+  score          Int
+  matchDetails   String
+  status         String    @default("SUGGESTED")
+  suggestedPrice Float?
+  createdById    String?
+  confirmedById  String?
+  createdAt      DateTime  @default(now())
+  confirmedAt    DateTime?
+  soldAt         DateTime?
+
+  items       InventorySetItem[]
+  createdBy   User?              @relation("SetCreatedBy", fields: [createdById], references: [id])
+  confirmedBy User?              @relation("SetConfirmedBy", fields: [confirmedById], references: [id])
+
+  @@index([status])
+  @@index([matchType])
+  @@index([createdAt])
+}
+
+model InventorySetItem {
+  id          String       @id @default(uuid())
+  setId       String
+  inventoryId String
+  position    Int
+  set         InventorySet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  inventory   Inventory    @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, position])
+  @@index([inventoryId])
+}
+
+model InventoryMedia {
+  id          String    @id @default(uuid())
+  inventoryId String
+  mediaUrl    String
+  type        String
+  isPrimary   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryId])
+}
+
+model Purchase {
+  id            String            @id @default(uuid())
+  invoiceNo     String?           @unique
+  purchaseDate  DateTime
+  vendorId      String?
+  totalAmount   Float
+  paymentStatus String            @default("PENDING")
+  paymentMode   String?
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  items         Inventory[]
+  vendor        Vendor?           @relation(fields: [vendorId], references: [id])
+  purchaseItems PurchaseItem[]
+  payments      PurchasePayment[]
+
+  @@index([vendorId])
+}
+
+model PurchaseItem {
+  id          String   @id @default(uuid())
+  purchaseId  String
+  itemName    String
+  category    String
+  shape       String?
+  dimensions  String?
+  beadSizeMm  Float?
+  weightValue Float
+  weightUnit  String
+  quantity    Float    @default(1)
+  unitCost    Float
+  totalCost   Float
+  notes       String?
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+}
+
+model PurchasePayment {
+  id           String    @id @default(uuid())
+  purchaseId   String
+  amount       Float
+  date         DateTime  @default(now())
+  method       String
+  reference    String?
+  chequeNumber String?
+  bankName     String?
+  chequePayee  String?
+  chequeDate   DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  purchase     Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseId])
+}
+
+model Listing {
+  id                   String                @id @default(uuid())
+  inventoryId          String?
+  platform             String
+  externalId           String?
+  listedPrice          Float
+  currency             String                @default("USD")
+  status               String                @default("ACTIVE")
+  listedDate           DateTime              @default(now())
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  listingUrl           String?
+  listingRef           String?
+  listingSku           String?
+  marketplaceTitle     String?
+  marketplacePrice     Float?
+  marketplaceQuantity  Int?
+  marketplaceViews     Int?
+  marketplaceFavorites Int?
+  marketplaceOrders    Int?
+  marketplaceShopName  String?
+  marketplaceShopId    String?
+  syncStatus           String?
+  syncError            String?
+  lastSyncedAt         DateTime?
+  rawMetadata          String?
+  inventory            Inventory?            @relation(fields: [inventoryId], references: [id])
+  marketplaceShop      MarketplaceShop?      @relation(fields: [marketplaceShopId], references: [id], onDelete: SetNull)
+  priceHistory         ListingPriceHistory[]
+
+  @@index([inventoryId])
+  @@index([listingSku])
+  @@index([syncStatus])
+  @@index([status])
+  @@index([status, platform])
+  @@index([createdAt])
+  @@index([marketplaceShopId, externalId])
+}
+
+model ListingPriceHistory {
+  id        String   @id @default(uuid())
+  listingId String
+  price     Float
+  changedBy String
+  changedAt DateTime @default(now())
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+}
+
+model ListingMetricSnapshot {
+  id          String   @id @default(uuid())
+  inventoryId String
+  marketplace String
+  externalId  String
+  capturedAt  DateTime @default(now())
+
+  views      Int    @default(0)
+  watches    Int    @default(0)
+  favourites Int    @default(0)
+  orders     Int    @default(0)
+  revenue    Float  @default(0)
+  currency   String @default("USD")
+
+  rawPayload String?
+  source     String
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@unique([inventoryId, marketplace, externalId, capturedAt])
+  @@index([inventoryId, capturedAt])
+  @@index([marketplace, capturedAt])
+}
+
+model ListingOpportunity {
+  id          String  @id @default(uuid())
+  inventoryId String
+  marketplace String
+  externalId  String?
+
+  currentViews      Int    @default(0)
+  currentWatches    Int    @default(0)
+  currentFavourites Int    @default(0)
+  currentOrders     Int    @default(0)
+  currentRevenue    Float  @default(0)
+  currency          String @default("USD")
+
+  lastSyncedAt DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  inventory Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@unique([inventoryId, marketplace])
+  @@index([marketplace, externalId])
+  @@index([lastSyncedAt])
+}
+
+model Sale {
+  id                     String                      @id @default(uuid())
+  orderId                String?
+  inventoryId            String
+  customerId             String?
+  customerName           String?
+  customerEmail          String?
+  customerPhone          String?
+  customerAddress        String?
+  billingAddress         String?
+  customerCity           String?
+  placeOfSupply          String?
+  shippingAddress        String?
+  shippingCharge         Float                       @default(0)
+  additionalCharge       Float                       @default(0)
+  saleDate               DateTime                    @default(now())
+  salePrice              Float
+  usdPrice               Float? // USD price for export invoices
+  taxAmount              Float                       @default(0)
+  discountAmount         Float                       @default(0)
+  netAmount              Float
+  paymentStatus          String                      @default("PENDING")
+  paymentMethod          String?
+  platform               String                      @default("OFFLINE")
+  notes                  String?
+  invoiceId              String?
+  legacyInvoiceId        String?                     @unique
+  costPriceSnapshot      Float?
+  profit                 Float?
+  actualProfit           Float?
+  internalShippingCost   Float                       @default(0)
+  internalPackagingCost  Float                       @default(0)
+  internalInsuranceCost  Float                       @default(0)
+  internalHandlingCost   Float                       @default(0)
+  internalOtherCharges   Float                       @default(0)
+  internalCostTotal      Float                       @default(0)
+  listedSku              String?
+  fulfillmentSku         String?
+  fulfillmentReason      String?
+  marketplaceOrderItemId String?
+  customer               Customer?                   @relation(fields: [customerId], references: [id])
+  inventory              Inventory                   @relation(fields: [inventoryId], references: [id])
+  invoice                Invoice?                    @relation("NewInvoice", fields: [invoiceId], references: [id])
+  legacyInvoice          Invoice?                    @relation("LegacyInvoice", fields: [legacyInvoiceId], references: [id])
+  advanceAdjustments     CustomerAdvanceAdjustment[]
+
+  @@index([customerId])
+  @@index([inventoryId])
+  @@index([saleDate])
+  @@index([saleDate, paymentStatus])
+  @@index([paymentStatus])
+  @@index([invoiceId])
+  @@index([legacyInvoiceId])
+}
+
+model Memo {
+  id           String     @id @default(uuid())
+  customerName String
+  issueDate    DateTime   @default(now())
+  expiryDate   DateTime?
+  status       String     @default("OPEN")
+  notes        String?
+  items        MemoItem[]
+}
+
+model MemoItem {
+  id          String    @id @default(uuid())
+  memoId      String
+  inventoryId String
+  status      String    @default("WITH_CLIENT")
+  memo        Memo      @relation(fields: [memoId], references: [id])
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+
+  @@index([memoId])
+  @@index([inventoryId])
+}
+
+model Quotation {
+  id              String          @id @default(uuid())
+  quotationNumber String          @unique
+  token           String          @unique @default(cuid())
+  customerId      String?
+  customerName    String
+  customerEmail   String?
+  customerMobile  String?
+  customerAddress String?
+  customerCity    String?
+  status          String          @default("DRAFT")
+  totalAmount     Float
+  validUntil      DateTime?
+  expiryDate      DateTime?
+  notes           String?
+  createdById     String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  approvedById    String?
+  customer        Customer?       @relation(fields: [customerId], references: [id])
+  createdBy       User            @relation("CreatedQuotations", fields: [createdById], references: [id])
+  approvedBy      User?           @relation("ApprovedQuotations", fields: [approvedById], references: [id])
+  items           QuotationItem[]
+  invoices        Invoice[]
+
+  @@index([customerId])
+  @@index([createdById])
+  @@index([approvedById])
+  @@index([status])
+  @@index([status, validUntil])
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model QuotationItem {
+  id          String    @id @default(uuid())
+  quotationId String
+  inventoryId String
+  quotedPrice Float
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+
+  @@index([quotationId])
+  @@index([inventoryId])
+}
+
+model Invoice {
+  id                   String    @id @default(uuid())
+  invoiceNumber        String    @unique
+  token                String    @unique @default(cuid())
+  quotationId          String?
+  status               String    @default("DRAFT")
+  isActive             Boolean   @default(true)
+  dueDate              DateTime?
+  notes                String?
+  invoiceType          String    @default("TAX")
+  iecCode              String?
+  exportType           String?
+  countryOfDestination String?
+  portOfDispatch       String?
+  modeOfTransport      String?
+  courierPartner       String?
+  trackingId           String?
+  invoiceCurrency      String?
+  conversionRate       Float?
+  totalInrValue        Float?
+
+  // ERP-only internal cost tracking (never shown on customer invoices)
+  internalShippingCost  Float @default(0)
+  internalPackagingCost Float @default(0)
+  internalInsuranceCost Float @default(0)
+  internalHandlingCost  Float @default(0)
+  internalOtherCharges  Float @default(0)
+  internalCostTotal     Float @default(0)
+
+  displayOptions String?
+  subtotal       Float
+  taxTotal       Float
+  discountTotal  Float
+  totalAmount    Float
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  paymentStatus  String           @default("UNPAID")
+  paidAmount     Float            @default(0)
+  invoiceDate    DateTime?
+  quotation      Quotation?       @relation(fields: [quotationId], references: [id])
+  sales          Sale[]           @relation("NewInvoice")
+  legacySale     Sale?            @relation("LegacyInvoice")
+  versions       InvoiceVersion[]
+  payments       Payment[]
+  followUps      FollowUp[]
+  salesReturns   SalesReturn[]
+  creditNotes    CreditNote[]
+  exportInvoice  ExportInvoice?
+
+  @@index([quotationId])
+  @@index([paymentStatus])
+  @@index([status])
+  @@index([status, paymentStatus])
+  @@index([status, paymentStatus, dueDate])
+  @@index([createdAt])
+  @@index([dueDate])
+}
+
+// Separate table for Export Invoices - keeps invoice numbers in same sequence
+model ExportInvoice {
+  id                       String  @id @default(uuid())
+  invoiceId                String  @unique
+  // Export-specific fields (these extend the main Invoice)
+  customsDeclarationNumber String?
+  fobValue                 Float?
+  freightCharges           Float?
+  insuranceCharges         Float?
+  shippingBillNumber       String?
+  portCode                 String?
+  hsnCodes                 String?
+  // Additional commercial details
+  buyerReference           String?
+  contractNumber           String?
+  preCarriageBy            String?
+  preCarriagePort          String?
+
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([customsDeclarationNumber])
+}
+
+model Payment {
+  id         String   @id @default(uuid())
+  invoiceId  String
+  amount     Float
+  date       DateTime @default(now())
+  method     String
+  reference  String?
+  notes      String?
+  recordedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model InventoryQrPaymentAuthorization {
+  id              String   @id @default(uuid())
+  inventoryId     String   @unique
+  enabled         Boolean  @default(false)
+  totalAmount     Float
+  amountToCollect Float
+  currency        String   @default("INR")
+  allowPartial    Boolean  @default(false)
+  paidAmount      Float    @default(0)
+  customerName    String?
+  customerEmail   String?
+  customerPhone   String?
+  orderReference  String?
+  saleId          String?
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([enabled])
+}
+
+model InventoryQrPaymentAttempt {
+  id                String    @id @default(uuid())
+  authorizationId   String
+  inventoryId       String
+  amount            Float
+  currency          String    @default("INR")
+  status            String    @default("CREATING")
+  razorpayOrderId   String?   @unique
+  razorpayPaymentId String?   @unique
+  activeKey         String?   @unique
+  failureReason     String?
+  createdAt         DateTime  @default(now())
+  paidAt            DateTime?
+
+  @@index([authorizationId, status])
+  @@index([inventoryId, createdAt])
+}
+
+model InvoiceVersion {
+  id            String   @id @default(uuid())
+  invoiceId     String
+  versionNumber Int
+  reason        String?
+  snapshot      String?
+  createdAt     DateTime @default(now())
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model Setting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model CompanySettings {
+  id                   String   @id @default(uuid())
+  companyName          String
+  invoicePrefix        String?  @default("INV")
+  invoicingStartNumber Int?     @default(1)
+  invoiceLogoUrl       String?
+  quotationLogoUrl     String?
+  logoUrl              String?
+  skuViewLogoUrl       String?
+  otherDocsLogoUrl     String?
+  address              String?
+  email                String?
+  phone                String?
+  website              String?
+  gstin                String?
+  enableExportInvoice  Boolean  @default(false)
+  defaultExportType    String?  @default("LUT")
+  companyIec           String?
+  defaultCurrency      String?  @default("INR")
+  defaultPort          String?
+  swiftCode            String?
+  termsAndConditions   String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model FollowUp {
+  id            String    @id
+  invoiceId     String
+  date          DateTime  @default(now())
+  channel       String    @default("CALL")
+  action        String?
+  note          String?
+  promisedDate  DateTime?
+  status        String    @default("OPEN")
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+  rescheduledTo DateTime?
+  updatedAt     DateTime  @updatedAt
+  createdById   String?   @map("createdBy")
+  createdAt     DateTime  @default(now())
+
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation(fields: [createdById], references: [id])
+
+  @@index([invoiceId])
+  @@index([createdById])
+}
+
+model SalesReturn {
+  id            String   @id
+  invoiceId     String
+  returnNumber  String   @unique
+  returnDate    DateTime @default(now())
+  disposition   String
+  taxableAmount Float    @default(0)
+  igst          Float    @default(0)
+  cgst          Float    @default(0)
+  sgst          Float    @default(0)
+  totalTax      Float    @default(0)
+  totalAmount   Float    @default(0)
+  remarks       String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+
+  invoice Invoice           @relation(fields: [invoiceId], references: [id])
+  items   SalesReturnItem[]
+
+  @@index([invoiceId])
+}
+
+model SalesReturnItem {
+  id            String  @id
+  salesReturnId String
+  inventoryId   String
+  quantity      Int     @default(1)
+  sellingPrice  Float
+  resaleable    Boolean @default(true)
+
+  salesReturn SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+  inventory   Inventory   @relation(fields: [inventoryId], references: [id])
+
+  @@index([salesReturnId])
+  @@index([inventoryId])
+}
+
+model CreditNote {
+  id               String   @id
+  customerId       String?
+  invoiceId        String?
+  creditNoteNumber String   @unique
+  issueDate        DateTime @default(now())
+  totalAmount      Float
+  taxableAmount    Float    @default(0)
+  igst             Float    @default(0)
+  cgst             Float    @default(0)
+  sgst             Float    @default(0)
+  totalTax         Float    @default(0)
+  balanceAmount    Float
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+  invoice  Invoice?  @relation(fields: [invoiceId], references: [id])
+
+  @@index([customerId])
+  @@index([invoiceId])
+}
+
+model InvoiceSettings {
+  id                  String   @id @default(uuid())
+  prefix              String   @default("INV")
+  currencySymbol      String   @default("₹")
+  digitalSignatureUrl String?
+  terms               String?
+  exportTerms         String? // Terms & Conditions for export invoices
+  footerNotes         String?
+  gstEnabled          Boolean  @default(false)
+  gstType             String   @default("CGST_SGST")
+  categoryGstRates    String?
+  updatedAt           DateTime @updatedAt
+}
+
+model PaymentSettings {
+  id                String   @id @default(uuid())
+  upiEnabled        Boolean  @default(false)
+  upiId             String?
+  upiPayeeName      String?
+  upiQrUrl          String?
+  bankEnabled       Boolean  @default(false)
+  bankName          String?
+  accountNumber     String?
+  ifscCode          String?
+  swiftCode         String?
+  accountHolder     String?
+  razorpayEnabled   Boolean  @default(false)
+  razorpayKeyId     String?
+  razorpayKeySecret String?
+  razorpayButtonId  String?
+  updatedAt         DateTime @updatedAt
+}
+
+model ActivityLog {
+  id               String  @id @default(uuid())
+  entityType       String?
+  entityId         String?
+  entityIdentifier String?
+  idempotencyKey   String?
+  actionType       String?
+  userId           String?
+  userName         String?
+  userEmail        String?
+  ipAddress        String?
+  userAgent        String?
+  source           String?
+  fieldChanges     String?
+  details          String?
+
+  module      String?
+  action      String?
+  referenceId String?
+  description String?
+  metadata    String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, actionType, idempotencyKey])
+  @@index([userId])
+  @@index([module])
+  @@index([createdAt])
+}
+
+model LabelPrintJob {
+  id          String              @id @default(uuid())
+  userId      String
+  layoutId    String?
+  printerId   String?
+  status      String              @default("PENDING")
+  printFormat String?
+  totalItems  Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  user        User                @relation(fields: [userId], references: [id])
+  items       LabelPrintJobItem[]
+
+  @@index([userId])
+}
+
+model LabelPrintJobItem {
+  id                String        @id @default(uuid())
+  jobId             String
+  sku               String
+  sellingPrice      Float
+  priceWithChecksum String?
+  checksumDigit     Int?
+  checksumMethod    String?
+  encodingVersion   Int?
+  internalName      String?
+  job               LabelPrintJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+model LabelCartItem {
+  id          String    @id @default(uuid())
+  userId      String
+  inventoryId String
+  addedAt     DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+
+  @@unique([userId, inventoryId])
+  @@index([userId])
+  @@index([inventoryId])
+}
+
+model PackagingCartItem {
+  id          String    @id @default(uuid())
+  userId      String
+  inventoryId String
+  quantity    Int       @default(1)
+  location    String?
+  addedAt     DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+  inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, inventoryId])
+  @@index([userId])
+  @@index([inventoryId])
+}
+
+model SalesMarginAnalytics {
+  id        String   @id @default(uuid())
+  userId    String?
+  period    String
+  startDate DateTime
+  endDate   DateTime
+  revenue   Float
+  cost      Float
+  margin    Float
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model ReportExportJob {
+  id            String    @id @default(uuid())
+  reportType    String
+  format        String
+  dateFrom      DateTime?
+  dateTo        DateTime?
+  filtersJson   String?
+  status        String    @default("QUEUED")
+  requestedById String?
+  requestedBy   String?
+  downloadUrl   String?
+  errorMessage  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([reportType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([requestedById])
+}
+
+model WorkerLockHeartbeat {
+  id          String   @id
+  ownerId     String
+  leaseUntil  DateTime
+  heartbeatAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([leaseUntil])
+  @@index([ownerId])
+}
+
+model AnalyticsDailySnapshot {
+  id                 String   @id @default(uuid())
+  snapshotDate       DateTime @unique
+  inventoryCount     Int
+  inventoryValueCost Float
+  inventoryValueSell Float
+  salesCount         Int
+  salesRevenue       Float
+  profitAmount       Float
+  invoiceCount       Int
+  pendingInvoices    Int
+  paymentReceived    Float
+  createdAt          DateTime @default(now())
+
+  @@index([snapshotDate])
+}
+
+model AnalyticsInventorySnapshot {
+  id           String   @id @default(uuid())
+  inventoryId  String   @unique
+  sku          String
+  itemName     String
+  category     String
+  vendorName   String
+  purchaseCost Float
+  sellingPrice Float
+  daysInStock  Int
+  status       String
+  ageBucket    String
+  createdAt    DateTime @default(now())
+
+  @@index([category])
+  @@index([vendorName])
+  @@index([status])
+  @@index([daysInStock])
+  @@index([ageBucket])
+}
+
+model AnalyticsVendorSnapshot {
+  id                 String    @id @default(uuid())
+  vendorId           String
+  snapshotDate       DateTime
+  vendorName         String
+  totalItemsSupplied Int
+  totalPurchaseValue Float
+  inventoryInStock   Int
+  inventoryValue     Float
+  lastPurchaseDate   DateTime?
+  createdAt          DateTime  @default(now())
+
+  @@unique([vendorId, snapshotDate])
+  @@index([vendorId])
+  @@index([snapshotDate])
+}
+
+model AnalyticsSalesSnapshot {
+  id            String   @id @default(uuid())
+  saleId        String   @unique
+  sku           String
+  itemName      String
+  category      String
+  purchaseCost  Float
+  sellingPrice  Float
+  profitAmount  Float
+  saleDate      DateTime
+  saleCycleDays Int
+  createdAt     DateTime @default(now())
+
+  @@index([saleDate])
+  @@index([category])
+  @@index([saleCycleDays])
+}
+
+model AnalyticsLabelSnapshot {
+  id            String   @id @default(uuid())
+  jobId         String
+  printedBy     String
+  labelsPrinted Int
+  printedAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([jobId])
+  @@index([printedBy])
+  @@index([printedAt])
+}
+
+model PriceOverrideAudit {
+  id            String   @id @default(uuid())
+  userId        String
+  inventoryId   String
+  originalPrice Float
+  newPrice      Float
+  reason        String?
+  approvedBy    String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model DashboardNote {
+  id          String   @id @default(uuid())
+  content     String
+  color       String   @default("yellow")
+  position    Int      @default(0)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  @@index([createdById])
+}
+
+model ExpenseCategory {
+  id         String    @id @default(uuid())
+  name       String    @unique
+  code       String?   @unique
+  gstAllowed Boolean   @default(false)
+  status     String    @default("ACTIVE")
+  createdAt  DateTime  @default(now())
+  expenses   Expense[]
+}
+
+model Voucher {
+  id             String   @id @default(uuid())
+  voucherNumber  String   @unique
+  voucherType    String
+  voucherDate    DateTime
+  referenceId    String?
+  narration      String?
+  amount         Float
+  isReversed     Boolean  @default(false)
+  reversalReason String?
+  createdById    String
+  createdAt      DateTime @default(now())
+  createdBy      User     @relation(fields: [createdById], references: [id])
+  expense        Expense?
+
+  @@index([createdById])
+  @@index([voucherNumber])
+  @@index([referenceId])
+  @@index([voucherDate])
+}
+
+model Expense {
+  id            String          @id @default(uuid())
+  expenseDate   DateTime
+  categoryId    String
+  description   String
+  vendorName    String?
+  referenceNo   String?
+  totalAmount   Float
+  paymentMode   String
+  paymentStatus String          @default("PAID")
+  paidAmount    Float           @default(0)
+  paymentDate   DateTime?
+  paymentRef    String?
+  attachmentUrl String?
+  voucherId     String?         @unique
+  createdById   String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  voucher       Voucher?        @relation(fields: [voucherId], references: [id])
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+  createdBy     User            @relation(fields: [createdById], references: [id])
+
+  @@index([categoryId])
+  @@index([createdById])
+  @@index([expenseDate])
+  @@index([paymentStatus])
+}
+
+model Account {
+  id           String        @id @default(uuid())
+  code         String        @unique
+  name         String
+  type         String
+  subtype      String?
+  description  String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  journalLines JournalLine[]
+}
+
+model JournalEntry {
+  id            String        @id @default(uuid())
+  date          DateTime
+  description   String
+  referenceType String?
+  referenceId   String?
+  createdById   String
+  createdAt     DateTime      @default(now())
+  isReversed    Boolean       @default(false)
+  lines         JournalLine[]
+  createdBy     User          @relation(fields: [createdById], references: [id])
+
+  @@index([date])
+  @@index([referenceId])
+  @@index([createdById])
+}
+
+model JournalLine {
+  id             String       @id @default(uuid())
+  journalEntryId String
+  accountId      String
+  debit          Float        @default(0)
+  credit         Float        @default(0)
+  description    String?
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        Account      @relation(fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([accountId])
+}
+
+model SerializedUnit {
+  id              String              @id @default(uuid())
+  inventoryId     String
+  sku             String
+  serialNumber    String              @unique
+  fullHash        String
+  shortHash       String
+  packagingStatus String              @default("GENERATED")
+  printCount      Int                 @default(0)
+  qrScanCount     Int                 @default(0)
+  firstScanAt     DateTime?
+  lastScanAt      DateTime?
+  createdAt       DateTime            @default(now())
+  createdById     String
+  printedAt       DateTime?
+  printedById     String?
+  soldAt          DateTime?
+  returnedAt      DateTime?
+  voidReason      String?
+  isActive        Boolean             @default(true)
+  inventory       Inventory           @relation(fields: [inventoryId], references: [id])
+  createdBy       User                @relation("CreatedSerials", fields: [createdById], references: [id])
+  printedBy       User?               @relation("PrintedSerials", fields: [printedById], references: [id])
+  logs            SerialActivityLog[]
+
+  @@index([inventoryId])
+  @@index([sku])
+  @@index([packagingStatus])
+  @@index([createdAt])
+  @@index([createdById])
+  @@index([printedById])
+}
+
+model SerialActivityLog {
+  id         String         @id @default(uuid())
+  serialId   String
+  actionType String
+  userId     String?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime       @default(now())
+  metadata   String?
+  serial     SerializedUnit @relation(fields: [serialId], references: [id])
+
+  @@index([serialId])
+  @@index([timestamp])
+}
+
+model GpisSettings {
+  id                    String   @id @default(uuid())
+  brandName             String?
+  tagline               String?
+  estYear               String?
+  registeredAddress     String?
+  gstin                 String?
+  iec                   String?
+  supportEmail          String?
+  supportPhone          String?
+  supportTimings        String?
+  website               String?
+  categoryHsnJson       String?
+  showRegisteredAddress Boolean  @default(true)
+  showGstin             Boolean  @default(true)
+  showIec               Boolean  @default(true)
+  showSupport           Boolean  @default(true)
+  showWatermark         Boolean  @default(true)
+  watermarkText         String?
+  watermarkOpacity      Int      @default(6)
+  watermarkRotation     Int      @default(-30)
+  watermarkFontSize     Int      @default(16)
+  watermarkFontFamily   String?  @default("helvetica")
+  labelFontFamily       String?  @default("helvetica")
+  microBorderText       String?  @default("KHYATI GEMS AUTHENTIC PRODUCT")
+  toleranceCarat        Float    @default(0.05)
+  toleranceGram         Float    @default(0.01)
+  labelVersion          String?
+  logoUrl               String?
+  careInstruction       String?
+  legalMetrologyLine    String?
+  updatedAt             DateTime @updatedAt
+}
+
+model EbaySettings {
+  id                       String   @id @default(uuid())
+  globalBannerImages       String? // JSON array of URLs
+  categoryImageUrls        String? // JSON object: { "Category": ["url1", ...] }
+  categoryGemtypeImageUrls String?  @default("{}") // JSON object: { "Category|GemType": ["url1", "url2", "url3"] }
+  maxImagesPerCategory     Int      @default(4)
+  imagesPerDescription     Int      @default(3)
+  imageRotationMode        String   @default("SEQUENTIAL")
+  brandLogoUrl             String?
+  companyName              String   @default("KhyatiGems")
+  tagline                  String   @default("Precious Gems for your Precious Ones")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+model GpisLayoutPreset {
+  id                 String   @id @default(uuid())
+  name               String   @unique
+  unit               String   @default("MM")
+  pageWidthMm        Float    @default(210)
+  pageHeightMm       Float    @default(297)
+  cols               Int      @default(2)
+  rows               Int      @default(5)
+  labelWidthMm       Float    @default(100)
+  labelHeightMm      Float    @default(50)
+  marginLeftMm       Float    @default(5)
+  marginTopMm        Float    @default(23.5)
+  gapXmm             Float    @default(0)
+  gapYmm             Float    @default(0)
+  offsetXmm          Float    @default(0)
+  offsetYmm          Float    @default(0)
+  startPosition      Int      @default(1)
+  selectedFieldsJson String?
+  isDefault          Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("gpis_layout_presets")
+}
+
+model GpisSerial {
+  id                String             @id @default(uuid())
+  sku               String
+  serialNumber      String             @unique
+  categoryCode      String
+  yearMonth         String?
+  runningNumber     Int?
+  hashFragment      String?
+  status            String             @default("ACTIVE")
+  inventoryLocation String?
+  qcCode            String?
+  packedAt          DateTime           @default(now())
+  packingDate       DateTime           @default(now()) @map("packing_date")
+  reprintCount      Int                @default(0)
+  labelVersion      String?            @map("label_version")
+  unitQuantity      Int                @default(1) @map("unit_quantity")
+  madeIn            String             @default("India") @map("made_in")
+  declaredOriginal  Boolean            @default(true) @map("declared_original")
+  createdBy         String?
+  createdAt         DateTime           @default(now())
+  printJobItems     GpisPrintJobItem[]
+
+  @@index([sku])
+  @@index([status])
+  @@index([serialNumber])
+}
+
+model GpisPrintJob {
+  id             String             @id @default(uuid())
+  printJobId     String             @unique
+  sku            String?
+  startSerial    String?
+  endSerial      String?
+  totalLabels    Int?
+  printerType    String?
+  printedBy      String?
+  printedAt      DateTime           @default(now())
+  status         String?
+  supersededById String?
+  supersededAt   DateTime?
+  items          GpisPrintJobItem[]
+
+  @@index([printJobId])
+  @@index([sku])
+}
+
+model GpisPrintJobItem {
+  id           String       @id @default(uuid())
+  printJobId   String
+  serialId     String
+  serialNumber String
+  sku          String
+  createdAt    DateTime     @default(now())
+  printJob     GpisPrintJob @relation(fields: [printJobId], references: [id], onDelete: Cascade)
+  serial       GpisSerial   @relation(fields: [serialId], references: [id], onDelete: Cascade)
+
+  @@index([serialNumber])
+  @@index([sku])
+  @@index([printJobId])
+  @@index([serialId])
+  @@map("gpis_print_job_items")
+}
+
+model GpisVerificationLog {
+  id           String   @id @default(uuid())
+  serialNumber String
+  scannedAt    DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  @@index([serialNumber])
+  @@index([scannedAt])
+}
+
+model CertificateCodeToInventory {
+  A String
+  B String
+
+  @@unique([A, B], map: "_CertificateCodeToInventory_AB_unique")
+  @@index([B], map: "_CertificateCodeToInventory_B_index")
+  @@map("_CertificateCodeToInventory")
+}
+
+model InventoryToRashiCode {
+  A String
+  B String
+
+  @@unique([A, B], map: "_InventoryToRashiCode_AB_unique")
+  @@index([B], map: "_InventoryToRashiCode_B_index")
+  @@map("_InventoryToRashiCode")
+}
+
+model StateCode {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PriceRecommendationLog {
+  id                     String   @id @default(uuid())
+  inventoryId            String?
+  userId                 String?
+  suggestedSellingRate   Float?
+  suggestedSellingPrice  Float?
+  suggestedPurchaseRate  Float?
+  appliedSellingRate     Float?
+  appliedSellingPrice    Float?
+  appliedPurchaseRate    Float?
+  sellingDeviationPct    Float?
+  purchaseDeviationPct   Float?
+  confidence             Float?
+  matchLevel             String?
+  sampleCount            Int?
+  minRate                Float?
+  maxRate                Float?
+  recommendationSnapshot String?
+  createdAt              DateTime @default(now())
+
+  @@index([inventoryId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model MarketplaceProfile {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  displayName String
+  currency    String   @default("INR")
+  isActive    Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  marginType  String   @default("PERCENT")
+  marginValue Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  charges MarketplaceCharge[]
+}
+
+model MarketplaceCharge {
+  id          String             @id @default(uuid())
+  profileId   String
+  chargeKey   String
+  name        String
+  enabled     Boolean            @default(true)
+  amountType  String             @default("PERCENT")
+  amount      Float              @default(0)
+  countryCode String?
+  sortOrder   Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  profile     MarketplaceProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model CurrencyRate {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  rateToInr Float    @default(0)
+  isBase    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model MarketplaceConnection {
+  id                String            @id @default(uuid())
+  marketplace       String
+  externalAccountId String?
+  name              String?
+  authType          String            @default("OAUTH2")
+  // Identifies the server-side Etsy credential set used for this OAuth grant.
+  // Secrets remain exclusively in environment variables.
+  oauthAppProfile   String?
+  clientId          String?
+  tokenRef          String?
+  status            String            @default("DISCONNECTED")
+  scopes            String?
+  lastConnectedAt   DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  shops             MarketplaceShop[]
+
+  @@unique([marketplace, externalAccountId])
+  @@index([marketplace])
+  @@index([status])
+}
+
+model MarketplaceShop {
+  id             String                @id @default(uuid())
+  connectionId   String
+  marketplace    String
+  externalShopId String
+  name           String
+  status         String                @default("CONNECTED")
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  connection     MarketplaceConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  listings       Listing[]
+  orders         MarketplaceOrder[]
+  syncLogs       MarketplaceSyncLog[]
+  syncJobs       MarketplaceSyncJob[]
+
+  @@unique([marketplace, externalShopId])
+  @@index([connectionId, status])
+  @@index([marketplace, status])
+}
+
+model MarketplaceSyncLog {
+  id                String           @id @default(uuid())
+  marketplace       String
+  syncType          String
+  status            String           @default("RUNNING")
+  startedAt         DateTime         @default(now())
+  endedAt           DateTime?
+  recordsScanned    Int              @default(0)
+  recordsCreated    Int              @default(0)
+  recordsUpdated    Int              @default(0)
+  recordsSkipped    Int              @default(0)
+  recordsFailed     Int              @default(0)
+  errorDetails      String?
+  triggeredBy       String?
+  marketplaceShopId String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  marketplaceShop   MarketplaceShop? @relation(fields: [marketplaceShopId], references: [id], onDelete: SetNull)
+
+  @@index([marketplace, syncType])
+  @@index([status])
+  @@index([startedAt])
+  @@index([marketplaceShopId, syncType, startedAt])
+}
+
+model MarketplaceSyncJob {
+  id                String          @id @default(uuid())
+  marketplaceShopId String
+  syncType          String
+  status            String          @default("QUEUED")
+  progressStep      String          @default("Queued")
+  progressDetail    String?
+  cursor            String?
+  recordsScanned    Int             @default(0)
+  recordsCreated    Int             @default(0)
+  recordsUpdated    Int             @default(0)
+  recordsSkipped    Int             @default(0)
+  recordsFailed     Int             @default(0)
+  attempts          Int             @default(0)
+  errorDetails      String?
+  requestedById     String?
+  requestedBy       String?
+  batchId           String?
+  startedAt         DateTime?
+  endedAt           DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  marketplaceShop   MarketplaceShop @relation(fields: [marketplaceShopId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([batchId])
+  @@index([marketplaceShopId, syncType, createdAt])
+}
+
+model EbayWebhookNotification {
+  id             String    @id @default(uuid())
+  notificationId String    @unique
+  topic          String
+  ebayUserId     String?
+  ebayUsername   String?
+  signatureValid Boolean   @default(false)
+  status         String    @default("RECEIVED")
+  receivedAt     DateTime  @default(now())
+  processedAt    DateTime?
+  errorDetails   String?
+
+  @@index([topic, receivedAt])
+  @@index([ebayUserId])
+  @@index([status])
+}
+
+model MarketplaceOrder {
+  id                  String                 @id @default(uuid())
+  marketplace         String
+  marketplaceOrderId  String
+  orderNumber         String?
+  marketplaceShopName String?
+  marketplaceShopId   String?
+  status              String                 @default("IMPORTED")
+  buyerName           String?
+  buyerEmail          String?
+  buyerCountry        String?
+  buyerCity           String?
+  buyerState          String?
+  buyerZip            String?
+  trackingCode        String?
+  carrier             String?
+  orderTotal          Float?
+  currency            String                 @default("USD")
+  orderDate           DateTime?
+  rawMetadata         String?
+  lastSyncedAt        DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  items               MarketplaceOrderItem[]
+  marketplaceShop     MarketplaceShop?       @relation(fields: [marketplaceShopId], references: [id], onDelete: SetNull)
+
+  @@unique([marketplaceShopId, marketplace, marketplaceOrderId])
+  @@index([marketplace])
+  @@index([status])
+  @@index([orderDate])
+  @@index([marketplaceShopId, marketplaceOrderId])
+}
+
+model MarketplaceOrderItem {
+  id                String           @id @default(uuid())
+  orderId           String
+  marketplaceItemId String?
+  listedSku         String?
+  listedTitle       String?
+  quantity          Int              @default(1)
+  unitPrice         Float?
+  currency          String           @default("USD")
+  fulfillmentSku    String?
+  fulfillmentReason String?
+  inventoryId       String?
+  status            String           @default("PENDING")
+  rawMetadata       String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  order             MarketplaceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, marketplaceItemId])
+  @@index([orderId])
+  @@index([listedSku])
+  @@index([fulfillmentSku])
+  @@index([inventoryId])
+}
+
+model Document {
+  id                String   @id @default(uuid())
+  customerId        String?
+  orderId           String?
+  saleId            String?
+  invoiceId         String?
+  type              String
+  fileName          String
+  mimeType          String   @default("application/pdf")
+  sizeBytes         Int?
+  storageProvider   String   @default("CLOUDINARY")
+  storageRef        String?
+  certificateNumber String?
+  status            String   @default("READY")
+  errorMessage      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([saleId])
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([type])
+  @@index([certificateNumber])
+}
+
+model EmailLog {
+  id                  String    @id @default(uuid())
+  customerId          String?
+  orderId             String?
+  templateKey         String?
+  recipient           String
+  cc                  String?
+  bcc                 String?
+  subject             String
+  bodyRef             String?
+  bodyHtml            String?
+  bodyText            String?
+  payloadJson         String?
+  retryHistoryJson    String?
+  idempotencyKey      String?   @unique
+  threadId            String?
+  messageId           String?
+  inReplyTo           String?
+  referencesJson      String?
+  emailType           String?
+  direction           String    @default("OUTBOUND")
+  provider            String?
+  providerMessageId   String?
+  status              String    @default("DRAFT")
+  attemptCount        Int       @default(0)
+  lastAttemptAt       DateTime?
+  nextRetryAt         DateTime?
+  lastError           String?
+  failureCode         String?
+  processingStartedAt DateTime?
+  queuedAt            DateTime?
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  openedAt            DateTime?
+  bouncedAt           DateTime?
+  failedAt            DateTime?
+  cancelledAt         DateTime?
+  isRead              Boolean   @default(true)
+  readAt              DateTime?
+  errorMessage        String?
+  attachmentsJson     String?
+  receivedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([customerId])
+  @@index([orderId])
+  @@index([status])
+  @@index([status, nextRetryAt])
+  @@index([threadId, createdAt])
+  @@index([isRead, direction, createdAt])
+  @@index([messageId])
+  @@index([providerMessageId])
+  @@index([createdAt])
+}
+
+model EmailProviderEvent {
+  id                String   @id
+  eventId           String   @unique
+  communicationId   String
+  providerMessageId String
+  eventType         String
+  occurredAt        DateTime
+  receivedAt        DateTime @default(now())
+
+  @@index([communicationId, occurredAt])
+  @@index([providerMessageId])
+}
+
+// Work tracker uses strings for enums, matching the SQLite schema conventions.
+model WorkSession {
+  id                   String              @id @default(uuid())
+  userId               String
+  platform             String
+  activityType         String
+  description          String              @default("")
+  sku                  String?
+  marketplaceListingId String?
+  inventoryId          String?
+  marketplaceShopId    String?
+  listingRecordId      String?
+  startedAt            DateTime
+  endedAt              DateTime?
+  durationSeconds      Int                 @default(0)
+  status               String              @default("RUNNING")
+  trackingSource       String              @default("MANUAL")
+  notes                String?
+  requestId            String
+  // Unique non-null user ID while RUNNING or PAUSED; database-enforced timer lock.
+  activeUserId         String?             @unique
+  revision             Int                 @default(0)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  user                 User                @relation(fields: [userId], references: [id])
+  intervals            WorkInterval[]
+  events               WorkActivityEvent[]
+
+  @@unique([userId, requestId])
+  @@index([userId, startedAt])
+  @@index([platform, startedAt])
+  @@index([status])
+}
+
+model WorkInterval {
+  id        String      @id @default(uuid())
+  sessionId String
+  startedAt DateTime
+  endedAt   DateTime?
+  session   WorkSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, startedAt])
+}
+
+model WorkTarget {
+  id            String   @id @default(uuid())
+  userId        String
+  platform      String
+  period        String
+  targetMinutes Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, platform, period])
+}
+
+model WorkActivityEvent {
+  id              String       @id
+  userId          String
+  platform        String
+  domain          String
+  eventType       String
+  occurredAt      DateTime
+  durationSeconds Int          @default(0)
+  source          String       @default("EXTENSION")
+  sessionId       String?
+  createdAt       DateTime     @default(now())
+  user            User         @relation(fields: [userId], references: [id])
+  session         WorkSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+  @@index([sessionId])
+}
+
+model WorkTrackerCredential {
+  id        String    @id @default(uuid())
+  userId    String
+  name      String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model WeeklyReportRun {
+  id            String                 @id @default(uuid())
+  executionKey  String                 @unique
+  mode          String
+  status        String                 @default("QUEUED")
+  periodStart   DateTime
+  periodEnd     DateTime
+  timezone      String
+  scheduledFor  DateTime?
+  configHash    String
+  settingsJson  String
+  metricsJson   String?
+  dataQuality   String                 @default("PENDING")
+  pdfBase64     String?
+  pdfChecksum   String?
+  pdfBytes      Int?
+  attempts      Int                    @default(0)
+  leaseOwner    String?
+  leaseUntil    DateTime?
+  nextAttemptAt DateTime?
+  requestedById String?
+  errorCode     String?
+  errorSummary  String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  deliveries    WeeklyReportDelivery[]
+
+  @@index([status, nextAttemptAt])
+  @@index([periodStart, periodEnd])
+  @@index([createdAt])
+}
+
+model WeeklyReportDelivery {
+  id                String          @id @default(uuid())
+  runId             String
+  recipient         String
+  status            String          @default("PENDING")
+  attempts          Int             @default(0)
+  attemptedAt       DateTime?
+  acceptedAt        DateTime?
+  nextAttemptAt     DateTime?
+  providerMessageId String?
+  emailLogId        String?
+  errorCode         String?
+  errorSummary      String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  run               WeeklyReportRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, recipient])
+  @@index([status, nextAttemptAt])
+  @@index([runId])
+}
