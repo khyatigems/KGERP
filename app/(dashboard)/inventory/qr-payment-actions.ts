@@ -51,7 +51,7 @@ export async function saveInventoryQrPaymentAuthorization(inventoryId: string, i
   if (activeAttempt) return { success: false, message: "A customer checkout is in progress. Wait for it to finish before changing its amount." };
   const paidAmount = Number(existing?.paidAmount || 0);
   const remaining = Number((totalAmount - paidAmount).toFixed(2));
-  if (remaining <= 0 || amountToCollect > remaining + 0.01) return { success: false, message: "The payment amount cannot exceed the item's remaining authorized balance." };
+  if (remaining <= 0 || amountToCollect > remaining + 0.01) return { success: false, message: "The payment amount cannot exceed the remaining payment-request balance." };
   if (!input.allowPartial && Math.abs(amountToCollect - remaining) > 0.01) return { success: false, message: "Enable partial payment to collect less than the remaining balance." };
   if (amountToCollect < remaining && !input.allowPartial) return { success: false, message: "Enable partial payment to collect less than the remaining balance." };
   const email = (input.customerEmail || "").trim();

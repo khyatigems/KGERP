@@ -1,4 +1,4 @@
-import { executeDdlBatch } from "@/lib/prisma";
+import { buildAddColumnStatements, executeDdlBatch, getMissingColumns } from "@/lib/prisma";
 
 let ensured = false;
 let pending: Promise<void> | null = null;
@@ -39,6 +39,10 @@ export async function ensureInventoryQrPaymentSchema() {
         "razorpayPaymentId" TEXT,
         "activeKey" TEXT,
         "failureReason" TEXT,
+        "customerName" TEXT,
+        "customerEmail" TEXT,
+        "customerPhone" TEXT,
+        "customerRemarks" TEXT,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "paidAt" DATETIME
       )`,
@@ -48,6 +52,14 @@ export async function ensureInventoryQrPaymentSchema() {
       `CREATE INDEX IF NOT EXISTS "InventoryQrPaymentAttempt_authorizationId_status_idx" ON "InventoryQrPaymentAttempt"("authorizationId", "status")`,
       `CREATE INDEX IF NOT EXISTS "InventoryQrPaymentAttempt_inventoryId_createdAt_idx" ON "InventoryQrPaymentAttempt"("inventoryId", "createdAt")`,
     ]);
+    const attemptColumns: Array<[string, string, string]> = [
+      ["InventoryQrPaymentAttempt", "customerName", '"customerName" TEXT'],
+      ["InventoryQrPaymentAttempt", "customerEmail", '"customerEmail" TEXT'],
+      ["InventoryQrPaymentAttempt", "customerPhone", '"customerPhone" TEXT'],
+      ["InventoryQrPaymentAttempt", "customerRemarks", '"customerRemarks" TEXT'],
+    ];
+    const missing = await getMissingColumns(attemptColumns.map(([table, column]) => [table, column]));
+    await executeDdlBatch(buildAddColumnStatements(attemptColumns, missing));
     ensured = true;
   })().finally(() => { pending = null; });
   return pending;

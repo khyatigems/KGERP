@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { Button } from "@/components/ui/button";
 import { Download, DollarSign } from "lucide-react";
 import { ExportButton } from "@/components/ui/lottie";
@@ -142,6 +142,7 @@ export function MarketplacePriceAuditExport() {
       const qcErr = validate(rows);
       if (qcErr) { console.error("[Price Audit] QC Failed:", qcErr); toast.error(`Export validation failed: ${qcErr}`); return; }
 
+      const { default: ExcelJS } = await import("exceljs");
       const wb = new ExcelJS.Workbook();
       wb.creator = "KhyatiGems ERP"; wb.created = new Date();
 

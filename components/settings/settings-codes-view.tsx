@@ -14,7 +14,6 @@ import "@/components/ui/checkbox";
 import "@/components/ui/label";
 import { createCode, updateCode, setCodeStatus, importCodes, checkCodeDuplicate, type CsvRow } from "@/app/(dashboard)/settings/codes/actions";
 import { Download, Plus, Upload, Loader2 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { toast } from "@/lib/erp-feedback";
 
 type CodeRow = {
@@ -455,7 +454,8 @@ function AddCodeDialog({ group }: { group: CodeGroup }) {
 }
 
 function ExportCodesButton({ group, data }: { group: CodeGroup; data: CodeRow[] }) {
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import("xlsx");
     const csvData = data.map(row => ({
       name: row.name,
       code: row.code || "",

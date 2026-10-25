@@ -144,7 +144,15 @@ export default async function InventoryDetailPage({
     return <div className="p-6">Inventory Item not found</div>;
   }
 
-  const qrPaymentAuthorization = await prisma.inventoryQrPaymentAuthorization.findUnique({ where: { inventoryId: inventory.id } });
+  const [qrPaymentAuthorization, qrPaymentAttempts] = await Promise.all([
+    prisma.inventoryQrPaymentAuthorization.findUnique({ where: { inventoryId: inventory.id } }),
+    prisma.inventoryQrPaymentAttempt.findMany({
+      where: { inventoryId: inventory.id },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, amount: true, currency: true, status: true, customerName: true, customerEmail: true, customerPhone: true, customerRemarks: true, createdAt: true },
+    }).catch(() => []),
+  ]);
 
   // Fetch all related data in PARALLEL using inventory SKU
   const [
@@ -379,6 +387,7 @@ export default async function InventoryDetailPage({
                 status={inventory.status}
                 defaultTotalAmount={inventory.pricingMode === "PER_CARAT" ? (inventory.weightValue || 0) * (inventory.sellingRatePerCarat || 0) : (inventory.flatSellingPrice || inventory.sellingPrice || 0)}
                 authorization={qrPaymentAuthorization}
+                paymentAttempts={qrPaymentAttempts}
             />
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

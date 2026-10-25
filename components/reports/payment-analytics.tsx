@@ -5,9 +5,6 @@ import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 import {
   Table,
   TableBody,
@@ -57,7 +54,8 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 export function PaymentAnalytics({ data }: { data: PaymentData }) {
   
   // Export functionality for Payment Reports
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
+    const XLSX = await import("xlsx");
     // 1. Prepare Summary Data
     const summaryData = [
       ["Payment Summary Report"],
@@ -97,7 +95,10 @@ export function PaymentAnalytics({ data }: { data: PaymentData }) {
     XLSX.writeFile(wb, `Payment_Report_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"), import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF();
 
     // Title

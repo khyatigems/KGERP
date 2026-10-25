@@ -1,7 +1,5 @@
-import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import type jsPDF from "jspdf";
 import { formatInrCurrency, formatInrNumber } from "@/lib/number-formatting";
 
 const FONTS = {
@@ -89,13 +87,14 @@ function formatPdfCell(value: unknown, header: string, key: string) {
   return normalizePdfText(String(value));
 }
 
-export const exportToExcel = (
+export const exportToExcel = async (
   data: Record<string, unknown>[],
   columns: { header: string; key: string }[],
   filename: string,
   __title: string = "Report",
   multiTable?: { title: string; rows: Record<string, unknown>[]; columns: { header: string; key: string }[] }[]
 ) => {
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
   if (multiTable) {
@@ -157,6 +156,10 @@ export const exportToPDF = async (
   title: string = "Report",
   multiTable?: { title: string; rows: Record<string, unknown>[]; columns: { header: string; key: string }[] }[]
 ) => {
+  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf"),
+    import("jspdf-autotable"),
+  ]);
   const pickOrientation = () => {
     const colCount = multiTable
       ? Math.max(...multiTable.map((t) => t.columns.length), 0)

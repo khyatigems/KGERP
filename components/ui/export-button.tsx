@@ -31,9 +31,9 @@ export function ExportButton({
   label = "Export",
 }: ExportButtonProps) {
   
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (multiTable) {
-      exportToExcel([], [], filename, title, multiTable);
+      await exportToExcel([], [], filename, title, multiTable);
       return;
     }
     if (!data || !columns) return;
@@ -45,7 +45,7 @@ export function ExportButton({
         });
         return row;
     });
-    exportToExcel(excelData, columns, filename, title);
+    await exportToExcel(excelData, columns, filename, title);
   };
 
   const handleExportCSV = () => {

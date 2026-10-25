@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import * as XLSX from "xlsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -173,7 +172,8 @@ export function ListingsTable({ data, showEngagement = false }: ListingsTablePro
     }, 1000);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import("xlsx");
     const exportData = filteredData.map(item => {
         const original = item.priceHistory.length > 0 ? item.priceHistory[0].price : item.listedPrice;
         const diff = item.listedPrice - original;

@@ -946,6 +946,10 @@ model InventoryQrPaymentAttempt {
   razorpayPaymentId   String?  @unique
   activeKey           String?  @unique
   failureReason       String?
+  customerName        String?
+  customerEmail       String?
+  customerPhone       String?
+  customerRemarks     String?
   createdAt           DateTime @default(now())
   paidAt              DateTime?
 

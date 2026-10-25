@@ -164,7 +164,7 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
     (paymentSettings?.razorpayEnabled && paymentSettings.razorpayButtonId)
   );
   const qrPaymentDue = qrPayment ? Number((qrPayment.totalAmount - qrPayment.paidAmount).toFixed(2)) : 0;
-  const qrPaymentAmount = qrPayment?.enabled && ["IN_STOCK", "RESERVED"].includes(item.status.toUpperCase()) && paymentSettings?.razorpayEnabled && paymentSettings.razorpayKeyId?.trim() && paymentSettings.razorpayKeySecret?.trim() && qrPaymentDue > 0.01 && qrPayment.amountToCollect > 0 && (qrPayment.allowPartial || qrPayment.amountToCollect >= qrPaymentDue - 0.01)
+  const qrPaymentAmount = qrPayment?.enabled && ["IN_STOCK", "RESERVED"].includes(item.status.toUpperCase()) && paymentSettings?.razorpayEnabled && paymentSettings.razorpayKeyId?.trim() && paymentSettings.razorpayKeySecret?.trim() && qrPaymentDue >= 1 && qrPayment.amountToCollect >= 1 && (qrPayment.allowPartial || qrPayment.amountToCollect >= qrPaymentDue - 0.01)
     ? Math.min(qrPayment.amountToCollect, qrPaymentDue)
     : null;
   const payableInvoice = ["IN_STOCK", "RESERVED"].includes(item.status.toUpperCase()) && hasPaymentMethod
@@ -192,5 +192,5 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   void _internalProductDescription;
   void _internalCertificateComments;
 
-  return <SkuPreviewContent item={publicItem} companySettings={company} rate={rate || 0} totalAmount={totalAmount || 0} isPerCarat={isPerCarat} descriptionHtml={descriptionHtml} payNowUrl={payNowUrl} qrPaymentAmount={qrPaymentAmount} certificateUrl={certificateUrl} />;
+  return <SkuPreviewContent item={publicItem} companySettings={company} rate={rate || 0} totalAmount={totalAmount || 0} isPerCarat={isPerCarat} descriptionHtml={descriptionHtml} payNowUrl={payNowUrl} qrPaymentAmount={qrPaymentAmount} qrPaymentDue={qrPaymentDue} qrAllowPartial={Boolean(qrPayment?.allowPartial)} certificateUrl={certificateUrl} />;
 }

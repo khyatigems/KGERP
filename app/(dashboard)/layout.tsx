@@ -15,20 +15,26 @@ import { parseSidebarExpandedGroups, SIDEBAR_COLLAPSED_COOKIE, SIDEBAR_GROUPS_CO
 
 const SCHEMA_CACHE_TTL = 5 * 60 * 1000;
 let schemaCache: { result: boolean; expiresAt: number } | null = null;
+let schemaCheckInFlight: Promise<void> | null = null;
 let rbacTablesCache: { hasRbac: boolean; expiresAt: number } | null = null;
 
 async function ensureAllSchemasCached() {
   const now = Date.now();
   if (schemaCache && schemaCache.expiresAt > now) return;
-  await Promise.all([
+  if (schemaCheckInFlight) return schemaCheckInFlight;
+  schemaCheckInFlight = Promise.all([
     ensureUserRoleIdColumn(),
     ensureAvatarWhatsNewSchema(),
     ensurePasswordResetSchema(),
     ensureRbacSchema(),
     ensureMarketplaceFoundationSchema(),
     ensurePerformanceIndexes(),
-  ]);
-  schemaCache = { result: true, expiresAt: now + SCHEMA_CACHE_TTL };
+  ]).then(() => {
+    schemaCache = { result: true, expiresAt: Date.now() + SCHEMA_CACHE_TTL };
+  }).finally(() => {
+    schemaCheckInFlight = null;
+  });
+  return schemaCheckInFlight;
 }
 
 async function checkRbacTablesCached() {
@@ -70,8 +76,7 @@ export default async function DashboardLayout({
 }: {
   children: ReactNode;
 }) {
-  const session = await auth();
-  const cookieStore = await cookies();
+  const [session, cookieStore] = await Promise.all([auth(), cookies()]);
   const initialCollapsed = cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === "1";
   const initialExpandedGroups = parseSidebarExpandedGroups(cookieStore.get(SIDEBAR_GROUPS_COOKIE)?.value);
 
@@ -89,8 +94,10 @@ export default async function DashboardLayout({
 
   if (session?.user?.id) {
     await ensureAllSchemasCached();
-    const supports = await hasUserRoleIdColumn();
-    const hasRbacTables = await checkRbacTablesCached();
+    const [supports, hasRbacTables] = await Promise.all([
+      hasUserRoleIdColumn(),
+      checkRbacTablesCached(),
+    ]);
 
     const dbUser = supports && hasRbacTables
       ? ((await (prisma.user as any).findUnique({

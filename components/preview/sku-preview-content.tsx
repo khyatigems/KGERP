@@ -5,7 +5,7 @@ import { formatCurrency } from "@/lib/utils";
 import { MediaGallery } from "@/components/preview/media-gallery";
 import { StatusBadge } from "@/components/preview/status-badge";
 import type { Inventory } from "@prisma/client";
-import { ArrowUpRight, BadgeCheck } from "lucide-react";
+import { ArrowUpRight, BadgeCheck, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InventoryQrPayButton } from "@/components/preview/inventory-qr-pay-button";
@@ -31,6 +31,8 @@ interface Props {
   descriptionHtml: string;
   payNowUrl: string | null;
   qrPaymentAmount: number | null;
+  qrPaymentDue: number;
+  qrAllowPartial: boolean;
   certificateUrl: string | null;
 }
 
@@ -136,7 +138,7 @@ function SiteFooter({ companySettings }: { companySettings: CompanySettings | nu
   );
 }
 
-export function SkuPreviewContent({ item, companySettings, rate, totalAmount, isPerCarat, descriptionHtml, payNowUrl, qrPaymentAmount, certificateUrl }: Props) {
+export function SkuPreviewContent({ item, companySettings, rate, totalAmount, isPerCarat, descriptionHtml, payNowUrl, qrPaymentAmount, qrPaymentDue, qrAllowPartial, certificateUrl }: Props) {
   const [certificateDetailsOpen, setCertificateDetailsOpen] = useState(false);
   const uniqueProductMedia = useMemo(() => {
     const productMedia: GalleryMedia[] = item.media.map((media) => ({
@@ -192,15 +194,14 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
 
             <div className="kg-product-actions">
               {qrPaymentAmount !== null
-                ? <InventoryQrPayButton key={item.sku} sku={item.sku} itemName={item.itemName} itemImage={paymentPreviewImage} stockStatus={item.status} amountLabel={formatCurrency(qrPaymentAmount)} />
+                ? <InventoryQrPayButton key={`${item.sku}-${qrPaymentAmount}`} sku={item.sku} itemName={item.itemName} itemImage={paymentPreviewImage} stockStatus={item.status} maximumAmount={qrPaymentAmount} remainingBalance={qrPaymentDue} allowPartial={qrAllowPartial} />
                 : payNowUrl && <a className="kg-button kg-button-dark" href={payNowUrl}>PAY NOW <ArrowUpRight size={16} aria-hidden="true" /></a>}
-              <a className={`kg-button ${payNowUrl || qrPaymentAmount !== null ? "kg-button-outline" : "kg-button-dark"}`} href={productEnquiryUrl} target="_blank" rel="noopener noreferrer">ENQUIRE ABOUT THIS GEM <ArrowUpRight size={16} aria-hidden="true" /></a>
-              {showCertificate && (certificateUrl
-                ? <a className="kg-button kg-button-outline" href={certificateUrl} target="_blank" rel="noopener noreferrer"><BadgeCheck size={17} aria-hidden="true" /> VIEW CERTIFICATE</a>
-                : <button className="kg-button kg-button-outline" type="button" onClick={() => setCertificateDetailsOpen(true)}><BadgeCheck size={17} aria-hidden="true" /> VIEW CERTIFICATE</button>)}
+              <a className={`kg-button kg-enquire-button ${payNowUrl || qrPaymentAmount !== null ? "kg-button-outline" : "kg-button-dark"}`} href={productEnquiryUrl} target="_blank" rel="noopener noreferrer" aria-label={`Chat with the Khyati Gems team about ${item.itemName}`}><MessageCircle size={17} aria-hidden="true" /><span>CHAT WITH OUR GEM TEAM</span><ArrowUpRight size={14} aria-hidden="true" /></a>
             </div>
 
-            {showCertificate && <section className="kg-certificate" aria-labelledby="kg-certificate-title"><h2 id="kg-certificate-title">Certification</h2><div className="kg-certificate-facts">{certificateLab && <p><span>Laboratory</span>{certificateLab}</p>}{certificateNumber && <p><span>Certificate number</span>{certificateNumber}</p>}{item.certificates.map((cert) => <p key={cert.id}><span>Certificate</span>{cert.name}{cert.remarks ? ` · ${cert.remarks}` : ""}</p>)}</div>{certificateUrl && <a href={certificateUrl} target="_blank" rel="noopener noreferrer">Open certificate report <ArrowUpRight size={14} /></a>}</section>}
+            {showCertificate && <section className="kg-certificate" aria-labelledby="kg-certificate-title"><h2 id="kg-certificate-title">Certification</h2><div className="kg-certificate-facts">{certificateLab && <p><span>Laboratory</span>{certificateLab}</p>}{certificateNumber && <p><span>Certificate number</span>{certificateNumber}</p>}{item.certificates.map((cert) => <p key={cert.id}><span>Certificate</span>{cert.name}{cert.remarks ? ` · ${cert.remarks}` : ""}</p>)}</div>{certificateUrl
+              ? <a className="kg-button kg-button-outline kg-certificate-action" href={certificateUrl} target="_blank" rel="noopener noreferrer"><BadgeCheck size={16} aria-hidden="true" /> VIEW CERTIFICATE <ArrowUpRight size={14} aria-hidden="true" /></a>
+              : <button className="kg-button kg-button-outline kg-certificate-action" type="button" onClick={() => setCertificateDetailsOpen(true)}><BadgeCheck size={16} aria-hidden="true" /> VIEW CERTIFICATE</button>}</section>}
 
             <p className="kg-authenticity">Verified authentic · KhyatiGems collection</p>
           </div>
@@ -244,7 +245,7 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
         .kg-product-main{max-width:none;margin:0 auto}.kg-product-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(390px,.95fr);align-items:start;gap:clamp(48px,7vw,112px);max-width:1440px;margin:0 auto;padding:24px 6% 92px}.kg-gallery-column{position:sticky;top:112px;min-width:0}.kg-product-details{min-width:0;padding-top:9px}.kg-eyebrow{margin:0;color:var(--kg-gold-text);font-size:10px;font-weight:700;letter-spacing:.17em;text-transform:uppercase}.kg-product-details h1{margin:13px 0 12px;color:var(--kg-ink);font:500 clamp(35px,4.2vw,58px)/1.12 'KG Playfair',Georgia,serif;letter-spacing:-.035em}.kg-sku{margin:0;color:#777a72;font-size:10px;letter-spacing:.14em}.kg-stock{display:flex;margin:24px 0 6px}.kg-stock .status-badge,.kg-stock>div{margin:0!important}
         .kg-price-row{display:flex;justify-content:space-between;align-items:flex-end;gap:22px;margin-top:18px;padding:23px 0;border-block:1px solid var(--kg-line)}.kg-price-row span{color:#777a72;font-size:9px;font-weight:700;letter-spacing:.14em}.kg-price-row p{margin:6px 0 0;color:var(--kg-ink);font:500 22px/1.2 'KG Playfair',Georgia,serif}.kg-price-row small{font:400 12px 'KG DM Sans',Arial,sans-serif;color:#777a72}.kg-total-price{text-align:right}.kg-total-price p{font-size:28px}
         .kg-introduction{max-width:600px;margin:22px 0 0;color:#5f635d;font-size:14px;line-height:1.85}.kg-spec-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;margin:26px 0 0;padding:0;border-top:1px solid var(--kg-line)}.kg-spec-grid>div{min-width:0;padding:15px 0;border-bottom:1px solid var(--kg-line)}.kg-spec-grid dt{color:#777a72;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}.kg-spec-grid dd{margin:4px 0 0;color:#292d28;font-size:14px;font-weight:500;overflow-wrap:anywhere}
-        .kg-product-actions{display:flex;flex-wrap:wrap;gap:11px;margin-top:27px}.kg-button{display:inline-flex;min-height:52px;align-items:center;justify-content:center;gap:10px;padding:14px 18px;border:1px solid var(--kg-ink);border-radius:2px;font-size:10px;font-weight:700;letter-spacing:.08em;text-decoration:none;transition:background-color .18s,color .18s,transform .18s}.kg-button:hover{transform:translateY(-1px)}.kg-button-dark{background:var(--kg-ink);color:#fff!important}.kg-button-dark:hover{background:#3d443c}.kg-button-outline{background:transparent;color:var(--kg-ink)}.kg-button-outline:hover{background:#fff}.kg-certificate{margin-top:28px;padding:20px 22px;background:#f5f1e8}.kg-certificate h2{margin:0 0 12px;font:500 18px 'KG Playfair',Georgia,serif}.kg-certificate-facts{display:flex;flex-wrap:wrap;gap:8px 22px}.kg-certificate-facts p{display:grid;gap:3px;margin:0;color:#33372f;font-size:12px}.kg-certificate-facts p span{color:#777a72;font-size:9px;letter-spacing:.1em;text-transform:uppercase}.kg-certificate>a{display:inline-flex;align-items:center;gap:5px;margin-top:12px;color:var(--kg-gold-text);font-size:11px;font-weight:700;text-decoration:none}.kg-authenticity{margin:28px 0 0;color:#777a72;font-size:10px;letter-spacing:.11em;text-align:center;text-transform:uppercase}
+        .kg-product-actions{display:flex;align-items:flex-start;flex-wrap:wrap;gap:11px;margin-top:27px}.kg-button{display:inline-flex;min-height:52px;align-items:center;justify-content:center;gap:10px;padding:14px 18px;border:1px solid var(--kg-ink);border-radius:2px;font-size:10px;font-weight:700;letter-spacing:.08em;text-decoration:none;transition:background-color .18s,color .18s,transform .18s}.kg-button:hover{transform:translateY(-1px)}.kg-button-dark{background:var(--kg-ink);color:#fff!important}.kg-button-dark:hover{background:#3d443c}.kg-button-outline{background:transparent;color:var(--kg-ink)}.kg-button-outline:hover{background:#fff}.kg-enquire-button{min-height:52px;min-width:218px;gap:9px;padding:12px 16px;white-space:nowrap;font-size:9px;letter-spacing:.075em}.kg-enquire-button svg:first-child{color:#9b7442;flex:none}.kg-enquire-button span{line-height:1}.kg-certificate{margin-top:28px;padding:20px 22px;background:#f5f1e8}.kg-certificate h2{margin:0 0 12px;font:500 18px 'KG Playfair',Georgia,serif}.kg-certificate-facts{display:flex;flex-wrap:wrap;gap:8px 22px}.kg-certificate-facts p{display:grid;gap:3px;margin:0;color:#33372f;font-size:12px}.kg-certificate-facts p span{color:#777a72;font-size:9px;letter-spacing:.1em;text-transform:uppercase}.kg-certificate-action{min-height:42px;margin-top:15px;padding:10px 14px}.kg-authenticity{margin:28px 0 0;color:#777a72;font-size:10px;letter-spacing:.11em;text-align:center;text-transform:uppercase}
         .kg-description-section{padding:72px 6%;border-block:1px solid var(--kg-line);background:var(--kg-ivory)}
         .kg-description-inner{max-width:1160px;margin:0 auto}
         .kg-description-inner h2{margin:10px 0 0;color:var(--kg-ink);font:500 clamp(29px,3vw,42px)/1.2 'KG Playfair',Georgia,serif}
