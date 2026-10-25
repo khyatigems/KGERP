@@ -145,6 +145,7 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
   if (item.videoUrl) productMedia.push({ id: "inventory-main-video", mediaType: "VIDEO", mediaUrl: item.videoUrl, isPrimary: false });
   const uniqueProductMedia = productMedia.filter((media, index, list) => media.mediaUrl && list.findIndex((candidate) => candidate.mediaUrl === media.mediaUrl) === index);
   const hasProductImage = uniqueProductMedia.some((media) => media.mediaType.toUpperCase() === "IMAGE");
+  const paymentPreviewImage = uniqueProductMedia.find((media) => media.mediaType.toUpperCase() === "IMAGE")?.mediaUrl || null;
   const galleryMedia = [
     ...(!hasProductImage ? [productPlaceholder] : []),
     ...uniqueProductMedia,
@@ -189,7 +190,7 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
 
             <div className="kg-product-actions">
               {qrPaymentAmount !== null
-                ? <InventoryQrPayButton sku={item.sku} amountLabel={formatCurrency(qrPaymentAmount)} />
+                ? <InventoryQrPayButton key={item.sku} sku={item.sku} itemName={item.itemName} itemImage={paymentPreviewImage} stockStatus={item.status} amountLabel={formatCurrency(qrPaymentAmount)} />
                 : payNowUrl && <a className="kg-button kg-button-dark" href={payNowUrl}>PAY NOW <ArrowUpRight size={16} aria-hidden="true" /></a>}
               <a className={`kg-button ${payNowUrl || qrPaymentAmount !== null ? "kg-button-outline" : "kg-button-dark"}`} href={productEnquiryUrl} target="_blank" rel="noopener noreferrer">ENQUIRE ABOUT THIS GEM <ArrowUpRight size={16} aria-hidden="true" /></a>
               {showCertificate && (certificateUrl
