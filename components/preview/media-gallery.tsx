@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ImageOff, PlayCircle, ZoomIn } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageOff, Pause, Play, PlayCircle, ZoomIn } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 interface MediaItem {
@@ -20,18 +20,47 @@ interface MediaGalleryProps {
 }
 
 export function MediaGallery({ media, itemName }: MediaGalleryProps) {
-  const slides = [...media].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+  const slides = useMemo(() => [...media].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)), [media]);
+  const imageIndexes = useMemo(() => slides.flatMap((slide, index) => slide.mediaType.toUpperCase() === "VIDEO" ? [] : [index]), [slides]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [zoomOpen, setZoomOpen] = useState(false);
+  const [autoAdvance, setAutoAdvance] = useState(true);
+  const [pointerInside, setPointerInside] = useState(false);
+  const [pageVisible, setPageVisible] = useState(true);
+  const selectedThumbnailRef = useRef<HTMLButtonElement>(null);
   const selected = slides[selectedIndex];
   const select = (index: number) => setSelectedIndex((index + slides.length) % slides.length);
+
+  useEffect(() => {
+    setSelectedIndex(0);
+    setUnavailable([]);
+  }, [slides]);
+
+  useEffect(() => {
+    const updateVisibility = () => setPageVisible(document.visibilityState === "visible");
+    updateVisibility();
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (!autoAdvance || pointerInside || zoomOpen || !pageVisible || imageIndexes.length < 2 || selected?.mediaType.toUpperCase() === "VIDEO") return;
+    const interval = window.setInterval(() => {
+      setSelectedIndex((current) => imageIndexes.find((index) => index > current) ?? imageIndexes[0]);
+    }, 5000);
+    return () => window.clearInterval(interval);
+  }, [autoAdvance, imageIndexes, pageVisible, pointerInside, selected?.mediaType, selectedIndex, zoomOpen]);
+
+  useEffect(() => {
+    selectedThumbnailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  }, [selectedIndex]);
 
   if (!selected) return null;
 
   return (
-    <section className="kg-gallery" aria-label={`${itemName} image gallery`}>
-      <div className="kg-gallery-stage" aria-live="polite">
+    <section className="kg-gallery" aria-label={`${itemName} image gallery`} onMouseEnter={() => setPointerInside(true)} onMouseLeave={() => setPointerInside(false)}>
+      <div className="kg-gallery-stage" aria-live={autoAdvance ? "off" : "polite"}>
         {selected.mediaType.toUpperCase() === "VIDEO" ? (
           <video
             key={selected.id}
@@ -62,6 +91,10 @@ export function MediaGallery({ media, itemName }: MediaGalleryProps) {
             {selected.id !== "product-image-unavailable" && <span className="kg-gallery-zoom-hint"><ZoomIn size={15} aria-hidden="true" /> Zoom image</span>}
           </button>
         )}
+        {imageIndexes.length > 1 && <button type="button" className="kg-gallery-rotation-toggle" onClick={() => setAutoAdvance((current) => !current)} aria-label={autoAdvance ? "Pause automatic image rotation" : "Resume automatic image rotation"} title={autoAdvance ? "Pause slideshow" : "Play slideshow"}>
+          {autoAdvance ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />}
+          <span>{autoAdvance ? "Auto" : "Paused"}</span>
+        </button>}
         {slides.length > 1 && <>
           <button type="button" className="kg-gallery-arrow kg-gallery-arrow-left" aria-label="Previous image" onClick={() => select(selectedIndex - 1)}><ChevronLeft size={22} /></button>
           <button type="button" className="kg-gallery-arrow kg-gallery-arrow-right" aria-label="Next image" onClick={() => select(selectedIndex + 1)}><ChevronRight size={22} /></button>
@@ -74,6 +107,7 @@ export function MediaGallery({ media, itemName }: MediaGalleryProps) {
           const alt = slide.alt || (slide.id.startsWith("brand-") ? slide.id.replace("brand-", "Khyati Gems ") : `${itemName} image ${index + 1}`);
           return <button
             key={slide.id}
+            ref={index === selectedIndex ? selectedThumbnailRef : undefined}
             type="button"
             aria-label={`Show ${isVideo ? "video" : "image"} ${index + 1}: ${alt}`}
             aria-pressed={index === selectedIndex}
@@ -95,7 +129,7 @@ export function MediaGallery({ media, itemName }: MediaGalleryProps) {
         </DialogContent>
       </Dialog>
       <style jsx global>{`
-        .kg-gallery{width:100%;min-width:0}.kg-gallery-stage{position:relative;display:flex;aspect-ratio:1/1;align-items:center;justify-content:center;overflow:hidden;background:#f5f1e8}.kg-gallery-zoom-trigger{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;background:transparent;cursor:zoom-in}.kg-gallery-zoom-trigger:focus-visible{z-index:1;outline:2px solid #96733b;outline-offset:-4px}.kg-gallery-image{object-fit:contain;padding:18px}.kg-gallery-image.kg-gallery-brand-image{object-fit:cover;padding:0}.kg-gallery-zoom-hint{position:absolute;bottom:14px;left:14px;display:flex;align-items:center;gap:6px;padding:7px 9px;background:#fcfbf7eF;color:#202521;font-size:10px;letter-spacing:.04em}.kg-gallery-video{width:100%;height:100%;background:#151714;object-fit:contain}.kg-gallery-unavailable{display:flex;flex-direction:column;align-items:center;gap:12px;color:#777a72;font-size:12px;letter-spacing:.04em}.kg-gallery-arrow{position:absolute;top:50%;z-index:2;display:grid;width:42px;height:42px;place-items:center;transform:translateY(-50%);border:1px solid #20252122;border-radius:50%;background:#fcfbf7eF;color:#202521;cursor:pointer;transition:background .16s,color .16s}.kg-gallery-arrow:hover{background:#202521;color:#fff}.kg-gallery-arrow-left{left:14px}.kg-gallery-arrow-right{right:14px}.kg-gallery-counter{position:absolute;right:15px;bottom:15px;z-index:2;padding:5px 9px;background:#202521b8;color:white;font-size:10px;letter-spacing:.1em}.kg-gallery-thumbnails{display:flex;gap:9px;overflow-x:auto;padding:12px 1px 5px;scrollbar-width:thin;scroll-snap-type:x mandatory}.kg-gallery-thumbnail{position:relative;flex:0 0 74px;width:74px;height:74px;overflow:hidden;scroll-snap-align:start;border:1px solid #d9d5cb;background:#f5f1e8;cursor:pointer;opacity:.76;transition:border-color .18s,opacity .18s}.kg-gallery-thumbnail:hover,.kg-gallery-thumbnail.is-selected{border-color:#96733b;opacity:1}.kg-gallery-thumbnail.is-selected{outline:1px solid #96733b;outline-offset:1px}.kg-gallery-thumbnail :global(img){object-fit:cover}.kg-gallery-video-thumb,.kg-gallery-failed-thumb{display:grid;width:100%;height:100%;place-items:center;color:#555c55}.kg-gallery-brand-label{position:absolute;right:0;bottom:0;left:0;padding:3px 4px;background:#202521aa;color:white;font-size:8px;letter-spacing:.06em;text-align:center;text-transform:uppercase}.kg-gallery-lightbox{width:96vw!important;max-width:1500px!important;max-height:95dvh!important;padding:18px!important;overflow:hidden;background:#151714!important;color:white!important;border-color:#ffffff24!important}.kg-gallery-lightbox [data-slot="dialog-close"]{color:#fff}.kg-gallery-lightbox-stage{position:relative;width:100%;height:min(84dvh,1120px);min-height:240px}.kg-gallery-lightbox-image{object-fit:contain}
+        .kg-gallery{width:100%;min-width:0}.kg-gallery-stage{position:relative;display:flex;aspect-ratio:1/1;align-items:center;justify-content:center;overflow:hidden;background:#f5f1e8}.kg-gallery-zoom-trigger{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;background:transparent;cursor:zoom-in}.kg-gallery-zoom-trigger:focus-visible{z-index:1;outline:2px solid #96733b;outline-offset:-4px}.kg-gallery-image{object-fit:contain;padding:18px}.kg-gallery-image.kg-gallery-brand-image{object-fit:cover;padding:0}.kg-gallery-zoom-hint{position:absolute;bottom:14px;left:14px;display:flex;align-items:center;gap:6px;padding:7px 9px;background:#fcfbf7eF;color:#202521;font-size:10px;letter-spacing:.04em}.kg-gallery-rotation-toggle{position:absolute;bottom:14px;left:124px;z-index:3;display:flex;min-height:31px;align-items:center;gap:5px;padding:0 9px;border:1px solid #20252124;background:#fcfbf7ef;color:#202521;cursor:pointer;font-size:9px;letter-spacing:.04em}.kg-gallery-rotation-toggle:hover{background:#fff}.kg-gallery-video{width:100%;height:100%;background:#151714;object-fit:contain}.kg-gallery-unavailable{display:flex;flex-direction:column;align-items:center;gap:12px;color:#777a72;font-size:12px;letter-spacing:.04em}.kg-gallery-arrow{position:absolute;top:50%;z-index:2;display:grid;width:42px;height:42px;place-items:center;transform:translateY(-50%);border:1px solid #20252122;border-radius:50%;background:#fcfbf7eF;color:#202521;cursor:pointer;transition:background .16s,color .16s}.kg-gallery-arrow:hover{background:#202521;color:#fff}.kg-gallery-arrow-left{left:14px}.kg-gallery-arrow-right{right:14px}.kg-gallery-counter{position:absolute;right:15px;bottom:15px;z-index:2;padding:5px 9px;background:#202521b8;color:white;font-size:10px;letter-spacing:.1em}.kg-gallery-thumbnails{display:flex;gap:9px;overflow-x:auto;padding:12px 1px 5px;scrollbar-width:thin;scroll-snap-type:x mandatory}.kg-gallery-thumbnail{position:relative;flex:0 0 74px;width:74px;height:74px;overflow:hidden;scroll-snap-align:start;border:1px solid #d9d5cb;background:#f5f1e8;cursor:pointer;opacity:.76;transition:border-color .18s,opacity .18s}.kg-gallery-thumbnail:hover,.kg-gallery-thumbnail.is-selected{border-color:#96733b;opacity:1}.kg-gallery-thumbnail.is-selected{outline:1px solid #96733b;outline-offset:1px}.kg-gallery-thumbnail :global(img){object-fit:cover}.kg-gallery-video-thumb,.kg-gallery-failed-thumb{display:grid;width:100%;height:100%;place-items:center;color:#555c55}.kg-gallery-brand-label{position:absolute;right:0;bottom:0;left:0;padding:3px 4px;background:#202521aa;color:white;font-size:8px;letter-spacing:.06em;text-align:center;text-transform:uppercase}.kg-gallery-lightbox{width:96vw!important;max-width:1500px!important;max-height:95dvh!important;padding:18px!important;overflow:hidden;background:#151714!important;color:white!important;border-color:#ffffff24!important}.kg-gallery-lightbox [data-slot="dialog-close"]{color:#fff}.kg-gallery-lightbox-stage{position:relative;width:100%;height:min(84dvh,1120px);min-height:240px}.kg-gallery-lightbox-image{object-fit:contain}
         @media(max-width:700px){.kg-gallery-stage{aspect-ratio:1/1}.kg-gallery-thumbnail{flex-basis:64px;width:64px;height:64px}.kg-gallery-arrow{width:38px;height:38px}}
       `}</style>
     </section>

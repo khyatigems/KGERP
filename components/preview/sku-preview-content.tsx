@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { MediaGallery } from "@/components/preview/media-gallery";
 import { StatusBadge } from "@/components/preview/status-badge";
@@ -138,19 +138,21 @@ function SiteFooter({ companySettings }: { companySettings: CompanySettings | nu
 
 export function SkuPreviewContent({ item, companySettings, rate, totalAmount, isPerCarat, descriptionHtml, payNowUrl, qrPaymentAmount, certificateUrl }: Props) {
   const [certificateDetailsOpen, setCertificateDetailsOpen] = useState(false);
-  const productMedia: GalleryMedia[] = item.media.map((media) => ({
-    id: media.id, mediaType: media.type, mediaUrl: media.mediaUrl, isPrimary: media.isPrimary,
-  }));
-  if (item.imageUrl) productMedia.unshift({ id: "inventory-main-image", mediaType: "IMAGE", mediaUrl: item.imageUrl, isPrimary: !productMedia.some((media) => media.isPrimary) });
-  if (item.videoUrl) productMedia.push({ id: "inventory-main-video", mediaType: "VIDEO", mediaUrl: item.videoUrl, isPrimary: false });
-  const uniqueProductMedia = productMedia.filter((media, index, list) => media.mediaUrl && list.findIndex((candidate) => candidate.mediaUrl === media.mediaUrl) === index);
+  const uniqueProductMedia = useMemo(() => {
+    const productMedia: GalleryMedia[] = item.media.map((media) => ({
+      id: media.id, mediaType: media.type, mediaUrl: media.mediaUrl, isPrimary: media.isPrimary,
+    }));
+    if (item.imageUrl) productMedia.unshift({ id: "inventory-main-image", mediaType: "IMAGE", mediaUrl: item.imageUrl, isPrimary: !productMedia.some((media) => media.isPrimary) });
+    if (item.videoUrl) productMedia.push({ id: "inventory-main-video", mediaType: "VIDEO", mediaUrl: item.videoUrl, isPrimary: false });
+    return productMedia.filter((media, index, list) => media.mediaUrl && list.findIndex((candidate) => candidate.mediaUrl === media.mediaUrl) === index);
+  }, [item.imageUrl, item.media, item.videoUrl]);
   const hasProductImage = uniqueProductMedia.some((media) => media.mediaType.toUpperCase() === "IMAGE");
   const paymentPreviewImage = uniqueProductMedia.find((media) => media.mediaType.toUpperCase() === "IMAGE")?.mediaUrl || null;
-  const galleryMedia = [
+  const galleryMedia = useMemo(() => [
     ...(!hasProductImage ? [productPlaceholder] : []),
     ...uniqueProductMedia,
     ...(hasProductImage ? brandSlides.map((slide) => ({ ...slide, mediaType: "IMAGE", isPrimary: false, alt: slide.title })) : []),
-  ];
+  ], [hasProductImage, uniqueProductMedia]);
 
   const certificateNumber = item.certificateNumber || item.certificateNo;
   const certificateLab = (item as unknown as { certificateLab?: string | null }).certificateLab || item.lab;
@@ -173,7 +175,7 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
 
       <main id="kg-main" className="kg-product-main">
         <section className="kg-product-layout" aria-labelledby="kg-product-title">
-          <div className="kg-gallery-column"><MediaGallery media={galleryMedia} itemName={item.itemName} /></div>
+          <div className="kg-gallery-column"><MediaGallery key={item.sku} media={galleryMedia} itemName={item.itemName} /></div>
           <div className="kg-product-details">
             <p className="kg-eyebrow">{item.gemstoneCode?.name || item.gemType || "Natural Gemstone"}</p>
             <h1 id="kg-product-title">{item.itemName}</h1>

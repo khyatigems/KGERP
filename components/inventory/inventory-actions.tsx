@@ -112,6 +112,11 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
 
   return (
     <div className="flex items-center justify-end gap-1">
+      <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0" title="View inventory details">
+        <Link href={`/inventory/${item.id}`} onClick={() => showLoader()} aria-label={`View details for ${item.sku}`}>
+          <Eye className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </Button>
       <InventoryQrDialog itemName={item.itemName} sku={item.sku} />
       
       <DropdownMenu>
