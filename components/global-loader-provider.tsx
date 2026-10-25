@@ -6,6 +6,8 @@ import { Toaster } from "@/lib/erp-feedback";
 import { MarketplaceSyncToastMonitor } from "@/components/marketplace/sync-toast-monitor";
 import { TopLoader } from "@/components/ui/top-loader";
 import { ErpConfirmationProvider } from "@/components/providers/erp-confirmation-provider";
+import { CheckCheck, CircleAlert, Info, LoaderCircle, TriangleAlert } from "lucide-react";
+import "@/components/ui/rich-feedback.css";
 
 interface GlobalLoaderContextType {
   isLoading: boolean;
@@ -105,8 +107,11 @@ function GlobalLoaderContent({ children }: { children: React.ReactNode }) {
         <TopLoader isLoading={isLoading} progress={progress} />
         {isLoading && <div role="status" className="pointer-events-none fixed bottom-5 right-5 z-[9998] rounded-xl border bg-card px-4 py-2 text-xs text-muted-foreground shadow-sm">Loading…</div>}
         <Toaster
-          richColors
+          position="bottom-right"
+          closeButton
           expand
+          style={{ width: "min(420px, calc(100vw - 32px))" }}
+          icons={{ success: <CheckCheck size={19} />, error: <CircleAlert size={19} />, warning: <TriangleAlert size={19} />, info: <Info size={19} />, loading: <LoaderCircle size={19} className="erp-feedback-spin" /> }}
           visibleToasts={4}
           toastOptions={{
             unstyled: false,

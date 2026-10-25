@@ -6,7 +6,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MobileInventoryActions } from "@/components/inventory/mobile-inventory-actions";
-import { ListingManager } from "@/components/inventory/listing-manager";
 import { LabelPrintDialog } from "@/components/inventory/label-print-dialog";
 import { GciCertButton } from "@/components/inventory/gci-cert-button";
 import { EmailCertificateButton } from "@/components/inventory/email-certificate-button";
@@ -759,7 +758,7 @@ export default async function InventoryDetailPage({
             
             <div className="space-y-4 rounded-xl border bg-card p-6 text-card-foreground shadow md:col-span-2 lg:col-span-3">
                 <div className="flex items-center justify-between border-b pb-2">
-                    <h2 className="text-lg font-semibold">Listings & Platforms</h2>
+                    <h2 className="text-lg font-semibold">Labels</h2>
                     <LabelPrintDialog 
                         item={{
                             id: detailedItem.id,
@@ -777,9 +776,6 @@ export default async function InventoryDetailPage({
                         }}
                         trigger={<Button variant="outline" size="sm"><Pencil className="mr-2 h-4 w-4" /> Print Label</Button>}
                     />
-                </div>
-                <div className="pt-2">
-                    <ListingManager inventoryId={id} sku={detailedItem.sku} />
                 </div>
             </div>
 

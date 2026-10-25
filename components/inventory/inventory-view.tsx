@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { LayoutGrid, Table2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InventoryTable } from "./inventory-table";
-import { InventoryCardList } from "./inventory-card-list";
+import { useMobileLayout } from "@/lib/use-mobile-layout";
 
 type ViewMode = "table" | "cards";
 const STORAGE_KEY = "inventory:view";
@@ -38,7 +38,7 @@ export function InventoryViewProvider({ children }: { children: ReactNode }) {
 export function InventoryViewToggle() {
   const { view, changeView } = useContext(InventoryViewContext);
   return (
-        <div className="flex items-center gap-1 rounded-md border p-1">
+        <div className="hidden items-center gap-1 rounded-xl border p-1 md:flex">
           <Button
             variant={view === "table" ? "secondary" : "ghost"}
             size="sm"
@@ -72,7 +72,6 @@ interface InventoryViewProps {
   collections: any[];
   cuts?: any[];
   origins?: string[];
-  canManageAttentionVisibility: boolean;
 }
 
 /**
@@ -90,14 +89,15 @@ export function InventoryView({
   collections,
   cuts = [],
   origins = [],
-  canManageAttentionVisibility,
 }: InventoryViewProps) {
   const { view } = useContext(InventoryViewContext);
+  const mobile = useMobileLayout();
+  const showTable = !mobile && view === "table";
 
   return (
-    <div>
-      {view === "table" && (
-        <InventoryTable
+    <div className="min-w-0">
+      <InventoryTable
+          presentation={showTable ? "table" : "cards"}
           data={data}
           vendors={vendors}
           categories={categories}
@@ -108,13 +108,7 @@ export function InventoryView({
           collections={collections}
           cuts={cuts}
           origins={origins}
-          canManageAttentionVisibility={canManageAttentionVisibility}
         />
-      )}
-
-      {view === "cards" && (
-        <InventoryCardList data={data} canManageAttentionVisibility={canManageAttentionVisibility} />
-      )}
     </div>
   );
 }

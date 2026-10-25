@@ -1,3 +1,4 @@
+import "@/components/inventory/inventory-layout.css";
 import { activeChannelListingWhere, buildPreparedUnlistedWhere } from "@/lib/trading-dashboard";
 import { Metadata } from "next";
 import { Plus, Upload } from "lucide-react";
@@ -74,7 +75,8 @@ export const metadata: Metadata = {
   title: "Inventory | KhyatiGems",
 };
 
-const ITEMS_PER_PAGE = 50;
+// Full card rows at 1, 2, 3, or 4 columns; shared with table pagination.
+const ITEMS_PER_PAGE = 48;
 
 function parseMulti(value: string | undefined): string[] {
   if (!value) return [];
@@ -243,24 +245,20 @@ async function getInventoryData(params: SearchParams) {
 
   let canView = false;
   let canCreate = false;
-  let canManageAttentionVisibility = false;
 
   if (userId) {
     const perms = await checkUserPermissions(userId, [
       PERMISSIONS.INVENTORY_VIEW,
       PERMISSIONS.INVENTORY_CREATE,
-      PERMISSIONS.INVENTORY_EDIT,
     ]);
     canView = perms.get(PERMISSIONS.INVENTORY_VIEW) ?? false;
     canCreate = perms.get(PERMISSIONS.INVENTORY_CREATE) ?? false;
-    canManageAttentionVisibility = perms.get(PERMISSIONS.INVENTORY_EDIT) ?? false;
   }
 
   if (!canView) {
     return {
       canView,
       canCreate,
-      canManageAttentionVisibility,
       inventory: [] as InventoryListItem[],
       totalItems: 0,
       categories: [],
@@ -455,7 +453,6 @@ async function getInventoryData(params: SearchParams) {
   return {
     canView,
     canCreate,
-    canManageAttentionVisibility,
     inventory,
     totalItems,
     categories,
@@ -515,7 +512,7 @@ export default async function InventoryPage({
   return (
     <AnimatedPage>
     <InventoryViewProvider>
-    <div className="space-y-6">
+    <div className="inventory-page min-w-0 space-y-4 md:space-y-5">
       <InventorySavedToast />
       <WorkspaceHeader className="inventory-header" eyebrow="KhyatiGems · Inventory & catalog"><div className="space-y-3">
         <div className="inventory-heading-row">
@@ -541,6 +538,7 @@ export default async function InventoryPage({
               </Button>
             </>
           )}
+          <details className="inventory-tools"><summary>Exports & tools</summary><div className="inventory-tools-content">
           <InventorySummaryExport compact />
           <ComprehensiveExport label="Complete Export" />
           <Suspense fallback={null}>
@@ -549,12 +547,13 @@ export default async function InventoryPage({
           <InventoryStats searchParams={params} exportsOnly />
           <RegenerateEbayButton label="eBay Descriptions" />
           <RegenerateEtsyButton label="Etsy Descriptions" />
+          </div></details>
         </div>
       </div></WorkspaceHeader>
 
       <InventoryStats searchParams={params} />
 
-      <div className="bg-card p-4 rounded-2xl border shadow-sm [&_button]:rounded-xl">
+      <div className="min-w-0 bg-card p-3 md:p-4 rounded-2xl border shadow-sm [&_button]:rounded-xl">
         <InventorySearch
           vendors={data.vendors}
           categories={data.categories}
@@ -589,12 +588,11 @@ export default async function InventoryPage({
           collections={data.collections}
           cuts={data.cuts}
           origins={data.origins}
-          canManageAttentionVisibility={data.canManageAttentionVisibility}
         />
 
         {data.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border rounded-md bg-gray-50/50 mt-4">
-            <div className="text-sm text-gray-500">
+          <div className="inventory-results-pagination flex items-center justify-between px-4 py-3 border rounded-xl bg-card mt-4">
+            <div className="text-sm text-muted-foreground">
               Showing {Math.min((data.currentPage - 1) * ITEMS_PER_PAGE + 1, data.totalItems)} - {Math.min(data.currentPage * ITEMS_PER_PAGE, data.totalItems)} of {data.totalItems}
             </div>
             <div className="flex items-center gap-2">
@@ -603,7 +601,7 @@ export default async function InventoryPage({
                   Prev
                 </LoadingLink>
               </Button>
-              <span className="text-sm text-gray-600">Page {data.currentPage} of {data.totalPages}</span>
+              <span className="text-sm text-muted-foreground">Page {data.currentPage} of {data.totalPages}</span>
               <Button variant="outline" size="sm" asChild disabled={data.currentPage >= data.totalPages}>
                 <LoadingLink href={buildPageUrl(data.currentPage + 1)} className={data.currentPage >= data.totalPages ? "pointer-events-none opacity-50" : ""}>
                   Next

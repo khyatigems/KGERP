@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Globe, Receipt } from "lucide-react";
+import { Eye, Globe, IndianRupee } from "lucide-react";
 import type { ElementType } from "react";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import type { Invoice, Sale, Quotation } from "@prisma/client";
@@ -99,7 +99,7 @@ function InvoiceTable({ invoices, title, icon: Icon, type }: {
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="border-gray-300 text-gray-700 bg-muted/50">
-                      <Receipt className="h-3 w-3 mr-1" /> TAX
+                      <IndianRupee className="h-3 w-3 mr-1" /> TAX
                     </Badge>
                   )}
                 </TableCell>
@@ -149,7 +149,7 @@ export default async function InvoicesPage() {
         <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
         <div className="flex gap-2">
           <Badge variant="secondary" className="px-3 py-1">
-            <Receipt className="h-4 w-4 mr-1" /> TAX: {taxInvoices.length}
+            <IndianRupee className="h-4 w-4 mr-1" /> TAX: {taxInvoices.length}
           </Badge>
           <Badge className="bg-primary px-3 py-1">
             <Globe className="h-4 w-4 mr-1" /> EXPORT: {exportInvoices.length}
@@ -177,7 +177,7 @@ export default async function InvoicesPage() {
           <InvoiceTable 
             invoices={taxInvoices as InvoiceWithRelations[]} 
             title="Tax Invoices" 
-            icon={Receipt}
+            icon={IndianRupee}
             type="TAX"
           />
         </div>

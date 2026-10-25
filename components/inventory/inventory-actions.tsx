@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Eye, MoreHorizontal, Pencil, IndianRupee, FileText, Globe, Printer, EyeOff, EyeIcon, Lock, Clock, Copy } from "lucide-react";
+import { Eye, MoreHorizontal, Pencil, IndianRupee, FileText, Printer, Lock, Clock, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,10 +19,6 @@ import { useGlobalLoader } from "@/components/global-loader-provider";
 
 const InventoryQrDialog = dynamic(
   () => import("./inventory-qr").then((m) => ({ default: m.InventoryQrDialog })),
-  { ssr: false }
-);
-const ListingManager = dynamic(
-  () => import("./listing-manager").then((m) => ({ default: m.ListingManager })),
   { ssr: false }
 );
 const PackagingPrintDialog = dynamic(
@@ -46,6 +42,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 interface InventoryActionsProps {
+  compact?: boolean;
   item: {
     id: string;
     itemName: string;
@@ -63,15 +60,12 @@ interface InventoryActionsProps {
     shape?: string | null;
     dimensionsMm?: string | null;
     stockLocation?: string | null;
-    hideFromAttention?: boolean | null;
   };
-  canManageAttentionVisibility: boolean;
 }
 
-export function InventoryActions({ item, canManageAttentionVisibility }: InventoryActionsProps) {
+export function InventoryActions({ item, compact = false }: InventoryActionsProps) {
   const router = useRouter();
   const { showLoader } = useGlobalLoader();
-  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [packagingOpen, setPackagingOpen] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<"IN_STOCK" | "RESERVED" | "MEMO">("RESERVED");
@@ -80,43 +74,14 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
   const sellingPrice = item.pricingMode === "PER_CARAT"
     ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
     : item.flatSellingPrice || 0;
-  const isHiddenFromAttention = Boolean(item.hideFromAttention);
-
-  const toggleAttentionVisibility = async () => {
-    if (!canManageAttentionVisibility || isUpdatingVisibility) return;
-    setIsUpdatingVisibility(true);
-    try {
-      const response = await fetch(`/api/inventory/${item.id}/attention-visibility`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hideFromAttention: !isHiddenFromAttention }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result?.error || "Failed to update SKU attention visibility");
-      }
-      localStorage.setItem("attention-visibility-last-change", Date.now().toString());
-      window.dispatchEvent(new Event("attention-visibility-changed"));
-      toast.success(
-        result.hideFromAttention
-          ? `${item.sku} hidden from attention widget`
-          : `${item.sku} visible in attention widget`
-      );
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update SKU attention visibility");
-    } finally {
-      setIsUpdatingVisibility(false);
-    }
-  };
 
   return (
     <div className="flex items-center justify-end gap-1">
-      <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0" title="View inventory details">
+      {!compact && <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0" title="View inventory details">
         <Link href={`/inventory/${item.id}`} onClick={() => showLoader()} aria-label={`View details for ${item.sku}`}>
           <Eye className="h-4 w-4" aria-hidden="true" />
         </Link>
-      </Button>
+      </Button>}
       <InventoryQrDialog itemName={item.itemName} sku={item.sku} />
       
       <DropdownMenu>
@@ -138,20 +103,6 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
               <Copy className="mr-2 h-4 w-4" /> Copy
             </Link>
           </DropdownMenuItem>
-              {canManageAttentionVisibility && (
-                <DropdownMenuItem onClick={toggleAttentionVisibility} disabled={isUpdatingVisibility}>
-                  {isHiddenFromAttention ? (
-                    <EyeIcon className="mr-2 h-4 w-4" />
-                  ) : (
-                    <EyeOff className="mr-2 h-4 w-4" />
-                  )}
-                  {isUpdatingVisibility
-                    ? "Updating..."
-                    : isHiddenFromAttention
-                    ? "Show In Attention Widget"
-                    : "Hide From Attention Widget"}
-                </DropdownMenuItem>
-              )}
           {item.status === "IN_STOCK" && (
             <>
               <DropdownMenuItem asChild>
@@ -187,15 +138,6 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
                   <FileText className="mr-2 h-4 w-4" /> Create Quotation
                 </Link>
               </DropdownMenuItem>
-              <ListingManager 
-                  inventoryId={item.id} 
-                  sku={item.sku} 
-                  trigger={
-                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                        <Globe className="mr-2 h-4 w-4" /> Manage Listings
-                    </DropdownMenuItem>
-                  } 
-              />
               <DropdownMenuItem onSelect={() => setPackagingOpen(true)}>
                 <Printer className="mr-2 h-4 w-4" /> Print Thermal Packaging
               </DropdownMenuItem>
@@ -266,7 +208,7 @@ export function InventoryActions({ item, canManageAttentionVisibility }: Invento
       {packagingOpen && <PackagingPrintDialog open={packagingOpen} onOpenChange={setPackagingOpen} inventoryIds={[item.id]} initialMedium="THERMAL_50X25" />}
 
       <AlertDialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent tone="destructive">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
             <AlertDialogDescription>

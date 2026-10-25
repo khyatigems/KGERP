@@ -155,7 +155,7 @@ export function NotificationBell() {
     </Button>
     {open && <>
       <button type="button" tabIndex={-1} aria-label="Close notifications" className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
-      <section ref={panelRef} id="erp-notifications-panel" tabIndex={-1} role="dialog" aria-modal="true" aria-label="Notifications" className="absolute right-0 top-12 z-50 w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl outline-none">
+      <section ref={panelRef} id="erp-notifications-panel" tabIndex={-1} role="dialog" aria-modal="true" aria-label="Notifications" className="absolute right-0 top-12 z-50 w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-[0_24px_90px_#0005] outline-none">
         <header className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="text-sm font-semibold">Notifications</h2><p className="text-xs text-muted-foreground">{unreadCount} unread</p></div>{unreadCount > 0 && <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => void markAllRead()}><CheckCheck className="mr-1.5 size-4" />Mark all read</Button>}</header>
         <div className="max-h-[min(65vh,30rem)] overflow-y-auto">{renderContents()}</div>
         {hasMore && <footer className="border-t px-4 py-2 text-center"><Button size="sm" variant="ghost" className="text-xs" disabled={loadingMore} onClick={() => { setLoadingMore(true); void load(true, items.length); }}>{loadingMore ? "Loading…" : "Load older notifications"}</Button></footer>}

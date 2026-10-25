@@ -44,7 +44,7 @@ export function ErpConfirmationProvider({ children }: { children: ReactNode }) {
     <ConfirmationContext.Provider value={confirm}>
       {children}
       <AlertDialog open={Boolean(request)} onOpenChange={(open) => { if (!open) finish(false); }}>
-        <AlertDialogContent>
+        <AlertDialogContent tone={request?.destructive ? "destructive" : "confirmation"}>
           <AlertDialogHeader>
             <AlertDialogTitle>{request?.title}</AlertDialogTitle>
             <AlertDialogDescription>{request?.description}</AlertDialogDescription>

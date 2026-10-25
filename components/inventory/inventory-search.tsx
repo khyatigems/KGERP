@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MultiSelectFilter } from "@/components/ui/multi-select-filter";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { InventoryFilterPanel } from "./inventory-filter-panel";
 import { Search, X, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { cn } from "@/lib/utils";
@@ -79,10 +79,10 @@ export function InventorySearch({
     [colors]
   );
 
-  const getMultiValues = (key: string) => {
+  const getMultiValues = useCallback((key: string) => {
     const raw = searchParams.get(key)?.toString();
     return raw ? raw.split(",").filter(Boolean) : [];
-  };
+  }, [searchParams]);
 
   useEffect(() => () => { if (applyTimerRef.current !== null) window.clearTimeout(applyTimerRef.current); }, []);
 
@@ -150,7 +150,7 @@ export function InventorySearch({
     if (searchParams.get("rashiId")) count++;
     if (searchParams.get("weightRange")) count++;
     return count;
-  }, [searchParams]);
+  }, [searchParams, getMultiValues]);
 
   // Build chips
   const activeChips = useMemo(() => {
@@ -184,39 +184,38 @@ export function InventorySearch({
     const weight = searchParams.get("weightRange");
     if (weight) chips.push({ key: "weightRange", label: `Weight: ${WEIGHT_OPTIONS.find(w => w.value === weight)?.label || weight}` });
     return chips;
-  }, [searchParams, vendors, uniqueCategories, uniqueGemstones, uniqueColors, collections, rashis]);
+  }, [searchParams, getMultiValues, vendors, uniqueCategories, uniqueGemstones, uniqueColors, collections, rashis]);
 
   return (
     <div className="space-y-3">
       {/* ── Row 1: Search + Status toggles + Advanced filter + Clear ── */}
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           {/* Search */}
-          <div className="relative flex-1">
+          <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              placeholder="Search SKU, name, category..."
+              aria-label="Search inventory"
+              placeholder="Search SKU or item…"
               className="pl-9 h-10"
               value={queryValue}
               onChange={(e) => { setQueryValue(e.target.value); handleSearch(e.target.value); }}
             />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex shrink-0 items-center gap-1">
             {/* Advanced Filters Popover */}
-            <Popover open={advancedOpen} onOpenChange={setAdvancedOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-10 gap-2 relative">
+            <InventoryFilterPanel open={advancedOpen} onOpenChange={setAdvancedOpen} trigger={
+                <Button variant="outline" size="sm" className="h-10 gap-2 relative" aria-label="Filter inventory">
                   <SlidersHorizontal className="h-4 w-4" />
-                  <span className="hidden sm:inline">Filters</span>
+                  <span>Filters</span>
                   {activeFilterCount > 0 && (
                     <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] rounded-full" variant="default">
                       {activeFilterCount}
                     </Badge>
                   )}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[360px] p-4" align="end">
+            }>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold">Filters</h4>
@@ -277,12 +276,11 @@ export function InventorySearch({
                     />
                   </div>
                 </div>
-              </PopoverContent>
-            </Popover>
+            </InventoryFilterPanel>
 
             {/* Clear All */}
             {activeChips.length > 0 && (
-              <Button variant="ghost" size="sm" className="h-10 gap-1.5 text-muted-foreground hover:text-foreground" onClick={clearAll}>
+              <Button variant="ghost" size="sm" className="h-10 gap-1.5 text-muted-foreground hover:text-foreground" aria-label="Clear all inventory filters" onClick={clearAll}>
                 <X className="h-4 w-4" />
                 <span className="hidden sm:inline">Clear</span>
               </Button>
@@ -291,13 +289,14 @@ export function InventorySearch({
         </div>
 
         {/* Status toggle pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="inventory-filter-status">
           {STATUS_OPTIONS.map((opt) => {
             const isActive = currentStatus === opt.value;
             return (
               <button
                 key={opt.value}
                 type="button"
+                aria-pressed={isActive}
                 onClick={() => setParam("status", opt.value)}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border",
@@ -321,7 +320,8 @@ export function InventorySearch({
               key={c.key}
               type="button"
               className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs text-foreground hover:bg-primary/10 transition-colors"
-              onClick={() => removeParam(c.key)}
+              aria-label={`Remove ${c.label} filter`}
+              onClick={() => { if (c.key === "query") setQueryValue(""); removeParam(c.key); }}
             >
               {c.label}
               <X className="h-3 w-3 text-muted-foreground" />

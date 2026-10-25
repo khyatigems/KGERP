@@ -4,7 +4,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExportButton } from "@/components/ui/export-button";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Plus, Wallet, Receipt, Globe, RefreshCw, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { Plus, Wallet, IndianRupee, Globe, RefreshCw, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -485,7 +485,7 @@ export default async function SalesPage({
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="border-gray-300 text-gray-700 bg-muted/50">
-                        <Receipt className="h-3 w-3 mr-1" /> TAX
+                        <IndianRupee className="h-3 w-3 mr-1" /> TAX
                       </Badge>
                     )}
                   </TableCell>
@@ -562,7 +562,7 @@ export default async function SalesPage({
           <div className="flex items-center gap-2">
             <div className="flex gap-2 mr-4">
               <Badge variant="secondary" className="px-3 py-1">
-                <Receipt className="h-4 w-4 mr-1" /> TAX: {taxResult.totalItems}
+                <IndianRupee className="h-4 w-4 mr-1" /> TAX: {taxResult.totalItems}
               </Badge>
               <Badge className="bg-primary px-3 py-1">
                 <Globe className="h-4 w-4 mr-1" /> EXPORT: {exportResult.totalItems}
@@ -643,7 +643,7 @@ export default async function SalesPage({
           <SaleTable 
             sales={taxSales}
             title="Tax Invoice Sales" 
-            icon={Receipt}
+            icon={IndianRupee}
             type="TAX"
             currentPage={taxPage}
             totalPages={getTotalPages(taxResult.totalItems)}

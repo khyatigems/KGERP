@@ -115,7 +115,7 @@ export function CustomerDeleteButton({ customerId, compact = false }: { customer
           </Button>
         </AlertDialogTrigger>
       )}
-      <AlertDialogContent>
+      <AlertDialogContent tone="destructive">
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Customer</AlertDialogTitle>
           <AlertDialogDescription>

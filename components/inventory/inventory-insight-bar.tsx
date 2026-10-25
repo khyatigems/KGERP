@@ -41,7 +41,7 @@ export function InventoryInsightBar() {
   const dead = data.aging?.dead ?? 0;
 
   return (
-    <div className="rounded-md border bg-muted/30 px-4 py-2 text-sm text-muted-foreground">
+    <div className="hidden md:block rounded-xl border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
       Showing <span className="text-foreground font-medium">{data.totalItems}</span> items | ₹
       <span className="text-foreground font-medium">{formatInrNumber(Number(data.totalSell || 0), 0)}</span> total value |{" "}
       <span className="text-foreground font-medium">{dead}</span> items &gt; 90 days |{" "}

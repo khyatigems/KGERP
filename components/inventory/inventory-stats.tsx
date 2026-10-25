@@ -2,9 +2,7 @@
 
 import useSWR from "swr";
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
-import { Boxes, CircleDollarSign, ImageIcon, FileCheck, Clock } from "lucide-react";
+import { InventoryStatsSummary } from "./inventory-stats-summary";
 import { ExportButton } from "@/components/ui/export-button";
 
 type StatRow = { totalItems: number; overallTotalItems: number; totalSell: number };
@@ -13,7 +11,7 @@ type ByGemTypeRow = { gemType: string; status: string; items: number; sellValue:
 type ByCategoryGemTypeRow = { category: string; gemType: string; status: string; items: number; sellValue: number };
 type ByStatusRow = { status: string; items: number };
 
-type InventoryStatsResponse = StatRow & {
+export type InventoryStatsResponse = StatRow & {
   avgSell: number;
   maxSell: number;
   withImagesCount: number;
@@ -190,15 +188,6 @@ export function InventoryStats({ searchParams, exportsOnly = false }: { searchPa
     };
   }, [data?.byCategoryGemType, overallStatusSummary]);
 
-  const statCardClass = `rounded-2xl border bg-gradient-to-br from-card to-muted/30 shadow-sm transition-shadow hover:shadow-md ${isLoading ? "animate-pulse" : isValidating ? "opacity-70" : ""}`;
-
-  const topCategory = (data?.byCategory || [])[0]?.category;
-  const topGemType = (data?.byGemType || [])[0]?.gemType;
-  const missingImages = data ? Math.max(0, (data.totalItems || 0) - (data.withImagesCount || 0)) : 0;
-  const missingCertificates = data ? Math.max(0, (data.totalItems || 0) - (data.withCertificateCount || 0)) : 0;
-  const imagesPct = data && data.totalItems ? Math.round((data.withImagesCount / data.totalItems) * 100) : 0;
-  const certPct = data && data.totalItems ? Math.round((data.withCertificateCount / data.totalItems) * 100) : 0;
-
   if (exportsOnly) {
     if (!data || error) return <span role="status" className="text-xs text-muted-foreground">{error ? "Summary exports unavailable" : "Loading exports…"}</span>;
     return (
@@ -229,95 +218,5 @@ export function InventoryStats({ searchParams, exportsOnly = false }: { searchPa
     );
   }
 
-  return (
-    <div className="space-y-4">
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Card className={statCardClass}>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">Total Items<span className="rounded-lg bg-primary/10 p-2 text-primary"><Boxes className="h-4 w-4"/></span></CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tracking-tight tabular-nums">{data?.overallTotalItems ?? data?.totalItems ?? "—"}</div>
-            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-              <span className="text-emerald-600 dark:text-emerald-300">In Stock: {overallStatusSummary.inStock}</span>
-              <span className="text-primary dark:text-primary">Sold: {overallStatusSummary.sold}</span>
-              <span className="text-amber-600 dark:text-amber-300">Reserved: {overallStatusSummary.reserved}</span>
-              <span className="text-violet-600 dark:text-violet-300">Memo: {overallStatusSummary.memo}</span>
-            </div>
-            {data?.overallTotalItems !== undefined && data?.overallTotalItems !== data?.totalItems && (
-              <div className="text-[10px] text-muted-foreground mt-2">
-                Filtered: {data?.totalItems ?? 0}
-              </div>
-            )}
-            {(topCategory || topGemType) && (
-              <div className="text-[10px] text-muted-foreground mt-2">
-                {topCategory ? `Top Category: ${topCategory}` : null}
-                {topCategory && topGemType ? " • " : null}
-                {topGemType ? `Top Gem Type: ${topGemType}` : null}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className={statCardClass}>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">Total Sell Value<span className="rounded-lg bg-primary/10 p-2 text-primary"><CircleDollarSign className="h-4 w-4"/></span></CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tracking-tight tabular-nums">{data ? formatCurrency(data.totalSell) : "—"}</div>
-            <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
-              <div>Avg Item Value: {data ? formatCurrency(data.avgSell) : "—"}</div>
-              <div>Highest Item Price: {data ? formatCurrency(data.maxSell) : "—"}</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={statCardClass}>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">With Images<span className="rounded-lg bg-primary/10 p-2 text-primary"><ImageIcon className="h-4 w-4"/></span></CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tracking-tight tabular-nums">
-              {data ? `${data.withImagesCount}/${data.totalItems}` : "—"}
-            </div>
-            <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-primary rounded-full" style={{ width: `${imagesPct}%` }}/></div>
-            <div className="text-xs text-muted-foreground mt-2">
-              {data ? `${imagesPct}% • Missing ${missingImages}` : "Items having image/media"}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={statCardClass}>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">With Certificate<span className="rounded-lg bg-primary/10 p-2 text-primary"><FileCheck className="h-4 w-4"/></span></CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold tracking-tight tabular-nums">
-              {data ? `${data.withCertificateCount}/${data.totalItems}` : "—"}
-            </div>
-            <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${certPct}%` }}/></div>
-            <div className="text-xs text-muted-foreground mt-2">
-              {data ? `${certPct}% • Missing ${missingCertificates}` : "Certificate number/details present"}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={statCardClass}>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">Inventory Aging<span className="rounded-lg bg-primary/10 p-2 text-primary"><Clock className="h-4 w-4"/></span></CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xs text-muted-foreground">In Stock only</div>
-            <div className="mt-2 flex flex-col gap-1 text-xs">
-              <span className="text-emerald-600 dark:text-emerald-300">Fresh (0–30): {data?.aging?.fresh ?? 0}</span>
-              <span className="text-amber-600 dark:text-amber-300">Slow (31–90): {data?.aging?.slow ?? 0}</span>
-              <span className="text-red-600 dark:text-red-300">Dead (90+): {data?.aging?.dead ?? 0}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-      </div>
-    </div>
-  );
+  return <InventoryStatsSummary data={data} loading={isLoading} refreshing={isValidating} />;
 }

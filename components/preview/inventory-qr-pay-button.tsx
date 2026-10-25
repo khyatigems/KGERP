@@ -312,7 +312,7 @@ export function InventoryQrPayButton({ sku, itemName, itemImage, stockStatus, ma
       <style jsx global>{`
         [data-slot="dialog-overlay"]{z-index:110!important}
         body:has(.kg-payment-review-dialog) .kg-site-header{z-index:1!important}
-        .kg-payment-review-dialog{position:fixed!important;z-index:120!important;display:block!important;width:min(100% - 32px,560px)!important;max-width:560px!important;max-height:calc(100dvh - 32px);overflow:auto;padding:0!important;gap:0!important;border:1px solid #d9d5cb!important;border-radius:3px!important;background:#fcfbf7!important;color:#202521!important;box-shadow:0 26px 80px #20252135!important}
+        .kg-payment-review-dialog{position:fixed!important;z-index:120!important;display:block!important;width:min(100% - 32px,560px)!important;max-width:560px!important;max-height:calc(100dvh - 32px);overflow:auto;padding:0!important;gap:0!important;border:1px solid #d9d5cb!important;border-radius:16px!important;background:#fcfbf7!important;color:#202521!important;box-shadow:0 26px 80px #20252135!important}
         .kg-payment-review-brandbar{position:sticky;top:0;z-index:5;display:flex;min-height:74px;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;border-bottom:1px solid #ded9cf;background:#f5f1e8}
         .kg-payment-review-brand{display:flex;min-width:0;align-items:center;gap:16px}
         .kg-payment-review-brand img{display:block;width:82px;height:43px;flex:0 0 82px;object-fit:contain}

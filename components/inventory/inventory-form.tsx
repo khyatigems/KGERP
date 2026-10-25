@@ -255,6 +255,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
           key="saving"
           itemName={String(data.itemName || "")}
           completeness={completeness}
+          onDismiss={() => toast.dismiss(SAVE_TOAST_ID)}
           status="saving"
           isUpdate={!!initialData}
         />
@@ -300,7 +301,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
       console.log(`[inventory-save] ${initialData ? "update" : "create"} finished in ${Math.round(Number(t1) - Number(t0))}ms`);
 
       if (result?.success) {
-        const skuStr = isCreatedInventoryResult(result) ? result.sku : "";
+        const skuStr = isCreatedInventoryResult(result) ? result.sku : initialData?.sku || "";
 
         // Transition the animated save toast to success state
         toast.custom(
@@ -310,6 +311,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
               itemName={String(data.itemName || "")}
               sku={skuStr || undefined}
               completeness={completeness}
+              onDismiss={() => toast.dismiss(SAVE_TOAST_ID)}
               status="success"
               isUpdate={!!initialData}
             />
@@ -441,6 +443,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
               key="error"
               itemName={String(data.itemName || "")}
               completeness={completeness}
+              onDismiss={() => toast.dismiss(SAVE_TOAST_ID)}
               status="error"
               errorMessage={sanitizeErrorText(errorMsg)}
             />
@@ -462,6 +465,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
             key="error"
             itemName={String(data?.itemName || "")}
             completeness={completeness}
+            onDismiss={() => toast.dismiss(SAVE_TOAST_ID)}
             status="error"
             errorMessage="An unexpected error occurred."
           />
@@ -648,19 +652,23 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
       </form>
 
       <AlertDialog open={!!duplicateWarning} onOpenChange={(open) => !open && setDuplicateWarning(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent tone="warning">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
-              <span className="text-xl">⚠️</span> {duplicateWarning?.message}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3 pt-2">
-              <p>The system detected a potential duplicate item:</p>
-              <div className="bg-red-50 p-3 rounded-md text-red-700 text-sm font-medium border border-red-200">
-                {Object.values(duplicateWarning?.errors || {}).flat().map((e, i) => (
-                  <div key={i}>{e}</div>
-                ))}
+            <AlertDialogTitle>Potential duplicate inventory item</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-2">
+                <p>An item with matching details already exists. Review the match before saving another item.</p>
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                  <div className="mb-2 text-[9px] font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-400">Matching inventory</div>
+                  <div className="space-y-2 text-xs font-medium leading-relaxed text-foreground">
+                    {!Object.values(duplicateWarning?.errors || {}).flat().length && duplicateWarning?.message}
+                    {Object.values(duplicateWarning?.errors || {}).flat().map((e, i) => (
+                      <div key={i}>{e}</div>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs">Choose Edit Details to review your item, or Save Anyway to create it despite this warning.</p>
               </div>
-              <p>How would you like to proceed?</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -669,7 +677,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSaveAnyway}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="bg-amber-600 text-white hover:bg-amber-700"
             >
               Save Anyway
             </AlertDialogAction>

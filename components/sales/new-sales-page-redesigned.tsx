@@ -2123,7 +2123,8 @@ export function NewSalesPage({ inventoryItems, existingCustomers, companySetting
 
       {/* Confirmation Dialog */}
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent 
+        <DialogContent
+          tone={confirmationStep === 2 ? "warning" : "confirmation"}
           aria-describedby="confirm-sale-description" 
           className="max-h-[85vh] overflow-y-auto"
         >

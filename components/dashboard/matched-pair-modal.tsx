@@ -6,9 +6,10 @@ import { CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { X, CheckCircle2, XCircle, FileText, Link2, Gem, Sparkles } from "lucide-react";
+import { CheckCircle2, XCircle, FileText, Link2, Gem, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { formatCurrency } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { MatchedPairItem } from "./matched-pairs-types";
 
 function getMatchQuality(score: number): "excellent" | "good" | "possible" {
@@ -53,8 +54,9 @@ export function MatchedPairModal({
   if (!item) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fade-in">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-background rounded-xl border shadow-xl animate-content-show">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-4xl max-h-[90vh]">
+        <DialogHeader><DialogTitle>Matched inventory details</DialogTitle><DialogDescription>Review the match analysis and choose the next action for these items.</DialogDescription></DialogHeader>
         <CardHeader className="p-4 border-b flex flex-row items-center justify-between">
           <div className="flex items-center gap-3">
             <Badge
@@ -79,9 +81,6 @@ export function MatchedPairModal({
               Score: {item.score} · {getQualityLabel(getMatchQuality(item.score))}
             </Badge>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-            <X className="h-4 w-4" />
-          </Button>
         </CardHeader>
 
         <CardContent className="p-4">
@@ -183,8 +182,8 @@ export function MatchedPairModal({
             </div>
           </div>
         </CardContent>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

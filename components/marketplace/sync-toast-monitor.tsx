@@ -1,26 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { safeErrorMessage, toast } from "@/lib/erp-feedback";
-import { Button } from "@/components/ui/button";
-import { RetryMarketplaceSyncButton } from "@/components/marketplace/retry-sync-button";
+import { toast } from "@/lib/erp-feedback";
+import { MarketplaceSyncToast, type SyncJob } from "./sync-toast";
 import { forgetMarketplaceSyncBatch, readMarketplaceSyncBatches } from "@/components/marketplace/sync-client";
-
-type SyncJob = {
-  id: string;
-  status: string;
-  syncType: string;
-  progressStep: string;
-  progressDetail: string | null;
-  recordsScanned: number;
-  recordsCreated: number;
-  recordsUpdated: number;
-  recordsSkipped: number;
-  recordsFailed: number;
-  errorDetails: string | null;
-  updatedAt: string;
-  marketplaceShop: { marketplace: string; name: string };
-};
 
 export function MarketplaceSyncToastMonitor() {
   const [batches, setBatches] = useState<string[]>(() => typeof window === "undefined" ? [] : readMarketplaceSyncBatches());
@@ -111,58 +94,20 @@ export function MarketplaceSyncToastMonitor() {
   useEffect(() => {
     for (const [batchId, jobs] of Object.entries(jobsByBatch)) {
       const toastId = `marketplace-sync-${batchId}`;
-      const active = jobs.some((job) => job.status === "QUEUED" || job.status === "PROCESSING");
-      const failed = jobs.filter((job) => job.status === "FAILED" || job.status === "PARTIAL").length;
       const terminal = jobs.length > 0 && jobs.every((job) => !["QUEUED", "PROCESSING"].includes(job.status));
       const completedToastId = `${toastId}-completed`;
       if (terminal) toast.dismiss(toastId);
       toast.custom((id) => (
-        <div className="w-[min(520px,calc(100vw-32px))] rounded-md border bg-background p-3 text-foreground shadow-lg">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="font-semibold">
-                Marketplace sync {active ? "in progress" : failed ? "completed with errors" : "completed"}
-              </div>
-              <div className="text-xs text-muted-foreground">{jobs.length} shop job{jobs.length === 1 ? "" : "s"} · {jobs[0]?.syncType.toLowerCase()}</div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => {
-              toast.dismiss(id);
-              forgetMarketplaceSyncBatch(batchId);
-              const remaining = readMarketplaceSyncBatches();
-              setBatches(remaining);
-            }}>Close</Button>
-          </div>
-          <div className="mt-2 space-y-2">
-            {jobs.map((job) => (
-              <div key={job.id} className="flex items-start justify-between gap-3 text-sm">
-                <div className="min-w-0">
-                  <div className="font-medium">{job.marketplaceShop.marketplace} · {job.marketplaceShop.name}</div>
-                  <div className="text-xs text-muted-foreground">{job.progressStep}: {job.progressDetail || job.status}</div>
-                </div>
-                <span className="shrink-0 text-xs tabular-nums">{job.recordsScanned} scanned</span>
-              </div>
-            ))}
-          </div>
-          <details className="mt-2 border-t pt-2 text-xs">
-            <summary className="cursor-pointer font-medium">Sync details and errors</summary>
-            <div className="mt-2 space-y-2">
-              {jobs.map((job) => (
-                <div key={`${job.id}-details`} className="rounded-sm bg-muted/50 p-2">
-                  <div className="font-medium">{job.marketplaceShop.marketplace} · {job.marketplaceShop.name} · {job.status}</div>
-                  <div>Scanned {job.recordsScanned}, created {job.recordsCreated}, updated {job.recordsUpdated}, skipped {job.recordsSkipped}, failed {job.recordsFailed}</div>
-                  {job.errorDetails && <div className="mt-1 whitespace-pre-wrap wrap-break-word text-destructive">{safeErrorMessage(job.errorDetails)}</div>}
-                </div>
-              ))}
-            </div>
-          </details>
-          {failed > 0 && (
-            <div className="mt-2 flex justify-end">
-              <RetryMarketplaceSyncButton
-                jobIds={jobs.filter((job) => job.status === "FAILED" || job.status === "PARTIAL").map((job) => job.id)}
-              />
-            </div>
-          )}
-        </div>
+        <MarketplaceSyncToast jobs={jobs} onDismiss={() => {
+          toast.dismiss(id);
+          forgetMarketplaceSyncBatch(batchId);
+          setBatches(readMarketplaceSyncBatches());
+          setJobsByBatch((current) => {
+            const next = { ...current };
+            delete next[batchId];
+            return next;
+          });
+        }} />
       ), { id: terminal ? completedToastId : toastId, duration: terminal ? 12_000 : Infinity, position: "bottom-right" });
     }
   }, [jobsByBatch]);

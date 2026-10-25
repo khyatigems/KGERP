@@ -266,7 +266,7 @@ export function SalesActions({
 
       {/* Step 1 — Initial confirmation */}
       <Dialog open={deleteStep === 1} onOpenChange={(open) => { if (!open) closeDeleteDialog(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent tone="destructive" className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <Trash2 className="h-5 w-5" /> Delete Sale
@@ -286,7 +286,7 @@ export function SalesActions({
 
       {/* Step 2 — Type DELETE to confirm */}
       <Dialog open={deleteStep === 2} onOpenChange={(open) => { if (!open) closeDeleteDialog(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent tone="destructive" className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-orange-600">
               <AlertTriangle className="h-5 w-5" /> Confirm Deletion
@@ -321,15 +321,15 @@ export function SalesActions({
 
       {/* Step 3 — Final irreversible warning */}
       <Dialog open={deleteStep === 3} onOpenChange={(open) => { if (!open && !isDeleting) closeDeleteDialog(); }}>
-        <DialogContent className="sm:max-w-md border-red-200">
+        <DialogContent tone="destructive" className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-700">
               <AlertTriangle className="h-5 w-5 fill-red-100" /> Final Warning
             </DialogTitle>
-            <DialogDescription className="pt-2 text-red-700 font-medium">
+            <DialogDescription className="pt-2 text-foreground font-medium">
               You are about to permanently delete this sale and all associated data.
               <br /><br />
-              <span className="text-gray-700 font-normal">Invoice, payments, linked records, and inventory status changes will all be reversed. <strong>This is irreversible.</strong></span>
+              <span className="text-muted-foreground font-normal">Invoice, payments, linked records, and inventory status changes will all be reversed. <strong>This is irreversible.</strong></span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

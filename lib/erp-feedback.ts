@@ -1,6 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createElement, type ReactNode } from "react";
+import { RichFeedbackTitle, RichFeedbackDetails, type FeedbackState } from "@/components/ui/rich-feedback";
+import { Info } from "lucide-react";
 import { toast as sonnerToast, type ExternalToast } from "sonner";
 import { routeNotification, type NotificationEventKind, type NotificationRoute } from "@/lib/notification-routing";
 
@@ -19,22 +21,49 @@ export function sanitizeErrorText(message: string): string {
     : message;
 }
 
-const safeToastError = (message: ReactNode, options?: ExternalToast) =>
-  sonnerToast.error(safeErrorMessage(message), options);
+function richMessage(state: FeedbackState, message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) {
+  const title = typeof message === "function" ? message() : message;
+  const description = typeof options?.description === "function" ? options.description() : options?.description;
+  return {
+    title: createElement(RichFeedbackTitle, { state }, state === "error" ? safeErrorMessage(title) : title),
+    options: {
+      // Loading stays visible until the caller updates or dismisses the operation.
+      duration: state === "loading" ? Infinity : state === "error" ? 7_000 : 4_500,
+      ...(state === "normal" ? { icon: createElement(Info, { size: 19 }) } : {}),
+      ...options,
+      description: description == null ? undefined : createElement(RichFeedbackDetails, null, state === "error" ? safeErrorMessage(description) : description),
+    },
+  };
+}
+
+function showRichToast(state: FeedbackState, message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) {
+  const rich = richMessage(state, message, options);
+  const show = state === "normal" ? sonnerToast.message : sonnerToast[state];
+  return show(rich.title, rich.options);
+}
 
 /** The single UI entry point for transient ERP feedback; sanitize thrown/internal error text. */
 export const toast = Object.assign(
-  (message: ReactNode, options?: ExternalToast) => sonnerToast(message, options),
+  (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("normal", message, options),
   sonnerToast,
-  { error: safeToastError },
+  {
+    // Custom operation cards provide their own accessible dismissal control.
+    custom: (render: Parameters<typeof sonnerToast.custom>[0], options?: ExternalToast) => sonnerToast.custom(render, { closeButton: false, ...options }),
+    success: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("success", message, options),
+    error: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("error", message, options),
+    warning: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("warning", message, options),
+    info: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("info", message, options),
+    loading: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("loading", message, options),
+    message: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("normal", message, options),
+  },
 ) as typeof sonnerToast;
 
 /** Routes an event to transient UI feedback or returns the channel a page must render itself. */
 export function notify(kind: NotificationEventKind, message: string, options?: ExternalToast): NotificationRoute {
   const route = routeNotification(kind);
   if (route !== "toast") return route;
-  if (kind === "routine_success") sonnerToast.success(message, { duration: 4_500, ...options });
-  else safeToastError(message, { duration: 5_000, ...options });
+  if (kind === "routine_success") toast.success(message, { duration: 4_500, ...options });
+  else toast.error(message, { duration: 5_000, ...options });
   return route;
 }
 

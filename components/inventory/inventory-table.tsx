@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InventoryCardList } from "./inventory-card-list";
 import { InventoryActions } from "@/components/inventory/inventory-actions";
 import { InventoryCardMedia } from "@/components/inventory/inventory-card-media";
 import { formatDate } from "@/lib/utils";
@@ -23,6 +24,7 @@ const InventoryDetailDrawer = dynamic(
 );
 
 interface InventoryTableProps {
+  presentation?: "table" | "cards";
   data: any[];
   vendors: any[];
   categories: any[];
@@ -33,10 +35,10 @@ interface InventoryTableProps {
   collections: any[];
   cuts?: any[];
   origins?: string[];
-  canManageAttentionVisibility: boolean;
 }
 
 export function InventoryTable({
+  presentation = "table",
   data,
   vendors,
   categories,
@@ -47,7 +49,6 @@ export function InventoryTable({
   collections,
   cuts = [],
   origins = [],
-  canManageAttentionVisibility,
 }: InventoryTableProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -73,7 +74,7 @@ export function InventoryTable({
 
   const handleSelectOne = (id: string, checked: boolean) => {
     if (checked) {
-      setSelectedIds((prev) => [...prev, id]);
+      setSelectedIds((prev) => prev.includes(id) ? prev : [...prev, id]);
     } else {
       setSelectedIds((prev) => prev.filter((i) => i !== id));
     }
@@ -103,8 +104,8 @@ export function InventoryTable({
   return (
     <div className="space-y-4">
       {selectedIds.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 p-2 bg-muted/50 rounded-md">
-          <span className="text-sm font-medium ml-2">
+        <div role="region" aria-label="Inventory bulk actions" className="flex flex-wrap items-center gap-2 p-3 border border-primary/20 bg-primary/5 rounded-xl">
+          <span role="status" className="text-sm font-medium ml-2">
             {selectedIds.length} selected
             {selectedSummary ? (
               <span className="ml-2 text-xs text-muted-foreground">
@@ -114,7 +115,7 @@ export function InventoryTable({
           </span>
           <RegenerateEbayButton selectedItemIds={selectedIds} />
           <RegenerateEtsyButton selectedItemIds={selectedIds} />
-          <Button size="sm" onClick={() => {
+          <Button size="sm" aria-label="Bulk edit selected inventory" onClick={() => {
             const params = new URLSearchParams();
             selectedIds.forEach(id => params.append('id', id));
             router.push(`/inventory/bulk-edit?${params.toString()}`);
@@ -129,45 +130,44 @@ export function InventoryTable({
             <ShieldCheck className="mr-2 h-4 w-4" />
             Bulk Certificates
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+          <Button variant="ghost" size="sm" aria-label="Clear inventory selection" onClick={() => setSelectedIds([])}>
             Clear Selection
           </Button>
         </div>
       )}
 
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
+      {presentation === "cards" ? <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3 rounded-xl border bg-card px-3 py-2.5">
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-medium"><Checkbox checked={data.length > 0 && selectedIds.length === data.length ? true : selectedIds.length ? "indeterminate" : false} disabled={!data.length} onCheckedChange={(checked) => handleSelectAll(checked === true)} aria-label="Select all items on this page" />Select this page</label>
+          <span className="text-[11px] text-muted-foreground">{selectedIds.length ? `${selectedIds.length} selected · ` : ""}{data.length} items</span>
+        </div>
+        <InventoryCardList data={data} selectedIds={selectedIds} onSelectOne={handleSelectOne} />
+      </div> : <div className="inventory-table-shell">
+        <Table className="inventory-items-table">
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">
                 <Checkbox
-                  checked={data.length > 0 && selectedIds.length === data.length}
+                  checked={data.length > 0 && selectedIds.length === data.length ? true : selectedIds.length ? "indeterminate" : false}
                   onCheckedChange={(checked) => handleSelectAll(!!checked)}
                   aria-label="Select all"
                 />
               </TableHead>
-              <TableHead className="w-15">Image</TableHead>
-              <TableHead className="w-25">SKU</TableHead>
-              <TableHead className="min-w-50">Item Name</TableHead>
-              <TableHead className="w-25">Category</TableHead>
-              <TableHead className="w-25">Type</TableHead>
-              <TableHead className="w-20">Color</TableHead>
-              <TableHead className="w-20">Cut</TableHead>
-              <TableHead className="w-25">Weight</TableHead>
-              <TableHead className="w-37.5">Certificates</TableHead>
-              <TableHead className="w-20">Ratti</TableHead>
-              <TableHead className="w-25">Price</TableHead>
-              <TableHead className="w-25">Status</TableHead>
-              <TableHead className="w-25">Vendor</TableHead>
-              <TableHead className="w-25">Location</TableHead>
-              <TableHead className="w-25">Date Added</TableHead>
-              <TableHead className="w-15 text-right">Actions</TableHead>
+              <TableHead className="inventory-image-col">Image</TableHead>
+              <TableHead className="inventory-item-col">Item / SKU</TableHead>
+              <TableHead className="inventory-category-col">Category / Type</TableHead>
+              <TableHead className="inventory-weight-col">Weight</TableHead>
+              <TableHead className="inventory-cert-col">Certificate</TableHead>
+              <TableHead className="inventory-price-col">Price</TableHead>
+              <TableHead className="inventory-status-col">Status</TableHead>
+              <TableHead className="inventory-vendor-col">Vendor / Added</TableHead>
+              <TableHead className="inventory-actions-col text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={16} className="h-24 text-center">
+                <TableCell colSpan={10} className="h-24 text-center">
                   No inventory items found.
                 </TableCell>
               </TableRow>
@@ -196,26 +196,22 @@ export function InventoryTable({
                     <TableCell>
                       <InventoryCardMedia item={item} className="h-12 w-12" />
                     </TableCell>
-                    <TableCell className="font-medium font-mono text-xs">
-                      <button type="button" className="cursor-pointer hover:underline" onClick={() => openDrawer(item.id)}>
-                        {item.sku}
-                      </button>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <button type="button" className="text-left hover:underline font-medium" onClick={() => openDrawer(item.id)}>
+                    <TableCell className="inventory-item-col">
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <button type="button" className="text-left hover:underline font-semibold line-clamp-2 leading-snug" onClick={() => openDrawer(item.id)}>
                           {item.itemName}
                         </button>
+                        <button type="button" className="truncate text-left font-mono text-[10px] text-muted-foreground hover:text-primary" title={item.sku} onClick={() => openDrawer(item.id)}>{item.sku}</button>
                         {item.internalName && (
-                          <span className="text-xs text-muted-foreground">
+                          <span className="truncate text-[10px] text-muted-foreground" title={item.internalName}>
                             {item.internalName}
                           </span>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
+                    <TableCell className="inventory-category-col">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-muted-foreground">{item.category}</span>
                         <span>{item.gemType}</span>
                         {(item.category === "Bracelets" || item.category === "Bracelet") && (
                           <span className="text-[10px] text-muted-foreground">
@@ -228,12 +224,11 @@ export function InventoryTable({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{item.colorCode?.name || "-"}</TableCell>
-                    <TableCell>{item.cutCode?.name || "-"}</TableCell>
                     <TableCell>
-                      {item.weightValue} {item.weightUnit}
+                      <span className="whitespace-nowrap">{item.weightValue} {item.weightUnit}</span>
+                      {item.weightRatti ? <div className="mt-1 text-[10px] text-muted-foreground">{item.weightRatti.toFixed(2)} ratti</div> : null}
                     </TableCell>
-                    <TableCell className="text-xs">
+                    <TableCell className="inventory-cert-col text-xs">
                       {(() => {
                         const rawCert = String(item.certification || "").trim();
                         const certUrl = /^https?:\/\//i.test(rawCert) ? rawCert : null;
@@ -262,9 +257,6 @@ export function InventoryTable({
                         );
                       })()}
                     </TableCell>
-                    <TableCell>
-                      {item.weightRatti ? item.weightRatti.toFixed(2) : "-"}
-                    </TableCell>
                     <TableCell className="font-semibold">₹{formatInrNumber(Number(price || 0), 0)}</TableCell>
                     <TableCell>
                       <Badge
@@ -288,11 +280,9 @@ export function InventoryTable({
                         {item.status.replace("_", " ")}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{(item.vendorId && vendorMap.get(item.vendorId)) || "-"}</TableCell>
-                    <TableCell className="text-xs">{item.stockLocation || "-"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <InventoryActions item={item} canManageAttentionVisibility={canManageAttentionVisibility} />
+                    <TableCell className="inventory-vendor-col text-xs text-muted-foreground"><div className="truncate" title={(item.vendorId && vendorMap.get(item.vendorId)) || ""}>{(item.vendorId && vendorMap.get(item.vendorId)) || "—"}</div><div className="mt-1 text-[10px]">{formatDate(item.createdAt)}</div></TableCell>
+                    <TableCell className="inventory-actions-col text-right">
+                      <InventoryActions item={item} />
                     </TableCell>
                   </TableRow>
                 );
@@ -300,7 +290,7 @@ export function InventoryTable({
             )}
           </TableBody>
         </Table>
-      </div>
+      </div>}
 
       <InventoryDetailDrawer
         open={drawerOpen}
