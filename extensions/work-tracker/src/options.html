@@ -6,10 +6,14 @@
 <p>Connect and name this Chrome profile from ERP Work Tracker &gt; Connections.</p>
 <a id="erpLink" href="https://erp.khyatigems.com/work-tracker" target="_blank" rel="noopener noreferrer">Open ERP Work Tracker</a>
 <button type="button" id="check">Check saved connection</button>
+<button type="button" id="sync">Sync pending activity now</button>
+<p id="connectionStatus" role="status"></p>
 <form id="settings">
 <label>Idle threshold (seconds)<input id="idleSeconds" type="number" min="60" max="1800" required></label>
 <details><summary>Connection details (advanced)</summary>
 <label>ERP URL<input id="erpUrl" type="url" required></label>
+<button type="button" id="repair">Repair ERP address using saved access</button>
+<p class="muted">If a local server stopped or your ERP moved, enter the working ERP address above and repair. Repair keeps pending records and verifies the same browser access at that address. Keep the saved credential unchanged.</p>
 <p class="muted">Use the same ERP where this browser was connected. Changing ERP or access requires an empty pending queue.</p>
 <label>Saved personal Work Tracker credential<input id="token" type="password" required autocomplete="off"></label>
 <p class="muted">Normally filled automatically from ERP. Do not paste marketplace OAuth credentials.</p>

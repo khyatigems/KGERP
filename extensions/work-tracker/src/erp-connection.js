@@ -1,4 +1,4 @@
-import { validateSettings, checkConnection } from "./api-client.js";
+import { validateSettings, checkConnection, erpOrigin } from "./api-client.js";
 export function trustedErpSender(sender) {
  try {
   const url = new URL(sender.url);
@@ -8,7 +8,7 @@ export function trustedErpSender(sender) {
 export async function connectionStatus(sender, settings, stored = {}, fetcher = fetch) {
  if (!trustedErpSender(sender)) throw new Error("Untrusted ERP origin");
  const base = { ok: true, protocol: 2, connected: false };
- if (settings.token && settings.erpUrl !== new URL(sender.url).origin) return { ...base, state: "other-erp" };
+ if (settings.token && erpOrigin(settings.erpUrl) !== new URL(sender.url).origin) return { ...base, state: "other-erp" };
  const local = { pendingCount: stored.queue?.length || 0, enabled: !!settings.enabled, lastSync: stored.lastSync || null };
  if (!settings.token) return { ...base, ...local, state: "unconfigured" };
  try {
@@ -18,6 +18,14 @@ export async function connectionStatus(sender, settings, stored = {}, fetcher = 
  } catch (error) {
   return { ...base, ...local, state: error.status === 401 ? "invalid" : "unreachable" };
  }
+}
+// Explicit Settings recovery only: never mint/replace access or discard pending work.
+export async function repairConnection(old, erpUrl, fetcher = fetch) {
+ const next = validateSettings({ ...old, erpUrl });
+ const verified = await checkConnection(next, fetcher);
+ const previousId = old.credentialId || (await checkConnection(old, fetcher)).credential?.id;
+ if (!previousId || verified.credential?.id !== previousId) throw new Error("This address does not verify the same browser access. Pending activity remains with the original connection. Export it before switching accounts or credentials.");
+ return { ...next, browserName: verified.credential.name, credentialId: previousId };
 }
 export async function connectFromErp(message, sender, old, queue, fetcher = fetch) {
  if (!trustedErpSender(sender)) throw new Error("Untrusted ERP origin");

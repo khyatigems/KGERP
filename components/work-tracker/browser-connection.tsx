@@ -102,8 +102,8 @@ export function BrowserConnection({ credentials, onConnected, zone }: { credenti
  const statusText = !status ? "Check this browser to see whether it needs a connection." : status.state === "connected"
   ? owned ? `Connected as ${status.browserName}. ${status.enabled ? "Automatic tracking enabled." : "Tracking paused. Enable it in the extension popup."}` : "Chrome is connected to another ERP account. Disconnect in extension Settings before connecting this account."
   : status.state === "invalid" ? status.pendingCount || status.enabled ? "The saved access has expired or been revoked. Pause tracking and resolve any pending records in extension Settings before reconnecting." : "The saved access has expired or been revoked. Reconnect this browser below."
-  : status.state === "other-erp" ? "Chrome is connected to another ERP address. Disconnect in extension Settings before switching."
-  : status.state === "unreachable" ? "The saved connection could not be verified. Check your network and ERP, then retry. No new access was created."
+  : status.state === "other-erp" ? "Chrome has a different saved ERP address, possibly a local development server. Open extension Settings, enter this ERP address and use Repair ERP address using saved access. This preserves pending activity when the same browser access is recognized."
+  : status.state === "unreachable" ? "The saved connection could not be verified. Check that the saved ERP address opens in Chrome and the extension has site access. Use Repair ERP address in extension Settings if the address changed."
   : status.state === "update-required" ? "Update the ERP and extension together, then check again."
   : "Extension found. Give this browser a name and connect it once.";
 

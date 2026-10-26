@@ -1,6 +1,35 @@
 import { defaults, validateSettings, checkConnection } from "./api-client.js";
 const config = { ...defaults, ...(await chrome.storage.local.get("settings")).settings };
 for (const key of ["erpUrl", "token", "idleSeconds"]) document.getElementById(key).value = config[key];
+async function showStatus() {
+  const { settings = config, queue = [], lastSync, lastError } = await chrome.storage.local.get(["settings", "queue", "lastSync", "lastError"]);
+  document.getElementById("connectionStatus").textContent = `Saved ERP: ${settings.erpUrl}. Pending: ${queue.length}. Last upload: ${lastSync ? new Date(lastSync).toLocaleString() : "Never"}.${lastError ? ` ${lastError}` : ""}`;
+}
+await showStatus();
+async function requestHost(erpUrl) {
+  const url = new URL(erpUrl);
+  if (!await chrome.permissions.request({ origins: [`${url.protocol}//${url.hostname}/*`] })) throw new Error("ERP host permission was not granted");
+}
+document.getElementById("repair").onclick = async () => {
+  document.getElementById("error").textContent = "";
+  document.getElementById("message").textContent = "Verifying the saved access at the ERP address…";
+  try {
+    const current = { ...defaults, ...(await chrome.storage.local.get("settings")).settings };
+    const next = validateSettings({ ...current, erpUrl: document.getElementById("erpUrl").value });
+    await requestHost(next.erpUrl);
+    const result = await chrome.runtime.sendMessage({ action: "repairConnection", erpUrl: next.erpUrl });
+    if (result.error) throw new Error(result.error);
+    document.getElementById("message").textContent = `ERP address verified and saved. ${result.message || "Pending activity will sync automatically."}`;
+  } catch (error) { document.getElementById("message").textContent = ""; document.getElementById("error").textContent = error.message; }
+  await showStatus();
+};
+document.getElementById("sync").onclick = async () => {
+  document.getElementById("error").textContent = "";
+  const result = await chrome.runtime.sendMessage({ action: "sync" });
+  document.getElementById("message").textContent = result.message || "";
+  document.getElementById("error").textContent = result.error || "";
+  await showStatus();
+};
 document.getElementById("settings").onsubmit = async event => {
   event.preventDefault();
   document.getElementById("error").textContent = "";

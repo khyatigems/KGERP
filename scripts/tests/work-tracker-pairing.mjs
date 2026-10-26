@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { trustedErpSender, connectFromErp, connectionStatus } from "../../extensions/work-tracker/src/erp-connection.js";
-import { defaults } from "../../extensions/work-tracker/src/api-client.js";
+import { trustedErpSender, connectFromErp, connectionStatus, repairConnection } from "../../extensions/work-tracker/src/erp-connection.js";
+import { defaults, sendEvents } from "../../extensions/work-tracker/src/api-client.js";
 const sender = { url: "https://erp.khyatigems.com/work-tracker" };
 const message = { erpUrl: "https://erp.khyatigems.com", token: `kgwt_${"x".repeat(43)}`, browserName: "Office PC", credentialId: "test" };
 const verify = async () => new Response(JSON.stringify({ connected: true, credential: { id: "test", name: "Office PC", expiresAt: "2099-01-01" } }));
@@ -21,6 +21,22 @@ assert.equal(status.state, "connected");
 assert.equal(status.browserName, "Office PC", "ERP name overrides stale local and legacy settings");
 assert.equal(status.credentialId, "test", "legacy token-only connections recover their credential identity");
 assert.equal(status.pendingCount, 1);
+assert.equal((await connectionStatus(sender, { ...connected, erpUrl: "https://ERP.khyatigems.com:443/" }, {}, verify)).state, "connected", "equivalent origins are not another ERP");
+await sendEvents({ ...connected, erpUrl: "https://ERP.khyatigems.com:443/" }, [], async url => {
+ assert.equal(url, "https://erp.khyatigems.com/api/work-tracker/activity-events", "legacy formatting must not cause a redirect");
+ return new Response(JSON.stringify({ accepted: [] }));
+});
+const localConnection = { ...connected, erpUrl: "http://localhost:3000", credentialId: "test", enabled: true };
+const repaired = await repairConnection(localConnection, message.erpUrl, verify);
+assert.equal(repaired.erpUrl, message.erpUrl);
+assert.equal(repaired.token, localConnection.token, "address repair must keep the original access");
+assert.equal(repaired.enabled, true, "address repair keeps the tracking preference");
+await assert.rejects(repairConnection(localConnection, message.erpUrl, async () => new Response(JSON.stringify({ connected: true, credential: { id: "another-browser", name: "Other" } }))), /same browser access/);
+await assert.rejects(repairConnection(localConnection, message.erpUrl, async () => new Response("{}", { status: 401 })), /expired or revoked/);
+await assert.rejects(repairConnection({ ...localConnection, credentialId: undefined }, message.erpUrl, async url => {
+ if (url.startsWith("http://localhost")) throw new Error("offline");
+ return verify();
+}), /Cannot reach/, "legacy access without a verified identity cannot migrate across servers blindly");
 assert.equal(Object.hasOwn(status, "token"), false);
 const invalid = async () => new Response("{}", { status: 401 });
 assert.equal((await connectionStatus(sender, connected, {}, invalid)).state, "invalid");

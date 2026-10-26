@@ -1,5 +1,5 @@
-import { trustedErpSender, connectFromErp, connectionStatus } from "./erp-connection.js";
-import { defaults, validateSettings, sendEvents } from "./api-client.js";
+import { trustedErpSender, connectFromErp, connectionStatus, repairConnection } from "./erp-connection.js";
+import { defaults, validateSettings, sendEvents, erpOrigin } from "./api-client.js";
 import { eligibleTab } from "./platform-detection.js";
 import { sliceInterval, removeIdle, readyEvents, acknowledge } from "./activity-tracker.js";
 
@@ -10,7 +10,10 @@ const ALARM_NAME = "work-tracker";
 const SYNC_RETRY_ALARM = "work-tracker-sync-retry";
 const SYNC_INTERVAL_MINUTES = 1;
 function schedule(fn, onError, propagate = false) { chain = chain.catch(() => {}).then(fn).catch(async error => { await chrome.storage.local.set({ lastError: error.message }); await badge(false, "!"); onError?.(error); if (propagate) throw error; }); return chain; }
-async function settings() { return { ...defaults, ...(await chrome.storage.local.get("settings")).settings }; }
+async function settings() {
+  const config = { ...defaults, ...(await chrome.storage.local.get("settings")).settings };
+  return { ...config, erpUrl: erpOrigin(config.erpUrl) };
+}
 async function scheduleUploadAlarm(at) {
   await chrome.alarms.clear(SYNC_RETRY_ALARM);
   if (at > Date.now()) await chrome.alarms.create(SYNC_RETRY_ALARM, { when: at });
@@ -59,10 +62,12 @@ async function performSync() {
   let queue = stored.queue || [];
   // Server accepts seven days of offline history. Expired records are retained for inspection.
   const expired = queue.filter(e => +new Date(e.occurredAt) < Date.now() - 7 * 86400000);
-  if (expired.length) { const error = "Some queued records are over seven days old. Export or clear the queue in Settings."; await schedule(() => chrome.storage.local.set({ lastError: error })); return { error }; }
-  const batch = readyEvents(queue, Date.now(), config.idleSeconds).slice(0, 100);
+  const expiryWarning = expired.length ? `${expired.length} pending records are over seven days old and retained for export in Settings.` : "";
+  const expiredIds = new Set(expired.map(e => e.id));
+  const batch = readyEvents(queue, Date.now(), config.idleSeconds).filter(e => !expiredIds.has(e.id)).slice(0, 100);
   if (!batch.length) {
     await scheduleEligibleUpload(queue, config.idleSeconds);
+    if (expiryWarning) { await schedule(() => chrome.storage.local.set({ lastError: expiryWarning })); return { error: expiryWarning }; }
     return { ok: true, message: queue.length ? "Recent activity is still in the idle safety buffer. It uploads automatically when eligible." : "No pending activity. Open a supported marketplace and enable automatic tracking." };
   }
   try {
@@ -74,9 +79,12 @@ async function performSync() {
       // New intervals can arrive during an upload. Acknowledge against the
       // latest queue rather than replacing it with the old request snapshot.
       queue = acknowledge(current.queue || [], ids);
-      await chrome.storage.local.set({ queue, failures: 0, retryAt: 0, lastError: "", lastSync: new Date().toISOString() });
+      await chrome.storage.local.set({ queue, failures: 0, retryAt: 0, lastError: expiryWarning, lastSync: new Date().toISOString() });
       await scheduleUploadAlarm(0);
-      if (queue.length) await scheduleEligibleUpload(queue, config.idleSeconds);
+      // Drain a backlog promptly, but avoid a tight loop on partial acknowledgements.
+      const remainingReady = readyEvents(queue, Date.now(), config.idleSeconds).some(e => +new Date(e.occurredAt) >= Date.now() - 7 * 86400000);
+      if (remainingReady && ids.length === batch.length) await scheduleUploadAlarm(Date.now() + 1000);
+      else if (queue.length) await scheduleEligibleUpload(queue, config.idleSeconds);
     }, undefined, true);
     return { ok: true, message: ids.length === batch.length ? `${ids.length} records synchronized. Recent records may still be in the idle safety buffer.` : `${ids.length} of ${batch.length} records accepted. Unaccepted records remain queued for retry.` };
   } catch (error) {
@@ -107,6 +115,21 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id || !sender.url?.startsWith(chrome.runtime.getURL("src/"))) return false;
   let responded = false;
   const reply = result => { if (responded) return; responded = true; try { respond(result); } catch { /* The extension page may have closed while this operation ran. */ } };
+  if (message.action === "repairConnection") {
+    (async () => {
+      const old = await settings();
+      const next = await repairConnection(old, message.erpUrl);
+      await schedule(async () => {
+        const current = await settings();
+        if (current.erpUrl !== old.erpUrl || current.token !== old.token) throw new Error("Connection changed. Check the saved connection and retry repair.");
+        await sample("TAB_SWITCH");
+        await chrome.storage.local.set({ settings: { ...current, erpUrl: next.erpUrl, credentialId: next.credentialId, browserName: next.browserName }, previous: null, lastError: "", retryAt: 0, failures: 0 });
+        await sample("TAB_SWITCH", true);
+      }, undefined, true);
+      reply(await sync());
+    })().catch(error => reply({ error: error.message }));
+    return true;
+  }
   if (message.action === "sync") {
     schedule(() => chrome.storage.local.set({ retryAt: 0 }), error => reply({ error: error.message }), true)
       .then(() => sync()).then(result => reply(result || { ok: true }), error => reply({ error: error.message }));
@@ -132,7 +155,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       if (queue.length) throw new Error("Sync or export and clear pending records before disconnecting.");
       await chrome.storage.local.set({ settings: { ...defaults }, previous: null, active: false, lastSync: null, lastError: "", retryAt: 0, failures: 0 });
       await badge(false);
-    } else if (message.action === "clearQueue") { await chrome.storage.local.set({ queue: [], previous: null, lastError: "", settings: { ...await settings(), enabled: false } }); await badge(false); }
+    } else if (message.action === "clearQueue") { await chrome.storage.local.set({ queue: [], previous: null, lastError: "", retryAt: 0, failures: 0, settings: { ...await settings(), enabled: false } }); await scheduleUploadAlarm(0); await badge(false); }
     else { reply({ error: "Unknown action" }); return; }
     reply({ ok: true });
   }, error => reply({ error: error.message }));
