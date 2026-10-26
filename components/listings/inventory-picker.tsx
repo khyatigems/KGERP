@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "@/lib/erp-feedback";
 import { formatCurrency } from "@/lib/utils";
 import { inventoryListingDefaults } from "@/lib/marketplace/inventory-listing-defaults";
 
@@ -26,6 +28,7 @@ type InventoryRow = {
   weightUnit: string | null;
   status: string;
   createdAt: string;
+  hiddenForListing?: boolean;
 };
 
 type Preset = {
@@ -101,6 +104,10 @@ export function InventoryPicker({
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<Preset[]>([]);
   const [selectedPreset, setSelectedPreset] = useState("");
+  const [showHidden, setShowHidden] = useState(false);
+  const [savingVisibility, setSavingVisibility] = useState(false);
+  const [reload, setReload] = useState(0);
+  const hasListingScope = Boolean(marketplace && shopId);
 
   useEffect(() => {
     try {
@@ -130,9 +137,10 @@ export function InventoryPicker({
     if (marketplace && shopId) {
       params.set("marketplace", marketplace);
       params.set("shopId", shopId);
+      if (showHidden) params.set("showHidden", "1");
     }
     return params.toString();
-  }, [debouncedFilters, marketplace, marketplaceReadyOnly, page, shopId]);
+  }, [debouncedFilters, marketplace, marketplaceReadyOnly, page, shopId, showHidden]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -143,6 +151,7 @@ export function InventoryPicker({
         const res = await fetch(`${searchEndpoint}?${query}`, { signal: ac.signal, cache: "no-store" });
         if (!res.ok) throw new Error(`Inventory search failed (HTTP ${res.status}).`);
         const json = await res.json();
+        if (ac.signal.aborted) return;
         setRows(json.items || []);
         setTotal(Number(json.total || 0));
       } catch (requestError) {
@@ -156,7 +165,32 @@ export function InventoryPicker({
     };
     run();
     return () => ac.abort();
-  }, [query, searchEndpoint]);
+  }, [query, searchEndpoint, reload]);
+
+  const changeVisibility = async (row: InventoryRow) => {
+    if (!hasListingScope || savingVisibility) return;
+    setSavingVisibility(true);
+    const hidden = !row.hiddenForListing;
+    try {
+      const response = await fetch("/api/marketplace/listing-visibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inventoryId: row.id, marketplace, shopId, hidden }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Unable to save item visibility.");
+      if (hidden && row.id === value) onSelect("");
+      setRows([]);
+      setLoading(true);
+      setPage(1);
+      setReload((previous) => previous + 1);
+      toast.success(hidden ? "Item hidden for this marketplace shop." : "Item restored for this marketplace shop.");
+    } catch (requestError) {
+      toast.error(requestError instanceof Error ? requestError.message : "Unable to save item visibility.");
+    } finally {
+      setSavingVisibility(false);
+    }
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / Number(filters.pageSize || "25")));
 
@@ -263,11 +297,25 @@ export function InventoryPicker({
             Delete Preset
           </Button>
         </div>
-        <Button type="button" variant="outline" onClick={() => setFilters(defaultFilters)} className="w-fit">
+        <Button type="button" variant="outline" onClick={() => { setPage(1); setFilters(defaultFilters); }} className="w-fit">
           <RefreshCw className="mr-2 h-4 w-4" />
           Reset
         </Button>
       </div>
+
+      {hasListingScope && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
+          <p className="text-xs text-muted-foreground">
+            Hidden items are remembered for this shop on {marketplace === "EBAY" ? "eBay" : "Etsy"}. Other shops are unaffected.
+          </p>
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <Checkbox checked={showHidden} disabled={savingVisibility} onCheckedChange={(checked) => {
+              setRows([]); setLoading(true); setPage(1); setShowHidden(checked === true);
+            }} />
+            Show hidden items
+          </label>
+        </div>
+      )}
 
       <div className="rounded-lg border">
         <Table>
@@ -278,6 +326,7 @@ export function InventoryPicker({
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Price</TableHead>
               <TableHead className="text-right">Select</TableHead>
+              {hasListingScope && <TableHead className="text-right">Visibility</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -294,22 +343,32 @@ export function InventoryPicker({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="font-medium">{row.itemName}</div>
+                  <div className="flex items-center gap-2 font-medium">{row.itemName}
+                    {row.hiddenForListing && <Badge variant="secondary">Hidden</Badge>}
+                  </div>
                   <div className="text-xs text-muted-foreground">{[row.category, row.gemType, row.color].filter(Boolean).join(" • ")}</div>
                 </TableCell>
                 <TableCell><Badge variant="outline">{row.status}</Badge></TableCell>
                 <TableCell className="text-right">{formatCurrency(row.sellingPrice ?? 0)}</TableCell>
                 <TableCell className="text-right">
-                  <Button type="button" size="sm" onClick={() => onSelect(row.id, row)} disabled={loading}>
+                  <Button type="button" size="sm" onClick={() => onSelect(row.id, row)} disabled={loading || savingVisibility || row.hiddenForListing}>
                     {row.id === value ? "Selected" : "Select"}
                   </Button>
                 </TableCell>
+                {hasListingScope && <TableCell className="text-right">
+                  <Button type="button" variant="outline" size="sm" disabled={loading || savingVisibility}
+                    aria-label={`${row.hiddenForListing ? "Unhide" : "Hide"} ${row.sku} for this marketplace shop`}
+                    onClick={() => void changeVisibility(row)}>
+                    {row.hiddenForListing ? <Eye className="mr-1 h-4 w-4" /> : <EyeOff className="mr-1 h-4 w-4" />}
+                    {row.hiddenForListing ? "Unhide" : "Hide"}
+                  </Button>
+                </TableCell>}
               </TableRow>
             ))}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  {loading ? "Loading..." : "No results"}
+                <TableCell colSpan={hasListingScope ? 6 : 5} className="text-center text-muted-foreground">
+                  {loading ? "Loading..." : hasListingScope && !showHidden ? "No results. Try Show hidden items or adjust your filters." : "No results"}
                 </TableCell>
               </TableRow>
             )}

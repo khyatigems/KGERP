@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { ensureInventoryBraceletSchema } from "@/lib/inventory-schema-ensure";
 import { buildReadyToSellWhere } from "@/lib/inventory-ready-to-sell";
 import { MARKETPLACE_LISTING_SCOPE_SQL, marketplaceInventoryJoinSql } from "@/lib/marketplace-control-center";
+import { hiddenListingInventoryIds } from "@/lib/marketplace/listing-visibility";
 
 
 const toNumber = (value: string | null) => {
@@ -40,6 +41,8 @@ export async function GET(request: NextRequest) {
   const marketplaceReadyOnly = sp.get("marketplaceReadyOnly") === "1";
   const listingMarketplace = (sp.get("marketplace") || "").trim().toUpperCase();
   const listingShopId = (sp.get("shopId") || "").trim();
+  const showHidden = sp.get("showHidden") === "1";
+  let hiddenIds: string[] = [];
   if (listingMarketplace || listingShopId) {
     if (!["EBAY", "ETSY"].includes(listingMarketplace) || !listingShopId) {
       return NextResponse.json({ error: "A valid marketplace and connected shop are required for listing eligibility." }, { status: 400 });
@@ -84,8 +87,10 @@ export async function GET(request: NextRequest) {
         AND l."marketplaceShopId" = ${listingShopId}
         AND UPPER(TRIM(l."platform")) = ${listingMarketplace}
     `);
-    if (listedInventory.length) {
-      where.id = { notIn: listedInventory.map((row) => row.id) };
+    hiddenIds = await hiddenListingInventoryIds(prisma, listingShopId, listingMarketplace);
+    const excludedIds = [...listedInventory.map((row) => row.id), ...(showHidden ? [] : hiddenIds)];
+    if (excludedIds.length) {
+      where.id = { notIn: excludedIds };
     }
   }
   if (category) where.category = category;
@@ -186,12 +191,14 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
+  const hiddenIdSet = new Set(hiddenIds);
   return NextResponse.json({
     page,
     pageSize,
     total,
     items: items.map((item) => ({
       ...item,
+      ...(listingShopId ? { hiddenForListing: hiddenIdSet.has(item.id) } : {}),
       imageUrl: item.imageUrl || item.media[0]?.mediaUrl || null,
       media: undefined,
     })),

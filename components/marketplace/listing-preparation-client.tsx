@@ -1256,6 +1256,7 @@ export function ListingPreparationClient({
                   <div className="space-y-2">
                     <Label>3. Eligible inventory item</Label>
                     <InventoryPicker
+                      key={`ETSY:${shopId}`}
                       value={inventoryId}
                       marketplaceReadyOnly
                       marketplace="ETSY"
@@ -1695,6 +1696,7 @@ export function ListingPreparationClient({
                     <div className="space-y-2">
                       <Label>3. Eligible inventory item</Label>
                       <InventoryPicker
+                        key={`EBAY:${shopId}`}
                         value={inventoryId}
                         marketplaceReadyOnly
                         marketplace="EBAY"

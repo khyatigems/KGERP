@@ -422,6 +422,7 @@ model Inventory {
   purchase             Purchase?               @relation(fields: [purchaseId], references: [id])
   vendor               Vendor?                 @relation(fields: [vendorId], references: [id])
   listings             Listing[]
+  listingExclusions    MarketplaceListingExclusion[]
   metricSnapshots      ListingMetricSnapshot[]
   opportunities        ListingOpportunity[]
   sales                Sale[]
@@ -1797,10 +1798,22 @@ model MarketplaceShop {
   orders          MarketplaceOrder[]
   syncLogs        MarketplaceSyncLog[]
   syncJobs        MarketplaceSyncJob[]
+  listingExclusions MarketplaceListingExclusion[]
 
   @@unique([marketplace, externalShopId])
   @@index([connectionId, status])
   @@index([marketplace, status])
+}
+
+model MarketplaceListingExclusion {
+  inventoryId String
+  shopId      String
+  marketplace String
+  createdAt   DateTime @default(now())
+  inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  shop        MarketplaceShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@id([shopId, marketplace, inventoryId])
 }
 
 model MarketplaceSyncLog {
