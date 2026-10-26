@@ -24,7 +24,7 @@ export default async function SettingsPage() {
     redirect("/");
   }
 
-  const rawSettings = await prisma.setting.findMany();
+  const rawSettings = await prisma.setting.findMany({ where: { NOT: { key: { startsWith: "companion:v1:" } } } });
   // Deduplicate settings by key
   const settings = removeDuplicates(rawSettings, 'key');
   
@@ -52,6 +52,11 @@ export default async function SettingsPage() {
       <SettingsWorkspace
         modules={
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <LoadingLink href="/settings/companion">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader><Gift className="h-8 w-8 mb-2 text-primary" /><CardTitle>ERP Companion</CardTitle><CardDescription>Meet Facet. Configure your character, quick actions, quiet mode and genuine ERP updates.</CardDescription></CardHeader>
+              </Card>
+            </LoadingLink>
             <LoadingLink href="/settings/weekly-reports">
               <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
                 <CardHeader><FileText className="h-8 w-8 mb-2 text-primary" /><CardTitle>Reports &amp; Email Alerts</CardTitle><CardDescription>Weekly business intelligence, branded PDFs, schedules and Zoho delivery history.</CardDescription></CardHeader>

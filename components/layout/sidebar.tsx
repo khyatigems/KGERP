@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
 import { useSidebar } from "./sidebar-context";
 import { useTheme } from "next-themes";
+import { useWorkspaceAppearance } from "@/components/workspace-appearance-provider";
 import { parseSidebarExpandedGroups, SIDEBAR_GROUPS_COOKIE, SIDEBAR_GROUPS_STORAGE_KEY, SIDEBAR_GROUP_IDS } from "@/lib/sidebar-preferences";
 
 type NavAnimationKey = string;
@@ -145,6 +146,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
   const { showLoader } = useGlobalLoader();
   const { collapsed, toggleCollapsed } = useSidebar();
   const { resolvedTheme } = useTheme();
+  const { appearance } = useWorkspaceAppearance();
   const [mounted, setMounted] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(() => initialExpandedGroups);
   const [unreadCommunications, setUnreadCommunications] = useState(0);
@@ -200,7 +202,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
     return () => window.removeEventListener("storage", syncFromStorage);
   }, []);
   
-  const isDark = mounted && resolvedTheme === "dark";
+  const isDark = mounted && (resolvedTheme === "dark" || resolvedTheme === "dim" || appearance.sidebar === "dark");
   const brandNavy = isDark ? "#FFFFFF" : "#181547";
   const brandRed = isDark ? "#FFFFFF" : "#D03837";
 
@@ -329,8 +331,8 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
     <div className="workspace-sidebar sticky top-0 flex h-dvh flex-col bg-sidebar border-r border-sidebar-border text-sidebar-foreground">
       <div
         className={cn(
-          "flex shrink-0 items-center border-b border-sidebar-border",
-          collapsed ? "h-20 flex-col justify-center gap-1 px-3" : "h-20 flex-row justify-between px-4"
+          "flex h-16 shrink-0 items-center border-b border-sidebar-border",
+          collapsed ? "flex-col justify-center px-3" : "flex-row justify-between px-4"
         )}
       >
         <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={() => handleNavigation("/")} title="KhyatiGems™ ERP">
@@ -388,12 +390,12 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
           </div>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-3">
+      <div className="workspace-sidebar-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden py-3">
         <nav className={cn("grid items-start text-sm font-medium gap-3", collapsed ? "px-1.5" : "px-2")}>
           {navGroups.map(group => renderGroup(group))}
         </nav>
       </div>
-      <div className={cn("flex shrink-0 items-center gap-3 border-t border-sidebar-border p-3", collapsed && "justify-center")}><ThemeToggle />{!collapsed && <div className="min-w-0"><p className="text-xs font-medium">Appearance</p><p className="mt-0.5 text-[10px] text-muted-foreground">Theme & dashboard view</p></div>}</div>
+      <div className={cn("flex shrink-0 items-center gap-3 border-t border-sidebar-border p-3", collapsed && "justify-center")}><ThemeToggle instance={onNavigate ? "mobile" : "desktop"} />{!collapsed && <div className="min-w-0"><p className="text-xs font-medium">Appearance</p><p className="mt-0.5 text-[10px] text-muted-foreground">Theme, view & companion</p></div>}</div>
     </div>
   );
 }

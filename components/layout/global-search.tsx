@@ -104,7 +104,7 @@ export function GlobalSearch() {
 
   return (
     <div
-      className="relative mx-auto min-w-0 w-full max-w-xl flex-1"
+      className="relative order-last mx-auto min-w-0 w-full max-w-xl basis-full md:order-none md:basis-auto md:flex-1"
       ref={containerRef}
     >
       <div className="relative">

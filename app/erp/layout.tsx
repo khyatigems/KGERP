@@ -1,3 +1,5 @@
+import { CompanionHost } from "@/components/companion/companion-host";
+import { companionKey, parseCompanionPreferences } from "@/lib/companion";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
@@ -115,6 +117,11 @@ export default async function ErpLayout({
     }
   }
 
+  const companionAllowed = !!session?.user?.id && (allowedNavModules.includes("ALL") || allowedNavModules.includes("settings:manage"));
+  const companionSetting = companionAllowed
+    ? await prisma.setting.findUnique({ where: { key: companionKey(session!.user.id) }, select: { value: true } }).catch(() => null)
+    : null;
+
   return (
     <SidebarProvider initialCollapsed={initialCollapsed}>
       <SidebarGridClient>
@@ -128,6 +135,7 @@ export default async function ErpLayout({
           </main>
         </div>
       </SidebarGridClient>
+    {companionAllowed && <CompanionHost userId={session!.user.id} allowedModules={allowedNavModules} initialPreferences={parseCompanionPreferences(companionSetting?.value)} />}
     </SidebarProvider>
   );
 }

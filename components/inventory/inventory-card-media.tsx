@@ -27,7 +27,7 @@ export function InventoryCardMedia({ item, className, width = 80, height = 80 }:
   const src = resolveMediaUrl(item.media);
 
   return (
-    <div className={`relative overflow-hidden rounded-md border bg-muted ${className}`} style={{ width: className ? undefined : width, height: className ? undefined : height }}>
+    <div className={`gemstone-photo relative overflow-hidden rounded-md border bg-muted ${className}`} style={{ width: className ? undefined : width, height: className ? undefined : height }}>
       <Image
         src={src}
         alt={item.itemName || "Inventory item"}

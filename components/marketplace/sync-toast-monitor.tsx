@@ -108,7 +108,7 @@ export function MarketplaceSyncToastMonitor() {
             return next;
           });
         }} />
-      ), { id: terminal ? completedToastId : toastId, duration: terminal ? 12_000 : Infinity, position: "bottom-right" });
+      ), { className: "erp-marketplace-sync-toast", id: terminal ? completedToastId : toastId, duration: terminal ? 12_000 : Infinity, position: "bottom-right" });
     }
   }, [jobsByBatch]);
 

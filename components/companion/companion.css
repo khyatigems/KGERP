@@ -1,0 +1,30 @@
+.facet-art { width: 100%; height: 100%; overflow: visible; }
+html[data-companion-on=true] [data-sonner-toast]:not(.erp-marketplace-sync-toast) { display: none !important; }
+.facet-feedback { --feedback-accent: var(--primary); overflow-wrap: anywhere; min-width: 0; }
+.facet-feedback > div > * { max-width: 100%; }
+.facet-feedback .erp-feedback-card { width: 100%; padding: 0; border: 0; box-shadow: none; border-radius: 0; background: transparent; }
+.companion-motion .facet-body { transform-origin: 50% 50%; animation: facet-breathe 6s ease-in-out infinite; }
+.companion-motion .facet-eyes { transform-origin: 50% 46%; animation: facet-blink 9s infinite; }
+.companion-motion .facet-art[data-state=working] .facet-body { animation: facet-work 1.6s ease-in-out infinite; }
+.companion-motion .facet-art[data-state=success] .facet-body { animation: facet-nod .7s ease-in-out 2; }
+.companion-motion .facet-art[data-state=greeting] .facet-body { animation: facet-nod 1s ease-in-out 2; }
+.companion-motion .facet-art[data-state=happy] .facet-body { animation: facet-hello .9s ease-in-out 2; }
+.companion-motion .facet-art[data-state=wink] .facet-wing { transform-origin: 28px 65px; animation: facet-wave .8s ease-in-out 2; }
+.companion-motion .facet-art[data-state=happy] .facet-tail { transform-origin: 65px 87px; animation: facet-tail .7s ease-in-out 3; }
+.companion-motion .facet-art[data-state=resting] .facet-body { animation: facet-rest 7s ease-in-out infinite; }
+.companion-motion .facet-art[data-state=resting] .facet-sleep { animation: facet-dream 5s ease-in-out infinite; }
+.companion-motion .facet-art[data-state=resting] .facet-eyes,
+.companion-motion .facet-art[data-state=wink] .facet-eyes,
+.companion-motion .facet-art[data-state=sleeping] .facet-eyes { animation: none; }
+.facet-art[data-state=sleeping] .facet-body { transform: translateY(3px); }
+.companion-paused *, .companion-paused *::before { animation-play-state: paused !important; }
+@keyframes facet-breathe { 50% { transform: translateY(-2px); } }
+@keyframes facet-blink { 0%, 44%, 47%, 100% { transform: scaleY(1); } 45%, 46% { transform: scaleY(.1); } }
+@keyframes facet-work { 50% { transform: rotate(4deg); } }
+@keyframes facet-nod { 50% { transform: translateY(-4px) rotate(-5deg); } }
+@keyframes facet-hello { 30% { transform: translateY(-3px) rotate(-4deg); } 70% { transform: translateY(-2px) rotate(4deg); } }
+@keyframes facet-wave { 50% { transform: rotate(18deg); } }
+@keyframes facet-tail { 50% { transform: rotate(-12deg); } }
+@keyframes facet-rest { 0%, 100% { transform: translateY(3px) rotate(-3deg); } 50% { transform: translateY(4px) rotate(-1deg) scale(.99); } }
+@keyframes facet-dream { 0%, 100% { opacity: .25; transform: translateY(2px); } 50% { opacity: .6; transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .facet-art * { animation: none !important; } }

@@ -1,0 +1,48 @@
+import assert from "node:assert/strict";
+import { companionToastOptions, companionRuntime, isMarketplaceSyncToast, setCompanionActive } from "../../lib/companion-runtime";
+import { existsSync } from "node:fs";
+import { companionActions, companionDefaults, companionHref, companionKey, filterCompanionNotices, companionSchema, parseCompanionPreferences, type CompanionNotice } from "../../lib/companion";
+import { acknowledgeCompanionNotice, companionNotificationStore, publishCompanionNotifications } from "../../lib/companion-notification-store";
+
+assert.equal(companionDefaults.enabled, false);
+for (const action of companionActions) assert.ok(existsSync(`app/(dashboard)${action.href}/page.tsx`), `${action.href} must resolve to an existing page`);
+assert.deepEqual(parseCompanionPreferences("bad json"), companionDefaults);
+assert.deepEqual(parseCompanionPreferences('{"enabled":"yes"}'), companionDefaults);
+assert.equal(parseCompanionPreferences('{"enabled":true}').enabled, true);
+assert.equal(companionSchema.safeParse({ enabled: true, position: "somewhere" }).success, false);
+assert.notEqual(companionKey("alice"), companionKey("bob"));
+for (const href of ["//example.com", "https://example.com", "javascript:alert(1)", "/\\example.com", "/\nexample.com"]) assert.equal(companionHref(href), null);
+assert.equal(companionHref("/inventory/item-1"), "/inventory/item-1");
+const items: CompanionNotice[] = ["info", "warning", "error", "success"].map((type, i) => ({ id: String(i), type: type as CompanionNotice["type"], title: type, message: "Confirmed event", href: "/inventory", readAt: null, createdAt: new Date().toISOString() }));
+assert.equal(filterCompanionNotices(items, "all").length, 4);
+assert.equal(filterCompanionNotices([...items, { ...items[0], id: "read", readAt: new Date().toISOString() }], "all").length, 5, "read history remains visible");
+assert.deepEqual(filterCompanionNotices(items, "attention").map(item => item.type), ["warning", "error"]);
+let calls = 0;
+const unsubscribe = companionNotificationStore.subscribe(() => calls++);
+publishCompanionNotifications(items);
+acknowledgeCompanionNotice("1");
+assert.equal(filterCompanionNotices(companionNotificationStore.getSnapshot().items, "unread").length, 3);
+assert.equal(calls, 2);
+unsubscribe();
+publishCompanionNotifications([]);
+assert.equal(calls, 2, "subscription cleanup prevents further callbacks");
+console.log("Companion rules passed: defaults, validation, account keys, safe links, severity filtering, acknowledgement and subscription cleanup.");
+
+assert.equal(companionSchema.safeParse({ dock: { x: 2, y: 0 } }).success, false);
+assert.deepEqual(parseCompanionPreferences('{"enabled":true}').pinned, []);
+assert.equal(parseCompanionPreferences('{"enabled":true}').dock, null);
+assert.equal(companionToastOptions({ id: "ordinary", toasterId: undefined as string | undefined }).toasterId, undefined);
+setCompanionActive(true);
+assert.equal(companionRuntime.getSnapshot(), true);
+assert.equal(companionToastOptions({ id: "ordinary", toasterId: undefined as string | undefined }).toasterId, "erp-companion");
+assert.equal(companionToastOptions({ id: "marketplace-sync-one", toasterId: undefined as string | undefined }).toasterId, undefined);
+assert.equal(isMarketplaceSyncToast(undefined, "erp-marketplace-sync-toast"), true);
+setCompanionActive(false);
+assert.equal(companionToastOptions({ id: "ordinary", toasterId: undefined as string | undefined }).toasterId, undefined);
+console.log("Companion routing passed: native fallback, active routing, marketplace exemption and dragged preference validation.");
+
+assert.equal(parseCompanionPreferences('{"enabled":true,"character":"emerald"}').size, 80, "old preferences get default size");
+for (const character of ["emerald", "sapphire", "owl", "fox", "sprout"]) assert.equal(companionSchema.safeParse({character}).success,true);
+for (const size of [0,47,145,10000,60.5]) assert.equal(companionSchema.safeParse({size}).success,false);
+for (const size of [48,80,144]) assert.equal(companionSchema.safeParse({size}).success,true);
+console.log("Companion appearance validation passed: legacy size defaults, character choices and safe bounds.");

@@ -19,7 +19,7 @@ interface LogoProps {
 export function Logo({ className, variant = "auto" }: LogoProps) {
   const { resolvedTheme } = useTheme();
 
-  const resolved = variant === "auto" ? (resolvedTheme === "dark" ? "dark" : "light") : variant;
+  const resolved = variant === "auto" ? (resolvedTheme === "dark" || resolvedTheme === "dim" ? "dark" : "light") : variant;
   const isDark = resolved === "dark";
 
   const navy = isDark ? "#FFFFFF" : "#181547";

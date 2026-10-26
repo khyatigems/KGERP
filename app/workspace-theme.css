@@ -38,5 +38,68 @@ html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
 
 .workspace-sidebar { box-shadow:1px 0 0 var(--border); }
+/* Hide the navigation scrollbar without changing native scrolling or focus behavior. */
+.workspace-sidebar-scroll { scrollbar-width:none; -ms-overflow-style:none; }
+.workspace-sidebar-scroll::-webkit-scrollbar { display:none; width:0; height:0; }
 .workspace-nav-active::before { content:""; position:absolute; left:0; top:25%; height:50%; width:3px; background:var(--primary); border-radius:0 3px 3px 0; }
 .workspace-sidebar a:focus-visible,.workspace-sidebar button:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+
+/* Surface palettes are independent from gemstone accents. */
+html:not(.dark)[data-workspace-theme] {
+  --background:#e7e9ed; --foreground:#29313d; --card:#f1f2f4; --card-foreground:#29313d;
+  --popover:#f1f2f4; --popover-foreground:#29313d; --muted:#dfe3e9; --muted-foreground:#55606f;
+  --secondary:#dfe3e9; --secondary-foreground:#29313d; --border:#c8ced7; --input:#bcc4cf;
+  --sidebar:#dde1e7; --sidebar-foreground:#29313d; --sidebar-border:#c8ced7;
+  --primary:#465f83; --ring:#465f83; --primary-foreground:#fff;
+  --accent:#dce5f1; --accent-foreground:#344e73; --sidebar-primary:#465f83;
+  --sidebar-ring:#465f83; --sidebar-accent:#cbd8e9; --sidebar-accent-foreground:#344e73;
+}
+html:not(.dark)[data-surface="stone"] {
+  --background:#e9e5df; --card:#f3f0eb; --popover:#f3f0eb; --muted:#e1dcd4;
+  --secondary:#e1dcd4; --border:#ccc5bb; --input:#bdb5aa; --sidebar:#dfdad2; --sidebar-border:#ccc5bb;
+}
+html:not(.dark)[data-surface="sage"] {
+  --background:#e4e9e5; --card:#eff3ef; --popover:#eff3ef; --muted:#dbe3dc;
+  --secondary:#dbe3dc; --border:#c3cec5; --input:#b3bfb5; --sidebar:#d9e1da; --sidebar-border:#c3cec5;
+}
+html:not(.dark)[data-workspace-theme="emerald-crystal"] {
+  --primary:#14775f; --ring:#14775f; --accent:#d8e8df; --accent-foreground:#12604e;
+  --sidebar-primary:#14775f; --sidebar-ring:#14775f; --sidebar-accent:#c9e0d3; --sidebar-accent-foreground:#12604e;
+}
+html:not(.dark)[data-workspace-theme="amethyst-prism"] {
+  --primary:#7453b3; --ring:#7453b3; --accent:#e5def0; --accent-foreground:#604199;
+  --sidebar-primary:#7453b3; --sidebar-ring:#7453b3; --sidebar-accent:#dcd1eb; --sidebar-accent-foreground:#604199;
+}
+/* Dim retains the dark class so existing dark components remain compatible. */
+html.dark[data-workspace-mode="dim"] {
+  --background:#282e38; --card:#333b47; --popover:#38414e; --muted:#3e4856;
+  --secondary:#3e4856; --border:#556172; --input:#667488; --muted-foreground:#c0cad8;
+  --sidebar:#252d38; --sidebar-border:#556172;
+}
+html.dark[data-surface="stone"] { --background:#191815; --card:#24231f; --popover:#2b2924; --muted:#33312b; --secondary:#33312b; --sidebar:#1e1d19; --border:#4b473e; --input:#635d51; --sidebar-border:#4b473e; }
+html.dark[data-surface="sage"] { --background:#111c18; --card:#1a2922; --popover:#213229; --muted:#2a3b31; --secondary:#2a3b31; --sidebar:#15231c; --border:#3c5144; --input:#536b5b; --sidebar-border:#3c5144; }
+html.dark[data-workspace-mode="dim"][data-surface="stone"] { --background:#302e29; --card:#3b3832; --popover:#433f38; --muted:#49453d; --secondary:#49453d; --sidebar:#2c2a25; --border:#6a6357; --input:#7d7465; --sidebar-border:#6a6357; }
+html.dark[data-workspace-mode="dim"][data-surface="sage"] { --background:#29332d; --card:#333f37; --popover:#3a483e; --muted:#405046; --secondary:#405046; --sidebar:#253028; --border:#5b6e60; --input:#6d8273; --sidebar-border:#5b6e60; }
+html[data-sidebar="dark"] .workspace-sidebar {
+  --sidebar:#202936; --sidebar-foreground:#e5ebf3; --sidebar-border:#455164;
+  --sidebar-accent:#344459; --sidebar-accent-foreground:#fff;
+  --sidebar-primary:#b5cdf4; --sidebar-primary-foreground:#15253c;
+  --sidebar-ring:#b5cdf4; --muted-foreground:#b8c4d4; --foreground:#e5ebf3;
+  --primary:#b5cdf4; --primary-foreground:#15253c; --border:#455164; --background:#202936;
+  --accent:#344459; --accent-foreground:#fff; --input:#455164;
+}
+html[data-sidebar="dark"][data-workspace-theme="emerald-crystal"] .workspace-sidebar { --primary:#82d7b6; --sidebar-primary:#82d7b6; --sidebar-ring:#82d7b6; }
+html[data-sidebar="dark"][data-workspace-theme="amethyst-prism"] .workspace-sidebar { --primary:#c5aff2; --sidebar-primary:#c5aff2; --sidebar-ring:#c5aff2; }
+.appearance-preview { background:var(--preview-bg); color:var(--preview-text); }
+/* Keep transparent product media on a neutral, consistent viewing surface. */
+html[data-workspace-theme] .gemstone-photo { background:#e8e8e8; }
+@media screen {
+  /* Scale rem-based workspace text and controls together, preserving proportions. */
+  html[data-text-size="large"] { font-size:18px; }
+  html[data-density="compact"] .erp-workspace [data-slot="table-cell"] { padding:.5rem .75rem; }
+  html[data-density="compact"] .erp-workspace [data-slot="table-head"] { height:2.25rem; padding:.5rem .75rem; }
+  .erp-workspace [data-slot="table-row"][data-state="selected"] { background:var(--accent); box-shadow:inset 3px 0 var(--primary); }
+  .erp-workspace [data-slot="table"] { font-variant-numeric:tabular-nums; }
+  .erp-workspace [data-slot="table-container"] { background:var(--card); }
+  .erp-workspace [data-slot="card"], .trading-panel { box-shadow:0 1px 2px rgb(20 30 45 / .04), 0 6px 18px rgb(20 30 45 / .025); }
+}

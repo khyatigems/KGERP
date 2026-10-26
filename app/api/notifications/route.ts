@@ -17,17 +17,29 @@ async function currentUserId(identify: IdentifyUser) {
 export async function handleNotificationsGet(request: NextRequest, identify: IdentifyUser = auth) {
   const userId = await currentUserId(identify);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const limit = Math.min(50, Math.max(1, Number(request.nextUrl.searchParams.get("limit")) || 20));
-  const offset = Math.min(500, Math.max(0, Number(request.nextUrl.searchParams.get("offset")) || 0));
+  const limit = Math.min(50, Math.max(1, Math.floor(Number(request.nextUrl.searchParams.get("limit")) || 20)));
+  const offset = Math.min(500, Math.max(0, Math.floor(Number(request.nextUrl.searchParams.get("offset")) || 0)));
+  const rawCursor = request.nextUrl.searchParams.get("cursor");
+  let cursor: { id: string; createdAt: Date } | null = null;
+  if (rawCursor) {
+    try {
+      if (rawCursor.length > 300) throw new Error();
+      const parsed = JSON.parse(rawCursor);
+      if (typeof parsed.id !== "string" || !parsed.id || parsed.id.length > 100 || typeof parsed.createdAt !== "string" || !Number.isFinite(Date.parse(parsed.createdAt))) throw new Error();
+      cursor = { id: parsed.id, createdAt: new Date(parsed.createdAt) };
+    } catch { return NextResponse.json({ error: "Invalid notification cursor" }, { status: 400 }); }
+  }
   try {
     await ensureNotificationSchema();
     await backfillRecentActivityNotifications(userId);
     const [rows, unreadCount] = await Promise.all([
-      prisma.notification.findMany({ where: { userId }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: offset, take: limit + 1 }),
+      prisma.notification.findMany({ where: { userId, ...(cursor ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] } : {}) }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: cursor ? 0 : offset, take: limit + 1 }),
       prisma.notification.count({ where: { userId, readAt: null } }),
     ]);
     const canRetryMarketplaceSync = await checkUserPermission(userId, PERMISSIONS.SETTINGS_MANAGE).catch(() => false);
-    return NextResponse.json({ items: rows.slice(0, limit), hasMore: offset < 500 && rows.length > limit, unreadCount, canRetryMarketplaceSync });
+    const items = rows.slice(0, limit);
+    const last = items.at(-1);
+    return NextResponse.json({ items, hasMore: rows.length > limit, nextCursor: last ? JSON.stringify({ id: last.id, createdAt: last.createdAt.toISOString() }) : null, unreadCount, canRetryMarketplaceSync });
   } catch {
     return NextResponse.json({ error: "Notifications are temporarily unavailable" }, { status: 503 });
   }

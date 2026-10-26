@@ -40,6 +40,7 @@ export function MarketplaceSyncPanel({
       void fetch("/api/integrations/marketplace/sync/process", { method: "POST" }).catch(() => null);
     } catch {
       toast.error("Marketplace sync could not be queued. Check the connection and try again.", {
+        className: "erp-marketplace-sync-toast",
         duration: Infinity,
         action: { label: "Retry", onClick: () => void queueSync(shopIds, type) },
       });

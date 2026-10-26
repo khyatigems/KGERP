@@ -356,7 +356,7 @@ export default async function InventoryDetailPage({
                 {media.length > 0 ? (
                     <div className="flex gap-4 overflow-x-auto pb-2">
                         {media.map((m: InventoryMedia, i: number) => (
-                             <div key={m.id} className="relative h-48 w-48 shrink-0 rounded-lg border overflow-hidden">
+                             <div key={m.id} className="gemstone-photo relative h-48 w-48 shrink-0 rounded-lg border overflow-hidden">
                                  {m.type === 'image' || m.type === 'IMAGE' ? (
                                      <Image 
                                         src={m.mediaUrl} 

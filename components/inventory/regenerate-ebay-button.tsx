@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, Sparkles } from "lucide-react";
 import { RegenerateEbayModal } from "./regenerate-ebay-modal";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
+import { MarketplaceLogo } from "@/components/ui/marketplace-logo";
 
 interface RegenerateEbayButtonProps {
   label?: string;
@@ -46,13 +46,7 @@ function RegenerateDescriptionButton({
           : <RefreshCw className="h-4 w-4 transition-transform group-hover:rotate-45" />}
         {useDefaultLabel ? (
           <span className="inline-flex items-center gap-3">
-            <Image
-              src={marketplace === "EBAY" ? "/ebay-logo.svg" : "/etsy-logo.svg"}
-              alt={marketplace === "EBAY" ? "eBay" : "Etsy"}
-              width={92}
-              height={36}
-              className="h-7 w-24 object-contain"
-            />
+            <MarketplaceLogo platform={marketplace} className="h-7 w-24" />
             <span>Descriptions</span>
           </span>
         ) : (

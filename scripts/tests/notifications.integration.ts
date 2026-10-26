@@ -63,6 +63,20 @@ async function main() {
     await prisma.notification.updateMany({ where: { id: first!.id, userId: "actor-a", readAt: null }, data: { readAt: new Date() } });
     assert.equal(await prisma.notification.count({ where: { userId: "actor-a", readAt: null } }), 0, "read state persists");
     assert.equal((await prisma.notification.findUniqueOrThrow({ where: { id: first!.id } })).message, "Invoice A was recorded", "duplicate delivery preserves original event contents");
+    for (let index = 0; index < 3; index++) await persistNotification({ ...event, eventKey: `cursor-test:${index}`, createdAt: new Date("2026-10-26T00:00:00Z") });
+    const pagedIds = new Set<string>();
+    let cursor: string | null = null;
+    for (let page = 0; page < 5; page++) {
+      const response = await handleNotificationsGet(new NextRequest(`https://erp.test/api/notifications?limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`), async () => ({ user: { id: "actor-a" } }));
+      const data = await response.json() as { items: Array<{ id: string; userId: string }>; nextCursor: string | null; hasMore: boolean };
+      for (const item of data.items) { assert.equal(item.userId, "actor-a"); assert.equal(pagedIds.has(item.id), false, "cursor pages do not repeat records"); pagedIds.add(item.id); }
+      if (!data.hasMore) break;
+      cursor = data.nextCursor;
+      assert.ok(cursor);
+    }
+    assert.equal(pagedIds.size, 4, "cursor includes every record even with identical timestamps");
+    const malformed = await handleNotificationsGet(new NextRequest("https://erp.test/api/notifications?cursor=invalid"), async () => ({ user: { id: "actor-a" } }));
+    assert.equal(malformed.status, 400);
     console.log("Notification integration passed: unique event deduplication, user isolation, persistent read state and immutable duplicate delivery.");
   } finally {
     await prisma.$disconnect();

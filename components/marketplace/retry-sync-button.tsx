@@ -30,6 +30,7 @@ export function RetryMarketplaceSyncButton({
       void fetch("/api/integrations/marketplace/sync/process", { method: "POST" }).catch(() => null);
     } catch {
       toast.error("Marketplace sync retry could not be queued. Check the connection and try again.", {
+        className: "erp-marketplace-sync-toast",
         duration: Infinity,
         action: { label: "Try again", onClick: () => void retry() },
       });

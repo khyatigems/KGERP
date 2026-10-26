@@ -188,7 +188,7 @@ export function InventoryDetailDrawer({
                 </div>
               ) : mainImage ? (
                 <div className="space-y-3">
-                  <div className="relative w-full h-[260px] rounded-md overflow-hidden bg-muted">
+                  <div className="gemstone-photo relative w-full h-[260px] rounded-md overflow-hidden bg-muted">
                     <Image src={mainImage} alt={data?.sku || "Inventory"} fill sizes="(max-width: 768px) 100vw, 800px" className="object-cover" />
                   </div>
                   {media.length > 1 ? (
@@ -200,7 +200,7 @@ export function InventoryDetailDrawer({
                           <button
                             key={m.id}
                             type="button"
-                            className={`relative h-14 rounded-md overflow-hidden border ${activeMedia === m.mediaUrl ? "border-primary" : "border-border"}`}
+                            className={`gemstone-photo relative h-14 rounded-md overflow-hidden border ${activeMedia === m.mediaUrl ? "border-primary" : "border-border"}`}
                             onClick={() => setActiveMedia(m.mediaUrl)}
                           >
                             <Image src={m.mediaUrl} alt={m.id} fill sizes="56px" className="object-cover" />

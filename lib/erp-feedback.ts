@@ -1,12 +1,14 @@
 "use client";
 
+import { COMPANION_FEEDBACK_EVENT } from "@/lib/companion-events";
+import { companionToastOptions } from "@/lib/companion-runtime";
 import { createElement, type ReactNode } from "react";
 import { RichFeedbackTitle, RichFeedbackDetails, type FeedbackState } from "@/components/ui/rich-feedback";
 import { Info } from "lucide-react";
 import { toast as sonnerToast, type ExternalToast } from "sonner";
 import { routeNotification, type NotificationEventKind, type NotificationRoute } from "@/lib/notification-routing";
 
-export { Toaster } from "sonner";
+export { FeedbackToaster as Toaster } from "@/components/companion/feedback-toaster";
 
 const PRIVATE_OR_INTERNAL_ERROR = /\b(?:prisma|sqlite|sql|constraint|stack trace|ECONN\w*|P\d{4})\b|\b(?:internal server error|database error)\b|Error:\s|\s+at\s+[\w.$]+\s*\(/i;
 
@@ -37,9 +39,14 @@ function richMessage(state: FeedbackState, message: Parameters<typeof sonnerToas
 }
 
 function showRichToast(state: FeedbackState, message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) {
+  if (typeof window !== "undefined" && ["loading", "success", "warning", "error"].includes(state)) {
+    window.dispatchEvent(new CustomEvent(COMPANION_FEEDBACK_EVENT, { detail: {
+      state: state === "loading" ? "working" : state === "error" ? "warning" : state,
+    } }));
+  }
   const rich = richMessage(state, message, options);
   const show = state === "normal" ? sonnerToast.message : sonnerToast[state];
-  return show(rich.title, rich.options);
+  return show(rich.title, companionToastOptions(rich.options));
 }
 
 /** The single UI entry point for transient ERP feedback; sanitize thrown/internal error text. */
@@ -48,7 +55,8 @@ export const toast = Object.assign(
   sonnerToast,
   {
     // Custom operation cards provide their own accessible dismissal control.
-    custom: (render: Parameters<typeof sonnerToast.custom>[0], options?: ExternalToast) => sonnerToast.custom(render, { closeButton: false, ...options }),
+    custom: (render: Parameters<typeof sonnerToast.custom>[0], options?: ExternalToast) => sonnerToast.custom(render, companionToastOptions({ closeButton: false, ...options })),
+    promise: ((promise, options) => sonnerToast.promise(promise, options ? companionToastOptions(options) : options)) as typeof sonnerToast.promise,
     success: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("success", message, options),
     error: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("error", message, options),
     warning: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("warning", message, options),

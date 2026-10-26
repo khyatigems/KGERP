@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useTheme } from "next-themes";
 import { toast } from "@/lib/erp-feedback";
 import { APPEARANCE_STORAGE_KEY, DEFAULT_APPEARANCE, normalizeWorkspacePalette, parseWorkspaceAppearance, type WorkspaceAppearance } from "@/lib/workspace-appearance";
 type AppearanceContext = { appearance: WorkspaceAppearance; updateAppearance: (patch: Partial<WorkspaceAppearance>) => void; ready: boolean };
@@ -10,10 +11,16 @@ function apply(appearance: WorkspaceAppearance) {
   root.dataset.workspaceTheme = appearance.palette;
   root.dataset.motion = appearance.motion ? "normal" : "reduced";
   root.dataset.dashboardView = appearance.dashboardView;
+  root.dataset.surface = appearance.surface;
+  root.dataset.sidebar = appearance.sidebar;
+  root.dataset.density = appearance.density;
+  root.dataset.textSize = appearance.textSize;
   delete root.dataset.premium; delete root.dataset.palette;
 }
 export function WorkspaceAppearanceProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  const { theme } = useTheme();
+  useEffect(() => { document.documentElement.dataset.workspaceMode = theme === "dim" ? "dim" : "normal"; }, [theme]);
   const [appearance, setAppearance] = useState(DEFAULT_APPEARANCE);
   const [ready, setReady] = useState(false);
   const current = useRef(DEFAULT_APPEARANCE);

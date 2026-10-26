@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { companionRuntime, OPEN_COMPANION_EVENT } from "@/lib/companion-runtime";
+import { publishCompanionNotifications } from "@/lib/companion-notification-store";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AlertTriangle, Bell, Check, CheckCheck, CircleAlert, Info, LoaderCircle } from "lucide-react";
 import { toast } from "@/lib/erp-feedback";
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,7 @@ function relativeTime(value: string) {
 }
 
 export function NotificationBell() {
+  const companionActive = useSyncExternalStore(companionRuntime.subscribe, companionRuntime.getSnapshot, companionRuntime.getServerSnapshot);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notice[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -45,14 +48,20 @@ export function NotificationBell() {
   const [loadingMore, setLoadingMore] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const cursorRef = useRef<string | null>(null);
+  const requestRef = useRef(false);
 
   const load = useCallback(async (quiet = false, offset = 0) => {
+    if (requestRef.current) return;
+    requestRef.current = true;
     if (!quiet) setLoading(true);
     try {
-      const response = await fetch(`/api/notifications?limit=20&offset=${offset}`, { cache: "no-store" });
+      const paging = offset && cursorRef.current ? `cursor=${encodeURIComponent(cursorRef.current)}` : `offset=${offset}`;
+      const response = await fetch(`/api/notifications?limit=20&${paging}`, { cache: "no-store" });
       if (!response.ok) throw new Error("unavailable");
-      const data = await response.json() as { items: Notice[]; hasMore: boolean; unreadCount: number; canRetryMarketplaceSync: boolean };
-      setItems((current) => offset ? [...current, ...data.items] : data.items);
+      const data = await response.json() as { items: Notice[]; hasMore: boolean; nextCursor?: string | null; unreadCount: number; canRetryMarketplaceSync: boolean };
+      cursorRef.current = data.nextCursor ?? null;
+      setItems((current) => offset ? [...current, ...data.items.filter(item => !current.some(existing => existing.id === item.id))] : data.items);
       setHasMore(data.hasMore);
       setUnreadCount(data.unreadCount);
       setCanRetryMarketplaceSync(data.canRetryMarketplaceSync);
@@ -60,11 +69,21 @@ export function NotificationBell() {
     } catch {
       setError(true);
     } finally {
+      requestRef.current = false;
       setLoading(false);
       setLoadingMore(false);
     }
   }, []);
 
+  useEffect(() => {
+    publishCompanionNotifications(items, loading ? "loading" : error ? "error" : "ready", { hasMore, unreadCount, loadingMore, refresh: () => void load(true), loadMore: () => { setLoadingMore(true); void load(true, items.length); } });
+  }, [items, loading, error, hasMore, unreadCount, loadingMore, load]);
+  useEffect(() => {
+    const read = () => { void load(true); };
+    window.addEventListener("erp:notification-read", read);
+    return () => window.removeEventListener("erp:notification-read", read);
+  }, [load]);
+  useEffect(() => () => publishCompanionNotifications([], "loading"), []);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     const refreshWhenVisible = () => {
@@ -80,7 +99,7 @@ export function NotificationBell() {
     };
   }, [load]);
   useEffect(() => {
-    if (!open) return;
+    if (!open || companionActive) return;
     void load(true);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -103,7 +122,7 @@ export function NotificationBell() {
     window.addEventListener("keydown", onKeyDown);
     requestAnimationFrame(() => panelRef.current?.focus());
     return () => { window.removeEventListener("keydown", onKeyDown); };
-  }, [open, load]);
+  }, [open, load, companionActive]);
 
   const markRead = async (id: string) => {
     try {
@@ -149,11 +168,11 @@ export function NotificationBell() {
   };
 
   return <div className="relative">
-    <Button ref={triggerRef} type="button" variant="ghost" size="icon" className="relative" aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`} aria-controls="erp-notifications-panel" aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((value) => !value)}>
+    <Button ref={triggerRef} type="button" variant="ghost" size="icon" className="relative" aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`} aria-controls="erp-notifications-panel" aria-expanded={open} aria-haspopup="dialog" onClick={() => { if (companionActive) { setOpen(false); window.dispatchEvent(new CustomEvent(OPEN_COMPANION_EVENT)); } else setOpen((value) => !value); }}>
       <Bell className="size-5" />
       {unreadCount > 0 && <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">{unreadCount > 99 ? "99+" : unreadCount}</span>}
     </Button>
-    {open && <>
+    {open && !companionActive && <>
       <button type="button" tabIndex={-1} aria-label="Close notifications" className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
       <section ref={panelRef} id="erp-notifications-panel" tabIndex={-1} role="dialog" aria-modal="true" aria-label="Notifications" className="absolute right-0 top-12 z-50 w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-[0_24px_90px_#0005] outline-none">
         <header className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="text-sm font-semibold">Notifications</h2><p className="text-xs text-muted-foreground">{unreadCount} unread</p></div>{unreadCount > 0 && <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => void markAllRead()}><CheckCheck className="mr-1.5 size-4" />Mark all read</Button>}</header>

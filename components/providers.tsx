@@ -13,6 +13,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <NextThemesProvider
         attribute="class"
         defaultTheme="system"
+        themes={["light", "dark", "dim"]}
+        value={{ light: "light", dark: "dark", dim: "dark" }}
         enableSystem
         disableTransitionOnChange
       >

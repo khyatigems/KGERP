@@ -1,3 +1,5 @@
+import { CompanionHost } from "@/components/companion/companion-host";
+import { companionKey, parseCompanionPreferences } from "@/lib/companion";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
@@ -183,6 +185,11 @@ export default async function DashboardLayout({
     }
   }
 
+  const companionAllowed = !!session?.user?.id && (allowedNavModules.includes("ALL") || allowedNavModules.includes("settings:manage"));
+  const companionSetting = companionAllowed
+    ? await prisma.setting.findUnique({ where: { key: companionKey(session!.user.id) }, select: { value: true } }).catch(() => null)
+    : null;
+
   return (
     <AutomaticWorkTracker userId={session?.user?.id || ""}>
     <SidebarProvider initialCollapsed={initialCollapsed}>
@@ -198,6 +205,7 @@ export default async function DashboardLayout({
             </main>
           </div>
         </SidebarGridClient>
+    {companionAllowed && <CompanionHost userId={session!.user.id} allowedModules={allowedNavModules} initialPreferences={parseCompanionPreferences(companionSetting?.value)} />}
     </SidebarProvider>
     </AutomaticWorkTracker>
   );
