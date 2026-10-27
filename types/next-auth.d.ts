@@ -3,6 +3,7 @@ import { Permission } from "@/lib/permissions"
 
 declare module "next-auth" {
   interface User {
+    mfaPolicy?: string
     role: string
     avatarUrl?: string | null
     lastLogin?: Date | string | null
@@ -21,6 +22,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
+    mfaPolicy?: string
     role: string
     avatarUrl?: string | null
     permissions: Permission[]

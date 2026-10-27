@@ -140,17 +140,8 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   if (!item) notFound();
   await trackPublicView("SKU_VIEW", item.id, item.sku, sp);
 
-  const [company, invoiceSales, paymentSettings, qrPayment] = await Promise.all([
+  const [company, paymentSettings, qrPayment] = await Promise.all([
     prisma.companySettings.findFirst({ select: { phone: true, email: true } }),
-    prisma.sale.findMany({
-      where: { inventoryId: item.id },
-      select: {
-        invoice: { select: { token: true, status: true, isActive: true, paymentStatus: true, totalAmount: true, paidAmount: true, sales: { select: { inventoryId: true } } } },
-        legacyInvoice: { select: { token: true, status: true, isActive: true, paymentStatus: true, totalAmount: true, paidAmount: true, legacySale: { select: { inventoryId: true } } } },
-      },
-      orderBy: { saleDate: "desc" },
-      take: 10,
-    }),
     prisma.paymentSettings.findFirst({ select: { upiEnabled: true, upiId: true, bankEnabled: true, razorpayEnabled: true, razorpayButtonId: true, razorpayKeyId: true, razorpayKeySecret: true } }),
     findPreviewQrPaymentAuthorization(item.id),
   ]);
@@ -158,25 +149,10 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   const isPerCarat = item.pricingMode === "PER_CARAT";
   const rate = isPerCarat ? item.sellingRatePerCarat : item.flatSellingPrice;
   const totalAmount = isPerCarat ? (item.weightValue || 0) * (item.sellingRatePerCarat || 0) : item.flatSellingPrice || 0;
-  const hasPaymentMethod = Boolean(
-    (paymentSettings?.upiEnabled && paymentSettings.upiId) ||
-    paymentSettings?.bankEnabled ||
-    (paymentSettings?.razorpayEnabled && paymentSettings.razorpayButtonId)
-  );
   const qrPaymentDue = qrPayment ? Number((qrPayment.totalAmount - qrPayment.paidAmount).toFixed(2)) : 0;
   const qrPaymentAmount = qrPayment?.enabled && ["IN_STOCK", "RESERVED"].includes(item.status.toUpperCase()) && paymentSettings?.razorpayEnabled && paymentSettings.razorpayKeyId?.trim() && paymentSettings.razorpayKeySecret?.trim() && qrPaymentDue >= 1 && qrPayment.amountToCollect >= 1 && (qrPayment.allowPartial || qrPayment.amountToCollect >= qrPaymentDue - 0.01)
     ? Math.min(qrPayment.amountToCollect, qrPaymentDue)
     : null;
-  const payableInvoice = ["IN_STOCK", "RESERVED"].includes(item.status.toUpperCase()) && hasPaymentMethod
-    ? invoiceSales.flatMap((sale) => [sale.invoice, sale.legacyInvoice]).find((invoice) => {
-      if (!invoice || !invoice.isActive || invoice.status !== "ISSUED") return false;
-      if (!["UNPAID", "PARTIAL"].includes(invoice.paymentStatus.toUpperCase())) return false;
-      if (invoice.totalAmount - invoice.paidAmount <= 0.01) return false;
-      const invoiceItems = "sales" in invoice ? invoice.sales : invoice.legacySale ? [invoice.legacySale] : [];
-      return invoiceItems.length === 1 && invoiceItems[0]?.inventoryId === item.id;
-    })
-    : undefined;
-  const payNowUrl = qrPaymentAmount === null && payableInvoice ? `/invoice/${encodeURIComponent(payableInvoice.token)}` : null;
   const rawDescription = item.productDescription || item.description || "";
   const descriptionHtml = sanitizeHtml(rawDescription, descriptionSanitizerOptions);
   const certificateUrl = resolveInventoryCertificateUrl({
@@ -192,5 +168,5 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   void _internalProductDescription;
   void _internalCertificateComments;
 
-  return <SkuPreviewContent item={publicItem} companySettings={company} rate={rate || 0} totalAmount={totalAmount || 0} isPerCarat={isPerCarat} descriptionHtml={descriptionHtml} payNowUrl={payNowUrl} qrPaymentAmount={qrPaymentAmount} qrPaymentDue={qrPaymentDue} qrAllowPartial={Boolean(qrPayment?.allowPartial)} certificateUrl={certificateUrl} />;
+  return <SkuPreviewContent item={publicItem} companySettings={company} rate={rate || 0} totalAmount={totalAmount || 0} isPerCarat={isPerCarat} descriptionHtml={descriptionHtml} qrPaymentAmount={qrPaymentAmount} qrPaymentDue={qrPaymentDue} qrAllowPartial={Boolean(qrPayment?.allowPartial)} certificateUrl={certificateUrl} />;
 }

@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
+import { isPublicPage } from "@/lib/public-routes";
 
 const { auth } = NextAuth(authConfig);
 const ROBOTS_TAG = "noindex, nofollow, noarchive, nosnippet, noimageindex";
@@ -21,27 +22,12 @@ export default auth((req) => {
     response.headers.set("x-robots-tag", ROBOTS_TAG);
   }
 
-  const isPublicRoute =
-    pathname === "/downloads/work-tracker-extension.zip" ||
-    pathname === "/work-tracker-extension-privacy" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/verify") ||
-    pathname.startsWith("/V/") || // Compact public packaging verification QR
-    pathname.startsWith("/preview") ||
-    pathname === "/manifest.webmanifest" || // PWA manifest — never auth-gated (HTML redirect breaks the browser parser)
-    pathname.startsWith("/api/cron") ||
-    pathname.startsWith("/api/serials/verify") ||
-    pathname.startsWith("/api/skus") ||
-    pathname.startsWith("/api/auth") || // Removed root "/" from public, as it's dashboard
-    pathname.startsWith("/api/ebay/account-deletion") || // eBay webhook — must be publicly accessible
-    pathname.startsWith("/invoice"); // Make invoice pages public
+  const isPublicRoute = isPublicPage(pathname);
 
   // 1. Handle Public Routes
   if (isPublicRoute) {
-    // If logged in and trying to access login, redirect to dashboard
-    if (isLoggedIn && pathname.startsWith("/login")) {
-      return NextResponse.redirect(new URL("/", req.nextUrl));
-    }
+    // Login must remain reachable when the server has revoked an older 2FA policy.
+    // The edge decoder alone cannot validate the current database policy version.
     return response;
   }
 

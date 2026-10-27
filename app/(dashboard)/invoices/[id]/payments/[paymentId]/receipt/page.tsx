@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { requirePagePermission } from "@/lib/require-page-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -8,6 +10,7 @@ type Props = {
 };
 
 export default async function PaymentReceiptPage({ params }: Props) {
+  await requirePagePermission(PERMISSIONS.SALES_VIEW);
   const { id, paymentId } = await params;
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },

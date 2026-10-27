@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/require-page-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import Link from "next/link";
 import { ensureSalesReturnReplacementSchema, prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -69,6 +71,7 @@ type InvoicePageProps = {
 };
 
 export default async function InvoiceDetailPage({ params }: InvoicePageProps) {
+  await requirePagePermission(PERMISSIONS.SALES_VIEW);
   const { id } = await params;
   await ensureReturnsSchema();
   await ensureSalesReturnReplacementSchema();

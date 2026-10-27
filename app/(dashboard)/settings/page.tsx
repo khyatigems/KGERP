@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SettingsForm } from "./settings-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Database, Settings2, FileText, TicketPercent, MessageSquare, Gift, Image as ImageIcon, Store, Mail } from "lucide-react";
+import { Database, Settings2, FileText, TicketPercent, MessageSquare, Gift, Image as ImageIcon, Store, Mail, ShieldCheck } from "lucide-react";
 import { removeDuplicates } from "@/lib/dedup";
 import { LandingPageForm } from "@/components/settings/landing-page-form";
 import { getLandingPageSettings } from "./landing-page/actions";
@@ -13,14 +13,12 @@ import { LoadingLink } from "@/components/ui/loading-link";
 import { SettingsWorkspace } from "@/components/settings/settings-workspace";
 
 import { AnimatedPage } from "@/components/ui/animated-page";
-import { hasPermission, PERMISSIONS } from "@/lib/permissions";
+import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { WorkspaceHeader } from "@/components/layout/workspace-header";
 
 export default async function SettingsPage() {
   const session = await auth();
-  const role = session?.user?.role || "VIEWER";
-  
-  if (!hasPermission(role, PERMISSIONS.SETTINGS_MANAGE)) {
+  if (!session?.user?.id || !await checkUserPermission(session.user.id, PERMISSIONS.SETTINGS_MANAGE)) {
     redirect("/");
   }
 
@@ -31,7 +29,6 @@ export default async function SettingsPage() {
   const config = settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
 
   // Fetch Landing Page Settings
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const landingPageSettings = await getLandingPageSettings();
 
   // Ensure schema has export columns before querying CompanySettings
@@ -52,6 +49,11 @@ export default async function SettingsPage() {
       <SettingsWorkspace
         modules={
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <LoadingLink href="/settings/security">
+              <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
+                <CardHeader><ShieldCheck className="h-8 w-8 mb-2 text-primary" /><CardTitle>Security &amp; 2FA</CardTitle><CardDescription>Require Zoho email verification for ERP sign-ins, configure the OTP mailbox and login alerts.</CardDescription></CardHeader>
+              </Card>
+            </LoadingLink>
             <LoadingLink href="/settings/companion">
               <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
                 <CardHeader><Gift className="h-8 w-8 mb-2 text-primary" /><CardTitle>ERP Companion</CardTitle><CardDescription>Meet Facet. Configure your character, quick actions, quiet mode and genuine ERP updates.</CardDescription></CardHeader>

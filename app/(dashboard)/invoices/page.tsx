@@ -1,4 +1,6 @@
 import { Metadata } from "next";
+import { requirePagePermission } from "@/lib/require-page-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getInvoiceDisplayDate } from "@/lib/invoice-date";
@@ -129,6 +131,7 @@ function InvoiceTable({ invoices, title, icon: Icon, type }: {
 }
 
 export default async function InvoicesPage() {
+  await requirePagePermission(PERMISSIONS.SALES_VIEW);
   const invoices = await prisma.invoice.findMany({
     orderBy: [{ invoiceDate: "desc" }, { createdAt: "desc" }],
     include: {

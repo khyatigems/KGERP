@@ -15,6 +15,7 @@ interface SettingsWorkspaceProps {
 }
 
 const searchItems = [
+  { label: "Security & 2FA", description: "Zoho email OTP, login alerts and recovery", keywords: "security 2fa two factor otp login authentication password zoho", href: "/settings/security" },
   { label: "Module Configuration", description: "Browse settings for ERP modules", keywords: "modules configuration", tab: "modules" },
   { label: "Company Profile", description: "Company details, address and logo", keywords: "company profile organization", tab: "company" },
   { label: "Landing Page", description: "Login page, highlights and What's New", keywords: "landing login highlights whats new subtitle", tab: "landing-page" },

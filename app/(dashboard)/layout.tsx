@@ -9,6 +9,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { SidebarProvider } from "@/components/layout/sidebar-context";
 import { SidebarGridClient } from "@/components/layout/sidebar-grid-client";
 import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { ensureRbacSchema, ensureUserRoleIdColumn, hasTable, hasUserRoleIdColumn, prisma, ensureAvatarWhatsNewSchema, ensurePasswordResetSchema, ensurePerformanceIndexes } from "@/lib/prisma";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { getPermissionsForRole } from "@/lib/permissions";
@@ -79,6 +80,7 @@ export default async function DashboardLayout({
   children: ReactNode;
 }) {
   const [session, cookieStore] = await Promise.all([auth(), cookies()]);
+  if (!session?.user?.id) redirect("/login");
   const initialCollapsed = cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === "1";
   const initialExpandedGroups = parseSidebarExpandedGroups(cookieStore.get(SIDEBAR_GROUPS_COOKIE)?.value);
 

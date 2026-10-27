@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { requirePagePermission } from "@/lib/require-page-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { Card } from "@/components/ui/card";
@@ -26,6 +28,7 @@ function formatPackingMonthYear(date: Date | null) {
 }
 
 export default async function PreviewLabelPage({ params }: PreviewLabelPageProps) {
+  await requirePagePermission(PERMISSIONS.PACKAGING_VIEW);
   const { serial } = await params;
 
   // 1. Fetch Serial Data

@@ -153,7 +153,11 @@ export function InventoryPicker({
         const json = await res.json();
         if (ac.signal.aborted) return;
         setRows(json.items || []);
-        setTotal(Number(json.total || 0));
+        const nextTotal = Number(json.total || 0);
+        setTotal(nextTotal);
+        const pageSize = Number(new URLSearchParams(query).get("pageSize") || "25");
+        const lastPage = Math.max(1, Math.ceil(nextTotal / pageSize));
+        setPage((current) => Math.min(current, lastPage));
       } catch (requestError) {
         if (ac.signal.aborted) return;
         setRows([]);
@@ -182,7 +186,6 @@ export function InventoryPicker({
       if (hidden && row.id === value) onSelect("");
       setRows([]);
       setLoading(true);
-      setPage(1);
       setReload((previous) => previous + 1);
       toast.success(hidden ? "Item hidden for this marketplace shop." : "Item restored for this marketplace shop.");
     } catch (requestError) {

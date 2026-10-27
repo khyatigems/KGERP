@@ -11,6 +11,19 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [recipient, setRecipient] = useState("");
+  const [otp, setOtp] = useState("");
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
+
+  async function requestCode(email: string, password: string) {
+    const response = await fetch("/api/auth/otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Could not send verification code.");
+    if (data.required) { setOtpRequired(true); setRecipient(data.recipient); setOtp(""); }
+    return Boolean(data.required);
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,21 +35,26 @@ export function LoginForm() {
     const password = formData.get("password") as string;
 
     try {
+      if (!otpRequired && !useRecovery && await requestCode(email, password)) return;
       const res = await signIn("credentials", {
         email,
         password,
+        otp: useRecovery ? "" : otp,
+        recoveryCode: useRecovery ? recoveryCode : "",
         redirect: false,
       });
 
       if (res?.error) {
-        setError("Invalid email or password");
+        setError(otpRequired || useRecovery ? "Sign-in failed. Check your password and verification code. Codes expire after 5 minutes; recovery codes work once." : "Invalid email or password");
         setLoading(false);
       } else {
         router.push("/");
         router.refresh();
       }
-    } catch {
-      setError("An error occurred");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "An error occurred");
+      setLoading(false);
+    } finally {
       setLoading(false);
     }
   }
@@ -61,6 +79,7 @@ export function LoginForm() {
             id="email"
             type="email"
             name="email"
+            readOnly={otpRequired}
             autoComplete="email"
             required
             placeholder="name@khyatigems.com"
@@ -80,6 +99,7 @@ export function LoginForm() {
               id="password"
               type={showPassword ? "text" : "password"}
               name="password"
+              readOnly={otpRequired}
               autoComplete="current-password"
               required
               placeholder="Enter your password"
@@ -101,6 +121,20 @@ export function LoginForm() {
         </div>
       </div>
 
+      {(otpRequired || useRecovery) && <div className="space-y-3">
+        <p role="status" className="text-sm text-slate-200">{useRecovery ? "Enter a saved recovery code for your account." : `A verification code was sent to ${recipient}. It expires in 5 minutes.`}</p>
+        <label htmlFor="login-verification" className="block text-sm text-slate-200">{useRecovery ? "Recovery code" : "Verification code"}</label>
+        <Input id="login-verification" required autoComplete={useRecovery ? "off" : "one-time-code"} inputMode={useRecovery ? "text" : "numeric"} maxLength={useRecovery ? 24 : 6} pattern={useRecovery ? "[a-fA-F0-9]{24}" : "[0-9]{6}"} value={useRecovery ? recoveryCode : otp} onChange={e => useRecovery ? setRecoveryCode(e.target.value.trim()) : setOtp(e.target.value.replace(/\D/g, ""))} className="h-12 border-white/20 bg-white/5 text-white" />
+        {!useRecovery && <button type="button" disabled={loading} className="text-sm text-[#E8D6A5] underline disabled:opacity-50" onClick={async e => {
+          const form = e.currentTarget.form;
+          if (!form) return;
+          const data = new FormData(form); setLoading(true); setError("");
+          try { await requestCode(String(data.get("email")), String(data.get("password"))); }
+          catch (error) { setError(error instanceof Error ? error.message : "Could not resend code."); }
+          finally { setLoading(false); }
+        }}>Resend code (wait 60 seconds)</button>}
+      </div>}
+
       <div className="flex items-center justify-between gap-3">
         <label className="flex cursor-pointer items-center gap-2 select-none text-sm text-slate-300">
           <input
@@ -113,9 +147,11 @@ export function LoginForm() {
 
         <button
           type="button"
+          disabled={loading}
+          onClick={() => { setUseRecovery(!useRecovery); setOtpRequired(false); setOtp(""); setRecoveryCode(""); setError(""); }}
           className="text-sm font-medium text-[#E8D6A5] transition-colors hover:text-[#F6E7BF]"
         >
-          Need help?
+          {useRecovery ? "Use email verification" : "Use a recovery code"}
         </button>
       </div>
 
@@ -130,7 +166,7 @@ export function LoginForm() {
             Signing in...
           </span>
         ) : (
-          "Sign In"
+          otpRequired || useRecovery ? "Verify and sign in" : "Sign In"
         )}
       </button>
     </form>

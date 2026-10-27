@@ -29,7 +29,6 @@ interface Props {
   totalAmount: number;
   isPerCarat: boolean;
   descriptionHtml: string;
-  payNowUrl: string | null;
   qrPaymentAmount: number | null;
   qrPaymentDue: number;
   qrAllowPartial: boolean;
@@ -138,7 +137,7 @@ function SiteFooter({ companySettings }: { companySettings: CompanySettings | nu
   );
 }
 
-export function SkuPreviewContent({ item, companySettings, rate, totalAmount, isPerCarat, descriptionHtml, payNowUrl, qrPaymentAmount, qrPaymentDue, qrAllowPartial, certificateUrl }: Props) {
+export function SkuPreviewContent({ item, companySettings, rate, totalAmount, isPerCarat, descriptionHtml, qrPaymentAmount, qrPaymentDue, qrAllowPartial, certificateUrl }: Props) {
   const [certificateDetailsOpen, setCertificateDetailsOpen] = useState(false);
   const uniqueProductMedia = useMemo(() => {
     const productMedia: GalleryMedia[] = item.media.map((media) => ({
@@ -193,10 +192,8 @@ export function SkuPreviewContent({ item, companySettings, rate, totalAmount, is
             <dl className="kg-spec-grid">{specs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
 
             <div className="kg-product-actions">
-              {qrPaymentAmount !== null
-                ? <InventoryQrPayButton key={`${item.sku}-${qrPaymentAmount}`} sku={item.sku} itemName={item.itemName} itemImage={paymentPreviewImage} stockStatus={item.status} maximumAmount={qrPaymentAmount} remainingBalance={qrPaymentDue} allowPartial={qrAllowPartial} />
-                : payNowUrl && <a className="kg-button kg-button-dark" href={payNowUrl}>PAY NOW <ArrowUpRight size={16} aria-hidden="true" /></a>}
-              <a className={`kg-button kg-enquire-button ${payNowUrl || qrPaymentAmount !== null ? "kg-button-outline" : "kg-button-dark"}`} href={productEnquiryUrl} target="_blank" rel="noopener noreferrer" aria-label={`Chat with the Khyati Gems team about ${item.itemName}`}><MessageCircle size={17} aria-hidden="true" /><span>CHAT WITH OUR GEM TEAM</span><ArrowUpRight size={14} aria-hidden="true" /></a>
+              {qrPaymentAmount !== null && <InventoryQrPayButton key={`${item.sku}-${qrPaymentAmount}`} sku={item.sku} itemName={item.itemName} itemImage={paymentPreviewImage} stockStatus={item.status} maximumAmount={qrPaymentAmount} remainingBalance={qrPaymentDue} allowPartial={qrAllowPartial} />}
+              <a className={`kg-button kg-enquire-button ${qrPaymentAmount !== null ? "kg-button-outline" : "kg-button-dark"}`} href={productEnquiryUrl} target="_blank" rel="noopener noreferrer" aria-label={`Chat with the Khyati Gems team about ${item.itemName}`}><MessageCircle size={17} aria-hidden="true" /><span>CHAT WITH OUR GEM TEAM</span><ArrowUpRight size={14} aria-hidden="true" /></a>
             </div>
 
             {showCertificate && <section className="kg-certificate" aria-labelledby="kg-certificate-title"><h2 id="kg-certificate-title">Certification</h2><div className="kg-certificate-facts">{certificateLab && <p><span>Laboratory</span>{certificateLab}</p>}{certificateNumber && <p><span>Certificate number</span>{certificateNumber}</p>}{item.certificates.map((cert) => <p key={cert.id}><span>Certificate</span>{cert.name}{cert.remarks ? ` · ${cert.remarks}` : ""}</p>)}</div>{certificateUrl
