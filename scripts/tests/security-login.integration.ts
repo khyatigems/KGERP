@@ -48,6 +48,12 @@ async function main() {
     const challenge = () => service.createChallenge(user.id, "login", { version: "v1" }, "security@erp.test", user.email, request);
     const lastCode = () => messages.at(-1)!.text.match(/Code: (\d{6})/)![1];
     let cookie = await challenge(); let code = lastCode();
+    const securityLog = await prisma.activityLog.findFirst({ where: { userId: user.id, actionType: "LOGIN_OTP_REQUESTED" }, orderBy: { createdAt: "desc" } });
+    assert.equal(securityLog?.entityIdentifier, user.email, "security reference is the account email");
+    assert.equal(securityLog?.userName, user.name, "security activity records the actual user");
+    assert.equal(securityLog?.userEmail, user.email);
+    assert.match(securityLog?.description || "", /email verification code was requested/);
+
     assert.match(messages.at(-1)!.html || "", /Your verification code/);
     assert.ok(messages.at(-1)!.html?.includes(`>${code}</div>`), "Zoho receives the branded HTML with a contiguous OTP");
     assert.match(messages.at(-1)!.text, /Browser \(reported\): Edg\/130.1/);

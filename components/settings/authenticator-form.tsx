@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+function AuthenticatorQr({ src, enlarged = false }: { src: string; enlarged?: boolean }) {
+  // Keep the opaque white quiet zone in dark mode and preserve the square aspect ratio.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} width={512} height={512} alt="Scan with your authenticator app to add your KhyatiGems ERP account" className={`mx-auto block h-auto w-full bg-white ${enlarged ? "max-w-96" : "max-w-72"}`} style={{ aspectRatio: "1 / 1", imageRendering: "pixelated", colorScheme: "light" }} />;
+}
 
 type Setup = { secret: string; qr: string; version: string; emailRequired: boolean };
 export function AuthenticatorForm({ enabled, recoveryRemaining, accountEmail, emailEnabled, configured }: {
@@ -42,10 +49,11 @@ export function AuthenticatorForm({ enabled, recoveryRemaining, accountEmail, em
           <div className="space-y-2"><Label htmlFor="authenticator-password">Your current ERP password</Label><Input id="authenticator-password" type="password" required maxLength={1024} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} /></div>
           {setup && <div className="space-y-4 rounded-lg border p-4">
             <p className="text-sm font-medium">1. Add this account to your authenticator app</p>
+            <p className="text-sm text-muted-foreground">In Microsoft Authenticator, tap <strong>+</strong>, choose <strong>Other account (Google, Facebook, etc.)</strong>, then scan this QR code.</p>
             {/* QR is generated locally on the server; the secret is never sent to an external QR service. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={setup.qr} width={240} height={240} alt="Scan with your authenticator app to add your KhyatiGems ERP account" className="max-w-full rounded-md" />
-            <p className="text-sm text-muted-foreground">Cannot scan? Enter this setup key manually. Keep the QR and key private.</p>
+            <AuthenticatorQr src={setup.qr} />
+            <Dialog><DialogTrigger asChild><Button type="button" variant="outline">Enlarge QR code</Button></DialogTrigger><DialogContent className="p-4 sm:max-w-lg"><DialogTitle className="pr-8">Scan your authenticator QR</DialogTitle><DialogDescription>In Microsoft Authenticator, choose Other account. Account: {accountEmail}</DialogDescription><AuthenticatorQr src={setup.qr} enlarged /></DialogContent></Dialog>
+            <p className="text-sm text-muted-foreground">Cannot scan, or viewing this page on the same phone? In Other account, choose <strong>Enter code manually</strong>. Use KhyatiGems ERP ({accountEmail}) as the account name and the setup key below. Keep the QR and key private.</p>
             <code className="block select-all break-all rounded-md bg-muted p-3 text-sm">{setup.secret}</code>
             <p className="text-xs text-muted-foreground">Account: {accountEmail}. Time-based code, 6 digits, refreshes every 30 seconds. Setup expires in 10 minutes.</p>
             {setup.emailRequired && <div className="space-y-2"><Label htmlFor="authenticator-email-code">2. Confirm the code sent to the company OTP mailbox</Label><Input id="authenticator-email-code" required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={emailCode} onChange={event => setEmailCode(event.target.value.replace(/\D/g, ""))} /><p className="text-xs text-muted-foreground">The email code expires in 5 minutes.</p></div>}

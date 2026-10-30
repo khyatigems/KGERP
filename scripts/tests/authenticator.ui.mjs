@@ -5,10 +5,15 @@ import { build } from "esbuild";
 import postcss from "postcss";
 import tailwind from "@tailwindcss/postcss";
 import puppeteer from "puppeteer";
-import QRCode from "qrcode";
+import sharp from "sharp";
+import jsQR from "jsqr";
+import { tsImport } from "tsx/esm/api";
+const provisioning = await tsImport("../../lib/security/authenticator-provisioning.ts", import.meta.url);
+const { authenticatorUri, renderAuthenticatorQr } = provisioning.default || provisioning;
 
 await mkdir("output/security", { recursive: true });
-const qr = await QRCode.toDataURL("otpauth://totp/KhyatiGems%20ERP:synthetic@example.test?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=KhyatiGems%20ERP");
+const enrollmentUri = authenticatorUri("synthetic@example.test", "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
+const qr = await renderAuthenticatorQr(enrollmentUri);
 const codes = ["112233445566778899aabbcc", "ffeeddccbbaa998877665544"];
 const bundle = await build({ stdin: { contents: `
 import React from 'react'; import {createRoot} from 'react-dom/client';
@@ -42,6 +47,13 @@ try {
   const page = await browser.newPage(), errors = [];
   page.on("pageerror", error => errors.push(error.message));
   const noOverflow = async () => assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+  const scanQr = async selector => {
+    const element = await page.$(selector);
+    const { width, height } = await element.boundingBox();
+    assert.ok(Math.abs(width - height) < 1, "QR stays square after responsive scaling");
+    const { data, info } = await sharp(await element.screenshot()).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    assert.equal(jsQR(new Uint8ClampedArray(data), info.width, info.height)?.data, enrollmentUri, "independent scanner decodes the displayed QR");
+  };
   for (const width of [1440, 390, 320]) {
     await page.setViewport({ width, height: 1000 });
     await page.goto(url, { waitUntil: "networkidle0" });
@@ -49,6 +61,19 @@ try {
     await page.click('button[type="submit"]');
     await page.waitForSelector("#authenticator-email-code");
     assert.equal(await page.$eval("img", element => element.naturalWidth > 0), true);
+    assert.match(await page.$eval("body", element => element.textContent), /Other account/);
+    await scanQr("img");
+    await page.evaluate(() => document.documentElement.classList.add("dark"));
+    await scanQr("img");
+    await page.evaluate(() => document.documentElement.classList.remove("dark"));
+    await page.evaluate(() => [...document.querySelectorAll("button")].find(button => button.textContent.includes("Enlarge QR code")).click());
+    await page.waitForSelector('[role="dialog"] img');
+    await new Promise(resolve => setTimeout(resolve, 250));
+    await scanQr('[role="dialog"] img');
+    await noOverflow();
+    await page.screenshot({ path: `output/security/authenticator-qr-enlarged-${width}.png`, fullPage: true });
+    await page.keyboard.press("Escape");
+    await page.waitForSelector('[role="dialog"]', { hidden: true });
     await noOverflow();
     await page.screenshot({ path: `output/security/authenticator-setup-${width}.png`, fullPage: true });
     await page.type("#authenticator-email-code", "123456"); await page.type("#authenticator-code", "654321");
@@ -82,5 +107,5 @@ try {
   assert.deepEqual(errors, []);
   assert.ok(requests.some(request => request.action === "activate" && request.emailCode === "123456"));
   assert.ok(requests.some(request => request.action === "remove" && request.code === codes[0]));
-  console.log("Authenticator UI passed at 320, 390 and 1440px: QR enrollment, mailbox confirmation, recovery export display, removal, app login, email fallback and recovery selection.");
+  console.log("Authenticator UI passed at 320, 390 and 1440px: displayed QR decodes in normal/dark/enlarged views, enrollment, removal, app login, email fallback and recovery selection.");
 } finally { if (browser) await browser.close(); await new Promise(resolve => server.close(resolve)); }

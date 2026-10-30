@@ -38,6 +38,7 @@ interface LogActivityParams<T = Record<string, unknown>> {
   fieldChanges?: string; // Allow explicit override
   userId?: string; // Optional override, otherwise uses session
   userName?: string; // Optional override
+  userEmail?: string;
   source?: "WEB" | "SYSTEM" | "CRON" | "CSV_IMPORT" | string;
   ipAddress?: string;
   userAgent?: string;
@@ -60,6 +61,7 @@ export async function logActivity<T = Record<string, unknown>>({
   fieldChanges: explicitFieldChanges,
   userId,
   userName,
+  userEmail,
   source = "WEB",
   ipAddress,
   userAgent,
@@ -70,7 +72,7 @@ export async function logActivity<T = Record<string, unknown>>({
 
     let finalUserId = userId;
     let finalUserName = userName;
-    let finalUserEmail = "";
+    let finalUserEmail = userEmail || "";
     let finalIpAddress = ipAddress;
     let finalUserAgent = userAgent;
 

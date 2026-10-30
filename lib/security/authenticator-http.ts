@@ -1,6 +1,6 @@
 import { compare } from "bcryptjs";
 import { NextResponse } from "next/server";
-import QRCode from "qrcode";
+import { renderAuthenticatorQr } from "./authenticator-provisioning";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -32,7 +32,7 @@ export async function handleAuthenticatorSettings(request: Request, identify: ()
       if (!await rateLimit(`authenticator:setup:${userId}`, 1, 60)) return NextResponse.json({ error: "Wait 60 seconds before restarting setup." }, { status: 429, headers });
       const setup = await beginAuthenticator(userId, user.email);
       const cookie = policy.enabled ? await createChallenge(userId, "authenticator-setup", { version: setup.version, policyVersion: policy.version }, policy.email, user.email, request) : "";
-      const qr = await QRCode.toDataURL(setup.uri, { width: 240, margin: 2, errorCorrectionLevel: "M" });
+      const qr = await renderAuthenticatorQr(setup.uri);
       const response = NextResponse.json({ secret: setup.secret, qr, version: setup.version, emailRequired: policy.enabled }, { headers });
       response.cookies.set(setupCookie, cookie, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: policy.enabled ? 300 : 0 });
       return response;

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ZohoMailConnector } from "@/lib/email/connectors/zoho";
 import { codeHash, contextText, DEFAULT_POLICY, digest, equalHash, MAX_ATTEMPTS, newCode, OTP_SECONDS, requestContext, type SecurityPolicy } from "./core";
 import { renderOtpEmail } from "./otp-email";
+import { securityActions } from "./activity";
 
 export const POLICY_KEY = "security_2fa_v1";
 let ready: Promise<void> | undefined;
@@ -42,7 +43,15 @@ export async function sendSecurityEmail(to: string, subject: string, text: strin
 }
 export async function securityEvent(userId: string, action: string, request: Request) {
   const { logActivity } = await import("@/lib/activity-logger");
-  await logActivity({ entityType: "Security", entityId: userId, userId, userName: "Sign-in security", actionType: action, source: "WEB", ipAddress: requestContext(request).ip, userAgent: (request.headers.get("user-agent") || "Unknown").slice(0, 400), description: action.replaceAll("_", " "), metadata: { context: contextText(request) } }).catch(() => {});
+  try {
+    const account = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+    await logActivity({ entityType: "Security", entityId: userId, entityIdentifier: account?.email, userId,
+      userName: account?.name || account?.email || "Unavailable account", userEmail: account?.email,
+      actionType: action, source: "WEB", ipAddress: requestContext(request).ip,
+      userAgent: (request.headers.get("user-agent") || "Unknown").slice(0, 400),
+      description: securityActions[action]?.description || action.replaceAll("_", " "),
+      metadata: { context: contextText(request) } });
+  } catch { /* Audit delivery must not interrupt the security flow. */ }
 }
 export async function createChallenge(userId: string, purpose: string, context: Record<string, unknown>, email: string, account: string, request: Request, previousEmail?: string) {
   await ensureSecuritySchema();
@@ -67,7 +76,7 @@ export async function createChallenge(userId: string, purpose: string, context: 
     await prisma.$executeRaw`UPDATE "SecurityChallenge" SET consumed = 1 WHERE id = ${id}`;
     throw error;
   }
-  await securityEvent(userId, purpose === "login" ? "LOGIN_OTP_REQUESTED" : "SECURITY_CHANGE_REQUESTED", request);
+  await securityEvent(userId, purpose === "login" ? "LOGIN_OTP_REQUESTED" : purpose === "authenticator-setup" ? "AUTHENTICATOR_SETUP_REQUESTED" : purpose === "recovery" ? "RECOVERY_CODES_REQUESTED" : "SECURITY_CHANGE_REQUESTED", request);
   return `${id}.${binding}`;
 }
 type ChallengeRow = { id: string; userId: string; purpose: string; context: string; codeHash: string; secondaryHash: string; attempts: number };

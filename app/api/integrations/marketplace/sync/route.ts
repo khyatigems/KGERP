@@ -1,3 +1,4 @@
+import { marketplaceSyncAudit } from "@/lib/marketplace/activity-display";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
@@ -68,16 +69,17 @@ export async function POST(request: NextRequest) {
       requestedById: session.user.id,
       requestedBy: session.user.name || session.user.email || "Unknown",
     });
+    const audit = marketplaceSyncAudit(result.jobs);
     await logMarketplaceActivity({
       entityType: "MarketplaceSyncJob",
       entityId: result.batchId,
-      entityIdentifier: result.batchId,
+      entityIdentifier: audit.entityIdentifier,
       actionType: "SYNC_QUEUED",
-      details: `${syncType.toLowerCase()} sync queued for ${result.jobs.length} shop${result.jobs.length === 1 ? "" : "s"}`,
+      details: audit.details,
       userId: session.user.id,
       userName: session.user.name || session.user.email || "Unknown",
       source: "WEB",
-      metadata: { syncType, shopIds, jobIds: result.jobs.map((job) => job.id) },
+      metadata: { ...audit.metadata, syncType, shopIds, jobIds: result.jobs.map((job) => job.id) },
     });
     return NextResponse.json({ success: true, ...result }, { status: 202 });
   } catch (err) {

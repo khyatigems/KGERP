@@ -1,3 +1,4 @@
+import { resolveMarketplaceActivities } from "@/lib/marketplace/activity-resolver";
 import type { ActivityLog, Prisma } from "@prisma/client";
 import { Metadata } from "next";
 import { ensureActivityLogSchema, prisma } from "@/lib/prisma";
@@ -12,6 +13,7 @@ import { auth } from "@/lib/auth";
 import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { AnimatedPage } from "@/components/ui/animated-page";
 import { WorkspaceHeader } from "@/components/layout/workspace-header";
+import { presentActivity, securityActions, securityRequestDetails } from "@/lib/security/activity";
 
 export const metadata: Metadata = {
   title: "Activity Log | KhyatiGems™",
@@ -57,12 +59,15 @@ export default async function ActivityLogPage({
       where.userId = session.user.id;
     }
     if (q) {
+      const matchingAccounts = await prisma.user.findMany({ where: { OR: [{ email: { contains: q } }, { name: { contains: q } }] }, select: { id: true } });
       where.OR = [
         { referenceId: { contains: q } },
         { entityIdentifier: { contains: q } },
         { details: { contains: q } },
         { description: { contains: q } },
         { userName: { contains: q } },
+        { userEmail: { contains: q } },
+        { AND: [{ OR: [{ module: "Security" }, { entityType: "Security" }] }, { userId: { in: matchingAccounts.map(account => account.id) } }] },
         { module: { contains: q } },
         { actionType: { contains: q } },
       ];
@@ -105,6 +110,10 @@ export default async function ActivityLogPage({
       if (!userOptionsMap[u.userId]) userOptionsMap[u.userId] = { userId: u.userId, userName: u.userName };
     });
     const userOptions = Object.values(userOptionsMap);
+    // Resolve historical security records in one batch without rewriting audit history.
+    const accountIds = [...new Set([...logs.filter(log => (log.module || log.entityType) === "Security").map(log => log.userId || log.entityId), ...userOptions.map(option => option.userId)].filter((id): id is string => Boolean(id)))];
+    const accounts = accountIds.length ? await prisma.user.findMany({ where: { id: { in: accountIds } }, select: { id: true, name: true, email: true } }) : [];
+    const accountsById = new Map(accounts.map(account => [account.id, account]));
     const moduleOptions = await prisma.$queryRawUnsafe<Array<{ module: string | null }>>(
       `SELECT DISTINCT module FROM "ActivityLog" WHERE module IS NOT NULL ORDER BY module LIMIT 200`
     ).catch(() => []);
@@ -112,25 +121,33 @@ export default async function ActivityLogPage({
       `SELECT DISTINCT source FROM "ActivityLog" WHERE source IS NOT NULL ORDER BY source LIMIT 50`
     ).catch(() => []);
 
+    const marketplaceDisplays = await resolveMarketplaceActivities(logs);
+    const displayActivity = (log: ActivityLog) => ({ ...presentActivity(log, accountsById.get(log.userId || log.entityId || "")), ...marketplaceDisplays.get(log.id) });
+
     const exportRows = logs.map((logItem) => {
       const log = logItem;
+      const display = displayActivity(log);
       const dt = log?.createdAt ? new Date(log.createdAt) : null;
       return {
         Time: dt && !Number.isNaN(dt.getTime()) ? format(dt, "dd-MMM-yyyy HH:mm") : String(log.createdAt || ""),
-        User: (log.userName && log.userName !== "Unknown" ? log.userName : log.userId) || "System",
-        Action: log.actionType || log.action || "UNKNOWN",
+        User: display.user,
+        Action: display.label,
+        EventCode: display.action,
         Module: log.module || log.entityType || "",
-        Reference: log.referenceId || log.entityIdentifier || log.entityId || "",
+        Reference: display.reference,
+        EntityId: log.entityId || "",
         Source: log.source || "",
-        Description: log.description || log.details || "",
+        Description: display.description,
       };
     });
     const exportColumns = [
       { header: "Time", key: "Time" },
       { header: "User", key: "User" },
       { header: "Action", key: "Action" },
+      { header: "Event code", key: "EventCode" },
       { header: "Module", key: "Module" },
       { header: "Reference", key: "Reference" },
+      { header: "Internal entity ID", key: "EntityId" },
       { header: "Source", key: "Source" },
       { header: "Description", key: "Description" },
     ];
@@ -155,8 +172,8 @@ export default async function ActivityLogPage({
                   <div className="text-xs text-muted-foreground">Action</div>
                   <select name="actionType" defaultValue={actionType || "ALL"} className="h-9 rounded-md border bg-background px-3 text-sm">
                     <option value="ALL">All</option>
-                    {["CREATE","EDIT","UPDATE","DELETE","LOGIN","LOGOUT","PUBLIC_VIEW","QR_SCAN"].map((a) => (
-                      <option key={a} value={a}>{a}</option>
+                    {[...new Set(["CREATE","EDIT","UPDATE","DELETE","LOGIN","LOGOUT","PUBLIC_VIEW","QR_SCAN","SYNC_QUEUED","SYNC_RETRY_QUEUED", ...Object.keys(securityActions)])].map((a) => (
+                      <option key={a} value={a}>{securityActions[a]?.label || ({ SYNC_QUEUED: "Sync queued", SYNC_RETRY_QUEUED: "Sync retry queued" } as Record<string, string>)[a] || a}</option>
                     ))}
                   </select>
                 </div>
@@ -168,7 +185,7 @@ export default async function ActivityLogPage({
                       <option value="ALL">All</option>
                       {userOptions.map((u) => (
                         <option key={`${u.userId}-${u.userName || ""}`} value={String(u.userId)}>
-                          {String((u.userName && u.userName !== "Unknown" ? u.userName : u.userId) || "System")}
+                          {accountsById.get(u.userId)?.name || String((u.userName && !["Unknown", "Sign-in security"].includes(u.userName) ? u.userName : "Unavailable account") || "System")}
                         </option>
                       ))}
                     </select>
@@ -230,24 +247,26 @@ export default async function ActivityLogPage({
                         ) : (
                             logs.map((logItem) => {
                                  const log = logItem;
+                                 const display = displayActivity(log);
                                  const metaStr = log.metadata || log.fieldChanges;
+                                 const requestDetails = display.security ? securityRequestDetails(metaStr) : display.eventDetails || [];
                                  return (
                                  <TableRow key={log.id}>
                                      <TableCell>
-                                         <Badge variant={
+                                         <Badge title={display.action} variant={
                                              (log.action || log.actionType) === 'CREATE' ? 'default' : 
                                              (log.action || log.actionType) === 'EDIT' || (log.action || log.actionType) === 'UPDATE' ? 'secondary' : 
                                              (log.action || log.actionType) === 'DELETE' ? 'destructive' : 'outline'
                                          }>
-                                             {log.action || log.actionType || "UNKNOWN"}
+                                             {display.label}
                                          </Badge>
                                      </TableCell>
                                      <TableCell>{log.module || log.entityType}</TableCell>
-                                     <TableCell className="font-medium">
-                                         {log.referenceId || log.entityIdentifier || log.entityId || "-"}
+                                     <TableCell className="font-medium" title={log.entityId || undefined}>
+                                         {display.reference}
                                      </TableCell>
                                      <TableCell>
-                                      {(log.userName && log.userName !== "Unknown" ? log.userName : log.userId) || "System"}
+                                      {display.user}
                                          {log.source && log.source !== 'WEB' && (
                                              <span className="text-xs text-muted-foreground ml-1">({log.source})</span>
                                          )}
@@ -257,15 +276,19 @@ export default async function ActivityLogPage({
                                      </TableCell>
                                      <TableCell>
                                          <div className="flex flex-col gap-1">
-                                             <div className="text-xs" title={log.description || log.details || "No details"}>
-                                                 {log.description || log.details || "-"}
+                                             <div className="text-xs" title={display.description}>
+                                                 {display.description}
                                              </div>
                                              {metaStr && (
                                                  <details className="text-[10px] text-muted-foreground cursor-pointer">
-                                                     <summary>View Changes</summary>
-                                                     <pre className="mt-1 p-2 bg-muted rounded overflow-x-auto max-w-100">
+                                                     <summary>{display.security || display.eventDetails ? "Event details" : "View Changes"}</summary>
+                                                     {display.security || display.eventDetails ? <div className="mt-1 space-y-1 rounded bg-muted p-2 text-xs">
+                                                       {requestDetails.map((detail, index) => <p key={index}>{detail}</p>)}
+                                                       <p>Event code: {display.action}</p>{display.security && <p>Internal account ID: {log.entityId || log.userId || "Unavailable"}</p>}
+                                                       {!requestDetails.length && metaStr && <pre className="overflow-x-auto max-w-100">{metaStr}</pre>}
+                                                     </div> : <pre className="mt-1 p-2 bg-muted rounded overflow-x-auto max-w-100">
                                                          {metaStr}
-                                                     </pre>
+                                                     </pre>}
                                                  </details>
                                              )}
                                          </div>

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { codeHash } from "./core";
 import { decryptSecret, encryptSecret } from "./secret-store";
 import { matchingTotpStep, newAuthenticatorSecret } from "./totp";
+import { authenticatorUri } from "./authenticator-provisioning";
 
 type AuthenticatorRow = { userId: string; secret: string; enabled: number; version: string; sessionVersion: string; expiresAt: number | bigint; lastStep: number | bigint };
 let ready: Promise<void> | undefined;
@@ -41,7 +42,7 @@ export async function beginAuthenticator(userId: string, email: string) {
     ON CONFLICT(userId) DO UPDATE SET secret = excluded.secret,version = excluded.version,expiresAt = excluded.expiresAt,lastStep = -1
     WHERE "SecurityAuthenticator".enabled = 0`;
   if (changed !== 1) throw new Error("Remove your existing authenticator before setting up a new one.");
-  const uri = `otpauth://totp/${encodeURIComponent(`KhyatiGems ERP:${email}`)}?secret=${secret}&issuer=KhyatiGems%20ERP&algorithm=SHA1&digits=6&period=30`;
+  const uri = authenticatorUri(email, secret);
   return { secret, uri, version };
 }
 export async function activateAuthenticator(userId: string, version: string, code: string) {

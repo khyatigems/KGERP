@@ -1,3 +1,4 @@
+import { marketplaceSyncAudit } from "@/lib/marketplace/activity-display";
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -66,16 +67,17 @@ export async function POST(request: NextRequest) {
     include: { marketplaceShop: { select: { marketplace: true, name: true } } },
     orderBy: { createdAt: "asc" },
   });
+  const audit = marketplaceSyncAudit(jobs, true);
   await logMarketplaceActivity({
     entityType: "MarketplaceSyncJob",
     entityId: batchId,
-    entityIdentifier: batchId,
+    entityIdentifier: audit.entityIdentifier,
     actionType: "SYNC_RETRY_QUEUED",
-    details: `Manual retry queued for ${jobs.length} marketplace shop job${jobs.length === 1 ? "" : "s"}`,
+    details: audit.details,
     userId: session.user.id,
     userName: session.user.name || session.user.email || "Unknown",
     source: "WEB",
-    metadata: { retriedJobIds: retryable.map((job) => job.id), retryJobIds: jobs.map((job) => job.id) },
+    metadata: { ...audit.metadata, retriedJobIds: retryable.map((job) => job.id), retryJobIds: jobs.map((job) => job.id) },
   });
 
   return NextResponse.json({ success: true, batchId, jobs }, { status: 202 });
