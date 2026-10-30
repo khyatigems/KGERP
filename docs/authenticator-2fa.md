@@ -55,6 +55,13 @@ personal recovery, session revocation, the existing email flow, and responsive U
 Tests use temporary databases and synthetic mail/UI providers; they do not send
 real email. Email layouts are rendered at 320, 390, 640, 1440 and 1920 pixels.
 
+The authenticator suite also runs against the deployed libSQL adapter using a
+temporary local database. With the pinned adapter version, raw BIGINT reads must
+select decimal text and normalize it explicitly; a plain `SELECT *` fails when
+reading the setup expiry and replay counter. This test covers activation, expiry,
+app verification, replay rejection, recovery and removal. Server failures expose
+a support reference and log only operation/error codes, without setup secrets.
+
 QR regression checks independently decode the generated image and browser-rendered
 normal, dark and enlarged views at 320, 390 and 1440 pixels. QR images have an
 opaque white four-module quiet zone, integer pixel scaling at source and a square

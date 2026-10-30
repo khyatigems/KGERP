@@ -50,6 +50,7 @@ export function AuthenticatorForm({ enabled, recoveryRemaining, accountEmail, em
           {setup && <div className="space-y-4 rounded-lg border p-4">
             <p className="text-sm font-medium">1. Add this account to your authenticator app</p>
             <p className="text-sm text-muted-foreground">In Microsoft Authenticator, tap <strong>+</strong>, choose <strong>Other account (Google, Facebook, etc.)</strong>, then scan this QR code.</p>
+            <p className="text-sm text-muted-foreground">The app will show KhyatiGems ERP for {accountEmail}. Adding it to your phone is the first step; ERP verification is enabled only after you confirm the codes below.</p>
             {/* QR is generated locally on the server; the secret is never sent to an external QR service. */}
             <AuthenticatorQr src={setup.qr} />
             <Dialog><DialogTrigger asChild><Button type="button" variant="outline">Enlarge QR code</Button></DialogTrigger><DialogContent className="p-4 sm:max-w-lg"><DialogTitle className="pr-8">Scan your authenticator QR</DialogTitle><DialogDescription>In Microsoft Authenticator, choose Other account. Account: {accountEmail}</DialogDescription><AuthenticatorQr src={setup.qr} enlarged /></DialogContent></Dialog>

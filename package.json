@@ -16,7 +16,7 @@
     "lint": "eslint",
     "test:activity": "tsx scripts/tests/security-activity.unit.ts && tsx scripts/tests/marketplace-activity.unit.ts",
     "test:dashboard": "tsx scripts/tests/dashboard-cache.unit.ts && tsx scripts/tests/trading-dashboard.integration.ts",
-    "test:security": "tsx scripts/tests/security-activity.unit.ts && tsx scripts/tests/authenticator.unit.ts && tsx scripts/tests/authenticator-qr.unit.ts && tsx scripts/tests/security-email.unit.ts && tsx scripts/tests/security-login.integration.ts && node scripts/tests/security-settings.ui.mjs && node scripts/tests/authenticator.ui.mjs && node scripts/tests/security-email-layout.mjs",
+    "test:security": "tsx scripts/tests/security-activity.unit.ts && tsx scripts/tests/authenticator.unit.ts && tsx scripts/tests/authenticator-qr.unit.ts && tsx scripts/tests/authenticator-libsql.integration.ts && tsx scripts/tests/security-email.unit.ts && tsx scripts/tests/security-login.integration.ts && node scripts/tests/security-settings.ui.mjs && node scripts/tests/authenticator.ui.mjs && node scripts/tests/security-email-layout.mjs",
     "test:dashboard:mobile": "node scripts/tests/mobile-dashboard.ui.mjs",
     "test:appearance": "tsx scripts/tests/workspace-appearance.unit.ts && node scripts/tests/workspace-appearance.ui.mjs",
     "test:attention:unit": "tsx scripts/tests/attention-visibility.unit.ts",

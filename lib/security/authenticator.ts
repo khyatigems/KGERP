@@ -5,7 +5,7 @@ import { decryptSecret, encryptSecret } from "./secret-store";
 import { matchingTotpStep, newAuthenticatorSecret } from "./totp";
 import { authenticatorUri } from "./authenticator-provisioning";
 
-type AuthenticatorRow = { userId: string; secret: string; enabled: number; version: string; sessionVersion: string; expiresAt: number | bigint; lastStep: number | bigint };
+type AuthenticatorRow = { userId: string; secret: string; enabled: number; version: string; sessionVersion: string; expiresAt: number | bigint | string; lastStep: number | bigint | string };
 let ready: Promise<void> | undefined;
 export function ensureAuthenticatorSchema() {
   return ready ||= (async () => {
@@ -18,7 +18,11 @@ export function ensureAuthenticatorSchema() {
 }
 async function getRow(userId: string) {
   await ensureAuthenticatorSchema();
-  return (await prisma.$queryRaw<AuthenticatorRow[]>`SELECT * FROM "SecurityAuthenticator" WHERE userId = ${userId}`)[0];
+  // The pinned libSQL adapter cannot deserialize raw BIGINT columns returned as
+  // JS numbers. Read them as decimal text; comparisons already normalize Number().
+  return (await prisma.$queryRaw<AuthenticatorRow[]>`SELECT userId,secret,enabled,version,sessionVersion,
+    CAST(expiresAt AS TEXT) AS expiresAt,CAST(lastStep AS TEXT) AS lastStep
+    FROM "SecurityAuthenticator" WHERE userId = ${userId}`)[0];
 }
 function readSecret(row: AuthenticatorRow) {
   const value = decryptSecret(row.secret);

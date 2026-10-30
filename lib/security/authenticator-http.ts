@@ -1,4 +1,5 @@
 import { compare } from "bcryptjs";
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { renderAuthenticatorQr } from "./authenticator-provisioning";
 import { z } from "zod";
@@ -17,6 +18,7 @@ export async function handleAuthenticatorSettings(request: Request, identify: ()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = session.user.id;
   const headers = { "Cache-Control": "no-store" };
+  let operation = "validate";
   try {
     const raw = await request.text();
     if (raw.length > 4096) return NextResponse.json({ error: "Request too large" }, { status: 413, headers });
@@ -24,6 +26,7 @@ export async function handleAuthenticatorSettings(request: Request, identify: ()
     if (!parsed.success) return NextResponse.json({ error: "Check your password and verification code." }, { status: 400, headers });
     if (!await rateLimit(`authenticator:settings:${userId}`, 15, 900)) return NextResponse.json({ error: "Too many attempts. Try again in 15 minutes." }, { status: 429, headers });
     const body = parsed.data;
+    operation = body.action;
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { password: true, email: true } });
     if (!user || !await compare(body.password, user.password)) return NextResponse.json({ error: "Current password is incorrect." }, { status: 401, headers });
     if (!isSecretEncryptionConfigured()) return NextResponse.json({ error: "Authenticator setup is unavailable. Ask your administrator to configure secret encryption." }, { status: 503, headers });
@@ -56,7 +59,11 @@ export async function handleAuthenticatorSettings(request: Request, identify: ()
     await removeAuthenticator(userId, state.version);
     await securityEvent(userId, "AUTHENTICATOR_DISABLED", request);
     return NextResponse.json({ saved: true, message: "Authenticator removed from your account. Company email verification still applies. Sign in again." }, { headers });
-  } catch {
-    return NextResponse.json({ error: "Could not update your authenticator. Reload and try again." }, { status: 503, headers });
+  } catch (error) {
+    const reference = randomUUID();
+    const code = typeof error === "object" && error !== null && "code" in error && /^P\d{4}$/.test(String(error.code)) ? String(error.code) : "UNEXPECTED";
+    // Do not log request bodies, setup keys, OTPs or raw database errors.
+    console.error("[authenticator-settings] Operation failed", { operation, code, reference });
+    return NextResponse.json({ error: `${code.startsWith("P") ? "Authenticator storage is temporarily unavailable." : "Authenticator setup could not be completed."} Restart setup and try again. If this continues, share reference ${reference} with your ERP administrator.`, reference }, { status: 503, headers });
   }
 }
