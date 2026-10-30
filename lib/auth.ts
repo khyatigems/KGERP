@@ -1,4 +1,6 @@
 import NextAuth from "next-auth";
+import { renderSignInVerifiedEmail } from "./security/otp-email";
+import { consumeAuthenticator, consumeAuthenticatorRecovery, getAuthenticatorState } from "./security/authenticator";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { authConfig } from "./auth.config";
@@ -12,8 +14,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt(args) {
       const token = await authConfig.callbacks.jwt(args);
       if (args.user) token.mfaPolicy = args.user.mfaPolicy;
+      if (args.user) token.mfaAuthenticator = args.user.mfaAuthenticator;
       const policy = await getSecurityPolicy();
       if (policy.enabled && token.mfaPolicy !== policy.version) return null;
+      if (token.sub && token.mfaAuthenticator !== (await getAuthenticatorState(token.sub)).version) return null;
       return token;
     },
   },
@@ -24,6 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
         otp: { label: "Verification code", type: "text" },
+        authenticatorCode: { label: "Authenticator code", type: "text" },
         recoveryCode: { label: "Recovery code", type: "text" },
       },
       async authorize(credentials, request) {
@@ -72,25 +77,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const policy = await getSecurityPolicy();
-        if (policy.enabled) {
+        const authenticator = await getAuthenticatorState(user.id);
+        if (policy.enabled || authenticator.enabled) {
           const recovered = credentials.recoveryCode
-            ? await consumeRecoveryCode(user.id, policy.version, String(credentials.recoveryCode).trim()) : false;
-          const verified = recovered ? { version: policy.version } : await consumeChallenge(
-            readCookie(request, LOGIN_COOKIE), user.id, "login", String(credentials.otp || ""));
+            ? (authenticator.enabled && authenticator.version ? await consumeAuthenticatorRecovery(user.id, String(credentials.recoveryCode).trim(), authenticator.version) : false) ||
+              (policy.enabled && await consumeRecoveryCode(user.id, policy.version, String(credentials.recoveryCode).trim())) : false;
+          const appVerified = !recovered && authenticator.enabled && authenticator.version && credentials.authenticatorCode
+            ? await consumeAuthenticator(user.id, String(credentials.authenticatorCode), authenticator.version) : false;
+          const verified = recovered || appVerified ? { version: policy.version } : policy.enabled ? await consumeChallenge(
+            readCookie(request, LOGIN_COOKIE), user.id, "login", String(credentials.otp || "")) : null;
           if (!verified || verified.version !== policy.version) {
             await securityEvent(user.id, "LOGIN_OTP_FAILED", request);
-            if (policy.alerts && !await rateLimit(`login:otp-failures:${user.id}`, 4, 900) &&
+            if (policy.enabled && policy.alerts && !await rateLimit(`login:otp-failures:${user.id}`, 4, 900) &&
                 await rateLimit(`login:otp-alert:${user.id}`, 1, 900)) {
               await sendSecurityEmail(policy.email, "Repeated verification failures",
                 `Account: ${user.email}\n${contextText(request)}\nSeveral sign-in attempts passed the password check but failed verification. No session was granted for these attempts. Review account security if unexpected.`).catch(() => {});
             }
             return null;
           }
-          await securityEvent(user.id, recovered ? "LOGIN_RECOVERY_USED" : "LOGIN_OTP_VERIFIED", request);
-          if (policy.alerts || recovered) {
+          await securityEvent(user.id, recovered ? "LOGIN_RECOVERY_USED" : appVerified ? "LOGIN_AUTHENTICATOR_VERIFIED" : "LOGIN_OTP_VERIFIED", request);
+          if (policy.enabled && (policy.alerts || recovered)) {
             // Delivery failure never turns a verified login into password-only access.
-            await sendSecurityEmail(policy.email, recovered ? "Recovery code used" : "Sign-in verified",
-              `Account: ${user.email}\n${contextText(request)}\nA sign-in passed password and ${recovered ? "a single-use recovery code" : "email verification"}. If unexpected, contact your administrator.`).catch(() => {});
+            const notice = renderSignInVerifiedEmail({ account: user.email, context: requestContext(request), recovered, authenticator: Boolean(appVerified) });
+            await sendSecurityEmail(policy.email, notice.subject, notice.text, notice.html).catch(() => {});
           }
         }
 
@@ -124,6 +133,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           permissions: permissions,
           lastLogin: new Date(),
           mfaPolicy: policy.enabled ? policy.version : undefined,
+          mfaAuthenticator: authenticator.version,
         };
       },
     }),

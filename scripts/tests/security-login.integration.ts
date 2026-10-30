@@ -84,10 +84,10 @@ async function main() {
     const csrf = await handlers.GET(new NextRequest("https://erp.test/api/auth/csrf"));
     const csrfToken = (await csrf.json()).csrfToken;
     const csrfCookie = csrf.headers.getSetCookie().map(v => v.split(";")[0]).join("; ");
-    async function signIn(otp = "", challengeCookie = "", recoveryCode = "") {
+    async function signIn(otp = "", challengeCookie = "", recoveryCode = "", authenticatorCode = "", loginEmail = user.email) {
       return handlers.POST(new NextRequest("https://erp.test/api/auth/callback/credentials", {
         method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", cookie: `${csrfCookie}; erp-login-challenge=${challengeCookie}`, origin: "https://erp.test" },
-        body: new URLSearchParams({ csrfToken, email: user.email, password, otp, recoveryCode }),
+        body: new URLSearchParams({ csrfToken, email: loginEmail, password, otp, recoveryCode, authenticatorCode }),
       }));
     }
     const sessionCookie = (response: Response) => response.headers.getSetCookie().find(v => /(?:__Secure-)?next-auth\.session-token=/.test(v))?.split(";")[0];
@@ -172,6 +172,89 @@ async function main() {
     const beforeDisabled = messages.length;
     assert.equal((await handleRecoveryCodes(recoveryRequest({ action: "request-code" }), identify, async () => true)).status, 409, "recovery generation requires enabled 2FA on the server");
     assert.equal(messages.length, beforeDisabled);
+    // Personal authenticators are independent of the shared email policy and other users.
+    process.env.ERP_SECRET_ENCRYPTION_KEY = "isolated-authenticator-test-key-never-production";
+    const app = await import("@/lib/security/authenticator");
+    const { totpCode } = await import("@/lib/security/totp");
+    const { handleAuthenticatorSettings } = await import("@/lib/security/authenticator-http");
+    const appRequest = (body: Record<string, unknown>, cookieValue = "") => new Request("https://erp.test/api/settings/security/authenticator", { method: "POST", headers: { origin: "https://erp.test", cookie: `erp-authenticator-setup=${cookieValue}` }, body: JSON.stringify({ password, ...body }) });
+    assert.equal((await handleAuthenticatorSettings(appRequest({ action: "begin" }), async () => null)).status, 401);
+    assert.equal((await handleAuthenticatorSettings(new Request("https://erp.test/api/settings/security/authenticator", { method: "POST", headers: { origin: "https://evil.test" }, body: "{}" }), identify)).status, 403);
+    assert.equal((await handleAuthenticatorSettings(appRequest({ action: "begin", password: "wrong" }), identify)).status, 401);
+    assert.equal((await handleAuthenticatorSettings(appRequest({ action: "begin", userId: other.id }), identify)).status, 400, "body cannot target another account");
+    const personalStart = await handleAuthenticatorSettings(appRequest({ action: "begin" }), identify);
+    assert.equal(personalStart.status, 200);
+    const personalSetup = await personalStart.json();
+    assert.equal(personalSetup.emailRequired, false);
+    assert.match(personalSetup.qr, /^data:image\/png;base64,/);
+    assert.match(personalStart.headers.get("cache-control") || "", /no-store/);
+    const stored = await prisma.$queryRaw<Array<{ secret: string }>>`SELECT secret FROM "SecurityAuthenticator" WHERE userId = ${user.id}`;
+    assert.ok(!stored[0].secret.includes(personalSetup.secret), "TOTP secret is encrypted at rest");
+    assert.equal((await app.getAuthenticatorState(user.id)).enabled, false, "QR issuance alone does not enable MFA");
+    assert.equal(await app.activateAuthenticator(other.id, personalSetup.version, totpCode(personalSetup.secret, Math.floor(Date.now() / 30000))), null, "setup is account-bound");
+    const personalSaved = await handleAuthenticatorSettings(appRequest({ action: "activate", version: personalSetup.version, code: totpCode(personalSetup.secret, Math.floor(Date.now() / 30000)) }), identify);
+    assert.equal(personalSaved.status, 200);
+    const personalCodes = (await personalSaved.json()).recoveryCodes as string[];
+    assert.equal(personalCodes.length, 8);
+    assert.equal((await app.getAuthenticatorState(other.id)).enabled, false, "enrollment does not enable another user");
+    assert.equal(await app.consumeAuthenticator(user.id, totpCode(personalSetup.secret, Math.floor(Date.now() / 30000)), personalSetup.version), false, "enrollment code cannot be replayed at login");
+    const futureCode = totpCode(personalSetup.secret, Math.floor(Date.now() / 30000) + 1);
+    const concurrent = await Promise.all([app.consumeAuthenticator(user.id, futureCode, personalSetup.version), app.consumeAuthenticator(user.id, futureCode, personalSetup.version)]);
+    assert.equal(concurrent.filter(Boolean).length, 1, "only one simultaneous use succeeds");
+    assert.equal(await app.consumeAuthenticatorRecovery(other.id, personalCodes[0], personalSetup.version), false, "recovery is account-bound");
+    assert.equal(await app.consumeAuthenticatorRecovery(user.id, personalCodes[0], personalSetup.version), true);
+    assert.equal(await app.consumeAuthenticatorRecovery(user.id, personalCodes[0], personalSetup.version), false, "personal recovery codes work once");
+    await prisma.$executeRaw`DELETE FROM "SecurityRate"`;
+    const passwordBefore = await signIn();
+    assert.equal(sessionCookie(passwordBefore), undefined, "personal authenticator enforced even with global email disabled");
+    const startRequest = (method?: string) => new Request("https://erp.test/api/auth/otp", { method: "POST", headers: { origin: "https://erp.test" }, body: JSON.stringify({ email: user.email, password, method }) });
+    const beforeAppStart = messages.length;
+    assert.equal((await (await startLogin(startRequest())).json()).method, "authenticator");
+    assert.equal(messages.length, beforeAppStart, "authenticator login does not send an email OTP");
+    assert.equal((await startLogin(startRequest("email"))).status, 400, "disabled email policy is not silently offered as fallback");
+    const recoveredSession = await signIn("", "", personalCodes[1]);
+    assert.ok(sessionCookie(recoveredSession), "personal recovery can sign in while email policy is disabled");
+    // Restore shared email protection: app still defaults and fallback must be explicit.
+    await prisma.setting.update({ where: { key: service.POLICY_KEY }, data: { value: JSON.stringify(activePolicy) } });
+    const beforeAppDefault = messages.length;
+    assert.equal((await (await startLogin(startRequest())).json()).method, "authenticator");
+    assert.equal(messages.length, beforeAppDefault);
+    const fallback = await startLogin(startRequest("email"));
+    assert.equal(fallback.status, 200);
+    assert.equal((await fallback.clone().json()).method, "email");
+    const fallbackCookie = fallback.headers.getSetCookie()[0].split(";")[0].slice("erp-login-challenge=".length);
+    const fallbackSession = await signIn(lastCode(), fallbackCookie);
+    assert.ok(sessionCookie(fallbackSession), "explicit email fallback remains usable");
+    const signedNotice = messages.findLast(message => message.subject.includes("Sign-in verified"));
+    assert.match(signedNotice?.html || "", /SIGN-IN DETAILS/);
+    // A second user enrolls independently, with proof from the existing mailbox.
+    const identifyOther = async () => ({ user: { id: other.id } });
+    const otherStart = await handleAuthenticatorSettings(appRequest({ action: "begin" }), identifyOther);
+    assert.equal(otherStart.status, 200);
+    const otherSetup = await otherStart.json();
+    const otherEmailCode = lastCode();
+    const otherSetupCookie = otherStart.headers.getSetCookie()[0].split(";")[0].slice("erp-authenticator-setup=".length);
+    assert.equal(otherSetup.emailRequired, true);
+    const otherConfirm = { action: "activate", version: otherSetup.version, code: totpCode(otherSetup.secret, Math.floor(Date.now() / 30000)), emailCode: otherEmailCode };
+    assert.equal((await handleAuthenticatorSettings(appRequest(otherConfirm), identifyOther)).status, 400, "existing email policy requires browser-bound mailbox proof");
+    assert.equal((await handleAuthenticatorSettings(appRequest(otherConfirm, otherSetupCookie), identifyOther)).status, 200);
+    assert.notEqual(otherSetup.secret, personalSetup.secret);
+    const otherAppCode = totpCode(otherSetup.secret, Math.floor(Date.now() / 30000) + 1);
+    assert.equal(sessionCookie(await signIn("", "", "", otherAppCode)), undefined, "another user's app cannot approve this account");
+    const appSession = await signIn("", "", "", otherAppCode, other.email);
+    assert.ok(sessionCookie(appSession), "password and personal authenticator issue a session without an email challenge");
+    assert.match(messages.findLast(message => message.subject.includes("Sign-in verified"))?.html || "", /Password \+ authenticator app/);
+    assert.equal(sessionCookie(await signIn("", "", "", otherAppCode, other.email)), undefined, "direct credential callback rejects app-code replay");
+
+    const removed = await handleAuthenticatorSettings(appRequest({ action: "remove", code: personalCodes[2] }), identify);
+    assert.equal(removed.status, 200);
+    assert.equal((await app.getAuthenticatorState(user.id)).enabled, false);
+    assert.equal((await app.getAuthenticatorState(other.id)).enabled, true, "removal does not affect another account");
+    assert.equal(await app.consumeAuthenticatorRecovery(user.id, personalCodes[3], personalSetup.version), false, "removal invalidates personal recovery codes");
+    assert.deepEqual(await service.getSecurityPolicy(), activePolicy, "personal changes do not alter company email policy");
+    const revoked = await handlers.GET(new NextRequest("https://erp.test/api/auth/session", { headers: { cookie: sessionCookie(fallbackSession)! } }));
+    assert.equal(await revoked.json(), null, "personal factor changes revoke that user's older session");
+    console.log("Authenticator integration passed: per-user setup, encryption, mailbox proof, replay/concurrency, no-email default, email fallback, recovery, removal and session revocation.");
     await prisma.setting.update({ where: { key: service.POLICY_KEY }, data: { value: "corrupt" } });
     await assert.rejects(service.getSecurityPolicy(), "corrupt policy must fail closed");
     assert.notEqual(codeHash("challenge1", "123456"), codeHash("challenge2", "123456"));

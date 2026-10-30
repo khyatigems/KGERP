@@ -1,4 +1,4 @@
-const EMAIL_HEADER_BANNER =
+export const EMAIL_HEADER_BANNER =
   "https://res.cloudinary.com/dxu1jawbs/image/upload/v1791202212/KHYATIGEMS_Luxury_Gemstone_Banner_agficv.png";
 const EMAIL_SIGNATURE_BANNER =
   "https://res.cloudinary.com/dxu1jawbs/image/upload/v1791202898/Untitled_design_xgpike.png";

@@ -56,7 +56,7 @@ export async function createChallenge(userId: string, purpose: string, context: 
   await prisma.$executeRaw`INSERT INTO "SecurityChallenge" (id,userId,purpose,binding,codeHash,secondaryHash,context,expiresAt)
     VALUES (${id},${userId},${purpose},${digest(binding)},${codeHash(id, code)},${secondary ? codeHash(id, secondary) : ""},${JSON.stringify(context)},${Date.now() + OTP_SECONDS * 1000})`;
   try {
-    const template = renderOtpEmail({ kind: purpose === "login" ? "sign-in" : purpose === "recovery" ? "recovery" : "settings", code, account, reference: id, context: requestContext(request) });
+    const template = renderOtpEmail({ kind: purpose === "login" ? "sign-in" : purpose === "recovery" ? "recovery" : purpose === "authenticator-setup" ? "authenticator-setup" : "settings", code, account, reference: id, context: requestContext(request) });
     await sendSecurityEmail(email, template.subject, template.text, template.html);
     if (secondary && previousEmail) {
       const previous = renderOtpEmail({ kind: "mailbox-change", code: secondary, account, reference: id, context: requestContext(request) });

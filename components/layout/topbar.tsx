@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { signOut, useSession } from "next-auth/react";
-import { LogOut, Menu, ChevronRight, Home, User, Camera } from "lucide-react";
+import { LogOut, Menu, ChevronRight, Home, User, Camera, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/layout/sidebar";
 import {
@@ -274,6 +274,7 @@ export function Topbar({ user, initialExpandedGroups }: TopbarProps) {
                 </DropdownMenuItem>
               )}
               <InstallMenuItem />
+              <DropdownMenuItem asChild><Link href="/settings/security"><ShieldCheck className="mr-2 h-4 w-4" /><span>Security &amp; 2FA</span></Link></DropdownMenuItem>
               <DropdownMenuItem onClick={() => setAvatarModalOpen(true)}>
                 <Camera className="mr-2 h-4 w-4" />
                 <span>Change photo</span>

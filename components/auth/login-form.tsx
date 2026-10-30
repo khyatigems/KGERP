@@ -13,15 +13,23 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [otpRequired, setOtpRequired] = useState(false);
   const [recipient, setRecipient] = useState("");
+  const [method, setMethod] = useState<"email" | "authenticator">("email");
+  const [emailAvailable, setEmailAvailable] = useState(false);
+  const [authenticatorAvailable, setAuthenticatorAvailable] = useState(false);
   const [otp, setOtp] = useState("");
   const [useRecovery, setUseRecovery] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState("");
 
-  async function requestCode(email: string, password: string) {
-    const response = await fetch("/api/auth/otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+  async function requestCode(email: string, password: string, requestedMethod?: "email") {
+    const response = await fetch("/api/auth/otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, method: requestedMethod }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not send verification code.");
-    if (data.required) { setOtpRequired(true); setRecipient(data.recipient); setOtp(""); }
+    if (data.required) {
+      setOtpRequired(true); setRecipient(data.recipient || ""); setOtp("");
+      setMethod(data.method === "authenticator" ? "authenticator" : "email");
+      setEmailAvailable(Boolean(data.emailAvailable || data.method === "email"));
+      setAuthenticatorAvailable(Boolean(data.authenticatorAvailable || data.method === "authenticator"));
+    }
     return Boolean(data.required);
   }
 
@@ -39,13 +47,14 @@ export function LoginForm() {
       const res = await signIn("credentials", {
         email,
         password,
-        otp: useRecovery ? "" : otp,
+        otp: useRecovery || method === "authenticator" ? "" : otp,
+        authenticatorCode: !useRecovery && method === "authenticator" ? otp : "",
         recoveryCode: useRecovery ? recoveryCode : "",
         redirect: false,
       });
 
       if (res?.error) {
-        setError(otpRequired || useRecovery ? "Sign-in failed. Check your password and verification code. Codes expire after 5 minutes; recovery codes work once." : "Invalid email or password");
+        setError(otpRequired || useRecovery ? "Sign-in failed. Check your password and use a fresh verification code. Authenticator codes change every 30 seconds; recovery codes work once." : "Invalid email or password");
         setLoading(false);
       } else {
         router.push("/");
@@ -122,17 +131,19 @@ export function LoginForm() {
       </div>
 
       {(otpRequired || useRecovery) && <div className="space-y-3">
-        <p role="status" className="text-sm text-slate-200">{useRecovery ? "Enter a saved recovery code for your account." : `A verification code was sent to ${recipient}. It expires in 5 minutes.`}</p>
-        <label htmlFor="login-verification" className="block text-sm text-slate-200">{useRecovery ? "Recovery code" : "Verification code"}</label>
+        <p role="status" className="text-sm text-slate-200">{useRecovery ? "Enter a saved recovery code for your account." : method === "authenticator" ? "Open your authenticator app and enter the current KhyatiGems ERP code for this account. No email code was sent." : `A verification code was sent to ${recipient}. It expires in 5 minutes.`}</p>
+        <label htmlFor="login-verification" className="block text-sm text-slate-200">{useRecovery ? "Recovery code" : method === "authenticator" ? "Authenticator code" : "Email verification code"}</label>
         <Input id="login-verification" required autoComplete={useRecovery ? "off" : "one-time-code"} inputMode={useRecovery ? "text" : "numeric"} maxLength={useRecovery ? 24 : 6} pattern={useRecovery ? "[a-fA-F0-9]{24}" : "[0-9]{6}"} value={useRecovery ? recoveryCode : otp} onChange={e => useRecovery ? setRecoveryCode(e.target.value.trim()) : setOtp(e.target.value.replace(/\D/g, ""))} className="h-12 border-white/20 bg-white/5 text-white" />
-        {!useRecovery && <button type="button" disabled={loading} className="text-sm text-[#E8D6A5] underline disabled:opacity-50" onClick={async e => {
+        {!useRecovery && emailAvailable && <button type="button" disabled={loading} className="text-sm text-[#E8D6A5] underline disabled:opacity-50" onClick={async e => {
           const form = e.currentTarget.form;
           if (!form) return;
           const data = new FormData(form); setLoading(true); setError("");
-          try { await requestCode(String(data.get("email")), String(data.get("password"))); }
+          try { await requestCode(String(data.get("email")), String(data.get("password")), "email"); }
           catch (error) { setError(error instanceof Error ? error.message : "Could not resend code."); }
           finally { setLoading(false); }
-        }}>Resend code (wait 60 seconds)</button>}
+        }}>{method === "authenticator" ? "Send an email code instead" : "Resend email code (wait 60 seconds)"}</button>}
+        {!useRecovery && method === "email" && authenticatorAvailable && <button type="button" disabled={loading} className="block text-sm text-[#E8D6A5] underline" onClick={() => { setMethod("authenticator"); setOtp(""); setError(""); }}>Use authenticator app instead</button>}
+        <button type="button" disabled={loading} className="block text-sm text-slate-300 underline" onClick={() => { setOtpRequired(false); setUseRecovery(false); setOtp(""); setRecoveryCode(""); setError(""); }}>Back to password</button>
       </div>}
 
       <div className="flex items-center justify-between gap-3">
@@ -151,7 +162,7 @@ export function LoginForm() {
           onClick={() => { setUseRecovery(!useRecovery); setOtpRequired(false); setOtp(""); setRecoveryCode(""); setError(""); }}
           className="text-sm font-medium text-[#E8D6A5] transition-colors hover:text-[#F6E7BF]"
         >
-          {useRecovery ? "Use email verification" : "Use a recovery code"}
+          {useRecovery ? "Use verification code" : "Use a recovery code"}
         </button>
       </div>
 
