@@ -1,118 +1,166 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { withFreezeGuard } from "@/lib/governance";
-
-const NoteSchema = z.object({
-  content: z.string().min(1),
-  color: z.string().default("yellow"),
-  position: z.number().default(0),
+import { getFreezeBlockedResponse } from "@/lib/governance";
+import { ensureNotesSchema, listNotes } from "@/lib/notes";
+const fields = z.object({
+  title: z.string().max(300).optional(),
+  content: z.string().max(200000).optional(),
+  color: z.enum(["yellow", "blue", "green", "purple", "pink"]).optional(),
+  position: z.number().int().optional(),
+  category: z.string().max(100).optional(),
+  tags: z.string().max(1000).optional(),
+  kind: z
+    .enum(["Note", "Prompt", "Template", "Documentation", "Checklist"])
+    .optional(),
+  pinned: z.boolean().optional(),
+  favorite: z.boolean().optional(),
+  state: z.enum(["active", "archived", "trash"]).optional(),
+  share: z.boolean().optional(),
+  used: z.boolean().optional(),
+  expectedUpdatedAt: z.iso.datetime().optional(),
+  attachments: z
+    .array(
+      z.object({
+        name: z
+          .string()
+          .max(255)
+          .regex(/\.(png|jpe?g|webp|gif|pdf|txt|docx|xlsx|csv)$/i),
+        type: z.string().max(150),
+        data: z
+          .string()
+          .max(3000000)
+          .regex(/^data:[^;]*;base64,[A-Za-z0-9+/=]*$/),
+      }),
+    )
+    .max(5)
+    .optional(),
 });
-
-export async function GET() {
+type Authenticate = () => Promise<{ user?: { id?: string } } | null>;
+export async function handleNotesGet(req: Request, authenticate: Authenticate) {
+  if (!(await authenticate())?.user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const id = new URL(req.url).searchParams.get("id") ?? undefined;
   try {
-      const notes = await prisma.dashboardNote.findMany({
-          orderBy: { position: 'asc' },
-          include: { createdBy: { select: { name: true } } }
-      });
-      return NextResponse.json(notes);
-  } catch (error) {
-      console.error("Notes fetch error:", error);
-      return NextResponse.json({ error: "Failed to load dashboard notes" }, { status: 500 });
+    const notes = await listNotes(id);
+    return NextResponse.json(
+      id ? (notes.find((n) => n.id === id) ?? null) : notes,
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to load notes" },
+      { status: 500 },
+    );
   }
 }
-
-async function createDashboardNote(req: Request) {
-    try {
-        const body = await req.json();
-        const { content, color, position } = NoteSchema.parse(body);
-
-        // Fallback to first user for now since we don't have session passed easily here
-        // In production, use auth() from next-auth
-        let user;
-        try {
-            user = await prisma.user.findFirst();
-        } catch (dbError) {
-            console.error("Database error finding user:", dbError);
-            // Don't throw yet, try to create default
-        }
-        
-        // If no user exists (e.g. fresh install), create a default system user to allow notes to work
-        if (!user) {
-            console.log("No user found for note creation. Attempting to create/find default System Admin.");
-            try {
-                // Use upsert to handle potential race conditions or existing email
-                user = await prisma.user.upsert({
-                    where: { email: "admin@system.local" },
-                    update: {}, // No update if exists
-                    create: {
-                        name: "System Admin",
-                        email: "admin@system.local",
-                        password: "system_generated", // Placeholder
-                        role: "SUPER_ADMIN"
-                    }
-                });
-            } catch (createError) {
-                console.error("Failed to create default user:", createError);
-                throw new Error("No user found and failed to create default user");
-            }
-        }
-
-        const note = await prisma.dashboardNote.create({
-            data: {
-                content,
-                color,
-                position,
-                createdById: user.id
-            },
-            include: { createdBy: { select: { name: true } } }
+export async function handleNotesWrite(
+  req: Request,
+  authenticate: Authenticate,
+) {
+  const session = await authenticate();
+  if (!session?.user?.id)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = session.user.id;
+  const frozen = await getFreezeBlockedResponse("Notes update");
+  if (frozen) return frozen;
+  try {
+    await ensureNotesSchema();
+    const body =
+      req.method === "DELETE"
+        ? { id: new URL(req.url).searchParams.get("id"), state: "trash" }
+        : await req.json();
+    const data = fields.parse(body);
+    const creating = req.method === "POST";
+    const id = creating
+      ? crypto.randomUUID()
+      : z.string().min(1).parse(body.id);
+    const {
+      content,
+      color,
+      position,
+      share,
+      used,
+      attachments,
+      expectedUpdatedAt,
+      ...metadata
+    } = data;
+    await prisma.$transaction(async (tx) => {
+      if (creating)
+        await tx.dashboardNote.create({
+          data: {
+            id,
+            content: content ?? "",
+            color: color ?? "yellow",
+            position: position ?? 0,
+            createdById: userId,
+          },
         });
-        return NextResponse.json(note);
-    } catch (error) {
-        console.error("Notes create error:", error);
-        return NextResponse.json({ error: "Failed to create note" }, { status: 500 });
-    }
-}
-
-async function updateDashboardNote(req: Request) {
-    try {
-        const body = await req.json();
-        const { id, content, color } = z.object({
-            id: z.string(),
-            content: z.string().optional(),
-            color: z.string().optional(),
-        }).parse(body);
-
-        const note = await prisma.dashboardNote.update({
-            where: { id },
-            data: {
-                ...(content && { content }),
-                ...(color && { color }),
-            }
+      else {
+        const result = await tx.dashboardNote.updateMany({
+          where: {
+            id,
+            ...(expectedUpdatedAt
+              ? { updatedAt: new Date(expectedUpdatedAt) }
+              : {}),
+          },
+          data: { content, color, position, updatedAt: new Date() },
         });
-        return NextResponse.json(note);
-    } catch (error) {
-        console.error("Notes update error:", error);
-        return NextResponse.json({ error: "Failed to update note" }, { status: 500 });
-    }
+        if (!result.count) throw new Error("CONFLICT");
+      }
+      await tx.$executeRawUnsafe(
+        `INSERT OR IGNORE INTO "NoteDetails" ("noteId") VALUES (?)`,
+        id,
+      );
+      for (const [key, value] of Object.entries(metadata))
+        await tx.$executeRawUnsafe(
+          `UPDATE "NoteDetails" SET "${key}" = ? WHERE "noteId" = ?`,
+          typeof value === "boolean" ? Number(value) : value,
+          id,
+        );
+      if (attachments) {
+        if (JSON.stringify(attachments).length > 3000000)
+          throw new Error("Attachment limit");
+        await tx.$executeRawUnsafe(
+          `UPDATE "NoteDetails" SET "attachments" = ? WHERE "noteId" = ?`,
+          JSON.stringify(attachments),
+          id,
+        );
+      }
+      if (share !== undefined)
+        await tx.$executeRawUnsafe(
+          `UPDATE "NoteDetails" SET "shareToken" = ? WHERE "noteId" = ?`,
+          share ? crypto.randomUUID() : null,
+          id,
+        );
+      if (used)
+        await tx.$executeRawUnsafe(
+          `UPDATE "NoteDetails" SET "uses" = "uses" + 1 WHERE "noteId" = ?`,
+          id,
+        );
+      if (data.state === "trash")
+        await tx.$executeRawUnsafe(
+          `UPDATE "NoteDetails" SET "shareToken" = NULL WHERE "noteId" = ?`,
+          id,
+        );
+    });
+    return NextResponse.json((await listNotes(id)).find((n) => n.id === id));
+  } catch (e) {
+    const conflict = e instanceof Error && e.message === "CONFLICT";
+    return NextResponse.json(
+      {
+        error: conflict
+          ? "This note changed elsewhere. Copy your draft, then reopen the note to load the latest version."
+          : e instanceof z.ZodError
+            ? "Invalid note data"
+            : "Unable to save note. Please retry.",
+      },
+      { status: conflict ? 409 : e instanceof z.ZodError ? 400 : 500 },
+    );
+  }
 }
-
-async function deleteDashboardNote(req: Request) {
-    try {
-        const { searchParams } = new URL(req.url);
-        const id = searchParams.get('id');
-        if (!id) throw new Error("ID required");
-
-        await prisma.dashboardNote.delete({
-            where: { id }
-        });
-        return NextResponse.json({ success: true });
-    } catch (error) {
-        console.error("Notes delete error:", error);
-        return NextResponse.json({ error: "Failed to delete note" }, { status: 500 });
-    }
-}
-
-export const POST = withFreezeGuard("Dashboard note creation", createDashboardNote);
-export const PUT = withFreezeGuard("Dashboard note update", updateDashboardNote);
-export const DELETE = withFreezeGuard("Dashboard note deletion", deleteDashboardNote);
+export const GET = (req: Request) => handleNotesGet(req, async () => auth());
+export const POST = (req: Request) => handleNotesWrite(req, async () => auth());
+export const PUT = POST;
+export const DELETE = POST;

@@ -36,6 +36,7 @@ import { InstallMenuItem } from "@/components/pwa/install-menu-item";
 
 const routeTitles: Record<string, string> = {
   "/": "Dashboard Overview",
+  "/notes": "Notes & Knowledge",
   "/inventory": "Inventory Management",
   "/listings": "Listing Management",
   "/labels": "Label Printing System",

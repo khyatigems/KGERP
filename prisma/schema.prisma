@@ -2171,3 +2171,18 @@ model WeeklyReportDelivery {
  @@index([status, nextAttemptAt])
  @@index([runId])
 }
+
+// Organisation metadata for the original DashboardNote records.
+model NoteDetails {
+  noteId      String @id
+  title       String @default("")
+  category    String @default("General")
+  tags        String @default("")
+  kind        String @default("Note")
+  pinned      Boolean @default(false)
+  favorite    Boolean @default(false)
+  state       String @default("active")
+  uses        Int @default(0)
+  shareToken  String?
+  attachments String @default("[]")
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { StickyNote, Plus, Edit3, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,9 @@ interface Note {
   position: number;
   createdBy: { name: string };
   createdAt: string;
+  updatedAt: string;
+  state?: string;
+  pinned?: boolean;
 }
 
 const fetcher = async (url: string): Promise<Note[]> => {
@@ -33,12 +37,13 @@ const colorMap: Record<string, { darkBg: string; darkBorder: string; darkText: s
 };
 
 export function QuickNotes() {
-  const { data: notes, error, isLoading, mutate } = useSWR<Note[]>("/api/dashboard/notes", fetcher);
+  const { data: notes, error, isLoading, mutate } = useSWR<Note[]>("/api/dashboard/notes", fetcher, { refreshInterval: 15000 });
   const [isAdding, setIsAdding] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
   const [selectedColor, setSelectedColor] = useState("yellow");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [editVersion, setEditVersion] = useState("");
 
   const noteColors = ["yellow", "blue", "green", "purple", "pink"];
 
@@ -77,7 +82,7 @@ export function QuickNotes() {
       const response = await fetch("/api/dashboard/notes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, content: editContent })
+        body: JSON.stringify({ id, content: editContent, expectedUpdatedAt: editVersion })
       });
       if (!response.ok) throw new Error("Failed to update note");
       setEditingId(null);
@@ -89,7 +94,7 @@ export function QuickNotes() {
     }
   };
 
-  const sortedNotes = notes ? [...notes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) : [];
+  const sortedNotes = notes ? [...notes].filter(n => !n.state || n.state === "active").sort((a, b) => Number(b.pinned) - Number(a.pinned) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6) : [];
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 sass-enter gem-fade-in">
@@ -98,9 +103,9 @@ export function QuickNotes() {
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400">
             <StickyNote className="h-3.5 w-3.5" />
           </div>
-          <h2 className="text-sm font-semibold text-foreground">Quick Notes</h2>
+          <Link href="/notes" className="text-sm font-semibold text-foreground hover:text-primary">Quick Notes · View all</Link>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => setIsAdding(!isAdding)} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+        <Button aria-label="Add dashboard note" size="sm" variant="ghost" onClick={() => setIsAdding(!isAdding)} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
           <Plus className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -166,6 +171,7 @@ export function QuickNotes() {
                 {isEditing ? (
                   <div className="space-y-1.5">
                     <Textarea
+                      aria-label="Dashboard note content"
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
                       className="min-h-[40px] text-sm bg-transparent border-0 text-foreground resize-none focus-visible:ring-0 p-0"
@@ -178,19 +184,21 @@ export function QuickNotes() {
                   </div>
                 ) : (
                   <>
-                    <p className={`text-sm whitespace-pre-wrap pr-6 ${colorStyle.darkText} ${colorStyle.lightText}`}>{note.content}</p>
+                    <p className={`text-sm whitespace-pre-wrap line-clamp-5 pr-6 ${colorStyle.darkText} ${colorStyle.lightText}`}>{note.content}</p>
                     <div className="mt-1.5 flex items-center justify-between">
                       <span className="text-[10px] text-muted-foreground">
                         {new Date(note.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
                       </span>
                       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => { setEditingId(note.id); setEditContent(note.content); }}
+                          aria-label="Edit dashboard note"
+                          onClick={() => { setEditingId(note.id); setEditContent(note.content); setEditVersion(note.updatedAt); }}
                           className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                         >
                           <Edit3 className="h-3 w-3" />
                         </button>
                         <button
+                          aria-label="Move dashboard note to trash"
                           onClick={() => handleDeleteNote(note.id)}
                           className="rounded p-1 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
                         >

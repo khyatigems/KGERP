@@ -1,4 +1,5 @@
 import { CompanionHost } from "@/components/companion/companion-host";
+import { QuickCapture } from "@/components/notes/quick-capture";
 import { companionKey, parseCompanionPreferences } from "@/lib/companion";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -208,6 +209,7 @@ export default async function DashboardLayout({
           </div>
         </SidebarGridClient>
     {companionAllowed && <CompanionHost userId={session!.user.id} allowedModules={allowedNavModules} initialPreferences={parseCompanionPreferences(companionSetting?.value)} />}
+    <QuickCapture />
     </SidebarProvider>
     </AutomaticWorkTracker>
   );

@@ -10,7 +10,7 @@ import {
   RotateCcw, ShoppingBag, Truck, Users, BarChart3, UserCog, Settings, 
   Wallet, LayoutDashboard, AlertTriangle, Scale, 
   Activity, Box, Receipt, MessageSquare, LayoutGrid, HardDrive, 
-  Link2, ChevronRight as ChevronRightIcon, ListPlus
+  Link2, ChevronRight as ChevronRightIcon, ListPlus, StickyNote
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useGlobalLoader } from "@/components/global-loader-provider";
@@ -33,6 +33,7 @@ export const navGroups = [
     icon: LayoutGrid,
     items: [
       { href: "/", label: "Dashboard", icon: Home, module: "dashboard", animKey: "dashboard" as NavAnimationKey },
+      { href: "/notes", label: "Notes", icon: StickyNote, module: "dashboard", animKey: "notes" as NavAnimationKey },
     ],
   },
   {
