@@ -4,7 +4,8 @@ import Link from "next/link";
 import { companionRuntime, OPEN_COMPANION_EVENT } from "@/lib/companion-runtime";
 import { publishCompanionNotifications } from "@/lib/companion-notification-store";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { AlertTriangle, Bell, Check, CheckCheck, CircleAlert, Info, LoaderCircle } from "lucide-react";
+import { Bell, Check, CheckCheck, CircleAlert, LoaderCircle } from "lucide-react";
+import { FeedbackIcon } from "@/components/ui/feedback-icon";
 import { toast } from "@/lib/erp-feedback";
 import { Button } from "@/components/ui/button";
 import { RetryMarketplaceSyncButton } from "@/components/marketplace/retry-sync-button";
@@ -22,10 +23,10 @@ type Notice = {
 };
 
 const severityStyles = {
-  info: { Icon: Info, className: "text-sky-600 bg-sky-500/10" },
-  success: { Icon: Check, className: "text-emerald-600 bg-emerald-500/10" },
-  warning: { Icon: AlertTriangle, className: "text-amber-600 bg-amber-500/10" },
-  error: { Icon: CircleAlert, className: "text-destructive bg-destructive/10" },
+  info: { className: "text-sky-600 bg-sky-500/10" },
+  success: { className: "text-emerald-600 bg-emerald-500/10" },
+  warning: { className: "text-amber-600 bg-amber-500/10" },
+  error: { className: "text-destructive bg-destructive/10" },
 } as const;
 
 function relativeTime(value: string) {
@@ -149,10 +150,9 @@ export function NotificationBell() {
     if (!items.length) return <div className="px-4 py-10 text-center"><Bell className="mx-auto mb-2 size-5 text-muted-foreground" /><p className="text-sm font-medium">You’re all caught up</p><p className="mt-1 text-xs text-muted-foreground">Important operational updates will appear here.</p></div>;
     return <div className="divide-y divide-border">{items.map((item) => {
       const config = severityStyles[item.type] || severityStyles.info;
-      const Icon = config.Icon;
       return <article key={item.id} className={cn("px-3 py-3", !item.readAt && "bg-muted/35")}>
         <div className="flex items-start gap-3">
-          <span className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full", config.className)}><Icon className="size-4" /></span>
+          <span className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full", config.className)}><FeedbackIcon state={item.type in severityStyles ? item.type : "info"} size={18} /></span>
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2"><h3 className="text-sm font-medium leading-5">{item.title}</h3><time className="shrink-0 pt-0.5 text-[11px] text-muted-foreground" dateTime={item.createdAt}>{relativeTime(item.createdAt)}</time></div>
             <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{item.message}</p>

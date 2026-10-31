@@ -65,6 +65,7 @@
     "test:weekly-reports:pdf": "tsx scripts/tests/weekly-report.pdf.ts",
     "test:weekly-reports:ui": "tsx scripts/tests/weekly-report.ui.ts",
     "test:notifications": "tsx scripts/tests/notifications.integration.ts",
+    "test:feedback": "tsx scripts/tests/erp-feedback.unit.tsx && node scripts/tests/erp-feedback.ui.mjs",
     "test:companion": "tsx scripts/tests/companion.unit.ts && tsx scripts/tests/companion-visibility.unit.ts && node scripts/tests/companion.persistence.mjs && node scripts/tests/companion.ui.mjs",
     "test:notes": "tsx scripts/tests/notes.integration.ts && node scripts/tests/notes.ui.mjs"
   },

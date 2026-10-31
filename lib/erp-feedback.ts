@@ -4,7 +4,7 @@ import { COMPANION_FEEDBACK_EVENT } from "@/lib/companion-events";
 import { companionToastOptions } from "@/lib/companion-runtime";
 import { createElement, type ReactNode } from "react";
 import { RichFeedbackTitle, RichFeedbackDetails, type FeedbackState } from "@/components/ui/rich-feedback";
-import { Info } from "lucide-react";
+import { FeedbackIcon } from "@/components/ui/feedback-icon";
 import { toast as sonnerToast, type ExternalToast } from "sonner";
 import { routeNotification, type NotificationEventKind, type NotificationRoute } from "@/lib/notification-routing";
 
@@ -30,8 +30,8 @@ function richMessage(state: FeedbackState, message: Parameters<typeof sonnerToas
     title: createElement(RichFeedbackTitle, { state }, state === "error" ? safeErrorMessage(title) : title),
     options: {
       // Loading stays visible until the caller updates or dismisses the operation.
-      duration: state === "loading" ? Infinity : state === "error" ? 7_000 : 4_500,
-      ...(state === "normal" ? { icon: createElement(Info, { size: 19 }) } : {}),
+      duration: state === "loading" ? Infinity : options?.action || options?.cancel || state === "error" ? 8_000 : 4_500,
+      ...(state === "normal" ? { icon: createElement(FeedbackIcon, { state: "normal" }) } : {}),
       ...options,
       description: description == null ? undefined : createElement(RichFeedbackDetails, null, state === "error" ? safeErrorMessage(description) : description),
     },
@@ -81,7 +81,7 @@ export function notifyAction(
   onClick: () => void,
   options?: ExternalToast,
 ) {
-  return notify("routine_success", message, { duration: 5_000, ...options, action: { label, onClick } });
+  return notify("routine_success", message, { duration: 8_000, ...options, action: { label, onClick } });
 }
 
 /** Keep UI errors useful without ever showing raw server exception text. */

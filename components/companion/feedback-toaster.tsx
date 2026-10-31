@@ -3,6 +3,8 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { Toaster as SonnerToaster, toast, useSonner, type ToastT, type ToasterProps } from "sonner";
 import { companionRuntime, COMPANION_TOASTER_ID, isMarketplaceSyncToast } from "@/lib/companion-runtime";
+import { X } from "lucide-react";
+import { FeedbackIcon } from "@/components/ui/feedback-icon";
 
 /** Reconcile long-running promises that started before the companion was toggled. */
 export function FeedbackToaster(props: ToasterProps) {
@@ -23,6 +25,20 @@ export function FeedbackToaster(props: ToasterProps) {
       }
     }
   }, [active, toasts]);
-  return <SonnerToaster {...props} />;
+  return <SonnerToaster
+    position="bottom-right"
+    closeButton
+    expand
+    visibleToasts={4}
+    mobileOffset={16}
+    {...props}
+    style={{ width: "min(420px, calc(100vw - 32px))", ...props.style }}
+    icons={{ success: <FeedbackIcon state="success" />, error: <FeedbackIcon state="error" />, warning: <FeedbackIcon state="warning" />, info: <FeedbackIcon state="info" />, loading: <FeedbackIcon state="loading" />, close: <X size={16} strokeWidth={2} absoluteStrokeWidth aria-hidden="true" focusable="false" />, ...props.icons }}
+    toastOptions={{
+      duration: 4_500,
+      ...props.toastOptions,
+      className: ["erp-toast", props.toastOptions?.className].filter(Boolean).join(" "),
+    }}
+  />;
 }
 const methods = { success: toast.success, error: toast.error, info: toast.info, warning: toast.warning, loading: toast.loading, normal: toast.message, default: toast.message, action: toast.message } satisfies Record<string, (title: ToastT["title"], options: ToastT) => string | number>;

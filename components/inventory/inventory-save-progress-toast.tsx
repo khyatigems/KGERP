@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, CheckCheck, Circle, CircleAlert, LoaderCircle, X } from "lucide-react";
+import { Check, Circle, X } from "lucide-react";
 import type { CompletenessResult } from "@/lib/inventory-completeness";
 import { RichFeedbackDetails, RichFeedbackTitle } from "@/components/ui/rich-feedback";
+import { FeedbackIcon } from "@/components/ui/feedback-icon";
 
 interface Props {
   itemName: string;
@@ -16,11 +17,10 @@ interface Props {
 
 export function InventorySaveProgressToast({ itemName, sku, completeness, status, errorMessage, isUpdate = false, onDismiss }: Props) {
   const state = status === "saving" ? "loading" : status;
-  const Icon = state === "loading" ? LoaderCircle : state === "success" ? CheckCheck : CircleAlert;
   const title = state === "loading" ? (isUpdate ? "Updating inventory" : "Saving inventory") : state === "success" ? (isUpdate ? "Inventory updated" : "Inventory created") : "Inventory could not be saved";
   return <section className="erp-feedback-card" data-state={state} aria-label="Inventory save status">
     <div className="erp-feedback-header">
-      <div className="erp-feedback-icon" aria-hidden="true"><Icon size={19} className={state === "loading" ? "erp-feedback-spin" : undefined} /></div>
+      <div className="erp-feedback-icon" aria-hidden="true"><FeedbackIcon state={state} /></div>
       <div role="status"><RichFeedbackTitle state={state} label="INVENTORY">{title}</RichFeedbackTitle></div>
       {onDismiss && <button type="button" className="erp-feedback-close ml-auto" onClick={onDismiss} aria-label="Dismiss inventory notification"><X size={15} /></button>}
     </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowDownToLine, Check, CheckCheck, ChevronRight, Clock3, Package, RefreshCw, ShoppingBag, Store, TriangleAlert, X } from "lucide-react";
+import { ArrowDownToLine, Check, ChevronRight, Clock3, Package, RefreshCw, ShoppingBag, Store, TriangleAlert, X } from "lucide-react";
+import { FeedbackIcon } from "@/components/ui/feedback-icon";
 import { safeErrorMessage } from "@/lib/erp-feedback";
 import { RetryMarketplaceSyncButton } from "./retry-sync-button";
 import styles from "./sync-toast.module.css";
@@ -30,13 +31,12 @@ export function MarketplaceSyncToast({ jobs, onDismiss }: { jobs: SyncJob[]; onD
   const totals = jobs.reduce((sum, job) => ({ scanned: sum.scanned + job.recordsScanned, created: sum.created + job.recordsCreated, updated: sum.updated + job.recordsUpdated }), { scanned: 0, created: 0, updated: 0 });
   const orders = jobs[0]?.syncType === "ORDERS";
   const ItemIcon = orders ? ShoppingBag : Package;
-  const StateIcon = active ? (processing ? RefreshCw : Clock3) : failed.length ? TriangleAlert : CheckCheck;
   const title = active ? (processing ? `Syncing your ${orders ? "orders" : "listings"}` : "Your sync is lined up") : failed.length ? "Sync needs attention" : "Everything is in sync";
 
   return (
     <section className={styles.card} data-state={active ? (processing ? "processing" : "queued") : failed.length ? "error" : "complete"} aria-label="Marketplace sync status">
       <div className={styles.header}>
-        <div className={styles.statusIcon}><StateIcon size={19} className={processing ? styles.spin : undefined} /></div>
+        <div className={styles.statusIcon}>{active && !processing ? <Clock3 size={20} strokeWidth={2} absoluteStrokeWidth aria-hidden="true" /> : <FeedbackIcon state={active ? "loading" : failed.length ? "warning" : "success"} />}</div>
         <div className="min-w-0 flex-1">
           <p className={styles.eyebrow}>MARKETPLACE SYNC <span className={styles.liveDot} /> {active ? "LIVE" : "RESULT"}</p>
           <h2 className="mt-1 text-sm font-semibold tracking-tight" role="status">{title}</h2>
@@ -48,7 +48,7 @@ export function MarketplaceSyncToast({ jobs, onDismiss }: { jobs: SyncJob[]; onD
         <div className={styles.endpoint}><Store size={20} /><span>Marketplaces</span></div>
         <div className={styles.track}>
           <div className={styles.trackLine} />
-          {processing ? [0, 1, 2].map((index) => <span key={index} className={styles.parcel} style={{ animationDelay: `${index * -0.85}s` }}><ItemIcon size={14} /></span>) : <span className={styles.flowState}>{active ? <Clock3 size={16} /> : failed.length ? <TriangleAlert size={16} /> : <CheckCheck size={18} />}</span>}
+          {processing ? [0, 1, 2].map((index) => <span key={index} className={styles.parcel} style={{ animationDelay: `${index * -0.85}s` }}><ItemIcon size={14} /></span>) : <span className={styles.flowState}>{active ? <Clock3 size={16} /> : <FeedbackIcon state={failed.length ? "warning" : "success"} size={18} />}</span>}
         </div>
         <div className={`${styles.endpoint} ${styles.erp}`}><div className={styles.erpLogo}><Image src="/khyatigems-icon-white.png" alt="Khyati Gems" width={44} height={44} /></div><span>Khyati ERP</span></div>
       </div>

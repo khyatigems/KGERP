@@ -16,6 +16,8 @@ const bundle = await build({
 import React from 'react';import {createRoot} from 'react-dom/client';
 import {NotesWorkspace} from './components/notes/notes-workspace';
 import {QuickNotes} from './components/dashboard/quick-notes';
+import {Toaster} from './lib/erp-feedback';
+createRoot(document.body.appendChild(document.createElement('div'))).render(<Toaster/>);
 const now=new Date().toISOString();
 window.notes=[{id:'legacy',title:'Gemstone photography master prompt',content:'Create a premium studio photograph of {{gemstone}}.\\nPreserve the natural colour, inclusions and precise facet geometry.\\nUse a soft neutral background and diffused lighting.',category:'Gemstone photography',kind:'Prompt',tags:'photography, studio',pinned:true,favorite:true,state:'active',uses:12,color:'yellow',attachments:[],createdBy:{name:'Khyati Gems'},createdAt:now,updatedAt:now}];
 window.notes.push(...[
@@ -68,7 +70,8 @@ const styles = await postcss([tailwind()]).process(
 );
 const css =
   styles.css +
-  (await readFile(resolve(root, "app/workspace-theme.css"), "utf8"));
+  (await readFile(resolve(root, "app/workspace-theme.css"), "utf8")) +
+  (await readFile(resolve(root, "components/ui/rich-feedback.css"), "utf8"));
 const server = createServer((req, res) => {
   if (req.url === "/bundle.js") {
     res.setHeader("Content-Type", "text/javascript");
@@ -226,7 +229,8 @@ try {
     ),
   );
   await page.evaluate(() => (window.failSave = false));
-  await clickText("Save failed — retry");
+  await page.waitForSelector('[data-sonner-toast] [data-action]');
+  await clickText("Retry save");
   await page.waitForFunction(() =>
     window.notes[0].content.includes("RETAINED DRAFT"),
   );
@@ -310,6 +314,12 @@ try {
   await page.waitForFunction(() =>
     window.copied?.includes("carrier name and tracking number"),
   );
+  await page.waitForSelector('[data-sonner-toast] [data-action]');
+  await clickText("Open note");
+  await page.waitForSelector('[data-note-editor]');
+  assert.equal(await page.$eval('textarea[aria-label="Note title"]', el => el.value), "Marketplace order tracking checklist");
+  await clickText("Back to notes");
+  await page.waitForFunction(() => !document.querySelector('[data-note-editor]'));
   await page.waitForSelector(
     'button[aria-label="Favourite Marketplace order tracking checklist"]:not([disabled])',
   );

@@ -101,11 +101,15 @@ export function NotesWorkspace() {
         } catch (e) {
           dirty.current = true;
           setStatus("Save failed — retry");
-          toast.error((e as Error).message);
+          toast.error((e as Error).message, {
+            id: "note-save-error",
+            action: { label: "Retry save", onClick: () => { void save(); } },
+          });
           return false;
         }
       }
       setStatus("All changes saved");
+      toast.dismiss("note-save-error");
       return true;
     };
     running.current = work();
@@ -337,7 +341,9 @@ export function NotesWorkspace() {
           ? note.content
           : `${note.title}\n\n${note.content}`,
       );
-      toast.success("Note copied");
+      toast.success("Note copied", {
+        action: { label: "Open note", onClick: () => { void select(note); } },
+      });
       await updateLibraryNote(note, { used: true });
     } catch {
       toast.error("Unable to copy note");

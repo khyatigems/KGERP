@@ -38,6 +38,11 @@ assert.equal(notify("contextual_warning", "Field warning"), "inline");
 notifyAction("Saved", "Open", onClick, { id });
 assert.match(markup(current(id).title), /Completed/);
 assert.equal((current(id).action as { label: string }).label, "Open");
+assert.equal(current(id).duration, 8000, "actions allow time to read and respond");
+toast.error("Save failed", { id, action: { label: "Retry", onClick } });
+assert.equal(current(id).duration, 8000);
+toast.info("Copied", { id });
+assert.equal(current(id).duration, 4500);
 
 const completeness = getInventoryCompleteness({ itemName: "Ruby" });
 const inventory = renderToStaticMarkup(createElement(InventorySaveProgressToast, { itemName: "Ruby", completeness, status: "success", isUpdate: true }));
