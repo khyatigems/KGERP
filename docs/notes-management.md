@@ -11,7 +11,7 @@
 - Add up to five attachments: PNG, JPEG, WEBP, GIF, PDF, TXT, DOCX, XLSX or CSV; each file is limited to 2 MB, combined encoded attachment data to 3 MB. Attachments stay in the existing database and load only when a note is opened. They are excluded from public links and email.
 - Public links are opt-in, read-only, unguessable and revocable. Archive hides shared content while archived. Moving to Trash revokes the token. Trash and archive are reversible; there is no permanent-delete action.
 - Email uses the existing email service and queue. Submission is distinct from confirmed delivery, which remains visible in the Communication Center.
-- The floating Quick note button and Ctrl/Cmd+Shift+N provide capture across authenticated dashboard pages. Closing the capture panel retains its draft while the layout remains mounted.
+- Notes opens as a searchable card library with an optional compact list view. Pinned notes stay at the top. Copy, favourite, pin, archive and restore are available directly on the cards. Opening a note switches to a focused document editor; Back to notes preserves the library filters and layout. New notes and prompts are created from this page or the existing Business Overview widget. There is no global floating button or capture shortcut.
 
 ## Data and rollout
 
@@ -21,4 +21,4 @@ Notes routes require server-side authentication; mutations respect ERP Freeze Mo
 
 ## Validation
 
-`npm run test:notes` runs isolated SQLite integration checks and a browser harness that renders the actual workspace, dashboard widget and quick capture components. It checks legacy content preservation, author attribution, authentication, optimistic concurrency, attachments, share revocation, soft deletion, restore, freeze enforcement, two-way dashboard/workspace updates, autosave retry, template substitution and responsive light/dark rendering. Browser screenshots are written to `tmp/notes-review`.
+`npm run test:notes` runs isolated SQLite integration checks and a browser harness that renders the actual library, focused editor and dashboard widget components. It checks legacy content preservation, author attribution, authentication, optimistic concurrency, attachments, share revocation, soft deletion, restore, freeze enforcement, two-way dashboard/workspace updates, autosave retry, template substitution, library search/layouts, direct card actions and responsive light/dim/dark rendering. Browser screenshots are written to `tmp/notes-review`.
