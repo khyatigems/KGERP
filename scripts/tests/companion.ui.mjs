@@ -89,6 +89,8 @@ try{
  await close();
  await page.evaluate(()=>window.erpToast.success('Gem saved in ERP',{action:{label:'Review saved gem',onClick:()=>window.didReview=true}}));
  await page.waitForFunction(()=>document.querySelector('[data-companion-alert]')?.textContent.includes('Gem saved in ERP'));
+ assert.equal(await page.$eval('.facet-speech-title',el=>el.textContent),'Gem saved in ERP','speech bubble uses the message without toast branding');
+ assert.equal(await page.$('.facet-speech-message'),null,'routine feedback does not get unrelated greeting copy');
  assert.equal(await page.evaluate(()=>[...document.querySelectorAll('[data-sonner-toast]')].filter(e=>getComputedStyle(e).display!=='none'&&e.textContent.includes('Gem saved in ERP')).length),0,'ordinary toast hidden');
  await page.click('button[aria-label^="Open Facet"]');await clickText('Activity');
  await page.waitForFunction(()=>document.querySelector('[aria-label="ERP action activity"]')?.textContent.includes('Gem saved in ERP'));
@@ -173,6 +175,43 @@ try{
  assert.equal(await smallPage.evaluate(()=>window.runtimeState.getSnapshot()),false);
  await smallPage.evaluate(()=>window.erpToast.info('Fresh mobile session feedback'));await smallPage.waitForFunction(()=>[...document.querySelectorAll('[data-sonner-toast]')].some(e=>e.textContent.includes('Fresh mobile session feedback')&&getComputedStyle(e).display!=='none'));
  await smallPage.click('button[aria-label^="Notifications"]');await smallPage.waitForSelector('#erp-notifications-panel');await smallPage.close();
+ // Speech bubbles follow the character at every dock and keep their tail attached.
+ const bubblePage=await browser.newPage();bubblePage.on('pageerror',e=>errors.push(e.message));await bubblePage.setViewport({width:1280,height:800});await bubblePage.goto(`http://127.0.0.1:${server.address().port}`,{waitUntil:'networkidle0'});
+ await bubblePage.click('#facet-enabled');await bubblePage.click('#facet-greetings');await bubblePage.click('button[aria-label="Choose Ember"]');await bubblePage.click('fieldset button[data-slot="button"]');await bubblePage.waitForSelector('[data-companion-launcher]');
+ // Hold transient bubbles while Chrome captures previews on slower machines.
+ await bubblePage.evaluate(()=>{const original=window.setTimeout;window.setTimeout=(callback,delay,...args)=>original(callback,delay===9000?60000:delay,...args)});
+ const bubbleCases=[
+  {position:'bottom-right',mode:'light',size:80,dock:null},
+  {position:'bottom-right',mode:'dim',size:80,dock:null},
+  ...['bottom-left','top-left','top-right'].map(position=>({position,mode:'dim',size:80,dock:null})),
+  ...[{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1}].map(dock=>({position:'bottom-right',mode:'light',size:48,dock})),
+  {position:'bottom-right',mode:'dim',size:144,dock:{x:.6,y:.6}},
+ ];
+ for(const [index,fixture] of bubbleCases.entries()){
+  await bubblePage.evaluate(({fixture,index})=>{
+   window.scrollTo(0,0);
+   document.documentElement.classList.toggle('dark',fixture.mode!=='light');document.documentElement.dataset.workspaceMode=fixture.mode;
+   window.dispatchEvent(new CustomEvent('erp:companion-preferences',{detail:{userId:'test-user',preferences:{...window.saved,...fixture,character:'fox',greetings:false,animations:true}}}));
+   window.erpToast.success(index===0||index===1?'Note copied':'Your inventory has been updated',{id:`bubble-check-${index}`,description:index===0||index===1?undefined:'Your item details are saved and ready to view.'});
+  },{fixture,index});
+  await bubblePage.waitForSelector('[data-companion-alert]');await new Promise(r=>setTimeout(r,350));
+  const geometry=await bubblePage.$eval('[data-companion-alert]',bubble=>{
+   const rect=bubble.getBoundingClientRect();const character=document.querySelector('[data-companion-launcher]').getBoundingClientRect();const tail=getComputedStyle(bubble,'::after');
+   return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,side:bubble.dataset.side,tailContent:tail.content,tailX:rect.left+2+parseFloat(tail.left),characterX:character.left+character.width/2,viewportWidth:innerWidth,viewportHeight:innerHeight};
+  });
+  assert.ok(geometry.left>=0&&geometry.right<=geometry.viewportWidth&&geometry.top>=0&&geometry.bottom<=geometry.viewportHeight,`speech bubble fits viewport ${JSON.stringify({fixture,geometry})}`);
+  assert.notEqual(geometry.tailContent,'none','speech bubble has a tail');assert.ok(Math.abs(geometry.tailX-geometry.characterX)<=3,`tail points to character ${JSON.stringify({fixture,geometry})}`);
+  assert.equal(await bubblePage.$eval('.facet-speech-speaker',el=>el.textContent),'Ember says');
+  if(index<2){
+   const clip=await bubblePage.evaluate(()=>{const boxes=['[data-companion-alert]','[data-companion-state]'].map(selector=>document.querySelector(selector).getBoundingClientRect());const x=Math.min(...boxes.map(box=>box.left))-10;const y=Math.min(...boxes.map(box=>box.top))-10;return{x,y,width:Math.max(...boxes.map(box=>box.right))-x+10,height:Math.max(...boxes.map(box=>box.bottom))-y+10};});
+   await bubblePage.screenshot({path:resolve(out,`companion-speech-bubble-${fixture.mode}.png`),clip});
+  }
+  if(index===0){await bubblePage.click('.facet-speech-action');await bubblePage.waitForSelector('[aria-label="ERP action activity"]');await bubblePage.keyboard.press('Escape');await bubblePage.waitForSelector('[aria-label="Facet ERP companion"]',{hidden:true});}
+  else {await bubblePage.click('[aria-label="Dismiss companion alert"]');await bubblePage.waitForSelector('[data-companion-alert]',{hidden:true});}
+ }
+ await bubblePage.evaluate(()=>{window.dispatchEvent(new CustomEvent('erp:companion-preferences',{detail:{userId:'test-user',preferences:{...window.saved,animations:false}}}));window.erpToast.info('Motion preference check')});await bubblePage.waitForSelector('[data-companion-alert]');
+ assert.equal(await bubblePage.$eval('[data-companion-alert]',el=>getComputedStyle(el).animationName),'none','animation preference is respected');
+ await bubblePage.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);assert.equal(await bubblePage.$eval('[data-companion-alert]',el=>getComputedStyle(el).animationName),'none');await bubblePage.close();
  assert.deepEqual(errors,[]);
  await writeFile(resolve(out,'bundle.json'),JSON.stringify({isolatedHarnessBytes:Buffer.byteLength(js),cssBytes:Buffer.byteLength(css),note:'Includes React, settings and test stubs; not production incremental bundle size'},null,2));
  console.log('Responsive hiding, Appearance quick toggle, save rollback, mobile bell/toast actions and in-flight promise fallback passed. Character gallery, persisted sizes, hover smile/wink, inactivity rest and wake checks passed. Unified notification, proactive alerts, custom cards/actions, promise fallback, history, pinning and dragging checks passed. Companion UI passed: enable/disable, saved preference event, permissions, real snapshot rendering, safe acknowledgement failure and success, Escape, quiet, reduced motion, mobile bounds, no polling.');

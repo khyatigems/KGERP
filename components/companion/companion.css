@@ -3,6 +3,56 @@ html[data-companion-on=true] [data-sonner-toast]:not(.erp-marketplace-sync-toast
 .facet-feedback { --feedback-accent: var(--primary); overflow-wrap: anywhere; min-width: 0; }
 .facet-feedback > div > * { max-width: 100%; }
 .facet-feedback .erp-feedback-card { width: 100%; padding: 0; border: 0; box-shadow: none; border-radius: 0; background: transparent; }
+.facet-speech-bubble {
+  --bubble-paper: #fffdf4;
+  --bubble-ink: #283831;
+  --bubble-muted: #58645b;
+  --bubble-tail: calc(100% - var(--companion-size) / 2);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 18px);
+  width: min(290px, calc(100vw - 24px));
+  padding: 12px 16px 16px;
+  border: 2px solid var(--bubble-ink);
+  border-radius: 22px;
+  background: var(--bubble-paper);
+  color: var(--bubble-ink);
+  box-shadow: 4px 4px 0 var(--bubble-ink);
+  overflow-wrap: anywhere;
+  isolation: isolate;
+  transform-origin: var(--bubble-tail) bottom;
+}
+html.dark .facet-speech-bubble { --bubble-paper: #fff4d9; --bubble-ink: #3b3228; --bubble-muted: #6d5c47; }
+.facet-speech-bubble[data-align="start"] { left: 0; right: auto; --bubble-tail: calc(var(--companion-size) / 2); }
+.facet-speech-bubble[data-side="below"] { top: calc(100% + 18px); bottom: auto; transform-origin: var(--bubble-tail) top; }
+.facet-speech-bubble::after {
+  content: "";
+  position: absolute;
+  left: var(--bubble-tail);
+  bottom: -11px;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  border-right: 2px solid var(--bubble-ink);
+  border-bottom: 2px solid var(--bubble-ink);
+  background: var(--bubble-paper);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.facet-speech-bubble[data-side="below"]::after { top: -11px; bottom: auto; transform: rotate(225deg); }
+.facet-speech-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 3px; }
+.facet-speech-speaker { font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; color: var(--bubble-muted); }
+.facet-speech-close { display: grid; place-items: center; flex: none; width: 28px; height: 28px; margin: -4px -8px 0 0; border-radius: 50%; color: var(--bubble-muted); cursor: pointer; }
+.facet-speech-close:hover { background: color-mix(in srgb, var(--bubble-ink) 9%, transparent); color: var(--bubble-ink); }
+.facet-speech-title { max-height: 110px; overflow-y: auto; font-size: 15px; line-height: 1.45; font-weight: 700; letter-spacing: -.015em; }
+.facet-speech-message { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: 6px; font-size: 12px; line-height: 1.6; color: var(--bubble-muted); }
+.facet-speech-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.facet-speech-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 10px; border: 1px solid var(--bubble-ink); border-radius: 9px; background: var(--bubble-ink); color: var(--bubble-paper); font-size: 11px; font-weight: 650; cursor: pointer; transition: background 150ms ease; }
+.facet-speech-action:hover { background: color-mix(in srgb, var(--bubble-ink) 85%, var(--bubble-paper)); }
+.facet-speech-count { font-size: 11px; font-weight: 600; color: var(--bubble-muted); }
+.facet-speech-close:focus-visible, .facet-speech-action:focus-visible { outline: 2px solid var(--bubble-ink); outline-offset: 3px; }
+.companion-motion .facet-speech-bubble { animation: facet-speech-pop 240ms cubic-bezier(.2, .8, .3, 1); }
+@keyframes facet-speech-pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
 .companion-motion .facet-body { transform-origin: 50% 50%; animation: facet-breathe 6s ease-in-out infinite; }
 .companion-motion .facet-eyes { transform-origin: 50% 46%; animation: facet-blink 9s infinite; }
 .companion-motion .facet-art[data-state=working] .facet-body { animation: facet-work 1.6s ease-in-out infinite; }
@@ -27,4 +77,4 @@ html[data-companion-on=true] [data-sonner-toast]:not(.erp-marketplace-sync-toast
 @keyframes facet-tail { 50% { transform: rotate(-12deg); } }
 @keyframes facet-rest { 0%, 100% { transform: translateY(3px) rotate(-3deg); } 50% { transform: translateY(4px) rotate(-1deg) scale(.99); } }
 @keyframes facet-dream { 0%, 100% { opacity: .25; transform: translateY(2px); } 50% { opacity: .6; transform: translateY(-2px); } }
-@media (prefers-reduced-motion: reduce) { .facet-art * { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .facet-art *, .facet-speech-bubble { animation: none !important; } }

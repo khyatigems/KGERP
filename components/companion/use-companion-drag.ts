@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { saveCompanionPreferences } from "@/app/(dashboard)/settings/companion/actions";
 import { COMPANION_PREFERENCES_EVENT, type CompanionPreferences } from "@/lib/companion";
 
@@ -58,12 +58,14 @@ export function useCompanionDrag(prefs: CompanionPreferences, userId: string, on
       setDock(next); clearTimeout(keyboardTimer.current); keyboardTimer.current = setTimeout(() => void persist(next), 400);
     },
   };
-  const alertStyle = dock && viewport.width ? {
+  const bubbleLeft = dock && viewport.width ? Math.max(12, Math.min(viewport.width - 302, dock.x * (viewport.width - diameter - 24) + (dock.x < .5 ? 0 : diameter - 290))) : 0;
+  const alertStyle: CSSProperties | undefined = dock && viewport.width ? {
+    "--bubble-tail": `${Math.max(22, Math.min(268, Math.max(12, dock.x * (viewport.width - diameter - 24)) + diameter / 2 - bubbleLeft))}px`,
     position: "fixed" as const,
-    left: Math.max(12, Math.min(viewport.width - 302, dock.x * (viewport.width - diameter - 24) + (dock.x < .5 ? 0 : diameter - 290))),
-    top: dock.y < .5 ? Math.max(12, dock.y * (viewport.height - diameter - 44)) + diameter + 32 : "auto",
-    bottom: dock.y >= .5 ? viewport.height - Math.max(12, dock.y * (viewport.height - diameter - 44)) + 12 : "auto",
+    left: bubbleLeft,
+    top: dock.y < .5 ? Math.max(12, dock.y * (viewport.height - diameter - 44)) + diameter + 38 : "auto",
+    bottom: dock.y >= .5 ? viewport.height - Math.max(12, dock.y * (viewport.height - diameter - 44)) + 18 : "auto",
     margin: 0,
-  } : undefined;
+  } as CSSProperties : undefined;
   return { handlers, dock, alertStyle, style: dock && viewport.width ? { left: Math.max(12, dock.x * (viewport.width - diameter - 24)), top: Math.max(12, dock.y * (viewport.height - diameter - 44)), right: "auto", bottom: "auto" } : undefined };
 }

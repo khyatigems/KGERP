@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { usePathname } from "next/navigation";
 
-import { isValidElement, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { isValidElement, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 
 import { ArrowUpRight, Check, GripHorizontal, Pin, Settings2, X } from "lucide-react";
 
@@ -138,7 +138,7 @@ export function Companion({ preferences: prefs, allowedModules, userId }: { pref
 
       ...snapshot.items.filter(item => !item.readAt && (prefs.severity === "all" || item.type === "warning" || item.type === "error")).slice(0, 3).map(item => ({ key: `notice:${item.id}`, title: item.title, message: item.message, tab: "inbox" as const })),
 
-      ...history.filter(item => !item.read && !isMarketplaceSyncToast(item.id, item.className)).slice(0, 3).map(item => ({ key: `toast:${item.id}:${item.receivedAt}:${item.revision}`, title: item.jsx ? "ERP action updated" : content(item.title), message: item.jsx ? "Open activity for details and available actions." : content(item.description), tab: "activity" as const })),
+      ...history.filter(item => !item.read && !isMarketplaceSyncToast(item.id, item.className)).slice(0, 3).map(item => ({ key: `toast:${item.id}:${item.receivedAt}:${item.revision}`, title: item.jsx ? "ERP action updated" : text(content(item.title)), message: item.jsx ? "Open activity for details and available actions." : text(content(item.description)), tab: "activity" as const })),
 
     ];
 
@@ -338,7 +338,27 @@ export function Companion({ preferences: prefs, allowedModules, userId }: { pref
 
     </Popover>
 
-    {!open && !sleeping && visible && (alert || greeting) && <div role="status" style={drag.alertStyle} className={`absolute ${top ? "top-full mt-2" : "bottom-full mb-2"} ${left ? "left-0" : "right-0"} w-[min(290px,calc(100vw-24px))] rounded-xl border bg-popover p-3 text-popover-foreground shadow-xl`} data-companion-alert><button onClick={() => { if (alert) setQueue(current => current.slice(1)); else setGreeting(false); }} aria-label="Dismiss companion alert" className="float-right -mr-1 -mt-1 p-1"><X className="size-3" /></button><div className="max-h-28 overflow-hidden text-xs font-medium">{alert?.title || "Welcome back. I’m Facet."}</div><div className="mt-1 line-clamp-3 text-xs text-muted-foreground">{alert?.message || "Your updates and business tools, always within reach."}</div>{alert && <button className="mt-2 text-xs font-medium text-primary underline" onClick={() => { setTab(alert.tab); setOpen(true); setFilter("all"); setQuery(""); }}>View {alert.tab === "inbox" ? "update" : "activity"}{queue.length > 1 ? ` · ${queue.length - 1} more` : ""}</button>}</div>}
+    {!open && !sleeping && visible && (alert || greeting) && <div
+      key={alert?.key || "greeting"}
+      role="status"
+      aria-live="polite"
+      style={{ "--companion-size": `${prefs.size}px`, ...drag.alertStyle } as CSSProperties}
+      className="facet-speech-bubble"
+      data-companion-alert
+      data-side={top ? "below" : "above"}
+      data-align={left ? "start" : "end"}
+    >
+      <div className="facet-speech-header">
+        <span className="facet-speech-speaker">{characterName} says</span>
+        <button type="button" onClick={() => { if (alert) setQueue(current => current.slice(1)); else setGreeting(false); }} aria-label="Dismiss companion alert" className="facet-speech-close"><X size={16} strokeWidth={2} aria-hidden="true" /></button>
+      </div>
+      <div className="facet-speech-title">{alert?.title || `Welcome back! I’m ${characterName}.`}</div>
+      {(alert?.message || !alert) && <div className="facet-speech-message">{alert ? alert.message : "Your updates and business tools are right here."}</div>}
+      {alert && <div className="facet-speech-footer">
+        <button type="button" className="facet-speech-action" onClick={() => { setTab(alert.tab); setOpen(true); setFilter("all"); setQuery(""); }}>View {alert.tab === "inbox" ? "update" : "activity"}<ArrowUpRight size={14} aria-hidden="true" /></button>
+        {queue.length > 1 && <span className="facet-speech-count">+{queue.length - 1} more</span>}
+      </div>}
+    </div>}
 
   </div>;
 
