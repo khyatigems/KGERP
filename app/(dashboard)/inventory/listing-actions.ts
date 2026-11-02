@@ -7,6 +7,10 @@ import { auth } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-logger";
 import { logMarketplaceActivity } from "@/lib/marketplace-control-center";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { priceObservations } from "@/lib/marketplace/price-history";
+import { checkPermission } from "@/lib/permission-guard";
+import { PERMISSIONS } from "@/lib/permissions";
 
 const listingSchema = z.object({
   inventoryId: z.string().uuid(),
@@ -31,6 +35,7 @@ export async function addListing(data: z.infer<typeof listingSchema>) {
   if (!parsed.success) return { success: false, message: "Invalid data", errors: parsed.error.flatten().fieldErrors };
 
   try {
+    await ensureMarketplaceFoundationSchema();
     const governance = await getGovernanceConfig();
     const inventory = await prisma.inventory.findUnique({
         where: { id: data.inventoryId },
@@ -59,6 +64,7 @@ export async function addListing(data: z.infer<typeof listingSchema>) {
         priceHistory: {
           create: {
             price: data.listedPrice,
+            currency: data.currency,
             changedBy: session.user?.id || session.user?.email || "Unknown",
           }
         }
@@ -88,6 +94,7 @@ export async function addListing(data: z.infer<typeof listingSchema>) {
     revalidatePath("/inventory");
     revalidatePath(`/inventory/${data.inventoryId}`);
     revalidatePath("/listings");
+        revalidatePath("/marketplace-listings");
     return { success: true, listing };
   } catch (error) {
     console.error("addListing error:", error);
@@ -108,13 +115,15 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
     }
 
     try {
+        await ensureMarketplaceFoundationSchema();
         const existing = await prisma.listing.findUnique({ 
             where: { id },
-            include: { inventory: { select: { sku: true } } }
+            include: { inventory: { select: { sku: true } }, priceHistory: { take: 1, orderBy: { changedAt: "desc" } } }
         });
 
         if (!existing) return { success: false, message: "Listing not found" };
 
+        const observations = priceObservations({ previous: { price: existing.listedPrice, currency: existing.currency, observedAt: existing.updatedAt }, latest: existing.priceHistory[0], price: data.listedPrice ?? existing.listedPrice, currency: data.currency || existing.currency, source: session.user?.id || session.user?.email || "WEB", now: new Date() });
         const updated = await prisma.$transaction(async (tx) => {
             const result = await tx.listing.update({
                 where: { id },
@@ -125,18 +134,10 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
                     listedPrice: data.listedPrice,
                     currency: data.currency,
                     status: data.status,
+                    priceHistory: observations.length ? { create: observations } : undefined,
                 }
             });
 
-            if (data.listedPrice !== undefined && data.listedPrice !== existing.listedPrice) {
-                await tx.listingPriceHistory.create({
-                    data: {
-                        listingId: id,
-                        price: data.listedPrice,
-                        changedBy: session.user?.id || session.user?.email || "Unknown",
-                    }
-                });
-            }
             return result;
         });
 
@@ -164,6 +165,7 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
         revalidatePath("/inventory");
         if (existing.inventoryId) revalidatePath(`/inventory/${existing.inventoryId}`);
         revalidatePath("/listings");
+        revalidatePath("/marketplace-listings");
         return { success: true, listing: updated };
     } catch (error) {
         console.error(error);
@@ -172,7 +174,10 @@ export async function updateListing(id: string, data: Partial<z.infer<typeof lis
 }
 
 export async function getListingHistory(listingId: string) {
+    const permission = await checkPermission(PERMISSIONS.LISTINGS_VIEW);
+    if (!permission.success) return { success: false, history: [] };
     try {
+        await ensureMarketplaceFoundationSchema();
         const history = await prisma.listingPriceHistory.findMany({
             where: { listingId },
             orderBy: { changedAt: "desc" }
@@ -226,6 +231,7 @@ export async function deleteListing(id: string) {
         revalidatePath("/inventory");
         if (existing.inventoryId) revalidatePath(`/inventory/${existing.inventoryId}`);
         revalidatePath("/listings");
+        revalidatePath("/marketplace-listings");
         return { success: true };
     } catch (error) {
         console.error(error);
@@ -279,6 +285,7 @@ export async function updateListingsStatus(ids: string[], status: string) {
 
         revalidatePath("/inventory");
         revalidatePath("/listings");
+        revalidatePath("/marketplace-listings");
         return { success: true };
     } catch (error) {
         console.error(error);
@@ -330,6 +337,7 @@ export async function deleteListings(ids: string[]) {
 
         revalidatePath("/inventory");
         revalidatePath("/listings");
+        revalidatePath("/marketplace-listings");
         // We can't easily revalidate every inventory item page, but the main inventory list is updated.
         
         return { success: true };

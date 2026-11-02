@@ -101,7 +101,11 @@ async function main() {
     const ambiguous = await db.listing.create({ data: { ...fixture, marketplaceShopId: shop.id } });
     metrics = await productivity("alice", q, db); assert.equal(metrics.platforms[1].publishedListings, 2); assert.equal(metrics.platforms[1].averageMinutesPerListing, null);
     await db.listing.delete({ where: { id: ambiguous.id } });
-    const duplicates = await db.listing.findMany({ where: { externalId: "published-1" } }); await db.listing.delete({ where: { id: duplicates[1].id } });
+    const duplicates = await db.listing.findMany({ where: { externalId: "published-1" } });
+    await db.workSession.update({ where: { id: session.id }, data: { listingRecordId: duplicates[0].id } });
+    assert.equal((await productivity("alice", q, db)).platforms[1].averageMinutesPerListing, 1, "links to either duplicate record resolve to the same logical publication");
+    await db.workSession.update({ where: { id: session.id }, data: { listingRecordId: null } });
+    await db.listing.delete({ where: { id: duplicates[1].id } });
     metrics = await productivity("alice", q, db); assert.equal(metrics.platforms[1].averageMinutesPerListing, 1); assert.equal(metrics.platforms[1].listingsPerHour, 60); assert.equal(metrics.platforms[2].publishedListings, null);
     assert.equal(Object.values(metrics.daily).reduce((n, values) => n + (values[1].publishedListings || 0), 0), 1);
     assert.equal(Object.values(metrics.weekly).reduce((n, values) => n + (values[1].publishedListings || 0), 0), 1);
@@ -163,7 +167,32 @@ async function main() {
     const automaticContext = await db.workSession.findUniqueOrThrow({ where: { userId_requestId: { userId: "alice", requestId: erpEvent.id } } });
     assert.equal(automaticContext.trackingSource, "AUTOMATIC"); assert.equal(automaticContext.inventoryId, product.id); assert.equal(automaticContext.marketplaceShopId, shop.id);
     summary = await report("alice", q, db); assert.equal(summary.totalSeconds, 120); assert.equal(summary.byPlatform.ETSY, 0, "ERP context wins over an overlapping extension estimate");
-    await assert.rejects(ingestErpEvents("alice", { events: [{ ...erpEvent, id: crypto.randomUUID(), platform: "ETSY" }] }, "erp.khyatigems.com", db), /context/);
+    const badContext = { ...erpEvent, id: crypto.randomUUID(), platform: "ETSY" };
+    const missingContext = { ...erpEvent, id: crypto.randomUUID(), inventoryId: "deleted-product" };
+    const laterValid = { ...erpEvent, id: crypto.randomUUID() };
+    const partial = await ingestErpEvents("alice", { events: [badContext, missingContext, laterValid] }, "erp.khyatigems.com", db);
+    assert.deepEqual(partial.accepted, [missingContext.id, laterValid.id]);
+    assert.equal(partial.rejected[0].id, badContext.id);
+    const retained = await db.workSession.findUniqueOrThrow({ where: { userId_requestId: { userId: "alice", requestId: missingContext.id } } });
+    assert.equal(retained.durationSeconds, 30); assert.equal(retained.inventoryId, null); assert.equal(retained.marketplaceShopId, null);
+    assert.match(retained.description, /original task context unavailable/);
+    // Already-persisted work can be acknowledged even when the saved context no longer resolves.
+    assert.deepEqual((await ingestErpEvents("alice", { events: [{ ...laterValid, inventoryId: "deleted-after-upload" }] }, "erp.khyatigems.com", db)).accepted, [laterValid.id]);
+    const beforeRetirement = await db.workSession.findMany({ include: { intervals: true }, orderBy: { id: "asc" } });
+    assert.equal((await request("sessions/start", "POST", { ...input, requestId: crypto.randomUUID() })).status, 410);
+    for (const action of ["pause", "resume", "stop"]) assert.equal((await request(`sessions/${session.id}/${action}`, "POST", { revision: 0 })).status, 410);
+    assert.equal((await request(`sessions/${session.id}`, "DELETE", { revision: 0 })).status, 405);
+    assert.equal((await request(`sessions/${session.id}`, "PATCH", { revision: 0, startedAt: new Date(start).toISOString() })).status, 400);
+    assert.deepEqual(await db.workSession.findMany({ include: { intervals: true }, orderBy: { id: "asc" } }), beforeRetirement, "retiring manual controls never edits or deletes previous records");
+    await db.user.create({ data: { id: "legacy", name: "Legacy", email: "legacy@example.test", role: "STAFF", password: "fixture" } });
+    const legacy = await db.workSession.create({ data: { userId: "legacy", requestId: crypto.randomUUID(), platform: "EBAY", activityType: "OTHER", startedAt: new Date(start), activeUserId: "legacy", intervals: { create: [{ startedAt: new Date(start), endedAt: new Date(start + 10000) }, { startedAt: new Date(start + 10000) }] } }, include: { intervals: true } });
+    await ingestEvents("legacy", { events: [{ ...event, id: crypto.randomUUID() }] }, "erp.khyatigems.com", db);
+    const legacySummary = await report("legacy", q, db);
+    assert.equal(legacySummary.totalSeconds, 60); assert.equal(legacySummary.byPlatform.EBAY, 10); assert.equal(legacySummary.byPlatform.ETSY, 50);
+    assert.equal(legacySummary.openLegacyTimers, 1);
+    assert.deepEqual(await db.workSession.findUniqueOrThrow({ where: { id: legacy.id }, include: { intervals: true } }), legacy, "legacy open records survive reporting unchanged");
+    const legacyDashboard = await (await request(`dashboard?from=${q.start.toISOString()}&to=${q.end.toISOString()}`, "GET", undefined, "legacy")).json();
+    assert.equal(legacyDashboard.totalEntries, 2); assert.equal(legacyDashboard.summary.totalSeconds, 60);
     assert.notEqual(newToken(), newToken());
     console.log("Work tracker integration passed: additive migration parity, lifecycle, ownership, auth, CSRF, credentials, duplicate events, overlap reports, corrections, targets and confirmed listing metrics");
   } finally { await db.$disconnect(); await applicationPrisma?.$disconnect(); rmSync(temp, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); }

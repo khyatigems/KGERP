@@ -17,6 +17,7 @@ const FEATURE_FLAGS: Array<[string, string]> = [
 // Column checks are collected first, resolved with a single batched PRAGMA read
 // and then applied â€” 3 round trips total instead of one per statement.
 const COLUMN_CHECKS: Array<[string, string, string]> = [
+  ["ListingPriceHistory", "currency", '"currency" TEXT'],
   ["MarketplaceConnection", "externalAccountId", '"externalAccountId" TEXT'],
   ["MarketplaceConnection", "oauthAppProfile", '"oauthAppProfile" TEXT'],
   ["MarketplaceSyncLog", "marketplaceShopId", '"marketplaceShopId" TEXT'],

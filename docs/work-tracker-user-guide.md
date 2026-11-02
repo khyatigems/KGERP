@@ -8,7 +8,7 @@ ERP work is recorded automatically while its tab is visible and focused. In list
 
 For work on external eBay, Etsy and Amazon websites, install the companion Chrome extension once. ERP pages are excluded by the extension because the ERP already records their richer context. External platform classification follows the active supported hostname; external activity defaults to Other because browsing a page does not prove listing creation. Correct classifications in ERP history when necessary.
 
-Intervals synchronize with stable IDs and are merged without overlapping time being counted twice. Existing manual entries take precedence, then ERP context, then extension estimates. The page warns if an old manual timer is still open; close it once before relying on automatic attribution. Legacy manual APIs remain available, but routine manual timer controls are removed from this page.
+Intervals synchronize with stable IDs and are merged without overlapping time being counted twice. Closed historical manual intervals take precedence, then ERP context, then extension estimates. All old records remain in history. Open manual intervals no longer accumulate unattended time; their closed intervals still count. Manual timer controls and APIs are retired. History offers classification corrections while retaining original intervals and timestamps.
 
 ## Chrome installation
 
@@ -34,12 +34,12 @@ Only the active tab in a focused, non-minimized window counts. No form contents,
 | Marketplace cards and history graph | Real deduplicated work time by ERP/eBay/Etsy/Amazon. Empty history is shown honestly. |
 | Order-value graph | Shop-wide imported order totals in the chosen original currency, shown only when each connected shop has a recent successful, zero-failure order sync and order amounts are complete. Otherwise it names stale shops and marks the value unavailable; imported rows alone never imply complete coverage. This is not personal earned revenue, net profit or a causal result of the tracked hours. Activity filters affect time only. Cancelled/refunded/failed/unpaid orders are excluded. |
 | Activity breakdown | Deduplicated time by work category. External browser work initially uses Other. |
-| History | Compact summary, one row per day, marketplace and activity, after overlap removal. Open **Inspect / correct intervals** to view 15 individual effective intervals per page and correct or delete an erroneous entry. The detail view does not add time to the summary. |
+| History | Compact summary, one row per day, marketplace and activity, after overlap removal. Open **Inspect / correct intervals** to view 15 retained intervals per page and correct activity details. Overlapping duplicates and legacy open records stay visible with zero effective time where appropriate; original timestamps and records are retained. The detail view does not add time to the summary. |
 | Productivity | Confirmed publications and eligible linked work. Current publication evidence is limited to confirmed ERP eBay publications; Etsy/Amazon counts/rates are unavailable where reliable evidence is missing. |
 | Targets | Daily/weekly platform goals and actual progress. Daily goals allow up to 1,440 minutes; weekly up to 10,080. |
 | Chrome connection | Verify this Chrome profile, connect or rename it, and manage active and previous browser access. |
 
-CSV export uses the displayed time summary. The report window is limited to 93 days. Historical filters do not change today's live total.
+ERP pending queues survive navigation and browser restarts. Expired or rejected records stay retained without blocking newer work. Route changes and privacy pause/resume do not reset the idle clock. Successful ERP uploads refresh the dashboard automatically; the page also refreshes every 30 seconds and when focused. CSV export uses the displayed time summary. The report window is limited to 93 days. Historical filters do not change today's live total.
 
 ## Calculations and limitations
 

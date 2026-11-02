@@ -7,6 +7,7 @@ import { activityLabel, money, platformColors, platformNames } from "./types";
 import { weekKey } from "@/lib/work-tracker/core";
 
 export function periodKeys(from: string, to: string, weekly: boolean) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || !Number.isFinite(Date.parse(from)) || !Number.isFinite(Date.parse(to)) || from > to) return [];
   const result = new Set<string>(); let day = from;
   for (let n = 0; day <= to && n < 94; n++) { result.add(weekly ? weekKey(day) : day); day = new Date(+new Date(`${day}T12:00:00Z`) + 86400000).toISOString().slice(0, 10); }
   return [...result];

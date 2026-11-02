@@ -638,6 +638,7 @@ model ListingPriceHistory {
   id        String   @id @default(uuid())
   listingId String
   price     Float
+  currency  String?
   changedBy String
   changedAt DateTime @default(now())
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)

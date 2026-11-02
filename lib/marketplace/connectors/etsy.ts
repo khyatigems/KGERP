@@ -26,7 +26,9 @@ type EtsyListing = {
   sku?: unknown; inventory?: { products?: EtsyProduct[] }; products?: EtsyProduct[];
   images?: EtsyImage[]; Images?: EtsyImage[]; description?: string; listing_id?: string | number;
   title?: string; price?: EtsyMoney; quantity?: number; state?: string; url?: string;
-  taxonomy_id?: number | string; num_favorers?: number;
+  taxonomy_id?: number | string; num_favorers?: number; views?: number;
+  creation_timestamp?: number; original_creation_timestamp?: number; ending_timestamp?: number; updated_timestamp?: number;
+  listing_type?: string; tags?: string[]; has_variations?: boolean;
 };
 type EtsyReceipt = {
   receipt_id?: number | string; status?: string; name?: string; buyer_email?: string;
@@ -38,6 +40,20 @@ type EtsyReceipt = {
     title?: string; quantity?: number; price?: EtsyMoney; image_url?: string }[];
 };
 type EtsyShop = { shop_id?: number | string; shop_name?: string };
+
+export function normalizeEtsyListing(listing: EtsyListing | null | undefined): NormalizedListing {
+  const timestamp = (value: number | undefined) => value && Number.isFinite(value) ? new Date(value * 1000).toISOString() : null;
+  return {
+    marketplace: "ETSY", listingId: listing?.listing_id ? String(listing.listing_id) : "",
+    listingSku: etsyListingSku(listing), title: listing?.title || null, description: listing?.description || null,
+    price: moneyValue(listing?.price), currency: moneyCurrency(listing?.price),
+    quantity: listing?.quantity ?? null, status: listing?.state || null, listingUrl: listing?.url || null,
+    category: listing?.taxonomy_id ? String(listing.taxonomy_id) : null, images: etsyListingImages(listing), attributes: {},
+    views: listing?.views ?? null, favorites: listing?.num_favorers ?? null, orders: null,
+    details: { startedAt: timestamp(listing?.original_creation_timestamp || listing?.creation_timestamp), endsAt: timestamp(listing?.ending_timestamp), updatedAt: timestamp(listing?.updated_timestamp), listingType: listing?.listing_type, tags: listing?.tags, hasVariations: listing?.has_variations, viewsPeriod: "Etsy cumulative views (updated daily)" },
+    raw: listing,
+  };
+}
 
 const API_BASE = "https://openapi.etsy.com";
 const AUTH_URL = "https://www.etsy.com/oauth/connect";
@@ -659,37 +675,21 @@ export class EtsyConnector implements MarketplaceConnector {
       { headers }
     );
     if (!Array.isArray(data.results)) throw new Error("Etsy returned an invalid listings response; saved listings were not reconciled.");
-    return data.results.map((listing) => ({
-      ...this.normalizeListing(listing),
+    const listings = data.results.map((listing) => ({
+      ...normalizeEtsyListing(listing),
       marketplaceShopId: context.shopId,
       externalShopId: context.externalShopId,
       shopName: context.shopName,
     }));
-  }
-
-  private normalizeListing(listing: EtsyListing | null | undefined): NormalizedListing {
-    const sku = etsyListingSku(listing);
-    const images = etsyListingImages(listing);
-
-    return {
-      marketplace: "ETSY",
-      listingId: listing?.listing_id ? String(listing.listing_id) : "",
-      listingSku: sku,
-      title: listing?.title ? String(listing.title) : null,
-      description: listing?.description ? String(listing.description) : null,
-      price: moneyValue(listing?.price),
-      currency: moneyCurrency(listing?.price),
-      quantity: listing?.quantity != null ? Number(listing.quantity) : null,
-      status: listing?.state ? String(listing.state) : null,
-      listingUrl: listing?.url ? String(listing.url) : null,
-      category: listing?.taxonomy_id ? String(listing.taxonomy_id) : null,
-      images,
-      attributes: {},
-      views: null,
-      favorites: listing?.num_favorers != null ? Number(listing.num_favorers) : null,
-      orders: null,
-      raw: listing,
-    };
+    for (let start = 0; start < listings.length; start += 4) {
+      await Promise.all(listings.slice(start, start + 4).filter((listing) => !listing.images.length).map(async (listing) => {
+        try {
+          const images = await httpJson<{ results?: EtsyImage[] }>(`${API_BASE}/v3/application/listings/${encodeURIComponent(listing.listingId)}/images`, { headers });
+          listing.images = etsyListingImages({ images: images.results });
+        } catch { /* Retain previously saved photos and use ERP photos as a fallback. */ }
+      }));
+    }
+    return listings;
   }
 
   async fetchOrders(params: OrderSyncParams, context: MarketplaceConnectionContext): Promise<NormalizedOrder[]> {

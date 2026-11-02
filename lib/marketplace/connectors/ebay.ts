@@ -1,4 +1,5 @@
 import { httpJson, httpRequest, bearerAuth } from "@/lib/marketplace/http";
+import { EBAY_ANALYTICS_SCOPE, ebayTrafficQuery, parseEbayTraffic, type EbayTrafficReport } from "@/lib/marketplace/ebay-traffic";
 import { downloadMarketplaceMedia } from "@/lib/marketplace/media-transfer";
 import { buildEbayInventoryDescription } from "@/lib/marketplace/ebay-description-payload";
 import { buildEbayStaticDescription } from "@/lib/marketplace/ebay-description-html";
@@ -22,6 +23,7 @@ import {
 } from "@/lib/marketplace/oauth";
 
 const SCOPES = [
+  EBAY_ANALYTICS_SCOPE,
   "https://api.ebay.com/oauth/api_scope",
   "https://api.ebay.com/oauth/api_scope/sell.inventory",
   "https://api.ebay.com/oauth/api_scope/sell.fulfillment.readonly",
@@ -609,6 +611,35 @@ export class EbayConnector implements MarketplaceConnector {
       `<GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents"><DetailLevel>ReturnAll</DetailLevel><ActiveList><Include>true</Include><Pagination><EntriesPerPage>${pageSize}</EntriesPerPage><PageNumber>${page}</PageNumber></Pagination></ActiveList></GetMyeBaySellingRequest>`
     );
     const items = parseEbayActiveListings(xml);
+    // Recover pictures omitted by the summary response, with bounded concurrency.
+    for (let start = 0; start < items.length; start += 4) {
+      await Promise.all(items.slice(start, start + 4).filter((item) => !item.images.length).map(async (item) => {
+        try {
+          const detail = await this.callTradingApi("GetItem", token, apiBase, `<GetItemRequest xmlns="urn:ebay:apis:eBLBaseComponents"><ItemID>${item.listingId.replace(/[<>&"']/g, "")}</ItemID><OutputSelector>Item.PictureDetails</OutputSelector></GetItemRequest>`);
+          item.images = ebayPictureUrls(detail);
+        } catch {
+          item.details = { ...item.details, metricsWarning: "Marketplace image could not be refreshed; showing the saved or ERP image when available." };
+        }
+      }));
+    }
+    if (items.length) {
+      const tokens = await loadTokens(context.connectionId);
+      if (tokens?.scope != null && !hasOAuthScope(tokens.scope, EBAY_ANALYTICS_SCOPE)) {
+        for (const item of items) item.details = { ...item.details, metricsWarning: "Reconnect this eBay shop to enable views and impressions.", viewsPeriod: "Last 30 completed days (UTC)" };
+      } else {
+        try {
+          const report = await httpJson<EbayTrafficReport>(`${apiBase}/sell/analytics/v1/traffic_report?${ebayTrafficQuery(items.map((item) => item.listingId))}`, { headers: this.getHeaders(token) }, { maxRetries: 1, timeoutMs: 15000 });
+          const traffic = parseEbayTraffic(report);
+          for (const item of items) {
+            const metric = traffic.get(item.listingId);
+            item.views = metric?.views ?? null;
+            item.details = { ...item.details, impressions: metric?.impressions ?? null, viewsPeriod: report.startDate && report.endDate ? `${report.startDate.slice(0, 10)} – ${report.endDate.slice(0, 10)} (UTC)` : "Last 30 completed days (UTC)", metricsUpdatedAt: report.lastUpdatedDate || new Date().toISOString(), metricsWarning: metric ? null : "No traffic data returned for this listing." };
+          }
+        } catch {
+          for (const item of items) item.details = { ...item.details, metricsWarning: "Traffic data unavailable. Check eBay analytics permission or retry sync.", viewsPeriod: "Last 30 completed days (UTC)" };
+        }
+      }
+    }
     console.log(`[ebay] GetMyeBaySelling: shop=${context.externalShopId}, page=${page}, items=${items.length}`);
 
     return items.map((item) => ({
@@ -832,7 +863,7 @@ export function extractEbayShipmentTracking(source: unknown): { trackingCode: st
 
 function decodeXml(value: string | undefined): string | null {
   return value
-    ? value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim()
+    ? value.replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, "$1").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").trim()
     : null;
 }
 
@@ -841,11 +872,20 @@ function xmlTag(source: string, name: string): string | null {
 }
 
 function xmlAmount(source: string, name: string): { value: number | null; currency: string | null } {
-  const matched = source.match(new RegExp(`<${name}[^>]*?(?:currencyID="([^"]+)")?[^>]*>([^<]+)<\\/${name}>`, "i"));
+  const matched = source.match(new RegExp(`<${name}([^>]*)>([^<]+)<\\/${name}>`, "i"));
   return {
     value: matched?.[2] != null && Number.isFinite(Number(matched[2])) ? Number(matched[2]) : null,
-    currency: matched?.[1] || null,
+    currency: matched?.[1]?.match(/currencyID=["']([^"']+)["']/i)?.[1] || null,
   };
+}
+
+function xmlCount(source: string, name: string): number | null {
+  const value = xmlTag(source, name);
+  return value != null && value.trim() !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+function ebayPictureUrls(source: string): string[] {
+  return [...new Set([...source.matchAll(/<(?:GalleryURL|PictureURL)(?:\s[^>]*)?>([\s\S]*?)<\/(?:GalleryURL|PictureURL)>/gi)].map((match) => decodeXml(match[1])).filter((url): url is string => Boolean(url)))];
 }
 
 /** Parse only ActiveList items from GetMyeBaySelling. Draft/sold/unsold lists are ignored. */
@@ -857,15 +897,14 @@ export function parseEbayActiveListings(xml: string): NormalizedListing[] {
     const item = match[1];
     const listingId = xmlTag(item, "ItemID");
     if (!listingId) continue;
-    const quantitySold = Number(xmlTag(item, "QuantitySold")) || 0;
+    const quantitySold = xmlCount(item, "QuantitySold");
     const listedQuantity = xmlTag(item, "Quantity") != null ? Number(xmlTag(item, "Quantity")) : null;
     const availableTag = xmlTag(item, "QuantityAvailable");
     const quantity = availableTag != null && Number.isFinite(Number(availableTag))
       ? Number(availableTag)
-      : listedQuantity != null ? Math.max(0, listedQuantity - quantitySold) : null;
+      : listedQuantity != null ? Math.max(0, listedQuantity - (quantitySold ?? 0)) : null;
     const status = xmlTag(item, "ListingStatus") || "ACTIVE";
     const price = xmlAmount(item, "CurrentPrice");
-    const image = xmlTag(item, "GalleryURL") || xmlTag(item, "PictureURL");
     listings.push({
       marketplace: "EBAY",
       listingId,
@@ -877,12 +916,13 @@ export function parseEbayActiveListings(xml: string): NormalizedListing[] {
       quantity,
       status: status.toUpperCase(),
       listingUrl: xmlTag(item, "ViewItemURL"),
-      category: xmlTag(item, "CategoryName"),
-      images: image ? [image] : [],
+      category: xmlTag(item, "CategoryName") || xmlTag(item, "CategoryID"),
+      images: ebayPictureUrls(item),
       attributes: {},
-      views: Number(xmlTag(item, "HitCount")) || null,
-      favorites: Number(xmlTag(item, "WatchCount")) || null,
-      orders: quantitySold || null,
+      views: null, // Trading HitCount is deprecated; traffic comes from Analytics.
+      favorites: xmlCount(item.replace(/<Variations>[\s\S]*?<\/Variations>/gi, ""), "WatchCount") ?? 0,
+      orders: quantitySold,
+      details: { startedAt: xmlTag(item, "StartTime"), endsAt: xmlTag(item, "EndTime"), listingType: xmlTag(item, "ListingType") },
       raw: item,
     });
   }

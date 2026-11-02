@@ -21,7 +21,8 @@ export function useWorkContext(context: WorkContext | null) {
 export function routeWorkContext(path: string): WorkContext {
   const url = new URL(path, "https://erp.local");
   const selected = url.searchParams.get("marketplace")?.toUpperCase();
-  const activityType = path.includes("orders") || path.startsWith("/sales") ? "ORDERS" : path.includes("sync") || path.includes("conflict") ? "SYNCHRONIZATION" : path.startsWith("/inventory") ? "INVENTORY" : path.includes("listing") || path.includes("draft") ? "LISTING_PREPARATION" : path.includes("communication") ? "CUSTOMER_SERVICE" : "OTHER";
+  const route = url.pathname;
+  const activityType = route.includes("orders") || route.startsWith("/sales") ? "ORDERS" : route.includes("sync") || route.includes("conflict") ? "SYNCHRONIZATION" : route.startsWith("/inventory") ? "INVENTORY" : route.includes("listing") || route.includes("draft") ? "LISTING_PREPARATION" : route.includes("communication") ? "CUSTOMER_SERVICE" : "OTHER";
   const platform = selected === "EBAY" || selected === "ETSY" || selected === "AMAZON" ? selected : "ERP";
   return { platform, activityType, marketplaceShopId: platform === "ERP" ? null : url.searchParams.get("shop") || null, label: "ERP workspace" };
 }

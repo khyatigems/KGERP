@@ -30,6 +30,7 @@ export const eventSchema = z.object({
   activityType: z.enum(activities), classificationOverride: z.boolean().default(false),
 }).strict();
 export const eventsSchema = z.object({ events: z.array(eventSchema).min(1).max(100) }).strict();
+export const erpEventSchema = eventSchema.extend({ inventoryId: z.string().max(100).nullable().optional(), marketplaceShopId: z.string().max(100).nullable().optional(), listingRecordId: z.string().max(100).nullable().optional() });
 
 export class TrackerError extends Error {
   constructor(message: string, public status = 400) { super(message); }

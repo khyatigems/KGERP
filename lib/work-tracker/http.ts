@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { trackerIdentity, newToken, hashToken } from "@/lib/work-tracker/auth";
-import { TrackerError, targetSchema } from "@/lib/work-tracker/core";
-import { startTimer, transition, correctSession, deleteSession, ingestEvents, ingestErpEvents, revisionSchema } from "@/lib/work-tracker/service";
+import { TrackerError, targetSchema, dateBoundary, dayKey, weekKey } from "@/lib/work-tracker/core";
+import { correctSession, ingestEvents, ingestErpEvents } from "@/lib/work-tracker/service";
 import { report, reportQuery, productivity } from "@/lib/work-tracker/reports";
 import { ensureWorkTrackerSchema } from "@/lib/work-tracker/schema";
 import { revenue } from "@/lib/work-tracker/analytics";
@@ -40,10 +40,12 @@ export async function handleTracker(request: Request, context: Context, db = pri
     } else if (route === "dashboard" && method === "GET") {
       const q = reportQuery(url);
       const requestedEntryPage = z.coerce.number().int().min(0).max(10000).parse(url.searchParams.get("entryPage") || "0");
-      const [selected, currentWeek, metrics, credentialList, canViewRevenue] = await Promise.all([
-        report(userId, q, db), report(userId, { ...q, start: new Date(Date.now() - 8 * 86400000), end: new Date(), platform: undefined, activityType: undefined }, db),
-        productivity(userId, q, db), db.workTrackerCredential.findMany({ where: { userId }, select: { id: true, name: true, createdAt: true, expiresAt: true, revokedAt: true } }), authorize(userId, PERMISSIONS.SALES_VIEW),
+      const now = Date.now();
+      const [selected, currentWeek, credentialList, canViewRevenue] = await Promise.all([
+        report(userId, q, db, now), report(userId, { ...q, start: new Date(dateBoundary(weekKey(dayKey(now, q.timeZone)), q.timeZone)), end: new Date(now), platform: undefined, activityType: undefined }, db, now),
+        db.workTrackerCredential.findMany({ where: { userId }, select: { id: true, name: true, createdAt: true, expiresAt: true, revokedAt: true } }), authorize(userId, PERMISSIONS.SALES_VIEW),
       ]);
+      const metrics = await productivity(userId, q, db, selected);
       const { rows, sessions, ...summary } = selected;
       const { rows: liveRows, sessions: liveSessions, ...live } = currentWeek;
       void liveRows; void liveSessions;
@@ -52,19 +54,21 @@ export async function handleTracker(request: Request, context: Context, db = pri
       for (const row of rows) { byActivity[row.activityType] = (byActivity[row.activityType] || 0) + row.seconds; const source = sessionMap.get(row.sessionId)!.trackingSource; bySource[source] = (bySource[source] || 0) + row.seconds; }
       const matchingSessions = sessions.filter(s => (!q.platform || s.platform === q.platform) && (!q.activityType || s.activityType === q.activityType));
       const effective = new Map<string, number>(); for (const row of rows) effective.set(row.sessionId, (effective.get(row.sessionId) || 0) + row.seconds);
-      const visibleSessions = matchingSessions.filter(s => (effective.get(s.id) || 0) > 0).sort((a, b) => +b.startedAt - +a.startedAt || a.id.localeCompare(b.id));
+      const visibleSessions = matchingSessions.sort((a, b) => +b.startedAt - +a.startedAt || a.id.localeCompare(b.id));
       const entryPage = Math.min(requestedEntryPage, Math.max(0, Math.ceil(visibleSessions.length / 15) - 1));
       const recent = visibleSessions.slice(entryPage * 15, (entryPage + 1) * 15).map(s => ({ ...s, effectiveSeconds: effective.get(s.id) || 0 }));
       const orderValue = canViewRevenue ? await revenue(q, db).catch(() => ({ available: false, reason: "Order data could not be loaded. Time tracking is unaffected." })) : { available: false, reason: "Sales-view permission is required to view shop revenue." };
       const lastExtensionEvent = await db.workActivityEvent.findFirst({ where: { userId, source: "EXTENSION" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
-      const currentManual = await db.workSession.findFirst({ where: { userId, activeUserId: userId }, orderBy: { startedAt: "desc" } });
-      result = { summary, live, metrics, byActivity, bySource, activityGroups: activitySummary(rows), entries: recent, entryPage, entryPageSize: 15, totalEntries: visibleSessions.length, credentials: credentialList, revenue: orderValue, extensionLastSync: lastExtensionEvent?.createdAt || null, currentManual };
+      result = { summary, live, metrics, byActivity, bySource, activityGroups: activitySummary(rows), entries: recent, entryPage, entryPageSize: 15, totalEntries: visibleSessions.length, credentials: credentialList, revenue: orderValue, extensionLastSync: lastExtensionEvent?.createdAt || null };
     } else if (route === "erp-events" && method === "POST") result = await ingestErpEvents(userId, body, url.hostname, db);
-    else if (route === "sessions/start" && method === "POST") result = await startTimer(userId, body, db);
+    else if (route === "sessions/start" && method === "POST") throw new TrackerError("Manual tracking has been retired. Work is recorded automatically; existing history is retained.", 410);
     else if (path[0] === "sessions" && path.length === 3 && ["pause", "resume", "stop"].includes(path[2]) && method === "POST") {
-      result = await transition(userId, path[1], path[2] as "pause" | "resume" | "stop", revisionSchema.parse(body).revision, db);
-    } else if (path[0] === "sessions" && path.length === 2 && method === "PATCH") result = await correctSession(userId, path[1], body, db);
-    else if (path[0] === "sessions" && path.length === 2 && method === "DELETE") result = await deleteSession(userId, path[1], revisionSchema.parse(body).revision, db);
+      throw new TrackerError("Manual timers have been retired. Existing intervals are retained; open intervals do not add unattended time.", 410);
+    } else if (path[0] === "sessions" && path.length === 2 && method === "PATCH") {
+      if (body && typeof body === "object" && ("startedAt" in body || "endedAt" in body)) throw new TrackerError("Original interval timestamps are retained. Only activity details can be corrected.");
+      result = await correctSession(userId, path[1], body, db);
+    }
+    else if (path[0] === "sessions" && path.length === 2 && method === "DELETE") throw new TrackerError("Recorded work history is retained. Correct its classification instead of deleting the record.", 405);
     else if (route === "activity-events" && method === "POST") result = await ingestEvents(userId, body, url.hostname, db);
     else if (route === "reports/summary" && method === "GET") {
       const { rows: _rows, sessions: _sessions, ...summary } = await report(userId, reportQuery(url), db);

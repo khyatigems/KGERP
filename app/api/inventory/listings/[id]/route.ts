@@ -1,3 +1,5 @@
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { priceObservations } from "@/lib/marketplace/price-history";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
@@ -28,15 +30,19 @@ export async function PATCH(
     const body = await req.json();
     const { listingUrl, status, listedPrice, externalId, listingRef } = body;
 
+    if (listedPrice !== undefined && (typeof listedPrice !== "number" || !Number.isFinite(listedPrice) || listedPrice < 0)) return NextResponse.json({ error: "Invalid listed price" }, { status: 400 });
+    await ensureMarketplaceFoundationSchema();
     // Check if listing exists
     const existingListing = await prisma.listing.findUnique({
       where: { id },
+      include: { priceHistory: { take: 1, orderBy: { changedAt: "desc" } } },
     });
 
     if (!existingListing) {
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
+    const observations = listedPrice === undefined ? [] : priceObservations({ previous: { price: existingListing.listedPrice, currency: existingListing.currency, observedAt: existingListing.updatedAt }, latest: existingListing.priceHistory[0], price: listedPrice, currency: existingListing.currency, source: userId, now: new Date() });
     // Update listing with correct Prisma field names
     const updated = await prisma.listing.update({
       where: { id },
@@ -47,6 +53,7 @@ export async function PATCH(
         ...(externalId !== undefined && { externalId }),
         ...(listingRef !== undefined && { listingRef }),
         updatedAt: new Date(),
+        priceHistory: observations.length ? { create: observations } : undefined,
       },
     });
 

@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { fields, startSchema, correctionSchema, eventsSchema, eventSchema, classifyDomain, seconds, validRange, TrackerError } from "./core";
+import { fields, startSchema, correctionSchema, eventsSchema, erpEventSchema, classifyDomain, seconds, validRange, TrackerError } from "./core";
 
 type DB = Prisma.TransactionClient;
 // All transitions use an optimistic revision as well as a database timer lock.
@@ -109,26 +109,40 @@ export async function ingestEvents(userId: string, input: unknown, erpHost: stri
   }
   return { accepted };
 }
-const erpEvent = eventSchema.extend({ inventoryId: z.string().max(100).nullable().optional(), marketplaceShopId: z.string().max(100).nullable().optional(), listingRecordId: z.string().max(100).nullable().optional() });
 export async function ingestErpEvents(userId: string, input: unknown, erpHost: string, db: PrismaClient = prisma) {
-  const { events } = z.object({ events: z.array(erpEvent).min(1).max(50) }).strict().parse(input);
+  const { events } = z.object({ events: z.array(erpEventSchema).min(1).max(50) }).strict().parse(input);
   const accepted: string[] = [];
+  const rejected: { id: string; error: string }[] = [];
   for (const entry of events) {
-    const { inventoryId, marketplaceShopId, listingRecordId, ...event } = entry;
-    if (event.domain !== erpHost || event.eventType !== "ACTIVE") throw new TrackerError("Invalid ERP interval");
-    const inventory = inventoryId ? await db.inventory.findUnique({ where: { id: inventoryId }, select: { id: true, sku: true } }) : null;
-    const shop = marketplaceShopId ? await db.marketplaceShop.findUnique({ where: { id: marketplaceShopId }, select: { id: true, marketplace: true } }) : null;
-    const listing = listingRecordId ? await db.listing.findUnique({ where: { id: listingRecordId }, select: { id: true, platform: true, inventoryId: true, marketplaceShopId: true, externalId: true, status: true } }) : null;
-    if ((inventoryId && !inventory) || (marketplaceShopId && (!shop || shop.marketplace !== event.platform)) || (listingRecordId && (!listing || listing.platform !== event.platform || (inventoryId && listing.inventoryId !== inventoryId) || (marketplaceShopId && listing.marketplaceShopId !== marketplaceShopId)))) throw new TrackerError("Task context no longer matches the product or shop", 409);
-    const result = await ingestEvents(userId, { events: [{ ...event, classificationOverride: event.platform !== "ERP" }] }, erpHost, db, {
-      inventoryId: inventory?.id || listing?.inventoryId || null, marketplaceShopId: shop?.id || listing?.marketplaceShopId || null,
-      listingRecordId: listing?.id || null, sku: inventory?.sku || null,
-      marketplaceListingId: listing && listing.status !== "DRAFT" ? listing.externalId : null,
-      description: `${event.platform === "ERP" ? "ERP" : event.platform} · ${event.activityType.replaceAll("_", " ").toLowerCase()}`,
-    });
-    accepted.push(...result.accepted);
+    try {
+      const { inventoryId, marketplaceShopId, listingRecordId, ...event } = entry;
+      if (event.domain !== erpHost || event.eventType !== "ACTIVE") throw new TrackerError("Invalid ERP interval");
+      // A retry must remain acknowledged even if its product/shop was later removed.
+      const existing = await db.workActivityEvent.findUnique({ where: { id: event.id }, select: { userId: true } });
+      if (existing) {
+        if (existing.userId !== userId) throw new TrackerError("Event ID conflict", 409);
+        accepted.push(event.id); continue;
+      }
+      const inventory = inventoryId ? await db.inventory.findUnique({ where: { id: inventoryId }, select: { id: true, sku: true } }) : null;
+      const shop = marketplaceShopId ? await db.marketplaceShop.findUnique({ where: { id: marketplaceShopId }, select: { id: true, marketplace: true } }) : null;
+      const listing = listingRecordId ? await db.listing.findUnique({ where: { id: listingRecordId }, select: { id: true, platform: true, inventoryId: true, marketplaceShopId: true, externalId: true, status: true } }) : null;
+      if ((shop && shop.marketplace !== event.platform) || (listing && (listing.platform !== event.platform || (inventory && listing.inventoryId !== inventory.id) || (shop && listing.marketplaceShopId !== shop.id)))) throw new TrackerError("Task context no longer matches the product or shop", 409);
+      // Deleted context must not discard genuine offline work or block newer work.
+      // Retain the interval and classification with no unverifiable attribution.
+      const missingContext = Boolean((inventoryId && !inventory) || (marketplaceShopId && !shop) || (listingRecordId && !listing));
+      const result = await ingestEvents(userId, { events: [{ ...event, classificationOverride: event.platform !== "ERP" }] }, erpHost, db, {
+        inventoryId: missingContext ? null : inventory?.id || listing?.inventoryId || null, marketplaceShopId: missingContext ? null : shop?.id || listing?.marketplaceShopId || null,
+        listingRecordId: missingContext ? null : listing?.id || null, sku: missingContext ? null : inventory?.sku || null,
+        marketplaceListingId: !missingContext && listing && listing.status !== "DRAFT" ? listing.externalId : null,
+        description: `${event.platform === "ERP" ? "ERP" : event.platform} · ${event.activityType.replaceAll("_", " ").toLowerCase()}${missingContext ? " (original task context unavailable)" : ""}`,
+      });
+      accepted.push(...result.accepted);
+    } catch (error) {
+      if (!(error instanceof TrackerError)) throw error;
+      rejected.push({ id: entry.id, error: error.message });
+    }
   }
-  return { accepted };
+  return { accepted, rejected };
 }
 export const revisionSchema = z.object({ revision: z.number().int().nonnegative() }).strict();
 export { fields };

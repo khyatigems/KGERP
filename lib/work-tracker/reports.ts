@@ -14,14 +14,16 @@ export function reportQuery(url: URL) {
   return { start, end, timeZone, platform, activityType };
 }
 export type ReportQuery = ReturnType<typeof reportQuery>;
-export async function report(userId: string, q: ReportQuery, db: PrismaClient = prisma) {
+export async function report(userId: string, q: ReportQuery, db: PrismaClient = prisma, now = Date.now()) {
   // Load all platforms before filters so overlaps cannot reappear through a filter.
   const sessions = await db.workSession.findMany({ where: { userId, startedAt: { lt: q.end }, OR: [{ endedAt: null }, { endedAt: { gt: q.start } }] }, include: { intervals: true }, orderBy: [{ trackingSource: "asc" }, { startedAt: "asc" }, { id: "asc" }] });
   const priority = (source: string) => source === "MANUAL" ? 0 : source === "AUTOMATIC" ? 1 : 2;
   sessions.sort((a, b) => priority(a.trackingSource) - priority(b.trackingSource) || +a.startedAt - +b.startedAt || a.id.localeCompare(b.id));
   const occupied: Span[] = [], rows: { sessionId: string; platform: string; activityType: string; day: string; week: string; seconds: number }[] = [];
-  const now = Date.now();
   for (const s of sessions) for (const i of s.intervals) {
+    // Legacy timers have no heartbeat proving that an open interval was worked.
+    // Keep their records and closed intervals, without counting unattended time.
+    if (!i.endedAt && s.trackingSource === "MANUAL") continue;
     const span = { start: Math.max(+q.start, +i.startedAt), end: Math.min(+q.end, +(i.endedAt || new Date(now)), now) };
     if (span.end <= span.start) continue;
     const available = subtract(span, occupied); occupy(occupied, span);
@@ -37,7 +39,7 @@ export async function report(userId: string, q: ReportQuery, db: PrismaClient = 
   }
   const today = dayKey(now, q.timeZone), week = weekKey(today);
   const targets = await db.workTarget.findMany({ where: { userId } });
-  return { from: q.start, to: q.end, timeZone: q.timeZone, totalSeconds: rows.reduce((n, r) => n + r.seconds, 0), byPlatform, daily, weekly,
+  return { from: q.start, to: q.end, timeZone: q.timeZone, openLegacyTimers: sessions.filter(s => s.trackingSource === "MANUAL" && s.status !== "COMPLETED").length, totalSeconds: rows.reduce((n, r) => n + r.seconds, 0), byPlatform, daily, weekly,
     today: daily[today] || {}, targets: targets.map(t => { const actualMinutes = ((t.period === "DAILY" ? daily[today] : weekly[week])?.[t.platform] || 0) / 60; return { ...t, actualMinutes, percentage: actualMinutes / t.targetMinutes * 100 }; }), rows, sessions };
 }
 
@@ -49,8 +51,8 @@ export function publicationEvidence(raw: string | null, userId: string): { publi
     return { listingId: p.listingId, publishedAt: new Date(p.publishedAt) };
   } catch { return null; }
 }
-export async function productivity(userId: string, q: ReportQuery, db: PrismaClient = prisma) {
-  const data = await report(userId, q, db);
+export async function productivity(userId: string, q: ReportQuery, db: PrismaClient = prisma, data?: Awaited<ReturnType<typeof report>>) {
+  data ??= await report(userId, q, db);
   const listings = await db.listing.findMany({ where: { platform: "EBAY", externalId: { not: null }, rawMetadata: { contains: '"workPublication"' } }, select: { id: true, inventoryId: true, platform: true, externalId: true, marketplaceShopId: true, rawMetadata: true } });
   const confirmed = listings.flatMap(l => { const evidence = publicationEvidence(l.rawMetadata, userId); return evidence && evidence.listingId === l.externalId && +evidence.publishedAt >= +q.start && +evidence.publishedAt < +q.end ? [{ ...l, evidence }] : []; });
   const summarize = (rows: typeof data.rows, publicationsInPeriod: typeof confirmed) => platforms.map(platform => {
@@ -59,7 +61,7 @@ export async function productivity(userId: string, q: ReportQuery, db: PrismaCli
     // same external ID across different shops is still ambiguous for a session.
     const publications = [...new Map(matching.map(l => [`${l.marketplaceShopId || ""}:${l.externalId}`, l])).values()];
     const ids = new Set(publications.map(l => `${l.marketplaceShopId || ""}:${l.externalId}`));
-    const match = (s: typeof data.sessions[number]) => publications.filter(l => s.listingRecordId ? l.id === s.listingRecordId : s.inventoryId && s.marketplaceShopId ? l.inventoryId === s.inventoryId && l.marketplaceShopId === s.marketplaceShopId : Boolean(s.marketplaceListingId) && l.externalId === s.marketplaceListingId);
+    const match = (s: (typeof data.sessions)[number]) => [...new Map(matching.filter(l => s.listingRecordId ? l.id === s.listingRecordId : s.inventoryId && s.marketplaceShopId ? l.inventoryId === s.inventoryId && l.marketplaceShopId === s.marketplaceShopId : Boolean(s.marketplaceListingId) && l.externalId === s.marketplaceListingId).map(l => [`${l.marketplaceShopId || ""}:${l.externalId}`, l])).values()];
     const linked = new Set(data.sessions.filter(s => s.platform === platform && match(s).length === 1).map(s => s.id));
     const work = rows.filter(r => r.platform === platform);
     const preparationMinutes = work.filter(r => r.activityType === "LISTING_PREPARATION").reduce((n, r) => n + r.seconds / 60, 0);

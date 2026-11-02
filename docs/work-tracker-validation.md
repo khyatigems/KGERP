@@ -1,5 +1,26 @@
 # Work Tracker validation — 20 October 2026
 
+## Automatic workflow and synchronization audit - 2 November 2026
+
+Manual tracking creation and timer transitions now return 410. The page no longer offers manual timer closure or interval deletion; session deletion returns 405 and HTTP corrections retain original timestamps. No migration, database reset, historical backfill, or production data write was performed. Existing manual sessions, intervals, event IDs, and credentials stay in place. Reports retain closed manual time and exclude unverified open manual spans without changing their rows. The audit view includes zero-effective-time records instead of hiding overlaps.
+
+Corrected ERP queue failures: expired or malformed records blocking current activity; route/pause changes resetting the idle clock; concurrent upload acknowledgements overwriting newer samples; disposed controllers touching remounted queues; recovery taking records from live tabs before their idle rollback; invalid server acknowledgements; and browser storage errors crashing or silently losing collection. Queues remain account-scoped, failed/unaccepted records stay retained, orphan queues retry idempotently, privacy pause persists and follows other tabs, and local storage failures pause capture until retry after recovery. Missing product/shop/listing references keep the work interval with unverified attribution removed. Per-record context errors no longer prevent valid records in the same batch from being accepted.
+
+Corrected reporting: productivity uses the same selected time report; links to either duplicate listing row resolve to one shop/external publication; obsolete filter responses and correction completion cannot restore an older filter; detail pagination resets with filters; empty dates do not crash charts; live targets use the exact current local week; date presets follow midnight/timezone changes; and durations below a minute display seconds. Dashboard data refreshes after ERP sync, on focus, and every 30 seconds.
+
+Validation:
+
+- `npm run test:work-tracker`: passed domain/date/overlap unit checks, new automatic-controller regressions, disposable SQLite/API integration, actual extension-worker logic with mocked Chrome APIs, and pairing tests. Preservation assertions compare stored sessions and intervals before/after retired operations and legacy reporting.
+- `npm run test:work-tracker:ui`: real page and tracking provider, bundled locally with synthetic API responses; desktop/mobile, legacy visibility, filter races/pagination, correction completion during a filter change, automatic sync refresh, midnight rollover, empty date fields, productivity/targets/connections tabs and target saving passed. Screenshots are under ignored `tmp/work-tracker-review/`.
+- Scoped ESLint: passed for tracker page, components, libraries, and regression tests.
+- Final source production build and its TypeScript check: passed using an explicitly disposable SQLite database with Turso URL overrides cleared. Existing middleware convention deprecation remains.
+- `git diff --check` and UTF-8 validation of 29 tracker source/test/documentation files: passed.
+
+Test setup note: Prisma `db push --skip-generate` returned an unspecified schema-engine error while preparing a new disposable build fixture. The fixture was instead initialized using the same generated SQL and Prisma execution approach used by the passing integration suite. No application database, reset, or destructive fallback was used.
+
+The configured application database was not used by these checks. Real installed Chrome permissions/credentials and deployed synchronization still require live acceptance after deployment. Existing unrelated marketplace work was left intact.
+
+
 ## Browser connection audit — 25 October 2026
 
 Removed the simultaneous automatic/manual credential forms and raw-token display. One status-led flow verifies this profile with ERP, distinguishes expired/revoked, offline, another account/address and older extension versions, and renames existing access without minting another key. Active access is separated from collapsed history. Only a verified ID owned by the current account is marked This browser. Status network calls run outside the worker sampling queue; commit checks prevent concurrent replacement and preserve pending records.

@@ -5,6 +5,7 @@ import { exportToExcel, exportToPDF } from "@/lib/export";
 
 export type MarketplaceListingExportRow = {
   marketplace: string; shop: string; listingId: string; sku: string; title: string;
+  previousPrice: string; priceObservedAt: string; views: string; favorites: string; impressions: string; soldQuantity: string; viewsPeriod: string; imageUrl: string; category: string;
   price: string; quantity: string; status: string; syncStatus: string; lastSynced: string; listingUrl: string;
 };
 
@@ -14,6 +15,10 @@ const columns = [
   { header: "Title", key: "title" }, { header: "Price", key: "price" },
   { header: "Quantity", key: "quantity" }, { header: "Status", key: "status" },
   { header: "Match status", key: "syncStatus" }, { header: "Last synced (IST)", key: "lastSynced" },
+  { header: "Previous price", key: "previousPrice" }, { header: "Price observed (IST)", key: "priceObservedAt" },
+  { header: "Views", key: "views" }, { header: "View period", key: "viewsPeriod" }, { header: "Favorites / Watchers", key: "favorites" },
+  { header: "Impressions (eBay)", key: "impressions" }, { header: "Sold quantity (eBay)", key: "soldQuantity" },
+  { header: "Image URL", key: "imageUrl" }, { header: "Category", key: "category" },
   { header: "Listing URL", key: "listingUrl" },
 ] as const;
 

@@ -38,6 +38,7 @@ export interface NormalizedListing {
   views?: number | null;
   favorites?: number | null;
   orders?: number | null;
+  details?: Omit<import("@/lib/marketplace/listing-details").ListingDetails, "images">;
   raw: unknown;
 }
 

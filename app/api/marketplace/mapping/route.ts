@@ -1,3 +1,4 @@
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireExtensionApiToken } from "@/lib/extension-api-auth";
@@ -101,6 +102,7 @@ export async function POST(request: NextRequest) {
 
   const marketplacePrice = toPrice(body.price);
 
+  await ensureMarketplaceFoundationSchema();
   const listing = await prisma.listing.create({
     data: {
       inventoryId: productId,
@@ -114,6 +116,7 @@ export async function POST(request: NextRequest) {
       priceHistory: {
         create: {
           price: marketplacePrice,
+          currency: body.currency || "USD",
           changedBy: "Chrome Extension",
         },
       },

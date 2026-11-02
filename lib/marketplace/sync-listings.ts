@@ -5,14 +5,9 @@ import { startSyncLog, finalizeSyncLog, failSyncLog } from "@/lib/marketplace/sy
 import type { MarketplacePlatform } from "@/lib/marketplace/types";
 import { isLiveMarketplaceListing } from "@/lib/marketplace/listing-status";
 import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
-
-function safeJson(value: unknown): string | null {
-  try {
-    return value == null ? null : JSON.stringify(value);
-  } catch {
-    return null;
-  }
-}
+import { listingSyncMetadata } from "@/lib/marketplace/listing-details";
+import { priceObservations } from "@/lib/marketplace/price-history";
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 
 export interface ListingSyncResult {
   scanned: number;
@@ -33,6 +28,7 @@ export async function syncListingsForPlatform(
   shopId: string,
   params: { limit?: number; offset?: number } = {}
 ): Promise<ListingSyncResult> {
+  await ensureMarketplaceFoundationSchema();
   const shop = await prisma.marketplaceShop.findUnique({
     where: { id: shopId },
     include: { connection: true },
@@ -99,48 +95,42 @@ export async function syncListingsForPlatform(
         const inventoryId = match.status === "MATCHED" ? match.inventoryId : null;
         const isOrphan = match.status !== "MATCHED";
 
+        const now = new Date();
+        const currency = listing.currency || existing?.currency || "USD";
+        const observations = priceObservations({
+          previous: existing ? { price: existing.marketplacePrice ?? (existing.listedPrice > 0 ? existing.listedPrice : null), currency: existing.currency, observedAt: existing.lastSyncedAt || existing.updatedAt } : undefined,
+          latest: existing?.priceHistory[0],
+          price: listing.price, currency, source: `${platform}_SYNC`, now,
+        });
         const data = {
           inventoryId,
           platform: listing.marketplace,
           marketplaceShopId: shop.id,
           externalId,
-          listedPrice: listing.price ?? 0,
-          currency: listing.currency || "USD",
+          listedPrice: listing.price ?? existing?.listedPrice ?? 0,
+          currency,
           status: (listing.status || "ACTIVE").toUpperCase(),
-          listingUrl: listing.listingUrl,
-          listingSku: listing.listingSku,
-          marketplaceTitle: listing.title,
-          marketplacePrice: listing.price,
-          marketplaceQuantity: listing.quantity,
-          marketplaceViews: listing.views ?? null,
-          marketplaceFavorites: listing.favorites ?? null,
-          marketplaceOrders: listing.orders ?? null,
+          listingUrl: listing.listingUrl ?? existing?.listingUrl ?? null,
+          listingSku: listing.listingSku ?? existing?.listingSku ?? null,
+          marketplaceTitle: listing.title ?? existing?.marketplaceTitle ?? null,
+          marketplacePrice: listing.price ?? existing?.marketplacePrice ?? null,
+          marketplaceQuantity: listing.quantity ?? existing?.marketplaceQuantity ?? null,
+          marketplaceViews: listing.views ?? existing?.marketplaceViews ?? null,
+          marketplaceFavorites: listing.favorites ?? existing?.marketplaceFavorites ?? null,
+          marketplaceOrders: listing.orders ?? existing?.marketplaceOrders ?? null,
           marketplaceShopName: listing.shopName ?? null,
           syncStatus: isOrphan ? match.status : "SYNCED",
           syncError: isOrphan ? match.reason : null,
-          lastSyncedAt: new Date(),
-          rawMetadata: safeJson(listing.raw),
+          lastSyncedAt: now,
+          rawMetadata: listingSyncMetadata(listing, existing?.rawMetadata ?? null),
+          priceHistory: observations.length ? { create: observations } : undefined,
         };
 
         if (existing) {
           await prisma.listing.update({ where: { id: existing.id }, data });
-          if (listing.price != null && (!existing.priceHistory.length || existing.marketplacePrice !== listing.price)) {
-            await prisma.listingPriceHistory.create({
-              data: {
-                listingId: existing.id,
-                price: listing.price,
-                changedBy: existing.marketplacePrice !== listing.price ? "EBAY_SYNC" : "EBAY_SYNC_INITIAL",
-              },
-            });
-          }
           counters.updated += 1;
         } else {
-          const created = await prisma.listing.create({ data: { ...data, listedDate: new Date() } });
-          if (listing.price != null) {
-            await prisma.listingPriceHistory.create({
-              data: { listingId: created.id, price: listing.price, changedBy: "EBAY_SYNC_INITIAL" },
-            });
-          }
+          await prisma.listing.create({ data: { ...data, listedDate: now } });
           counters.created += 1;
         }
         if (isOrphan && listing.listingSku) unknownSkus.push(listing.listingSku);

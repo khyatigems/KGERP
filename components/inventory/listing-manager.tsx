@@ -65,6 +65,7 @@ interface ListingManagerProps {
 }
 
 interface PriceHistoryItem {
+    currency?: string | null;
     price: number;
     changedAt: Date | string;
     changedBy?: string;
@@ -103,7 +104,7 @@ function ListingPriceHistory({ listingId, currency = "USD" }: { listingId: strin
                     <div className="space-y-2 max-h-[200px] overflow-y-auto">
                         {history.map((h, i) => (
                             <div key={i} className="text-xs flex justify-between items-center border-b last:border-0 pb-1 last:pb-0">
-                                <span className="font-medium">{formatCurrency(h.price, currency)}</span>
+                                <span className="font-medium">{formatCurrency(h.price, h.currency || currency)}</span>
                                 <div className="text-right">
                                     <div className="text-muted-foreground">{new Date(h.changedAt).toLocaleDateString()}</div>
                                     <div className="text-[10px] text-muted-foreground/70">{new Date(h.changedAt).toLocaleTimeString()}</div>

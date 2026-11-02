@@ -1,3 +1,5 @@
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { priceObservations } from "@/lib/marketplace/price-history";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
@@ -32,6 +34,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Platform is required" }, { status: 400 });
     }
 
+    await ensureMarketplaceFoundationSchema();
     // Fetch inventory items
     const inventoryItems = await prisma.inventory.findMany({
       where: { id: { in: inventoryIds } },
@@ -58,11 +61,13 @@ export async function POST(req: NextRequest) {
           inventoryId: item.id,
           platform: platform,
         },
+        include: { priceHistory: { orderBy: { changedAt: "desc" }, take: 1 } },
       });
 
       if (existingListing) {
         // Update existing listing
         if (item.sellingPrice !== existingListing.listedPrice) {
+          const observations = priceObservations({ previous: { price: existingListing.listedPrice, currency: existingListing.currency, observedAt: existingListing.updatedAt }, latest: existingListing.priceHistory[0], price: item.sellingPrice, currency: existingListing.currency, source: userId, now: new Date() });
           const updated = await prisma.listing.update({
             where: { id: existingListing.id },
             data: {
@@ -70,12 +75,7 @@ export async function POST(req: NextRequest) {
               listedPrice: item.sellingPrice,
               status: "ACTIVE",
               updatedAt: new Date(),
-              priceHistory: {
-                create: {
-                  price: item.sellingPrice,
-                  changedBy: userId,
-                },
-              },
+              priceHistory: { create: observations },
             },
           });
           listings.push(updated);
@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
             priceHistory: {
               create: {
                 price: item.sellingPrice,
+                currency: "INR",
                 changedBy: userId,
               },
             },

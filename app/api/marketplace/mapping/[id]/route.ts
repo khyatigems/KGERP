@@ -1,3 +1,5 @@
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { priceObservations } from "@/lib/marketplace/price-history";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireExtensionApiToken } from "@/lib/extension-api-auth";
@@ -41,9 +43,10 @@ export async function PUT(
     const body = (await request.json()) as MappingBody;
     const price = toPrice(body.price);
 
+    await ensureMarketplaceFoundationSchema();
     const existing = await prisma.listing.findUnique({
       where: { id },
-      include: { inventory: { select: { id: true, sku: true } } },
+      include: { inventory: { select: { id: true, sku: true } }, priceHistory: { take: 1, orderBy: { changedAt: "desc" } } },
     });
 
     if (!existing) {
@@ -64,6 +67,7 @@ export async function PUT(
       return NextResponse.json({ message: "ERP product not found" }, { status: 404 });
     }
 
+    const observations = priceObservations({ previous: { price: existing.listedPrice, currency: existing.currency, observedAt: existing.updatedAt }, latest: existing.priceHistory[0], price: price ?? existing.listedPrice, currency: body.currency || existing.currency, source: "Chrome Extension", now: new Date() });
     const updated = await prisma.listing.update({
       where: { id },
       data: {
@@ -75,22 +79,12 @@ export async function PUT(
         ...(price !== undefined && { listedPrice: price }),
         ...(body.currency !== undefined && { currency: body.currency }),
         ...(body.status !== undefined && { status: body.status.toUpperCase() }),
+        priceHistory: observations.length ? { create: observations } : undefined,
       },
     });
 
     // Fire side effects asynchronously
     Promise.all([
-      (async () => {
-        if (price !== undefined && price !== existing.listedPrice) {
-          await prisma.listingPriceHistory.create({
-            data: {
-              listingId: id,
-              price,
-              changedBy: "Chrome Extension",
-            },
-          });
-        }
-      })(),
       logActivity({
         entityType: "Listing",
         entityId: id,

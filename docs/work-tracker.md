@@ -14,7 +14,7 @@ Implementation files:
 - `lib/work-tracker/core.ts`: schemas, exact host allowlist, interval subtraction/union and IANA timezone boundaries.
 - `lib/work-tracker/schema.ts`: cached, concurrent-safe additive schema initialization using the existing DDL helper; verifies tables/unique indexes and retries failures.
 - `lib/work-tracker/auth.ts`: existing session authentication, origin checks, personal hashed bearer credentials.
-- `lib/work-tracker/service.ts`: timer lifecycle, corrections, ingestion and tombstones.
+- `lib/work-tracker/service.ts`: automatic ingestion and metadata corrections; legacy timer helpers remain internal only.
 - `lib/work-tracker/reports.ts`: interval clipping, overlap precedence, day/week reports and real listing evidence.
 - `lib/work-tracker/http.ts`, `app/api/work-tracker/[...path]/route.ts`: private APIs using existing routing conventions.
 - `app/(dashboard)/work-tracker/page.tsx`, `components/layout/sidebar.tsx`: responsive tracker and navigation.
@@ -27,13 +27,19 @@ Implementation files:
 
 Tracker APIs first ensure their own tables and indexes exist, following the ERP’s existing runtime schema-initialization convention. This runs only additive `CREATE ... IF NOT EXISTS` statements, caches successful initialization and verifies required structures before serving requests. The migration is also idempotent so deploying it after first use preserves tracker entries. No unrelated migration, reset, seed or business-record update runs.
 
-WorkSession stores the requested fields plus requestId, revision and a nullable unique activeUserId. Non-null activeUserId locks one RUNNING **or PAUSED** timer per user at the database level. Stopping releases it. A paused timer must be stopped before starting another. WorkInterval records each active segment, avoiding counting pauses. Server clocks determine manual timer transitions and durationSeconds. Revision checks reject stale competing changes; retrying an already-applied transition is harmless.
+WorkSession and WorkInterval retain all existing records and their original timestamps. Manual timer creation and transitions are retired (HTTP 410); their historical fields and internal compatibility helpers remain. Closed legacy intervals still count. Open legacy intervals have no activity heartbeat and no longer accrue unattended time; reporting excludes these open spans without updating or deleting their rows. Revision checks protect classification and note corrections.
 
-Automatic tracking is opt-in. Each uploaded active slice becomes a completed EXTENSION WorkSession with one interval; no open automatic server timer can accumulate time during browser downtime. This deliberately uses small completed records rather than pretending a browser visit is a productive task. Raw session duration is interval duration; report totals are deduplicated. Manual intervals take priority, followed by browser intervals in chronological/stable-ID order. Deduplication happens **before** platform/activity filters, and across devices. Overlaps are attributed once, even after manual corrections. Deleted browser entries retain event IDs as tombstones, preventing later retries from recreating deleted time.
+ERP tracking runs automatically in a focused, visible ERP tab and can be paused. External Chrome tracking is opt-in. Each uploaded active slice becomes a completed AUTOMATIC or EXTENSION WorkSession with one interval; no open automatic server timer can accumulate time during browser downtime. This deliberately uses small completed records rather than pretending a browser visit is a productive task. Raw session duration is interval duration; report totals are deduplicated. Closed manual intervals take priority, then ERP automatic context, then extension estimates in chronological/stable-ID order. Deduplication happens **before** platform/activity filters, and across devices. Overlaps are attributed once, even after manual corrections. Existing event tombstones remain honored. The session deletion endpoint now returns 405; the page provides classification corrections without deleting history.
 
-Reports use half-open `[from,to)` UTC instants, clip crossing intervals and group by the requested IANA timezone. Weeks start Monday. The UI date picker includes the whole final local calendar day, handles DST, and supports up to 93 days per report. Sessions paginate 100 at a time; the active timer is returned separately. Target progress in the page uses the current local day/week independently of historical filters. Summary API target progress is restricted to its query window, so request the full current week for current target progress. CSV exports the selected daily/weekly platform summary. No mock statistics are used.
+Reports use half-open `[from,to)` UTC instants, clip crossing intervals and group by the requested IANA timezone. Weeks start Monday. The UI date picker includes the whole final local calendar day, handles DST, and supports up to 93 days per report. Sessions paginate 100 at a time; the dashboard audit paginates all retained intervals 15 at a time, including zero-effective-time duplicates and legacy open records. Target progress in the page uses the current local day/week independently of historical filters. Summary API target progress is restricted to its query window, so request the full current week for current target progress. CSV exports the selected daily/weekly platform summary. No mock statistics are used.
 
-Corrections require a stopped session. Editing classification/notes preserves pauses. Editing either timestamp replaces all intervals with a single corrected active interval and recalculates duration. Manual historical entry: start/stop an entry and correct its timestamps. Invalid, future, inverted or greater-than-366-day correction ranges are rejected.
+Corrections require a completed session. Editing classification/notes preserves every interval and its timestamps. The HTTP API rejects timestamp corrections and deletions; no manual backdated entry is offered.
+
+## ERP synchronization reliability (2 November 2026)
+
+`automatic-tracking.ts` keeps one account-scoped controller across route and pause changes. The idle clock follows real input; changing context does not reset it. Each document owns a separate persistent queue and lease. Other live documents cannot upload or acknowledge its mutable idle buffer; abandoned queues recover idempotently. Expired or malformed records stay in local storage while valid records continue uploading. Unaccepted records remain queued with a retry delay, allowing later work through. Acknowledgements are checked against the submitted IDs and applied to the latest queue so concurrent samples survive. Network failures retry; storage failures pause capture and can be retried after storage access is restored. A disposed controller cannot overwrite a remounted controller's queue.
+
+The dashboard refreshes after ERP uploads and on focus, as well as every 30 seconds. Obsolete responses cannot overwrite a newer filter. Filter changes reset interval pagination; clearing a date field does not crash charts. Listing productivity reuses the selected time report and resolves links to any duplicate row for the same shop/external publication.
 
 ## API
 
@@ -42,12 +48,14 @@ Base: `/api/work-tracker`. Responses are JSON with `Cache-Control: no-store`. Co
 | Method | Path | Body / query |
 | --- | --- | --- |
 | GET | `/sessions` | `from`, `to` UTC ISO timestamps; optional `platform`, `activityType`, `timeZone`, zero-based `page`. Defaults past seven days, Asia/Kolkata. Returns entries/total/page/pageSize/current. |
-| POST | `/sessions/start` | UUID `requestId`, `platform`, `activityType`, optional description/sku/marketplaceListingId/notes. Reuse requestId when retrying. |
-| POST | `/sessions/:id/pause` | `{ "revision": 0 }` (use latest returned revision) |
-| POST | `/sessions/:id/resume` | `{ "revision": 1 }` |
-| POST | `/sessions/:id/stop` | `{ "revision": 2 }` |
-| PATCH | `/sessions/:id` | revision and permitted classification/description/sku/marketplaceListingId/notes/startedAt/endedAt corrections |
-| DELETE | `/sessions/:id` | revision; only completed owned entries |
+| POST | `/sessions/start` | Retired: HTTP 410; history retained |
+| POST | `/sessions/:id/pause` | Retired: HTTP 410; history retained |
+| POST | `/sessions/:id/resume` | Retired: HTTP 410; history retained |
+| POST | `/sessions/:id/stop` | Retired: HTTP 410; history retained |
+| PATCH | `/sessions/:id` | revision and permitted classification/description/sku/marketplaceListingId/notes corrections; timestamps are retained |
+| DELETE | `/sessions/:id` | HTTP 405; recorded history is retained |
+| POST | `/erp-events` | Up to 50 automatic ERP intervals; returns accepted IDs and per-record rejected IDs/errors. Missing product/shop/listing context retains the time without unverifiable attribution. |
+| GET | `/dashboard` | Selected summary, consistent productivity numerator, current local day/week, retained interval audit, connection metadata and permitted order context |
 | POST | `/activity-events` | `{ "events": [...] }`; personal bearer credential or authenticated same-origin session |
 | GET | `/reports/summary` | same date/platform/activity/timezone filters; totals/byPlatform/daily/weekly/today/targets |
 | GET | `/reports/productivity` | same filters; platform metrics, coverage and formula definitions |
@@ -79,7 +87,7 @@ Example event (timestamps must be real past instants):
 
 Transition eventType also permits IDLE, TAB_SWITCH, WINDOW_FOCUS, WINDOW_BLUR; these have no startedAt and contribute zero time. ACTIVE intervals require a start and may span at most 90 seconds. Events older than seven days or in the future are rejected. Source/user/duration are server-controlled. Only hostname metadata is accepted, never page URLs/content. A classificationOverride allows the user-selected platform on an otherwise supported hostname. Unsupported/lookalike hosts remain rejected. IDs are globally unique and cannot be reused by another user. Replays return accepted IDs without adding time. Batch commits are per event: retry the batch after a temporary partial failure using the original IDs.
 
-Credentials are 256-bit random secrets, SHA-256 hashed in the database, expire after 90 days and are revocable. They permit **only activity event ingestion**. They cannot read reports, mint credentials, change targets or edit sessions. They are distinct from marketplace tokens. HTTPS is required by the extension except loopback HTTP for local testing. Session authentication remains unchanged.
+Credentials are 256-bit random secrets, SHA-256 hashed in the database, expire after 90 days and are revocable. They permit **only activity event ingestion and sensor connection status**. They cannot read reports, mint credentials, change targets or edit sessions. They are distinct from marketplace tokens. HTTPS is required by the extension except loopback HTTP for local testing. Session authentication remains unchanged.
 
 ## Productivity: scope and limitations
 

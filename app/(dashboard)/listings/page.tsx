@@ -1,3 +1,4 @@
+import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { ListingsView } from "@/components/listings/listings-view";
@@ -28,6 +29,7 @@ export default async function ListingsPage() {
   }
 
   await ensureInventoryBraceletSchema();
+  await ensureMarketplaceFoundationSchema();
   const listings = await prisma.listing.findMany({
     where: { marketplaceShopId: null },
     orderBy: { listedDate: "desc" },

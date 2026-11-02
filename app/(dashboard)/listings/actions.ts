@@ -66,6 +66,7 @@ export async function createListing(prevState: unknown, formData: FormData) {
       }
     }
 
+    await ensureMarketplaceFoundationSchema();
     await prismaWithListing.listing.create({
       data: {
         inventoryId: data.inventoryId,
@@ -79,6 +80,7 @@ export async function createListing(prevState: unknown, formData: FormData) {
         priceHistory: {
           create: {
             price: data.listedPrice,
+            currency: data.currency,
             changedBy: session.user?.id || session.user?.email || "Unknown",
           },
         },
