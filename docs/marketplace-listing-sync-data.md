@@ -29,6 +29,12 @@ The table shows the previous price, direction, absolute/percentage difference, a
 
 Observation time is when ERP learned the price, not necessarily the exact marketplace edit time. Changes made and reversed between syncs, and prices never previously captured, cannot be reconstructed from the current-price API. No invented price records are backfilled.
 
+### Legacy source-label correction
+
+The older shared listing-sync implementation hard-coded `EBAY_SYNC` and `EBAY_SYNC_INITIAL` even for Etsy listings. Correcting the writer does not rewrite those existing history entries, and an unchanged price intentionally does not create a replacement observation. Migration `20261102010000_correct_etsy_price_history_sources` changes those two legacy labels to their `ETSY_` equivalents only when both the listing and its linked shop are Etsy. Genuine eBay observations, user edits, extension edits and ambiguous/unlinked records are preserved. Prices, timestamps and listing associations are untouched.
+
+For an already-running database, `npm run repair:marketplace-price-history-sources` previews eligible records. Add `-- --apply` to save a JSON backup under `tmp/price-history-source-repair` and update the labels in a transaction with checks that prices and timestamps remain unchanged. The repair and migration are idempotent. Run `npm run test:marketplace-price-history-sources` for the isolated migration regression test.
+
 ## Deployment and verification
 
 Apply the additive `20261102000000_listing_price_history_currency` migration through the normal safe migration workflow. The existing marketplace foundation schema check also ensures the nullable currency column for installations using runtime schema checks. Regenerate Prisma with `node scripts/prisma-generate.mjs`. Run a listings sync after deploying to populate the new metrics/details; reconnect eBay shops when the permission message appears. Previously saved images can display immediately.
