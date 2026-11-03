@@ -1,3 +1,4 @@
+import { retryMarketplaceWrite } from "@/lib/marketplace/database-retry";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import type { MarketplacePlatform } from "@/lib/marketplace/types";
@@ -23,7 +24,7 @@ export async function startSyncLog(
   marketplaceShopId?: string
 ): Promise<string> {
   const id = crypto.randomUUID();
-  await prisma.marketplaceSyncLog.create({
+  await retryMarketplaceWrite(() => prisma.marketplaceSyncLog.create({
     data: {
       id,
       marketplace,
@@ -33,12 +34,12 @@ export async function startSyncLog(
       marketplaceShopId,
       startedAt: new Date(),
     },
-  });
+  }));
   return id;
 }
 
 export async function finalizeSyncLog(id: string, final: SyncLogFinalize): Promise<void> {
-  await prisma.marketplaceSyncLog.update({
+  await retryMarketplaceWrite(() => prisma.marketplaceSyncLog.update({
     where: { id },
     data: {
       status: final.status ?? "SUCCESS",
@@ -50,16 +51,15 @@ export async function finalizeSyncLog(id: string, final: SyncLogFinalize): Promi
       recordsFailed: final.counters?.failed ?? 0,
       errorDetails: final.errorDetails ?? null,
     },
-  });
+  }));
 }
 
 export async function failSyncLog(id: string, error: unknown): Promise<void> {
   const message = error instanceof Error ? error.message : String(error);
-  await prisma.marketplaceSyncLog
-    .update({
-      where: { id },
-      data: { status: "FAILED", endedAt: new Date(), errorDetails: message },
-    })
+  await retryMarketplaceWrite(() => prisma.marketplaceSyncLog.update({
+    where: { id },
+    data: { status: "FAILED", endedAt: new Date(), errorDetails: message },
+  }))
     .catch(() => {});
 }
 

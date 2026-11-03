@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_MARKETPLACE_LISTING_STATUSES } from "@/lib/marketplace/listing-status";
+import { retryMarketplaceWrite } from "@/lib/marketplace/database-retry";
+import type { Prisma } from "@prisma/client";
 
 type ListingDb = {
   listing: {
-    updateMany: (args: any) => Promise<{ count: number }>;
+    updateMany: (args: Prisma.ListingUpdateManyArgs) => Promise<{ count: number }>;
   };
   inventory: {
-    findMany: (args: any) => Promise<Array<{ sku: string }>>;
+    findMany: (args: Prisma.InventoryFindManyArgs) => Promise<Array<{ sku: string }>>;
   };
 };
 
@@ -34,7 +36,7 @@ export async function markMarketplaceListingsSold(
   let closed = 0;
 
   if (inventoryIds.length) {
-    const byInventory = await db.listing.updateMany({
+    const byInventory = await retryMarketplaceWrite(() => db.listing.updateMany({
       where: {
         inventoryId: { in: inventoryIds },
         status: { in: [...ACTIVE_MARKETPLACE_LISTING_STATUSES] },
@@ -42,7 +44,7 @@ export async function markMarketplaceListingsSold(
         ...(params.marketplaceShopId ? { marketplaceShopId: params.marketplaceShopId } : {}),
       },
       data: SOLD_UPDATE,
-    });
+    }));
     closed += byInventory.count;
 
     const inventories = await db.inventory.findMany({
@@ -51,7 +53,7 @@ export async function markMarketplaceListingsSold(
     });
     const skus = [...new Set(inventories.map((row) => row.sku).filter(Boolean))];
     if (skus.length) {
-      const bySku = await db.listing.updateMany({
+      const bySku = await retryMarketplaceWrite(() => db.listing.updateMany({
         where: {
           listingSku: { in: skus },
           inventoryId: null,
@@ -60,13 +62,13 @@ export async function markMarketplaceListingsSold(
           ...(params.marketplaceShopId ? { marketplaceShopId: params.marketplaceShopId } : {}),
         },
         data: SOLD_UPDATE,
-      });
+      }));
       closed += bySku.count;
     }
   }
 
   if (externalIds.length) {
-    const byExternalId = await db.listing.updateMany({
+    const byExternalId = await retryMarketplaceWrite(() => db.listing.updateMany({
       where: {
         externalId: { in: externalIds },
         status: { in: [...ACTIVE_MARKETPLACE_LISTING_STATUSES] },
@@ -74,7 +76,7 @@ export async function markMarketplaceListingsSold(
         ...(params.marketplaceShopId ? { marketplaceShopId: params.marketplaceShopId } : {}),
       },
       data: SOLD_UPDATE,
-    });
+    }));
     closed += byExternalId.count;
   }
 
@@ -90,7 +92,7 @@ export async function closeListingsMissingFromActiveSync(
   syncedBefore: Date,
   db: Pick<ListingDb, "listing"> = prisma
 ): Promise<number> {
-  const result = await db.listing.updateMany({
+  const result = await retryMarketplaceWrite(() => db.listing.updateMany({
     where: {
       marketplaceShopId: shopId,
       status: { in: [...ACTIVE_MARKETPLACE_LISTING_STATUSES] },
@@ -100,6 +102,6 @@ export async function closeListingsMissingFromActiveSync(
       ],
     },
     data: { status: "INACTIVE" },
-  });
+  }));
   return result.count;
 }

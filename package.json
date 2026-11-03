@@ -49,6 +49,7 @@
     "test:marketplace-draft-settings": "tsx scripts/tests/marketplace-draft-settings.unit.ts",
     "test:marketplace-description-requirements": "tsx scripts/tests/marketplace-description-requirements.unit.ts",
     "test:marketplace-listing-sync": "tsx scripts/tests/marketplace-listing-sync.unit.ts",
+    "test:marketplace-sync-resilience": "tsx scripts/tests/marketplace-sync-retry.unit.ts && tsx scripts/tests/marketplace-worker.integration.ts && tsx scripts/tests/marketplace-listing-persistence.integration.ts && tsx scripts/tests/marketplace-listing-sync.unit.ts",
     "test:marketplace-listing-details": "tsx scripts/tests/marketplace-listing-details.unit.ts && tsx scripts/tests/marketplace-listing-connectors.unit.ts && tsx scripts/tests/marketplace-listing-persistence.integration.ts && node scripts/tests/marketplace-listings.ui.mjs",
     "test:marketplace-price-history-sources": "tsx scripts/tests/marketplace-price-history-sources.integration.ts",
     "repair:marketplace-price-history-sources": "tsx scripts/repair-marketplace-price-history-sources.ts",

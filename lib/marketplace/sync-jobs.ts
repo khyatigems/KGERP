@@ -6,6 +6,8 @@ import { syncOrdersForPlatform } from "@/lib/marketplace/sync-orders";
 import { closeListingsMissingFromActiveSync } from "@/lib/marketplace/close-listings";
 import { persistNotification } from "@/lib/notifications";
 import { routeNotification } from "@/lib/notification-routing";
+import { withMarketplaceWorkerLease } from "@/lib/marketplace/worker-lease";
+import { retryMarketplaceWrite } from "@/lib/marketplace/database-retry";
 
 const PAGE_SIZE = 25;
 const MAX_ATTEMPTS = 3;
@@ -40,7 +42,7 @@ export async function enqueueMarketplaceSyncJobs(input: {
   }
 
   const batchId = crypto.randomUUID();
-  await prisma.marketplaceSyncJob.createMany({
+  await retryMarketplaceWrite(() => prisma.marketplaceSyncJob.createMany({
     data: shops.map((shop) => ({
       marketplaceShopId: shop.id,
       syncType: input.syncType,
@@ -51,7 +53,7 @@ export async function enqueueMarketplaceSyncJobs(input: {
       requestedBy: input.requestedBy,
       batchId,
     })),
-  });
+  }));
 
   const jobs = await prisma.marketplaceSyncJob.findMany({
     where: { batchId },
@@ -63,7 +65,7 @@ export async function enqueueMarketplaceSyncJobs(input: {
 
 async function processOneJob(jobId: string) {
   const now = new Date();
-  const claim = await prisma.marketplaceSyncJob.updateMany({
+  const claim = await retryMarketplaceWrite(() => prisma.marketplaceSyncJob.updateMany({
     where: { id: jobId, status: "QUEUED" },
     data: {
       status: "PROCESSING",
@@ -71,7 +73,7 @@ async function processOneJob(jobId: string) {
       progressDetail: "Validating shop connection and marketplace token",
       startedAt: now,
     },
-  });
+  }));
   if (!claim.count) return false;
 
   const job = await prisma.marketplaceSyncJob.findUnique({
@@ -100,12 +102,15 @@ async function processOneJob(jobId: string) {
   };
 
   try {
-    await prisma.marketplaceSyncJob.update({
+    await retryMarketplaceWrite(() => prisma.marketplaceSyncJob.update({
       where: { id: job.id },
       data: { progressStep: "Fetching", progressDetail: `Fetching ${job.syncType.toLowerCase()} page` },
-    });
+    }));
 
     const offset = Math.max(0, Number(job.cursor) || 0);
+    if (job.syncType === "LISTINGS" && offset !== job.recordsScanned) {
+      throw new Error("Listing sync cursor does not match saved progress. Start a fresh sync before reconciling listings.");
+    }
     const result = job.syncType === "LISTINGS"
       ? await syncListingsForPlatform(job.marketplaceShopId, { limit: PAGE_SIZE, offset })
       : await syncOrdersForPlatform(job.marketplaceShopId, { limit: PAGE_SIZE, offset });
@@ -118,7 +123,7 @@ async function processOneJob(jobId: string) {
       : 0;
     const pageErrors = result.errors.slice(0, 20).join("\n");
     const errorDetails = [job.errorDetails, pageErrors].filter(Boolean).join("\n").slice(0, 4000) || null;
-    await prisma.marketplaceSyncJob.update({
+    await retryMarketplaceWrite(() => prisma.marketplaceSyncJob.update({
       where: { id: job.id },
       data: {
         status: hasMore ? "QUEUED" : totalFailed > 0 ? "PARTIAL" : "SUCCESS",
@@ -135,7 +140,7 @@ async function processOneJob(jobId: string) {
         errorDetails,
         endedAt: hasMore ? null : new Date(),
       },
-    });
+    }));
     if (!hasMore && totalFailed > 0) {
       await persistTerminalFailure("PARTIAL", totalFailed);
     }
@@ -145,7 +150,7 @@ async function processOneJob(jobId: string) {
     const attempts = job.attempts + 1;
     const retry = attempts < MAX_ATTEMPTS;
     const errorDetails = [job.errorDetails, message].filter(Boolean).join("\n").slice(0, 4000);
-    await prisma.marketplaceSyncJob.update({
+    await retryMarketplaceWrite(() => prisma.marketplaceSyncJob.update({
       where: { id: job.id },
       data: {
         status: retry ? "QUEUED" : "FAILED",
@@ -155,7 +160,7 @@ async function processOneJob(jobId: string) {
         attempts,
         endedAt: retry ? null : new Date(),
       },
-    });
+    }));
     if (!retry) await persistTerminalFailure("FAILED");
     return false;
   }
@@ -163,8 +168,13 @@ async function processOneJob(jobId: string) {
 
 export async function processQueuedMarketplaceSyncJobs(limit = 5) {
   await ensureMarketplaceFoundationSchema();
+  return (await withMarketplaceWorkerLease(() => processQueuedJobs(limit)))
+    ?? { processed: 0, recovered: 0, considered: 0 };
+}
+
+async function processQueuedJobs(limit: number) {
   const staleBefore = new Date(Date.now() - STALE_AFTER_MS);
-    const staleJobs = await prisma.marketplaceSyncJob.findMany({
+  const staleJobs = await prisma.marketplaceSyncJob.findMany({
     where: { status: "PROCESSING", updatedAt: { lt: staleBefore } },
     select: { id: true, attempts: true, errorDetails: true, requestedById: true },
     take: 50,
@@ -173,7 +183,7 @@ export async function processQueuedMarketplaceSyncJobs(limit = 5) {
   for (const job of staleJobs) {
     const attempts = job.attempts + 1;
     const retry = attempts < MAX_ATTEMPTS;
-    const result = await prisma.marketplaceSyncJob.updateMany({
+    const result = await retryMarketplaceWrite(() => prisma.marketplaceSyncJob.updateMany({
       where: { id: job.id, status: "PROCESSING", updatedAt: { lt: staleBefore } },
       data: {
         status: retry ? "QUEUED" : "FAILED",
@@ -187,7 +197,7 @@ export async function processQueuedMarketplaceSyncJobs(limit = 5) {
           ? job.errorDetails
           : [job.errorDetails, "Sync worker timed out repeatedly"].filter(Boolean).join("\n").slice(0, 4000),
       },
-    });
+    }));
     recovered += result.count;
     if (result.count && !retry && job.requestedById) {
       try {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { retryMarketplaceWrite, isMarketplaceDatabaseBusy } from "../../lib/marketplace/database-retry";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -25,6 +26,7 @@ async function main() {
     let listing: NormalizedListing = { marketplace: "ETSY", listingId: "123", listingSku: "SKU-1", title: "Ruby", description: null, price: 100, currency: "EUR", quantity: 1, status: "ACTIVE", listingUrl: "https://example.com/123", category: "Ruby", images: ["https://example.com/photo.jpg"], attributes: {}, views: 12, favorites: 3, raw: {} };
     let finished: unknown;
     const dependencies: Record<string, unknown> = {
+      "@/lib/marketplace/database-retry": { retryMarketplaceWrite, isMarketplaceDatabaseBusy },
       "@/lib/prisma": { prisma: { listing: db.listing, marketplaceShop: { findUnique: async () => ({ id: "shop", marketplace: "ETSY", status: "CONNECTED", connectionId: "connection", externalShopId: "external-shop", name: "Test shop", connection: { status: "CONNECTED" } }) } } },
       "@/lib/marketplace/connectors": { getConnector: () => ({ fetchListings: async () => [listing] }) },
       "@/lib/marketplace/sku-matching": { matchListingToInventory: async () => ({ status: "UNKNOWN_SKU", reason: "Unmapped" }) },
@@ -44,6 +46,9 @@ async function main() {
     assert.equal((await db.listingPriceHistory.findMany())[0].currency, "EUR");
     assert.equal((await sync()).updated, 1);
     assert.equal(await db.listingPriceHistory.count(), 1, "Repeated sync is idempotent");
+    await db.listing.update({ where: { id: row.id }, data: { status: "SOLD" } });
+    assert.equal((await sync()).updated, 1);
+    assert.equal((await db.listing.findUniqueOrThrow({ where: { id: row.id } })).status, "ACTIVE", "The current active marketplace feed refreshes a locally sold listing");
     // Simulate a legacy row with no baseline, then a marketplace price drop.
     await db.listingPriceHistory.deleteMany();
     listing = { ...listing, price: 80, views: 0, favorites: 0 };

@@ -8,6 +8,7 @@ import { markMarketplaceListingsSold } from "@/lib/marketplace/close-listings";
 import { listingSyncMetadata } from "@/lib/marketplace/listing-details";
 import { priceObservations } from "@/lib/marketplace/price-history";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
+import { retryMarketplaceWrite, isMarketplaceDatabaseBusy } from "@/lib/marketplace/database-retry";
 
 export interface ListingSyncResult {
   scanned: number;
@@ -66,10 +67,9 @@ export async function syncListingsForPlatform(
           include: { priceHistory: { take: 1, orderBy: { changedAt: "desc" } } },
         });
 
-        if (existing?.status?.toUpperCase() === "SOLD") {
-          counters.skipped += 1;
-          continue;
-        }
+        // The marketplace feed is authoritative for listing availability.
+        // A local sale can mark a listing SOLD without ending it remotely;
+        // refresh that listing without changing inventory or sale records.
 
         if (!isLiveMarketplaceListing({ status: listing.status, quantity: listing.quantity })) {
           if (existing) {
@@ -127,14 +127,17 @@ export async function syncListingsForPlatform(
         };
 
         if (existing) {
-          await prisma.listing.update({ where: { id: existing.id }, data });
+          await retryMarketplaceWrite(() => prisma.listing.update({ where: { id: existing.id }, data }));
           counters.updated += 1;
         } else {
-          await prisma.listing.create({ data: { ...data, listedDate: now } });
+          await retryMarketplaceWrite(() => prisma.listing.create({ data: { ...data, listedDate: now } }));
           counters.created += 1;
         }
         if (isOrphan && listing.listingSku) unknownSkus.push(listing.listingSku);
       } catch (error) {
+        // Keep the page cursor unchanged so the worker retries every row on
+        // this page instead of permanently skipping a transient write failure.
+        if (isMarketplaceDatabaseBusy(error)) throw error;
         counters.failed += 1;
         const message = error instanceof Error ? error.message : String(error);
         errors.push(`${listing.listingId}: ${message}`);

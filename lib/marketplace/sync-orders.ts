@@ -1,3 +1,4 @@
+import { retryMarketplaceWrite, isMarketplaceDatabaseBusy } from "@/lib/marketplace/database-retry";
 import { prisma } from "@/lib/prisma";
 import { getConnector } from "@/lib/marketplace/connectors";
 import { startSyncLog, finalizeSyncLog, failSyncLog } from "@/lib/marketplace/sync-log";
@@ -92,10 +93,10 @@ export async function syncOrdersForPlatform(
         let orderId: string;
         if (existing) {
           orderId = existing.id;
-          await prisma.marketplaceOrder.update({ where: { id: existing.id }, data: orderData });
+          await retryMarketplaceWrite(() => prisma.marketplaceOrder.update({ where: { id: existing.id }, data: orderData }));
           counters.updated += 1;
         } else {
-          const created = await prisma.marketplaceOrder.create({ data: orderData });
+          const created = await retryMarketplaceWrite(() => prisma.marketplaceOrder.create({ data: orderData }));
           orderId = created.id;
           counters.created += 1;
         }
@@ -133,9 +134,9 @@ export async function syncOrdersForPlatform(
 
           const existingItem = await prisma.marketplaceOrderItem.findUnique({ where });
           if (existingItem) {
-            await prisma.marketplaceOrderItem.update({ where: { id: existingItem.id }, data: itemData });
+            await retryMarketplaceWrite(() => prisma.marketplaceOrderItem.update({ where: { id: existingItem.id }, data: itemData }));
           } else {
-            await prisma.marketplaceOrderItem.create({ data: itemData });
+            await retryMarketplaceWrite(() => prisma.marketplaceOrderItem.create({ data: itemData }));
           }
         }
 
@@ -153,6 +154,7 @@ export async function syncOrdersForPlatform(
           inventoryIds,
         });
       } catch (error) {
+        if (isMarketplaceDatabaseBusy(error)) throw error;
         counters.failed += 1;
         const message = error instanceof Error ? error.message : String(error);
         errors.push(`${order.orderId}: ${message}`);

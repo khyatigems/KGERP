@@ -6,6 +6,7 @@ import { checkUserPermission, PERMISSIONS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation";
 import { logMarketplaceActivity } from "@/lib/marketplace-control-center";
+import { retryMarketplaceWrite } from "@/lib/marketplace/database-retry";
 
 export const dynamic = "force-dynamic";
 
@@ -43,20 +44,30 @@ export async function POST(request: NextRequest) {
   }
 
   const batchId = crypto.randomUUID();
+  const activeJobs = await prisma.marketplaceSyncJob.findMany({
+    where: { marketplaceShopId: { in: retryable.map(job => job.marketplaceShopId) }, status: { in: ["QUEUED", "PROCESSING"] } },
+    select: { marketplaceShopId: true, syncType: true },
+  });
+  if (retryable.some(job => activeJobs.some(active => active.marketplaceShopId === job.marketplaceShopId && active.syncType === job.syncType))) {
+    return NextResponse.json({ error: "A sync is already active for one of these shops. Wait for it to finish before retrying." }, { status: 409 });
+  }
+  const uniqueRetries = [...new Map(retryable.map(job => [`${job.marketplaceShopId}:${job.syncType}`, job])).values()];
   try {
-    await prisma.marketplaceSyncJob.createMany({
-      data: retryable.map((job) => ({
+    await retryMarketplaceWrite(() => prisma.marketplaceSyncJob.createMany({
+      data: uniqueRetries.map((job) => ({
         marketplaceShopId: job.marketplaceShopId,
         syncType: job.syncType,
         status: "QUEUED",
         progressStep: "Retry queued",
-        progressDetail: `Manual retry from saved cursor ${job.cursor || "0"}`,
-        cursor: job.cursor,
+        // A new job has a new reconciliation cutoff and no previous counters.
+        // Crawl from zero so earlier pages are refreshed and failed rows retried.
+        progressDetail: "Manual retry from the first page",
+        cursor: null,
         requestedById: session.user.id,
         requestedBy: session.user.name || session.user.email || "Unknown",
         batchId,
       })),
-    });
+    }));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: `Could not queue retry: ${message}` }, { status: 409 });
