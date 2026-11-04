@@ -30,7 +30,7 @@ export async function getPasskeys(request: Request, identify: typeof auth = auth
     const keys = await listPasskeys(session.user.id);
     const preference = await prisma.setting.findUnique({ where: { key: `passkey-prompt:${session.user.id}` } });
     const lastLogin = new Date(session.user.lastLogin || 0).getTime();
-    return json({ keys: keys.map(({ id, name, createdAt, lastUsedAt }) => ({ id, name, createdAt, lastUsedAt })), promptAfter: preference?.value || "0", recentLogin: Number.isFinite(lastLogin) && Date.now() - lastLogin < 600000 });
+    return json({ userId: session.user.id, keys: keys.map(({ id, name, createdAt, lastUsedAt }) => ({ id, name, createdAt, lastUsedAt })), promptAfter: preference?.value || "0", recentLogin: Number.isFinite(lastLogin) && Date.now() - lastLogin < 600000 });
   } catch { return json({ error: "Passkeys are unavailable. Check the HTTPS address and server configuration." }, 503); }
 }
 export async function postPasskeys(request: Request, identify: typeof auth = auth) {
@@ -85,7 +85,7 @@ export async function postPasskeys(request: Request, identify: typeof auth = aut
     const keys = await listPasskeys(userId);
     if (keys.length >= 10) return json({ error: "You can save up to 10 passkeys. Remove an old one first." }, 400);
     const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "My device";
-    const options = await generateRegistrationOptions({ rpName: "KhyatiGems ERP", rpID, userName: user.email, userDisplayName: user.name, userID: new Uint8Array(Buffer.from(userId)), attestationType: "none", authenticatorSelection: { residentKey: "required", userVerification: "required" }, excludeCredentials: keys.map(key => ({ id: key.id })) });
+    const options = await generateRegistrationOptions({ rpName: "KhyatiGems ERP", rpID, userName: user.email, userDisplayName: user.name, userID: new Uint8Array(Buffer.from(userId)), attestationType: "none", preferredAuthenticatorType: "localDevice", authenticatorSelection: { authenticatorAttachment: "platform", residentKey: "required", userVerification: "required" }, excludeCredentials: keys.map(key => ({ id: key.id })) });
     const token = await issuePasskeyToken(userId, "register", JSON.stringify({ challenge: options.challenge, name: name || "My device", passwordHash: digest(user.password) }));
     return cookie(json(options), CHALLENGE_COOKIE, token);
   } catch {

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { isPublicPage } from "@/lib/public-routes";
 import { appLockExempt, safeAppReturn } from "@/lib/security/app-lock-paths";
+import { localUnlockDevice } from "@/lib/security/app-unlock-device";
 
 type LockStatus = { enabled: boolean; locked: boolean; supported: boolean; hasPasskeys: boolean };
 type LockContext = { state: LockStatus | null; busy: boolean; message: string; enable: () => Promise<void>; disable: (password: string) => Promise<void>; lock: () => void };
@@ -17,7 +18,7 @@ export function useAppLock() { return useContext(Context); }
 
 export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { status } = useSession();
+  const { status, data: session } = useSession();
   const publicPage = isPublicPage(pathname);
   const [state, setState] = useState<LockStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -123,7 +124,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     const epoch = lockEpoch.current;
     try {
       const navigate = pathname === "/unlock";
-      const optionsJSON = await request({ action: "options", enable, navigate });
+      const optionsJSON = await request({ action: "options", enable, navigate, credentialId: localUnlockDevice(session?.user?.id) });
       const response = await startAuthentication({ optionsJSON });
       await request({ action: "verify", response });
       if (epoch !== lockEpoch.current) { lock(); throw new Error("The app was closed during verification. Unlock again."); }

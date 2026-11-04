@@ -10,10 +10,10 @@ import tailwind from "@tailwindcss/postcss";
 
 const bundle = await build({ stdin: { contents: `import React,{useState} from 'react';import{Dialog,DialogContent,DialogTitle,DialogDescription}from'./components/ui/dialog';import{createRoot}from'react-dom/client';import{AppLockProvider}from'./components/auth/app-lock-provider';import{AppLockSettings}from'./components/settings/app-lock-settings';function Workspace(){const[open,setOpen]=useState(false);return <AppLockProvider><h1 id="secret">Private ERP workspace</h1><AppLockSettings/><button onClick={()=>setOpen(true)}>Open private modal</button><Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogTitle>Private customer details</DialogTitle><DialogDescription>Private modal fixture</DialogDescription><button onClick={()=>setOpen(false)}>Close private modal</button></DialogContent></Dialog></AppLockProvider>}createRoot(document.getElementById('app')).render(<Workspace/>);`, resolveDir: process.cwd(), loader: "tsx" }, bundle: true, write: false, format: "iife", platform: "browser", jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' }, plugins: [{ name: "fixtures", setup(builder) {
   builder.onResolve({ filter: /^(next\/navigation|next-auth\/react|erp-webauthn-browser)$/ }, args => ({ path: args.path, namespace: "fixtures" }));
-  builder.onLoad({ filter: /.*/, namespace: "fixtures" }, args => ({ resolveDir: process.cwd(), contents: args.path === "next/navigation" ? `export const usePathname=()=>location.pathname;` : args.path === "next-auth/react" ? `import{useState}from'react';export const useSession=()=>{const[status,setStatus]=useState('authenticated');window.__setAuthStatus=setStatus;return{status}};export const signOut=async()=>{window.__signedOut=true};` : `export async function startAuthentication(){window.__verificationCalls=(window.__verificationCalls||0)+1;if(window.__cancel)throw new DOMException('Cancelled','NotAllowedError');window.dispatchEvent(new Event('blur'));return{id:'fixture-key'}}` }));
+  builder.onLoad({ filter: /.*/, namespace: "fixtures" }, args => ({ resolveDir: process.cwd(), contents: args.path === "next/navigation" ? `export const usePathname=()=>location.pathname;` : args.path === "next-auth/react" ? `import{useState}from'react';export const useSession=()=>{const[status,setStatus]=useState('authenticated');window.__setAuthStatus=setStatus;return{status,data:{user:{id:'fixture-user'}}}};export const signOut=async()=>{window.__signedOut=true};` : `export async function startAuthentication(){window.__verificationCalls=(window.__verificationCalls||0)+1;if(window.__cancel)throw new DOMException('Cancelled','NotAllowedError');window.dispatchEvent(new Event('blur'));return{id:'fixture-key'}}` }));
 } }] });
 const css = (await postcss([tailwind()]).process(await readFile("app/globals.css", "utf8"), { from: "app/globals.css" })).css;
-let state = { enabled: false, locked: false, supported: true, hasPasskeys: true }, entry = false, navigate = false, apiCalls = 0;
+let state = { enabled: false, locked: false, supported: true, hasPasskeys: true }, entry = false, navigate = false, apiCalls = 0, deviceSelections = [];
 const server = createServer(async (req, res) => {
   const path = new URL(req.url, "http://fixture.test").pathname;
   if (path === "/bundle.js") { res.setHeader("Content-Type", "text/javascript"); res.end(bundle.outputFiles[0].text); return; }
@@ -24,7 +24,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET") { res.end(JSON.stringify(state)); return; }
     let raw = ""; for await (const chunk of req) raw += chunk;
     const body = JSON.parse(raw);
-    if (body.action === "options") navigate = body.navigate;
+    if (body.action === "options") { navigate = body.navigate; deviceSelections.push(body.credentialId); }
     if (body.action === "verify") { state = { ...state, enabled: true, locked: false }; entry = navigate; }
     if (body.action === "lock") { state.locked = true; entry = false; }
     if (body.action === "disable") { state.enabled = false; state.locked = false; }
@@ -52,6 +52,7 @@ try {
     await page.setViewport({ width, height: 900 });
     await page.goto(url, { waitUntil: "networkidle0" });
     await page.waitForSelector("#secret", { visible: true });
+    await page.evaluate(() => localStorage.setItem('erp-app-unlock-device:fixture-user', 'fixture-key'));
     await click("Enable fingerprint app lock");
     await page.waitForFunction(() => document.body.innerText.includes("App lock is on"));
     assert.equal(await page.evaluate(async () => (await fetch('/api/private')).status), 200);
@@ -104,6 +105,7 @@ try {
   assert.equal(await page.$eval('#secret', element => Boolean(element.closest('[hidden]'))), true, "expired login cannot leave the workspace visible");
   await click("Sign out and use normal login");
   await page.waitForFunction(() => window.__signedOut);
+  assert.ok(deviceSelections.length > 0 && deviceSelections.every(id => id === "fixture-key"), "enable and unlock prefer the setup saved for this account/browser");
   assert.deepEqual(errors, []);
   console.log("App-lock UI passed at 320, 390 and 1440px: real tab background/return, privacy cover, blocked requests, native-dialog blur, cancellation/retry, BFCache restore, close/reopen, verified navigation and disable.");
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

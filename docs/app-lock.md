@@ -8,7 +8,9 @@ every time the app returns from the background.
 ## Enable and use
 
 1. Sign in normally and open **Security & 2FA**.
-2. Add a passkey if you do not already have one.
+2. In **Set up this device for app unlock**, enter your password and register
+   this device. On Windows, select **Set up Windows Hello on this PC**. An
+   existing phone registration does not configure the computer.
 3. Select **Enable fingerprint app lock** and approve device verification.
 
 The setting applies to this signed-in browser/PWA session, on mobile or desktop.
@@ -94,3 +96,24 @@ and `tmp/passkey-checks`. No production configuration, user enrollment, or live
 database is changed by these tests. Before rollout, test actual close/reopen,
 app switching and native verification on the intended phones and laptops at the
 configured HTTPS ERP origin. See `passkeys.md` for origin and passkey setup.
+
+## Windows Hello and current-device setup
+
+Device enrollment explicitly requests a platform authenticator and the
+client-device hint. On Windows this requests the built-in verification flow,
+with Windows/provider control over the exact UI. Configure a Windows Hello PIN
+and, for fingerprint use, a compatible sensor and Fingerprint recognition in
+Windows Settings > Accounts > Sign-in options. ERP cannot enable a sensor,
+inspect enrolled fingerprints, or force fingerprint instead of the device PIN.
+A failed platform-capability check displays setup guidance instead of starting
+an unrelated phone/security-key registration flow.
+
+The browser remembers the newly registered credential ID under the current
+account as a non-secret device-selection hint. Enable/unlock requests prefer
+that registered ID with internal transport and a client-device hint. The server
+validates ownership, binds selection to the one-use challenge, and still checks
+the signature and user verification. Editing localStorage grants no access. If
+storage is unavailable, normal signature-verified account credentials remain
+available; existing users are not silently migrated or deleted. OS dialogs may
+still say "passkey", which is the WebAuthn credential used for app unlock, not a
+passwordless ERP sign-in option.

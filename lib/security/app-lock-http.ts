@@ -58,9 +58,12 @@ export async function postAppLock(request: Request, identify: Identify = auth) {
       const state = await prepareAppLock(sessionId, userId);
       if (!state.enabled && !enable) return json({ error: "App lock is not enabled." }, 400);
       const keys = await listPasskeys(userId);
-      if (!keys.length) return json({ error: "Add a passkey in Security Settings first, or sign out and sign in normally." }, 400);
-      const options = await generateAuthenticationOptions({ rpID, userVerification: "required", allowCredentials: keys.map(key => ({ id: key.id })) });
-      const token = await issuePasskeyToken(userId, "app-unlock", JSON.stringify({ challenge: options.challenge, sessionId, version: state.version, enable, navigate: body.navigate === true }));
+      if (!keys.length) return json({ error: "Set up this device for app unlock in Security Settings first, or sign out and sign in normally." }, 400);
+      const selected = typeof body.credentialId === "string" ? keys.find(key => key.id === body.credentialId) : undefined;
+      if (body.credentialId && !selected) return json({ error: "This device setup is no longer registered. Set up this device again in Security Settings." }, 400);
+      const options = await generateAuthenticationOptions({ rpID, userVerification: "required", allowCredentials: selected ? [{ id: selected.id, transports: ["internal"] }] : keys.map(key => ({ id: key.id })) });
+      options.hints = ["client-device"];
+      const token = await issuePasskeyToken(userId, "app-unlock", JSON.stringify({ challenge: options.challenge, sessionId, version: state.version, enable, navigate: body.navigate === true, credentialId: selected?.id }));
       return setCookie(json(options), APP_LOCK_CHALLENGE_COOKIE, token);
     }
     if (body.action !== "verify") return json({ error: "Invalid action" }, 400);
@@ -69,7 +72,8 @@ export async function postAppLock(request: Request, identify: Identify = auth) {
     const challenge = JSON.parse(pending.value);
     if (challenge.sessionId !== sessionId) return json({ error: "Unlock request belongs to another session." }, 403);
     const key = (await listPasskeys(userId)).find(key => key.id === body.response?.id);
-    if (!key) return json({ error: "Use a passkey registered to this ERP account." }, 401);
+    if (!key) return json({ error: "Use a device registered for app unlock on this ERP account." }, 401);
+    if (challenge.credentialId && challenge.credentialId !== key.id) return json({ error: "Verify using the device selected for this unlock." }, 401);
     const verification = await verifyAuthenticationResponse({ response: body.response, expectedChallenge: challenge.challenge, expectedOrigin: origin, expectedRPID: rpID, requireUserVerification: true, credential: { id: key.id, publicKey: new Uint8Array(Buffer.from(key.publicKey, "base64url")), counter: key.counter } });
     if (!verification.verified) return json({ error: "Device verification failed." }, 401);
     const changed = await prisma.$executeRaw`UPDATE SecurityPasskey SET counter = ${verification.authenticationInfo.newCounter},lastUsedAt = ${new Date().toISOString()} WHERE id = ${key.id} AND userId = ${userId} AND counter = ${key.counter}`;

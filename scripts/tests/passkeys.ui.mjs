@@ -10,7 +10,7 @@ import tailwind from "@tailwindcss/postcss";
 
 const bundle = await build({ stdin: { contents: `import React from 'react';import{createRoot}from'react-dom/client';import{PasskeySettings}from'./components/settings/passkey-settings';import{LoginForm}from'./components/auth/login-form';const view=new URLSearchParams(location.search).get('view');createRoot(document.getElementById('app')).render(view==='login'?<LoginForm/>:<PasskeySettings prompt={view==='prompt'}/>);`, resolveDir: process.cwd(), loader: "tsx" }, bundle: true, write: false, format: "iife", platform: "browser", jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' }, plugins: [{ name: "fixtures", setup(builder) {
   builder.onResolve({ filter: /^(next\/navigation|next-auth\/react|erp-webauthn-browser)$/ }, args => ({ path: args.path, namespace: "fixtures" }));
-  builder.onLoad({ filter: /.*/, namespace: "fixtures" }, args => ({ contents: args.path === "next/navigation" ? `export const useRouter=()=>({push(){},refresh(){}});` : args.path === "next-auth/react" ? `export async function signIn(provider,credentials){window.__credentials=credentials;return{error:null}}` : `export const browserSupportsWebAuthn=()=>true;export const platformAuthenticatorIsAvailable=async()=>true;export const startRegistration=async()=>({id:'fixture'});export const startAuthentication=async()=>({id:'fixture'});` }));
+  builder.onLoad({ filter: /.*/, namespace: "fixtures" }, args => ({ contents: args.path === "next/navigation" ? `export const useRouter=()=>({push(){},refresh(){}});` : args.path === "next-auth/react" ? `export async function signIn(provider,credentials){window.__credentials=credentials;return{error:null}}` : `export const browserSupportsWebAuthn=()=>true;export const platformAuthenticatorIsAvailable=async()=>!location.search.includes("no-platform");export const startRegistration=async()=>({id:'fixture'});export const startAuthentication=async()=>({id:'fixture'});` }));
 } }] });
 const css = (await postcss([tailwind()]).process(await readFile("app/globals.css", "utf8"), { from: "app/globals.css" })).css;
 let preference = "0", keys = [], requests = [];
@@ -19,7 +19,7 @@ const server = createServer(async (req, res) => {
   if (req.url === "/style.css") { res.setHeader("Content-Type", "text/css"); res.end(css); return; }
   if (req.url?.startsWith("/api/")) {
     res.setHeader("Content-Type", "application/json");
-    if (req.method === "GET") { res.end(JSON.stringify({ keys, promptAfter: preference })); return; }
+    if (req.method === "GET") { res.end(JSON.stringify({ userId: "fixture-user", keys, promptAfter: preference })); return; }
     let raw = ""; for await (const chunk of req) raw += chunk;
     const body = JSON.parse(raw); requests.push(body);
     if (req.url === "/api/auth/otp") { res.end(JSON.stringify({ required: true, method: "authenticator", emailAvailable: true })); return; }
@@ -39,7 +39,15 @@ try {
   page.on("pageerror", error => errors.push(error.message));
   await page.setUserAgent("Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130.0.0.0 Mobile Safari/537.36");
   const url = `http://127.0.0.1:${server.address().port}`;
-  async function click(text) { await page.locator(`::-p-text(${text})`).click(); }
+  async function click(text) {
+    try {
+      await page.waitForFunction(label => Array.from(document.querySelectorAll('button')).some(button => button.textContent.trim() === label && !button.disabled), {}, text);
+      for (const button of await page.$$('button')) {
+        if (await button.evaluate((element, label) => element.textContent.trim() === label, text)) { await button.click(); return; }
+      }
+      throw new Error('Button disappeared');
+    } catch (error) { throw new Error(`Fixture button unavailable: ${text}; ${await page.evaluate(() => document.body.innerText)}`, { cause: error }); }
+  }
   for (const width of [320, 390, 1440]) {
     preference = "0"; keys = [];
     await page.setViewport({ width, height: 1000, isMobile: width < 500, hasTouch: true });
@@ -59,23 +67,37 @@ try {
     await page.goto(url, { waitUntil: "networkidle0" });
     await page.type('input[type="password"]', "fixture-password");
     await page.type('input[placeholder*="My phone"]', "Test phone");
-    await click("Enable now");
-    await page.waitForFunction(() => document.body.innerText.includes("Add another passkey"));
+    await click("Set up this device");
+    await page.waitForNetworkIdle();
+    await page.waitForFunction(() => document.body.innerText.includes("This device is set up."));
+    assert.equal(await page.evaluate(() => localStorage.getItem('erp-app-unlock-device:fixture-user')), "fixture");
     await page.screenshot({ path: `tmp/passkeys-ui/settings-${width}.png` });
     await page.goto(`${url}/?view=prompt`, { waitUntil: "networkidle0" });
     assert.equal(await page.$('[role="dialog"]'), null, "enrolled accounts are not prompted");
   }
+  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36");
   await page.goto(url, { waitUntil: "networkidle0" });
+  await page.waitForSelector('input[type="password"]');
+  assert.ok((await page.locator('::-p-text(Set up Windows Hello on this PC)').waitHandle()));
+  assert.equal(await page.$('::-p-text(Passkeys & fingerprint unlock)'), null);
+  await page.type('input[type="password"]', "fixture-password");
+  await click("Set up Windows Hello on this PC");
+  await page.waitForFunction(() => document.body.innerText.includes("This device is set up."));
+  assert.equal(await page.evaluate(() => localStorage.getItem('erp-app-unlock-device:fixture-user')), "fixture");
   await click("Enable mobile enrollment reminders");
   await page.waitForFunction(() => document.body.innerText.includes("Mobile enrollment reminders enabled."));
   assert.equal(preference, "0");
   await page.type('input[type="password"]', "fixture-password");
   await click("Remove");
-  await page.waitForFunction(() => document.body.innerText.includes("Passkey removed from ERP."));
+  await page.waitForFunction(() => document.body.innerText.includes("App unlock device removed from ERP."));
   assert.equal(keys.length, 0);
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36");
   await page.goto(`${url}/?view=prompt`, { waitUntil: "networkidle0" });
   assert.equal(await page.$('[role="dialog"]'), null, "desktop users are not automatically prompted");
+  await page.goto(`${url}/?no-platform=1`, { waitUntil: "networkidle0" });
+  await page.waitForFunction(() => document.body.innerText.includes("Built-in device verification is not available"));
+  const setupButton = await page.locator('::-p-text(Set up Windows Hello on this PC)').waitHandle();
+  assert.equal(await setupButton.evaluate(element => element.disabled), true, "unsupported built-in verification explains setup requirements instead of starting a phone chooser");
   await page.goto(`${url}/?view=login`, { waitUntil: "networkidle0" });
   assert.equal(await page.$('::-p-text(Sign in with passkey)'), null, "login screen does not offer passkey sign-in");
   assert.equal(await page.$eval('#password', element => element.required), true);

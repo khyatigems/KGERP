@@ -81,6 +81,9 @@ async function main(directory: string) {
     await cdp.send("WebAuthn.enable");
     await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
     const options = await (await post({ action: "register-options", password, name: "Fixture phone" })).json();
+    assert.equal(options.authenticatorSelection.authenticatorAttachment, "platform", "setup requests the current device rather than a remote phone");
+    assert.equal(options.authenticatorSelection.userVerification, "required");
+    assert.deepEqual(options.hints, ["client-device"]);
     const registration = await page.evaluate(async optionsJSON => (window as any).register({ optionsJSON }), options);
     assert.equal((await post({ action: "register-verify", response: registration })).status, 200);
     assert.equal((await post({ action: "register-verify", response: registration })).status, 400, "registration replay rejected");
@@ -96,12 +99,16 @@ async function main(directory: string) {
       return response;
     }
     async function unlockResponse(enable = false, navigate = false) {
-      const options = await lockPost({ action: "options", enable, navigate });
+      const options = await lockPost({ action: "options", enable, navigate, credentialId: keys[0].id });
       assert.equal(options.status, 200);
-      return page.evaluate(async optionsJSON => (window as any).authenticate({ optionsJSON }), await options.json());
+      const data = await options.json();
+      assert.deepEqual(data.allowCredentials, [{ id: keys[0].id, type: "public-key", transports: ["internal"] }]);
+      assert.deepEqual(data.hints, ["client-device"]);
+      return page.evaluate(async optionsJSON => (window as any).authenticate({ optionsJSON }), data);
     }
     const gate = (path = "/api/inventory", document = false) => enforceAppLock(new Request(origin + path, { headers: { cookie: cookies, ...(document ? { "sec-fetch-dest": "document", accept: "text/html" } : {}) } }), { id: user.id, appSessionId });
     assert.equal((await lockPost({ action: "lock" }, "https://evil.example")).status, 403);
+    assert.equal((await lockPost({ action: "options", enable: true, credentialId: "not-this-accounts-key" })).status, 400, "device selection must be owned by this account");
     let unlock = await unlockResponse(true);
     assert.equal((await lockPost({ action: "verify", response: unlock })).status, 200, "enable requires a real signed passkey assertion");
     assert.equal(await gate(), null, "unlocked session can use business APIs");
