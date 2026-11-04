@@ -16,6 +16,7 @@
     "lint": "eslint",
     "test:activity": "tsx scripts/tests/security-activity.unit.ts && tsx scripts/tests/marketplace-activity.unit.ts",
     "test:dashboard": "tsx scripts/tests/dashboard-cache.unit.ts && tsx scripts/tests/trading-dashboard.integration.ts",
+    "test:app-lock": "npm run test:passkeys && node scripts/tests/app-lock.ui.mjs && tsx scripts/tests/app-lock.next-smoke.ts",
     "test:passkeys": "tsx scripts/tests/passkeys.integration.ts && tsx scripts/tests/passkeys.integration.ts --libsql && node scripts/tests/passkeys.ui.mjs",
     "test:security": "tsx scripts/tests/security-activity.unit.ts && tsx scripts/tests/authenticator.unit.ts && tsx scripts/tests/authenticator-qr.unit.ts && tsx scripts/tests/authenticator-libsql.integration.ts && tsx scripts/tests/security-email.unit.ts && tsx scripts/tests/security-login.integration.ts && node scripts/tests/security-settings.ui.mjs && node scripts/tests/authenticator.ui.mjs && node scripts/tests/security-email-layout.mjs",
     "test:dashboard:mobile": "node scripts/tests/mobile-dashboard.ui.mjs",

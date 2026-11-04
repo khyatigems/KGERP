@@ -54,7 +54,7 @@ export function PasskeySettings({ prompt = false }: { prompt?: boolean }) {
       const optionsJSON = await passkeyRequest({ action: "register-options", password, name });
       const response = await startRegistration({ optionsJSON });
       await passkeyRequest({ action: "register-verify", response });
-      setPassword(""); await load(); setOpen(false); setMessage("Passkey added. You can now sign in with your fingerprint, face, or device PIN.");
+      setPassword(""); await load(); setOpen(false); setMessage("Passkey added for app unlock. Enable fingerprint app lock in Security Settings to lock ERP when you leave it.");
     } catch (error) { setMessage(error instanceof Error && error.name === "NotAllowedError" ? "Enrollment cancelled or timed out. You can try again." : error instanceof Error ? error.message : "Could not add passkey."); }
     finally { setBusy(false); }
   }
@@ -72,6 +72,6 @@ export function PasskeySettings({ prompt = false }: { prompt?: boolean }) {
     {prompt && <div className="flex flex-wrap gap-3"><Button variant="outline" disabled={busy} onClick={() => defer("later")}>Remind me in 7 days</Button><Button variant="ghost" disabled={busy} onClick={() => defer("never")}>Don’t ask again</Button></div>}
     {message && <p role="status" className="text-sm">{message}</p>}
   </div>;
-  if (prompt) return <Dialog open={open} onOpenChange={value => { if (!value && !busy) void defer("later"); }}><DialogContent tone="confirmation" showCloseButton={!busy} onOpenAutoFocus={event => { event.preventDefault(); titleRef.current?.focus(); }}><DialogHeader><DialogTitle ref={titleRef} tabIndex={-1}>Enable faster sign-in?</DialogTitle><DialogDescription>Use your fingerprint, face, or device PIN to sign in to KhyatiGems ERP.</DialogDescription></DialogHeader>{content}</DialogContent></Dialog>;
+  if (prompt) return <Dialog open={open} onOpenChange={value => { if (!value && !busy) void defer("later"); }}><DialogContent tone="confirmation" showCloseButton={!busy} onOpenAutoFocus={event => { event.preventDefault(); titleRef.current?.focus(); }}><DialogHeader><DialogTitle ref={titleRef} tabIndex={-1}>Set up fingerprint app unlock?</DialogTitle><DialogDescription>Register your device to unlock ERP when you return. Your normal login stays the same.</DialogDescription></DialogHeader>{content}</DialogContent></Dialog>;
   return <section className="space-y-4 rounded-xl border bg-card p-5"><h2 className="text-lg font-semibold">Passkeys &amp; fingerprint unlock</h2>{!available && <p className="text-sm">Passkeys require a supported browser and the configured secure ERP address.</p>}{content}<Button variant="ghost" disabled={busy || !available} onClick={async () => { try { await passkeyRequest({ action: "preference", preference: "reset" }); setMessage("Mobile enrollment reminders enabled."); } catch { setMessage("Could not update reminders."); } }}>Enable mobile enrollment reminders</Button></section>;
 }

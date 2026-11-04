@@ -12,6 +12,7 @@ declare module "next-auth" {
   
   interface Session {
     user: {
+      appSessionId?: string
       id: string
       role: string
       avatarUrl?: string | null
@@ -23,6 +24,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
+    appSessionId?: string
     mfaPolicy?: string
     mfaAuthenticator?: string
     role: string

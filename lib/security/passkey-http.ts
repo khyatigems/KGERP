@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { compare } from "bcryptjs";
-import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from "erp-webauthn-server";
+import { generateRegistrationOptions, verifyRegistrationResponse } from "erp-webauthn-server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sameOrigin, readCookie, requestContext, digest } from "@/lib/security/core";
 import { rateLimit, securityEvent } from "@/lib/security/service";
-import { CHALLENGE_COOKIE, PASSKEY_COOKIE, issuePasskeyToken, readPasskeyToken, listPasskeys, type PasskeyRow } from "@/lib/security/passkey-store";
+import { CHALLENGE_COOKIE, issuePasskeyToken, readPasskeyToken, listPasskeys } from "@/lib/security/passkey-store";
 
 const headers = { "Cache-Control": "no-store" };
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers });
-function configuration(request: Request) {
+export function configuration(request: Request) {
   // Never derive the relying party from an untrusted forwarded host in production.
   const configured = process.env.PASSKEY_ORIGIN || process.env.AUTH_URL || process.env.NEXTAUTH_URL;
   if (!configured && process.env.NODE_ENV === "production") throw new Error("Passkey origin is not configured");
@@ -41,25 +41,9 @@ export async function postPasskeys(request: Request, identify: typeof auth = aut
     const raw = await request.text();
     if (raw.length > 32000) return json({ error: "Request too large" }, 413);
     const body = JSON.parse(raw);
-    if (body.action === "login-options") {
-      const options = await generateAuthenticationOptions({ rpID, userVerification: "required" });
-      return cookie(json(options), CHALLENGE_COOKIE, await issuePasskeyToken("", "login", options.challenge));
-    }
-    if (body.action === "login-verify") {
-      const challenge = await readPasskeyToken(readCookie(request, CHALLENGE_COOKIE), "login", true);
-      if (!challenge || typeof body.response?.id !== "string") return json({ error: "Sign-in expired. Try again." }, 400);
-      const key = (await prisma.$queryRaw<PasskeyRow[]>`SELECT * FROM SecurityPasskey WHERE id = ${body.response.id}`)[0];
-      if (!key) return json({ error: "Passkey sign-in failed. Use your existing login." }, 401);
-      const verified = await verifyAuthenticationResponse({ response: body.response, expectedChallenge: challenge.value, expectedOrigin: origin, expectedRPID: rpID, requireUserVerification: true, credential: { id: key.id, publicKey: new Uint8Array(Buffer.from(key.publicKey, "base64url")), counter: key.counter } });
-      if (!verified.verified) return json({ error: "Passkey sign-in failed." }, 401);
-      const user = await prisma.user.findUnique({ where: { id: key.userId }, select: { password: true, email: true } });
-      if (!user) return json({ error: "Passkey sign-in failed." }, 401);
-      const changed = await prisma.$executeRaw`UPDATE SecurityPasskey SET counter = ${verified.authenticationInfo.newCounter},lastUsedAt = ${new Date().toISOString()} WHERE id = ${key.id} AND counter = ${key.counter}`;
-      if (changed !== 1) return json({ error: "Passkey changed. Try again." }, 409);
-      const proof = await issuePasskeyToken(key.userId, "proof", JSON.stringify({ credentialId: key.id, passwordHash: digest(user.password) }));
-      await securityEvent(key.userId, "LOGIN_PASSKEY_VERIFIED", request);
-      return cookie(cookie(json({ verified: true, email: user.email }), PASSKEY_COOKIE, proof), CHALLENGE_COOKIE, "");
-    }
+    // Passwordless sign-in is deliberately unsupported. Registered credentials
+    // are used only to unlock an already authenticated ERP session.
+    if (["login-options", "login-verify"].includes(body.action)) return json({ error: "Passkey sign-in is not supported. Use your email and password." }, 400);
     const session = await identify();
     if (!session?.user?.id) return json({ error: "Unauthorized" }, 401);
     const userId = session.user.id;

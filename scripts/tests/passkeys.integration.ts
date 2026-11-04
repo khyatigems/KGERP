@@ -34,6 +34,8 @@ async function main(directory: string) {
   };
   const { postPasskeys, getPasskeys } = await import("@/lib/security/passkey-http");
   const store = await import("@/lib/security/passkey-store");
+  const { postAppLock, getAppLock } = await import("@/lib/security/app-lock-http");
+  const { enforceAppLock } = await import("@/lib/security/app-lock-gate");
   const { handlers } = await import("@/lib/auth");
   const { saveSecurityPolicy, ensureSecuritySchema } = await import("@/lib/security/service");
   const { POST: otp } = await import("@/app/api/auth/otp/route");
@@ -47,8 +49,9 @@ async function main(directory: string) {
     const user = await prisma.user.create({ data: { name: "Passkey fixture", email: "passkey@example.test", password: await hash(password, 10), role: "SUPER_ADMIN" } });
     const other = await prisma.user.create({ data: { name: "Other fixture", email: "other@example.test", password: await hash(password, 10), role: "USER" } });
     let sessionUser = user.id;
+    let appSessionId = "fixture-app-session";
     let age = 0;
-    const identify = (async () => ({ user: { id: sessionUser, lastLogin: new Date(Date.now() - age) } })) as unknown as typeof import("@/lib/auth").auth;
+    const identify = (async () => ({ user: { id: sessionUser, appSessionId, lastLogin: new Date(Date.now() - age) } })) as unknown as typeof import("@/lib/auth").auth;
     const bundle = await build({ stdin: { contents: `import {startRegistration,startAuthentication} from 'erp-webauthn-browser';window.register=startRegistration;window.authenticate=startAuthentication;`, resolveDir: process.cwd() }, bundle: true, write: false, format: "iife", platform: "browser" });
     server = createServer(async (req, res) => {
       if (req.url === "/bundle.js") { res.setHeader("Content-Type", "text/javascript"); res.end(bundle.outputFiles[0].text); return; }
@@ -84,54 +87,115 @@ async function main(directory: string) {
     const keys = await store.listPasskeys(user.id);
     assert.equal(keys.length, 1); assert.equal(keys[0].name, "Fixture phone");
     assert.equal((await store.listPasskeys(other.id)).length, 0);
+    async function lockPost(body: unknown, customOrigin = origin) {
+      const response = await postAppLock(new Request(`${origin}/api/auth/app-lock`, { method: "POST", headers: { origin: customOrigin, cookie: cookies }, body: JSON.stringify(body) }), identify);
+      for (const value of response.headers.getSetCookie()) {
+        const pair = value.split(";")[0], name = pair.split("=")[0];
+        cookies = cookies.split("; ").filter(value => value && !value.startsWith(`${name}=`)).concat(pair).join("; ");
+      }
+      return response;
+    }
+    async function unlockResponse(enable = false, navigate = false) {
+      const options = await lockPost({ action: "options", enable, navigate });
+      assert.equal(options.status, 200);
+      return page.evaluate(async optionsJSON => (window as any).authenticate({ optionsJSON }), await options.json());
+    }
+    const gate = (path = "/api/inventory", document = false) => enforceAppLock(new Request(origin + path, { headers: { cookie: cookies, ...(document ? { "sec-fetch-dest": "document", accept: "text/html" } : {}) } }), { id: user.id, appSessionId });
+    assert.equal((await lockPost({ action: "lock" }, "https://evil.example")).status, 403);
+    let unlock = await unlockResponse(true);
+    assert.equal((await lockPost({ action: "verify", response: unlock })).status, 200, "enable requires a real signed passkey assertion");
+    assert.equal(await gate(), null, "unlocked session can use business APIs");
+    assert.equal((await gate("/settings/security", true))?.status, 307, "reopening/reloading requires fresh verification even with an old unlock cookie");
+    assert.equal((await gate())?.status, 423, "business APIs are blocked while locked");
+    assert.equal((await gate("/api/export/private.csv"))?.status, 423, "download APIs obey lock too");
+    assert.equal(await gate("/api/auth/app-lock"), null, "unlock protocol remains reachable");
+    assert.equal((await gate("/api/auth/passkeys"))?.status, 423, "passkey management cannot bypass the app lock");
+    assert.equal(await gate("/invoice/public-token", true), null, "public customer page remains reachable");
+    assert.equal((await enforceAppLock(new Request(`${origin}/login`, { method: "POST", headers: { cookie: cookies, "next-action": "fixture" } }), { id: user.id, appSessionId }))?.status, 423, "server actions posted to public pages still obey lock");
+    appSessionId = "separate-device";
+    assert.equal(await gate(), null, "other browser sessions are not enrolled automatically");
+    appSessionId = "fixture-app-session";
+    unlock = await unlockResponse();
+    appSessionId = "different-session";
+    assert.equal((await lockPost({ action: "verify", response: unlock })).status, 403, "same-user challenge cannot unlock another session");
+    appSessionId = "fixture-app-session";
+    unlock = await unlockResponse(false, true);
+    assert.equal((await lockPost({ action: "verify", response: unlock })).status, 200);
+    assert.equal((await lockPost({ action: "verify", response: unlock })).status, 400, "unlock assertion replay rejected");
+    assert.equal(await gate("/settings/security", true), null, "verified redirect can enter the workspace once");
+    assert.equal((await gate("/settings/security", true))?.status, 307, "second document open relocks");
+    unlock = await unlockResponse();
+    await lockPost({ action: "lock" });
+    assert.equal((await lockPost({ action: "verify", response: unlock })).status, 409, "closing during biometric verification invalidates its pending grant");
+    unlock = await unlockResponse();
+    assert.equal((await lockPost({ action: "verify", response: unlock })).status, 200);
+    assert.equal((await lockPost({ action: "heartbeat" })).status, 200);
+    await prisma.$executeRaw`UPDATE SecurityAppLock SET expiresAt = 1 WHERE sessionId = ${appSessionId}`;
+    assert.equal((await lockPost({ action: "heartbeat" })).status, 423, "heartbeat cannot revive expired unlock");
+    assert.equal((await gate())?.status, 423);
+    unlock = await unlockResponse(); await lockPost({ action: "verify", response: unlock });
+    assert.equal((await lockPost({ action: "disable", password: "wrong" })).status, 401);
+    unlock = await unlockResponse();
+    assert.equal((await lockPost({ action: "disable", password })).status, 200);
+    assert.equal((await lockPost({ action: "verify", response: unlock })).status, 409, "pending verification cannot re-enable a disabled lock");
+    const lockState = await (await getAppLock(new Request(origin, { headers: { cookie: cookies } }), identify)).json();
+    assert.equal(lockState.enabled, false);
+    assert.equal(await gate(), null);
+    console.log("App-lock server integration passed: signed unlock/enable, reopening, API and action enforcement, session binding, single-use entry, lock/verify races, expiry, heartbeat and protected disable.");
     assert.equal((await post({ action: "preference", preference: "never" })).status, 200);
     assert.equal((await (await getPasskeys(new Request(`${origin}/api/auth/passkeys`), identify)).json()).promptAfter, "never");
-    async function assertion() {
-      const options = await (await post({ action: "login-options" })).json();
-      return page.evaluate(async optionsJSON => (window as any).authenticate({ optionsJSON }), options);
-    }
-    let response = await assertion();
-    const wrong = structuredClone(response); wrong.response.signature = "AAAA";
-    assert.equal((await post({ action: "login-verify", response: wrong })).status, 401, "invalid signature rejected");
-    assert.equal((await post({ action: "login-verify", response })).status, 400, "failed attempt consumes challenge");
-    response = await assertion();
-    assert.equal((await post({ action: "login-verify", response })).status, 200);
-    assert.equal((await store.passkeyProof(new Request(origin, { headers: { cookie: cookies } })))?.id, user.id);
+    // Existing app-unlock assertions cannot be exchanged for a login session.
+    assert.equal((await post({ action: "login-options" })).status, 400);
+    assert.equal((await post({ action: "login-verify", response: unlock })).status, 400);
+    unlock = await unlockResponse(true); await lockPost({ action: "verify", response: unlock });
+    await lockPost({ action: "lock" });
+    unlock = await unlockResponse();
+    const wrong = structuredClone(unlock); wrong.response.signature = "AAAA";
+    assert.ok([400, 401].includes((await lockPost({ action: "verify", response: wrong })).status), "invalid signature cannot unlock app");
+    assert.equal((await lockPost({ action: "verify", response: unlock })).status, 400, "failed verification consumes challenge");
+    assert.equal((await gate())?.status, 423);
+    unlock = await unlockResponse(); await lockPost({ action: "verify", response: unlock });
+    await lockPost({ action: "disable", password });
+    const { digest } = await import("@/lib/security/core");
+    const oldProof = await store.issuePasskeyToken(user.id, "proof", JSON.stringify({ credentialId: keys[0].id, passwordHash: digest(user.password) }));
+    cookies += `; erp-passkey-proof=${oldProof}`;
     const csrf = await handlers.GET(new NextRequest(`${origin}/api/auth/csrf`));
     const csrfToken = (await csrf.json()).csrfToken;
     const csrfCookie = csrf.headers.getSetCookie().map(v => v.split(";")[0]).join("; ");
-    async function login(email = user.email, tokenCookies = cookies, extra: Record<string, string> = {}) {
-      return handlers.POST(new NextRequest(`${origin}/api/auth/callback/credentials`, { method: "POST", headers: { origin, cookie: `${csrfCookie}; ${tokenCookies}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ csrfToken, email, passkey: "true", ...extra }) }));
+    async function login(email = user.email, providedPassword = password, extra: Record<string, string> = {}) {
+      return handlers.POST(new NextRequest(`${origin}/api/auth/callback/credentials`, { method: "POST", headers: { origin, cookie: `${csrfCookie}; ${cookies}`, "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ csrfToken, email, password: providedPassword, ...extra }) }));
     }
     const hasSession = (res: Response) => res.headers.getSetCookie().some(cookie => /(?:__Secure-)?next-auth\.session-token=[^;]/.test(cookie));
-    assert.equal(hasSession(await login(other.email)), false, "proof cannot sign into another account");
-    assert.equal(hasSession(await login()), true, "verified passkey issues a real Auth.js session");
-    assert.equal(hasSession(await login()), false, "proof replay rejected");
-    response = await assertion(); await post({ action: "login-verify", response });
-    await prisma.user.update({ where: { id: user.id }, data: { password: await hash("ChangedPassword!42", 10) } });
-    assert.equal(await store.passkeyProof(new Request(origin, { headers: { cookie: cookies } })), null, "password changes invalidate pending proofs");
-    await prisma.user.update({ where: { id: user.id }, data: { password: user.password } });
+    assert.equal(hasSession(await login(user.email, "", { passkey: "true" })), false, "even a formerly valid stored passkey proof cannot replace the password");
+    assert.equal(hasSession(await login(user.email, "wrong", { passkey: "true" })), false, "legacy passkey flag cannot bypass a wrong password");
+    const signedIn = await login();
+    assert.equal(hasSession(signedIn), true, "normal password login still issues a real Auth.js session");
+    const authCookie = signedIn.headers.getSetCookie().filter(value => /next-auth\.session-token=/.test(value)).map(value => value.split(";")[0]).join("; ");
+    const readSession = async () => (await handlers.GET(new NextRequest(`${origin}/api/auth/session`, { headers: { cookie: authCookie } }))).json();
+    const firstSession = await readSession(), secondSession = await readSession();
+    assert.ok(firstSession.user.appSessionId);
+    assert.equal(firstSession.user.appSessionId, secondSession.user.appSessionId, "app session identity survives JWT refresh");
     const recoveries = await saveSecurityPolicy({ enabled: true, email: "security@example.test", alerts: false, version: "passkey-mfa" }, user.id, "disabled");
-    assert.equal(hasSession(await login()), false, "passkey cannot bypass company MFA");
-    assert.equal(hasSession(await login(user.email, cookies, { recoveryCode: recoveries[0] })), true, "passkey plus existing recovery can sign in");
-    assert.match(messages.at(-1) || "", /Passkey \+ single-use recovery code/, "security notice identifies the actual primary credential");
-    response = await assertion(); await post({ action: "login-verify", response });
-    const missingProof = await otp(new Request(`${origin}/api/auth/otp`, { method: "POST", headers: { origin }, body: JSON.stringify({ email: user.email, passkey: true }) }));
-    assert.equal(missingProof.status, 401, "OTP endpoint rejects invented passkey claims");
+    assert.equal(hasSession(await login()), false, "password cannot bypass company MFA");
+    assert.equal(hasSession(await login(user.email, "", { passkey: "true", recoveryCode: recoveries[0] })), false, "passkey plus recovery cannot replace password login");
+    assert.equal(hasSession(await login(user.email, password, { recoveryCode: recoveries[0] })), true, "password plus existing recovery still signs in");
+    assert.match(messages.at(-1) || "", /Password \+ single-use recovery code/);
+    const missingPassword = await otp(new Request(`${origin}/api/auth/otp`, { method: "POST", headers: { origin, cookie: cookies }, body: JSON.stringify({ email: user.email, passkey: true }) }));
+    assert.equal(missingPassword.status, 400, "OTP endpoint requires password even with a formerly valid passkey proof");
     sessionUser = other.id;
     await post({ action: "remove", id: keys[0].id, password });
     assert.equal((await store.listPasskeys(user.id)).length, 1, "another account cannot remove credential");
     sessionUser = user.id;
+    unlock = await unlockResponse(true); await lockPost({ action: "verify", response: unlock });
     await post({ action: "remove", id: keys[0].id, password });
-    assert.equal(await store.passkeyProof(new Request(origin, { headers: { cookie: cookies } })), null, "removal invalidates pending proofs");
-    assert.equal(hasSession(await login()), false);
-    const expired = await store.issuePasskeyToken(user.id, "login", "challenge");
+    assert.equal((await gate())?.status, 423, "removing unlock credential locks the app");
+    const expired = await store.issuePasskeyToken(user.id, "app-unlock", "challenge");
     await prisma.$executeRaw`UPDATE SecurityPasskeyChallenge SET expiresAt = 1`;
-    assert.equal(await store.readPasskeyToken(expired, "login", true), null);
+    assert.equal(await store.readPasskeyToken(expired, "app-unlock", true), null);
     const once = await store.issuePasskeyToken(user.id, "register", "value");
     const consumed = await Promise.all([store.readPasskeyToken(once, "register", true), store.readPasskeyToken(once, "register", true)]);
     assert.equal(consumed.filter(Boolean).length, 1, "parallel challenge consumption is atomic");
-    console.log("Passkey integration passed: real virtual-authenticator registration/signatures, replay, expiry, account isolation, recent-login/password enrollment, revocation, MFA enforcement and real Auth.js session issuance.");
+    console.log("App-unlock integration passed: real signatures, replay/expiry, session isolation, enrollment, revocation, password/MFA login and rejection of removed passkey sign-in paths.");
   } finally {
     ZohoMailConnector.prototype.send = originalSend;
     await browser?.close();

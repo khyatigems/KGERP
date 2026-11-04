@@ -77,10 +77,9 @@ ${input.rows.map(([label, value]) => `<tr><td class="details-label" width="130" 
 }
 
 export function renderSignInVerifiedEmail(input: {
-  account: string; context: ReturnType<typeof requestContext>; recovered?: boolean; authenticator?: boolean; passkey?: boolean;
+  account: string; context: ReturnType<typeof requestContext>; recovered?: boolean; authenticator?: boolean;
 }) {
-  const primary = input.passkey ? "Passkey" : "Password";
-  const method = input.recovered ? `${primary} + single-use recovery code` : input.authenticator ? `${primary} + authenticator app` : `${primary} + email verification`;
+  const method = input.recovered ? "Password + single-use recovery code" : input.authenticator ? "Password + authenticator app" : "Password + email verification";
   const subject = input.recovered ? "Recovery code used" : "Sign-in verified";
   const description = "A sign-in to your KhyatiGems ERP account passed password and " +
     (input.recovered ? "recovery code verification." : input.authenticator ? "authenticator app verification." : "email verification.");

@@ -1,4 +1,3 @@
-import { passkeyProof } from "./security/passkey-store";
 import NextAuth from "next-auth";
 import { renderSignInVerifiedEmail } from "./security/otp-email";
 import { consumeAuthenticator, consumeAuthenticatorRecovery, getAuthenticatorState } from "./security/authenticator";
@@ -28,13 +27,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        passkey: { label: "Passkey", type: "text" },
         otp: { label: "Verification code", type: "text" },
         authenticatorCode: { label: "Authenticator code", type: "text" },
         recoveryCode: { label: "Recovery code", type: "text" },
       },
       async authorize(credentials, request) {
-        if (!credentials?.email || (!credentials?.password && credentials?.passkey !== "true")) {
+        if (!credentials?.email || !credentials?.password) {
           console.log("Auth: Missing credentials");
           return null;
         }
@@ -72,10 +70,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        const proof = credentials.passkey === "true" ? await passkeyProof(request) : null;
-        const valid = credentials.passkey === "true" ? proof?.id === user.id : await compare(password, user.password);
+        const valid = await compare(password, user.password);
         if (!valid) {
-          await securityEvent(user.id, credentials.passkey === "true" ? "LOGIN_PASSKEY_FAILED" : "LOGIN_PASSWORD_FAILED", request);
+          await securityEvent(user.id, "LOGIN_PASSWORD_FAILED", request);
           return null;
         }
 
@@ -101,12 +98,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await securityEvent(user.id, recovered ? "LOGIN_RECOVERY_USED" : appVerified ? "LOGIN_AUTHENTICATOR_VERIFIED" : "LOGIN_OTP_VERIFIED", request);
           if (policy.enabled && (policy.alerts || recovered)) {
             // Delivery failure never turns a verified login into password-only access.
-            const notice = renderSignInVerifiedEmail({ account: user.email, context: requestContext(request), recovered, authenticator: Boolean(appVerified), passkey: credentials.passkey === "true" });
+            const notice = renderSignInVerifiedEmail({ account: user.email, context: requestContext(request), recovered, authenticator: Boolean(appVerified) });
             await sendSecurityEmail(policy.email, notice.subject, notice.text, notice.html).catch(() => {});
           }
         }
-
-        if (credentials.passkey === "true" && (await passkeyProof(request, true))?.id !== user.id) return null;
 
         const permissions = user.roleRelation?.permissions.map(p => p.permission.key) || [];
 

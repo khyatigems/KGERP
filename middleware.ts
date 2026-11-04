@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
 import { isPublicPage } from "@/lib/public-routes";
+import { enforceAppLock } from "@/lib/security/app-lock-gate";
 
 const { auth } = NextAuth(authConfig);
 const ROBOTS_TAG = "noindex, nofollow, noarchive, nosnippet, noimageindex";
@@ -13,7 +14,7 @@ function shouldSetNoindexHeader(pathname: string) {
   return INTERNAL_ROUTE_PREFIXES.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
 }
 
-export default auth((req) => {
+export default auth(async (req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
   const response = NextResponse.next();
@@ -23,6 +24,10 @@ export default auth((req) => {
   }
 
   const isPublicRoute = isPublicPage(pathname);
+  if (req.auth?.user?.id) {
+    const locked = await enforceAppLock(req, req.auth.user);
+    if (locked) return locked;
+  }
 
   // 1. Handle Public Routes
   if (isPublicRoute) {
@@ -50,9 +55,11 @@ export default auth((req) => {
 });
 
 export const config = {
+  runtime: "nodejs",
   // Static assets must bypass auth middleware so logged-out users (e.g. on
   // /login) always receive images/fonts instead of a login redirect.
   matcher: [
+    "/api/:path*",
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|map|txt|xml|woff|woff2|ttf)$).*)",
   ],
 };

@@ -1,4 +1,4 @@
-# Passkeys and mobile enrollment
+# Device credentials for fingerprint app unlock
 
 Every signed-in user can manage personal passkeys at `/settings/security`.
 On supported mobile devices, an account with no registered passkeys gets a
@@ -14,12 +14,14 @@ The browser controls fingerprint, face, device PIN, security-key, and phone
 approval choices. ERP never receives biometric data and cannot force fingerprint
 over a device PIN. Synced passkeys may work across devices; an account's existing
 passkeys are not necessarily available on every device. There is no automatic
-native biometric prompt without clicking Enable now or Sign in with passkey.
+native biometric prompt without clicking Enable now or Unlock ERP.
 
-Passkeys replace password entry. Company email verification and personal
-authenticator/recovery requirements are enforced by the existing credentials
-authorization code. They are not disabled or treated as satisfied by a passkey.
-The existing password login and recovery flows remain available.
+Registered passkeys are used only for fingerprint app lock, which resumes an
+already authenticated ERP session. Passwordless/passkey sign-in is not offered.
+Normal login requires the account password and any configured company email,
+authenticator or recovery verification. The old login-options/login-verify
+operations are rejected; legacy sign-in proof cookies have no authorization role.
+See `app-lock.md` for enabling and using return-to-app locking.
 
 ## Deployment
 
@@ -38,16 +40,16 @@ No destructive migration or bulk enrollment runs. Credentials store public keys,
 signature counters, owner, label and timestamps; private keys stay with the
 authenticator/provider. Challenge tokens are random, hashed in storage, expire
 after five minutes, and use atomic single-use consumption. Expired tokens are
-cleaned on issue. Pending login proofs are HttpOnly/SameSite browser cookies,
-single use on completed sign-in, and bound to the account, credential and password
-hash. Removing the credential or changing the password invalidates those proofs.
-Removal prevents future sign-ins; it does not end already-issued sessions.
-Existing company/personal MFA session invalidation continues to apply.
+cleaned on issue. Removing a registered credential prevents it from unlocking
+the app. Credentials, existing app-lock settings and signed-in sessions are not
+deleted when removing the passkey sign-in feature. Existing company/personal MFA
+session invalidation continues to apply.
 
 The SimpleWebAuthn v13 libraries are installed under `erp-webauthn-server` and
 `erp-webauthn-browser` npm aliases. NextAuth beta's optional built-in WebAuthn
 provider expects v9; aliases avoid overriding that unrelated peer dependency.
-The ERP uses its existing credentials provider, not that built-in provider.
+The ERP uses its existing password credentials provider for login. WebAuthn is
+used only for enrollment and verification of an existing session app lock.
 
 ## Verification and rollout
 
@@ -61,13 +63,14 @@ The ERP uses its existing credentials provider, not that built-in provider.
 The integration test creates an isolated temporary database, uses a Chrome
 virtual CTAP2 authenticator for real registration and signed assertions, and
 exercises actual Auth.js callbacks. It covers invalid signatures, single-use
-challenges/proofs, account isolation, password/recent-login enrollment, MFA
-enforcement, expiry, concurrent consumption and credential removal. UI tests use
+challenges, account/session isolation, password/recent-login enrollment, MFA
+enforcement, expiry, concurrent consumption and credential removal. It also
+checks that old login operations and old proof cookies cannot replace a password. UI tests use
 explicit browser/API fixtures and verify 320/390/1440px layouts and reminder
 preferences. Screenshots are in ignored `tmp/passkeys-ui`.
 
 Before production rollout, configure the HTTPS origin and test enrollment,
-cancel, sign-in with existing MFA, and removal on a real Android phone, iPhone,
+cancel, app unlock, password login with existing MFA, and removal on a real Android phone, iPhone,
 Windows Hello laptop and/or Mac as applicable. Virtual authenticators do not
 prove real OS biometric dialogs or device synchronization. This implementation
 does not deploy the app, change production configuration, enroll any real user,

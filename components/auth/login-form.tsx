@@ -1,18 +1,13 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { browserSupportsWebAuthn, startAuthentication } from "erp-webauthn-browser";
-import { passkeyRequest } from "@/components/settings/passkey-settings";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 export function LoginForm() {
   const router = useRouter();
-  const [passkeyEmail, setPasskeyEmail] = useState("");
-  const [supportsPasskeys, setSupportsPasskeys] = useState(false);
-  useEffect(() => { setSupportsPasskeys(window.isSecureContext && browserSupportsWebAuthn()); }, []);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -26,7 +21,7 @@ export function LoginForm() {
   const [recoveryCode, setRecoveryCode] = useState("");
 
   async function requestCode(email: string, password: string, requestedMethod?: "email") {
-    const response = await fetch("/api/auth/otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, passkey: Boolean(passkeyEmail), method: requestedMethod }) });
+    const response = await fetch("/api/auth/otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password, method: requestedMethod }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not send verification code.");
     if (data.required) {
@@ -44,7 +39,7 @@ export function LoginForm() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
-    const email = passkeyEmail || formData.get("email") as string;
+    const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
     try {
@@ -52,7 +47,6 @@ export function LoginForm() {
       const res = await signIn("credentials", {
         email,
         password,
-        passkey: passkeyEmail ? "true" : "",
         otp: useRecovery || method === "authenticator" ? "" : otp,
         authenticatorCode: !useRecovery && method === "authenticator" ? otp : "",
         recoveryCode: useRecovery ? recoveryCode : "",
@@ -82,28 +76,6 @@ export function LoginForm() {
         </div>
       )}
 
-      {supportsPasskeys && <button type="button" disabled={loading} className="h-12 w-full rounded-2xl border border-white/20 text-white disabled:opacity-50" onClick={async () => {
-        setLoading(true); setError("");
-        try {
-          const optionsJSON = await passkeyRequest({ action: "login-options" });
-          const response = await startAuthentication({ optionsJSON });
-          const proof = await passkeyRequest({ action: "login-verify", response });
-          setPasskeyEmail(proof.email); setUseRecovery(false); setOtp(""); setRecoveryCode("");
-          const check = await fetch("/api/auth/otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: proof.email, passkey: true }) });
-          const data = await check.json();
-          if (!check.ok) throw new Error(data.error);
-          if (data.required) {
-            setOtpRequired(true); setRecipient(data.recipient || ""); setMethod(data.method === "authenticator" ? "authenticator" : "email");
-            setEmailAvailable(Boolean(data.emailAvailable || data.method === "email")); setAuthenticatorAvailable(Boolean(data.authenticatorAvailable || data.method === "authenticator"));
-          } else {
-            const result = await signIn("credentials", { email: proof.email, passkey: "true", redirect: false });
-            if (!result || result.error) throw new Error("Passkey sign-in expired. Try again.");
-            router.push("/"); router.refresh();
-          }
-        } catch (error) { setPasskeyEmail(""); setOtpRequired(false); setError(error instanceof Error && error.name === "NotAllowedError" ? "Passkey sign-in cancelled or timed out. Try again or use your password." : error instanceof Error ? error.message : "Passkey sign-in failed."); }
-        finally { setLoading(false); }
-      }}>Sign in with passkey</button>}
-      {passkeyEmail && <p className="text-sm text-slate-200">Passkey verified for {passkeyEmail}. Complete your existing verification below.</p>}
       <div className="space-y-4">
         <div>
           <label
@@ -113,20 +85,18 @@ export function LoginForm() {
             Email address
           </label>
           <Input
-            key={passkeyEmail || "password-login"}
-            defaultValue={passkeyEmail}
             id="email"
             type="email"
             name="email"
-            readOnly={otpRequired || Boolean(passkeyEmail)}
+            readOnly={otpRequired}
             autoComplete="email"
-            required={!passkeyEmail}
+            required
             placeholder="name@khyatigems.com"
             className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 text-base text-white placeholder:text-slate-400 shadow-inner shadow-slate-950/30 transition-all duration-200 focus:border-[#D9BC7A]/70 focus:ring-2 focus:ring-[#D9BC7A]/20"
           />
         </div>
 
-        <div className={passkeyEmail ? "hidden" : undefined}>
+        <div>
           <label
             htmlFor="password"
             className="mb-2 block text-sm font-medium text-slate-200"
@@ -138,9 +108,9 @@ export function LoginForm() {
               id="password"
               type={showPassword ? "text" : "password"}
               name="password"
-              readOnly={otpRequired || Boolean(passkeyEmail)}
+              readOnly={otpRequired}
               autoComplete="current-password"
-              required={!passkeyEmail}
+              required
               placeholder="Enter your password"
               className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 pr-12 text-base text-white placeholder:text-slate-400 shadow-inner shadow-slate-950/30 transition-all duration-200 focus:border-[#D9BC7A]/70 focus:ring-2 focus:ring-[#D9BC7A]/20"
             />
@@ -173,7 +143,7 @@ export function LoginForm() {
           finally { setLoading(false); }
         }}>{method === "authenticator" ? "Send an email code instead" : "Resend email code (wait 60 seconds)"}</button>}
         {!useRecovery && method === "email" && authenticatorAvailable && <button type="button" disabled={loading} className="block text-sm text-[#E8D6A5] underline" onClick={() => { setMethod("authenticator"); setOtp(""); setError(""); }}>Use authenticator app instead</button>}
-        <button type="button" disabled={loading} className="block text-sm text-slate-300 underline" onClick={() => { setPasskeyEmail(""); setOtpRequired(false); setUseRecovery(false); setOtp(""); setRecoveryCode(""); setError(""); }}>Back to password</button>
+        <button type="button" disabled={loading} className="block text-sm text-slate-300 underline" onClick={() => { setOtpRequired(false); setUseRecovery(false); setOtp(""); setRecoveryCode(""); setError(""); }}>Back to password</button>
       </div>}
 
       <div className="flex items-center justify-between gap-3">

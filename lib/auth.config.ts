@@ -54,17 +54,20 @@ export const authConfig = {
     },
     async jwt({ token, user }) {
       if (user) {
+        token.appSessionId = crypto.randomUUID();
         token.role = user.role;
         token.avatarUrl = user.avatarUrl;
         token.lastLogin = user.lastLogin;
         token.permissions = [];
       }
+      if (!token.appSessionId && typeof token.jti === "string") token.appSessionId = token.jti;
 
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
+        session.user.appSessionId = typeof token.appSessionId === "string" ? token.appSessionId : undefined;
         session.user.role = token.role as string;
         session.user.avatarUrl = token.avatarUrl as string | null | undefined;
         session.user.permissions = [];

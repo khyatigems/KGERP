@@ -26,7 +26,7 @@ const server = createServer(async (req, res) => {
     if (body.action === "preference") preference = body.preference === "never" ? "never" : body.preference === "reset" ? "0" : String(Date.now() + 604800000);
     if (body.action === "register-verify") keys = [{ id: "fixture", name: "Test phone", createdAt: new Date().toISOString(), lastUsedAt: null }];
     if (body.action === "remove") keys = [];
-    res.end(JSON.stringify(body.action === "login-verify" ? { verified: true, email: "fixture@example.test" } : { saved: true })); return;
+    res.end(JSON.stringify({ saved: true })); return;
   }
   res.setHeader("Content-Type", "text/html"); res.end('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body><main style="max-width:700px;margin:auto;padding:16px"><div id="app"></div></main><script src="/bundle.js"></script></body></html>');
 });
@@ -77,16 +77,20 @@ try {
   await page.goto(`${url}/?view=prompt`, { waitUntil: "networkidle0" });
   assert.equal(await page.$('[role="dialog"]'), null, "desktop users are not automatically prompted");
   await page.goto(`${url}/?view=login`, { waitUntil: "networkidle0" });
-  await click("Sign in with passkey");
-  await page.waitForFunction(() => document.body.innerText.includes("Passkey verified for fixture@example.test"));
-  assert.equal(await page.$eval('#password', element => element.required), false);
+  assert.equal(await page.$('::-p-text(Sign in with passkey)'), null, "login screen does not offer passkey sign-in");
+  assert.equal(await page.$eval('#password', element => element.required), true);
+  await page.type('#email', "fixture@example.test");
+  await page.type('#password', "fixture-password");
+  await click("Sign In");
+  await page.waitForSelector('#login-verification');
   await page.type('#login-verification', "123456");
   await click("Verify and sign in");
   await page.waitForFunction(() => window.__credentials);
   const credentials = await page.evaluate(() => window.__credentials);
-  assert.equal(credentials.passkey, "true"); assert.equal(credentials.authenticatorCode, "123456");
+  assert.equal(credentials.password, "fixture-password"); assert.equal(credentials.authenticatorCode, "123456");
+  assert.equal("passkey" in credentials, false);
   await page.screenshot({ path: "tmp/passkeys-ui/login-mfa.png" });
   assert.ok(requests.some(request => request.action === "preference" && request.preference === "never"));
   assert.deepEqual(errors, []);
-  console.log("Passkey UI passed at 320, 390 and 1440px: mobile prompt, saved later/never preferences, enrollment, enrolled-account suppression, settings and passkey-to-MFA sign-in.");
+  console.log("Passkey UI passed at 320, 390 and 1440px: mobile prompt, saved later/never preferences, enrollment, enrolled-account suppression, settings and password/MFA login without passkey sign-in.");
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

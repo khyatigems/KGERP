@@ -1,8 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { digest, readCookie } from "./core";
+import { digest } from "./core";
 
-export const PASSKEY_COOKIE = "erp-passkey-proof";
 export const CHALLENGE_COOKIE = "erp-passkey-challenge";
 let ready: Promise<void> | undefined;
 export function ensurePasskeySchema() {
@@ -32,14 +31,4 @@ export async function readPasskeyToken(token: string, kind: string, consume = fa
   if (!row) return null;
   if (consume && await prisma.$executeRaw`DELETE FROM SecurityPasskeyChallenge WHERE id = ${digest(token)} AND kind = ${kind} AND expiresAt > ${Date.now()}` !== 1) return null;
   return row;
-}
-// A proof is short lived, browser-bound by an HttpOnly cookie, and invalidated by
-// password changes or removal of the exact credential used to authenticate.
-export async function passkeyProof(request: Request, consume = false) {
-  const row = await readPasskeyToken(readCookie(request, PASSKEY_COOKIE), "proof", consume);
-  if (!row) return null;
-  const { credentialId, passwordHash } = JSON.parse(row.value);
-  const user = await prisma.user.findUnique({ where: { id: row.userId }, select: { id: true, email: true, password: true } });
-  const keys = await listPasskeys(row.userId);
-  return user && digest(user.password) === passwordHash && keys.some(key => key.id === credentialId) ? user : null;
 }

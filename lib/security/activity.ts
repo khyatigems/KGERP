@@ -1,4 +1,7 @@
 export const securityActions: Record<string, { label: string; description: string }> = {
+  APP_LOCK_ENABLED: { label: "App lock enabled", description: "Device verification enabled return-to-app locking for this signed-in browser session." },
+  APP_LOCK_DISABLED: { label: "App lock disabled", description: "App lock was disabled for this signed-in browser session after password confirmation." },
+  APP_UNLOCKED: { label: "App unlocked", description: "A registered passkey verified the user to resume the existing ERP session." },
   LOGIN_PASSKEY_VERIFIED: { label: "Passkey verified", description: "The account passed passkey verification. Any required second factor still applies before sign-in." },
   LOGIN_PASSKEY_FAILED: { label: "Passkey sign-in rejected", description: "The passkey sign-in proof was invalid or expired. No session was granted." },
   PASSKEY_ADDED: { label: "Passkey added", description: "A new passkey was verified and registered for this account." },

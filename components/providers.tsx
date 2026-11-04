@@ -5,6 +5,7 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { WorkspaceAppearanceProvider } from "@/components/workspace-appearance-provider";
 import { GlobalLoaderProvider } from "@/components/global-loader-provider";
 import { RegisterServiceWorker } from "@/components/pwa/register-service-worker";
+import { AppLockProvider } from "@/components/auth/app-lock-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -19,7 +20,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
       >
         <WorkspaceAppearanceProvider><GlobalLoaderProvider>
-          {children}
+          <AppLockProvider>{children}</AppLockProvider>
         </GlobalLoaderProvider></WorkspaceAppearanceProvider>
       </NextThemesProvider>
     </SessionProvider>
