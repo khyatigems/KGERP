@@ -1,3 +1,4 @@
+import { PasskeySettings } from "@/components/settings/passkey-settings";
 import { CompanionHost } from "@/components/companion/companion-host";
 import { companionKey, parseCompanionPreferences } from "@/lib/companion";
 import type { Metadata } from "next";
@@ -195,6 +196,7 @@ export default async function DashboardLayout({
   return (
     <AutomaticWorkTracker userId={session?.user?.id || ""}>
     <SidebarProvider initialCollapsed={initialCollapsed}>
+    <PasskeySettings prompt />
         <SidebarGridClient>
           <div className="hidden border-r lg:block bg-sidebar border-sidebar-border premium-sidebar">
             <Sidebar allowedModules={allowedNavModules} initialExpandedGroups={initialExpandedGroups} />

@@ -1,4 +1,8 @@
 export const securityActions: Record<string, { label: string; description: string }> = {
+  LOGIN_PASSKEY_VERIFIED: { label: "Passkey verified", description: "The account passed passkey verification. Any required second factor still applies before sign-in." },
+  LOGIN_PASSKEY_FAILED: { label: "Passkey sign-in rejected", description: "The passkey sign-in proof was invalid or expired. No session was granted." },
+  PASSKEY_ADDED: { label: "Passkey added", description: "A new passkey was verified and registered for this account." },
+  PASSKEY_REMOVED: { label: "Passkey removed", description: "A passkey was removed from this account and can no longer approve new sign-ins." },
   LOGIN: { label: "Signed in", description: "User signed in successfully." },
   LOGIN_PASSWORD_FAILED: { label: "Incorrect password", description: "A sign-in attempt was rejected because the password was incorrect." },
   LOGIN_OTP_REQUESTED: { label: "Email code requested", description: "An email verification code was requested to complete sign-in." },

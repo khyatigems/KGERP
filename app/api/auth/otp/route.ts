@@ -1,3 +1,4 @@
+import { passkeyProof } from "@/lib/security/passkey-store";
 import { NextResponse } from "next/server";
 import { compare } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
@@ -14,14 +15,15 @@ export async function POST(request: Request) {
     const body = JSON.parse(raw);
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
-    if (!email || email.length > 254 || !password || password.length > 1024) return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });
+    if (!email || email.length > 254 || (!password && body.passkey !== true) || password.length > 1024) return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });
     const ip = requestContext(request).ip;
     if (!await rateLimit(`login:start:ip:${ip}`, 100, 900) || !await rateLimit(`login:start:account:${email}`, 10, 900)) return NextResponse.json({ error: "Too many attempts. Try again in 15 minutes." }, { status: 429 });
     const user = await prisma.user.findUnique({ where: { email }, select: { id: true, password: true } });
     // Dummy bcrypt comparison reduces the timing difference for unknown accounts.
-    const valid = await compare(password, user?.password || "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");
+    const proof = body.passkey === true ? await passkeyProof(request) : null;
+    const valid = body.passkey === true ? Boolean(user && proof?.id === user.id) : await compare(password, user?.password || "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");
     if (!user || !valid) {
-      if (user) await securityEvent(user.id, "LOGIN_PASSWORD_FAILED", request);
+      if (user) await securityEvent(user.id, body.passkey === true ? "LOGIN_PASSKEY_FAILED" : "LOGIN_PASSWORD_FAILED", request);
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
     const policy = await getSecurityPolicy();

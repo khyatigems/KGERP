@@ -1,3 +1,4 @@
+import { passkeyProof } from "./security/passkey-store";
 import NextAuth from "next-auth";
 import { renderSignInVerifiedEmail } from "./security/otp-email";
 import { consumeAuthenticator, consumeAuthenticatorRecovery, getAuthenticatorState } from "./security/authenticator";
@@ -27,12 +28,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        passkey: { label: "Passkey", type: "text" },
         otp: { label: "Verification code", type: "text" },
         authenticatorCode: { label: "Authenticator code", type: "text" },
         recoveryCode: { label: "Recovery code", type: "text" },
       },
       async authorize(credentials, request) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.email || (!credentials?.password && credentials?.passkey !== "true")) {
           console.log("Auth: Missing credentials");
           return null;
         }
@@ -70,9 +72,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        const valid = await compare(password, user.password);
+        const proof = credentials.passkey === "true" ? await passkeyProof(request) : null;
+        const valid = credentials.passkey === "true" ? proof?.id === user.id : await compare(password, user.password);
         if (!valid) {
-          await securityEvent(user.id, "LOGIN_PASSWORD_FAILED", request);
+          await securityEvent(user.id, credentials.passkey === "true" ? "LOGIN_PASSKEY_FAILED" : "LOGIN_PASSWORD_FAILED", request);
           return null;
         }
 
@@ -91,17 +94,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             if (policy.enabled && policy.alerts && !await rateLimit(`login:otp-failures:${user.id}`, 4, 900) &&
                 await rateLimit(`login:otp-alert:${user.id}`, 1, 900)) {
               await sendSecurityEmail(policy.email, "Repeated verification failures",
-                `Account: ${user.email}\n${contextText(request)}\nSeveral sign-in attempts passed the password check but failed verification. No session was granted for these attempts. Review account security if unexpected.`).catch(() => {});
+                `Account: ${user.email}\n${contextText(request)}\nSeveral sign-in attempts passed the primary credential check but failed verification. No session was granted for these attempts. Review account security if unexpected.`).catch(() => {});
             }
             return null;
           }
           await securityEvent(user.id, recovered ? "LOGIN_RECOVERY_USED" : appVerified ? "LOGIN_AUTHENTICATOR_VERIFIED" : "LOGIN_OTP_VERIFIED", request);
           if (policy.enabled && (policy.alerts || recovered)) {
             // Delivery failure never turns a verified login into password-only access.
-            const notice = renderSignInVerifiedEmail({ account: user.email, context: requestContext(request), recovered, authenticator: Boolean(appVerified) });
+            const notice = renderSignInVerifiedEmail({ account: user.email, context: requestContext(request), recovered, authenticator: Boolean(appVerified), passkey: credentials.passkey === "true" });
             await sendSecurityEmail(policy.email, notice.subject, notice.text, notice.html).catch(() => {});
           }
         }
+
+        if (credentials.passkey === "true" && (await passkeyProof(request, true))?.id !== user.id) return null;
 
         const permissions = user.roleRelation?.permissions.map(p => p.permission.key) || [];
 
