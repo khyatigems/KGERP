@@ -117,7 +117,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             <div>
               <DialogTitle className="text-lg font-semibold">Command Palette</DialogTitle>
               <DialogDescription className="text-xs">
-                Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">⌘K</kbd> to open, <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Esc</kbd> to close
+                Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">⌘K</kbd> to open, <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">Esc</kbd> to close
               </DialogDescription>
             </div>
           </div>
@@ -160,7 +160,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 };
                 
                 return (
-                  <CommandGroup key={category} heading={<span className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">{categoryIcons[category]} {categoryLabels[category]}</span>}>
+                  <CommandGroup key={category} heading={<span className="flex items-center gap-1.5 text-xs normal-case tracking-normal text-muted-foreground">{categoryIcons[category]} {categoryLabels[category]}</span>}>
                     {categoryCommands.map((cmd) => (
                       <CommandItem
                         key={cmd.id}
@@ -176,7 +176,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                             {cmd.description && <div className="text-xs text-muted-foreground truncate">{cmd.description}</div>}
                           </div>
                           {cmd.shortcut && (
-                            <kbd className="ml-2 flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted rounded">
+                            <kbd className="ml-2 flex items-center gap-1 px-1.5 py-0.5 text-xs font-mono text-muted-foreground bg-muted rounded">
                               {cmd.shortcut.split(" ").map((key, i) => (
                                 <span key={i}>{key}</span>
                               ))}

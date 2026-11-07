@@ -97,13 +97,13 @@ export function QuickNotes() {
   const sortedNotes = notes ? [...notes].filter(n => !n.state || n.state === "active").sort((a, b) => Number(b.pinned) - Number(a.pinned) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6) : [];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 sass-enter gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-4 sass-enter ">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400">
             <StickyNote className="h-3.5 w-3.5" />
           </div>
-          <Link href="/notes" className="text-sm font-semibold text-foreground hover:text-primary">Quick Notes · View all</Link>
+          <Link href="/notes" className="text-sm font-semibold text-foreground hover:text-primary">Quick notes · View all</Link>
         </div>
         <Button aria-label="Add dashboard note" size="sm" variant="ghost" onClick={() => setIsAdding(!isAdding)} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
           <Plus className="h-3.5 w-3.5" />
@@ -112,7 +112,7 @@ export function QuickNotes() {
 
       {error ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-          <p className="text-xs text-destructive">Quick Notes couldn&apos;t load. Check your connection and try again.</p>
+          <p className="text-xs text-destructive">Quick notes couldn&apos;t load. Check your connection and try again.</p>
           <Button size="sm" variant="outline" onClick={() => void mutate()} className="h-7 shrink-0 gap-1.5 text-xs">
             <RefreshCw className="h-3 w-3" /> Retry
           </Button>
@@ -141,8 +141,8 @@ export function QuickNotes() {
                   ))}
                 </div>
                 <div className="flex gap-1.5">
-                  <Button size="sm" variant="ghost" onClick={() => { setIsAdding(false); setNewNoteContent(""); }} className="h-6 px-2 text-[10px] text-muted-foreground">Cancel</Button>
-                  <Button size="sm" onClick={handleAddNote} className="h-6 px-2.5 text-[10px]">Add</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setIsAdding(false); setNewNoteContent(""); }} className="h-6 px-2 text-xs text-muted-foreground">Cancel</Button>
+                  <Button size="sm" onClick={handleAddNote} className="h-6 px-2.5 text-xs">Add</Button>
                 </div>
               </div>
             </div>
@@ -155,7 +155,7 @@ export function QuickNotes() {
               </span>
               <div>
                 <p className="text-xs font-medium text-foreground">No notes yet</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">Select + to add a note for your team.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Select + to add a note for your team.</p>
               </div>
             </div>
           )}
@@ -166,7 +166,7 @@ export function QuickNotes() {
             return (
               <div
                 key={note.id}
-                className={`group relative rounded-lg border p-2.5 transition-all duration-200 hover:shadow-md ${colorStyle.darkBg} ${colorStyle.darkBorder} ${colorStyle.lightBg} ${colorStyle.lightBorder}`}
+                className={`group relative rounded-lg border p-2.5 transition-[color,background-color,border-color,opacity,transform] duration-200 hover:shadow-md ${colorStyle.darkBg} ${colorStyle.darkBorder} ${colorStyle.lightBg} ${colorStyle.lightBorder}`}
               >
                 {isEditing ? (
                   <div className="space-y-1.5">
@@ -178,15 +178,15 @@ export function QuickNotes() {
                       autoFocus
                     />
                     <div className="flex justify-end gap-1.5">
-                      <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-6 px-2 text-[10px] text-muted-foreground">Cancel</Button>
-                      <Button size="sm" onClick={() => handleEditNote(note.id)} className="h-6 px-2.5 text-[10px]">Save</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-6 px-2 text-xs text-muted-foreground">Cancel</Button>
+                      <Button size="sm" onClick={() => handleEditNote(note.id)} className="h-6 px-2.5 text-xs">Save</Button>
                     </div>
                   </div>
                 ) : (
                   <>
                     <p className={`text-sm whitespace-pre-wrap line-clamp-5 pr-6 ${colorStyle.darkText} ${colorStyle.lightText}`}>{note.content}</p>
                     <div className="mt-1.5 flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {new Date(note.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" })}
                       </span>
                       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

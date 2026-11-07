@@ -24,7 +24,7 @@ try{
  assert.equal(await prisma.setting.count(),0);
  globalThis.__companionAllowed=true;
  assert.ok((await saveCompanionPreferences({enabled:'yes'})).error,'invalid body denied');
- assert.ok((await saveCompanionPreferences({enabled:true,position:'top-left',quiet:true,character:'owl',size:128,dock:{x:0.3,y:0.6},pinned:['/inventory']})).preferences);
+ assert.ok((await saveCompanionPreferences({enabled:true,position:'top-left',quiet:true,character:'owl',framing:'full-body',size:128,dock:{x:0.3,y:0.6},pinned:['/inventory']})).preferences);
  globalThis.__companionIdentity={user:{id:'bob'}};
  assert.ok((await saveCompanionPreferences({enabled:false,character:'sapphire'})).preferences);
  await prisma.$disconnect();
@@ -32,7 +32,7 @@ try{
  try{
  const a=JSON.parse((await fresh.setting.findUniqueOrThrow({where:{key:'companion:v1:alice'}})).value);
  const b=JSON.parse((await fresh.setting.findUniqueOrThrow({where:{key:'companion:v1:bob'}})).value);
- assert.equal(a.enabled,true);assert.equal(a.quiet,true);assert.equal(a.character,'owl');assert.equal(a.size,128);assert.equal(a.position,'top-left');assert.deepEqual(a.dock,{x:0.3,y:0.6});assert.deepEqual(a.pinned,['/inventory']);assert.equal(b.enabled,false);assert.equal(b.character,'sapphire');assert.equal(await fresh.setting.count(),2);
+ assert.equal(a.enabled,true);assert.equal(a.quiet,true);assert.equal(a.character,'owl');assert.equal(a.framing,'full-body');assert.equal(a.size,128);assert.equal(a.position,'top-left');assert.deepEqual(a.dock,{x:0.3,y:0.6});assert.deepEqual(a.pinned,['/inventory']);assert.equal(b.enabled,false);assert.equal(b.character,'sapphire');assert.equal(await fresh.setting.count(),2);
  }finally{await fresh.$disconnect()}
  console.log('Companion persistence passed: real save action and SQLite storage, anonymous/permission/validation rejection, account isolation and fresh-client readback. Authentication and cache invalidation use test adapters.');
 }finally{await prisma.$disconnect();await rm(db,{force:true});}

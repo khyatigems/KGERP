@@ -1,0 +1,11 @@
+/* Purposeful transitions only. References and boundaries: docs/ui-experience-enhancements.md. */
+@media screen and (prefers-reduced-motion:no-preference){
+  .erp-panel-enter{animation:erp-panel-enter 160ms cubic-bezier(.22,1,.36,1) both}
+  [data-slot="dialog-overlay"]{animation-duration:140ms;animation-timing-function:ease-out}
+  [data-slot="dialog-content"]{animation-duration:160ms;animation-timing-function:cubic-bezier(.22,1,.36,1);--tw-enter-scale:.98;--tw-exit-scale:.98}
+}
+@keyframes erp-panel-enter{from{opacity:.8;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media screen and (prefers-reduced-motion:reduce){
+  .erp-panel-enter,[data-slot="dialog-overlay"],[data-slot="dialog-content"]{animation:none!important}
+  [data-slot="button"]:active{scale:1;transform:none}
+}

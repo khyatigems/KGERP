@@ -1,0 +1,6 @@
+.reference{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;min-width:0;color:inherit;font-size:12px;line-height:1.5}
+.label{color:#59645d;font-weight:400}.reference code{min-width:0;max-width:100%;overflow-wrap:anywhere;user-select:all;font-size:12px;font-variant-numeric:tabular-nums}
+.reference button{display:inline-grid;place-items:center;flex-shrink:0;width:44px;height:44px;border:1px solid #d6dcd6;border-radius:8px;background:#fff;color:#324e40;cursor:pointer;transition:background-color 150ms,transform 150ms}
+.reference button:hover{background:#edf2ed}.reference button:active{transform:scale(.97)}.reference button:focus-visible{outline:2px solid #38644d;outline-offset:3px}
+.status{flex-basis:100%;color:#405a48;font-size:12px;min-height:18px}.status:empty{display:none}
+@media(prefers-reduced-motion:reduce){.reference button{transition:none;transform:none}}

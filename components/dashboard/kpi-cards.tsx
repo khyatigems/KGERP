@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Package, ShoppingCart, FileText, FileCheck, Clock, Tag } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface KpiData {
@@ -30,70 +30,57 @@ interface DashboardData {
 export function KpiCards({ data }: { data: DashboardData }) {
     const kpis = [
         {
-            title: "Total Inventory",
+            title: "Total inventory",
             value: data.kpis.inventory.total,
             trend: data.kpis.inventory.trend,
             breakdown: data.kpis.inventory.breakdown,
-            icon: Package,
-            color: "text-primary"
         },
         {
-            title: "Active Listings",
+            title: "Active listings",
             value: data.kpis.listings.total,
             trend: data.kpis.listings.trend,
             breakdown: data.kpis.listings.breakdown,
-            icon: ShoppingCart,
-            color: "text-purple-600",
             subtext: ["eBay", "Etsy", "Amazon", "Website", "WhatsApp"]
                 .map((p) => `${p}: ${(data.kpis.listings as unknown as Record<string, number | undefined>)[p] || 0}`)
                 .join(" | ")
         },
         {
-            title: "Active Quotations",
+            title: "Active quotations",
             value: data.kpis.quotations.total,
             trend: data.kpis.quotations.trend,
             breakdown: data.kpis.quotations.breakdown,
-            icon: FileText,
-            color: "text-amber-600"
         },
         {
-            title: "Invoices Generated",
+            title: "Invoices generated",
             value: data.kpis.invoices.total,
             trend: data.kpis.invoices.trend,
             breakdown: data.kpis.invoices.breakdown,
-            icon: FileCheck,
-            color: "text-green-600"
         },
         {
-            title: "Pending Payments",
+            title: "Pending payments",
             value: data.kpis.pendingPayments.count,
             trend: data.kpis.pendingPayments.trend,
             breakdown: data.kpis.pendingPayments.breakdown,
-            icon: Clock,
-            color: "text-red-600"
         },
         {
-            title: "Print Labels Pending",
+            title: "Print labels pending",
             value: data.kpis.printLabels.count,
             trend: data.kpis.printLabels.trend,
             breakdown: data.kpis.printLabels.breakdown,
-            icon: Tag,
-            color: "text-indigo-600"
         }
     ];
 
     return (
         <div className="sass-enter sass-stagger grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {kpis.map((kpi, index) => (
-                <Card key={index} className="gem-facet-glow">
+                <Card key={index}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">
                             {kpi.title}
                         </CardTitle>
-                        <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{kpi.value}</div>
+                        <div className="text-3xl font-medium tabular-nums">{kpi.value.toLocaleString("en-IN")}</div>
                         <Popover>
                           <PopoverTrigger asChild>
                             <div className="flex items-center text-xs text-muted-foreground mt-1 cursor-help select-none">
@@ -124,7 +111,7 @@ export function KpiCards({ data }: { data: DashboardData }) {
                           </PopoverContent>
                         </Popover>
                         {kpi.subtext && (
-                            <div className="text-[10px] text-muted-foreground mt-2 border-t pt-2">
+                            <div className="text-xs text-muted-foreground mt-2 border-t pt-2">
                                 {kpi.subtext}
                             </div>
                         )}

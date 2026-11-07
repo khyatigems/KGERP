@@ -52,7 +52,7 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
     addIfPresent("expiring-quotations", FileText, "Expiring Quotations", attention?.quotations?.length ?? 0, "warning", "/quotes");
     addIfPresent("overdue-memo", Clock, "Overdue Memo / Returns", attention?.memo?.length ?? 0, "warning", "/sales-returns");
     addIfPresent("pending-vendors", Package, "Pending Vendor Approvals", attention?.vendors ?? 0, "warning", "/vendors");
-    addIfPresent("pending-payments", DollarSign, "Pending Payments", pendingPayments?.count ?? 0, "warning", "/invoices");
+    addIfPresent("pending-payments", DollarSign, "Pending payments", pendingPayments?.count ?? 0, "warning", "/invoices");
 
     // Today's activity (info)
     addIfPresent("today-inventory", PlusCircle, "Items Added Today", todayActions?.inventory ?? 0, "info", "/inventory?filter=todayItems");
@@ -74,7 +74,7 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 sass-enter gem-fade-in gem-shimmer-border">
+    <div className="rounded-xl border border-border bg-card p-5 sass-enter  ">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -86,7 +86,7 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
           </div>
         </div>
         {items.length > 0 && (
-          <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-primary/10 px-2 text-[11px] font-semibold text-primary">
+          <span className="flex h-6 min-w-[24px] items-center justify-center rounded-full bg-primary/10 px-2 text-xs font-semibold text-primary">
             {items.reduce((s, i) => s + i.count, 0)}
           </span>
         )}
@@ -107,7 +107,7 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
               <Link
                 key={item.id}
                 href={item.href}
-                className="group flex items-center gap-3 rounded-lg p-2.5 transition-all duration-150 hover:bg-muted/50"
+                className="group flex items-center gap-3 rounded-lg p-2.5 transition-[color,background-color,border-color,opacity,transform] duration-150 hover:bg-muted/50"
               >
                 <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-md border", config.badge)}>
                   <item.icon className="h-3.5 w-3.5" />
@@ -116,7 +116,7 @@ export function WorkQueue({ attention, todayActions, pendingPayments, todayOrder
                   {item.label}
                 </span>
                 <span className={cn(
-                  "flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold shrink-0",
+                  "flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-semibold shrink-0",
                   config.badge
                 )}>
                   {item.count}

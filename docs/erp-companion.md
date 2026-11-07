@@ -1,4 +1,19 @@
-# Facet ERP Companion
+# KhyatiGems ERP Companion
+
+The official supplied character library is now active: 22 transparent portrait/full-body
+poses and a silent thinking video. Choose the view in **Settings > ERP Companion** or
+**Companion > Style**; preview any supplied pose without overriding operational states.
+The video is framed because its source has a background. It plays during live Workday
+queries or manual preview, with static fallbacks and motion/visibility preferences.
+See [asset integration details](companion-avatar-handoff.md) and
+[notification upgrade status](companion-upgrade-implementation.md) for current behavior.
+
+The sections below record the original Facet implementation and its historical checks.
+References to five alternate characters and no schema additions describe that earlier
+version. Legacy preference IDs remain accepted; the active catalog uses one official
+KhyatiGems character. Existing authentication, permissions and responsive fallback remain.
+
+## Original Facet implementation
 
 Enable or disable Facet in **Settings → ERP Companion**. Preferences belong to the authenticated administrator and require the existing `settings:manage` permission. The feature starts disabled and uses the existing Prisma/libSQL infrastructure with no schema migration or added runtime dependency.
 

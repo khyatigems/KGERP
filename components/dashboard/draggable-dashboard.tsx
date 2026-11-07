@@ -23,9 +23,9 @@ const widgetRegistry: Record<string, WidgetRenderer> = {
     </div>
   ),
   "revenue-inventory": (props) => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <RevenueTrend data={props.revenueTrend || []} />
-      <InventoryHealth />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="min-w-0 lg:col-span-2"><RevenueTrend data={props.revenueTrend || []} /></div>
+      <div className="min-w-0"><InventoryHealth /></div>
     </div>
   ),
   "categories-workqueue": (props) => (
@@ -117,7 +117,7 @@ function DraggableWidget({
       ref={setNodeRef}
       style={{ ...style, overflow: "visible" }}
       className={cn(
-        "premium-card rounded-xl border bg-card p-4 transition-all duration-200",
+        "premium-card rounded-xl border bg-card p-4 transition-[color,background-color,border-color,opacity,transform] duration-200",
         isEditMode
           ? "border-dashed border-primary/30 hover:border-primary/60 hover:shadow-md"
           : "border-border hover:shadow-lg hover:border-primary/30",

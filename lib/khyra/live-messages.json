@@ -1,0 +1,2221 @@
+[
+  {
+    "module": "inventory",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "inventory.review",
+        "label": "View Inventory",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "inventory.create.started",
+    "eventName": "Adding your gemstone — started",
+    "triggerCondition": "Use the permission-checked inventory.create workflow. The backend accepted processing or the requested operation is genuinely in flight. Merely opening the page is not this trigger.",
+    "requiredEvidence": "started",
+    "severity": "informational",
+    "expression": "working",
+    "persistence": "activity",
+    "notificationChannels": [
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Adding your gemstone…",
+      "friendly": "I'm adding your gemstone. I'll share the confirmed result.",
+      "detailed": "I'm working on this request: adding your gemstone.[[ Reference: {record_label}.]]",
+      "followUp": "You can keep working. Review the result once processing has finished."
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "inventory",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "inventory.review",
+        "label": "View Inventory",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "inventory.create.completed",
+    "eventName": "Adding your gemstone — confirmed result",
+    "triggerCondition": "Use the permission-checked inventory.create workflow. The authoritative backend confirms the exact result described: Your gemstone has been added to inventory. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "saved",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your gemstone has been added to inventory.",
+      "friendly": "Perfect! Your gemstone[[, {gemstone_name},]] has been added to inventory.[[ Its recorded weight is {carat_weight} carats.]]",
+      "detailed": "The gemstone has been added to inventory.[[ Name: {gemstone_name}.]][[ Recorded carat weight: {carat_weight}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in inventory?"
+    },
+    "variables": {
+      "gemstone_name": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed Inventory.itemName",
+        "maxLength": 120
+      },
+      "carat_weight": {
+        "type": "number",
+        "optional": true,
+        "source": "Confirmed carat weight; never infer carats from another unit"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "inventory",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "inventory.review",
+        "label": "View Inventory",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "inventory.create.failed",
+    "eventName": "Adding your gemstone — failed or unconfirmed result",
+    "triggerCondition": "Use the permission-checked inventory.create workflow. The backend reports a failure. If only the connection/acknowledgement was lost, use general.result_unconfirmed instead. Never turn notification-delivery failure into business-operation failure.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "I couldn't confirm the result: adding your gemstone.",
+      "friendly": "I couldn't finish adding your gemstone. Shall we check the existing record before trying again?",
+      "detailed": "This request needs review: adding your gemstone. A successful result was not confirmed.[[ Reference: {record_label}.]]",
+      "urgent": "Please review this before continuing: adding your gemstone. Check the record before repeating the action.",
+      "followUp": "Shall we review inventory and check the next safe step?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "inventory",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "inventory.review",
+        "label": "View Inventory",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "inventory.update.started",
+    "eventName": "Saving gemstone details — started",
+    "triggerCondition": "Use the permission-checked inventory.update workflow. The backend accepted processing or the requested operation is genuinely in flight. Merely opening the page is not this trigger.",
+    "requiredEvidence": "started",
+    "severity": "informational",
+    "expression": "working",
+    "persistence": "activity",
+    "notificationChannels": [
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Saving gemstone details…",
+      "friendly": "This request is in progress: saving gemstone details. I'll wait for its confirmed result.",
+      "detailed": "I'm working on this request: saving gemstone details.[[ Reference: {record_label}.]]",
+      "followUp": "You can keep working. Review the result once processing has finished."
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "inventory",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "inventory.review",
+        "label": "View Inventory",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "inventory.update.completed",
+    "eventName": "Saving gemstone details — confirmed result",
+    "triggerCondition": "Use the permission-checked inventory.update workflow. The authoritative backend confirms the exact result described: Your gemstone details have been updated. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your gemstone details have been updated.",
+      "friendly": "Those gemstone details are saved and ready for your review.",
+      "detailed": "Your gemstone details have been updated.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in inventory?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "inventory",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "inventory.review",
+        "label": "View Inventory",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "inventory.update.failed",
+    "eventName": "Saving gemstone details — failed or unconfirmed result",
+    "triggerCondition": "Use the permission-checked inventory.update workflow. The backend reports a failure. If only the connection/acknowledgement was lost, use general.result_unconfirmed instead. Never turn notification-delivery failure into business-operation failure.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "I couldn't confirm the result: saving gemstone details.",
+      "friendly": "Something interrupted saving gemstone details. Please review the record before repeating it.",
+      "detailed": "This request needs review: saving gemstone details. A successful result was not confirmed.[[ Reference: {record_label}.]]",
+      "urgent": "Please review this before continuing: saving gemstone details. Check the record before repeating the action.",
+      "followUp": "Shall we review inventory and check the next safe step?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "inventory",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "inventory.review",
+        "label": "View Inventory",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "inventory.bulk_update.completed",
+    "eventName": "Updating selected gemstones — confirmed result",
+    "triggerCondition": "Use the permission-checked inventory.bulk update workflow. The authoritative backend confirms the exact result described: The selected gemstone records have been updated. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "The selected gemstone records have been updated.",
+      "friendly": "Your selected gemstones have their new details. A quick review is available.",
+      "detailed": "The selected gemstone records have been updated.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in inventory?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "media",
+    "sources": [
+      "app/api/media/upload/route.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "media.review",
+        "label": "Review Products",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "media.upload.completed",
+    "eventName": "Uploading product media — confirmed result",
+    "triggerCondition": "Use the permission-checked media.upload workflow. The authoritative backend confirms the exact result described: Your product media has been uploaded. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your product media has been uploaded.",
+      "friendly": "Your product media is uploaded. Let's check how it looks.",
+      "detailed": "Your product media has been uploaded.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in product photography and media?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "reports",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "reports.review",
+        "label": "View Reports",
+        "href": "/reports",
+        "permission": "reports:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "reports.export.completed",
+    "eventName": "Preparing your export — confirmed result",
+    "triggerCondition": "Use the permission-checked reports.export workflow. The authoritative backend confirms the exact result described: Your export is ready to download. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "saved",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your export is ready to download.",
+      "friendly": "All done! Your report[[ for {report_period}]] is ready. Shall we take a look?",
+      "detailed": "Your export is ready to download.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in reports and exports?"
+    },
+    "variables": {
+      "report_period": {
+        "type": "text",
+        "optional": true,
+        "source": "Actual requested/generated report period",
+        "maxLength": 100
+      },
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "reports",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "reports.review",
+        "label": "View Reports",
+        "href": "/reports",
+        "permission": "reports:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "reports.export.failed",
+    "eventName": "Preparing your export — failed or unconfirmed result",
+    "triggerCondition": "Use the permission-checked reports.export workflow. The backend reports a failure. If only the connection/acknowledgement was lost, use general.result_unconfirmed instead. Never turn notification-delivery failure into business-operation failure.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "persistence": "saved_issue",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "I couldn't confirm the result: preparing your export.",
+      "friendly": "Something interrupted preparing your export. Please review the record before repeating it.",
+      "detailed": "This request needs review: preparing your export. A successful result was not confirmed.[[ Reference: {record_label}.]]",
+      "urgent": "Please review this before continuing: preparing your export. Check the record before repeating the action.",
+      "followUp": "Shall we review reports and exports and check the next safe step?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "reports",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "reports.review",
+        "label": "View Reports",
+        "href": "/reports",
+        "permission": "reports:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "reports.queue.completed",
+    "eventName": "Queueing the report job — confirmed result",
+    "triggerCondition": "Use the permission-checked reports.queue workflow. The authoritative backend confirms the exact result described: Your report job has been queued. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "working",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your report job has been queued.",
+      "friendly": "Your report is in the queue. I'll show the result once processing is confirmed.",
+      "detailed": "Your report job has been queued.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in reports and exports?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "settings",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "settings.review",
+        "label": "Open Settings",
+        "href": "/settings",
+        "permission": "settings:manage",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "settings.update.completed",
+    "eventName": "Saving your ERP settings — confirmed result",
+    "triggerCondition": "Use the permission-checked settings.update workflow. The authoritative backend confirms the exact result described: Your ERP settings have been saved. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your ERP settings have been saved.",
+      "friendly": "Your settings are saved. Everything is ready for your next step.",
+      "detailed": "Your ERP settings have been saved.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in erp settings?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "notes",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "notes.review",
+        "label": "Open Notes",
+        "href": "/notes",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "notes.create.completed",
+    "eventName": "Saving your note — confirmed result",
+    "triggerCondition": "Use the permission-checked notes.create workflow. The authoritative backend confirms the exact result described: Your note has been saved. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your note has been saved.",
+      "friendly": "Your note is saved. It'll be here when you need it.",
+      "detailed": "Your note has been saved.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in notes and checklists?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "notes",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "notes.review",
+        "label": "Open Notes",
+        "href": "/notes",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "notes.update.completed",
+    "eventName": "Updating your note — confirmed result",
+    "triggerCondition": "Use the permission-checked notes.update workflow. The authoritative backend confirms the exact result described: Your note has been updated. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your note has been updated.",
+      "friendly": "Your changes are saved. Shall we keep going?",
+      "detailed": "Your note has been updated.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in notes and checklists?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "purchases",
+    "sources": [
+      "app/(dashboard)/purchases/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "purchases.review",
+        "label": "Review Purchases",
+        "href": "/purchases",
+        "permission": "purchases:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "purchases.create.completed",
+    "eventName": "Recording the purchase — confirmed result",
+    "triggerCondition": "Use the permission-checked purchases.create workflow. The authoritative backend confirms the exact result described: Your purchase has been recorded. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "saved",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your purchase has been recorded.",
+      "friendly": "Your purchase is saved. Shall we review the stock and payment details?",
+      "detailed": "Your purchase has been recorded.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in purchases?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "purchases",
+    "sources": [
+      "app/(dashboard)/purchases/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "purchases.review",
+        "label": "Review Purchases",
+        "href": "/purchases",
+        "permission": "purchases:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "purchases.update.completed",
+    "eventName": "Updating the purchase — confirmed result",
+    "triggerCondition": "Use the permission-checked purchases.update workflow. The authoritative backend confirms the exact result described: Your purchase has been updated. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your purchase has been updated.",
+      "friendly": "The purchase changes are saved and ready for review.",
+      "detailed": "Your purchase has been updated.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in purchases?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "quotations",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "quotations.review",
+        "label": "Review Quotations",
+        "href": "/quotes",
+        "permission": "quotations:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "quotations.create.completed",
+    "eventName": "Preparing the quotation — confirmed result",
+    "triggerCondition": "Use the permission-checked quotations.create workflow. The authoritative backend confirms the exact result described: Your quotation has been created. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "saved",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your quotation has been created.",
+      "friendly": "Your quotation is saved. It's ready for your review.",
+      "detailed": "Your quotation has been created.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in quotations?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "quotations",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "quotations.review",
+        "label": "Review Quotations",
+        "href": "/quotes",
+        "permission": "quotations:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "quotations.cancel.completed",
+    "eventName": "Cancelling the quotation — confirmed result",
+    "triggerCondition": "Use the permission-checked quotations.cancel workflow. The authoritative backend confirms the exact result described: The quotation has been cancelled. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "The quotation has been cancelled.",
+      "friendly": "The quotation is cancelled as requested.",
+      "detailed": "The quotation has been cancelled.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in quotations?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "quotations",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "quotations.review",
+        "label": "Review Quotations",
+        "href": "/quotes",
+        "permission": "quotations:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "quotations.send.completed",
+    "eventName": "Preparing the quotation share — confirmed result",
+    "triggerCondition": "Use the permission-checked quotations.send workflow. The authoritative backend confirms the exact result described: The quotation sharing result has been recorded. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "The quotation sharing result has been recorded.",
+      "friendly": "The quotation sharing step is recorded. Delivery depends on the selected channel.",
+      "detailed": "The quotation sharing result has been recorded.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in quotations?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "quotations",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "quotations.review",
+        "label": "Review Quotations",
+        "href": "/quotes",
+        "permission": "quotations:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "quotations.convert.completed",
+    "eventName": "Creating an invoice from the quotation — confirmed result",
+    "triggerCondition": "Use the permission-checked quotations.convert workflow. The authoritative backend confirms the exact result described: The quotation has been converted to an invoice. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "activity",
+    "notificationChannels": [
+      "toast",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "The quotation has been converted to an invoice.",
+      "friendly": "Your invoice is ready from the quotation. Please review its billing details.",
+      "detailed": "The quotation has been converted to an invoice.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in quotations?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "sales",
+    "sources": [
+      "app/(dashboard)/sales/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "sales.review",
+        "label": "Review Sales",
+        "href": "/sales",
+        "permission": "sales:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "sales.create.completed",
+    "eventName": "Recording the sale — confirmed result",
+    "triggerCondition": "Use the permission-checked sales.create workflow. The authoritative backend confirms the exact result described: Your sale has been recorded. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "saved",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your sale has been recorded.",
+      "friendly": "Your sale is saved. The linked invoice is ready for review.",
+      "detailed": "Your sale has been recorded.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in sales?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "invoices",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "invoices.review",
+        "label": "Review Invoices",
+        "href": "/invoices",
+        "permission": "sales:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "invoices.create.completed",
+    "eventName": "Preparing the invoice — confirmed result",
+    "triggerCondition": "Use the permission-checked invoices.create workflow. The authoritative backend confirms the exact result described: Your invoice has been created. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "saved",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "Your invoice has been created.",
+      "friendly": "Your invoice is ready. Shall we review it together?",
+      "detailed": "Your invoice has been created.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in invoices?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "module": "payments",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source",
+    "availableActions": [
+      {
+        "id": "payments.review",
+        "label": "Review Invoices",
+        "href": "/invoices",
+        "permission": "sales:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "id": "payments.record.completed",
+    "eventName": "Recording the invoice payment — confirmed result",
+    "triggerCondition": "Use the permission-checked payments.record workflow. The authoritative backend confirms the exact result described: The invoice payment has been recorded. Queueing, sharing-link preparation and print-file generation are not delivery, sending or physical printing.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "persistence": "saved",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "activity",
+      "companion"
+    ],
+    "variants": {
+      "short": "The invoice payment has been recorded.",
+      "friendly": "Your payment entry is saved against the invoice. You can review the updated balance.",
+      "detailed": "The invoice payment has been recorded.[[ Reference: {record_label}.]][[ Affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Would you like to review this in invoice payments?"
+    },
+    "variables": {
+      "record_label": {
+        "type": "text",
+        "optional": true,
+        "source": "Confirmed record label from the permission-filtered result",
+        "maxLength": 120
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.introduction",
+    "module": "general",
+    "eventName": "general / introduction",
+    "triggerCondition": "First introduction for this signed-in account on this browser; never on each navigation.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "I'm Khyra! How can I make your work easier today?",
+      "friendly": "I'm Khyra! How can I make your work easier today?",
+      "detailed": "I'm Khyra, your KhyatiGems Companion. I can help you review permitted updates and choose your next step.",
+      "followUp": "Shall we explore your business tools?"
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.returning",
+    "module": "general",
+    "eventName": "general / returning",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Welcome back!",
+      "friendly": "Welcome back! What would you like to work on next?",
+      "detailed": "Welcome back! What would you like to work on next? Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.morning",
+    "module": "general",
+    "eventName": "general / morning",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Good morning!",
+      "friendly": "Good morning! Shall we see what needs your attention today?",
+      "detailed": "Good morning! Shall we see what needs your attention today? Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.afternoon",
+    "module": "general",
+    "eventName": "general / afternoon",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Good afternoon!",
+      "friendly": "Good afternoon! Ready to pick up your next task?",
+      "detailed": "Good afternoon! Ready to pick up your next task? Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.evening",
+    "module": "general",
+    "eventName": "general / evening",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Good evening!",
+      "friendly": "Good evening! Shall we review where things stand?",
+      "detailed": "Good evening! Shall we review where things stand? Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.welcome_back",
+    "module": "general",
+    "eventName": "general / welcome_back",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Ready when you are.",
+      "friendly": "Welcome back. Your updates are here whenever you'd like to review them.",
+      "detailed": "Welcome back. Your updates are here whenever you'd like to review them. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.inactivity_return",
+    "module": "general",
+    "eventName": "general / inactivity_return",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Nice to see you back.",
+      "friendly": "Ready to continue? We can pick up with your current work.",
+      "detailed": "Ready to continue? We can pick up with your current work. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.help",
+    "module": "general",
+    "eventName": "general / help",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "How can I help?",
+      "friendly": "What would make your next step easier? Your permitted shortcuts are right here.",
+      "detailed": "What would make your next step easier? Your permitted shortcuts are right here. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.acknowledgement",
+    "module": "general",
+    "eventName": "general / acknowledgement",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Of course.",
+      "friendly": "Of course. Let's take this one step at a time.",
+      "detailed": "Of course. Let's take this one step at a time. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.farewell",
+    "module": "general",
+    "eventName": "general / farewell",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "See you next time.",
+      "friendly": "That's all for now. I'll be here when you're ready to continue.",
+      "detailed": "That's all for now. I'll be here when you're ready to continue. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.idle",
+    "module": "general",
+    "eventName": "general / idle",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "idle",
+    "variants": {
+      "short": "Ready whenever you are.",
+      "friendly": "I'm here if you'd like a hand with your next review.",
+      "detailed": "I'm here if you'd like a hand with your next review. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.daily_review",
+    "module": "general",
+    "eventName": "general / daily_review",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Shall we review your business?",
+      "friendly": "Ready for a quick business review? I'll use the latest permitted records.",
+      "detailed": "Ready for a quick business review? I'll use the latest permitted records. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.quiet",
+    "module": "general",
+    "eventName": "general / quiet",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "rest",
+    "variants": {
+      "short": "Resting quietly.",
+      "friendly": "I'll stay quiet. Open my tools whenever you need me.",
+      "detailed": "I'll stay quiet. Open my tools whenever you need me. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.snoozed",
+    "module": "general",
+    "eventName": "general / snoozed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "rest",
+    "variants": {
+      "short": "Alerts are snoozed.",
+      "friendly": "I'll pause these interruptions for the time you selected. Your history stays available.",
+      "detailed": "I'll pause these interruptions for the time you selected. Your history stays available. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "manual",
+      "companion"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.result_unconfirmed",
+    "module": "general",
+    "eventName": "general / result_unconfirmed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "The result needs checking.",
+      "friendly": "The connection dropped, so I can't confirm the result. Please check the record before trying again.",
+      "detailed": "The request acknowledgement was unavailable. The operation may or may not have committed; don't repeat a payment, sale or other mutation until its existing record is checked.",
+      "followUp": "Shall we check the record and its recent activity?"
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "saved_issue",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.recovery_verified",
+    "module": "general",
+    "eventName": "general / recovery_verified",
+    "triggerCondition": "A stored resolvedAt exists only after independently verified successful recovery; never from reading or acknowledgement.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Recovery confirmed.",
+      "friendly": "That issue has a verified recovery. You can review the history whenever you'd like.",
+      "detailed": "A successful recovery was independently confirmed.[[ Earlier update: {context_summary}]]",
+      "followUp": "Would you like to review the recovery history?"
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.read",
+    "module": "general",
+    "eventName": "general / read",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Update marked as read.",
+      "friendly": "I've marked that update as read. Acknowledgement and resolution remain separate.",
+      "detailed": "Only this signed-in user's read state was changed. No operational recovery is implied.",
+      "followUp": "You can acknowledge the issue separately if appropriate."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.acknowledged",
+    "module": "general",
+    "eventName": "general / acknowledged",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Acknowledgement saved.",
+      "friendly": "I've recorded your acknowledgement. The issue stays open until recovery is verified.",
+      "detailed": "Acknowledgement records the user's explicit review, not independent resolution.",
+      "followUp": "Use the existing record to review any remaining work."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "none",
+    "notificationChannels": [
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.permission",
+    "module": "general",
+    "eventName": "general / permission",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "This action needs permission.",
+      "friendly": "Your account doesn't have access to that action. An authorised administrator can review your permissions.",
+      "detailed": "The existing server permission check denied the requested action. No restricted business information is included.",
+      "followUp": "Please ask an authorised administrator to review access."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "saved_issue",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "general.connection",
+    "module": "general",
+    "eventName": "general / connection",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "The connection needs a check.",
+      "friendly": "I'm having trouble reaching the ERP. Your recent work needs a result check before you retry.",
+      "detailed": "The server connection was unavailable. This is not proof that a mutation failed or that an existing record changed.",
+      "followUp": "Check your connection, then review the current record."
+    },
+    "support": "verified_source",
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "persistence": "saved_issue",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "general.review",
+        "label": "Review Khyra",
+        "href": "/",
+        "permission": null,
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {},
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "inventory.images_missing",
+    "module": "inventory",
+    "eventName": "inventory / images_missing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Product photographs need review.",
+      "friendly": "I noticed some gemstones are missing photographs. Shall we review them?",
+      "detailed": "In-stock products have no primary image or IMAGE/image media.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    },
+    "support": "verified_source",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "persistence": "saved_issue",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "inventory.review",
+        "label": "View Inventory",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "inventory.certificates_missing",
+    "module": "inventory",
+    "eventName": "inventory / certificates_missing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "alert",
+    "variants": {
+      "short": "Certificate details need review.",
+      "friendly": "I noticed some gemstones are missing certificate numbers. Would you like to review them?",
+      "detailed": "Both certificate-number fields are empty after trimming whitespace.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    },
+    "support": "verified_source",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "persistence": "saved_issue",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "inventory.review",
+        "label": "View Inventory",
+        "href": "/inventory",
+        "permission": "inventory:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "marketplace.sync.issue",
+    "module": "marketplace",
+    "eventName": "marketplace / sync / issue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Your marketplace sync needs a look.",
+      "friendly": "Oh! Your[[ {marketplace_name}]] marketplace sync didn't finish cleanly. Shall we review it before trying again?",
+      "detailed": "A saved marketplace job failed or completed with record errors.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    },
+    "support": "verified_source",
+    "sources": [
+      "lib/marketplace/sync-jobs.ts"
+    ],
+    "persistence": "saved_issue",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "marketplace.review",
+        "label": "Review Sync History",
+        "href": "/marketplace-sync-history",
+        "permission": "listings:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {
+      "marketplace_name": {
+        "type": "text",
+        "optional": true,
+        "source": "Verified marketplace connection/provider name",
+        "maxLength": 60
+      },
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "marketplace.jobs_stuck",
+    "module": "marketplace",
+    "eventName": "marketplace / jobs_stuck",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Marketplace jobs need review.",
+      "friendly": "I found marketplace jobs that need a progress check. Shall we review the history?",
+      "detailed": "The user's saved jobs failed, completed partially, or stopped updating beyond the configured stale threshold.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    },
+    "support": "verified_source",
+    "sources": [
+      "lib/marketplace/sync-jobs.ts"
+    ],
+    "persistence": "saved_issue",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "marketplace.review",
+        "label": "Review Sync History",
+        "href": "/marketplace-sync-history",
+        "permission": "listings:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  },
+  {
+    "id": "reports.exports_failed",
+    "module": "reports",
+    "eventName": "reports / exports_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Some exports need review.",
+      "friendly": "I found export jobs that couldn't be prepared. Would you like to review them?",
+      "detailed": "The authorised report job source returned FAILED jobs for the current user.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    },
+    "support": "verified_source",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "persistence": "saved_issue",
+    "notificationChannels": [
+      "saved",
+      "bell",
+      "companion",
+      "activity"
+    ],
+    "availableActions": [
+      {
+        "id": "reports.review",
+        "label": "View Reports",
+        "href": "/reports",
+        "permission": "reports:view",
+        "requiresSession": true,
+        "kind": "navigate"
+      }
+    ],
+    "variables": {
+      "affected_count": {
+        "type": "count",
+        "optional": true,
+        "source": "Verified affected-record count from the authorised query"
+      },
+      "context_summary": {
+        "type": "text",
+        "optional": true,
+        "source": "Existing authorised business-event summary; never a raw exception",
+        "maxLength": 500
+      }
+    },
+    "supportLabel": "Catalogued from an existing ERP source; emit only after its trigger is confirmed"
+  }
+]

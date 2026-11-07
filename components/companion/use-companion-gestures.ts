@@ -1,5 +1,6 @@
 "use client";
 
+import { officialCompanionAssetsReady } from "@/lib/companion-avatar";
 import { useEffect, useRef, useState } from "react";
 
 export const COMPANION_REST_DELAY = 60_000;
@@ -7,7 +8,7 @@ export const COMPANION_REST_DELAY = 60_000;
 /** User inactivity is local UI state, never a claim about business/job status. */
 export function useCompanionGestures(wakeSignal: string, disabled: boolean) {
   const [resting, setResting] = useState(false);
-  const [reaction, setReaction] = useState<"happy" | "wink" | null>(null);
+  const [reaction, setReaction] = useState<"happy" | "wink" | "wave" | "greeting-soft" | null>(null);
   const [mode, setMode] = useState({ wakeSignal, disabled });
   if (mode.wakeSignal !== wakeSignal || mode.disabled !== disabled) {
     setMode({ wakeSignal, disabled });
@@ -44,11 +45,11 @@ export function useCompanionGestures(wakeSignal: string, disabled: boolean) {
     if (disabled) return;
     hovered.current = true; lastActive.current = Date.now(); restRef.current = false; setResting(false);
     clearTimeout(reactionTimer.current);
-    setReaction(turn.current++ % 2 ? "wink" : "happy");
+    setReaction(officialCompanionAssetsReady ? (turn.current++ % 2 ? "greeting-soft" : "wave") : (turn.current++ % 2 ? "wink" : "happy"));
     // A short wink follows the welcome smile; avoid a continuous reaction loop.
     reactionTimer.current = setTimeout(() => {
       if (!hovered.current) return;
-      setReaction("wink");
+      setReaction(officialCompanionAssetsReady ? "greeting-soft" : "wink");
       reactionTimer.current = setTimeout(() => { setReaction(null); hovered.current = false; }, 1500);
     }, 800);
   }

@@ -112,7 +112,13 @@ async function main(directory: string) {
     let unlock = await unlockResponse(true);
     assert.equal((await lockPost({ action: "verify", response: unlock })).status, 200, "enable requires a real signed passkey assertion");
     assert.equal(await gate(), null, "unlocked session can use business APIs");
-    assert.equal((await gate("/settings/security", true))?.status, 307, "reopening/reloading requires fresh verification even with an old unlock cookie");
+    assert.equal(await gate("/settings/security", true), null, "refresh/reopen during the grace grant does not relock");
+    assert.equal(await gate("/inventory?status=filtered", true), null, "table filter document navigation remains unlocked");
+    assert.equal((await lockPost({ action: "suspend" })).status, 200);
+    assert.equal(await gate(), null, "short background absence retains the valid grant");
+    assert.equal((await lockPost({ action: "heartbeat" })).status, 200, "return within grace resumes without a signature");
+    await lockPost({ action: "lock" });
+    assert.equal((await gate("/settings/security", true))?.status, 307, "explicit lock redirects documents immediately");
     assert.equal((await gate())?.status, 423, "business APIs are blocked while locked");
     assert.equal((await gate("/api/export/private.csv"))?.status, 423, "download APIs obey lock too");
     assert.equal(await gate("/api/auth/app-lock"), null, "unlock protocol remains reachable");
@@ -129,8 +135,9 @@ async function main(directory: string) {
     unlock = await unlockResponse(false, true);
     assert.equal((await lockPost({ action: "verify", response: unlock })).status, 200);
     assert.equal((await lockPost({ action: "verify", response: unlock })).status, 400, "unlock assertion replay rejected");
-    assert.equal(await gate("/settings/security", true), null, "verified redirect can enter the workspace once");
-    assert.equal((await gate("/settings/security", true))?.status, 307, "second document open relocks");
+    assert.equal(await gate("/settings/security", true), null, "verified redirect can enter the workspace");
+    assert.equal(await gate("/inventory?filter=gem", true), null, "subsequent filter/refresh navigation stays unlocked");
+    await lockPost({ action: "lock" });
     unlock = await unlockResponse();
     await lockPost({ action: "lock" });
     assert.equal((await lockPost({ action: "verify", response: unlock })).status, 409, "closing during biometric verification invalidates its pending grant");
@@ -140,6 +147,7 @@ async function main(directory: string) {
     await prisma.$executeRaw`UPDATE SecurityAppLock SET expiresAt = 1 WHERE sessionId = ${appSessionId}`;
     assert.equal((await lockPost({ action: "heartbeat" })).status, 423, "heartbeat cannot revive expired unlock");
     assert.equal((await gate())?.status, 423);
+    assert.equal((await lockPost({ action: "suspend" })).status, 423, "suspend cannot revive an expired grant");
     unlock = await unlockResponse(); await lockPost({ action: "verify", response: unlock });
     assert.equal((await lockPost({ action: "disable", password: "wrong" })).status, 401);
     unlock = await unlockResponse();
@@ -148,7 +156,7 @@ async function main(directory: string) {
     const lockState = await (await getAppLock(new Request(origin, { headers: { cookie: cookies } }), identify)).json();
     assert.equal(lockState.enabled, false);
     assert.equal(await gate(), null);
-    console.log("App-lock server integration passed: signed unlock/enable, reopening, API and action enforcement, session binding, single-use entry, lock/verify races, expiry, heartbeat and protected disable.");
+    console.log("App-lock server integration passed: signed unlock/enable, reopening, API and action enforcement, session binding, filter navigation, background grace, lock/verify races, expiry, heartbeat and protected disable.");
     assert.equal((await post({ action: "preference", preference: "never" })).status, 200);
     assert.equal((await (await getPasskeys(new Request(`${origin}/api/auth/passkeys`), identify)).json()).promptAfter, "never");
     // Existing app-unlock assertions cannot be exchanged for a login session.
@@ -161,6 +169,7 @@ async function main(directory: string) {
     assert.ok([400, 401].includes((await lockPost({ action: "verify", response: wrong })).status), "invalid signature cannot unlock app");
     assert.equal((await lockPost({ action: "verify", response: unlock })).status, 400, "failed verification consumes challenge");
     assert.equal((await gate())?.status, 423);
+    assert.equal((await lockPost({ action: "suspend" })).status, 423, "suspend cannot revive an expired grant");
     unlock = await unlockResponse(); await lockPost({ action: "verify", response: unlock });
     await lockPost({ action: "disable", password });
     const { digest } = await import("@/lib/security/core");

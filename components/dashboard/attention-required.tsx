@@ -224,7 +224,7 @@ export function AttentionRequired({ data }: AttentionRequiredProps) {
                 key={item.id}
                 href={item.href}
                 className={cn(
-                  "group flex items-center gap-3 rounded-lg border border-[#1E293B] p-3 transition-all duration-150",
+                  "group flex items-center gap-3 rounded-lg border border-[#1E293B] p-3 transition-[color,background-color,border-color,opacity,transform] duration-150",
                   config.hover,
                   "hover:border-[#334155]"
                 )}
@@ -237,7 +237,7 @@ export function AttentionRequired({ data }: AttentionRequiredProps) {
                     <span className="text-sm font-medium text-[#F8FAFC] truncate group-hover:text-primary transition-colors">
                       {item.title}
                     </span>
-                    <span className={cn("flex h-5 items-center rounded-full border px-2 text-[10px] font-semibold shrink-0", config.badge)}>
+                    <span className={cn("flex h-5 items-center rounded-full border px-2 text-xs font-semibold shrink-0", config.badge)}>
                       {item.count || "!"}
                     </span>
                   </div>

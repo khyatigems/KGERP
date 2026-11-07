@@ -64,7 +64,7 @@ export function TodaysActionsWidget({ data }: { data: TodaysActionsData }) {
                                 <item.icon className={`h-4 w-4 ${item.color}`} />
                                 <span className={`text-xs font-medium ${item.labelColor}`}>{item.label}</span>
                             </div>
-                            <span className={`text-2xl font-bold ${item.color}`}>{item.count}</span>
+                            <span className={`text-2xl font-semibold ${item.color}`}>{item.count}</span>
                         </div>
                     ))}
                 </div>

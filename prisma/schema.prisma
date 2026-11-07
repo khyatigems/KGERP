@@ -65,12 +65,16 @@ model Notification {
   title       String
   message     String
   href        String?
+  acknowledgedAt DateTime?
+  resolvedAt DateTime?
+  snoozedUntil DateTime?
   readAt      DateTime?
   createdAt   DateTime @default(now())
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventKey])
   @@index([userId, readAt, createdAt])
+  @@index([userId, createdAt, id])
 }
 
 model Permission {

@@ -1,5 +1,6 @@
 "use client";
 
+import { saleCreatedEventKey } from "@/lib/business-event-identity";
 import { useForm, type Resolver, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -470,6 +471,7 @@ export function SaleForm({ inventoryItems, existingCustomers = [] }: SaleFormPro
         
         if (result && 'success' in result && result.success) {
             toast.success(result.message || "Sale created & invoice generated successfully", {
+              id: result.invoiceId ? saleCreatedEventKey(result.invoiceId) : undefined,
               action: {
                 label: "View sales",
                 onClick: () => router.push("/sales"),

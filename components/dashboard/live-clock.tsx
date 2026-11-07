@@ -19,10 +19,10 @@ export function LiveClock({ className }: LiveClockProps) {
 
   return (
     <div className={cn("flex flex-col items-end", className)}>
-      <div className="text-xl font-bold tracking-tight font-mono">
+      <div className="text-xl font-semibold tracking-tight font-mono">
         {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
       </div>
-      <div className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
+      <div className="text-xs text-muted-foreground normal-case font-semibold tracking-normal">
         {time.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
       </div>
     </div>

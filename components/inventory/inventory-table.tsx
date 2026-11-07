@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,9 @@ import { formatDate } from "@/lib/utils";
 import { formatInrNumber } from "@/lib/number-formatting";
 import { BulkEditDialog } from "./bulk-edit-dialog";
 import { BulkCertificateDialog } from "./bulk-certificate-dialog";
-import { Edit, ShieldCheck } from "lucide-react";
+import { Edit, ShieldCheck, AlertTriangle } from "lucide-react";
 import dynamic from "next/dynamic";
+import { VirtualTableBody, VIRTUAL_ROW_THRESHOLD } from "@/components/ui/virtual-table-body";
 import { RegenerateEbayButton, RegenerateEtsyButton } from "./regenerate-ebay-button";
 
 const InventoryDetailDrawer = dynamic(
@@ -51,6 +52,7 @@ export function InventoryTable({
   origins = [],
 }: InventoryTableProps) {
   const router = useRouter();
+  const tableScrollRef = useRef<HTMLDivElement>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkEditDialogOpen, setIsBulkEditDialogOpen] = useState(false);
   const [isBulkCertificateDialogOpen, setIsBulkCertificateDialogOpen] = useState(false);
@@ -109,7 +111,7 @@ export function InventoryTable({
             {selectedIds.length} selected
             {selectedSummary ? (
               <span className="ml-2 text-xs text-muted-foreground">
-                | ₹{formatInrNumber(selectedSummary.total, 0)} total | Avg ₹{formatInrNumber(selectedSummary.avg, 0)}
+                | ₹{formatInrNumber(selectedSummary.total, 2)} total | Avg ₹{formatInrNumber(selectedSummary.avg, 2)}
               </span>
             ) : null}
           </span>
@@ -143,8 +145,8 @@ export function InventoryTable({
         </div>
         <InventoryCardList data={data} selectedIds={selectedIds} onSelectOne={handleSelectOne} />
       </div> : <div className="inventory-table-shell">
-        <Table className="inventory-items-table">
-          <TableHeader>
+        <Table className="inventory-items-table" containerRef={tableScrollRef} containerClassName={data.length >= VIRTUAL_ROW_THRESHOLD ? "max-h-[70dvh] overflow-auto" : undefined} aria-rowcount={data.length + 1}>
+          <TableHeader className={data.length >= VIRTUAL_ROW_THRESHOLD ? "sticky top-0 z-10 bg-card" : undefined}>
             <TableRow>
               <TableHead className="w-10">
                 <Checkbox
@@ -164,15 +166,9 @@ export function InventoryTable({
               <TableHead className="inventory-actions-col text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {data.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center">
-                  No inventory items found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              data.map((item) => {
+          <VirtualTableBody items={data} getKey={item => item.id} scrollRef={tableScrollRef} columns={10}
+            empty={<TableRow><TableCell colSpan={10} className="h-24 text-center">No inventory items found.</TableCell></TableRow>}
+            renderRow={(item) => {
                 const price =
                   item.pricingMode === "PER_CARAT"
                     ? (item.sellingRatePerCarat || 0) * (item.weightValue || 0)
@@ -236,7 +232,7 @@ export function InventoryTable({
                         const hasCertNo = !!(item.certificateNo && String(item.certificateNo).trim());
                         const hasCertNum = !!(item.certificateNumber && String(item.certificateNumber).trim());
 
-                        if (!hasCertNo && !hasCertNum && !certUrl) return <span className="text-amber-600">— ⚠</span>;
+                        if (!hasCertNo && !hasCertNum && !certUrl) return <span className="inline-flex items-center gap-2 text-amber-700 dark:text-amber-300" title="Certificate details missing"><AlertTriangle size={16} strokeWidth={1.5} aria-hidden="true" />Missing</span>;
 
                         const provider = providerFromCodes || String((item).lab || (item).certificateLab || "") || "GCI";
 
@@ -257,7 +253,7 @@ export function InventoryTable({
                         );
                       })()}
                     </TableCell>
-                    <TableCell className="font-semibold">₹{formatInrNumber(Number(price || 0), 0)}</TableCell>
+                    <TableCell className="font-semibold">₹{formatInrNumber(Number(price || 0), 2)}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
@@ -286,9 +282,8 @@ export function InventoryTable({
                     </TableCell>
                   </TableRow>
                 );
-              })
-            )}
-          </TableBody>
+              }}
+          />
         </Table>
       </div>}
 

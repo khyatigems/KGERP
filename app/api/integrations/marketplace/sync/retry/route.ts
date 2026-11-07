@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
       })),
     }));
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: `Could not queue retry: ${message}` }, { status: 409 });
+    console.error("Could not queue marketplace retry", { error });
+    return NextResponse.json({ error: "Could not queue retry. Please try again." }, { status: 409 });
   }
 
   const jobs = await prisma.marketplaceSyncJob.findMany({
@@ -78,6 +78,12 @@ export async function POST(request: NextRequest) {
     include: { marketplaceShop: { select: { marketplace: true, name: true } } },
     orderBy: { createdAt: "asc" },
   });
+  // Secondary notification linkage must not change a successfully queued retry outcome.
+  for (const job of jobs) {
+    const sourceIds = retryable.filter(source => source.marketplaceShopId === job.marketplaceShopId && source.syncType === job.syncType).map(source => source.id);
+    try { await prisma.setting.upsert({ where: { key: `notification-recovery:${job.id}` }, create: { key: `notification-recovery:${job.id}`, value: JSON.stringify(sourceIds) }, update: {} }); }
+    catch { console.error("Could not link notification recovery", { jobId: job.id }); }
+  }
   const audit = marketplaceSyncAudit(jobs, true);
   await logMarketplaceActivity({
     entityType: "MarketplaceSyncJob",

@@ -266,7 +266,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
             {item.badge === "conflicts" && pendingConflicts > 0 && (
               <span
                 title={`${pendingConflicts} open marketplace conflict${pendingConflicts === 1 ? "" : "s"}`}
-                className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold text-white px-1"
+                className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 text-xs font-semibold text-white px-1"
               >
                 {pendingConflicts > 99 ? "99+" : pendingConflicts}
               </span>
@@ -274,7 +274,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
             {item.badge === "communication-unread" && unreadCommunications > 0 && (
               <span
                 title={`${unreadCommunications} unread communication${unreadCommunications === 1 ? "" : "s"}`}
-                className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+                className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs font-semibold text-primary-foreground"
               >
                 {unreadCommunications > 99 ? "99+" : unreadCommunications}
               </span>
@@ -306,18 +306,18 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
           onClick={() => toggleGroup(group.id)}
           className={cn(
             "flex items-center gap-2 px-3 py-2 rounded-lg transition-colors duration-150 hover:bg-sidebar-accent/50",
-            "text-[10px] font-semibold uppercase tracking-[.12em]",
+            "text-xs font-medium",
             "text-muted-foreground hover:text-sidebar-foreground"
           )}
           aria-expanded={expanded}
           suppressHydrationWarning
         >
-          <GroupIcon className={cn("h-3.5 w-3.5 shrink-0", "text-primary/80")} />
+          <GroupIcon className={cn("h-3.5 w-3.5 shrink-0", "text-muted-foreground")} />
           <span className="truncate">{group.label}</span>
           <ChevronRightIcon className={cn("ml-auto h-3.5 w-3.5 shrink-0 transition-transform duration-200", expanded && "rotate-90")} />
         </button>
         <div className={cn(
-          "overflow-hidden transition-all duration-300 ease-in-out",
+          "overflow-hidden transition-opacity duration-150",
           expanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         )} suppressHydrationWarning>
           <div className="grid gap-1 pl-1">
@@ -338,7 +338,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
       >
         <Link href="/" className="flex items-center gap-2 font-semibold text-sidebar-foreground" onClick={() => handleNavigation("/")} title="KhyatiGems™ ERP">
           {collapsed ? (
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 transition-all duration-300">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 transition-[color,background-color,border-color,opacity,transform] duration-300">
               <svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
                 <g>
                   <g>
@@ -352,7 +352,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
               </svg>
             </span>
           ) : (
-            <span className="flex items-center gap-2 transition-all duration-300">
+            <span className="flex items-center gap-2 transition-[color,background-color,border-color,opacity,transform] duration-300">
               <svg viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 shrink-0 ">
                 <g>
                   <g>
@@ -373,7 +373,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
             type="button"
             onClick={toggleCollapsed}
             aria-label="Expand sidebar"
-            className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-all duration-200 lg:flex"
+            className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-[color,background-color,border-color,opacity,transform] duration-200 lg:flex"
           >
             <ChevronRightIcon className={cn("h-4 w-4 transition-transform duration-150", !collapsed && "rotate-180")} />
           </button>
@@ -384,7 +384,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
               type="button"
               onClick={toggleCollapsed}
               aria-label="Collapse sidebar"
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-all duration-200"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-[color,background-color,border-color,opacity,transform] duration-200"
             >
               <ChevronRightIcon className={cn("h-4 w-4 transition-transform duration-150", !collapsed && "rotate-180")} />
             </button>
@@ -396,7 +396,7 @@ export function SidebarContent({ onNavigate, allowedModules = ["ALL"], initialEx
           {navGroups.map(group => renderGroup(group))}
         </nav>
       </div>
-      <div className={cn("flex shrink-0 items-center gap-3 border-t border-sidebar-border p-3", collapsed && "justify-center")}><ThemeToggle instance={onNavigate ? "mobile" : "desktop"} />{!collapsed && <div className="min-w-0"><p className="text-xs font-medium">Appearance</p><p className="mt-0.5 text-[10px] text-muted-foreground">Theme, view & companion</p></div>}</div>
+      <div className={cn("flex shrink-0 items-center gap-3 border-t border-sidebar-border p-3", collapsed && "justify-center")}><ThemeToggle instance={onNavigate ? "mobile" : "desktop"} />{!collapsed && <div className="min-w-0"><p className="text-xs font-medium">Appearance</p><p className="mt-0.5 text-xs text-muted-foreground">Theme, view & companion</p></div>}</div>
     </div>
   );
 }

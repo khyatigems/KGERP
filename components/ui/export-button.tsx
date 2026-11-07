@@ -100,7 +100,7 @@ export function ExportButton({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="ml-auto transition-all duration-200 hover:scale-105 active:scale-95">
+        <Button variant="outline" size="sm" className="ml-auto transition-[color,background-color,border-color,opacity,transform] duration-200 hover:scale-105 active:scale-95">
           <Download className="mr-2 h-4 w-4" />
           {label}
         </Button>

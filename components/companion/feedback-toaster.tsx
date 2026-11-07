@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { Toaster as SonnerToaster, toast, useSonner, type ToastT, type ToasterProps } from "sonner";
-import { companionRuntime, COMPANION_TOASTER_ID, isMarketplaceSyncToast } from "@/lib/companion-runtime";
+import { companionOperationMetadata, companionRuntime, COMPANION_TOASTER_ID, isMarketplaceSyncToast } from "@/lib/companion-runtime";
 import { X } from "lucide-react";
 import { FeedbackIcon } from "@/components/ui/feedback-icon";
 
@@ -15,6 +15,7 @@ export function FeedbackToaster(props: ToasterProps) {
     for (const item of toasts) {
       if (!liveIds.has(item.id)) continue;
       if (isMarketplaceSyncToast(item.id, item.className)) continue;
+      if (item.jsx && !companionOperationMetadata(item.id)) continue;
       const target = active ? COMPANION_TOASTER_ID : undefined;
       if (item.toasterId === target || item.toasterId && item.toasterId !== COMPANION_TOASTER_ID) continue;
       const options = { ...item, toasterId: target };

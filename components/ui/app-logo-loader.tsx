@@ -69,10 +69,10 @@ export function AppLogoLoader({
 
       {/* Brand text */}
       <div className="flex flex-col items-center gap-1.5">
-        <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+        <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
           KhyatiGems<span className="text-primary">™</span>
         </h1>
-        <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground font-medium">
+        <p className="text-xs normal-case tracking-normal text-muted-foreground font-medium">
           Enterprise ERP
         </p>
       </div>
@@ -86,7 +86,7 @@ export function AppLogoLoader({
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent animate-shimmer" />
             {/* Progress fill */}
             <div
-              className="h-full rounded-full transition-all duration-[400ms] ease-out relative"
+              className="h-full rounded-full transition-[color,background-color,border-color,opacity,transform] duration-[400ms] ease-out relative"
               style={{ width: `${pct}%` }}
             >
               {/* Main gradient */}
@@ -102,7 +102,7 @@ export function AppLogoLoader({
             <span className="text-xs font-semibold tabular-nums text-primary">
               {Math.round(pct)}%
             </span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+            <span className="text-xs text-muted-foreground normal-case tracking-normal">
               Loading
             </span>
           </div>

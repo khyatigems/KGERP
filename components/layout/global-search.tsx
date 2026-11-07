@@ -127,7 +127,7 @@ export function GlobalSearch() {
           role="combobox"
           value={query}
         />
-        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 text-[10px] text-muted-foreground">
+        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1 text-xs text-muted-foreground">
           {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : query
             ? <button
                 aria-label="Clear search"
@@ -173,7 +173,7 @@ export function GlobalSearch() {
                   }}
                   role="option"
                 >
-                  <span className="min-w-20 rounded-md bg-primary/10 px-2 py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  <span className="min-w-20 rounded-md bg-primary/10 px-2 py-1 text-center text-xs font-semibold normal-case tracking-wide text-primary">
                     {result.type}
                   </span>
                   <span className="min-w-0 flex-1">

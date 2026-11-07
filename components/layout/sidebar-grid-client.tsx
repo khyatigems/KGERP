@@ -9,7 +9,7 @@ export function SidebarGridClient({ children }: { children: ReactNode }) {
   return (
     <div
       className={cn(
-        "grid min-h-screen w-full transition-all duration-300",
+        "grid min-h-screen w-full",
         "lg:grid-cols-[var(--sidebar-w,250px)_minmax(0,1fr)]"
       )}
       style={

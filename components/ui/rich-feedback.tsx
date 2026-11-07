@@ -11,7 +11,7 @@ const labels: Record<FeedbackState, string> = {
 };
 
 export function RichFeedbackTitle({ state, children, label }: { state: FeedbackState; children?: ReactNode; label?: string }) {
-  return <div className="erp-feedback-heading"><div className="erp-feedback-eyebrow">{label || "KHYATI ERP"}<span />{labels[state]}</div><div className="erp-feedback-title">{children}</div></div>;
+  return <div className="erp-feedback-heading"><div className="erp-feedback-eyebrow">{label || "KhyatiGems ERP"}<span />{labels[state]}</div><div className="erp-feedback-title">{children}</div></div>;
 }
 
 export function RichFeedbackDetails({ children, label = "View details" }: { children?: ReactNode; label?: string }) {

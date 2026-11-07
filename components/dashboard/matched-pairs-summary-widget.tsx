@@ -31,7 +31,7 @@ export function MatchedPairsSummaryWidget() {
           <div key={label} className="rounded-lg border border-border/70 bg-muted/25 px-2.5 py-2">
             <div className="mb-1 flex items-center gap-1.5 text-muted-foreground">
               <Icon className={`h-3.5 w-3.5 ${color}`} />
-              <span className="text-[10px]">{label}</span>
+              <span className="text-xs">{label}</span>
             </div>
             <p className="text-lg font-semibold leading-none tabular-nums">
               {isLoading && !data ? <span className="inline-block h-5 w-8 animate-pulse rounded bg-muted" /> : value}
@@ -46,7 +46,7 @@ export function MatchedPairsSummaryWidget() {
             <TrendingUp className="h-3.5 w-3.5" />
           </span>
           <div className="min-w-0">
-            <p className="text-[10px] text-muted-foreground">Potential bundle value</p>
+            <p className="text-xs text-muted-foreground">Potential bundle value</p>
             <p className="truncate text-sm font-semibold">
               {isLoading && !data ? "Loading..." : formatCurrency(data?.totalValue ?? 0)}
             </p>

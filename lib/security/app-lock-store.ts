@@ -5,7 +5,7 @@ import { ensurePasskeySchema } from "./passkey-store";
 
 export const APP_LOCK_COOKIE = "erp-app-unlock";
 export const APP_LOCK_CHALLENGE_COOKIE = "erp-app-unlock-challenge";
-export const APP_LOCK_LEASE_MS = 60000;
+import { APP_LOCK_LEASE_MS } from "./app-lock-timing";
 type Row = { sessionId: string; userId: string; enabled: number; version: string; grantHash: string; expiresAt: number; credentialId: string; entryAllowed: number; hasCredential: number };
 let ready: Promise<void> | undefined;
 export function ensureAppLockSchema() {
@@ -33,25 +33,20 @@ export async function lockApp(sessionId: string, userId: string) {
   await ensureAppLockSchema();
   await prisma.$executeRaw`UPDATE SecurityAppLock SET grantHash = '',expiresAt = 0,entryAllowed = 0,version = ${randomUUID()},updatedAt = ${Date.now()} WHERE sessionId = ${sessionId} AND userId = ${userId}`;
 }
-export async function grantAppUnlock(sessionId: string, userId: string, version: string, credentialId: string, enable: boolean, navigate = false) {
+export async function grantAppUnlock(sessionId: string, userId: string, version: string, credentialId: string, enable: boolean) {
   await ensureAppLockSchema();
   const token = randomBytes(32).toString("hex");
-  const changed = await prisma.$executeRaw`UPDATE SecurityAppLock SET enabled = 1,grantHash = ${digest(token)},expiresAt = ${Date.now() + APP_LOCK_LEASE_MS},credentialId = ${credentialId},entryAllowed = ${navigate ? 1 : 0},version = ${randomUUID()},updatedAt = ${Date.now()}
+  const changed = await prisma.$executeRaw`UPDATE SecurityAppLock SET enabled = 1,grantHash = ${digest(token)},expiresAt = ${Date.now() + APP_LOCK_LEASE_MS},credentialId = ${credentialId},entryAllowed = 0,version = ${randomUUID()},updatedAt = ${Date.now()}
     WHERE sessionId = ${sessionId} AND userId = ${userId} AND version = ${version} AND (enabled = 1 OR ${enable ? 1 : 0} = 1)
     AND EXISTS(SELECT 1 FROM SecurityPasskey WHERE id = ${credentialId} AND userId = ${userId})`;
   return changed === 1 ? token : null;
 }
-export async function renewAppUnlock(sessionId: string, userId: string, token: string) {
+export async function renewAppUnlock(sessionId: string, userId: string, token: string, lifetime = APP_LOCK_LEASE_MS) {
   await ensureAppLockSchema();
-  const changed = await prisma.$executeRaw`UPDATE SecurityAppLock SET expiresAt = ${Date.now() + APP_LOCK_LEASE_MS},updatedAt = ${Date.now()}
+  const changed = await prisma.$executeRaw`UPDATE SecurityAppLock SET expiresAt = ${Date.now() + lifetime},updatedAt = ${Date.now()}
     WHERE sessionId = ${sessionId} AND userId = ${userId} AND enabled = 1 AND grantHash = ${digest(token)} AND expiresAt > ${Date.now()}
     AND EXISTS(SELECT 1 FROM SecurityPasskey WHERE id = SecurityAppLock.credentialId AND userId = ${userId})`;
   return changed === 1;
-}
-export async function consumeAppEntry(sessionId: string, userId: string, token: string) {
-  await ensureAppLockSchema();
-  return await prisma.$executeRaw`UPDATE SecurityAppLock SET entryAllowed = 0 WHERE sessionId = ${sessionId} AND userId = ${userId}
-    AND enabled = 1 AND entryAllowed = 1 AND grantHash = ${digest(token)} AND expiresAt > ${Date.now()}` === 1;
 }
 export async function disableAppLock(sessionId: string, userId: string, token: string) {
   await ensureAppLockSchema();

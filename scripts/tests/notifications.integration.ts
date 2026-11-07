@@ -75,6 +75,64 @@ async function main() {
       assert.ok(cursor);
     }
     assert.equal(pagedIds.size, 4, "cursor includes every record even with identical timestamps");
+    const patch = (body: unknown, actor = "actor-a") => handleNotificationsPatch(new NextRequest("https://erp.test/api/notifications", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), async () => ({ user: { id: actor } }));
+    assert.equal((await patch({ id: first!.id, action: "resolve" })).status, 400, "clients cannot resolve business issues");
+    assert.equal((await patch({ all: "false" })).status, 400, "truthy strings cannot trigger bulk updates");
+    assert.equal((await patch({ id: first!.id, action: "snooze", minutes: -1 })).status, 400);
+    assert.equal((await patch({ ids: [], action: "acknowledge" })).status, 400);
+    assert.equal((await patch({ id: first!.id, action: "acknowledge" })).status, 200);
+    const acknowledged = await prisma.notification.findUniqueOrThrow({ where: { id: first!.id } });
+    assert.ok(acknowledged.readAt && acknowledged.acknowledgedAt);
+    assert.equal(acknowledged.resolvedAt, null, "acknowledgement is not verified recovery");
+    assert.equal((await patch({ id: first!.id, action: "snooze", minutes: 60 })).status, 200);
+    assert.ok((await prisma.notification.findUniqueOrThrow({ where: { id: first!.id } })).snoozedUntil);
+    const foreign = await prisma.notification.findFirstOrThrow({ where: { userId: "actor-b" } });
+    await patch({ ids: [first!.id, foreign.id], action: "acknowledge" });
+    await patch({ id: foreign.id, action: "snooze", minutes: 60 });
+    assert.equal((await prisma.notification.findUniqueOrThrow({ where: { id: foreign.id } })).acknowledgedAt, null);
+    assert.equal((await prisma.notification.findUniqueOrThrow({ where: { id: foreign.id } })).snoozedUntil, null);
+    const search = async (params: string) => (await handleNotificationsGet(new NextRequest(`https://erp.test/api/notifications?${params}`), async () => ({ user: { id: "actor-a" } }))).json();
+    assert.equal((await search("q=Invoice%20A&state=acknowledged&severity=success&category=sale")).items.length, 1, "server search composes status, severity and category");
+    assert.equal((await search("q=Shop%20B")).items.length, 0, "server search never leaks another user’s events");
+    assert.equal((await search("state=resolved")).items.length, 0);
+    await persistNotification({ ...event, eventKey: "old-search-target", title: "Archived unique search target", createdAt: new Date("2020-01-01") });
+    assert.equal((await search("q=Archived%20unique&limit=1")).items.length, 1, "server search finds records beyond the first history page");
+    const { resolveMarketplaceNotificationSafely } = await import("@/lib/notifications");
+    await prisma.marketplaceConnection.create({ data: { id: "connection-test", marketplace: "ETSY" } });
+    await prisma.marketplaceShop.create({ data: { id: "shop-test", marketplace: "ETSY", connectionId: "connection-test", externalShopId: "test", name: "Test shop" } });
+    await prisma.marketplaceSyncJob.createMany({ data: [
+      { id: "original-failure", marketplaceShopId: "shop-test", syncType: "LISTINGS", requestedById: "actor-a", status: "FAILED" },
+      { id: "retry-job", marketplaceShopId: "shop-test", syncType: "LISTINGS", requestedById: "actor-a", status: "QUEUED" },
+    ] });
+    const issue = await persistNotification({ ...event, eventKey: "marketplace-sync:original-failure", severity: "error" });
+    await prisma.setting.create({ data: { key: "notification-recovery:retry-job", value: JSON.stringify(["original-failure"]) } });
+    await resolveMarketplaceNotificationSafely("retry-job");
+    assert.equal((await prisma.notification.findUniqueOrThrow({ where: { id: issue!.id } })).resolvedAt, null, "queuing a retry does not resolve the failure");
+    await prisma.marketplaceSyncJob.update({ where: { id: "retry-job" }, data: { status: "PARTIAL", recordsFailed: 1 } });
+    await resolveMarketplaceNotificationSafely("retry-job");
+    assert.equal((await prisma.notification.findUniqueOrThrow({ where: { id: issue!.id } })).resolvedAt, null, "partial recovery does not resolve the failure");
+    await prisma.marketplaceSyncJob.update({ where: { id: "retry-job" }, data: { status: "SUCCESS", recordsFailed: 0 } });
+    await resolveMarketplaceNotificationSafely("retry-job");
+    assert.ok((await prisma.notification.findUniqueOrThrow({ where: { id: issue!.id } })).resolvedAt, "only stored verified success resolves the original issue");
+    const { getCompanionAttention } = await import("@/lib/companion-attention");
+    assert.equal((await getCompanionAttention("actor-b")).cards.length, 0, "staff without source permission receive no business cards");
+    await prisma.user.update({ where: { id: "actor-a" }, data: { role: "SUPER_ADMIN" } });
+    await prisma.inventory.createMany({ data: [
+      { sku: "readiness-empty", itemName: "Missing details", category: "GEMSTONE", costPrice: 1, sellingPrice: 2, certificateNo: "\t \n\u00a0" },
+      { sku: "readiness-complete", itemName: "Ready", category: "GEMSTONE", costPrice: 1, sellingPrice: 2, certificateNo: "CERT-1", imageUrl: "/photo.jpg" },
+      { sku: "readiness-sold", itemName: "Sold", category: "GEMSTONE", costPrice: 1, sellingPrice: 2, status: "SOLD" },
+    ] });
+    const attention = await getCompanionAttention("actor-a");
+    assert.equal(attention.unavailable.length, 0);
+    assert.equal(attention.cards.find(card => card.id === "photos")?.count, 1);
+    assert.equal(attention.cards.find(card => card.id === "certificates")?.count, 1, "whitespace certificate fields follow the existing report rule");
+    await prisma.notification.createMany({ data: Array.from({ length: 1000 }, (_, index) => ({ userId: "actor-a", eventKey: `history-load:${index}`, title: index === 777 ? "Unique history needle" : "History volume fixture", message: "Verified fixture event", createdAt: new Date("2025-01-01") })) });
+    const started = Date.now();
+    const historySearch = await search("q=Unique%20history%20needle&limit=1000");
+    assert.equal(historySearch.items.length, 1, "server search finds one record in a thousand-row fixture");
+    assert.equal(historySearch.items[0].eventKey, "history-load:777");
+    assert.ok((await search("q=History%20volume&limit=1000")).items.length <= 50, "large history remains server-bounded");
+    console.log(`Thousand-row history search smoke: ${Date.now() - started}ms (local fixture, not a production baseline).`);
     const malformed = await handleNotificationsGet(new NextRequest("https://erp.test/api/notifications?cursor=invalid"), async () => ({ user: { id: "actor-a" } }));
     assert.equal(malformed.status, 400);
     console.log("Notification integration passed: unique event deduplication, user isolation, persistent read state and immutable duplicate delivery.");

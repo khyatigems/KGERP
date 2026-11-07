@@ -19,6 +19,7 @@ import { computeInvoiceGst } from "@/lib/invoice-gst";
 import { assertNotFrozen, getGovernanceConfig } from "@/lib/governance";
 import "@/lib/returns-schema-ensure";
 import { accrueLoyaltyPoints } from "@/lib/loyalty-accrual";
+import { saleCreatedEventKey } from "@/lib/business-event-identity";
 import { persistNotificationSafely } from "@/lib/notifications";
 import { buildInvoiceData } from "@/lib/documents/invoice-data";
 import { invoicePrintHash, readThermalInvoiceSnapshot, saveThermalInvoiceSnapshot } from "@/lib/documents/thermal-invoice-snapshot";
@@ -1023,7 +1024,7 @@ export async function createSale(prevState: unknown, formData: FormData) {
   if (createdInvoiceId) {
     await persistNotificationSafely({
       userId: session.user.id,
-      eventKey: `sale-created:${createdInvoiceId}`,
+      eventKey: saleCreatedEventKey(createdInvoiceId),
       delivery: "important_activity",
       severity: "success",
       title: "Sale recorded",

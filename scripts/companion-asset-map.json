@@ -1,0 +1,142 @@
+{
+  "poses": [
+    {
+      "id": "idle",
+      "label": "Relaxed",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_idle_pose_a7591988.png"
+    },
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "framing": "portrait",
+      "file": "Cartoon_woman_greeting_6e9fd52e.png"
+    },
+    {
+      "id": "greeting-soft",
+      "label": "Gentle welcome",
+      "framing": "portrait",
+      "file": "Cartoon_woman_greeting_b5fa76ea.png"
+    },
+    {
+      "id": "alert",
+      "label": "Attention",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_attention_pose_5497a101.png"
+    },
+    {
+      "id": "concerned",
+      "label": "Concerned",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_concerned_pose_50a09e5a.png"
+    },
+    {
+      "id": "happy",
+      "label": "Happy",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_happy_pose_48eec45f.png"
+    },
+    {
+      "id": "success",
+      "label": "Success",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_success_pose_9c54eb64.png"
+    },
+    {
+      "id": "concerned-full",
+      "label": "Concerned standing",
+      "framing": "full-body",
+      "file": "Cartoon_woman_posing_with_concern_c335f693.png"
+    },
+    {
+      "id": "rest-lounge",
+      "label": "Resting on chaise",
+      "framing": "full-body",
+      "file": "Cartoon_woman_resting_c9e085fa.png"
+    },
+    {
+      "id": "rest",
+      "label": "Quiet rest",
+      "framing": "portrait",
+      "file": "Cartoon_woman_resting_posing_5cf98956.png"
+    },
+    {
+      "id": "happy-full",
+      "label": "Happy twirl",
+      "framing": "full-body",
+      "file": "Cartoon_woman_smiling_happily_fbc37a79.png"
+    },
+    {
+      "id": "speaking",
+      "label": "Speaking",
+      "framing": "portrait",
+      "file": "Cartoon_woman_speaking_020c6304.png"
+    },
+    {
+      "id": "speaking-full",
+      "label": "Explaining",
+      "framing": "full-body",
+      "file": "Cartoon_woman_speaking_and_gestu…_e955826f.png"
+    },
+    {
+      "id": "idle-full",
+      "label": "Standing at ease",
+      "framing": "full-body",
+      "file": "Cartoon_woman_standing_in_idle_7d8fc36f.png"
+    },
+    {
+      "id": "ready-full",
+      "label": "Ready to help",
+      "framing": "full-body",
+      "file": "Cartoon_woman_standing_in_pose_c3fd43c1.png"
+    },
+    {
+      "id": "thinking",
+      "label": "Thinking",
+      "framing": "portrait",
+      "file": "Cartoon_woman_thinking_0a12d341.png"
+    },
+    {
+      "id": "thinking-full",
+      "label": "Thinking standing",
+      "framing": "full-body",
+      "file": "Cartoon_woman_thinking_da7ad355.png"
+    },
+    {
+      "id": "wave-full",
+      "label": "Waving",
+      "framing": "full-body",
+      "file": "Cartoon_woman_waving_hand_a588a41e.png"
+    },
+    {
+      "id": "working",
+      "label": "Working at laptop",
+      "framing": "portrait",
+      "file": "Cartoon_woman_working_95fd4800.png"
+    },
+    {
+      "id": "welcome",
+      "label": "Warm welcome",
+      "framing": "portrait",
+      "file": "Smiling Woman in Purple and Gold.png"
+    },
+    {
+      "id": "welcome-alt",
+      "label": "Welcoming gesture",
+      "framing": "portrait",
+      "file": "Welcoming Woman in Purple Sari.png"
+    },
+    {
+      "id": "celebrating",
+      "label": "Celebrating",
+      "framing": "full-body",
+      "file": "Cartoon_woman_cheering_in_success_4919f4d8.png"
+    }
+  ],
+  "video": {
+    "file": "Woman_thinking_in_2D_art_9ae3ae53.mp4",
+    "id": "thinking",
+    "label": "Thinking animation"
+  },
+  "identity": "Khyra – Your KhyatiGems Companion"
+}

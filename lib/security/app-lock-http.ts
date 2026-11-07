@@ -7,6 +7,7 @@ import { readCookie, sameOrigin } from "./core";
 import { configuration } from "./passkey-http";
 import { issuePasskeyToken, listPasskeys, readPasskeyToken } from "./passkey-store";
 import { rateLimit, securityEvent } from "./service";
+import { APP_LOCK_GRACE_MS } from "./app-lock-timing";
 import { APP_LOCK_COOKIE, APP_LOCK_CHALLENGE_COOKIE, appLockState, prepareAppLock, grantAppUnlock, lockApp, renewAppUnlock, disableAppLock } from "./app-lock-store";
 
 type Identify = () => Promise<{ user?: { id?: string; appSessionId?: string } } | null>;
@@ -38,8 +39,8 @@ export async function postAppLock(request: Request, identify: Identify = auth) {
       await lockApp(sessionId, userId);
       return setCookie(json({ locked: true }), APP_LOCK_COOKIE, "");
     }
-    if (body.action === "heartbeat") {
-      if (!grant || !await renewAppUnlock(sessionId, userId, grant)) return json({ error: "Unlock ERP to continue.", code: "APP_LOCKED" }, 423);
+    if (body.action === "heartbeat" || body.action === "suspend") {
+      if (!grant || !await renewAppUnlock(sessionId, userId, grant, body.action === "suspend" ? APP_LOCK_GRACE_MS : undefined)) return json({ error: "Unlock ERP to continue.", code: "APP_LOCKED" }, 423);
       return setCookie(json({ unlocked: true }), APP_LOCK_COOKIE, grant);
     }
     if (!await rateLimit(`app-lock:${sessionId}`, 120, 900)) return json({ error: "Too many attempts. Try again later." }, 429);
@@ -63,7 +64,7 @@ export async function postAppLock(request: Request, identify: Identify = auth) {
       if (body.credentialId && !selected) return json({ error: "This device setup is no longer registered. Set up this device again in Security Settings." }, 400);
       const options = await generateAuthenticationOptions({ rpID, userVerification: "required", allowCredentials: selected ? [{ id: selected.id, transports: ["internal"] }] : keys.map(key => ({ id: key.id })) });
       options.hints = ["client-device"];
-      const token = await issuePasskeyToken(userId, "app-unlock", JSON.stringify({ challenge: options.challenge, sessionId, version: state.version, enable, navigate: body.navigate === true, credentialId: selected?.id }));
+      const token = await issuePasskeyToken(userId, "app-unlock", JSON.stringify({ challenge: options.challenge, sessionId, version: state.version, enable, credentialId: selected?.id }));
       return setCookie(json(options), APP_LOCK_CHALLENGE_COOKIE, token);
     }
     if (body.action !== "verify") return json({ error: "Invalid action" }, 400);
@@ -78,7 +79,7 @@ export async function postAppLock(request: Request, identify: Identify = auth) {
     if (!verification.verified) return json({ error: "Device verification failed." }, 401);
     const changed = await prisma.$executeRaw`UPDATE SecurityPasskey SET counter = ${verification.authenticationInfo.newCounter},lastUsedAt = ${new Date().toISOString()} WHERE id = ${key.id} AND userId = ${userId} AND counter = ${key.counter}`;
     if (changed !== 1) return json({ error: "Passkey changed. Try again." }, 409);
-    const token = await grantAppUnlock(sessionId, userId, challenge.version, key.id, challenge.enable === true, challenge.navigate === true);
+    const token = await grantAppUnlock(sessionId, userId, challenge.version, key.id, challenge.enable === true);
     if (!token) return json({ error: "App locked while verification was open. Try again." }, 409);
     await securityEvent(userId, challenge.enable ? "APP_LOCK_ENABLED" : "APP_UNLOCKED", request);
     return setCookie(setCookie(json({ unlocked: true, enabled: true }), APP_LOCK_COOKIE, token), APP_LOCK_CHALLENGE_COOKIE, "");

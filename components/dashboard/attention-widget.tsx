@@ -227,7 +227,7 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                             type="button"
                             variant={hideMissingCertifications ? "secondary" : "outline"}
                             size="sm"
-                            className="h-7 text-[11px]"
+                            className="h-7 text-xs"
                             onClick={toggleMissingCertifications}
                         >
                             {hideMissingCertifications ? "Show Cert Alerts" : "Hide Cert Alerts"}
@@ -236,7 +236,7 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                             type="button"
                             variant={hideMissingImages ? "secondary" : "outline"}
                             size="sm"
-                            className="h-7 text-[11px]"
+                            className="h-7 text-xs"
                             onClick={toggleMissingImages}
                         >
                             {hideMissingImages ? "Show Image Alerts" : "Hide Image Alerts"}
@@ -269,7 +269,7 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
-                                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${cat.badgeClass}`}>
+                                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${cat.badgeClass}`}>
                                             {cat.count}
                                         </span>
                                         {expandedSection === cat.key
@@ -313,7 +313,7 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                                                     <span className="text-muted-foreground truncate">- {item.itemName}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                     <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold">
+                                                     <span className="text-xs bg-primary/15 text-primary px-1.5 py-0.5 rounded font-semibold">
                                                         {item.lab ? `${item.lab} MISSING` : "MISSING CERT"}
                                                     </span>
                                                     <Button
@@ -337,7 +337,7 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                                                     <span className="text-muted-foreground truncate">- {item.itemName}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">NO IMAGE</span>
+                                                    <span className="text-xs bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-semibold">NO IMAGE</span>
                                                     <Button
                                                         type="button"
                                                         variant="ghost"
@@ -379,7 +379,7 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                                                     <TrendingDown className="h-4 w-4 text-rose-500 shrink-0" />
                                                     <span className="font-semibold text-foreground group-hover:underline truncate">{item.sku}</span>
                                                 </div>
-                                                <span className="font-mono text-rose-700 font-bold shrink-0 text-xs">{formatCurrency(item.sellingPrice)}</span>
+                                                <span className="font-mono text-rose-700 font-semibold shrink-0 text-xs">{formatCurrency(item.sellingPrice)}</span>
                                             </Link>
                                         ))}
                                         {cat.key === "vendors" && (
@@ -388,7 +388,7 @@ export function AttentionWidget({ data }: { data: AttentionData }) {
                                                     <User className="h-4 w-4 text-emerald-500 shrink-0" />
                                                     <span className="font-semibold text-foreground">{data.vendors} Vendors Pending Approval</span>
                                                 </div>
-                                                <span className="text-emerald-600 font-bold uppercase tracking-wider shrink-0 text-xs">Review</span>
+                                                <span className="text-emerald-600 font-semibold normal-case tracking-normal shrink-0 text-xs">Review</span>
                                             </Link>
                                         )}
                                         {cat.key === "unsold" && visibleUnsold.map(item => (

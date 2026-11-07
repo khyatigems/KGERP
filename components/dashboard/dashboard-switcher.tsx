@@ -10,5 +10,5 @@ const CurrentDashboard = dynamic(() => import("./dashboard-view").then(module =>
 export function DashboardSwitcher({ name, userId, initialView, initialData }: { name?: string | null; userId: string; initialView: DashboardViewPreference; initialData?: TradingDashboardData }) {
   const { appearance, ready } = useWorkspaceAppearance();
   const view = ready ? appearance.dashboardView : initialView;
-  return view === "classic" ? <CurrentDashboard name={name}/> : <TradingDashboard userId={userId} initialData={initialData}/>;
+  return <div data-erp-dashboard>{view === "classic" ? <CurrentDashboard name={name}/> : <TradingDashboard userId={userId} initialData={initialData}/>}</div>;
 }

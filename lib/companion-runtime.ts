@@ -20,3 +20,11 @@ export function companionToastOptions<T extends { id?: string | number; classNam
   return active && !isMarketplaceSyncToast(options.id, options.className) ? { ...options, toasterId: COMPANION_TOASTER_ID } : options;
 }
 export const OPEN_COMPANION_EVENT = "erp:open-companion";
+
+/** Explicit producer metadata for custom cards; callbacks stay in the existing toast. */
+const operationMetadata = new Map<string | number, { type: "loading" | "success" | "error"; title: string; description: string }>();
+export function setCompanionOperationMetadata(id: string | number, value: { type: "loading" | "success" | "error"; title: string; description: string }) {
+  operationMetadata.delete(id); operationMetadata.set(id, value);
+  if (operationMetadata.size > 100) operationMetadata.delete(operationMetadata.keys().next().value!);
+}
+export function companionOperationMetadata(id: string | number) { return operationMetadata.get(id); }

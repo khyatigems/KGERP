@@ -1,119 +1,100 @@
 # Fingerprint app lock
 
-App lock resumes an already authenticated ERP session. Normal login uses a
+App lock resumes an already authenticated ERP session. Normal login requires a
 password and existing MFA; passkey sign-in is not available. App unlock does not
-repeat company email/authenticator verification
-every time the app returns from the background.
+repeat company email/authenticator verification on every return.
 
-## Enable and use
+## Setup
 
 1. Sign in normally and open **Security & 2FA**.
-2. In **Set up this device for app unlock**, enter your password and register
-   this device. On Windows, select **Set up Windows Hello on this PC**. An
-   existing phone registration does not configure the computer.
+2. Use **Set up this device for app unlock**. On Windows, select **Set up Windows
+   Hello on this PC**. A registered phone does not configure the computer.
 3. Select **Enable fingerprint app lock** and approve device verification.
 
-The setting applies to this signed-in browser/PWA session, on mobile or desktop.
-Closing/reopening, minimizing, switching tabs/windows, and restored pages lock
-the app. The lock screen appears automatically; tap **Unlock ERP** for the
-browser's fingerprint, Face ID, Touch ID, Windows Hello, security-key or device
-PIN prompt. The device chooses its supported verification methods; a website
-cannot require fingerprint instead of an allowed device PIN. Passkeys may be
-synced or approved using another device, depending on the platform.
+Windows must have Hello configured under Settings > Accounts > Sign-in options.
+Fingerprint recognition needs a compatible, configured sensor; the device may
+also offer face recognition or a PIN. ERP cannot enable or inspect fingerprints,
+force fingerprint over PIN, or rename the operating system's passkey dialogs.
+The setup requests a platform authenticator and a client-device hint. Unsupported
+built-in verification displays setup guidance rather than a phone registration
+chooser. A non-secret, account-scoped browser hint remembers the selected device
+credential. Server ownership, signature, and user-verification checks still
+control access; editing localStorage grants no access.
 
-Cancellation and verification failure leave ERP locked. **Lock now** is available
-in Security Settings. Turning app lock off requires an unlocked session and the
-current password. **Sign out and use normal login** is available if the passkey
-is unavailable; it requires the existing login and MFA/recovery process. A fresh
-login creates a new session: enable app lock again for that session. Other
-devices and accounts are not enabled automatically. Tabs sharing the same login
-session share its server lock; a lock broadcast immediately covers other tabs
-when BroadcastChannel is available.
+## One-minute background grace
 
-## Enforcement
+- A brief Alt+Tab, tab switch, or minimize/return does not require another scan.
+  ERP locks after **one minute away**, with an immediate privacy cover while
+  hidden. Return within the minute validates/renews the existing grant before
+  revealing the workspace; it does not request a biometric again.
+- Browser blur alone is not an absence signal. Table filters, native dropdowns,
+  and controls that temporarily change focus do not start a lock. Normal SPA
+  navigation, filter query changes, document refresh and a quick app reopen
+  preserve a valid grant rather than forcing a new unlock.
+- Visible ERP tabs renew the shared browser session. BroadcastChannel activity,
+  scoped to the authenticated session, postpones automatic locking in another
+  background ERP tab. Leaving one tab must not lock an actively used ERP tab.
+- **Lock now**, explicit lock-screen navigation, credential revocation and an
+  invalid/expired server grant still require verification immediately. An
+  expired grant cannot be renewed by a heartbeat or background notification.
+- After the grace expires, tap **Unlock ERP** for device verification. Cancel or
+  failure leaves ERP locked. **Sign out and use normal login** remains available.
+  A fresh login creates a new session; enable app lock again for that session.
 
-- A stable random `appSessionId` in the signed authentication JWT identifies the
-  browser session. Existing JWTs adopt their original token ID on refresh.
-- An additive runtime table, `SecurityAppLock`, stores enrollment and a hashed,
-  random unlock grant. Neither localStorage nor sessionStorage authorizes access.
-- Node.js middleware checks the session's lock before protected pages, API routes
-  and Server Actions. Locked APIs/actions return 423; document navigation goes
-  to `/unlock`. API paths with file extensions are explicitly included in the
-  matcher. Customer-facing public GET pages and the narrowly scoped auth/recovery
-  protocol remain reachable; passkey management is protected while locked.
-- Unlock challenges are single use, five-minute, account/session/version bound,
-  and use the existing trusted HTTPS origin and relying-party configuration.
-  User verification and real registered public-key signatures are required.
-  Enabling, disabling and locking rotate the lock version, so an in-flight old
-  verification cannot undo a newer lock or disable operation.
-- Grant cookies are HttpOnly and SameSite Strict. Grants expire after 60 seconds
-  unless a visible, unlocked page renews them every 20 seconds. A closed/killed
-  browser cannot renew a stale grant. Removing the credential also rejects it.
-- A protected full document reload/open requires a new unlock even if a previous
-  grant is still within its lease. Only the immediate navigation after a verified
-  unlock receives one atomic, single-use document entry. Ordinary SPA navigation
-  works within the active grant.
-- Background/page-hide events synchronously cover the workspace and send a
-  keepalive lock request. Foreground/BFCache restore checks keep it covered. A
-  generation guard prevents a stale status request from revealing a newer lock.
-  The system biometric dialog itself may blur/hide the window, so verification
-  is distinguished from leaving the app; closing during verification invalidates
-  that attempt. Private requests are paused on the client while locked, and the
-  middleware remains the independent server enforcement.
-- Cross-document view transitions are disabled while checking security or using
-  app lock, preventing a retained workspace snapshot fading over the lock screen.
-  Mounted forms are hidden/inert after an in-place lock so unsaved input survives
-  verification; newly opened locked app instances do not mount private content.
+The setting applies to the current signed-in browser/PWA session. Other devices
+and accounts are configured separately. Manual lock broadcasts still lock the
+other tabs in that same session immediately.
 
-This is a web/PWA app lock, not an OS-native secure screen. Browsers do not
-reliably deliver a final event when the OS kills a process. Normal close/background
-revocation is immediate when its request arrives; the 60-second server lease is
-the upper bound if delivery is lost. Reopening a document still requires a fresh
-unlock. A PWA cannot promise to suppress every OS task-switcher thumbnail or
-screen capture, or protect already-loaded memory from browser developer tools.
-No business data is made available offline. The existing server session and MFA
-policy must still be valid before an unlock is accepted.
+## Server and privacy enforcement
+
+A stable random appSessionId in the signed authentication JWT identifies the
+session. An additive SecurityAppLock table stores enrollment and a hashed random
+unlock grant. Node middleware checks protected pages, APIs (including paths with
+file extensions), and Server Actions. Expired/locked APIs return 423; documents
+redirect to /unlock. Public customer GET pages and the narrow auth/recovery/lock
+protocol remain reachable. Passkey management is protected while locked.
+
+Device verification uses account/session/version-bound, single-use challenges
+with five-minute expiry, trusted HTTPS origin and relying-party checks, required
+user verification and registered public-key signatures. Lock/disable rotates the
+version so a stale verification cannot undo a newer lock. Turning off app lock
+requires an unlocked session and the current password.
+
+Visible, unlocked pages renew an active 90-second grant every 20 seconds. On
+background or page hide, a keepalive suspension shortens it to the one-minute
+grace. The client also checks elapsed absence on return/BFCache restore, even
+when background timers were suspended. If the OS kills the process before that
+notification arrives, the previously issued active grant expires within 90
+seconds. No request can revive an expired or explicitly revoked grant.
+
+The previous one-use document-entry restriction is no longer enforced, because
+it caused normal filter navigation and refresh to relock ERP. Its legacy database
+column is retained to avoid a destructive migration; it grants no authorization.
+
+The privacy cover hides private content, dialogs and popovers. The lock dialog
+owns keyboard focus while locked. Forms are retained for resuming unsaved work.
+Cross-document view-transition snapshots are disabled with app lock. Web/PWA
+code cannot promise to suppress every OS thumbnail/screenshot or protect loaded
+memory from developer tools. Business data is not available offline. The normal
+session and current MFA policy must remain valid before unlock is accepted.
 
 ## Verification
 
-- `npx tsc --noEmit` and targeted ESLint checks.
-- `npx tsx scripts/tests/passkeys.integration.ts` and the `--libsql` variant:
-  virtual CTAP2 signatures, enable/unlock, cross-session isolation, API/action
-  gates, new document entry, expiry, heartbeat, challenge replay, lock/verification
-  races, disabling and credential revocation, alongside normal sign-in/MFA tests.
-- `node scripts/tests/app-lock.ui.mjs`: 320/390/1440px layouts, actual tab
-  background/return, hidden/inert workspace, client request pause, native-dialog
-  blur, cancel/retry, BFCache restore, close/reopen and unlock navigation. UI
-  signatures/API responses are explicit fixtures; integration tests check crypto.
-- `npx tsx scripts/tests/app-lock.next-smoke.ts`: starts an isolated Next dev
-  server with a disposable database, compiles the actual Node middleware/root
-  providers, verifies real API/extension gates, lock-page navigation and grant
-  revocation. It does not run production build, migration or deployment scripts.
-- Existing security-login/authenticator and passkey UI regressions remain relevant.
+- npx tsc --noEmit and targeted ESLint.
+- npm run test:passkeys: temporary SQLite and libSQL databases, virtual CTAP2
+  registration/signatures, platform/current-device selection, account/session
+  isolation, grace/refresh/filter access, expiry, replay, revocation, existing
+  password/MFA login, and rejection of removed passkey sign-in operations.
+- node scripts/tests/app-lock.ui.mjs: 320/390/1440px layouts, filter focus,
+  brief switches, elapsed background grace, multi-tab activity, privacy cover,
+  dialog retention, cancellation/retry, restore/reopen and explicit expiry.
+  Browser time is advanced for long-absence checks; no minute-long sleeps.
+- npx tsx scripts/tests/app-lock.next-smoke.ts: real isolated Next middleware
+  and root compilation, API/file-extension gates, filter document navigation,
+  status and immediate manual revocation.
 
-Screenshots and logs are in ignored `tmp/app-lock-ui`, `tmp/app-lock-next-smoke`
-and `tmp/passkey-checks`. No production configuration, user enrollment, or live
-database is changed by these tests. Before rollout, test actual close/reopen,
-app switching and native verification on the intended phones and laptops at the
-configured HTTPS ERP origin. See `passkeys.md` for origin and passkey setup.
-
-## Windows Hello and current-device setup
-
-Device enrollment explicitly requests a platform authenticator and the
-client-device hint. On Windows this requests the built-in verification flow,
-with Windows/provider control over the exact UI. Configure a Windows Hello PIN
-and, for fingerprint use, a compatible sensor and Fingerprint recognition in
-Windows Settings > Accounts > Sign-in options. ERP cannot enable a sensor,
-inspect enrolled fingerprints, or force fingerprint instead of the device PIN.
-A failed platform-capability check displays setup guidance instead of starting
-an unrelated phone/security-key registration flow.
-
-The browser remembers the newly registered credential ID under the current
-account as a non-secret device-selection hint. Enable/unlock requests prefer
-that registered ID with internal transport and a client-device hint. The server
-validates ownership, binds selection to the one-use challenge, and still checks
-the signature and user verification. Editing localStorage grants no access. If
-storage is unavailable, normal signature-verified account credentials remain
-available; existing users are not silently migrated or deleted. OS dialogs may
-still say "passkey", which is the WebAuthn credential used for app unlock, not a
-passwordless ERP sign-in option.
+UI responses are fixtures; crypto and database tests verify actual signatures.
+Screenshots/logs are under ignored tmp directories. Tests do not change production
+configuration, enroll real users, or access the live database. Real Windows Hello,
+phone biometrics and app background behavior still need physical-device testing
+at the configured HTTPS ERP origin before rollout. See passkeys.md for setup.

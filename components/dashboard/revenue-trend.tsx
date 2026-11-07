@@ -82,7 +82,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
   const todayRevenue = chartData.find((d) => d.date === todayStr)?.revenue ?? 0;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter ">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400">
@@ -101,7 +101,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
               key={r}
               onClick={() => setRange(r)}
               className={cn(
-                "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+                "rounded-md px-2 py-1 text-xs font-medium transition-colors",
                 range === r
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -125,7 +125,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="date"
-              tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
+              tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(val: string) => {
@@ -135,7 +135,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
               interval={interval}
             />
             <YAxis
-              tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
+              tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(val: number) => val >= 1000 ? `₹${(val / 1000).toFixed(0)}k` : `₹${val}`}
@@ -162,7 +162,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
             <Calendar className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground">Today</p>
+            <p className="text-xs text-muted-foreground">Today</p>
             <p className="text-xs font-semibold text-foreground">{formatCurrency(todayRevenue)}</p>
           </div>
         </div>
@@ -171,7 +171,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
             <BarChart3 className="h-3 w-3 text-slate-500 dark:text-slate-400" />
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground">Avg / day</p>
+            <p className="text-xs text-muted-foreground">Avg / day</p>
             <p className="text-xs font-semibold text-foreground">{formatCurrency(avgDaily)}</p>
           </div>
         </div>
@@ -180,7 +180,7 @@ export function RevenueTrend({ data }: RevenueTrendProps) {
             <ArrowUpRight className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
           </div>
           <div>
-            <p className="text-[10px] text-muted-foreground">Best day</p>
+            <p className="text-xs text-muted-foreground">Best day</p>
             <p className="text-xs font-semibold text-foreground">{formatCurrency(bestDay)}</p>
           </div>
         </div>

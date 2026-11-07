@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { isPublicPage } from "@/lib/public-routes";
 import { appLockExempt, safeAppReturn } from "@/lib/security/app-lock-paths";
+import { APP_LOCK_GRACE_MS } from "@/lib/security/app-lock-timing";
 import { localUnlockDevice } from "@/lib/security/app-unlock-device";
 
 type LockStatus = { enabled: boolean; locked: boolean; supported: boolean; hasPasskeys: boolean };
@@ -22,6 +23,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const publicPage = isPublicPage(pathname);
   const [state, setState] = useState<LockStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const [message, setMessage] = useState("");
   const stateRef = useRef<LockStatus | null>(null);
   const verifying = useRef(false);
@@ -31,7 +33,12 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const readyOnce = useRef(false);
   const lockEpoch = useRef(0);
   const navigatingAfterUnlock = useRef(false);
-  const update = useCallback((next: LockStatus) => { stateRef.current = next; setState(next); }, []);
+  const awaySince = useRef(0);
+  const awayTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const update = useCallback((next: LockStatus) => {
+    if (!next.enabled) { awaySince.current = 0; clearTimeout(awayTimer.current); }
+    stateRef.current = next; setState(next);
+  }, []);
   const request = useCallback(async (body?: unknown) => {
     const response = await (nativeFetch.current || fetch)("/api/auth/app-lock", body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" } : { cache: "no-store" });
     const data = await response.json();
@@ -41,6 +48,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const lock = useCallback(() => {
     if (!stateRef.current?.enabled) return;
     lockEpoch.current += 1;
+    awaySince.current = 0;
+    clearTimeout(awayTimer.current);
+    setResuming(false);
     // Hide synchronously before the browser takes a background/BFCache snapshot.
     document.documentElement.dataset.erpAppLocked = "true";
     const wasLocked = stateRef.current.locked;
@@ -61,7 +71,10 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       const privateRequest = target.origin === location.origin && !appLockExempt(target.pathname);
       if (privateRequest && stateRef.current?.enabled && stateRef.current.locked) return new Response(JSON.stringify({ error: "ERP is locked.", code: "APP_LOCKED" }), { status: 423, headers: { "Content-Type": "application/json" } });
       const response = await original(input, init);
-      if (privateRequest && stateRef.current?.enabled && (response.status === 423 || response.status === 503)) lock();
+      if (privateRequest && stateRef.current?.enabled && (response.status === 423 || response.status === 503)) {
+        const problem = await response.clone().json().catch(() => null);
+        if (problem?.code === "APP_LOCKED" || problem?.code === "APP_LOCK_UNAVAILABLE") lock();
+      }
       return response;
     };
     window.fetch = guarded;
@@ -78,45 +91,84 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       if (!active || epoch !== lockEpoch.current) return;
       if (!data.enabled || !data.locked) readyOnce.current = true;
       update(data); lastHeartbeat.current = Date.now();
-      document.documentElement.dataset.erpAppLocked = data.enabled && data.locked ? "true" : "false";
+      document.documentElement.dataset.erpAppLocked = data.enabled && (data.locked || awaySince.current > 0) ? "true" : "false";
+      if (data.enabled && !data.locked && !document.hidden) channel.current?.postMessage("active");
       if (pathname === "/unlock" && !data.enabled) location.replace(safeAppReturn(new URLSearchParams(location.search).get("next")));
     }).catch(error => { if (active) { setMessage(error.message); if (stateRef.current?.enabled) lock(); } });
     return () => { active = false; };
   }, [status, publicPage, pathname, request, update, lock]);
 
   useEffect(() => {
-    function hide() { if (document.hidden && !verifying.current && !navigatingAfterUnlock.current) lock(); }
-    function pagehide() { if (!navigatingAfterUnlock.current) lock(); }
-    function pageshow(event: PageTransitionEvent) { if (event.persisted) lock(); }
-    function focus() { if (!verifying.current && stateRef.current?.enabled && Date.now() - lastHeartbeat.current > 45000) lock(); }
-    function blur() { if (!verifying.current && !navigatingAfterUnlock.current) lock(); }
-    document.addEventListener("visibilitychange", hide);
+    function expireAway() {
+      if (!awaySince.current) return;
+      const remaining = APP_LOCK_GRACE_MS - (Date.now() - awaySince.current);
+      if (remaining <= 0) lock();
+      else awayTimer.current = setTimeout(expireAway, remaining);
+    }
+    function beginAway() {
+      if (!stateRef.current?.enabled || stateRef.current.locked || verifying.current || navigatingAfterUnlock.current || awaySince.current) return;
+      awaySince.current = Date.now();
+      document.documentElement.dataset.erpAppLocked = "true";
+      // Cover immediately for privacy, but do not revoke the grant until the
+      // one-minute grace expires. A short Alt+Tab can resume without biometrics.
+      void (nativeFetch.current || fetch)("/api/auth/app-lock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "suspend" }), keepalive: true }).catch(() => {});
+      awayTimer.current = setTimeout(expireAway, APP_LOCK_GRACE_MS);
+    }
+    async function resumeAway() {
+      if (document.hidden || verifying.current || !stateRef.current?.enabled || stateRef.current.locked) return;
+      const elapsed = awaySince.current ? Date.now() - awaySince.current : 0;
+      if (elapsed >= APP_LOCK_GRACE_MS) { lock(); return; }
+      if (!awaySince.current && Date.now() - lastHeartbeat.current < 45000) return;
+      const epoch = lockEpoch.current;
+      setResuming(true);
+      clearTimeout(awayTimer.current);
+      try {
+        await request({ action: "heartbeat" });
+        if (epoch !== lockEpoch.current || document.hidden) return;
+        if (awaySince.current && Date.now() - awaySince.current >= APP_LOCK_GRACE_MS) { lock(); return; }
+        awaySince.current = 0;
+        lastHeartbeat.current = Date.now();
+        channel.current?.postMessage("active");
+        document.documentElement.dataset.erpAppLocked = "false";
+      } catch { lock(); }
+      finally { setResuming(false); }
+    }
+    function visibility() { if (document.hidden) beginAway(); else void resumeAway(); }
+    function pagehide() { if (verifying.current && stateRef.current?.enabled) lock(); else beginAway(); }
+    function pageshow(event: PageTransitionEvent) { if (event.persisted || awaySince.current) void resumeAway(); }
+    function focus() { void resumeAway(); }
+    document.addEventListener("visibilitychange", visibility);
     window.addEventListener("pagehide", pagehide);
     window.addEventListener("pageshow", pageshow);
     window.addEventListener("focus", focus);
-    window.addEventListener("blur", blur);
-    document.addEventListener("resume", pagehide);
+    document.addEventListener("resume", focus);
     try {
-      channel.current = new BroadcastChannel("erp-app-lock");
+      channel.current = new BroadcastChannel(`erp-app-lock:${session?.user?.appSessionId || session?.user?.id || "current"}`);
       channel.current.onmessage = event => {
         if (event.data === "locked") lock();
+        if (event.data === "active" && document.hidden && awaySince.current && !stateRef.current?.locked) {
+          // Activity in another ERP tab keeps this shared browser session alive.
+          awaySince.current = Date.now();
+          clearTimeout(awayTimer.current);
+          awayTimer.current = setTimeout(expireAway, APP_LOCK_GRACE_MS);
+        }
         if (event.data === "changed") {
           const epoch = lockEpoch.current;
-          void request().then((data: LockStatus) => { if (epoch === lockEpoch.current) { update(data); if (data.enabled) lock(); } }).catch(() => lock());
+          void request().then((data: LockStatus) => { if (epoch === lockEpoch.current) { update(data); if (data.enabled && data.locked) lock(); else if (data.enabled && document.hidden) beginAway(); } }).catch(() => lock());
         }
       };
     } catch { /* Server enforcement also applies when channels are unavailable. */ }
     const timer = setInterval(() => {
-      if (!stateRef.current?.enabled || stateRef.current.locked || document.hidden || verifying.current || navigatingAfterUnlock.current) return;
-      void request({ action: "heartbeat" }).then(() => { lastHeartbeat.current = Date.now(); }).catch(() => lock());
+      if (!stateRef.current?.enabled || stateRef.current.locked || document.hidden || awaySince.current > 0 || verifying.current || navigatingAfterUnlock.current) return;
+      void request({ action: "heartbeat" }).then(() => { lastHeartbeat.current = Date.now(); channel.current?.postMessage("active"); }).catch(() => lock());
     }, 20000);
     return () => {
-      document.removeEventListener("visibilitychange", hide); document.removeEventListener("resume", pagehide);
+      document.removeEventListener("visibilitychange", visibility); document.removeEventListener("resume", focus);
       window.removeEventListener("pagehide", pagehide); window.removeEventListener("pageshow", pageshow); window.removeEventListener("focus", focus);
-      window.removeEventListener("blur", blur);
+      clearTimeout(awayTimer.current);
       clearInterval(timer); channel.current?.close(); channel.current = null;
     };
-  }, [lock, request, update]);
+  }, [lock, request, update, session?.user?.appSessionId, session?.user?.id]);
 
   async function verify(enable = false) {
     if (verifying.current) return;
@@ -129,6 +181,8 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       await request({ action: "verify", response });
       if (epoch !== lockEpoch.current) { lock(); throw new Error("The app was closed during verification. Unlock again."); }
       readyOnce.current = true;
+      awaySince.current = 0;
+      clearTimeout(awayTimer.current);
       update({ enabled: true, locked: false, supported: true, hasPasskeys: true });
       lastHeartbeat.current = Date.now();
       if (document.hidden) { lock(); return; }
@@ -149,7 +203,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not disable app lock."); }
     finally { setBusy(false); }
   }
-  const checking = !publicPage && status !== "unauthenticated" && !state;
+  const checking = !publicPage && (resuming || (status !== "unauthenticated" && !state));
   const locked = !publicPage && Boolean(state?.enabled && state.locked);
   const showScreen = checking || locked || (!publicPage && pathname === "/unlock");
   const value: LockContext = { state, busy, message, enable: () => verify(true), disable, lock };
@@ -158,7 +212,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     {(publicPage || readyOnce.current) && <div data-erp-private={publicPage ? undefined : "true"} hidden={showScreen} inert={showScreen}>{children}</div>}
     {checking && <div className="fixed inset-0 z-[9999] grid place-items-center bg-background text-sm" role="status">Checking app security…</div>}
     <Dialog open={showScreen}>
-    <DialogContent data-erp-lock-screen showCloseButton={false} className="fixed inset-0 z-[10000] flex h-dvh w-screen max-w-none max-h-none translate-x-0 translate-y-0 items-center justify-center rounded-none border-0 bg-background p-6 sm:max-w-none" onEscapeKeyDown={event => event.preventDefault()} onPointerDownOutside={event => event.preventDefault()}>
+    <DialogContent data-erp-lock-screen showCloseButton={false} className="data-[state=closed]:hidden fixed inset-0 z-[10000] flex h-dvh w-screen max-w-none max-h-none translate-x-0 translate-y-0 items-center justify-center rounded-none border-0 bg-background p-6 sm:max-w-none" onEscapeKeyDown={event => event.preventDefault()} onPointerDownOutside={event => event.preventDefault()}>
     <main className="flex w-full items-center justify-center" aria-label="ERP app lock">
       <section className="w-full max-w-sm space-y-6 rounded-2xl border bg-card p-6 text-center shadow-xl">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary"><LockKeyhole size={32} /></div>

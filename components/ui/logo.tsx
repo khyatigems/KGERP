@@ -34,7 +34,7 @@ export function Logo({ className, variant = "auto" }: LogoProps) {
       y="0px"
       viewBox="0 0 1000 1000"
       xmlSpace="preserve"
-      className={cn("w-full h-full drop-shadow-2xl", className)}
+      className={cn("w-full h-full", className)}
       style={{ color: isDark ? "#FFFFFF" : "#181547" }}
     >
       <style type="text/css">

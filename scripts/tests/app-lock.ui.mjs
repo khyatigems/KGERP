@@ -8,7 +8,7 @@ import puppeteer from "puppeteer";
 import postcss from "postcss";
 import tailwind from "@tailwindcss/postcss";
 
-const bundle = await build({ stdin: { contents: `import React,{useState} from 'react';import{Dialog,DialogContent,DialogTitle,DialogDescription}from'./components/ui/dialog';import{createRoot}from'react-dom/client';import{AppLockProvider}from'./components/auth/app-lock-provider';import{AppLockSettings}from'./components/settings/app-lock-settings';function Workspace(){const[open,setOpen]=useState(false);return <AppLockProvider><h1 id="secret">Private ERP workspace</h1><AppLockSettings/><button onClick={()=>setOpen(true)}>Open private modal</button><Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogTitle>Private customer details</DialogTitle><DialogDescription>Private modal fixture</DialogDescription><button onClick={()=>setOpen(false)}>Close private modal</button></DialogContent></Dialog></AppLockProvider>}createRoot(document.getElementById('app')).render(<Workspace/>);`, resolveDir: process.cwd(), loader: "tsx" }, bundle: true, write: false, format: "iife", platform: "browser", jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' }, plugins: [{ name: "fixtures", setup(builder) {
+const bundle = await build({ stdin: { contents: `import React,{useState} from 'react';import{Dialog,DialogContent,DialogTitle,DialogDescription}from'./components/ui/dialog';import{createRoot}from'react-dom/client';import{AppLockProvider}from'./components/auth/app-lock-provider';import{AppLockSettings}from'./components/settings/app-lock-settings';function Workspace(){const[open,setOpen]=useState(false);return <AppLockProvider><h1 id="secret">Private ERP workspace</h1><AppLockSettings/><label>Table filter<select id="table-filter"><option value="all">All</option><option value="filtered">Filtered</option></select></label><button onClick={()=>setOpen(true)}>Open private modal</button><Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogTitle>Private customer details</DialogTitle><DialogDescription>Private modal fixture</DialogDescription><button onClick={()=>setOpen(false)}>Close private modal</button></DialogContent></Dialog></AppLockProvider>}createRoot(document.getElementById('app')).render(<Workspace/>);`, resolveDir: process.cwd(), loader: "tsx" }, bundle: true, write: false, format: "iife", platform: "browser", jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' }, plugins: [{ name: "fixtures", setup(builder) {
   builder.onResolve({ filter: /^(next\/navigation|next-auth\/react|erp-webauthn-browser)$/ }, args => ({ path: args.path, namespace: "fixtures" }));
   builder.onLoad({ filter: /.*/, namespace: "fixtures" }, args => ({ resolveDir: process.cwd(), contents: args.path === "next/navigation" ? `export const usePathname=()=>location.pathname;` : args.path === "next-auth/react" ? `import{useState}from'react';export const useSession=()=>{const[status,setStatus]=useState('authenticated');window.__setAuthStatus=setStatus;return{status,data:{user:{id:'fixture-user'}}}};export const signOut=async()=>{window.__signedOut=true};` : `export async function startAuthentication(){window.__verificationCalls=(window.__verificationCalls||0)+1;if(window.__cancel)throw new DOMException('Cancelled','NotAllowedError');window.dispatchEvent(new Event('blur'));return{id:'fixture-key'}}` }));
 } }] });
@@ -18,6 +18,10 @@ const server = createServer(async (req, res) => {
   const path = new URL(req.url, "http://fixture.test").pathname;
   if (path === "/bundle.js") { res.setHeader("Content-Type", "text/javascript"); res.end(bundle.outputFiles[0].text); return; }
   if (path === "/style.css") { res.setHeader("Content-Type", "text/css"); res.end(css); return; }
+  if (path === "/api/filter-failure" || path === "/api/record-locked") {
+    res.statusCode = path === "/api/filter-failure" ? 503 : 423;
+    res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ error: "Business operation failed", code: "RECORD_ERROR" })); return;
+  }
   if (path === "/api/private") { apiCalls++; res.statusCode = state.locked ? 423 : 200; res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ private: !state.locked })); return; }
   if (path === "/api/auth/app-lock") {
     res.setHeader("Content-Type", "application/json");
@@ -32,8 +36,7 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify(body.action === "options" ? {} : state)); return;
   }
   if (state.enabled && path !== "/unlock" && path !== "/login") {
-    if (entry) entry = false;
-    else { state.locked = true; res.writeHead(307, { Location: "/unlock?next=%2F" }); res.end(); return; }
+    if (state.locked) { res.writeHead(307, { Location: "/unlock?next=%2F" }); res.end(); return; }
   }
   res.setHeader("Content-Type", "text/html"); res.end('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body><div id="app"></div><script src="/bundle.js"></script></body></html>');
 });
@@ -59,11 +62,36 @@ try {
     // The fixture generates blur while the native prompt is active. This must
     // not lock the newly verified app or turn the prompt into a retry loop.
     assert.equal(await page.$('[aria-label="ERP app lock"]'), null);
+    assert.deepEqual(await page.evaluate(async () => [ (await fetch('/api/filter-failure')).status, (await fetch('/api/record-locked')).status ]), [503, 423]);
+    assert.equal(await page.$('[aria-label="ERP app lock"]'), null, "business filter/record errors are not app-lock errors");
+    await page.select('#table-filter', 'filtered');
+    await page.evaluate(() => { window.dispatchEvent(new Event('blur')); window.dispatchEvent(new Event('focus')); });
+    assert.equal(await page.$('[aria-label="ERP app lock"]'), null, "filter focus and blur are not lock triggers");
+    assert.equal(await page.$eval('#table-filter', element => element.value), 'filtered');
     await click("Open private modal");
     const background = await browser.newPage();
     await background.bringToFront();
-    await page.waitForSelector('[aria-label="ERP app lock"]');
+    await page.waitForFunction(() => document.hidden);
     await page.bringToFront();
+    await page.waitForSelector('#secret', { visible: true });
+    await page.waitForSelector('[aria-label="ERP app lock"]', { hidden: true });
+    assert.equal(await page.evaluate(() => window.__verificationCalls), 1, "quick Alt+Tab resumes without another biometric request");
+    const activeERP = await browser.newPage();
+    await page.waitForFunction(() => document.hidden);
+    await page.evaluate(() => { window.__realNow = Date.now; Date.now = () => window.__realNow() + 61000; });
+    await activeERP.goto(url, { waitUntil: "networkidle0" });
+    await page.bringToFront();
+    await page.waitForSelector('#secret', { visible: true });
+    await page.waitForSelector('[aria-label="ERP app lock"]', { hidden: true });
+    assert.equal(await page.evaluate(() => window.__verificationCalls), 1, "activity in another ERP tab avoids another biometric request");
+    await page.evaluate(() => { Date.now = window.__realNow; });
+    await activeERP.close();
+    await background.bringToFront();
+    await page.waitForFunction(() => document.hidden);
+    await page.evaluate(() => { window.__realNow = Date.now; Date.now = () => window.__realNow() + 61000; });
+    await page.bringToFront();
+    await page.waitForSelector('[aria-label="ERP app lock"]');
+    await page.evaluate(() => { Date.now = window.__realNow; });
     assert.equal(await page.$eval('#secret', element => Boolean(element.closest('[hidden]'))), true, "business screen is hidden on return");
     const before = apiCalls;
     assert.equal(await page.evaluate(async () => (await fetch('/api/private')).status), 423);
@@ -79,14 +107,18 @@ try {
     await page.waitForSelector('#secret', { visible: true });
     await click("Close private modal");
     await background.close();
-    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
-    await page.waitForSelector('[aria-label="ERP app lock"]');
-    await click("Unlock ERP"); await page.waitForSelector('#secret', { visible: true });
+    await page.evaluate(() => { window.dispatchEvent(new PageTransitionEvent('pagehide')); window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })); });
+    await page.waitForSelector('#secret', { visible: true });
+    await page.waitForSelector('[aria-label="ERP app lock"]', { hidden: true });
     // A new page has no remembered unlocked state. The fixture server models
     // the one-use document entry enforced by app-lock-gate.ts.
     await page.close(); page = await browser.newPage(); attach();
     await page.setViewport({ width, height: 900 });
     await page.goto(url, { waitUntil: "networkidle0" });
+    await page.waitForSelector('#secret', { visible: true });
+    assert.equal(new URL(page.url()).pathname, '/', "quick close/reopen remains unlocked during grace");
+    state.locked = true; // Fixture server lease expiry after a longer absence.
+    await page.reload({ waitUntil: "networkidle0" });
     assert.match(page.url(), /\/unlock/);
     await page.waitForSelector('[aria-label="ERP app lock"]');
     assert.equal(await page.$('#secret'), null, "private content is not mounted before unlocking a new app instance");
@@ -107,5 +139,5 @@ try {
   await page.waitForFunction(() => window.__signedOut);
   assert.ok(deviceSelections.length > 0 && deviceSelections.every(id => id === "fixture-key"), "enable and unlock prefer the setup saved for this account/browser");
   assert.deepEqual(errors, []);
-  console.log("App-lock UI passed at 320, 390 and 1440px: real tab background/return, privacy cover, blocked requests, native-dialog blur, cancellation/retry, BFCache restore, close/reopen, verified navigation and disable.");
+  console.log("App-lock UI passed at 320, 390 and 1440px: quick switches/filter focus, one-minute background grace, privacy cover, blocked requests, native-dialog blur, cancellation/retry, BFCache restore, close/reopen, verified navigation and disable.");
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

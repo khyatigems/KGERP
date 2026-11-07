@@ -13,7 +13,7 @@ export function publishCompanionNotifications(items: CompanionNotice[], status: 
 }
 export function acknowledgeCompanionNotice(id: string) {
   const count = snapshot.items.filter(item => (id === "all" || item.id === id) && !item.readAt).length;
-  snapshot = { ...snapshot, unreadCount: Math.max(0, (snapshot.unreadCount ?? count) - count), items: snapshot.items.map(item => id === "all" || item.id === id ? { ...item, readAt: item.readAt || new Date().toISOString() } : item) };
+  snapshot = { ...snapshot, unreadCount: Math.max(0, (snapshot.unreadCount ?? snapshot.items.filter(item => !item.readAt).length) - count), items: snapshot.items.map(item => id === "all" || item.id === id ? { ...item, readAt: item.readAt || new Date().toISOString() } : item) };
   listeners.forEach(listener => listener());
 }
 export const companionNotificationStore = {

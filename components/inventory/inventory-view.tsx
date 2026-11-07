@@ -4,7 +4,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { LayoutGrid, Table2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { InventoryTable } from "./inventory-table";
 import { useMobileLayout } from "@/lib/use-mobile-layout";
 
@@ -38,26 +38,10 @@ export function InventoryViewProvider({ children }: { children: ReactNode }) {
 export function InventoryViewToggle() {
   const { view, changeView } = useContext(InventoryViewContext);
   return (
-        <div className="hidden items-center gap-1 rounded-xl border p-1 md:flex">
-          <Button
-            variant={view === "table" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => changeView("table")}
-            title="Table view"
-            aria-pressed={view === "table"}
-          >
-            <Table2 className="mr-1 h-4 w-4" /> Table
-          </Button>
-          <Button
-            variant={view === "cards" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => changeView("cards")}
-            title="Card view"
-            aria-pressed={view === "cards"}
-          >
-            <LayoutGrid className="mr-1 h-4 w-4" /> Cards
-          </Button>
-        </div>
+        <div className="hidden md:block"><SegmentedControl value={view} onValueChange={changeView} label="Inventory view" options={[
+          { value: "table", label: "Table", title: "Table view", icon: <Table2 /> },
+          { value: "cards", label: "Cards", title: "Card view", icon: <LayoutGrid /> },
+        ]} /></div>
   );
 }
 

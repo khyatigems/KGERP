@@ -103,3 +103,97 @@ html[data-workspace-theme] .gemstone-photo { background:#e8e8e8; }
   .erp-workspace [data-slot="table-container"] { background:var(--card); }
   .erp-workspace [data-slot="card"], .trading-panel { box-shadow:0 1px 2px rgb(20 30 45 / .04), 0 6px 18px rgb(20 30 45 / .025); }
 }
+
+/* Unslop alignment: calm, precise gemstone trading. Review direction and credit
+   in docs/unslop-design-alignment.md. Screen-only: invoices/labels/PDFs retain
+   their own print geometry and customer-facing pages keep their own identity. */
+@media screen {
+  html:not(.dark)[data-workspace-theme] {
+    --background:#f5f6f7; --foreground:#202428; --card:#fff; --card-foreground:#202428;
+    --popover:#fff; --popover-foreground:#202428; --muted:#eceef0; --secondary:#eceef0;
+    --secondary-foreground:#30363d; --muted-foreground:#59616b; --border:#dce0e4; --input:#c6cdd4;
+    --sidebar:#eef0f2; --sidebar-foreground:#30363d; --sidebar-border:#dce0e4;
+    --primary:#315b96; --primary-foreground:#fff; --ring:#315b96;
+    --accent:#e7edf5; --accent-foreground:#264b7b; --sidebar-accent:#e1e8f1;
+    --sidebar-accent-foreground:#264b7b; --sidebar-primary:#315b96; --sidebar-ring:#315b96;
+    --chart-1:#315b96; --chart-2:#377762; --chart-3:#96732c; --chart-4:#75628e; --chart-5:#a15d68;
+    --radius:.625rem;
+  }
+  html.dark[data-workspace-theme] {
+    --background:#15181b; --foreground:#eceef0; --card:#1d2125; --card-foreground:#eceef0;
+    --popover:#252a30; --popover-foreground:#eceef0; --muted:#2b3138; --secondary:#2b3138;
+    --secondary-foreground:#d7dce2; --muted-foreground:#acb5c0; --border:#373e47; --input:#505b68;
+    --sidebar:#191d21; --sidebar-foreground:#d7dce2; --sidebar-border:#373e47;
+    --primary:#a5bfe1; --primary-foreground:#172333; --ring:#a5bfe1;
+    --accent:#28374a; --accent-foreground:#d1ddec; --sidebar-accent:#28374a;
+    --sidebar-accent-foreground:#d1ddec; --sidebar-primary:#a5bfe1; --sidebar-ring:#a5bfe1;
+    --chart-1:#a5bfe1; --chart-2:#8abcaa; --chart-3:#c8af7b; --chart-4:#b4a3ca; --chart-5:#d29da6;
+  }
+  html[data-workspace-mode="dim"][data-workspace-theme] { --background:#282c31; --card:#33383f; --popover:#3b424b; --muted:#424a55; --secondary:#424a55; --border:#596473; --input:#737f90; --sidebar:#272c32; --sidebar-border:#596473; --muted-foreground:#c1c9d3; }
+  html:not(.dark)[data-surface="stone"] { --background:#f4f2ef; --card:#fdfcfb; --popover:#fdfcfb; --muted:#eae7e2; --secondary:#eae7e2; --sidebar:#eeebe6; --border:#dcd6ce; --sidebar-border:#dcd6ce; }
+  html:not(.dark)[data-surface="sage"] { --background:#f2f5f2; --card:#fbfcfb; --popover:#fbfcfb; --muted:#e5ebe6; --secondary:#e5ebe6; --sidebar:#eaf0eb; --border:#d3ddd5; --sidebar-border:#d3ddd5; }
+  html.dark[data-surface="stone"] { --background:#1b1a18; --card:#242321; --popover:#2c2a27; --muted:#33312d; --secondary:#33312d; --sidebar:#201f1d; --border:#49453f; --sidebar-border:#49453f; }
+  html.dark[data-surface="sage"] { --background:#181c19; --card:#212723; --popover:#28312b; --muted:#303a33; --secondary:#303a33; --sidebar:#1c221e; --border:#435148; --sidebar-border:#435148; }
+  html.dark[data-workspace-mode="dim"][data-surface="stone"] { --background:#302e2a; --card:#3a3732; --popover:#423e38; --sidebar:#2c2a26; --muted:#48443d; --border:#6a6257; --sidebar-border:#6a6257; }
+  html.dark[data-workspace-mode="dim"][data-surface="sage"] { --background:#2a312c; --card:#343d36; --popover:#3c463e; --sidebar:#272e29; --muted:#424e45; --border:#5e7063; --sidebar-border:#5e7063; }
+  html:not(.dark)[data-workspace-theme="emerald-crystal"] { --primary:#166d55; --ring:#166d55; --accent:#e3eee8; --accent-foreground:#15533f; --sidebar-primary:#166d55; --sidebar-ring:#166d55; --sidebar-accent:#dce9e1; --sidebar-accent-foreground:#15533f; }
+  html.dark[data-workspace-theme="emerald-crystal"] { --primary:#a0d1bc; --primary-foreground:#173429; --ring:#a0d1bc; --accent:#2c3f35; --accent-foreground:#c2dfd1; --sidebar-primary:#a0d1bc; --sidebar-ring:#a0d1bc; --sidebar-accent:#2c3f35; --sidebar-accent-foreground:#c2dfd1; }
+  html:not(.dark)[data-workspace-theme="amethyst-prism"] { --primary:#674891; --ring:#674891; --accent:#ece7f1; --accent-foreground:#513771; --sidebar-primary:#674891; --sidebar-ring:#674891; --sidebar-accent:#e5deed; --sidebar-accent-foreground:#513771; }
+  html.dark[data-workspace-theme="amethyst-prism"] { --primary:#c8b5e0; --primary-foreground:#30243f; --ring:#c8b5e0; --accent:#3b3147; --accent-foreground:#e0d4ed; --sidebar-primary:#c8b5e0; --sidebar-ring:#c8b5e0; --sidebar-accent:#3b3147; --sidebar-accent-foreground:#e0d4ed; }
+  html[data-sidebar="dark"] .workspace-sidebar { --sidebar:#20252b; --sidebar-foreground:#e6eaf0; --sidebar-border:#424c58; --sidebar-accent:#303f52; --sidebar-accent-foreground:#edf2f9; --sidebar-primary:#b5c9e5; --muted-foreground:#b9c3cf; --foreground:#e6eaf0; --primary:#b5c9e5; --primary-foreground:#172333; --border:#424c58; --background:#20252b; }
+
+  :is([data-erp-private],.erp-workspace,.auth-shell,.workspace-sidebar,.premium-topbar,[data-slot="dialog-content"],[data-slot="alert-dialog-content"],[data-slot="popover-content"],[data-slot="dropdown-menu-content"],[data-slot="sheet-content"]) {
+    font-family:var(--font-geist-sans),Arial,sans-serif;
+    font-variant-numeric:tabular-nums;
+    --erp-motion-ease:cubic-bezier(.22,1,.36,1);
+  }
+  .erp-workspace { background-image:none; }
+  .workspace-header { background:var(--card); box-shadow:none; padding:24px; }
+  .workspace-eyebrow { font-size:12px; font-weight:400; letter-spacing:0; text-transform:none; color:var(--muted-foreground); margin-bottom:12px; }
+  .workspace-eyebrow > span { display:none; }
+  .workspace-header-content :is(h1,h2) { font-size:28px; font-weight:500; letter-spacing:0; line-height:1.25; }
+  :is([data-erp-private],.erp-workspace,.auth-shell) :is(h1,h2,h3) { font-weight:500; }
+  :is([data-erp-private],.erp-workspace,.auth-shell,.workspace-sidebar,.premium-topbar,[data-slot="dialog-content"],[data-slot="alert-dialog-content"],[data-slot="popover-content"],[data-slot="dropdown-menu-content"],[data-slot="sheet-content"]) :is([class~="text-[9px]"],[class~="text-[10px]"],[class~="text-[11px]"]) { font-size:.75rem; line-height:1.5; }
+  :is([data-erp-private],.erp-workspace,.auth-shell,.workspace-sidebar,.premium-topbar,[data-slot="dialog-content"],[data-slot="alert-dialog-content"],[data-slot="popover-content"],[data-slot="dropdown-menu-content"],[data-slot="sheet-content"]) :is(.uppercase,[class*="tracking-wid"],[class*="tracking-["]) { text-transform:none; letter-spacing:0; }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) :is(.font-black,.font-extrabold,.font-bold) { font-weight:500; }
+  :is([data-erp-private],.erp-workspace,.auth-shell,.workspace-sidebar,.premium-topbar,[data-slot="dialog-content"],[data-slot="sheet-content"]) :is(.font-semibold,b,strong) { font-weight:500; }
+  :is([data-erp-private],.erp-workspace,.auth-shell,.workspace-sidebar,.premium-topbar,[data-slot="dialog-content"],[data-slot="sheet-content"]) .font-poppins { font-family:var(--font-geist-sans),Arial,sans-serif; }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) :is([class*="bg-linear"],[class*="bg-gradient"]) { background-image:none; }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) :is([class*="bg-linear"],[class*="bg-gradient"]):not(.bg-clip-text) { background-color:var(--card); color:var(--foreground); }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) :is(button,a,[role="button"]):is([class*="bg-linear"],[class*="bg-gradient"]) { background-color:var(--primary); color:var(--primary-foreground); }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) :is([class*="bg-linear"],[class*="bg-gradient"]) .text-white { color:inherit; }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) .bg-clip-text { color:var(--foreground); -webkit-text-fill-color:var(--foreground); background:none; }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) [class*="backdrop-blur"] { backdrop-filter:none; }
+  :is([data-erp-private],.erp-workspace) .pointer-events-none.blur-3xl { display:none; }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) :is([class*="shadow-[0_0"],[class*="drop-shadow"]) { box-shadow:none; filter:none; }
+  .erp-workspace :is([class*="hover:-translate"],[class*="hover:scale"]):hover { transform:none; translate:none; scale:none; }
+  .erp-workspace :is(.gem-facet-glow,.gem-fade-in,.gem-stagger-in,.gem-shimmer-border,.animate-breathe,.animate-float) { animation:none; }
+  .erp-workspace .gem-shimmer-border::before { display:none; }
+  .erp-workspace :is([data-slot="card"],.trading-panel) { border-radius:16px; background:var(--card); border-color:var(--border); box-shadow:0 1px 2px rgb(0 0 0 / .035); }
+  .erp-workspace [data-slot="card"]:hover { box-shadow:0 1px 2px rgb(0 0 0 / .035); }
+  html.dark .erp-workspace :is([data-slot="card"],.trading-panel) { box-shadow:none; }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) [data-slot="badge"] { font-size:12px; line-height:1.4; border-radius:6px; }
+  :is([data-erp-private],.erp-workspace,[data-slot="dialog-content"],[data-slot="sheet-content"]) [data-slot="button"] { border-radius:8px; }
+  :is([data-erp-private],.erp-workspace,.workspace-sidebar,.premium-topbar,[data-slot="dialog-content"],[data-slot="sheet-content"]) .lucide { stroke-width:1.5; }
+  :is(.workspace-sidebar,.premium-topbar) .lucide { color:inherit; }
+  :is(.workspace-sidebar,[data-slot="button"]) .lucide { width:16px; height:16px; stroke-width:1.5; }
+  [data-erp-dashboard] .lucide { stroke-width:1.5; }
+  [data-erp-dashboard] :is(h1,h2,h3) .lucide { color:var(--muted-foreground); }
+  [data-erp-dashboard] :is([class*="bg-violet-"],[class*="bg-cyan-"],[class*="bg-purple-"],[class*="bg-indigo-"]):not([data-slot="badge"]) { background:var(--muted); color:var(--muted-foreground); }
+  .workspace-sidebar [aria-expanded] { font-size:12px; }
+  .workspace-sidebar nav a { min-height:36px; }
+  .trading-panel h2 { font-size:16px; font-weight:500; }
+  .trading-panel h2 svg { color:var(--muted-foreground); }
+  .trading-gem { background:transparent; color:var(--muted-foreground); }
+  .auth-brand img { background:#20252b; padding:6px; border-radius:8px; }
+  .auth-shell input { border-radius:8px; }
+  .erp-workspace :is(.recharts-cartesian-axis-tick-value,.recharts-legend-item-text) { font-size:12px; font-family:var(--font-geist-mono),monospace; }
+  .erp-workspace .recharts-cartesian-grid line { stroke:var(--border); }
+  @media (max-width:639px) {
+    .workspace-header { padding:20px; }
+    .workspace-header-content :is(h1,h2) { font-size:24px; }
+    :is([data-erp-private],.auth-shell,.erp-workspace) [data-slot="button"] { min-height:40px; }
+    .auth-shell [data-slot="button"] { min-height:44px; }
+  }
+  @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
+}

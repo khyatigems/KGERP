@@ -41,7 +41,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/55 backdrop-blur-[4px] motion-reduce:animate-none",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/45 motion-reduce:animate-none",
         className
       )}
       {...props}
@@ -65,7 +65,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "bg-background text-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-5 rounded-2xl border border-border p-6 shadow-[0_24px_90px_#0005] duration-200 outline-none sm:max-w-lg motion-reduce:animate-none",
+          "bg-background text-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] max-h-[calc(100dvh-2rem)] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-5 rounded-2xl border border-border p-6 shadow-[0_8px_24px_#0002] duration-200 outline-none sm:max-w-lg motion-reduce:animate-none",
           className
         )}
         {...props}
@@ -93,7 +93,7 @@ function DialogHeader({ className, children, ...props }: React.ComponentProps<"d
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2.5 border-b border-border pb-4 text-left", className)}
+      className={cn("flex flex-col gap-3 border-b border-border pb-4 text-left", className)}
       {...props}
     ><ModalIdentity tone={tone} />{children}</div>
   )

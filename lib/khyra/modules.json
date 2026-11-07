@@ -1,0 +1,464 @@
+[
+  {
+    "id": "general",
+    "name": "Khyra",
+    "href": "/",
+    "permission": null,
+    "sources": [
+      "components/companion/companion.tsx"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory",
+    "name": "Inventory",
+    "href": "/inventory",
+    "permission": "inventory:view",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "media",
+    "name": "Product photography and media",
+    "href": "/inventory",
+    "permission": "inventory:view",
+    "sources": [
+      "app/api/media/upload/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "orders",
+    "name": "Marketplace orders",
+    "href": "/marketplace-orders",
+    "permission": "listings:view",
+    "sources": [
+      "lib/marketplace/sync-orders.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "marketplace",
+    "name": "Marketplace management",
+    "href": "/marketplace-sync-history",
+    "permission": "listings:view",
+    "sources": [
+      "lib/marketplace/sync-jobs.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "fulfillment",
+    "name": "Stock fulfilment",
+    "href": "/marketplace-orders",
+    "permission": "listings:view",
+    "sources": [
+      "lib/fulfillment/fulfillment.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "shipping",
+    "name": "Courier and shipment operations",
+    "href": "/marketplace-orders",
+    "permission": "listings:view",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "reports",
+    "name": "Reports and exports",
+    "href": "/reports",
+    "permission": "reports:view",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "customers",
+    "name": "Customers and customer events",
+    "href": "/customers",
+    "permission": "customers:view",
+    "sources": [
+      "app/(dashboard)/customers/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "bookings",
+    "name": "Bookings",
+    "href": "/customers",
+    "permission": "customers:view",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "integrations",
+    "name": "Integrations and background jobs",
+    "href": "/settings/marketplace-connections",
+    "permission": "settings:manage",
+    "sources": [
+      "app/api/integrations/marketplace/connections/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings",
+    "name": "ERP settings",
+    "href": "/settings",
+    "permission": "settings:manage",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "security",
+    "name": "Security and sessions",
+    "href": "/settings/security",
+    "permission": null,
+    "sources": [
+      "app/api/settings/security/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "users",
+    "name": "User administration",
+    "href": "/users",
+    "permission": "users:manage",
+    "sources": [
+      "app/(dashboard)/users/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "roles",
+    "name": "Roles and permissions",
+    "href": "/users",
+    "permission": "users:manage",
+    "sources": [
+      "app/api/roles/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "notes",
+    "name": "Notes and checklists",
+    "href": "/notes",
+    "permission": null,
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "tasks",
+    "name": "Tasks",
+    "href": "/notes",
+    "permission": null,
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "reminders",
+    "name": "Follow-ups and reminders",
+    "href": "/reports/receivables",
+    "permission": "receivables:view",
+    "sources": [
+      "app/api/followups/[id]/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "purchases",
+    "name": "Purchases",
+    "href": "/purchases",
+    "permission": "purchases:view",
+    "sources": [
+      "app/(dashboard)/purchases/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "vendors",
+    "name": "Vendors",
+    "href": "/vendors",
+    "permission": "vendors:view",
+    "sources": [
+      "app/(dashboard)/vendors/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "quotations",
+    "name": "Quotations",
+    "href": "/quotes",
+    "permission": "quotations:view",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "sales",
+    "name": "Sales",
+    "href": "/sales",
+    "permission": "sales:view",
+    "sources": [
+      "app/(dashboard)/sales/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "invoices",
+    "name": "Invoices",
+    "href": "/invoices",
+    "permission": "sales:view",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "payments",
+    "name": "Invoice payments",
+    "href": "/invoices",
+    "permission": "sales:view",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "advances",
+    "name": "Customer advances",
+    "href": "/advances",
+    "permission": "advances:manage",
+    "sources": [
+      "app/(dashboard)/advances/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "receivables",
+    "name": "Receivables",
+    "href": "/reports/receivables",
+    "permission": "receivables:view",
+    "sources": [
+      "app/api/reports/receivables/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "returns",
+    "name": "Sales returns",
+    "href": "/sales-returns",
+    "permission": "sales:view",
+    "sources": [
+      "app/api/sales-returns/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "credit_notes",
+    "name": "Credit notes",
+    "href": "/sales-returns/credit-notes",
+    "permission": "sales:view",
+    "sources": [
+      "app/api/credit-notes/[id]/status/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging",
+    "name": "Packaging and serial identities",
+    "href": "/erp/packaging",
+    "permission": "packaging:view",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "labels",
+    "name": "Label files and print jobs",
+    "href": "/labels",
+    "permission": "labels:view",
+    "sources": [
+      "app/(dashboard)/labels/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "pricing",
+    "name": "Pricing and margins",
+    "href": "/settings/marketplaces",
+    "permission": "marketplace:settings_manage",
+    "sources": [
+      "app/api/pricing/planner/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "loyalty",
+    "name": "Loyalty points",
+    "href": "/reports/loyalty-points",
+    "permission": "reports:view",
+    "sources": [
+      "app/(dashboard)/reports/loyalty-points/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "coupons",
+    "name": "Coupons and promotions",
+    "href": "/settings/coupons",
+    "permission": "settings:manage",
+    "sources": [
+      "app/(dashboard)/settings/coupons/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "masters",
+    "name": "Master codes and merges",
+    "href": "/settings/codes",
+    "permission": "settings:manage",
+    "sources": [
+      "app/(dashboard)/settings/codes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "communications",
+    "name": "Email and communications",
+    "href": "/communication",
+    "permission": "communication:view",
+    "sources": [
+      "lib/email/email-service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "email_templates",
+    "name": "Email and message templates",
+    "href": "/settings/email-templates",
+    "permission": "settings:manage",
+    "sources": [
+      "app/(dashboard)/settings/email-templates/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "website",
+    "name": "Website and editorial management",
+    "href": "/website-management",
+    "permission": "settings:landing_page",
+    "sources": [
+      "app/api/website/editorial/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker",
+    "name": "Work tracking",
+    "href": "/work-tracker",
+    "permission": null,
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "weekly_reports",
+    "name": "Weekly business reports",
+    "href": "/settings/weekly-reports",
+    "permission": "settings:manage",
+    "sources": [
+      "lib/weekly-report/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "analytics",
+    "name": "Analytics snapshots",
+    "href": "/reports",
+    "permission": "reports:view",
+    "sources": [
+      "app/api/cron/analytics/daily/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "gci",
+    "name": "GCI certificates",
+    "href": "/inventory",
+    "permission": "inventory:view",
+    "sources": [
+      "app/actions/gci.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "verification",
+    "name": "Public gemstone verification",
+    "href": "/erp/packaging/logs",
+    "permission": "packaging:view",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "governance",
+    "name": "Data freeze and governance",
+    "href": "/settings",
+    "permission": "settings:manage",
+    "sources": [
+      "app/api/governance/status/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "search",
+    "name": "ERP search",
+    "href": "/search",
+    "permission": null,
+    "sources": [
+      "app/api/search/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "company",
+    "name": "Company and branding",
+    "href": "/settings/company",
+    "permission": "settings:manage",
+    "sources": [
+      "app/(dashboard)/settings/company/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "dashboard",
+    "name": "Business overview",
+    "href": "/",
+    "permission": null,
+    "sources": [
+      "app/actions/dashboard-layout.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "backup",
+    "name": "Backup and recovery",
+    "href": "/settings",
+    "permission": "settings:manage",
+    "sources": [],
+    "support": "prepared_template"
+  }
+]

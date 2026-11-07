@@ -94,7 +94,7 @@ try {
     await checkLayout();
     assert.equal(await page.$eval('[data-type="error"]', el => getComputedStyle(el).getPropertyValue("--feedback-accent").trim()), "#dc5260");
     assert.equal(await page.$eval('[data-type="info"]', el => getComputedStyle(el).getPropertyValue("--feedback-accent").trim()), "#548be5");
-    assert.equal(await page.$eval('[data-type="success"] [data-icon]', el => getComputedStyle(el).animationName), "erp-feedback-notice");
+    assert.equal(await page.$eval('[data-type="success"] [data-icon]', el => getComputedStyle(el).animationName), "none");
     const iconIssues = await page.$$eval('[data-icon]', badges => badges.flatMap(badge => {
       const svg = badge.querySelector('svg');
       if (!svg) return ["missing icon"];

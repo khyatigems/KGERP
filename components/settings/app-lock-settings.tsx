@@ -10,7 +10,7 @@ export function AppLockSettings() {
   if (!lock) return null;
   return <section className="space-y-4 rounded-xl border bg-card p-5">
     <h2 className="text-lg font-semibold">2. Fingerprint app lock</h2>
-    <p className="text-sm text-muted-foreground">After setting up this device above, enable locking whenever you close, minimize, or leave ERP. Switching windows or tabs also locks it. On return, verify with your device fingerprint, face, or PIN. Your password-based sign-in stays the same.</p>
+    <p className="text-sm text-muted-foreground">ERP locks after 1 minute in the background. Quick Alt+Tab switches, table filters, dropdowns, and normal page navigation keep you unlocked. After a longer absence, verify with your device fingerprint, face, or PIN. Lock now always locks immediately.</p>
     <p role="status" className="text-sm font-medium">{lock.state?.enabled ? "App lock is on for this browser session." : "App lock is off for this browser session."}</p>
     {!lock.state?.supported && <p className="text-sm text-muted-foreground">Sign out and sign in again if app lock is unavailable.</p>}
     {!lock.state?.enabled && <Button disabled={lock.busy || !lock.state?.supported} onClick={lock.enable}>{lock.busy ? "Verifying…" : "Enable fingerprint app lock"}</Button>}

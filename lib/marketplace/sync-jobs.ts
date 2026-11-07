@@ -4,7 +4,7 @@ import { ensureMarketplaceFoundationSchema } from "@/lib/marketplace-foundation"
 import { syncListingsForPlatform } from "@/lib/marketplace/sync-listings";
 import { syncOrdersForPlatform } from "@/lib/marketplace/sync-orders";
 import { closeListingsMissingFromActiveSync } from "@/lib/marketplace/close-listings";
-import { persistNotification } from "@/lib/notifications";
+import { persistNotification, resolveMarketplaceNotificationSafely } from "@/lib/notifications";
 import { routeNotification } from "@/lib/notification-routing";
 import { withMarketplaceWorkerLease } from "@/lib/marketplace/worker-lease";
 import { retryMarketplaceWrite } from "@/lib/marketplace/database-retry";
@@ -141,6 +141,7 @@ async function processOneJob(jobId: string) {
         endedAt: hasMore ? null : new Date(),
       },
     }));
+    if (!hasMore && totalFailed === 0) await resolveMarketplaceNotificationSafely(job.id);
     if (!hasMore && totalFailed > 0) {
       await persistTerminalFailure("PARTIAL", totalFailed);
     }

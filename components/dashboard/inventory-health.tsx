@@ -113,7 +113,7 @@ export function InventoryHealth() {
 
   if (!stats) {
     return (
-      <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter gem-fade-in">
+      <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter ">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-500/10 text-slate-500 dark:text-slate-400">
             <LottieLoader variant="widget" style={{ width: 28, height: 28 }} />
@@ -128,7 +128,7 @@ export function InventoryHealth() {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter ">
       <div className="flex items-center gap-3 mb-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-500/10 text-slate-500 dark:text-slate-400">
           <Package className="h-4 w-4" />
@@ -164,7 +164,7 @@ export function InventoryHealth() {
               <div className="h-1 rounded-full bg-border overflow-hidden">
                 <div
                   className={cn(
-                    "h-full rounded-full transition-all duration-500",
+                    "h-full rounded-full transition-[color,background-color,border-color,opacity,transform] duration-500",
                     item.bar
                   )}
                   style={{ width: `${item.pct}%` }}
@@ -186,7 +186,7 @@ export function InventoryHealth() {
 
       <Link
         href="/inventory"
-        className="mt-3 flex items-center justify-center rounded-lg border border-dashed border-border p-2 text-[11px] text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
+        className="mt-3 flex items-center justify-center rounded-lg border border-dashed border-border p-2 text-xs text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
       >
         View full inventory
       </Link>

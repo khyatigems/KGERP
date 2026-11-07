@@ -112,7 +112,7 @@ export function CsvImporter<TParsedRow = Record<string, unknown>>({
 
       {result && (
         <div className={`p-4 rounded-md ${result.success ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-            <p className="font-bold">{result.message}</p>
+            <p className="font-semibold">{result.message}</p>
             {result.errors && result.errors.length > 0 && (
                 <ul className="mt-2 list-disc pl-5 text-sm">
                     {result.errors.map((err, i) => (

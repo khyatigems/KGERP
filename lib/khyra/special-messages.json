@@ -1,0 +1,3029 @@
+[
+  {
+    "id": "general.introduction",
+    "module": "general",
+    "eventName": "general / introduction",
+    "triggerCondition": "First introduction for this signed-in account on this browser; never on each navigation.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "I'm Khyra! How can I make your work easier today?",
+      "friendly": "I'm Khyra! How can I make your work easier today?",
+      "detailed": "I'm Khyra, your KhyatiGems Companion. I can help you review permitted updates and choose your next step.",
+      "followUp": "Shall we explore your business tools?"
+    }
+  },
+  {
+    "id": "general.returning",
+    "module": "general",
+    "eventName": "general / returning",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Welcome back!",
+      "friendly": "Welcome back! What would you like to work on next?",
+      "detailed": "Welcome back! What would you like to work on next? Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.morning",
+    "module": "general",
+    "eventName": "general / morning",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Good morning!",
+      "friendly": "Good morning! Shall we see what needs your attention today?",
+      "detailed": "Good morning! Shall we see what needs your attention today? Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.afternoon",
+    "module": "general",
+    "eventName": "general / afternoon",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Good afternoon!",
+      "friendly": "Good afternoon! Ready to pick up your next task?",
+      "detailed": "Good afternoon! Ready to pick up your next task? Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.evening",
+    "module": "general",
+    "eventName": "general / evening",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Good evening!",
+      "friendly": "Good evening! Shall we review where things stand?",
+      "detailed": "Good evening! Shall we review where things stand? Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.welcome_back",
+    "module": "general",
+    "eventName": "general / welcome_back",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Ready when you are.",
+      "friendly": "Welcome back. Your updates are here whenever you'd like to review them.",
+      "detailed": "Welcome back. Your updates are here whenever you'd like to review them. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.inactivity_return",
+    "module": "general",
+    "eventName": "general / inactivity_return",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "greeting",
+    "variants": {
+      "short": "Nice to see you back.",
+      "friendly": "Ready to continue? We can pick up with your current work.",
+      "detailed": "Ready to continue? We can pick up with your current work. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.help",
+    "module": "general",
+    "eventName": "general / help",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "How can I help?",
+      "friendly": "What would make your next step easier? Your permitted shortcuts are right here.",
+      "detailed": "What would make your next step easier? Your permitted shortcuts are right here. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.acknowledgement",
+    "module": "general",
+    "eventName": "general / acknowledgement",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Of course.",
+      "friendly": "Of course. Let's take this one step at a time.",
+      "detailed": "Of course. Let's take this one step at a time. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.farewell",
+    "module": "general",
+    "eventName": "general / farewell",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "See you next time.",
+      "friendly": "That's all for now. I'll be here when you're ready to continue.",
+      "detailed": "That's all for now. I'll be here when you're ready to continue. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.idle",
+    "module": "general",
+    "eventName": "general / idle",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "idle",
+    "variants": {
+      "short": "Ready whenever you are.",
+      "friendly": "I'm here if you'd like a hand with your next review.",
+      "detailed": "I'm here if you'd like a hand with your next review. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.daily_review",
+    "module": "general",
+    "eventName": "general / daily_review",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Shall we review your business?",
+      "friendly": "Ready for a quick business review? I'll use the latest permitted records.",
+      "detailed": "Ready for a quick business review? I'll use the latest permitted records. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.quiet",
+    "module": "general",
+    "eventName": "general / quiet",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "rest",
+    "variants": {
+      "short": "Resting quietly.",
+      "friendly": "I'll stay quiet. Open my tools whenever you need me.",
+      "detailed": "I'll stay quiet. Open my tools whenever you need me. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.snoozed",
+    "module": "general",
+    "eventName": "general / snoozed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "user",
+    "severity": "informational",
+    "expression": "rest",
+    "variants": {
+      "short": "Alerts are snoozed.",
+      "friendly": "I'll pause these interruptions for the time you selected. Your history stays available.",
+      "detailed": "I'll pause these interruptions for the time you selected. Your history stays available. Your permitted updates and tools are here whenever you want to review them.",
+      "followUp": "Open the existing tools whenever you're ready."
+    }
+  },
+  {
+    "id": "general.result_unconfirmed",
+    "module": "general",
+    "eventName": "general / result_unconfirmed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "The result needs checking.",
+      "friendly": "The connection dropped, so I can't confirm the result. Please check the record before trying again.",
+      "detailed": "The request acknowledgement was unavailable. The operation may or may not have committed; don't repeat a payment, sale or other mutation until its existing record is checked.",
+      "followUp": "Shall we check the record and its recent activity?"
+    }
+  },
+  {
+    "id": "general.recovery_verified",
+    "module": "general",
+    "eventName": "general / recovery_verified",
+    "triggerCondition": "A stored resolvedAt exists only after independently verified successful recovery; never from reading or acknowledgement.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Recovery confirmed.",
+      "friendly": "That issue has a verified recovery. You can review the history whenever you'd like.",
+      "detailed": "A successful recovery was independently confirmed.[[ Earlier update: {context_summary}]]",
+      "followUp": "Would you like to review the recovery history?"
+    }
+  },
+  {
+    "id": "general.read",
+    "module": "general",
+    "eventName": "general / read",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Update marked as read.",
+      "friendly": "I've marked that update as read. Acknowledgement and resolution remain separate.",
+      "detailed": "Only this signed-in user's read state was changed. No operational recovery is implied.",
+      "followUp": "You can acknowledge the issue separately if appropriate."
+    }
+  },
+  {
+    "id": "general.acknowledged",
+    "module": "general",
+    "eventName": "general / acknowledged",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Acknowledgement saved.",
+      "friendly": "I've recorded your acknowledgement. The issue stays open until recovery is verified.",
+      "detailed": "Acknowledgement records the user's explicit review, not independent resolution.",
+      "followUp": "Use the existing record to review any remaining work."
+    }
+  },
+  {
+    "id": "general.permission",
+    "module": "general",
+    "eventName": "general / permission",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "This action needs permission.",
+      "friendly": "Your account doesn't have access to that action. An authorised administrator can review your permissions.",
+      "detailed": "The existing server permission check denied the requested action. No restricted business information is included.",
+      "followUp": "Please ask an authorised administrator to review access."
+    }
+  },
+  {
+    "id": "general.connection",
+    "module": "general",
+    "eventName": "general / connection",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "The connection needs a check.",
+      "friendly": "I'm having trouble reaching the ERP. Your recent work needs a result check before you retry.",
+      "detailed": "The server connection was unavailable. This is not proof that a mutation failed or that an existing record changed.",
+      "followUp": "Check your connection, then review the current record."
+    }
+  },
+  {
+    "id": "inventory.images_missing",
+    "module": "inventory",
+    "eventName": "inventory / images_missing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Product photographs need review.",
+      "friendly": "I noticed some gemstones are missing photographs. Shall we review them?",
+      "detailed": "In-stock products have no primary image or IMAGE/image media.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "inventory.certificates_missing",
+    "module": "inventory",
+    "eventName": "inventory / certificates_missing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "alert",
+    "variants": {
+      "short": "Certificate details need review.",
+      "friendly": "I noticed some gemstones are missing certificate numbers. Would you like to review them?",
+      "detailed": "Both certificate-number fields are empty after trimming whitespace.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "inventory.details_missing",
+    "module": "inventory",
+    "eventName": "inventory / details_missing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Some gemstone details need a look.",
+      "friendly": "A few required product details need checking before the next step.",
+      "detailed": "Existing completeness validation found missing required product information.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "inventory.duplicate",
+    "module": "inventory",
+    "eventName": "inventory / duplicate",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "A possible duplicate needs review.",
+      "friendly": "This looks like a record that may already exist. Shall we compare the details before continuing?",
+      "detailed": "The existing duplicate check returned a match. A possible match is not a confirmed duplicate deletion instruction.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "orders.attention",
+    "module": "orders",
+    "eventName": "orders / attention",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "An order needs attention.",
+      "friendly": "This order needs a closer look. Shall we review the details?",
+      "detailed": "The authorised order source reports a condition requiring review.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "marketplace.sync.issue",
+    "module": "marketplace",
+    "eventName": "marketplace / sync / issue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Your marketplace sync needs a look.",
+      "friendly": "Oh! Your[[ {marketplace_name}]] marketplace sync didn't finish cleanly. Shall we review it before trying again?",
+      "detailed": "A saved marketplace job failed or completed with record errors.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "marketplace.jobs_stuck",
+    "module": "marketplace",
+    "eventName": "marketplace / jobs_stuck",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Marketplace jobs need review.",
+      "friendly": "I found marketplace jobs that need a progress check. Shall we review the history?",
+      "detailed": "The user's saved jobs failed, completed partially, or stopped updating beyond the configured stale threshold.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "reports.exports_failed",
+    "module": "reports",
+    "eventName": "reports / exports_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Some exports need review.",
+      "friendly": "I found export jobs that couldn't be prepared. Would you like to review them?",
+      "detailed": "The authorised report job source returned FAILED jobs for the current user.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "receivables.outstanding",
+    "module": "receivables",
+    "eventName": "receivables / outstanding",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Receivables need review.",
+      "friendly": "There are recorded receivables to review. Shall we open the existing report?",
+      "detailed": "The permission-filtered receivables source reports outstanding balances; no financial amount is inferred.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "packaging.attention",
+    "module": "packaging",
+    "eventName": "packaging / attention",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Packaging details need review.",
+      "friendly": "Some selected items need packaging details before you continue.",
+      "detailed": "The existing packaging eligibility check returned actionable validation issues.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "communications.delivery_failed",
+    "module": "communications",
+    "eventName": "communications / delivery_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Message delivery needs attention.",
+      "friendly": "The delivery service couldn't deliver that message. Shall we review the existing message record?",
+      "detailed": "A verified provider failure or existing terminal delivery state is present; queue acceptance alone is not delivery.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "quotations.expiring",
+    "module": "quotations",
+    "eventName": "quotations / expiring",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "A quotation needs a timely review.",
+      "friendly": "A quotation is approaching its recorded expiry. Would you like to review it?",
+      "detailed": "The saved quotation expiry is within the configured review window.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "reminders.approaching",
+    "module": "reminders",
+    "eventName": "reminders / approaching",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "A follow-up is approaching.",
+      "friendly": "Your recorded follow-up time is approaching. Shall we open the details?",
+      "detailed": "The saved follow-up date falls inside the configured reminder window.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "reminders.overdue",
+    "module": "reminders",
+    "eventName": "reminders / overdue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "A follow-up is overdue.",
+      "friendly": "A recorded follow-up is overdue. Would you like to review its next step?",
+      "detailed": "The stored follow-up due time is past and no verified completion is present.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "security.review",
+    "module": "security",
+    "eventName": "security / review",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "critical",
+    "expression": "alert",
+    "variants": {
+      "short": "Your account needs a security review.",
+      "friendly": "Please review this security update before continuing with sensitive work.",
+      "detailed": "A verified security event requires attention. No credentials or recovery secrets are included.[[ Verified affected records: {affected_count}.]][[ {context_summary}]]",
+      "followUp": "Let's open the existing record and check the next appropriate action.",
+      "urgent": "Please review this important issue before continuing. Use the existing authorised workflow."
+    }
+  },
+  {
+    "id": "orders.received",
+    "module": "orders",
+    "eventName": "orders / received",
+    "triggerCondition": "A genuinely new order was committed, not an existing order updated by repeated sync.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "happy",
+    "variants": {
+      "short": "A new order is recorded.",
+      "friendly": "Great news! A new order has arrived.[[ Order {order_number} is ready to review.]]",
+      "detailed": "A new marketplace order was saved using the existing unique marketplace order identity.[[ Reference: {order_number}.]]",
+      "followUp": "Shall we review the order's next step?"
+    }
+  },
+  {
+    "id": "orders.processing",
+    "module": "orders",
+    "eventName": "orders / processing",
+    "triggerCondition": "The stored marketplace order or raw provider status explicitly confirms this exact state. Never derive shipment or delivery from label generation.",
+    "requiredEvidence": "observed",
+    "severity": "informational",
+    "expression": "working",
+    "variants": {
+      "short": "The order is being processed.",
+      "friendly": "Your order is in processing. I'll wait for a confirmed next step.",
+      "detailed": "The order is being processed.[[ Order: {order_number}.]][[ {context_summary}]]",
+      "followUp": "Open the authorised order record to review the source status."
+    }
+  },
+  {
+    "id": "orders.ready",
+    "module": "orders",
+    "eventName": "orders / ready",
+    "triggerCondition": "The stored marketplace order or raw provider status explicitly confirms this exact state. Never derive shipment or delivery from label generation.",
+    "requiredEvidence": "observed",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "The order is ready for dispatch review.",
+      "friendly": "This order is marked ready for dispatch. Shall we check its fulfilment details?",
+      "detailed": "The order is ready for dispatch review.[[ Order: {order_number}.]][[ {context_summary}]]",
+      "followUp": "Open the authorised order record to review the source status."
+    }
+  },
+  {
+    "id": "orders.shipped",
+    "module": "orders",
+    "eventName": "orders / shipped",
+    "triggerCondition": "The stored marketplace order or raw provider status explicitly confirms this exact state. Never derive shipment or delivery from label generation.",
+    "requiredEvidence": "observed",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Shipment confirmed.",
+      "friendly": "The source confirms this order has shipped.[[ Tracking: {tracking_code}.]]",
+      "detailed": "Shipment confirmed.[[ Order: {order_number}.]][[ {context_summary}]]",
+      "followUp": "Open the authorised order record to review the source status."
+    }
+  },
+  {
+    "id": "orders.delivered",
+    "module": "orders",
+    "eventName": "orders / delivered",
+    "triggerCondition": "The stored marketplace order or raw provider status explicitly confirms this exact state. Never derive shipment or delivery from label generation.",
+    "requiredEvidence": "observed",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Delivery confirmed.",
+      "friendly": "The source confirms this order was delivered. You can review the delivery details.",
+      "detailed": "Delivery confirmed.[[ Order: {order_number}.]][[ {context_summary}]]",
+      "followUp": "Open the authorised order record to review the source status."
+    }
+  },
+  {
+    "id": "orders.cancelled",
+    "module": "orders",
+    "eventName": "orders / cancelled",
+    "triggerCondition": "The stored marketplace order or raw provider status explicitly confirms this exact state. Never derive shipment or delivery from label generation.",
+    "requiredEvidence": "observed",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Order cancellation confirmed.",
+      "friendly": "The source confirms the order was cancelled. Let's review any related stock or payment follow-up.",
+      "detailed": "Order cancellation confirmed.[[ Order: {order_number}.]][[ {context_summary}]]",
+      "followUp": "Open the authorised order record to review the source status."
+    }
+  },
+  {
+    "id": "bookings.created",
+    "module": "bookings",
+    "eventName": "bookings / created",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your booking has been created.",
+      "friendly": "Here is your update. Your booking has been created.",
+      "detailed": "Your booking has been created.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "bookings.confirmed",
+    "module": "bookings",
+    "eventName": "bookings / confirmed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your booking is confirmed.",
+      "friendly": "Here is your update. Your booking is confirmed.",
+      "detailed": "Your booking is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "bookings.rescheduled",
+    "module": "bookings",
+    "eventName": "bookings / rescheduled",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your booking has been rescheduled.",
+      "friendly": "Here is your update. Your booking has been rescheduled.",
+      "detailed": "Your booking has been rescheduled.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "bookings.cancelled",
+    "module": "bookings",
+    "eventName": "bookings / cancelled",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your booking has been cancelled.",
+      "friendly": "Here is your update. Your booking has been cancelled.",
+      "detailed": "Your booking has been cancelled.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "shipping.shipment_created",
+    "module": "shipping",
+    "eventName": "shipping / shipment_created",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your shipment has been created.",
+      "friendly": "Here is your update. Your shipment has been created.",
+      "detailed": "Your shipment has been created.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "shipping.label_generated",
+    "module": "shipping",
+    "eventName": "shipping / label_generated",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your shipping label is ready.",
+      "friendly": "Here is your update. Your shipping label is ready.",
+      "detailed": "Your shipping label is ready.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "shipping.dispatched",
+    "module": "shipping",
+    "eventName": "shipping / dispatched",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "The carrier confirmed dispatch.",
+      "friendly": "Here is your update. The carrier confirmed dispatch.",
+      "detailed": "The carrier confirmed dispatch.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "shipping.tracking_updated",
+    "module": "shipping",
+    "eventName": "shipping / tracking_updated",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "speaking",
+    "variants": {
+      "short": "The tracking details have been updated.",
+      "friendly": "Here is your update. The tracking details have been updated.",
+      "detailed": "The tracking details have been updated.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "shipping.delivered",
+    "module": "shipping",
+    "eventName": "shipping / delivered",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "The carrier confirmed delivery.",
+      "friendly": "Here is your update. The carrier confirmed delivery.",
+      "detailed": "The carrier confirmed delivery.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "shipping.delayed",
+    "module": "shipping",
+    "eventName": "shipping / delayed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Your shipment needs a delay review.",
+      "friendly": "Please take a look. Your shipment needs a delay review.",
+      "detailed": "Your shipment needs a delay review.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step.",
+      "urgent": "Please review this issue before continuing. Your shipment needs a delay review."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "shipping.label_failed",
+    "module": "shipping",
+    "eventName": "shipping / label_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "The shipping label couldn't be prepared.",
+      "friendly": "Please take a look. The shipping label couldn't be prepared.",
+      "detailed": "The shipping label couldn't be prepared.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step.",
+      "urgent": "Please review this issue before continuing. The shipping label couldn't be prepared."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "shipping.courier_issue",
+    "module": "shipping",
+    "eventName": "shipping / courier_issue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Your courier connection needs review.",
+      "friendly": "Please take a look. Your courier connection needs review.",
+      "detailed": "Your courier connection needs review.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step.",
+      "urgent": "Please review this issue before continuing. Your courier connection needs review."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "tasks.created",
+    "module": "tasks",
+    "eventName": "tasks / created",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your task has been created.",
+      "friendly": "Here is your update. Your task has been created.",
+      "detailed": "Your task has been created.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "tasks.completed",
+    "module": "tasks",
+    "eventName": "tasks / completed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Your task is complete.",
+      "friendly": "Here is your update. Your task is complete.",
+      "detailed": "Your task is complete.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "tasks.overdue",
+    "module": "tasks",
+    "eventName": "tasks / overdue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "A recorded task is overdue.",
+      "friendly": "Please take a look. A recorded task is overdue.",
+      "detailed": "A recorded task is overdue.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step.",
+      "urgent": "Please review this issue before continuing. A recorded task is overdue."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "tasks.reminder",
+    "module": "tasks",
+    "eventName": "tasks / reminder",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your task reminder is approaching.",
+      "friendly": "Here is your update. Your task reminder is approaching.",
+      "detailed": "Your task reminder is approaching.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "backup.started",
+    "module": "backup",
+    "eventName": "backup / started",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "started",
+    "severity": "informational",
+    "expression": "working",
+    "variants": {
+      "short": "Your backup has started.",
+      "friendly": "Here is your update. Your backup has started.",
+      "detailed": "Your backup has started.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "backup.completed",
+    "module": "backup",
+    "eventName": "backup / completed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Your backup is complete.",
+      "friendly": "Here is your update. Your backup is complete.",
+      "detailed": "Your backup is complete.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "backup.failed",
+    "module": "backup",
+    "eventName": "backup / failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "The backup couldn't be confirmed.",
+      "friendly": "Please take a look. The backup couldn't be confirmed.",
+      "detailed": "The backup couldn't be confirmed.[[ {context_summary}]]",
+      "followUp": "Review the confirmed details before choosing the next step.",
+      "urgent": "Please review this issue before continuing. The backup couldn't be confirmed."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.ebay.account_connected",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / account_connected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "eBay: The account connection is confirmed.",
+      "friendly": "eBay: Your account is connected. Shall we review its settings?",
+      "detailed": "eBay: The account connection is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.account_disconnected",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / account_disconnected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "eBay: The account is disconnected.",
+      "friendly": "eBay: The account is disconnected as requested.",
+      "detailed": "eBay: The account is disconnected.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.authentication_expired",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / authentication_expired",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "eBay: Authentication needs renewal.",
+      "friendly": "eBay: The saved access has expired or was rejected. Let's review the connection.",
+      "detailed": "eBay: Authentication needs renewal.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "eBay: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.sync_started",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / sync_started",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "started",
+    "severity": "informational",
+    "expression": "working",
+    "variants": {
+      "short": "eBay: Synchronisation is in progress.",
+      "friendly": "eBay: The sync has started. I'll wait for the confirmed result.",
+      "detailed": "eBay: Synchronisation is in progress.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.sync_completed",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / sync_completed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "eBay: Synchronisation completed.",
+      "friendly": "eBay: Your sync is complete. Shall we review the result?",
+      "detailed": "eBay: Synchronisation completed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.sync_failed",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / sync_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "eBay: Synchronisation needs attention.",
+      "friendly": "eBay: The sync didn't finish successfully. Shall we review the existing retry options?",
+      "detailed": "eBay: Synchronisation needs attention.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "eBay: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.listing_published",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / listing_published",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "eBay: Publication is confirmed.",
+      "friendly": "eBay: The provider confirmed your listing was published. Shall we review it?",
+      "detailed": "eBay: Publication is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.listing_updated",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / listing_updated",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "eBay: The listing has been updated.",
+      "friendly": "eBay: Your listing update is confirmed by the provider.",
+      "detailed": "eBay: The listing has been updated.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.listing_rejected",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / listing_rejected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "eBay: The listing needs a correction.",
+      "friendly": "eBay: The provider rejected this listing. Shall we review the reported requirements?",
+      "detailed": "eBay: The listing needs a correction.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "eBay: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.listing_attention",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / listing_attention",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "alert",
+    "variants": {
+      "short": "eBay: The listing needs review.",
+      "friendly": "eBay: This listing needs a closer look before the next step.",
+      "detailed": "eBay: The listing needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "eBay: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.api_error",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / api_error",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "eBay: The marketplace request needs review.",
+      "friendly": "eBay: The marketplace request couldn't finish cleanly. Let's check its existing record.",
+      "detailed": "eBay: The marketplace request needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "eBay: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.bulk_listing",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / bulk_listing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "eBay: The listing batch result is ready.",
+      "friendly": "eBay: The batch result is ready. Please review individual successes and failures.",
+      "detailed": "eBay: The listing batch result is ready.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.ebay.permission_issue",
+    "module": "marketplace",
+    "eventName": "marketplace / ebay / permission_issue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "eBay: Marketplace access needs review.",
+      "friendly": "eBay: The provider didn't allow that action. Please review the account's approved permissions.",
+      "detailed": "eBay: Marketplace access needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "eBay: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/ebay.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.account_connected",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / account_connected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Etsy: The account connection is confirmed.",
+      "friendly": "Etsy: Your account is connected. Shall we review its settings?",
+      "detailed": "Etsy: The account connection is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.account_disconnected",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / account_disconnected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Etsy: The account is disconnected.",
+      "friendly": "Etsy: The account is disconnected as requested.",
+      "detailed": "Etsy: The account is disconnected.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.authentication_expired",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / authentication_expired",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Etsy: Authentication needs renewal.",
+      "friendly": "Etsy: The saved access has expired or was rejected. Let's review the connection.",
+      "detailed": "Etsy: Authentication needs renewal.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Etsy: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.sync_started",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / sync_started",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "started",
+    "severity": "informational",
+    "expression": "working",
+    "variants": {
+      "short": "Etsy: Synchronisation is in progress.",
+      "friendly": "Etsy: The sync has started. I'll wait for the confirmed result.",
+      "detailed": "Etsy: Synchronisation is in progress.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.sync_completed",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / sync_completed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Etsy: Synchronisation completed.",
+      "friendly": "Etsy: Your sync is complete. Shall we review the result?",
+      "detailed": "Etsy: Synchronisation completed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.sync_failed",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / sync_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Etsy: Synchronisation needs attention.",
+      "friendly": "Etsy: The sync didn't finish successfully. Shall we review the existing retry options?",
+      "detailed": "Etsy: Synchronisation needs attention.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Etsy: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.listing_published",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / listing_published",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Etsy: Publication is confirmed.",
+      "friendly": "Etsy: The provider confirmed your listing was published. Shall we review it?",
+      "detailed": "Etsy: Publication is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.listing_updated",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / listing_updated",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Etsy: The listing has been updated.",
+      "friendly": "Etsy: Your listing update is confirmed by the provider.",
+      "detailed": "Etsy: The listing has been updated.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.listing_rejected",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / listing_rejected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Etsy: The listing needs a correction.",
+      "friendly": "Etsy: The provider rejected this listing. Shall we review the reported requirements?",
+      "detailed": "Etsy: The listing needs a correction.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Etsy: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.listing_attention",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / listing_attention",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "alert",
+    "variants": {
+      "short": "Etsy: The listing needs review.",
+      "friendly": "Etsy: This listing needs a closer look before the next step.",
+      "detailed": "Etsy: The listing needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Etsy: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.api_error",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / api_error",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Etsy: The marketplace request needs review.",
+      "friendly": "Etsy: The marketplace request couldn't finish cleanly. Let's check its existing record.",
+      "detailed": "Etsy: The marketplace request needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Etsy: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.bulk_listing",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / bulk_listing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Etsy: The listing batch result is ready.",
+      "friendly": "Etsy: The batch result is ready. Please review individual successes and failures.",
+      "detailed": "Etsy: The listing batch result is ready.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.etsy.permission_issue",
+    "module": "marketplace",
+    "eventName": "marketplace / etsy / permission_issue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Etsy: Marketplace access needs review.",
+      "friendly": "Etsy: The provider didn't allow that action. Please review the account's approved permissions.",
+      "detailed": "Etsy: Marketplace access needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Etsy: please review this issue before repeating the operation."
+    },
+    "sources": [
+      "lib/marketplace/connectors/etsy.ts",
+      "lib/marketplace/sync-jobs.ts"
+    ]
+  },
+  {
+    "id": "marketplace.shopify.account_connected",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / account_connected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Shopify: The account connection is confirmed.",
+      "friendly": "Shopify: Your account is connected. Shall we review its settings?",
+      "detailed": "Shopify: The account connection is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.account_disconnected",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / account_disconnected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Shopify: The account is disconnected.",
+      "friendly": "Shopify: The account is disconnected as requested.",
+      "detailed": "Shopify: The account is disconnected.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.authentication_expired",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / authentication_expired",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Shopify: Authentication needs renewal.",
+      "friendly": "Shopify: The saved access has expired or was rejected. Let's review the connection.",
+      "detailed": "Shopify: Authentication needs renewal.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Shopify: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.sync_started",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / sync_started",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "started",
+    "severity": "informational",
+    "expression": "working",
+    "variants": {
+      "short": "Shopify: Synchronisation is in progress.",
+      "friendly": "Shopify: The sync has started. I'll wait for the confirmed result.",
+      "detailed": "Shopify: Synchronisation is in progress.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.sync_completed",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / sync_completed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Shopify: Synchronisation completed.",
+      "friendly": "Shopify: Your sync is complete. Shall we review the result?",
+      "detailed": "Shopify: Synchronisation completed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.sync_failed",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / sync_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Shopify: Synchronisation needs attention.",
+      "friendly": "Shopify: The sync didn't finish successfully. Shall we review the existing retry options?",
+      "detailed": "Shopify: Synchronisation needs attention.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Shopify: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.listing_published",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / listing_published",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Shopify: Publication is confirmed.",
+      "friendly": "Shopify: The provider confirmed your listing was published. Shall we review it?",
+      "detailed": "Shopify: Publication is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.listing_updated",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / listing_updated",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Shopify: The listing has been updated.",
+      "friendly": "Shopify: Your listing update is confirmed by the provider.",
+      "detailed": "Shopify: The listing has been updated.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.listing_rejected",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / listing_rejected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Shopify: The listing needs a correction.",
+      "friendly": "Shopify: The provider rejected this listing. Shall we review the reported requirements?",
+      "detailed": "Shopify: The listing needs a correction.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Shopify: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.listing_attention",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / listing_attention",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "alert",
+    "variants": {
+      "short": "Shopify: The listing needs review.",
+      "friendly": "Shopify: This listing needs a closer look before the next step.",
+      "detailed": "Shopify: The listing needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Shopify: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.api_error",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / api_error",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Shopify: The marketplace request needs review.",
+      "friendly": "Shopify: The marketplace request couldn't finish cleanly. Let's check its existing record.",
+      "detailed": "Shopify: The marketplace request needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Shopify: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.bulk_listing",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / bulk_listing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Shopify: The listing batch result is ready.",
+      "friendly": "Shopify: The batch result is ready. Please review individual successes and failures.",
+      "detailed": "Shopify: The listing batch result is ready.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.shopify.permission_issue",
+    "module": "marketplace",
+    "eventName": "marketplace / shopify / permission_issue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Shopify: Marketplace access needs review.",
+      "friendly": "Shopify: The provider didn't allow that action. Please review the account's approved permissions.",
+      "detailed": "Shopify: Marketplace access needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Shopify: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.account_connected",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / account_connected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Amazon: The account connection is confirmed.",
+      "friendly": "Amazon: Your account is connected. Shall we review its settings?",
+      "detailed": "Amazon: The account connection is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.account_disconnected",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / account_disconnected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Amazon: The account is disconnected.",
+      "friendly": "Amazon: The account is disconnected as requested.",
+      "detailed": "Amazon: The account is disconnected.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.authentication_expired",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / authentication_expired",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Amazon: Authentication needs renewal.",
+      "friendly": "Amazon: The saved access has expired or was rejected. Let's review the connection.",
+      "detailed": "Amazon: Authentication needs renewal.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Amazon: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.sync_started",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / sync_started",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "started",
+    "severity": "informational",
+    "expression": "working",
+    "variants": {
+      "short": "Amazon: Synchronisation is in progress.",
+      "friendly": "Amazon: The sync has started. I'll wait for the confirmed result.",
+      "detailed": "Amazon: Synchronisation is in progress.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.sync_completed",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / sync_completed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Amazon: Synchronisation completed.",
+      "friendly": "Amazon: Your sync is complete. Shall we review the result?",
+      "detailed": "Amazon: Synchronisation completed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.sync_failed",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / sync_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Amazon: Synchronisation needs attention.",
+      "friendly": "Amazon: The sync didn't finish successfully. Shall we review the existing retry options?",
+      "detailed": "Amazon: Synchronisation needs attention.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Amazon: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.listing_published",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / listing_published",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Amazon: Publication is confirmed.",
+      "friendly": "Amazon: The provider confirmed your listing was published. Shall we review it?",
+      "detailed": "Amazon: Publication is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.listing_updated",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / listing_updated",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Amazon: The listing has been updated.",
+      "friendly": "Amazon: Your listing update is confirmed by the provider.",
+      "detailed": "Amazon: The listing has been updated.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.listing_rejected",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / listing_rejected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Amazon: The listing needs a correction.",
+      "friendly": "Amazon: The provider rejected this listing. Shall we review the reported requirements?",
+      "detailed": "Amazon: The listing needs a correction.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Amazon: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.listing_attention",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / listing_attention",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "alert",
+    "variants": {
+      "short": "Amazon: The listing needs review.",
+      "friendly": "Amazon: This listing needs a closer look before the next step.",
+      "detailed": "Amazon: The listing needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Amazon: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.api_error",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / api_error",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Amazon: The marketplace request needs review.",
+      "friendly": "Amazon: The marketplace request couldn't finish cleanly. Let's check its existing record.",
+      "detailed": "Amazon: The marketplace request needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Amazon: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.bulk_listing",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / bulk_listing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Amazon: The listing batch result is ready.",
+      "friendly": "Amazon: The batch result is ready. Please review individual successes and failures.",
+      "detailed": "Amazon: The listing batch result is ready.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.amazon.permission_issue",
+    "module": "marketplace",
+    "eventName": "marketplace / amazon / permission_issue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Amazon: Marketplace access needs review.",
+      "friendly": "Amazon: The provider didn't allow that action. Please review the account's approved permissions.",
+      "detailed": "Amazon: Marketplace access needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Amazon: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.account_connected",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / account_connected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Pinterest: The account connection is confirmed.",
+      "friendly": "Pinterest: Your account is connected. Shall we review its settings?",
+      "detailed": "Pinterest: The account connection is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.account_disconnected",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / account_disconnected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Pinterest: The account is disconnected.",
+      "friendly": "Pinterest: The account is disconnected as requested.",
+      "detailed": "Pinterest: The account is disconnected.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.authentication_expired",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / authentication_expired",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Pinterest: Authentication needs renewal.",
+      "friendly": "Pinterest: The saved access has expired or was rejected. Let's review the connection.",
+      "detailed": "Pinterest: Authentication needs renewal.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Pinterest: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.sync_started",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / sync_started",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "started",
+    "severity": "informational",
+    "expression": "working",
+    "variants": {
+      "short": "Pinterest: Synchronisation is in progress.",
+      "friendly": "Pinterest: The sync has started. I'll wait for the confirmed result.",
+      "detailed": "Pinterest: Synchronisation is in progress.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.sync_completed",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / sync_completed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Pinterest: Synchronisation completed.",
+      "friendly": "Pinterest: Your sync is complete. Shall we review the result?",
+      "detailed": "Pinterest: Synchronisation completed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.sync_failed",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / sync_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Pinterest: Synchronisation needs attention.",
+      "friendly": "Pinterest: The sync didn't finish successfully. Shall we review the existing retry options?",
+      "detailed": "Pinterest: Synchronisation needs attention.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Pinterest: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.listing_published",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / listing_published",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Pinterest: Publication is confirmed.",
+      "friendly": "Pinterest: The provider confirmed your listing was published. Shall we review it?",
+      "detailed": "Pinterest: Publication is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.listing_updated",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / listing_updated",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "Pinterest: The listing has been updated.",
+      "friendly": "Pinterest: Your listing update is confirmed by the provider.",
+      "detailed": "Pinterest: The listing has been updated.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.listing_rejected",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / listing_rejected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Pinterest: The listing needs a correction.",
+      "friendly": "Pinterest: The provider rejected this listing. Shall we review the reported requirements?",
+      "detailed": "Pinterest: The listing needs a correction.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Pinterest: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.listing_attention",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / listing_attention",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "alert",
+    "variants": {
+      "short": "Pinterest: The listing needs review.",
+      "friendly": "Pinterest: This listing needs a closer look before the next step.",
+      "detailed": "Pinterest: The listing needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Pinterest: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.api_error",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / api_error",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Pinterest: The marketplace request needs review.",
+      "friendly": "Pinterest: The marketplace request couldn't finish cleanly. Let's check its existing record.",
+      "detailed": "Pinterest: The marketplace request needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Pinterest: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.bulk_listing",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / bulk_listing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Pinterest: The listing batch result is ready.",
+      "friendly": "Pinterest: The batch result is ready. Please review individual successes and failures.",
+      "detailed": "Pinterest: The listing batch result is ready.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.pinterest.permission_issue",
+    "module": "marketplace",
+    "eventName": "marketplace / pinterest / permission_issue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "Pinterest: Marketplace access needs review.",
+      "friendly": "Pinterest: The provider didn't allow that action. Please review the account's approved permissions.",
+      "detailed": "Pinterest: Marketplace access needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "Pinterest: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.account_connected",
+    "module": "marketplace",
+    "eventName": "marketplace / other / account_connected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "your connected marketplace: The account connection is confirmed.",
+      "friendly": "your connected marketplace: Your account is connected. Shall we review its settings?",
+      "detailed": "your connected marketplace: The account connection is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.account_disconnected",
+    "module": "marketplace",
+    "eventName": "marketplace / other / account_disconnected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "your connected marketplace: The account is disconnected.",
+      "friendly": "your connected marketplace: The account is disconnected as requested.",
+      "detailed": "your connected marketplace: The account is disconnected.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.authentication_expired",
+    "module": "marketplace",
+    "eventName": "marketplace / other / authentication_expired",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "your connected marketplace: Authentication needs renewal.",
+      "friendly": "your connected marketplace: The saved access has expired or was rejected. Let's review the connection.",
+      "detailed": "your connected marketplace: Authentication needs renewal.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "your connected marketplace: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.sync_started",
+    "module": "marketplace",
+    "eventName": "marketplace / other / sync_started",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "started",
+    "severity": "informational",
+    "expression": "working",
+    "variants": {
+      "short": "your connected marketplace: Synchronisation is in progress.",
+      "friendly": "your connected marketplace: The sync has started. I'll wait for the confirmed result.",
+      "detailed": "your connected marketplace: Synchronisation is in progress.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.sync_completed",
+    "module": "marketplace",
+    "eventName": "marketplace / other / sync_completed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "your connected marketplace: Synchronisation completed.",
+      "friendly": "your connected marketplace: Your sync is complete. Shall we review the result?",
+      "detailed": "your connected marketplace: Synchronisation completed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.sync_failed",
+    "module": "marketplace",
+    "eventName": "marketplace / other / sync_failed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "your connected marketplace: Synchronisation needs attention.",
+      "friendly": "your connected marketplace: The sync didn't finish successfully. Shall we review the existing retry options?",
+      "detailed": "your connected marketplace: Synchronisation needs attention.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "your connected marketplace: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.listing_published",
+    "module": "marketplace",
+    "eventName": "marketplace / other / listing_published",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "your connected marketplace: Publication is confirmed.",
+      "friendly": "your connected marketplace: The provider confirmed your listing was published. Shall we review it?",
+      "detailed": "your connected marketplace: Publication is confirmed.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.listing_updated",
+    "module": "marketplace",
+    "eventName": "marketplace / other / listing_updated",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "your connected marketplace: The listing has been updated.",
+      "friendly": "your connected marketplace: Your listing update is confirmed by the provider.",
+      "detailed": "your connected marketplace: The listing has been updated.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.listing_rejected",
+    "module": "marketplace",
+    "eventName": "marketplace / other / listing_rejected",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "your connected marketplace: The listing needs a correction.",
+      "friendly": "your connected marketplace: The provider rejected this listing. Shall we review the reported requirements?",
+      "detailed": "your connected marketplace: The listing needs a correction.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "your connected marketplace: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.listing_attention",
+    "module": "marketplace",
+    "eventName": "marketplace / other / listing_attention",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "attention",
+    "expression": "alert",
+    "variants": {
+      "short": "your connected marketplace: The listing needs review.",
+      "friendly": "your connected marketplace: This listing needs a closer look before the next step.",
+      "detailed": "your connected marketplace: The listing needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "your connected marketplace: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.api_error",
+    "module": "marketplace",
+    "eventName": "marketplace / other / api_error",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "your connected marketplace: The marketplace request needs review.",
+      "friendly": "your connected marketplace: The marketplace request couldn't finish cleanly. Let's check its existing record.",
+      "detailed": "your connected marketplace: The marketplace request needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "your connected marketplace: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.bulk_listing",
+    "module": "marketplace",
+    "eventName": "marketplace / other / bulk_listing",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "your connected marketplace: The listing batch result is ready.",
+      "friendly": "your connected marketplace: The batch result is ready. Please review individual successes and failures.",
+      "detailed": "your connected marketplace: The listing batch result is ready.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "marketplace.other.permission_issue",
+    "module": "marketplace",
+    "eventName": "marketplace / other / permission_issue",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "concerned",
+    "variants": {
+      "short": "your connected marketplace: Marketplace access needs review.",
+      "friendly": "your connected marketplace: The provider didn't allow that action. Please review the account's approved permissions.",
+      "detailed": "your connected marketplace: Marketplace access needs review.[[ {context_summary}]]",
+      "followUp": "Review the existing authorised marketplace record before taking action.",
+      "urgent": "your connected marketplace: please review this issue before repeating the operation."
+    },
+    "support": "prepared_template",
+    "sources": []
+  },
+  {
+    "id": "security.session_expired",
+    "module": "security",
+    "eventName": "security / session_expired",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "Please sign in again.",
+      "friendly": "Your session has expired. Please sign in again to continue securely.",
+      "detailed": "The authenticated server returned an expired or invalid session. No restricted record information is revealed.",
+      "followUp": "Use the existing sign-in screen to continue."
+    }
+  },
+  {
+    "id": "governance.frozen",
+    "module": "governance",
+    "eventName": "governance / frozen",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "failure",
+    "severity": "attention",
+    "expression": "alert",
+    "variants": {
+      "short": "This change is currently restricted.",
+      "friendly": "The ERP's data-freeze rules don't allow that change right now.",
+      "detailed": "The existing freeze guard blocked a mutation. No alternative path should bypass the guard.",
+      "followUp": "Review the existing governance settings with an authorised administrator."
+    }
+  },
+  {
+    "id": "integrations.scheduled_completed",
+    "module": "integrations",
+    "eventName": "integrations / scheduled_completed",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "success",
+    "severity": "success",
+    "expression": "success",
+    "variants": {
+      "short": "The scheduled operation is complete.",
+      "friendly": "The scheduled work has a confirmed result. Would you like to review it?",
+      "detailed": "The authoritative background worker saved a successful terminal result.[[ {context_summary}]]",
+      "followUp": "Review the existing job history when you're ready."
+    }
+  },
+  {
+    "id": "integrations.automation_attention",
+    "module": "integrations",
+    "eventName": "integrations / automation_attention",
+    "triggerCondition": "Emit only when this exact condition is confirmed by the existing authorised source.",
+    "requiredEvidence": "observed",
+    "severity": "warning",
+    "expression": "concerned",
+    "variants": {
+      "short": "An automation needs review.",
+      "friendly": "An existing automation needs a little attention. Shall we review its job history?",
+      "detailed": "An authorised background-job source reports a failed, partial or stalled state.[[ {context_summary}]]",
+      "followUp": "Use the existing authorised retry or settings workflow.",
+      "urgent": "Please review this automation before relying on its next result."
+    }
+  },
+  {
+    "id": "reports.view.advance-utilization",
+    "module": "reports",
+    "eventName": "reports / view / advance-utilization",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your advance utilization review is ready.",
+      "friendly": "Here is your advance utilization view. Shall we look at the details?",
+      "detailed": "The authorised advance utilization report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/advance-utilization/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.capital-rotation",
+    "module": "reports",
+    "eventName": "reports / view / capital-rotation",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your capital rotation review is ready.",
+      "friendly": "Here is your capital rotation view. Shall we look at the details?",
+      "detailed": "The authorised capital rotation report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/capital-rotation/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.category-stock",
+    "module": "reports",
+    "eventName": "reports / view / category-stock",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your category stock review is ready.",
+      "friendly": "Here is your category stock view. Shall we look at the details?",
+      "detailed": "The authorised category stock report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/category-stock/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.certificate-readiness",
+    "module": "reports",
+    "eventName": "reports / view / certificate-readiness",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your certificate readiness review is ready.",
+      "friendly": "Here is your certificate readiness view. Shall we look at the details?",
+      "detailed": "The authorised certificate readiness report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/certificate-readiness/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.customer-advances",
+    "module": "reports",
+    "eventName": "reports / view / customer-advances",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your customer advances review is ready.",
+      "friendly": "Here is your customer advances view. Shall we look at the details?",
+      "detailed": "The authorised customer advances report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/customer-advances/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.customer-intelligence",
+    "module": "reports",
+    "eventName": "reports / view / customer-intelligence",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your customer intelligence review is ready.",
+      "friendly": "Here is your customer intelligence view. Shall we look at the details?",
+      "detailed": "The authorised customer intelligence report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/customer-intelligence/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.discount-usage",
+    "module": "reports",
+    "eventName": "reports / view / discount-usage",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your discount usage review is ready.",
+      "friendly": "Here is your discount usage view. Shall we look at the details?",
+      "detailed": "The authorised discount usage report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/discount-usage/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.export-payments",
+    "module": "reports",
+    "eventName": "reports / view / export-payments",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your export payments review is ready.",
+      "friendly": "Here is your export payments view. Shall we look at the details?",
+      "detailed": "The authorised export payments report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/export-payments/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.gst",
+    "module": "reports",
+    "eventName": "reports / view / gst",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your gst review is ready.",
+      "friendly": "Here is your gst view. Shall we look at the details?",
+      "detailed": "The authorised gst report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/gst/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.inventory",
+    "module": "reports",
+    "eventName": "reports / view / inventory",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your inventory review is ready.",
+      "friendly": "Here is your inventory view. Shall we look at the details?",
+      "detailed": "The authorised inventory report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/inventory/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.inventory-aging",
+    "module": "reports",
+    "eventName": "reports / view / inventory-aging",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your inventory aging review is ready.",
+      "friendly": "Here is your inventory aging view. Shall we look at the details?",
+      "detailed": "The authorised inventory aging report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/inventory-aging/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.invoices",
+    "module": "reports",
+    "eventName": "reports / view / invoices",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your invoices review is ready.",
+      "friendly": "Here is your invoices view. Shall we look at the details?",
+      "detailed": "The authorised invoices report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/invoices/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.label-printing",
+    "module": "reports",
+    "eventName": "reports / view / label-printing",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your label printing review is ready.",
+      "friendly": "Here is your label printing view. Shall we look at the details?",
+      "detailed": "The authorised label printing report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/label-printing/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.loyalty-points",
+    "module": "reports",
+    "eventName": "reports / view / loyalty-points",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your loyalty points review is ready.",
+      "friendly": "Here is your loyalty points view. Shall we look at the details?",
+      "detailed": "The authorised loyalty points report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/loyalty-points/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.missing-media",
+    "module": "reports",
+    "eventName": "reports / view / missing-media",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your missing media review is ready.",
+      "friendly": "Here is your missing media view. Shall we look at the details?",
+      "detailed": "The authorised missing media report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/missing-media/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.ops",
+    "module": "reports",
+    "eventName": "reports / view / ops",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your ops review is ready.",
+      "friendly": "Here is your ops view. Shall we look at the details?",
+      "detailed": "The authorised ops report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/ops/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.payments",
+    "module": "reports",
+    "eventName": "reports / view / payments",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your payments review is ready.",
+      "friendly": "Here is your payments view. Shall we look at the details?",
+      "detailed": "The authorised payments report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/payments/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.pending-advances",
+    "module": "reports",
+    "eventName": "reports / view / pending-advances",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your pending advances review is ready.",
+      "friendly": "Here is your pending advances view. Shall we look at the details?",
+      "detailed": "The authorised pending advances report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/pending-advances/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.profit",
+    "module": "reports",
+    "eventName": "reports / view / profit",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your profit review is ready.",
+      "friendly": "Here is your profit view. Shall we look at the details?",
+      "detailed": "The authorised profit report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/profit/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.purchase-timeline",
+    "module": "reports",
+    "eventName": "reports / view / purchase-timeline",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your purchase timeline review is ready.",
+      "friendly": "Here is your purchase timeline view. Shall we look at the details?",
+      "detailed": "The authorised purchase timeline report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/purchase-timeline/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.qr-scans",
+    "module": "reports",
+    "eventName": "reports / view / qr-scans",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your qr scans review is ready.",
+      "friendly": "Here is your qr scans view. Shall we look at the details?",
+      "detailed": "The authorised qr scans report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/qr-scans/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.quotations",
+    "module": "reports",
+    "eventName": "reports / view / quotations",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your quotations review is ready.",
+      "friendly": "Here is your quotations view. Shall we look at the details?",
+      "detailed": "The authorised quotations report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/quotations/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.receivables",
+    "module": "reports",
+    "eventName": "reports / view / receivables",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your receivables review is ready.",
+      "friendly": "Here is your receivables view. Shall we look at the details?",
+      "detailed": "The authorised receivables report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/receivables/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.sales",
+    "module": "reports",
+    "eventName": "reports / view / sales",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your sales review is ready.",
+      "friendly": "Here is your sales view. Shall we look at the details?",
+      "detailed": "The authorised sales report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/sales/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.sales-cycle",
+    "module": "reports",
+    "eventName": "reports / view / sales-cycle",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your sales cycle review is ready.",
+      "friendly": "Here is your sales cycle view. Shall we look at the details?",
+      "detailed": "The authorised sales cycle report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/sales-cycle/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.system-logs",
+    "module": "reports",
+    "eventName": "reports / view / system-logs",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your system logs review is ready.",
+      "friendly": "Here is your system logs view. Shall we look at the details?",
+      "detailed": "The authorised system logs report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/system-logs/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.top-categories",
+    "module": "reports",
+    "eventName": "reports / view / top-categories",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your top categories review is ready.",
+      "friendly": "Here is your top categories view. Shall we look at the details?",
+      "detailed": "The authorised top categories report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/top-categories/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.top-customers",
+    "module": "reports",
+    "eventName": "reports / view / top-customers",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your top customers review is ready.",
+      "friendly": "Here is your top customers view. Shall we look at the details?",
+      "detailed": "The authorised top customers report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/top-customers/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.turnover-report",
+    "module": "reports",
+    "eventName": "reports / view / turnover-report",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your turnover report review is ready.",
+      "friendly": "Here is your turnover report view. Shall we look at the details?",
+      "detailed": "The authorised turnover report report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/turnover-report/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.user-activity",
+    "module": "reports",
+    "eventName": "reports / view / user-activity",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your user activity review is ready.",
+      "friendly": "Here is your user activity view. Shall we look at the details?",
+      "detailed": "The authorised user activity report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/user-activity/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.vendor-dependency",
+    "module": "reports",
+    "eventName": "reports / view / vendor-dependency",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your vendor dependency review is ready.",
+      "friendly": "Here is your vendor dependency view. Shall we look at the details?",
+      "detailed": "The authorised vendor dependency report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/vendor-dependency/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.vendor-inventory",
+    "module": "reports",
+    "eventName": "reports / view / vendor-inventory",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your vendor inventory review is ready.",
+      "friendly": "Here is your vendor inventory view. Shall we look at the details?",
+      "detailed": "The authorised vendor inventory report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/vendor-inventory/page.tsx"
+    ]
+  },
+  {
+    "id": "reports.view.vendor-purchases",
+    "module": "reports",
+    "eventName": "reports / view / vendor-purchases",
+    "triggerCondition": "The permission-filtered report query completed; opening a link alone is not proof that it completed.",
+    "requiredEvidence": "success",
+    "severity": "informational",
+    "expression": "speaking",
+    "variants": {
+      "short": "Your vendor purchases review is ready.",
+      "friendly": "Here is your vendor purchases view. Shall we look at the details?",
+      "detailed": "The authorised vendor purchases report query completed.[[ Report period: {report_period}.]]",
+      "followUp": "Review the source dates and filters before making a decision."
+    },
+    "sources": [
+      "app/(dashboard)/reports/vendor-purchases/page.tsx"
+    ]
+  }
+]

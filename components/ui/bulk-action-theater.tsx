@@ -148,7 +148,7 @@ export function BulkActionTheater({
                 <span className="font-medium text-foreground">{progress}%</span>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+                <div className="h-full bg-primary rounded-full transition-[color,background-color,border-color,opacity,transform] duration-300" style={{ width: `${progress}%` }} />
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{completedCount} completed</span>

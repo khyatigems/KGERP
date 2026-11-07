@@ -25,6 +25,7 @@ window.mountModal = (kind, tone) => {
 
 const bundle = await build({ stdin: { contents: fixture, resolveDir: process.cwd(), loader: "tsx" }, bundle: true, write: false, platform: "browser", jsx: "automatic", define: { "process.env.NODE_ENV": '"development"' } });
 const css = await postcss([tailwind()]).process(await readFile("app/globals.css", "utf8"), { from: "app/globals.css" });
+const workspaceCss = await readFile("app/workspace-theme.css", "utf8");
 await mkdir("output/modal-review", { recursive: true });
 const browser = await puppeteer.launch({ headless: true });
 try {
@@ -34,7 +35,7 @@ try {
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
     await page.setViewport({ width, height: 900 });
-    await page.setContent(`<!doctype html><html class="${theme === "dark" ? "dark" : ""}"><head><style>${css.css}</style></head><body class="bg-background text-foreground"><button id="opener">Open modal fixture</button><div id="root"></div></body></html>`);
+    await page.setContent(`<!doctype html><html data-workspace-theme="sapphire-facet" class="${theme === "dark" ? "dark" : ""}"><head><style>${css.css}\n${workspaceCss}</style></head><body class="bg-background text-foreground"><button id="opener">Open modal fixture</button><div id="root"></div></body></html>`);
     await page.addScriptTag({ content: bundle.outputFiles[0].text });
     for (const [kind, tone] of [["dialog", "confirmation"], ["dialog", "destructive"], ["alert", "warning"], ["sheet", "default"]]) {
       await page.evaluate((kind, tone) => window.mountModal(kind, tone), kind, tone);
@@ -43,7 +44,7 @@ try {
       await page.waitForFunction((selector) => document.querySelector(selector)?.contains(document.activeElement), {}, selector);
       const bounds = await page.$eval(selector, (element) => {
         const rect = element.getBoundingClientRect();
-        return { left: rect.left, right: rect.right, labelled: Boolean(document.getElementById(element.getAttribute("aria-labelledby"))), brand: element.textContent.includes("Khyati ERP") };
+        return { left: rect.left, right: rect.right, labelled: Boolean(document.getElementById(element.getAttribute("aria-labelledby"))), brand: element.textContent.includes("KhyatiGems ERP") };
       });
       assert.ok(bounds.left >= -1 && bounds.right <= width + 1, `${kind} overflows at ${width}`);
       assert.ok(bounds.labelled && bounds.brand, `${kind} lacks accessible title or shared brand`);

@@ -1,0 +1,1920 @@
+[
+  {
+    "id": "inventory.create",
+    "module": "inventory",
+    "progress": "Adding your gemstone",
+    "success": "Your gemstone has been added to inventory.",
+    "friendly": "Perfect! Your gemstone is in the inventory. Shall we take a look?",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.update",
+    "module": "inventory",
+    "progress": "Saving gemstone details",
+    "success": "Your gemstone details have been updated.",
+    "friendly": "Those gemstone details are saved and ready for your review.",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.delete",
+    "module": "inventory",
+    "progress": "Removing the gemstone",
+    "success": "The selected gemstone has been removed.",
+    "friendly": "The gemstone record has been removed as requested.",
+    "sources": [
+      "components/inventory/inventory-actions.tsx"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.import",
+    "module": "inventory",
+    "progress": "Importing inventory",
+    "success": "The inventory import has finished.",
+    "friendly": "Your inventory import is ready to review. Let's check the accepted records.",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.bulk_update",
+    "module": "inventory",
+    "progress": "Updating selected gemstones",
+    "success": "The selected gemstone records have been updated.",
+    "friendly": "Your selected gemstones have their new details. A quick review is available.",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.status",
+    "module": "inventory",
+    "progress": "Saving inventory status",
+    "success": "The inventory status has been updated.",
+    "friendly": "The stock status is saved. You can check the item when you're ready.",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.export",
+    "module": "inventory",
+    "progress": "Preparing the inventory export",
+    "success": "Your inventory export is ready.",
+    "friendly": "Your inventory export is ready to download. Nicely organised!",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.sku",
+    "module": "inventory",
+    "progress": "Generating the SKU",
+    "success": "A SKU has been generated.",
+    "friendly": "Your new SKU is ready. Let's keep the gemstone easy to find.",
+    "sources": [
+      "app/(dashboard)/inventory/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.pair_confirm",
+    "module": "inventory",
+    "progress": "Confirming the gemstone pair",
+    "success": "The gemstone pair has been confirmed.",
+    "friendly": "Your gemstone pair is confirmed and ready to review.",
+    "sources": [
+      "app/api/inventory/pairs/confirm/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.pair_reject",
+    "module": "inventory",
+    "progress": "Recording the pair decision",
+    "success": "The suggested pair has been rejected.",
+    "friendly": "I've recorded that pair decision. The gemstones remain available for review.",
+    "sources": [
+      "app/api/inventory/pairs/reject/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.set_create",
+    "module": "inventory",
+    "progress": "Creating the gemstone set",
+    "success": "The gemstone set has been saved.",
+    "friendly": "Your gemstone set is saved. Shall we review its members?",
+    "sources": [
+      "app/api/inventory/sets/create/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.description",
+    "module": "inventory",
+    "progress": "Preparing a product description",
+    "success": "A description draft is ready.",
+    "friendly": "Your description draft is ready. Please review its gemstone facts before using it.",
+    "sources": [
+      "app/api/ai/inventory-description/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "inventory.qr_authorize",
+    "module": "inventory",
+    "progress": "Saving QR payment controls",
+    "success": "The QR payment authorisation has been saved.",
+    "friendly": "Your QR payment controls are saved for this gemstone.",
+    "sources": [
+      "app/(dashboard)/inventory/qr-payment-actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "media.upload",
+    "module": "media",
+    "progress": "Uploading product media",
+    "success": "Your product media has been uploaded.",
+    "friendly": "Your product media is uploaded. Let's check how it looks.",
+    "sources": [
+      "app/api/media/upload/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "media.batch_upload",
+    "module": "media",
+    "progress": "Uploading selected images",
+    "success": "The image uploads have finished.",
+    "friendly": "Your image uploads are complete. The product gallery is ready for review.",
+    "sources": [
+      "app/api/media/upload/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "media.process",
+    "module": "media",
+    "progress": "Processing the product image",
+    "success": "The product image has been processed.",
+    "friendly": "The image is ready. Shall we check the final result?",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "media.delete",
+    "module": "media",
+    "progress": "Removing selected media",
+    "success": "The selected media has been removed.",
+    "friendly": "That media has been removed from the product record.",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "media.reorder",
+    "module": "media",
+    "progress": "Saving the gallery order",
+    "success": "The gallery order has been saved.",
+    "friendly": "Your gallery now follows the order you chose.",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "orders.import",
+    "module": "orders",
+    "progress": "Importing marketplace orders",
+    "success": "The order import has finished.",
+    "friendly": "Your imported orders are ready to review. Let's check what needs attention.",
+    "sources": [
+      "lib/marketplace/sync-orders.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "orders.update",
+    "module": "orders",
+    "progress": "Updating the order record",
+    "success": "The order record has been updated.",
+    "friendly": "The order details are saved. Shall we review the next step?",
+    "sources": [
+      "lib/marketplace/sync-orders.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "orders.export",
+    "module": "orders",
+    "progress": "Preparing the order export",
+    "success": "The order export is ready.",
+    "friendly": "Your order export is ready to download.",
+    "sources": [
+      "lib/marketplace/sync-orders.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "fulfillment.suggest",
+    "module": "fulfillment",
+    "progress": "Finding available stock alternatives",
+    "success": "The stock alternatives are ready.",
+    "friendly": "The available stock alternatives are ready for review. You'll choose what fits the order.",
+    "sources": [
+      "lib/fulfillment/fulfillment.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "fulfillment.assign",
+    "module": "fulfillment",
+    "progress": "Saving the fulfilment selection",
+    "success": "The fulfilment selection has been saved.",
+    "friendly": "Your stock selection is saved. This does not confirm dispatch.",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "fulfillment.split",
+    "module": "fulfillment",
+    "progress": "Saving the split allocation",
+    "success": "The split stock allocation has been saved.",
+    "friendly": "The split allocation is saved for your review.",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "reports.generate",
+    "module": "reports",
+    "progress": "Preparing your report",
+    "success": "Your report is ready.",
+    "friendly": "All done! Your business report is ready to review.",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "reports.export",
+    "module": "reports",
+    "progress": "Preparing your export",
+    "success": "Your export is ready to download.",
+    "friendly": "Your export is ready. Would you like to download it?",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "reports.queue",
+    "module": "reports",
+    "progress": "Queueing the report job",
+    "success": "Your report job has been queued.",
+    "friendly": "Your report is in the queue. I'll show the result once processing is confirmed.",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "reports.download",
+    "module": "reports",
+    "progress": "Preparing the report download",
+    "success": "The report file is ready for download.",
+    "friendly": "Your report file is ready. The browser will handle the download.",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "reports.reconcile",
+    "module": "reports",
+    "progress": "Reconciling payment records",
+    "success": "The payment reconciliation result is ready.",
+    "friendly": "Your payment reconciliation is ready. Let's review any differences.",
+    "sources": [
+      "lib/export-job-processor.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "customers.create",
+    "module": "customers",
+    "progress": "Saving the new customer",
+    "success": "The customer record has been created.",
+    "friendly": "Your new customer is saved. You can review their details now.",
+    "sources": [
+      "app/(dashboard)/customers/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "customers.update",
+    "module": "customers",
+    "progress": "Updating customer details",
+    "success": "The customer details have been updated.",
+    "friendly": "Those customer details are saved and ready to use.",
+    "sources": [
+      "app/(dashboard)/customers/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "customers.delete",
+    "module": "customers",
+    "progress": "Removing the customer record",
+    "success": "The selected customer record has been removed.",
+    "friendly": "The customer record has been removed as requested.",
+    "sources": [
+      "app/(dashboard)/customers/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "customers.merge",
+    "module": "customers",
+    "progress": "Merging customer records",
+    "success": "The customer records have been merged.",
+    "friendly": "The customer merge is confirmed. Please review the combined record.",
+    "sources": [
+      "app/(dashboard)/customers/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "customers.export",
+    "module": "customers",
+    "progress": "Preparing the customer export",
+    "success": "Your customer export is ready.",
+    "friendly": "Your customer export is ready to download.",
+    "sources": [
+      "app/(dashboard)/customers/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "customers.event_contact",
+    "module": "customers",
+    "progress": "Preparing the customer contact link",
+    "success": "The customer contact link is ready.",
+    "friendly": "The contact link is ready. You'll choose whether to send a message.",
+    "sources": [
+      "app/(dashboard)/customers/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "integrations.connect",
+    "module": "integrations",
+    "progress": "Connecting the integration",
+    "success": "The integration connection has been confirmed.",
+    "friendly": "You're connected. Let's check the integration's available features.",
+    "sources": [
+      "app/api/integrations/marketplace/connections/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "integrations.disconnect",
+    "module": "integrations",
+    "progress": "Disconnecting the integration",
+    "success": "The integration has been disconnected.",
+    "friendly": "The integration is disconnected as requested.",
+    "sources": [
+      "app/api/integrations/marketplace/connections/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "integrations.sync",
+    "module": "integrations",
+    "progress": "Synchronising integration data",
+    "success": "The integration sync has completed.",
+    "friendly": "Your integration sync is complete. The latest result is ready to review.",
+    "sources": [
+      "app/api/integrations/marketplace/connections/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "integrations.job",
+    "module": "integrations",
+    "progress": "Processing the background job",
+    "success": "The background job has completed.",
+    "friendly": "The background work is complete. You can review its result now.",
+    "sources": [
+      "app/api/integrations/marketplace/connections/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "integrations.schedule",
+    "module": "integrations",
+    "progress": "Saving the schedule",
+    "success": "The operation schedule has been saved.",
+    "friendly": "Your schedule is saved. It follows the existing automation settings.",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "settings.update",
+    "module": "settings",
+    "progress": "Saving your ERP settings",
+    "success": "Your ERP settings have been saved.",
+    "friendly": "Your settings are saved. Everything is ready for your next step.",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings.companion",
+    "module": "settings",
+    "progress": "Saving Khyra preferences",
+    "success": "Your Khyra preferences have been saved.",
+    "friendly": "Your preferences are saved. I'll follow the way you like to work.",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings.currency",
+    "module": "settings",
+    "progress": "Saving currency rates",
+    "success": "The currency rates have been saved.",
+    "friendly": "Your entered currency rates are saved. You can review their effective values.",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings.marketplace_profile",
+    "module": "settings",
+    "progress": "Saving the marketplace pricing profile",
+    "success": "The marketplace pricing profile has been saved.",
+    "friendly": "Your marketplace pricing profile is saved for review.",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings.marketplace_profile_copy",
+    "module": "settings",
+    "progress": "Copying the marketplace profile",
+    "success": "The marketplace profile has been copied.",
+    "friendly": "Your copied marketplace profile is ready to customise.",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings.import",
+    "module": "settings",
+    "progress": "Importing ERP settings",
+    "success": "The settings import has completed.",
+    "friendly": "Your imported settings are saved. Please review them before using the configuration.",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings.export",
+    "module": "settings",
+    "progress": "Preparing the settings export",
+    "success": "The settings export is ready.",
+    "friendly": "Your settings export is ready. Keep the file somewhere appropriate.",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings.invoice",
+    "module": "settings",
+    "progress": "Saving invoice settings",
+    "success": "Your invoice settings have been saved.",
+    "friendly": "Your invoice preferences are saved for future documents.",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings.customer",
+    "module": "settings",
+    "progress": "Saving customer settings",
+    "success": "The customer settings have been saved.",
+    "friendly": "Your customer settings are saved and ready to review.",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "settings.category_images",
+    "module": "settings",
+    "progress": "Saving category images",
+    "success": "The category images have been updated.",
+    "friendly": "Your category images are saved. Shall we review their appearance?",
+    "sources": [
+      "app/(dashboard)/settings/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "security.password",
+    "module": "security",
+    "progress": "Updating your password",
+    "success": "Your password has been updated.",
+    "friendly": "Your password change is confirmed. Keep your sign-in details private.",
+    "sources": [
+      "app/api/settings/security/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "security.authenticator",
+    "module": "security",
+    "progress": "Updating authenticator protection",
+    "success": "Your authenticator setting has been updated.",
+    "friendly": "Your authenticator setting is saved. Please review your recovery options.",
+    "sources": [
+      "app/api/settings/security/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "security.recovery",
+    "module": "security",
+    "progress": "Preparing recovery codes",
+    "success": "Your recovery codes are ready.",
+    "friendly": "Your recovery codes are ready. Store them securely using the existing recovery screen.",
+    "sources": [
+      "app/api/settings/security/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "security.passkey",
+    "module": "security",
+    "progress": "Registering your passkey",
+    "success": "Your passkey has been registered.",
+    "friendly": "Your passkey is ready for future sign-ins on supported devices.",
+    "sources": [
+      "app/api/settings/security/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "security.session_revoke",
+    "module": "security",
+    "progress": "Revoking the selected session",
+    "success": "The selected session has been revoked.",
+    "friendly": "That session has been signed out. Your current session follows the existing security rules.",
+    "sources": [
+      "app/api/settings/security/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "security.app_lock",
+    "module": "security",
+    "progress": "Updating app-lock preferences",
+    "success": "Your app-lock preferences have been saved.",
+    "friendly": "Your app-lock settings are saved. I'll respect the existing lock and grace behaviour.",
+    "sources": [
+      "app/api/settings/security/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "users.create",
+    "module": "users",
+    "progress": "Creating the user account",
+    "success": "The user account has been created.",
+    "friendly": "The new account is saved. Please review its assigned access.",
+    "sources": [
+      "app/(dashboard)/users/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "users.update",
+    "module": "users",
+    "progress": "Updating the user account",
+    "success": "The user account has been updated.",
+    "friendly": "Those account details are saved. You can review the user's access now.",
+    "sources": [
+      "app/(dashboard)/users/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "users.delete",
+    "module": "users",
+    "progress": "Removing the user account",
+    "success": "The user account has been removed.",
+    "friendly": "The selected account has been removed as requested.",
+    "sources": [
+      "app/(dashboard)/users/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "roles.update",
+    "module": "roles",
+    "progress": "Saving role permissions",
+    "success": "The role permissions have been saved.",
+    "friendly": "Your role permissions are saved. Let's check the intended access.",
+    "sources": [
+      "app/api/roles/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "roles.create",
+    "module": "roles",
+    "progress": "Creating the role",
+    "success": "The role has been created.",
+    "friendly": "Your new role is ready for a permission review.",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "notes.create",
+    "module": "notes",
+    "progress": "Saving your note",
+    "success": "Your note has been saved.",
+    "friendly": "Your note is saved. It'll be here when you need it.",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "notes.update",
+    "module": "notes",
+    "progress": "Updating your note",
+    "success": "Your note has been updated.",
+    "friendly": "Your changes are saved. Shall we keep going?",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "notes.delete",
+    "module": "notes",
+    "progress": "Moving the note to trash",
+    "success": "Your note has been moved to trash.",
+    "friendly": "Your note is in the trash. Use the existing note controls to manage it.",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "notes.restore",
+    "module": "notes",
+    "progress": "Restoring your note",
+    "success": "Your note has been restored.",
+    "friendly": "Your note is back and ready to use.",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "notes.archive",
+    "module": "notes",
+    "progress": "Archiving your note",
+    "success": "Your note has been archived.",
+    "friendly": "Your note is archived, keeping your active workspace a little clearer.",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "notes.pin",
+    "module": "notes",
+    "progress": "Saving the note pin",
+    "success": "Your note pin has been saved.",
+    "friendly": "Your pin preference is saved. That note is easier to find now.",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "notes.share",
+    "module": "notes",
+    "progress": "Updating note sharing",
+    "success": "The note-sharing setting has been saved.",
+    "friendly": "The sharing setting is saved. Please review who can access the shared link.",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "notes.email",
+    "module": "notes",
+    "progress": "Queueing your note email",
+    "success": "The note email has been queued.",
+    "friendly": "Your note email is queued. Delivery is confirmed separately by the email service.",
+    "sources": [
+      "app/api/notes/email/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "notes.checklist",
+    "module": "notes",
+    "progress": "Saving your checklist",
+    "success": "Your checklist has been saved.",
+    "friendly": "Your checklist is saved. Its ticks record your review, not verified business completion.",
+    "sources": [
+      "app/api/dashboard/notes/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "reminders.create",
+    "module": "reminders",
+    "progress": "Saving the follow-up",
+    "success": "Your follow-up has been saved.",
+    "friendly": "Your follow-up is saved with the details you chose.",
+    "sources": [
+      "app/api/followups/[id]/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "reminders.update",
+    "module": "reminders",
+    "progress": "Updating the follow-up",
+    "success": "Your follow-up has been updated.",
+    "friendly": "The follow-up changes are saved.",
+    "sources": [
+      "app/api/followups/[id]/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "reminders.dismiss",
+    "module": "reminders",
+    "progress": "Saving the reminder acknowledgement",
+    "success": "Your reminder acknowledgement has been saved.",
+    "friendly": "I've recorded your acknowledgement. The underlying business issue may still need attention.",
+    "sources": [
+      "app/api/followups/[id]/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "purchases.create",
+    "module": "purchases",
+    "progress": "Recording the purchase",
+    "success": "Your purchase has been recorded.",
+    "friendly": "Your purchase is saved. Shall we review the stock and payment details?",
+    "sources": [
+      "app/(dashboard)/purchases/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "purchases.update",
+    "module": "purchases",
+    "progress": "Updating the purchase",
+    "success": "Your purchase has been updated.",
+    "friendly": "The purchase changes are saved and ready for review.",
+    "sources": [
+      "app/(dashboard)/purchases/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "purchases.delete",
+    "module": "purchases",
+    "progress": "Removing the purchase",
+    "success": "The selected purchase has been removed.",
+    "friendly": "The purchase record has been removed as requested.",
+    "sources": [
+      "app/(dashboard)/purchases/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "purchases.import",
+    "module": "purchases",
+    "progress": "Importing purchases",
+    "success": "The purchase import has finished.",
+    "friendly": "Your purchase import is ready to review. Let's check the accepted records.",
+    "sources": [
+      "app/(dashboard)/purchases/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "purchases.invoice_number",
+    "module": "purchases",
+    "progress": "Saving the purchase invoice number",
+    "success": "The purchase invoice number has been saved.",
+    "friendly": "The purchase invoice reference is updated.",
+    "sources": [
+      "app/(dashboard)/purchases/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "purchases.export",
+    "module": "purchases",
+    "progress": "Preparing the purchase export",
+    "success": "Your purchase export is ready.",
+    "friendly": "Your purchase export is ready to download.",
+    "sources": [
+      "app/(dashboard)/purchases/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "vendors.create",
+    "module": "vendors",
+    "progress": "Saving the new vendor",
+    "success": "The vendor record has been created.",
+    "friendly": "Your new vendor is saved. Shall we review their details?",
+    "sources": [
+      "app/(dashboard)/vendors/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "vendors.update",
+    "module": "vendors",
+    "progress": "Updating vendor details",
+    "success": "The vendor details have been updated.",
+    "friendly": "The vendor changes are saved and ready to use.",
+    "sources": [
+      "app/(dashboard)/vendors/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "quotations.create",
+    "module": "quotations",
+    "progress": "Preparing the quotation",
+    "success": "Your quotation has been created.",
+    "friendly": "Your quotation is saved. It's ready for your review.",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "quotations.update",
+    "module": "quotations",
+    "progress": "Updating the quotation",
+    "success": "Your quotation has been updated.",
+    "friendly": "The quotation changes are saved. Shall we check the final details?",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "quotations.cancel",
+    "module": "quotations",
+    "progress": "Cancelling the quotation",
+    "success": "The quotation has been cancelled.",
+    "friendly": "The quotation is cancelled as requested.",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "quotations.send",
+    "module": "quotations",
+    "progress": "Preparing the quotation share",
+    "success": "The quotation sharing result has been recorded.",
+    "friendly": "The quotation sharing step is recorded. Delivery depends on the selected channel.",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "quotations.convert",
+    "module": "quotations",
+    "progress": "Creating an invoice from the quotation",
+    "success": "The quotation has been converted to an invoice.",
+    "friendly": "Your invoice is ready from the quotation. Please review its billing details.",
+    "sources": [
+      "app/(dashboard)/quotes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "sales.create",
+    "module": "sales",
+    "progress": "Recording the sale",
+    "success": "Your sale has been recorded.",
+    "friendly": "Your sale is saved. The linked invoice is ready for review.",
+    "sources": [
+      "app/(dashboard)/sales/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "sales.delete",
+    "module": "sales",
+    "progress": "Removing the sale",
+    "success": "The selected sale has been removed.",
+    "friendly": "The sale record has been removed as requested.",
+    "sources": [
+      "app/(dashboard)/sales/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "sales.thermal_document",
+    "module": "sales",
+    "progress": "Preparing the thermal invoice",
+    "success": "The thermal invoice file is ready.",
+    "friendly": "Your thermal invoice file is ready. Check the preview before printing.",
+    "sources": [
+      "app/(dashboard)/sales/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "invoices.create",
+    "module": "invoices",
+    "progress": "Preparing the invoice",
+    "success": "Your invoice has been created.",
+    "friendly": "Your invoice is ready. Shall we review it together?",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "invoices.update",
+    "module": "invoices",
+    "progress": "Updating the invoice",
+    "success": "Your invoice has been updated.",
+    "friendly": "The invoice changes are saved. Please review the latest document.",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "invoices.email",
+    "module": "invoices",
+    "progress": "Queueing the invoice email",
+    "success": "The invoice email has been queued.",
+    "friendly": "Your invoice email is queued. The email service will confirm delivery separately.",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "invoices.whatsapp",
+    "module": "invoices",
+    "progress": "Preparing the invoice share link",
+    "success": "The invoice share link is ready.",
+    "friendly": "Your invoice share link is ready. You'll choose whether to send the message.",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "payments.record",
+    "module": "payments",
+    "progress": "Recording the invoice payment",
+    "success": "The invoice payment has been recorded.",
+    "friendly": "Your payment entry is saved against the invoice. You can review the updated balance.",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "payments.receipt",
+    "module": "payments",
+    "progress": "Preparing the payment receipt",
+    "success": "The payment receipt is ready.",
+    "friendly": "Your receipt is ready. Would you like to open it?",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "payments.qr_order",
+    "module": "payments",
+    "progress": "Creating the QR payment request",
+    "success": "The payment request has been created.",
+    "friendly": "The payment request is ready. This does not confirm that money was received.",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "payments.qr_verify",
+    "module": "payments",
+    "progress": "Verifying the gateway payment",
+    "success": "The gateway payment has been verified.",
+    "friendly": "The payment gateway has confirmed this payment. You can review its receipt.",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "payments.qr_cancel",
+    "module": "payments",
+    "progress": "Cancelling the payment request",
+    "success": "The payment request has been cancelled.",
+    "friendly": "That payment request is cancelled. Check the existing screen for any related transaction.",
+    "sources": [
+      "app/(dashboard)/invoices/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "advances.record",
+    "module": "advances",
+    "progress": "Recording the customer advance",
+    "success": "The customer advance has been recorded.",
+    "friendly": "Your advance entry is saved. Shall we review its available balance?",
+    "sources": [
+      "app/(dashboard)/advances/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "advances.adjust",
+    "module": "advances",
+    "progress": "Applying the advance adjustment",
+    "success": "The advance adjustment has been recorded.",
+    "friendly": "The advance adjustment is saved against the invoice.",
+    "sources": [
+      "app/(dashboard)/advances/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "receivables.statement",
+    "module": "receivables",
+    "progress": "Preparing the receivables statement",
+    "success": "The receivables statement is ready.",
+    "friendly": "Your receivables statement is ready to review.",
+    "sources": [
+      "app/api/reports/receivables/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "returns.create",
+    "module": "returns",
+    "progress": "Recording the sales return",
+    "success": "The sales return has been recorded.",
+    "friendly": "Your return is saved. Let's review the resulting stock and credit details.",
+    "sources": [
+      "app/api/sales-returns/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "returns.replace",
+    "module": "returns",
+    "progress": "Recording the replacement",
+    "success": "The replacement has been recorded.",
+    "friendly": "Your replacement entry is saved. The linked documents are ready to review.",
+    "sources": [
+      "app/api/sales-returns/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "credit_notes.status",
+    "module": "credit_notes",
+    "progress": "Saving the credit-note status",
+    "success": "The credit-note status has been updated.",
+    "friendly": "The credit-note status is saved. Review the remaining credit in the existing record.",
+    "sources": [
+      "app/api/credit-notes/[id]/status/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "credit_notes.document",
+    "module": "credit_notes",
+    "progress": "Preparing the credit-note PDF",
+    "success": "Your credit-note PDF is ready.",
+    "friendly": "Your credit-note document is ready to download.",
+    "sources": [
+      "app/api/credit-notes/[id]/status/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.serials",
+    "module": "packaging",
+    "progress": "Generating serial identities",
+    "success": "The serial identities have been generated.",
+    "friendly": "Your serial identities are ready. Let's review their product links.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.print_job",
+    "module": "packaging",
+    "progress": "Preparing the packaging print job",
+    "success": "The packaging print job is ready.",
+    "friendly": "Your packaging print job is prepared. Check the label preview before printing.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.pdf",
+    "module": "packaging",
+    "progress": "Preparing the packaging PDF",
+    "success": "The packaging PDF is ready.",
+    "friendly": "Your packaging PDF is ready to download or print.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.print_confirmation",
+    "module": "packaging",
+    "progress": "Recording the print confirmation",
+    "success": "The print confirmation has been recorded.",
+    "friendly": "Your print confirmation is saved. This records your confirmation, not independent printer delivery.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.reprint",
+    "module": "packaging",
+    "progress": "Preparing the serial reprint",
+    "success": "The serial reprint file is ready.",
+    "friendly": "The serial reprint is ready. Please review the existing print history.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.cart_add",
+    "module": "packaging",
+    "progress": "Adding items to the packaging cart",
+    "success": "The items have been added to the packaging cart.",
+    "friendly": "Your packaging selections are saved in the cart.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.cart_remove",
+    "module": "packaging",
+    "progress": "Removing items from the packaging cart",
+    "success": "The selected items have been removed from the packaging cart.",
+    "friendly": "Your packaging cart has been updated.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.settings",
+    "module": "packaging",
+    "progress": "Saving packaging settings",
+    "success": "The packaging settings have been saved.",
+    "friendly": "Your packaging configuration is saved for the next preparation step.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.layout",
+    "module": "packaging",
+    "progress": "Saving the label layout",
+    "success": "The label layout has been saved.",
+    "friendly": "Your label layout is saved. Shall we check a preview?",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.layout_delete",
+    "module": "packaging",
+    "progress": "Removing the label layout",
+    "success": "The selected label layout has been removed.",
+    "friendly": "The layout has been removed from your available presets.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.hsn",
+    "module": "packaging",
+    "progress": "Saving packaging HSN rules",
+    "success": "The packaging HSN rules have been saved.",
+    "friendly": "Your packaging HSN rules are saved for review.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "packaging.validate",
+    "module": "packaging",
+    "progress": "Checking packaging readiness",
+    "success": "The packaging readiness result is ready.",
+    "friendly": "Your packaging check is ready. Please review any items needing details.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "labels.cart_add",
+    "module": "labels",
+    "progress": "Adding labels to the cart",
+    "success": "The label selections have been saved.",
+    "friendly": "Your label selections are in the cart.",
+    "sources": [
+      "app/(dashboard)/labels/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "labels.cart_clear",
+    "module": "labels",
+    "progress": "Clearing the label cart",
+    "success": "The label cart has been cleared.",
+    "friendly": "The label cart is clear and ready for your next selection.",
+    "sources": [
+      "app/(dashboard)/labels/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "labels.job",
+    "module": "labels",
+    "progress": "Preparing the label job",
+    "success": "Your label job has been created.",
+    "friendly": "Your label job is ready for review. It does not confirm physical printing.",
+    "sources": [
+      "app/(dashboard)/labels/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "labels.file",
+    "module": "labels",
+    "progress": "Generating the label file",
+    "success": "The label file is ready.",
+    "friendly": "Your label file is ready. Shall we open the preview?",
+    "sources": [
+      "app/(dashboard)/labels/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "pricing.plan",
+    "module": "pricing",
+    "progress": "Preparing the pricing plan",
+    "success": "The pricing plan is ready.",
+    "friendly": "Your pricing plan is ready. Please review the inputs and margins before applying it.",
+    "sources": [
+      "app/api/pricing/planner/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "pricing.suggestion",
+    "module": "pricing",
+    "progress": "Calculating a price suggestion",
+    "success": "The price suggestion is ready.",
+    "friendly": "The price suggestion is ready for review. It stays a suggestion until you choose to apply it.",
+    "sources": [
+      "app/api/inventory/price-suggestion/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "pricing.apply",
+    "module": "pricing",
+    "progress": "Saving the selected price",
+    "success": "The selected price has been saved.",
+    "friendly": "Your selected price is saved. You can review it in the existing price history.",
+    "sources": [
+      "app/api/pricing/planner/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "loyalty.settings",
+    "module": "loyalty",
+    "progress": "Saving loyalty settings",
+    "success": "The loyalty settings have been saved.",
+    "friendly": "Your loyalty rules are saved for future activity.",
+    "sources": [
+      "app/(dashboard)/reports/loyalty-points/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "loyalty.redeem",
+    "module": "loyalty",
+    "progress": "Recording the loyalty redemption",
+    "success": "The loyalty redemption has been recorded.",
+    "friendly": "The loyalty redemption is saved against the confirmed transaction.",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "coupons.create",
+    "module": "coupons",
+    "progress": "Creating the coupon",
+    "success": "Your coupon has been created.",
+    "friendly": "Your coupon is saved. Let's review its eligibility rules.",
+    "sources": [
+      "app/(dashboard)/settings/coupons/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "coupons.status",
+    "module": "coupons",
+    "progress": "Updating coupon availability",
+    "success": "The coupon availability has been updated.",
+    "friendly": "The coupon setting is saved. You can review its current availability.",
+    "sources": [
+      "app/(dashboard)/settings/coupons/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "coupons.validate",
+    "module": "coupons",
+    "progress": "Checking the coupon",
+    "success": "The coupon check is ready.",
+    "friendly": "The coupon eligibility result is ready. It does not confirm a sale or redemption.",
+    "sources": [
+      "app/(dashboard)/settings/coupons/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "coupons.offer_banner",
+    "module": "coupons",
+    "progress": "Saving the offer banner",
+    "success": "The offer banner has been saved.",
+    "friendly": "Your offer banner is saved for review.",
+    "sources": [
+      "app/(dashboard)/settings/coupons/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "masters.create",
+    "module": "masters",
+    "progress": "Creating the master code",
+    "success": "The master code has been created.",
+    "friendly": "Your master code is saved and ready to use.",
+    "sources": [
+      "app/(dashboard)/settings/codes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "masters.update",
+    "module": "masters",
+    "progress": "Updating the master code",
+    "success": "The master code has been updated.",
+    "friendly": "The master-code changes are saved.",
+    "sources": [
+      "app/(dashboard)/settings/codes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "masters.delete",
+    "module": "masters",
+    "progress": "Removing the master code",
+    "success": "The master code has been removed.",
+    "friendly": "The selected master code has been removed as requested.",
+    "sources": [
+      "app/(dashboard)/settings/codes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "masters.import",
+    "module": "masters",
+    "progress": "Importing master codes",
+    "success": "The master-code import has finished.",
+    "friendly": "Your master-code import is ready for review.",
+    "sources": [
+      "app/(dashboard)/settings/codes/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "masters.merge",
+    "module": "masters",
+    "progress": "Merging master records",
+    "success": "The master records have been merged.",
+    "friendly": "The merge is confirmed. Please review the surviving master record.",
+    "sources": [
+      "app/(dashboard)/masters/merge/page.tsx"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "communications.queue",
+    "module": "communications",
+    "progress": "Queueing your message",
+    "success": "Your message has been queued.",
+    "friendly": "Your message is queued. I'll keep delivery separate from queueing.",
+    "sources": [
+      "lib/email/email-service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "communications.send",
+    "module": "communications",
+    "progress": "Sending the email",
+    "success": "The email service accepted your message.",
+    "friendly": "The email service has accepted the message. Delivery may still be pending.",
+    "sources": [
+      "lib/email/email-service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "communications.delivery",
+    "module": "communications",
+    "progress": "Checking message delivery",
+    "success": "Message delivery has been confirmed.",
+    "friendly": "The delivery provider confirmed this message was delivered.",
+    "sources": [
+      "lib/email/email-service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "communications.inbox_sync",
+    "module": "communications",
+    "progress": "Refreshing the inbox",
+    "success": "The inbox refresh has completed.",
+    "friendly": "Your inbox refresh is complete. New messages are ready to review if any arrived.",
+    "sources": [
+      "lib/email/email-service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "communications.retry",
+    "module": "communications",
+    "progress": "Queueing the message retry",
+    "success": "The message retry has been queued.",
+    "friendly": "Your retry is queued. I'll wait for a confirmed send or delivery result.",
+    "sources": [
+      "lib/email/email-service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "communications.cancel",
+    "module": "communications",
+    "progress": "Cancelling the queued message",
+    "success": "The queued message has been cancelled.",
+    "friendly": "The queued message is cancelled as requested.",
+    "sources": [
+      "lib/email/email-service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "communications.read",
+    "module": "communications",
+    "progress": "Saving the message read state",
+    "success": "The message read state has been saved.",
+    "friendly": "Your message review state is saved.",
+    "sources": [
+      "lib/email/email-service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "communications.attachments",
+    "module": "communications",
+    "progress": "Preparing the attachment",
+    "success": "The attachment is ready.",
+    "friendly": "Your attachment is ready to open using the existing secure download.",
+    "sources": [
+      "lib/email/email-service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "email_templates.create",
+    "module": "email_templates",
+    "progress": "Creating the message template",
+    "success": "The message template has been created.",
+    "friendly": "Your new template is saved. Please review its wording and variables.",
+    "sources": [
+      "app/(dashboard)/settings/email-templates/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "email_templates.update",
+    "module": "email_templates",
+    "progress": "Updating the message template",
+    "success": "The message template has been updated.",
+    "friendly": "Your template changes are saved and ready for review.",
+    "sources": [
+      "app/(dashboard)/settings/email-templates/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "email_templates.toggle",
+    "module": "email_templates",
+    "progress": "Updating template availability",
+    "success": "The template availability has been saved.",
+    "friendly": "The template availability is saved.",
+    "sources": [
+      "app/(dashboard)/settings/email-templates/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "website.save",
+    "module": "website",
+    "progress": "Saving website content",
+    "success": "The website content has been saved.",
+    "friendly": "Your website changes are saved. Review the publication state before sharing them.",
+    "sources": [
+      "app/api/website/editorial/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "website.preview",
+    "module": "website",
+    "progress": "Preparing the website preview",
+    "success": "The website preview is ready.",
+    "friendly": "Your website preview is ready. Shall we check how it looks?",
+    "sources": [
+      "app/api/website/editorial/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "website.publish",
+    "module": "website",
+    "progress": "Publishing the approved content",
+    "success": "The publication result has been confirmed.",
+    "friendly": "The publishing step is confirmed. Review the published content in the existing website tools.",
+    "sources": [],
+    "support": "prepared_template"
+  },
+  {
+    "id": "website.media",
+    "module": "website",
+    "progress": "Uploading website media",
+    "success": "The website media has been uploaded.",
+    "friendly": "Your website media is uploaded and ready to review.",
+    "sources": [
+      "app/api/website/editorial/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "website.enquiry",
+    "module": "website",
+    "progress": "Saving the enquiry review state",
+    "success": "The enquiry review state has been saved.",
+    "friendly": "Your enquiry review state is saved. This does not verify an external customer issue was resolved.",
+    "sources": [
+      "app/api/website/editorial/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "website.rollback",
+    "module": "website",
+    "progress": "Restoring the selected content version",
+    "success": "The selected content version has been restored.",
+    "friendly": "Your chosen content version is restored. Please check the preview.",
+    "sources": [
+      "app/api/website/editorial/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "website.setup",
+    "module": "website",
+    "progress": "Preparing website integration settings",
+    "success": "The website integration settings have been saved.",
+    "friendly": "Your website integration settings are saved for review.",
+    "sources": [
+      "app/api/website/editorial/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker.start",
+    "module": "work_tracker",
+    "progress": "Starting the work session",
+    "success": "Your work session has started.",
+    "friendly": "Your work session is running. Ready when you are.",
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker.pause",
+    "module": "work_tracker",
+    "progress": "Pausing the work session",
+    "success": "Your work session has been paused.",
+    "friendly": "Your session is paused. Take the time you need.",
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker.stop",
+    "module": "work_tracker",
+    "progress": "Saving the finished work session",
+    "success": "Your work session has been saved.",
+    "friendly": "Your session is saved. Review the recorded time in the tracker.",
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker.edit",
+    "module": "work_tracker",
+    "progress": "Updating the work entry",
+    "success": "The work entry has been updated.",
+    "friendly": "Your work-entry changes are saved.",
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker.delete",
+    "module": "work_tracker",
+    "progress": "Removing the work entry",
+    "success": "The work entry has been removed.",
+    "friendly": "The selected work entry has been removed as requested.",
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker.target",
+    "module": "work_tracker",
+    "progress": "Saving your work target",
+    "success": "Your work target has been saved.",
+    "friendly": "Your target is saved. Progress follows the tracker's recorded activity.",
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker.pair",
+    "module": "work_tracker",
+    "progress": "Pairing the browser extension",
+    "success": "The browser extension has been paired.",
+    "friendly": "Your extension is paired. Review its tracking controls in the existing screen.",
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker.unpair",
+    "module": "work_tracker",
+    "progress": "Disconnecting the browser extension",
+    "success": "The browser extension has been disconnected.",
+    "friendly": "The extension connection has been removed as requested.",
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "work_tracker.export",
+    "module": "work_tracker",
+    "progress": "Preparing the work-tracker export",
+    "success": "Your work-tracker export is ready.",
+    "friendly": "Your work-tracker export is ready to download.",
+    "sources": [
+      "lib/work-tracker/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "weekly_reports.prepare",
+    "module": "weekly_reports",
+    "progress": "Preparing the weekly report",
+    "success": "Your weekly report is ready.",
+    "friendly": "Your weekly report is prepared from the available verified data.",
+    "sources": [
+      "lib/weekly-report/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "weekly_reports.schedule",
+    "module": "weekly_reports",
+    "progress": "Saving the weekly-report schedule",
+    "success": "The weekly-report schedule has been saved.",
+    "friendly": "Your weekly-report schedule is saved.",
+    "sources": [
+      "lib/weekly-report/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "weekly_reports.delivery",
+    "module": "weekly_reports",
+    "progress": "Queueing the weekly-report email",
+    "success": "The weekly-report email has been queued.",
+    "friendly": "Your weekly-report email is queued. Delivery remains separately tracked.",
+    "sources": [
+      "lib/weekly-report/service.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "analytics.snapshot",
+    "module": "analytics",
+    "progress": "Preparing the analytics snapshot",
+    "success": "The analytics snapshot has been saved.",
+    "friendly": "The analytics snapshot is ready. Check its data date before using it.",
+    "sources": [
+      "app/api/cron/analytics/daily/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "gci.generate",
+    "module": "gci",
+    "progress": "Requesting the GCI certificate",
+    "success": "The GCI certificate has been generated.",
+    "friendly": "Your GCI certificate result is ready to review.",
+    "sources": [
+      "app/actions/gci.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "gci.bulk",
+    "module": "gci",
+    "progress": "Requesting the selected certificates",
+    "success": "The certificate batch result is ready.",
+    "friendly": "Your certificate batch result is ready. Please check any individual failures.",
+    "sources": [
+      "app/actions/gci.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "gci.email",
+    "module": "gci",
+    "progress": "Queueing the certificate email",
+    "success": "The certificate email has been queued.",
+    "friendly": "Your certificate email is queued for the existing email service.",
+    "sources": [
+      "app/actions/gci.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "verification.lookup",
+    "module": "verification",
+    "progress": "Checking the gemstone serial",
+    "success": "The serial verification result is ready.",
+    "friendly": "The serial check is ready. Review the recorded verification result.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "verification.batch",
+    "module": "verification",
+    "progress": "Checking the selected serials",
+    "success": "The serial-check results are ready.",
+    "friendly": "Your serial-check results are ready to review.",
+    "sources": [
+      "app/erp/packaging/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "company.update",
+    "module": "company",
+    "progress": "Saving company information",
+    "success": "Your company information has been updated.",
+    "friendly": "Your company details are saved for use by the existing ERP documents.",
+    "sources": [
+      "app/(dashboard)/settings/company/actions.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "company.logo",
+    "module": "company",
+    "progress": "Updating company branding",
+    "success": "Your company branding has been saved.",
+    "friendly": "Your branding is saved. Let's check how it appears in the ERP.",
+    "sources": [
+      "app/api/company/branding/route.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "dashboard.layout",
+    "module": "dashboard",
+    "progress": "Saving your workspace layout",
+    "success": "Your workspace layout has been saved.",
+    "friendly": "Your workspace layout is saved just the way you arranged it.",
+    "sources": [
+      "app/actions/dashboard-layout.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "dashboard.shortcut",
+    "module": "dashboard",
+    "progress": "Saving your shortcut preferences",
+    "success": "Your shortcut preferences have been saved.",
+    "friendly": "Your shortcuts are saved and ready for your next visit.",
+    "sources": [
+      "app/actions/dashboard-layout.ts"
+    ],
+    "support": "verified_source"
+  },
+  {
+    "id": "search.query",
+    "module": "search",
+    "progress": "Searching permitted ERP records",
+    "success": "The search results are ready.",
+    "friendly": "Your search is ready. I'll show only the records your account can access.",
+    "sources": [
+      "app/api/search/route.ts"
+    ],
+    "support": "verified_source"
+  }
+]

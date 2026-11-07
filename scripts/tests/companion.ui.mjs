@@ -23,7 +23,6 @@ import {WorkspaceAppearanceProvider} from './components/workspace-appearance-pro
 import {companionVisibility} from './lib/companion-visibility';
 import {companionRuntime} from './lib/companion-runtime';
 window.visibilityState=companionVisibility;window.runtimeState=companionRuntime;
-
 window.erpToast=toast;window.React=React;
 import './components/ui/rich-feedback.css';
 import {InventorySaveProgressToast} from './components/inventory/inventory-save-progress-toast';
@@ -32,15 +31,23 @@ window.promiseResolve=null;
 import {publishCompanionNotifications} from './lib/companion-notification-store';
 window.publish = (items)=>{window.noticeItems=items;return publishCompanionNotifications(items, 'ready', {hasMore:true, unreadCount:items.filter(i=>!i.readAt).length, loadMore:()=>{window.moreLoads=(window.moreLoads||0)+1;publishCompanionNotifications([...items,{id:'older',title:'Older saved event',message:'Previously acknowledged',type:'info',href:'/inventory',readAt:new Date().toISOString(),createdAt:new Date().toISOString()}],'ready',{hasMore:false});},refresh:()=>window.refreshes=(window.refreshes||0)+1})};
 window.fetches=[];
-window.fetch=async (...args)=>{window.fetches.push(args);const patch=args[1]?.method==='PATCH';if(patch&&!window.failRead){const body=JSON.parse(args[1].body);window.noticeItems=(window.noticeItems||[]).map(item=>body.all||body.id===item.id?{...item,readAt:new Date().toISOString()}:item)}return {ok:patch?!window.failRead:true,json:async()=>({items:window.noticeItems||[],hasMore:false,unreadCount:(window.noticeItems||[]).filter(i=>!i.readAt).length,canRetryMarketplaceSync:false})}};
+window.fetch=async (...args)=>{
+ window.fetches.push(args);const patch=args[1]?.method==='PATCH';const url=new URL(String(args[0]),location.origin);
+ if(url.pathname==='/api/companion/attention')return {ok:true,json:async()=>({cards:[],unavailable:[]})};
+ if(patch&&!window.failRead){const body=JSON.parse(args[1].body);window.noticeItems=(window.noticeItems||[]).map(item=>body.all||body.id===item.id?{...item,readAt:item.readAt||new Date().toISOString(),...(body.action==='acknowledge'?{acknowledgedAt:new Date().toISOString()}:{}),...(body.action==='snooze'?{snoozedUntil:new Date(Date.now()+3600000).toISOString()}:{})}:item)}
+ const older={id:'older',title:'Older saved event',message:'Previously acknowledged',type:'info',href:'/inventory',readAt:new Date().toISOString(),createdAt:new Date().toISOString()};
+ const isOlder=url.searchParams.has('cursor');if(isOlder)window.moreLoads=(window.moreLoads||0)+1;
+ return {ok:patch?!window.failRead:true,json:async()=>({items:isOlder?[older]:window.noticeItems||[],hasMore:!isOlder&&(window.noticeItems||[]).length>0,nextCursor:'older-cursor',unreadCount:(window.noticeItems||[]).filter(i=>!i.readAt).length,canRetryMarketplaceSync:false})}
+};
 createRoot(document.getElementById('app')).render(<React.StrictMode><SessionProvider session={null} refetchOnWindowFocus={false}><ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}><WorkspaceAppearanceProvider><Toaster/><NotificationBell/><ThemeToggle/><main className="p-6 max-w-4xl mx-auto"><h1 className="text-2xl mb-5">ERP Companion</h1><CompanionSettings userId="test-user" initialPreferences={companionDefaults}/></main><CompanionHost userId="test-user" allowedModules={['settings:manage','inventory:view']} initialPreferences={companionDefaults}/></WorkspaceAppearanceProvider></ThemeProvider></SessionProvider></React.StrictMode>);
 `,resolveDir:root,loader:'tsx'},bundle:true,write:false,outdir:out,format:'iife',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"','process.env':'{}'},logLevel:'silent',plugins:[{name:'erp-stubs',setup(b){
 b.onResolve({filter:/^next\/(navigation|link|dynamic)$/},a=>({path:a.path,namespace:'stub'}));
 b.onResolve({filter:/settings\/companion\/actions$/},a=>({path:a.path,namespace:'stub'}));
 b.onLoad({filter:/.*/,namespace:'stub'},a=>({resolveDir:root,loader:'tsx',contents:a.path==='next/navigation'?`export const usePathname=()=>'/inventory';`:a.path==='next/link'?`import React from 'react';export default function Link({children,...props}){return <a {...props}>{children}</a>}`:a.path==='next/dynamic'?`import React from 'react';export default function dynamic(load){const C=React.lazy(()=>load().then(value=>({default:value.default||value})));return props=><React.Suspense fallback={null}><C {...props}/></React.Suspense>;}`:`export async function saveCompanionPreferences(preferences){window.saveCalls=(window.saveCalls||0)+1;if(window.failSave)return {error:"Test save failure"};window.saved=preferences;return {preferences};}`}));
+b.onLoad({filter:/[\\/]companion[\\/]khyati[\\/]manifest\.json$/},async a=>({contents:JSON.stringify({...JSON.parse(await readFile(a.path,'utf8')),ready:false}),loader:'json'}));
 }}]});
 console.log('UI harness bundled; generating styles.');
-const cssResult=await postcss([tailwind()]).process(await readFile(resolve(root,'app/globals.css'),'utf8'),{from:resolve(root,'app/globals.css')});
+const cssResult=await postcss([tailwind()]).process((await readFile(resolve(root,'app/globals.css'),'utf8')).replace('@import "tailwindcss";', '@import "tailwindcss" source(none); @source "../components";'),{from:resolve(root,'app/globals.css')});
 console.log('Styles ready; launching browser.');
 const css=cssResult.css+'\n'+await readFile(resolve(root,'app/workspace-theme.css'),'utf8')+'\n'+result.outputFiles.filter(f=>f.path.endsWith('.css')).map(f=>f.text).join('\n');
 const js=result.outputFiles.find(f=>f.path.endsWith('.js')).text;
@@ -48,15 +55,15 @@ const server=createServer((req,res)=>{if(req.url==='/bundle.js'){res.setHeader('
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 let browser;
 try{
- browser=await puppeteer.launch({headless:true}); const page=await browser.newPage(); const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error(e.message)});
+ browser=await puppeteer.launch({headless:true,protocolTimeout:30000,args:["--disable-background-timer-throttling","--disable-renderer-backgrounding","--disable-backgrounding-occluded-windows"]}); const page=await browser.newPage(); const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error(e.message)});
  await page.setViewport({width:1280,height:960});await page.goto(`http://127.0.0.1:${server.address().port}`,{waitUntil:'networkidle0'});
- const clickText=async text=>{await page.evaluate(text=>{const button=[...document.querySelectorAll('[aria-label="Facet ERP companion"] button')].find(e=>e.textContent.startsWith(text));if(!button)throw new Error('Missing button '+text);button.click()},text)};
- const close=async()=>{await page.keyboard.press('Escape');await page.waitForSelector('[aria-label="Facet ERP companion"]',{hidden:true})};
+ const clickText=async text=>{await page.evaluate(text=>{const button=[...document.querySelectorAll('[aria-label="Khyra ERP companion"] button')].find(e=>e.textContent.startsWith(text));if(!button)throw new Error('Missing button '+text);button.click()},text)};
+ const close=async()=>{await page.keyboard.press('Escape');await page.waitForSelector('[aria-label="Khyra ERP companion"]',{hidden:true})};
  assert.equal(await page.$('[data-companion-state]'),null,'disabled initially');
  await page.evaluate(()=>window.erpToast.success('Native before enabling'));
  await page.waitForSelector('[data-sonner-toast]');
  await page.click('#facet-enabled');await page.click('fieldset button[data-slot="button"]');await page.waitForSelector('[data-companion-state]');
- await page.click('button[aria-label^="Open Facet"]');await page.waitForSelector('[aria-label="Facet ERP companion"]');await clickText('Style');
+ await page.click('button[aria-label^="Open Khyra"]');await page.waitForSelector('[aria-label="Khyra ERP companion"]');await clickText('Style');
  for(const [id,name] of [['emerald','Facet'],['sapphire','Azure'],['owl','Amara'],['fox','Ember'],['sprout','Jade']]){
   await page.click(`[aria-label="Customize companion"] button[aria-label="Choose ${name}"]`);
   await clickText('Apply companion');
@@ -72,13 +79,13 @@ try{
  await clickText('Apply companion');await page.waitForFunction(()=>document.querySelector('[data-companion-launcher]')?.getBoundingClientRect().width===48);
  await page.$eval('[aria-label="Customize companion"] input[type="range"]',el=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,'144');el.dispatchEvent(new Event('input',{bubbles:true}));});
  await clickText('Apply companion');await page.waitForFunction(()=>document.querySelector('[data-companion-launcher]')?.getBoundingClientRect().width===144);await close();
-
- await page.evaluate(()=>window.publish([{id:'n1',type:'warning',title:'Review sync',message:'Confirmed marketplace event',href:'/marketplace-sync-history',readAt:null,createdAt:new Date().toISOString()},{id:'read1',type:'success',title:'Previously read event',message:'Saved record',href:'/inventory',readAt:new Date().toISOString(),createdAt:new Date().toISOString()}]));
+ await page.evaluate(()=>{localStorage.removeItem('facet:interruptions:test-user');return window.publish([{id:'n1',type:'warning',title:'Review sync',message:'Confirmed marketplace event',href:'/marketplace-sync-history',readAt:null,createdAt:new Date().toISOString()},{id:'read1',type:'success',title:'Previously read event',message:'Saved record',href:'/inventory',readAt:new Date().toISOString(),createdAt:new Date().toISOString()}])});
  await page.waitForSelector('[data-companion-alert]');
- await page.click('button[aria-label^="Notifications"]');await page.waitForSelector('[aria-label="Facet ERP companion"]');
+ await page.click('button[aria-label^="Notifications"]');await page.waitForSelector('[aria-label="Khyra ERP companion"]');
  assert.equal(await page.$('#erp-notifications-panel'),null,'bell routes into enabled companion');
  assert.equal(await page.$('a[href="/inventory/new"]'),null,'permission denies create shortcut');
  assert.ok(await page.$('a[href="/inventory"]'));
+ await page.waitForFunction(()=>document.querySelector('[aria-label="ERP notification inbox"]')?.textContent.includes('Previously read event'));
  assert.ok((await page.$eval('[aria-label="ERP notification inbox"]',e=>e.textContent)).includes('Previously read event'),'read notifications stay visible');
  await clickText('Load older notifications');await page.waitForFunction(()=>document.body.textContent.includes('Older saved event'));
  assert.equal(await page.evaluate(()=>window.moreLoads),1);
@@ -87,12 +94,12 @@ try{
  await page.evaluate(()=>window.failRead=false);await page.click('button[aria-label="Acknowledge Review sync"]');await page.waitForFunction(()=>!document.querySelector('button[aria-label="Acknowledge Review sync"]'));
  assert.ok((await page.$eval('[aria-label="ERP notification inbox"]',e=>e.textContent)).includes('Review sync'),'acknowledged update remains in history');
  await close();
- await page.evaluate(()=>window.erpToast.success('Gem saved in ERP',{action:{label:'Review saved gem',onClick:()=>window.didReview=true}}));
+ await page.evaluate(()=>{localStorage.removeItem('facet:interruptions:test-user');return window.erpToast.success('Gem saved in ERP',{action:{label:'Review saved gem',onClick:()=>window.didReview=true}})});
  await page.waitForFunction(()=>document.querySelector('[data-companion-alert]')?.textContent.includes('Gem saved in ERP'));
  assert.equal(await page.$eval('.facet-speech-title',el=>el.textContent),'Gem saved in ERP','speech bubble uses the message without toast branding');
  assert.equal(await page.$('.facet-speech-message'),null,'routine feedback does not get unrelated greeting copy');
  assert.equal(await page.evaluate(()=>[...document.querySelectorAll('[data-sonner-toast]')].filter(e=>getComputedStyle(e).display!=='none'&&e.textContent.includes('Gem saved in ERP')).length),0,'ordinary toast hidden');
- await page.click('button[aria-label^="Open Facet"]');await clickText('Activity');
+ await page.click('button[aria-label^="Open Khyra"]');await clickText('Activity');
  await page.waitForFunction(()=>document.querySelector('[aria-label="ERP action activity"]')?.textContent.includes('Gem saved in ERP'));
  await clickText('Review saved gem');assert.equal(await page.evaluate(()=>window.didReview),true);
  await page.evaluate(()=>{window.erpToast.loading('Saving document',{id:'document-op'});window.erpToast.success('Document saved',{id:'document-op'});window.erpToast.custom(()=>window.React.createElement(window.InventorySaveProgressToast,{itemName:'Custom inventory save card',status:'success',completeness:{passed:1,total:1,score:100,fields:[{key:'name',label:'Item name',ok:true}]}}),{id:'custom-card'});});
@@ -100,10 +107,12 @@ try{
  assert.equal(await page.$$eval('[data-feedback-id="document-op"]',els=>els.length),1,'loading updates one record');
  await page.evaluate(()=>window.erpToast.custom(()=>window.React.createElement('div',null,'Marketplace order sync running'),{id:'marketplace-sync-test',className:'erp-marketplace-sync-toast',duration:Infinity}));
  await page.waitForFunction(()=>[...document.querySelectorAll('[data-sonner-toast]')].some(e=>e.textContent.includes('Marketplace order sync running')&&getComputedStyle(e).display!=='none'));
+ console.log('Desktop history/actions passed.');
  await page.screenshot({path:resolve(out,'desktop.png'),fullPage:true});
+ if(!await page.$('[aria-label="Khyra ERP companion"]'))await page.click('[data-companion-launcher]');
  await clickText('Workday');await clickText('Open inventory');await page.waitForFunction(()=>window.saved?.pinned.includes('/inventory'));
  await close();
- const grip=await page.$('button[aria-label="Move Facet"]');const gripBox=await grip.boundingBox();await page.mouse.move(gripBox.x+10,gripBox.y+10);await page.mouse.down();await page.mouse.move(500,440,{steps:8});await page.mouse.up();
+ const grip=await page.$('button[aria-label="Move Khyra"]');const gripBox=await grip.boundingBox();await page.mouse.move(gripBox.x+10,gripBox.y+10);await page.mouse.down();await page.mouse.move(500,440,{steps:8});await page.mouse.up();
  await page.waitForFunction(()=>window.saved?.dock?.x>0&&window.saved.dock.x<1);
  const saved=await page.evaluate(()=>window.saved.dock);assert.ok(saved.y>0&&saved.y<1);
  await page.click('#facet-quiet');await page.click('fieldset button[data-slot="button"]');await page.waitForFunction(()=>document.querySelector('[data-companion-state]')?.dataset.companionState==='sleeping');
@@ -122,6 +131,7 @@ try{
  await page.click('button[aria-label="Appearance settings"]');await page.click('button[aria-label="Show companion"]');await page.waitForSelector('[data-companion-state]');await page.waitForFunction(()=>!window.visibilityState.getSnapshot().pending);
  await page.evaluate(()=>window.failSave=true);await page.click('button[aria-label="Hide companion"]');await page.waitForFunction(()=>document.querySelector('[data-companion-state]')&&window.visibilityState.getSnapshot().error==='Test save failure');
  assert.equal(await page.evaluate(()=>window.visibilityState.getSnapshot().enabled),true,'failed quick hide rolls back');await page.evaluate(()=>window.failSave=false);await page.keyboard.press('Escape');
+ console.log('Visibility, drag and preferences passed.');
  // A desktop preference is retained on phones/tablets and short windows without any save request.
  const savesBeforeResize=await page.evaluate(()=>window.saveCalls);
  await page.evaluate(()=>window.erpToast.promise(new Promise(resolve=>window.mobileResolve=resolve),{loading:'Resize operation',success:'Finished on mobile'}));
@@ -143,8 +153,8 @@ try{
  await page.setViewport({width:1280,height:960});await page.waitForSelector('[data-companion-state]');
  for(const position of ['bottom-left','top-left','top-right','bottom-right']){
   await page.evaluate(position=>window.dispatchEvent(new CustomEvent('erp:companion-preferences',{detail:{userId:'test-user',preferences:{enabled:true,character:'emerald',position,greetings:false,notifications:true,motivation:false,animations:true,quiet:false,severity:'all'}}})),position);
-  await page.click('button[aria-label^="Open Facet"]');await page.waitForSelector('[aria-label="Facet ERP companion"]');
-  const box=await page.$eval('[aria-label="Facet ERP companion"]',e=>{let r=e.getBoundingClientRect();return{x:r.x,right:r.right,top:r.top,bottom:r.bottom}});assert.ok(box.x>=0&&box.right<=1280&&box.top>=0&&box.bottom<=960,position+JSON.stringify(box));await close();
+  await page.click('button[aria-label^="Open Khyra"]');await page.waitForSelector('[aria-label="Khyra ERP companion"]');
+  const box=await page.$eval('[aria-label="Khyra ERP companion"]',e=>{let r=e.getBoundingClientRect();return{x:r.x,right:r.right,top:r.top,bottom:r.bottom}});assert.ok(box.x>=0&&box.right<=1280&&box.top>=0&&box.bottom<=960,position+JSON.stringify(box));await close();
  }
  await page.evaluate(()=>window.erpToast.promise(new Promise(resolve=>window.promiseResolve=resolve),{loading:'Operation started enabled',success:'Operation finished disabled'}));
  await page.click('#facet-enabled');await page.click('fieldset button[data-slot="button"]');await page.waitForFunction(()=>!document.querySelector('[data-companion-state]'));
@@ -167,7 +177,7 @@ try{
  assert.ok(await gesturePage.$('[data-companion-launcher] .facet-sleep'));
  await gesturePage.screenshot({path:resolve(out,'resting.png'),fullPage:true});
  await gesturePage.mouse.move(20,20);await gesturePage.waitForFunction(()=>document.querySelector('[data-companion-state]')?.dataset.companionState!=='resting');
- await gesturePage.evaluate(()=>window.publish([{id:'wake',type:'info',title:'Wake on a real event',message:'Fixture event',href:'/inventory',readAt:null,createdAt:new Date().toISOString()}]));
+ await gesturePage.evaluate(()=>{localStorage.removeItem('facet:interruptions:test-user');return window.publish([{id:'wake',type:'info',title:'Wake on a real event',message:'Fixture event',href:'/inventory',readAt:null,createdAt:new Date().toISOString()}])});
  await gesturePage.waitForSelector('[data-companion-alert]');await gesturePage.hover('[data-companion-launcher]');await gesturePage.waitForFunction(()=>['happy','wink'].includes(document.querySelector('[data-companion-state]')?.dataset.companionState));await gesturePage.close();
  const smallPage=await browser.newPage();smallPage.on('pageerror',e=>errors.push(e.message));await smallPage.setViewport({width:390,height:844});await smallPage.goto(`http://127.0.0.1:${server.address().port}`,{waitUntil:'networkidle0'});
  await smallPage.click('#facet-enabled');await smallPage.click('fieldset button[data-slot="button"]');await smallPage.waitForFunction(()=>window.saved?.enabled===true);
@@ -175,6 +185,7 @@ try{
  assert.equal(await smallPage.evaluate(()=>window.runtimeState.getSnapshot()),false);
  await smallPage.evaluate(()=>window.erpToast.info('Fresh mobile session feedback'));await smallPage.waitForFunction(()=>[...document.querySelectorAll('[data-sonner-toast]')].some(e=>e.textContent.includes('Fresh mobile session feedback')&&getComputedStyle(e).display!=='none'));
  await smallPage.click('button[aria-label^="Notifications"]');await smallPage.waitForSelector('#erp-notifications-panel');await smallPage.close();
+ console.log('Mobile and gesture checks passed.');
  // Speech bubbles follow the character at every dock and keep their tail attached.
  const bubblePage=await browser.newPage();bubblePage.on('pageerror',e=>errors.push(e.message));await bubblePage.setViewport({width:1280,height:800});await bubblePage.goto(`http://127.0.0.1:${server.address().port}`,{waitUntil:'networkidle0'});
  await bubblePage.click('#facet-enabled');await bubblePage.click('#facet-greetings');await bubblePage.click('button[aria-label="Choose Ember"]');await bubblePage.click('fieldset button[data-slot="button"]');await bubblePage.waitForSelector('[data-companion-launcher]');
@@ -188,30 +199,44 @@ try{
   {position:'bottom-right',mode:'dim',size:144,dock:{x:.6,y:.6}},
  ];
  for(const [index,fixture] of bubbleCases.entries()){
+  console.log('Bubble fixture',index);
   await bubblePage.evaluate(({fixture,index})=>{
+   localStorage.removeItem('facet:interruptions:test-user'); // Isolate each visual fixture from the production cooldown.
    window.scrollTo(0,0);
    document.documentElement.classList.toggle('dark',fixture.mode!=='light');document.documentElement.dataset.workspaceMode=fixture.mode;
    window.dispatchEvent(new CustomEvent('erp:companion-preferences',{detail:{userId:'test-user',preferences:{...window.saved,...fixture,character:'fox',greetings:false,animations:true}}}));
    window.erpToast.success(index===0||index===1?'Note copied':'Your inventory has been updated',{id:`bubble-check-${index}`,description:index===0||index===1?undefined:'Your item details are saved and ready to view.'});
   },{fixture,index});
-  await bubblePage.waitForSelector('[data-companion-alert]');await new Promise(r=>setTimeout(r,350));
+  await bubblePage.waitForSelector('.facet-speech-action');await new Promise(r=>setTimeout(r,350));
   const geometry=await bubblePage.$eval('[data-companion-alert]',bubble=>{
    const rect=bubble.getBoundingClientRect();const character=document.querySelector('[data-companion-launcher]').getBoundingClientRect();const tail=getComputedStyle(bubble,'::after');
    return {left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,side:bubble.dataset.side,tailContent:tail.content,tailX:rect.left+2+parseFloat(tail.left),characterX:character.left+character.width/2,viewportWidth:innerWidth,viewportHeight:innerHeight};
   });
   assert.ok(geometry.left>=0&&geometry.right<=geometry.viewportWidth&&geometry.top>=0&&geometry.bottom<=geometry.viewportHeight,`speech bubble fits viewport ${JSON.stringify({fixture,geometry})}`);
   assert.notEqual(geometry.tailContent,'none','speech bubble has a tail');assert.ok(Math.abs(geometry.tailX-geometry.characterX)<=3,`tail points to character ${JSON.stringify({fixture,geometry})}`);
-  assert.equal(await bubblePage.$eval('.facet-speech-speaker',el=>el.textContent),'Ember says');
+  assert.equal(await bubblePage.$eval('.facet-speech-speaker',el=>el.textContent),'Khyra');
   if(index<2){
    const clip=await bubblePage.evaluate(()=>{const boxes=['[data-companion-alert]','[data-companion-state]'].map(selector=>document.querySelector(selector).getBoundingClientRect());const x=Math.min(...boxes.map(box=>box.left))-10;const y=Math.min(...boxes.map(box=>box.top))-10;return{x,y,width:Math.max(...boxes.map(box=>box.right))-x+10,height:Math.max(...boxes.map(box=>box.bottom))-y+10};});
-   await bubblePage.screenshot({path:resolve(out,`companion-speech-bubble-${fixture.mode}.png`),clip});
+   await bubblePage.screenshot({path:resolve(out,`companion-speech-bubble-${fixture.mode}.png`),clip,captureBeyondViewport:false});
   }
-  if(index===0){await bubblePage.click('.facet-speech-action');await bubblePage.waitForSelector('[aria-label="ERP action activity"]');await bubblePage.keyboard.press('Escape');await bubblePage.waitForSelector('[aria-label="Facet ERP companion"]',{hidden:true});}
+  if(index===0){await bubblePage.waitForSelector('.facet-speech-action');await bubblePage.click('.facet-speech-action');await bubblePage.waitForSelector('[aria-label="ERP action activity"]');await bubblePage.keyboard.press('Escape');await bubblePage.waitForSelector('[aria-label="Khyra ERP companion"]',{hidden:true});}
   else {await bubblePage.click('[aria-label="Dismiss companion alert"]');await bubblePage.waitForSelector('[data-companion-alert]',{hidden:true});}
  }
- await bubblePage.evaluate(()=>{window.dispatchEvent(new CustomEvent('erp:companion-preferences',{detail:{userId:'test-user',preferences:{...window.saved,animations:false}}}));window.erpToast.info('Motion preference check')});await bubblePage.waitForSelector('[data-companion-alert]');
+ console.log('All bubble geometry checks passed.');
+ await bubblePage.evaluate(()=>{localStorage.removeItem('facet:interruptions:test-user');window.dispatchEvent(new CustomEvent('erp:companion-preferences',{detail:{userId:'test-user',preferences:{...window.saved,animations:false}}}));window.erpToast.info('Motion preference check')});await bubblePage.waitForSelector('[data-companion-alert]');
  assert.equal(await bubblePage.$eval('[data-companion-alert]',el=>getComputedStyle(el).animationName),'none','animation preference is respected');
  await bubblePage.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);assert.equal(await bubblePage.$eval('[data-companion-alert]',el=>getComputedStyle(el).animationName),'none');await bubblePage.close();
+ // Real shared-origin tabs compete for one interruption through Web Locks.
+ console.log('Testing competing tabs.');
+ const tabs=[await browser.newPage(),await browser.newPage()];
+ for(const tab of tabs){await tab.bringToFront();await tab.setViewport({width:1280,height:800});await tab.goto(`http://127.0.0.1:${server.address().port}`,{waitUntil:'networkidle0'});await tab.click('#facet-enabled');await tab.click('#facet-greetings');await tab.click('fieldset button[data-slot="button"]');await tab.waitForSelector('[data-companion-launcher]');}
+ console.log('Shared tabs mounted.');
+ await tabs[0].evaluate(()=>localStorage.removeItem('facet:interruptions:test-user'));
+ await Promise.all(tabs.map(tab=>tab.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=> 'visible'});document.dispatchEvent(new Event('visibilitychange'));window.publish([{id:'shared-event',eventKey:'marketplace-sync:shared-event',type:'error',title:'One shared event',message:'Verified fixture failure',href:'/marketplace-sync-history',readAt:null,createdAt:new Date().toISOString()}]);})));
+ await new Promise(resolve=>setTimeout(resolve,500));
+ const interruptions=await Promise.all(tabs.map(tab=>tab.$$eval('[data-companion-alert]',els=>els.filter(el=>el.textContent.includes('One shared event')).length)));
+ assert.equal(interruptions.reduce((sum,count)=>sum+count,0),1,'one business event interrupts only one tab');
+ for(const tab of tabs)await tab.close();
  assert.deepEqual(errors,[]);
  await writeFile(resolve(out,'bundle.json'),JSON.stringify({isolatedHarnessBytes:Buffer.byteLength(js),cssBytes:Buffer.byteLength(css),note:'Includes React, settings and test stubs; not production incremental bundle size'},null,2));
  console.log('Responsive hiding, Appearance quick toggle, save rollback, mobile bell/toast actions and in-flight promise fallback passed. Character gallery, persisted sizes, hover smile/wink, inactivity rest and wake checks passed. Unified notification, proactive alerts, custom cards/actions, promise fallback, history, pinning and dragging checks passed. Companion UI passed: enable/disable, saved preference event, permissions, real snapshot rendering, safe acknowledgement failure and success, Escape, quiet, reduced motion, mobile bounds, no polling.');

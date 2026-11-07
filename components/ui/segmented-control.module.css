@@ -1,0 +1,10 @@
+.control{position:relative;isolation:isolate;display:inline-grid;grid-template-columns:repeat(var(--segments),minmax(0,1fr));gap:0;padding:4px;border:1px solid var(--border);border-radius:10px;background:var(--muted);color:var(--muted-foreground)}
+.indicator{position:absolute;z-index:-1;left:4px;top:4px;bottom:4px;width:calc((100% - 8px)/var(--segments));border-radius:6px;background:var(--card);box-shadow:0 1px 2px #0000000d;transform:translateX(calc(var(--selected)*100%));transition:transform 180ms cubic-bezier(.22,1,.36,1);pointer-events:none}
+.control>button{display:flex;min-width:0;min-height:32px;align-items:center;justify-content:center;gap:8px;padding:4px 12px;border:0;border-radius:6px;background:transparent;color:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:color 150ms ease}
+.control>button[aria-pressed=true]{color:var(--foreground)}
+.control>button:hover{color:var(--foreground)}
+.control>button:focus-visible{outline:2px solid var(--ring);outline-offset:1px}
+.control>button:disabled{opacity:.5;cursor:not-allowed}
+.control svg{width:16px;height:16px;flex-shrink:0;stroke-width:1.5}
+@media(max-width:639px){.control>button{min-height:40px}}
+@media(prefers-reduced-motion:reduce){.indicator,.control>button{transition:none}}

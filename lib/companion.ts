@@ -1,8 +1,12 @@
+import type { KhyraDialogue } from "@/lib/khyra/types";
 import { z } from "zod";
 
 export const companionSchema = z.object({
   enabled: z.boolean().default(false),
   character: z.enum(["emerald", "sapphire", "owl", "fox", "sprout"]).default("emerald"),
+  flipped: z.boolean().default(false),
+  poseMode: z.enum(["adaptive", "framed"]).default("adaptive"),
+  framing: z.enum(["portrait", "full-body"]).default("portrait"),
   size: z.number().int().min(48).max(144).default(80),
   position: z.enum(["bottom-right", "bottom-left", "top-right", "top-left"]).default("bottom-right"),
   greetings: z.boolean().default(true),
@@ -11,6 +15,8 @@ export const companionSchema = z.object({
   animations: z.boolean().default(true),
   quiet: z.boolean().default(false),
   severity: z.enum(["all", "attention"]).default("all"),
+  quietHours: z.object({ enabled: z.boolean().default(false), start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default("22:00"), end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default("08:00") }).default({ enabled: false, start: "22:00", end: "08:00" }),
+  mutedCategories: z.array(z.enum(["inventory", "marketplace", "reports", "sales", "other"])).max(5).default([]),
   dock: z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1) }).nullable().default(null),
   pinned: z.array(z.string().max(100)).max(8).default([]),
 });
@@ -31,6 +37,8 @@ export const companionKey = (userId: string) => `companion:v1:${userId}`;
 export { COMPANION_PREFERENCES_EVENT, COMPANION_FEEDBACK_EVENT } from "./companion-events";
 
 export type CompanionNotice = {
+  dialogue?: KhyraDialogue | null;
+  eventKey?: string; acknowledgedAt?: string | null; resolvedAt?: string | null; snoozedUntil?: string | null;
   id: string; type: "info" | "success" | "warning" | "error";
   title: string; message: string; href: string | null; readAt: string | null; createdAt: string;
 };
@@ -54,3 +62,24 @@ export const companionActions = [
   { href: "/reports/inventory-aging", label: "Aging inventory", permission: "reports:view", context: "/inventory" },
   { href: "/reports/ops", label: "Operational tasks", permission: "reports:view", context: "/" },
 ];
+
+export function notificationCategory(eventKey = "") {
+  if (eventKey.startsWith("marketplace")) return "marketplace";
+  if (/^(report|export)/.test(eventKey)) return "reports";
+  if (/^(sale|invoice|payment|quotation)/.test(eventKey)) return "sales";
+  if (/^(inventory|purchase)/.test(eventKey)) return "inventory";
+  return "other";
+}
+export function companionQuietHours(prefs: CompanionPreferences, now = new Date()) {
+  if (!prefs.quietHours.enabled) return false;
+  const minute = now.getHours() * 60 + now.getMinutes();
+  const parse = (value: string) => { const [h, m] = value.split(":").map(Number); return h * 60 + m; };
+  const start = parse(prefs.quietHours.start), end = parse(prefs.quietHours.end);
+  return start === end || (start < end ? minute >= start && minute < end : minute >= start || minute < end);
+}
+export function canCompanionInterrupt(prefs: CompanionPreferences, item: { type?: string; eventKey?: string; resolvedAt?: string | null; snoozedUntil?: string | null }, now = new Date()) {
+  return prefs.notifications && !prefs.quiet && !companionQuietHours(prefs, now)
+    && (prefs.severity === "all" || item.type === "warning" || item.type === "error")
+    && !prefs.mutedCategories.includes(notificationCategory(item.eventKey))
+    && !item.resolvedAt && !(item.snoozedUntil && Date.parse(item.snoozedUntil) > now.getTime());
+}

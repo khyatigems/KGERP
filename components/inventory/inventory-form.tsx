@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm, type Resolver } from "react-hook-form";
-import { sanitizeErrorText, toast } from "@/lib/erp-feedback";
+import { operationFeedback, sanitizeErrorText, toast } from "@/lib/erp-feedback";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import { getInventoryCompleteness } from "@/lib/inventory-completeness";
 import { InventoryProductDetails } from "./inventory-product-details";
 import { parseDimensions, productFactsSchema, type ProductFacts } from "@/lib/inventory-product-facts";
 
+import { associateFeedbackEvent, clearFeedbackEvent, inventoryCreatedEventKey } from "@/lib/business-event-identity";
 import { InventorySaveProgressToast } from "./inventory-save-progress-toast";
 
 const FileUpload = dynamic(
@@ -249,7 +250,8 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
     const completeness = getInventoryCompleteness(data as unknown as Parameters<typeof getInventoryCompleteness>[0]);
     const SAVE_TOAST_ID = "inventory-save-progress";
 
-    const optimisticToastId = toast.custom(
+    clearFeedbackEvent(SAVE_TOAST_ID);
+    const optimisticToastId = operationFeedback(`inventory.${initialData ? "update" : "create"}.started`, "started",
       () => (
         <InventorySaveProgressToast
           key="saving"
@@ -303,8 +305,10 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
       if (result?.success) {
         const skuStr = isCreatedInventoryResult(result) ? result.sku : initialData?.sku || "";
 
+        if (!initialData && isCreatedInventoryResult(result)) associateFeedbackEvent(SAVE_TOAST_ID, inventoryCreatedEventKey(result.inventoryId));
+
         // Transition the animated save toast to success state
-        toast.custom(
+        operationFeedback(`inventory.${initialData ? "update" : "create"}.${result?.success ? "completed" : "failed"}`, result?.success ? "success" : "failure",
           () => (
             <InventorySaveProgressToast
               key="success"
@@ -437,7 +441,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
         if (optimisticToastId != null) {
           try { toast.dismiss(optimisticToastId); } catch {}
         }
-        toast.custom(
+        operationFeedback(`inventory.${initialData ? "update" : "create"}.${result?.success ? "completed" : "failed"}`, result?.success ? "success" : "failure",
           () => (
             <InventorySaveProgressToast
               key="error"
@@ -459,7 +463,7 @@ export function InventoryForm({ vendors, categories, gemstones, colors, cuts, sh
         try { toast.dismiss(optimisticToastId); } catch {}
       }
       console.error(error);
-      toast.custom(
+      operationFeedback(`inventory.${initialData ? "update" : "create"}.failed`, "failure",
         () => (
           <InventorySaveProgressToast
             key="error"

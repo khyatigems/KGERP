@@ -24,6 +24,7 @@ export async function ensureNotificationSchema() {
   notificationSchemaPromise = (async () => {
     try {
       await prisma.notification.count();
+      await ensureNotificationLifecycleColumns();
       notificationSchemaReady = true;
       return;
     } catch (error) {
@@ -47,6 +48,7 @@ export async function ensureNotificationSchema() {
     )`);
     await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Notification_userId_eventKey_key" ON "Notification"("userId", "eventKey")`);
     await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Notification_userId_readAt_createdAt_idx" ON "Notification"("userId", "readAt", "createdAt")`);
+    await ensureNotificationLifecycleColumns();
     await prisma.notification.count();
     notificationSchemaReady = true;
   })().finally(() => { notificationSchemaPromise = null; });
@@ -122,4 +124,47 @@ export async function persistNotificationSafely(event: NotificationEvent) {
     console.error("Could not persist ERP notification", { eventKey: event.eventKey, error });
     return null;
   }
+}
+
+// Additive compatibility for installations using the existing runtime schema bootstrap.
+async function ensureNotificationLifecycleColumns() {
+  const columns = await prisma.$queryRawUnsafe<Array<{ name: string }>>('PRAGMA table_info("Notification")');
+  for (const name of ["acknowledgedAt", "resolvedAt", "snoozedUntil"]) {
+    if (columns.some(column => column.name === name)) continue;
+    try { await prisma.$executeRawUnsafe(`ALTER TABLE "Notification" ADD COLUMN "${name}" DATETIME`); }
+    catch (error) {
+      const current = await prisma.$queryRawUnsafe<Array<{ name: string }>>('PRAGMA table_info("Notification")');
+      if (!current.some(column => column.name === name)) throw error;
+    }
+  }
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Notification_userId_createdAt_id_idx" ON "Notification"("userId", "createdAt", "id")`);
+}
+
+/** Recovery proof comes from the stored terminal job, never a client acknowledgement. */
+export async function resolveMarketplaceNotificationSafely(jobId: string) {
+  try {
+    const job = await prisma.marketplaceSyncJob.findUnique({ where: { id: jobId }, select: { status: true, recordsFailed: true, requestedById: true } });
+    if (!job || job.status !== "SUCCESS" || job.recordsFailed !== 0 || !job.requestedById) return;
+    await ensureNotificationSchema();
+    await prisma.notification.updateMany({ where: { userId: job.requestedById, eventKey: `marketplace-sync:${jobId}`, resolvedAt: null }, data: { resolvedAt: new Date() } });
+    const recovered = await prisma.marketplaceSyncJob.findUnique({ where: { id: jobId } });
+    if (!recovered) return;
+    const pending = [jobId];
+    const visited = new Set<string>();
+    // Retries may themselves fail. Follow the server-written chain without cycles.
+    while (pending.length && visited.size < 100) {
+      const current = pending.shift()!;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      const mapping = await prisma.setting.findUnique({ where: { key: `notification-recovery:${current}` } });
+      if (!mapping) continue;
+      const sourceIds: unknown = JSON.parse(mapping.value || "[]");
+      if (!Array.isArray(sourceIds) || sourceIds.length > 100 || sourceIds.some(id => typeof id !== "string")) continue;
+      const sources = await prisma.marketplaceSyncJob.findMany({ where: { id: { in: sourceIds }, marketplaceShopId: recovered.marketplaceShopId, syncType: recovered.syncType, status: { in: ["FAILED", "PARTIAL"] } }, select: { id: true, requestedById: true } });
+      for (const source of sources) {
+        if (source.requestedById) await prisma.notification.updateMany({ where: { userId: source.requestedById, eventKey: `marketplace-sync:${source.id}`, resolvedAt: null }, data: { resolvedAt: new Date() } });
+        if (!visited.has(source.id)) pending.push(source.id);
+      }
+    }
+  } catch { console.error("Could not save verified notification recovery", { jobId }); }
 }

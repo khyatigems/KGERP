@@ -1,0 +1,37 @@
+export type KhyraSeverity = "informational" | "success" | "attention" | "warning" | "critical";
+export type KhyraExpression = "idle" | "greeting" | "speaking" | "thinking" | "happy" | "success" | "concerned" | "alert" | "working" | "rest";
+export type KhyraEvidence = "user" | "started" | "success" | "failure" | "observed";
+export type KhyraVariant = "short" | "friendly" | "detailed" | "urgent" | "followUp";
+export type KhyraChannel = "companion" | "toast" | "activity" | "bell" | "saved" | "inline" | "manual" | "preview";
+export type KhyraSupport = "verified_source" | "prepared_template";
+export type KhyraVariable = { type: "text" | "number" | "count" | "identifier"; optional: boolean; source: string; maxLength?: number };
+export type KhyraAction = { id: string; label: string; href: string; permission: string | null; requiresSession: true; kind: "navigate" };
+export type KhyraDefinition = {
+  id: string;
+  module: string;
+  eventName: string;
+  triggerCondition: string;
+  requiredEvidence: KhyraEvidence;
+  severity: KhyraSeverity;
+  expression: KhyraExpression;
+  variants: { short: string; friendly: string; detailed: string; followUp: string; urgent?: string };
+  variables: Record<string, KhyraVariable>;
+  availableActions: KhyraAction[];
+  persistence: "none" | "activity" | "saved" | "saved_issue";
+  notificationChannels: KhyraChannel[];
+  support: KhyraSupport;
+  supportLabel: string;
+  sources: string[];
+};
+export type KhyraDialogue = {
+  eventId: string;
+  module: string;
+  severity: KhyraSeverity;
+  expression: KhyraExpression;
+  short: string;
+  friendly: string;
+  detailed: string;
+  followUp: string;
+  urgent?: string;
+  actions: KhyraAction[];
+};

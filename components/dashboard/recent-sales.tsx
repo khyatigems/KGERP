@@ -16,7 +16,7 @@ export function RecentSales({ sales }: { sales: Sale[] }) {
     return (
         <Card className="sass-enter col-span-1">
             <CardHeader>
-                <CardTitle className="text-sm font-medium">Recent Sales</CardTitle>
+                <CardTitle className="text-sm font-medium">Recent sales</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-6">

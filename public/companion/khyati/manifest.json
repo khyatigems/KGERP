@@ -1,0 +1,378 @@
+{
+  "ready": true,
+  "identity": "Khyra – Your KhyatiGems Companion",
+  "version": 2,
+  "canvas": {
+    "width": 512,
+    "height": 512
+  },
+  "sizes": [
+    128,
+    256,
+    512
+  ],
+  "poses": [
+    {
+      "id": "idle",
+      "label": "Relaxed",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_idle_pose_a7591988.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "d459aa89f988eeb089434f7c3bbaa6f0bdd61cda7d6ff12bb28985468707f8a8",
+      "bounds": {
+        "left": 452,
+        "top": 34,
+        "width": 501,
+        "height": 734
+      },
+      "bytes": 70098
+    },
+    {
+      "id": "greeting",
+      "label": "Greeting",
+      "framing": "portrait",
+      "file": "Cartoon_woman_greeting_6e9fd52e.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "95115bb9fb14905b678bbdffffb1baac14c2887362b800b7ef8901d6f104f31b",
+      "bounds": {
+        "left": 391,
+        "top": 11,
+        "width": 610,
+        "height": 757
+      },
+      "bytes": 84826
+    },
+    {
+      "id": "greeting-soft",
+      "label": "Gentle welcome",
+      "framing": "portrait",
+      "file": "Cartoon_woman_greeting_b5fa76ea.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "b3e2438f8d836d48ca1ffe74af04b796caeb8e04b389568192e5807621e157a7",
+      "bounds": {
+        "left": 436,
+        "top": 3,
+        "width": 533,
+        "height": 765
+      },
+      "bytes": 78558
+    },
+    {
+      "id": "alert",
+      "label": "Attention",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_attention_pose_5497a101.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "e8a61cb7dfeb70537e012371382a137949ab65e84741e75543b9e0018e30f20b",
+      "bounds": {
+        "left": 410,
+        "top": 4,
+        "width": 595,
+        "height": 764
+      },
+      "bytes": 80400
+    },
+    {
+      "id": "concerned",
+      "label": "Concerned",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_concerned_pose_50a09e5a.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "2363c261b81a9d91c2c8c6bd8859da8603addb0786069235fc9008859217e218",
+      "bounds": {
+        "left": 421,
+        "top": 7,
+        "width": 544,
+        "height": 761
+      },
+      "bytes": 71966
+    },
+    {
+      "id": "happy",
+      "label": "Happy",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_happy_pose_48eec45f.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "3939342003deec3cc98a4b46b6cf85f7098157dd5c81e3e28db618742e8ca6db",
+      "bounds": {
+        "left": 386,
+        "top": 30,
+        "width": 562,
+        "height": 738
+      },
+      "bytes": 77654
+    },
+    {
+      "id": "success",
+      "label": "Success",
+      "framing": "portrait",
+      "file": "Cartoon_woman_in_success_pose_9c54eb64.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "4bd387a000c6ba21fb02a71350152b60f84a9a14053e15a784c9ec515507d532",
+      "bounds": {
+        "left": 396,
+        "top": 4,
+        "width": 579,
+        "height": 764
+      },
+      "bytes": 76040
+    },
+    {
+      "id": "concerned-full",
+      "label": "Concerned standing",
+      "framing": "full-body",
+      "file": "Cartoon_woman_posing_with_concern_c335f693.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "d6f020599e37b5f53cb6ea782f4e16eb87988f53fbef36e9c6347ce9846cc82f",
+      "bounds": {
+        "left": 535,
+        "top": 19,
+        "width": 308,
+        "height": 749
+      },
+      "bytes": 52880
+    },
+    {
+      "id": "rest-lounge",
+      "label": "Resting on chaise",
+      "framing": "full-body",
+      "file": "Cartoon_woman_resting_c9e085fa.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "90efcd3707c9a5b1737aa5fdd7f3e08c2c08825a8d1a71f4e2789f8034216fd4",
+      "bounds": {
+        "left": 173,
+        "top": 24,
+        "width": 1009,
+        "height": 744
+      },
+      "bytes": 68244
+    },
+    {
+      "id": "rest",
+      "label": "Quiet rest",
+      "framing": "portrait",
+      "file": "Cartoon_woman_resting_posing_5cf98956.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "fbf8110910d06b9154c78de585176bd4ecb372e4bef2c5e3698454f713e5df86",
+      "bounds": {
+        "left": 412,
+        "top": 16,
+        "width": 590,
+        "height": 752
+      },
+      "bytes": 67890
+    },
+    {
+      "id": "happy-full",
+      "label": "Happy twirl",
+      "framing": "full-body",
+      "file": "Cartoon_woman_smiling_happily_fbc37a79.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "3fefa5ffcfcfadf268a046c8c9ffeb5d735afa1d7ee300438c47f1f89658deb0",
+      "bounds": {
+        "left": 441,
+        "top": 18,
+        "width": 531,
+        "height": 742
+      },
+      "bytes": 70698
+    },
+    {
+      "id": "speaking",
+      "label": "Speaking",
+      "framing": "portrait",
+      "file": "Cartoon_woman_speaking_020c6304.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "3d0a4fedffbde9c18d9cab0310569d835c404ccd1fff29743a72edc4e93639be",
+      "bounds": {
+        "left": 442,
+        "top": 6,
+        "width": 609,
+        "height": 762
+      },
+      "bytes": 79202
+    },
+    {
+      "id": "speaking-full",
+      "label": "Explaining",
+      "framing": "full-body",
+      "file": "Cartoon_woman_speaking_and_gestu…_e955826f.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "d2208f9a28d7a837df8df6795b0b073c78ce7edd369d506d98ece44f2845779a",
+      "bounds": {
+        "left": 466,
+        "top": 12,
+        "width": 423,
+        "height": 755
+      },
+      "bytes": 60596
+    },
+    {
+      "id": "idle-full",
+      "label": "Standing at ease",
+      "framing": "full-body",
+      "file": "Cartoon_woman_standing_in_idle_7d8fc36f.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "c82834c8ba4200c5d277e6a23bcc204b359b2c2933d76dc97818f275c0cbddad",
+      "bounds": {
+        "left": 543,
+        "top": 29,
+        "width": 283,
+        "height": 739
+      },
+      "bytes": 52540
+    },
+    {
+      "id": "ready-full",
+      "label": "Ready to help",
+      "framing": "full-body",
+      "file": "Cartoon_woman_standing_in_pose_c3fd43c1.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "c8b3779070b7bf58d552b2779a3745717905a1ac9078abf8fd7639f5004d662c",
+      "bounds": {
+        "left": 550,
+        "top": 27,
+        "width": 284,
+        "height": 733
+      },
+      "bytes": 48312
+    },
+    {
+      "id": "thinking",
+      "label": "Thinking",
+      "framing": "portrait",
+      "file": "Cartoon_woman_thinking_0a12d341.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "e2f11461cdb7d94c83b2bb33f86c93aba78c6afd05ef1e936d532e1ba647d031",
+      "bounds": {
+        "left": 467,
+        "top": 28,
+        "width": 561,
+        "height": 740
+      },
+      "bytes": 72316
+    },
+    {
+      "id": "thinking-full",
+      "label": "Thinking standing",
+      "framing": "full-body",
+      "file": "Cartoon_woman_thinking_da7ad355.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "24b8e06ab4ac6c0720953761446a1c46246062c42fe27a7789a58cf674bc3527",
+      "bounds": {
+        "left": 523,
+        "top": 20,
+        "width": 338,
+        "height": 742
+      },
+      "bytes": 53014
+    },
+    {
+      "id": "wave-full",
+      "label": "Waving",
+      "framing": "full-body",
+      "file": "Cartoon_woman_waving_hand_a588a41e.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "07da7475059c669cd0a34cef945a5c2b4016525d63e64d091c4b40207dbdfd7c",
+      "bounds": {
+        "left": 511,
+        "top": 23,
+        "width": 336,
+        "height": 744
+      },
+      "bytes": 57326
+    },
+    {
+      "id": "working",
+      "label": "Working at laptop",
+      "framing": "portrait",
+      "file": "Cartoon_woman_working_95fd4800.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "ddb5fa08d464c1f8538a7debda83dbdf999f9494c7f6c61e2b2f2269aa92dfe8",
+      "bounds": {
+        "left": 380,
+        "top": 5,
+        "width": 802,
+        "height": 763
+      },
+      "bytes": 81200
+    },
+    {
+      "id": "welcome",
+      "label": "Warm welcome",
+      "framing": "portrait",
+      "file": "Smiling Woman in Purple and Gold.png",
+      "sourceWidth": 1312,
+      "sourceHeight": 1199,
+      "sha256": "1bf5763b4c19062c8b65c6d4d54dca8a64febba762338364c08905a8c9faaff1",
+      "bounds": {
+        "left": 0,
+        "top": 0,
+        "width": 1297,
+        "height": 1198
+      },
+      "bytes": 101618
+    },
+    {
+      "id": "welcome-alt",
+      "label": "Welcoming gesture",
+      "framing": "portrait",
+      "file": "Welcoming Woman in Purple Sari.png",
+      "sourceWidth": 1312,
+      "sourceHeight": 1199,
+      "sha256": "e1980cc47fcf438fc2577be01e02ef58660f54d27189ce9a5001baf5efe0dddc",
+      "bounds": {
+        "left": 0,
+        "top": 0,
+        "width": 1296,
+        "height": 1199
+      },
+      "bytes": 99558
+    },
+    {
+      "id": "celebrating",
+      "label": "Celebrating",
+      "framing": "full-body",
+      "file": "Cartoon_woman_cheering_in_success_4919f4d8.png",
+      "sourceWidth": 1376,
+      "sourceHeight": 768,
+      "sha256": "6611efefffbdb94754c19dc07a5e40cd76230cea0bbaf7db245ce6afefc8325b",
+      "bounds": {
+        "left": 496,
+        "top": 15,
+        "width": 498,
+        "height": 753
+      },
+      "bytes": 67462
+    }
+  ],
+  "thinkingVideo": {
+    "src": "/companion/khyati/thinking.mp4",
+    "poster": "/companion/khyati/thinking-poster.webp",
+    "width": 360,
+    "height": 640,
+    "muted": true,
+    "hasBackground": true,
+    "bytes": 101225,
+    "sourceSha256": "8034dc8eaca63a1916c425d3ee388b603041ce80a19309d82ab8bd7e0a47a656"
+  }
+}

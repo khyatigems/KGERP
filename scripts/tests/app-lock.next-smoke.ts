@@ -54,6 +54,12 @@ async function main() {
     const sessionCookie = `next-auth.session-token=${token}`;
     const get = (pathname: string, cookie = sessionCookie, headers: Record<string, string> = {}) => fetch(origin + pathname, { headers: { cookie, ...headers }, redirect: "manual", signal: AbortSignal.timeout(90000) });
     assert.equal((await get("/manifest.webmanifest", "")).status, 200);
+    const loginPage = await get("/login", "");
+    assert.equal(loginPage.status, 200, "real login presentation compiles against isolated fixture storage");
+    const loginHtml = await loginPage.text();
+    assert.match(loginHtml, /Inventory, channels/);
+    assert.match(loginHtml, /id="password"/);
+    assert.doesNotMatch(loginHtml, /Sign in with passkey/);
     assert.equal((await get("/api/auth/refresh")).status, 423, "real middleware rejects an authenticated protected API while locked");
     assert.equal((await get("/api/fixture/export.csv")).status, 423, "API file extensions cannot bypass matcher");
     const screen = await get("/settings/security", sessionCookie, { "sec-fetch-dest": "document", accept: "text/html" });
@@ -68,6 +74,7 @@ async function main() {
     assert.ok(grant);
     let unlockedCookie = `${sessionCookie}; ${store.APP_LOCK_COOKIE}=${grant}`;
     assert.equal((await get("/api/auth/refresh", unlockedCookie)).status, 200, "real route auth accepts the still-signed-in unlocked session");
+    assert.equal((await get("/api/auth/refresh?filter=active", unlockedCookie, { "sec-fetch-dest": "document", accept: "text/html" })).status, 200, "document/filter navigation preserves a valid unlock grant");
     assert.equal((await get("/unlock", unlockedCookie)).status, 200);
     assert.equal((await get("/api/auth/refresh", unlockedCookie)).status, 423, "opening lock screen directly also revokes the previous grant");
     state = await store.appLockState(sid, user.id);

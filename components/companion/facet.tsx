@@ -1,9 +1,12 @@
+import { officialCompanionAssetsReady, type CompanionFraming, type CompanionPose, type CompanionPoseContext } from "@/lib/companion-avatar";
+import { OfficialCompanionAvatar } from "./official-avatar";
 import { useId } from "react";
 import type { CompanionPreferences } from "@/lib/companion";
 
-export type FacetState = "idle" | "greeting" | "working" | "success" | "notification" | "warning" | "sleeping" | "happy" | "wink" | "resting";
-export function Facet({ character, state = "idle" }: { character: CompanionPreferences["character"]; state?: FacetState }) {
+export type FacetState = "idle" | "greeting" | "working" | "success" | "notification" | "warning" | "sleeping" | "happy" | "wink" | "resting" | "speaking" | "thinking" | "concerned" | "alert" | "wave" | "ready" | "welcome" | "greeting-soft" | "celebrating";
+export function Facet({ character, state = "idle", framing = "portrait", pose, context }: { character: CompanionPreferences["character"]; state?: FacetState; framing?: CompanionFraming; pose?: CompanionPose; context?: CompanionPoseContext }) {
   const id = useId();
+  if (officialCompanionAssetsReady) return <OfficialCompanionAvatar state={state} framing={framing} pose={pose} context={context} />;
   const blue = character === "sapphire";
   const resting = state === "sleeping" || state === "resting";
   const happy = state === "happy" || state === "success" || state === "greeting";

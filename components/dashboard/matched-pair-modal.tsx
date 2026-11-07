@@ -105,7 +105,7 @@ export function MatchedPairModal({
                   </div>
                   <h4 className="font-medium text-sm truncate">{itemData.sku}</h4>
                   <p className="text-xs text-muted-foreground truncate">{itemData.itemName}</p>
-                  <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground">
+                  <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
                     {itemData.gemType && <span className="px-1.5 py-0.5 rounded bg-muted/50">{itemData.gemType}</span>}
                     {itemData.color && <span className="px-1.5 py-0.5 rounded bg-muted/50">{itemData.color}</span>}
                     {itemData.shape && <span className="px-1.5 py-0.5 rounded bg-muted/50">{itemData.shape}</span>}
@@ -113,7 +113,7 @@ export function MatchedPairModal({
                     {itemData.clarity && <span className="px-1.5 py-0.5 rounded bg-muted/50">{itemData.clarity}</span>}
                     {itemData.cut && <span className="px-1.5 py-0.5 rounded bg-muted/50">{itemData.cut}</span>}
                   </div>
-                  <p className="text-sm font-bold">{formatCurrency(itemData.sellingPrice)}</p>
+                  <p className="text-sm font-semibold">{formatCurrency(itemData.sellingPrice)}</p>
                 </div>
               ))}
             </div>
@@ -152,11 +152,11 @@ export function MatchedPairModal({
               <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                 <div>
                   <p className="text-xs text-muted-foreground">Total Value</p>
-                  <p className="text-2xl font-bold">{formatCurrency(item.totalValue)}</p>
+                  <p className="text-2xl font-semibold">{formatCurrency(item.totalValue)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Suggested Price</p>
-                  <p className="text-2xl font-bold text-primary">{formatCurrency(item.suggestedPrice)}</p>
+                  <p className="text-2xl font-semibold text-primary">{formatCurrency(item.suggestedPrice)}</p>
                   <p className="text-xs text-primary/70">+{Math.round((item.suggestedPrice / item.totalValue - 1) * 100)}% premium</p>
                 </div>
               </div>
@@ -190,7 +190,7 @@ export function MatchedPairModal({
 function MatchDetailCard({ label, passed, value }: { label: string; passed: boolean; value?: string }) {
   return (
     <div className="p-2 rounded-lg bg-muted/50 border text-center">
-      <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
       <p className={cn(
         "text-sm font-semibold",
         passed ? "text-emerald-600" : "text-red-600"

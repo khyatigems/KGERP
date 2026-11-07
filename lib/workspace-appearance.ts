@@ -1,14 +1,14 @@
 export const WORKSPACE_PALETTES = [
-  { id: "sapphire-facet", label: "Sapphire", color: "#4269c8" },
-  { id: "emerald-crystal", label: "Emerald", color: "#168369" },
-  { id: "amethyst-prism", label: "Amethyst", color: "#8062c2" },
+  { id: "sapphire-facet", label: "Sapphire", color: "#315b96" },
+  { id: "emerald-crystal", label: "Emerald", color: "#166d55" },
+  { id: "amethyst-prism", label: "Amethyst", color: "#674891" },
 ] as const;
 export type WorkspacePalette = typeof WORKSPACE_PALETTES[number]["id"];
 export type DashboardViewPreference = "trading" | "classic";
 export const WORKSPACE_SURFACES = [
-  { id: "slate", label: "English Slate", background: "#e7e9ed", card: "#f1f2f4", sidebar: "#dde1e7" },
-  { id: "stone", label: "Warm Stone", background: "#e9e5df", card: "#f3f0eb", sidebar: "#dfdad2" },
-  { id: "sage", label: "Sage Grey", background: "#e4e9e5", card: "#eff3ef", sidebar: "#d9e1da" },
+  { id: "slate", label: "English Slate", background: "#f5f6f7", card: "#ffffff", sidebar: "#eef0f2" },
+  { id: "stone", label: "Warm Stone", background: "#f4f2ef", card: "#fdfcfb", sidebar: "#eeebe6" },
+  { id: "sage", label: "Sage Grey", background: "#f2f5f2", card: "#fbfcfb", sidebar: "#eaf0eb" },
 ] as const;
 export type WorkspaceAppearance = {
   palette: WorkspacePalette; motion: boolean; dashboardView: DashboardViewPreference;

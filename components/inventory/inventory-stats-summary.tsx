@@ -27,7 +27,7 @@ export function InventoryStatsSummary({ data, loading, refreshing }: { data?: In
       <div className="inventory-stat-label"><span>Item readiness</span><FileCheck size={15} /></div>
       {[{ name: "Images", count: images }, { name: "Certificates", count: certificates }].map((metric) => {
         const percent = total ? Math.round(metric.count / total * 100) : 0;
-        return <div key={metric.name} className="inventory-readiness"><div><span>{metric.name}</span><strong>{data ? `${metric.count}/${total}` : "—"}</strong></div><div className="inventory-mini-track"><span style={{ width: `${Math.min(100, percent)}%` }} /></div><small>{data ? `${percent}% · ${Math.max(0, total - metric.count)} missing` : "Loading…"}</small></div>;
+        return <div key={metric.name} className="inventory-readiness"><div><span>{metric.name}</span><strong>{data ? `${metric.count}/${total}` : "—"}</strong></div><small>{data ? `${percent}% · ${Math.max(0, total - metric.count)} missing` : "Loading…"}</small></div>;
       })}
     </div>
     <div className={cards}>

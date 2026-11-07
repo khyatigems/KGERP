@@ -87,7 +87,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
   const statusOrder = ["ACTIVE", "LISTED", "DRAFT", "PAUSED", "INACTIVE", "SOLD"];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 h-full sass-enter ">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -100,7 +100,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
         </div>
         <Link
           href="/marketplace-listings"
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
         >
           Manage <ExternalLink className="h-3 w-3" />
         </Link>
@@ -118,7 +118,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
               href={listingHref}
               title={tile.label}
               className={cn(
-                "flex min-w-0 flex-col items-center justify-center rounded-lg border border-border p-3 text-center transition-all duration-150",
+                "flex min-w-0 flex-col items-center justify-center rounded-lg border border-border p-3 text-center transition-[color,background-color,border-color,opacity,transform] duration-150",
                 tile.count > 0
                   ? "hover:border-primary/20 hover:bg-primary/5"
                   : "hover:border-primary/20 hover:bg-primary/5"
@@ -127,10 +127,10 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
               <div className={cn("flex h-7 w-7 items-center justify-center rounded-md mb-1.5", cfg.bg)}>
                 <Globe className={cn("h-3.5 w-3.5", cfg.color)} />
               </div>
-              <span className="text-lg font-bold text-foreground leading-tight">{tile.count}</span>
-              <span className="text-[10px] text-muted-foreground">Active listings</span>
-              <span className="max-w-full truncate text-[10px] leading-tight text-muted-foreground">{tile.label}</span>
-              {tile.inactiveCount > 0 && <span className="mt-1 text-[10px] text-muted-foreground">{tile.inactiveCount} inactive listings</span>}
+              <span className="text-lg font-semibold text-foreground leading-tight">{tile.count}</span>
+              <span className="text-xs text-muted-foreground">Active listings</span>
+              <span className="max-w-full truncate text-xs leading-tight text-muted-foreground">{tile.label}</span>
+              {tile.inactiveCount > 0 && <span className="mt-1 text-xs text-muted-foreground">{tile.inactiveCount} inactive listings</span>}
             </Link>
           );
         })}
@@ -140,7 +140,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
         <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Listing Status</span>
+            <span className="text-xs font-medium text-muted-foreground normal-case tracking-normal">Listing Status</span>
           </div>
           {hasStatusData && (
             <div className="flex flex-wrap gap-2">
@@ -152,7 +152,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
                   <div key={status} className={cn("flex items-center gap-1.5 rounded-full px-2.5 py-1", cfg.bg)}>
                     <Circle className={cn("h-2 w-2 fill-current", cfg.color)} />
                     <span className="text-xs font-medium text-foreground">{count}</span>
-                    <span className="text-[11px] text-muted-foreground">{cfg.label}</span>
+                    <span className="text-xs text-muted-foreground">{cfg.label}</span>
                   </div>
                 );
               })}
@@ -168,7 +168,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
                     : `${syncData.pendingConflicts} pending conflict${syncData.pendingConflicts > 1 ? "s" : ""}`}
                 </span>
               </div>
-              <Link href="/marketplace-conflicts" className="text-[11px] text-primary hover:underline">
+              <Link href="/marketplace-conflicts" className="text-xs text-primary hover:underline">
                 View
               </Link>
             </div>
@@ -180,7 +180,7 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
         <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
           <div className="flex items-center gap-2 mb-2">
             <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Marketplace Health</span>
+            <span className="text-xs font-medium text-muted-foreground normal-case tracking-normal">Marketplace Health</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Link
@@ -191,8 +191,8 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
                 <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <div className="text-sm font-bold text-red-700 dark:text-red-400">{healthData.priceAlertCount}</div>
-                <div className="text-[10px] text-red-600 dark:text-red-500">Price Alerts</div>
+                <div className="text-sm font-semibold text-red-700 dark:text-red-400">{healthData.priceAlertCount}</div>
+                <div className="text-xs text-red-600 dark:text-red-500">Price Alerts</div>
               </div>
             </Link>
 
@@ -204,8 +204,8 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
                 <TrendingDown className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
-                <div className="text-sm font-bold text-amber-700 dark:text-amber-400">{healthData.lowMarginCount}</div>
-                <div className="text-[10px] text-amber-600 dark:text-amber-500">Low Margin</div>
+                <div className="text-sm font-semibold text-amber-700 dark:text-amber-400">{healthData.lowMarginCount}</div>
+                <div className="text-xs text-amber-600 dark:text-amber-500">Low Margin</div>
               </div>
             </Link>
 
@@ -217,8 +217,8 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
                 <DollarSign className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <div className="text-sm font-bold text-red-700 dark:text-red-400">{formatCurrency(healthData.revenueLeakage)}</div>
-                <div className="text-[10px] text-red-600 dark:text-red-500">Revenue Leakage</div>
+                <div className="text-sm font-semibold text-red-700 dark:text-red-400">{formatCurrency(healthData.revenueLeakage)}</div>
+                <div className="text-xs text-red-600 dark:text-red-500">Revenue Leakage</div>
               </div>
             </Link>
 
@@ -230,8 +230,8 @@ export function MarketplaceOverview({ listings }: MarketplaceOverviewProps) {
                 <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{healthData.opportunityCount}</div>
-                <div className="text-[10px] text-emerald-600 dark:text-emerald-500">Opportunities</div>
+                <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{healthData.opportunityCount}</div>
+                <div className="text-xs text-emerald-600 dark:text-emerald-500">Opportunities</div>
               </div>
             </Link>
           </div>

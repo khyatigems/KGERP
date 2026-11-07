@@ -13,11 +13,11 @@ interface EmptyStateProps {
 }
 
 const iconMap: Record<string, React.ReactNode> = {
-  table: <Table2 className="h-10 w-10 text-muted-foreground/60" />,
-  search: <Search className="h-10 w-10 text-muted-foreground/60" />,
-  cart: <ShoppingCart className="h-10 w-10 text-muted-foreground/60" />,
-  data: <BarChart3 className="h-10 w-10 text-muted-foreground/60" />,
-  default: <Package className="h-10 w-10 text-muted-foreground/60" />,
+  table: <Table2 className="h-6 w-6 text-muted-foreground/60" />,
+  search: <Search className="h-6 w-6 text-muted-foreground/60" />,
+  cart: <ShoppingCart className="h-6 w-6 text-muted-foreground/60" />,
+  data: <BarChart3 className="h-6 w-6 text-muted-foreground/60" />,
+  default: <Package className="h-6 w-6 text-muted-foreground/60" />,
 };
 
 const titleMap: Record<string, string> = {
@@ -51,12 +51,11 @@ export function EmptyState({
   return (
     <div className={cn("flex flex-col items-center justify-center py-16 px-4 text-center sass-enter", className)}>
       <div className="relative mb-4">
-        <div className="absolute inset-0 bg-muted/50 rounded-full blur-xl animate-breathe" />
-        <div className="relative z-10 flex h-20 w-20 items-center justify-center rounded-2xl border border-dashed bg-card text-muted-foreground transition-all duration-300 hover:border-primary/30 hover:text-primary/70">
+        <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl border border-dashed bg-card text-muted-foreground ">
           {resolvedIcon}
         </div>
       </div>
-      <h3 className="text-lg font-semibold text-foreground mb-1">
+      <h3 className="text-lg font-medium text-foreground mb-1">
         {resolvedTitle}
       </h3>
       <p className="text-sm text-muted-foreground max-w-sm mb-6">

@@ -48,7 +48,7 @@ export function MarketplaceSyncHealth() {
   if (platforms.length === 0 && pending === 0 && critical === 0) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 sass-enter gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 sass-enter ">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-500 dark:text-purple-400">
@@ -63,7 +63,7 @@ export function MarketplaceSyncHealth() {
         </div>
         <Link
           href="/marketplace-control-center"
-          className="text-[11px] text-muted-foreground hover:text-primary transition-colors"
+          className="text-xs text-muted-foreground hover:text-primary transition-colors"
         >
           View all
         </Link>
@@ -98,13 +98,13 @@ export function MarketplaceSyncHealth() {
                 <div className="h-1.5 rounded-full bg-border overflow-hidden">
                   <div
                     className={cn(
-                      "h-full rounded-full transition-all duration-500",
+                      "h-full rounded-full transition-[color,background-color,border-color,opacity,transform] duration-500",
                       isCritical ? "bg-red-500" : isWarning ? "bg-amber-500" : "bg-emerald-500"
                     )}
                     style={{ width: `${syncPercent}%` }}
                   />
                 </div>
-                <div className="flex items-center gap-3 mt-1.5 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3 text-emerald-500/50" /> {platform.successful ?? 0}
                   </span>
@@ -136,7 +136,7 @@ export function MarketplaceSyncHealth() {
                 : `${pending} pending conflict${pending > 1 ? "s" : ""}`}
             </span>
           </div>
-          <Link href="/marketplace-conflicts" className="text-[11px] text-primary hover:underline">
+          <Link href="/marketplace-conflicts" className="text-xs text-primary hover:underline">
             Resolve
           </Link>
         </div>

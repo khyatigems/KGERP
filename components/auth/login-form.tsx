@@ -71,7 +71,7 @@ export function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="w-full space-y-5">
       {error && (
-        <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200 shadow-[0_0_20px_rgba(239,68,68,0.12)]">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -80,7 +80,7 @@ export function LoginForm() {
         <div>
           <label
             htmlFor="email"
-            className="mb-2 block text-sm font-medium text-slate-200"
+            className="mb-2 block text-sm font-medium text-foreground"
           >
             Email address
           </label>
@@ -92,14 +92,14 @@ export function LoginForm() {
             autoComplete="email"
             required
             placeholder="name@khyatigems.com"
-            className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 text-base text-white placeholder:text-slate-400 shadow-inner shadow-slate-950/30 transition-all duration-200 focus:border-[#D9BC7A]/70 focus:ring-2 focus:ring-[#D9BC7A]/20"
+            className="h-12 w-full rounded-lg border border-input bg-background text-base text-foreground placeholder:text-muted-foreground transition-colors focus-visible:ring-ring"
           />
         </div>
 
         <div>
           <label
             htmlFor="password"
-            className="mb-2 block text-sm font-medium text-slate-200"
+            className="mb-2 block text-sm font-medium text-foreground"
           >
             Password
           </label>
@@ -112,11 +112,11 @@ export function LoginForm() {
               autoComplete="current-password"
               required
               placeholder="Enter your password"
-              className="h-12 w-full rounded-2xl border border-white/10 bg-white/5 pr-12 text-base text-white placeholder:text-slate-400 shadow-inner shadow-slate-950/30 transition-all duration-200 focus:border-[#D9BC7A]/70 focus:ring-2 focus:ring-[#D9BC7A]/20"
+              className="h-12 w-full rounded-lg border border-input bg-background pr-12 text-base text-foreground placeholder:text-muted-foreground transition-colors focus-visible:ring-ring"
             />
             <button
               type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
@@ -131,10 +131,10 @@ export function LoginForm() {
       </div>
 
       {(otpRequired || useRecovery) && <div className="space-y-3">
-        <p role="status" className="text-sm text-slate-200">{useRecovery ? "Enter a saved recovery code for your account." : method === "authenticator" ? "Open your authenticator app and enter the current KhyatiGems ERP code for this account. No email code was sent." : `A verification code was sent to ${recipient}. It expires in 5 minutes.`}</p>
-        <label htmlFor="login-verification" className="block text-sm text-slate-200">{useRecovery ? "Recovery code" : method === "authenticator" ? "Authenticator code" : "Email verification code"}</label>
-        <Input id="login-verification" required autoComplete={useRecovery ? "off" : "one-time-code"} inputMode={useRecovery ? "text" : "numeric"} maxLength={useRecovery ? 24 : 6} pattern={useRecovery ? "[a-fA-F0-9]{24}" : "[0-9]{6}"} value={useRecovery ? recoveryCode : otp} onChange={e => useRecovery ? setRecoveryCode(e.target.value.trim()) : setOtp(e.target.value.replace(/\D/g, ""))} className="h-12 border-white/20 bg-white/5 text-white" />
-        {!useRecovery && emailAvailable && <button type="button" disabled={loading} className="text-sm text-[#E8D6A5] underline disabled:opacity-50" onClick={async e => {
+        <p role="status" className="text-sm text-foreground">{useRecovery ? "Enter a saved recovery code for your account." : method === "authenticator" ? "Open your authenticator app and enter the current KhyatiGems ERP code for this account. No email code was sent." : `A verification code was sent to ${recipient}. It expires in 5 minutes.`}</p>
+        <label htmlFor="login-verification" className="block text-sm text-foreground">{useRecovery ? "Recovery code" : method === "authenticator" ? "Authenticator code" : "Email verification code"}</label>
+        <Input id="login-verification" required autoComplete={useRecovery ? "off" : "one-time-code"} inputMode={useRecovery ? "text" : "numeric"} maxLength={useRecovery ? 24 : 6} pattern={useRecovery ? "[a-fA-F0-9]{24}" : "[0-9]{6}"} value={useRecovery ? recoveryCode : otp} onChange={e => useRecovery ? setRecoveryCode(e.target.value.trim()) : setOtp(e.target.value.replace(/\D/g, ""))} className="h-12 border-input bg-background text-foreground" />
+        {!useRecovery && emailAvailable && <button type="button" disabled={loading} className="text-sm text-primary underline disabled:opacity-50" onClick={async e => {
           const form = e.currentTarget.form;
           if (!form) return;
           const data = new FormData(form); setLoading(true); setError("");
@@ -142,16 +142,16 @@ export function LoginForm() {
           catch (error) { setError(error instanceof Error ? error.message : "Could not resend code."); }
           finally { setLoading(false); }
         }}>{method === "authenticator" ? "Send an email code instead" : "Resend email code (wait 60 seconds)"}</button>}
-        {!useRecovery && method === "email" && authenticatorAvailable && <button type="button" disabled={loading} className="block text-sm text-[#E8D6A5] underline" onClick={() => { setMethod("authenticator"); setOtp(""); setError(""); }}>Use authenticator app instead</button>}
-        <button type="button" disabled={loading} className="block text-sm text-slate-300 underline" onClick={() => { setOtpRequired(false); setUseRecovery(false); setOtp(""); setRecoveryCode(""); setError(""); }}>Back to password</button>
+        {!useRecovery && method === "email" && authenticatorAvailable && <button type="button" disabled={loading} className="block text-sm text-primary underline" onClick={() => { setMethod("authenticator"); setOtp(""); setError(""); }}>Use authenticator app instead</button>}
+        <button type="button" disabled={loading} className="block text-sm text-muted-foreground underline" onClick={() => { setOtpRequired(false); setUseRecovery(false); setOtp(""); setRecoveryCode(""); setError(""); }}>Back to password</button>
       </div>}
 
       <div className="flex items-center justify-between gap-3">
-        <label className="flex cursor-pointer items-center gap-2 select-none text-sm text-slate-300">
+        <label className="flex cursor-pointer items-center gap-2 select-none text-sm text-muted-foreground">
           <input
             type="checkbox"
             name="rememberMe"
-            className="h-4 w-4 rounded border-white/30 bg-transparent accent-[#D9BC7A]"
+            className="h-4 w-4 rounded border-input bg-background accent-primary"
           />
           Remember me
         </label>
@@ -160,7 +160,7 @@ export function LoginForm() {
           type="button"
           disabled={loading}
           onClick={() => { setUseRecovery(!useRecovery); setOtpRequired(false); setOtp(""); setRecoveryCode(""); setError(""); }}
-          className="text-sm font-medium text-[#E8D6A5] transition-colors hover:text-[#F6E7BF]"
+          className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
         >
           {useRecovery ? "Use verification code" : "Use a recovery code"}
         </button>
@@ -169,7 +169,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-[#D9BC7A] via-[#F1D89C] to-[#B8964F] text-base font-semibold text-[#1A1408] shadow-[0_20px_40px_rgba(217,188,122,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-primary text-base font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? (
           <span className="flex items-center justify-center gap-2">

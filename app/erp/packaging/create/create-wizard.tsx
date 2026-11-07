@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { VirtualList } from "@/components/ui/virtual-list";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Search, Printer, ShoppingCart, Trash2, Eye, RefreshCw, Box } from "lucide-react";
 import { toast } from "@/lib/erp-feedback";
@@ -400,20 +400,21 @@ export function CreatePackagingWizard() {
   };
 
   return (
-    <div className="h-[calc(100vh-220px)] min-h-125 flex flex-col lg:flex-row gap-6">
+    <div className="min-w-0 flex flex-col gap-6 lg:h-[calc(100dvh-220px)] lg:min-h-125 lg:flex-row">
       
       {/* Left Panel: Inventory Selection */}
-      <div className="flex-1 flex flex-col min-h-0 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="flex min-h-0 min-w-0 flex-col space-y-4 h-[520px] lg:h-auto lg:flex-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold tracking-tight">Select Inventory</h2>
-          <div className="flex items-center gap-2">
-            <div className="relative">
+          <div className="flex min-w-0 w-full items-center gap-2 sm:w-auto">
+            <div className="relative min-w-0 flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search SKU or Name..." 
+                placeholder="Search SKU or name..."
+                aria-label="Search packaging inventory"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-8 w-64 h-9"
+                className="pl-8 w-full sm:w-64 h-9"
               />
             </div>
             <Button size="sm" variant="outline" onClick={() => refreshInventory(search, 1)}>
@@ -478,8 +479,8 @@ export function CreatePackagingWizard() {
       </div>
 
       {/* Right Panel: Batch / Cart */}
-      <div className="w-full lg:w-95 flex flex-col min-h-0 space-y-4">
-        <div className="flex items-center justify-between h-9">
+      <div className="flex h-[480px] min-h-0 min-w-0 w-full flex-col space-y-4 lg:h-auto lg:w-95">
+        <div className="flex min-h-9 flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />
             Packaging Batch
@@ -491,19 +492,14 @@ export function CreatePackagingWizard() {
         </div>
 
         <Card className="flex-1 min-h-0 flex flex-col border-muted shadow-sm overflow-hidden">
-          <ScrollArea className="flex-1 p-3">
-            {cartItems.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-3 opacity-60">
+          <VirtualList items={cartItems} getKey={item => item.inventoryId} label="Packaging batch items" empty={<div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-3 opacity-60">
                 <Box className="h-10 w-10" />
                 <div className="text-center">
                   <p className="text-sm font-medium">Batch is empty</p>
                   <p className="text-xs">Add items from the left to start</p>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {cartItems.map((item, idx) => (
-                  <div key={idx} className="group flex items-start justify-between p-3 rounded-md border bg-card hover:border-primary/50 transition-colors">
+              </div>} renderItem={item => (
+                  <div className="group flex items-start justify-between p-3 rounded-md border bg-card hover:border-primary/50 transition-colors">
                     <div className="space-y-1 min-w-0 flex-1 mr-2">
                       <div className="font-mono text-xs font-medium text-foreground/80">{item.inventory?.sku}</div>
                       <div className="text-sm font-medium truncate" title={item.inventory?.itemName}>{item.inventory?.itemName}</div>
@@ -522,15 +518,13 @@ export function CreatePackagingWizard() {
                       variant="ghost" 
                       size="icon" 
                       className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 -mr-1"
+                      aria-label={`Remove ${item.inventory?.sku || "item"} from batch`}
                       onClick={() => handleRemoveFromCart(item.inventoryId)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+          )} />
           <div className="p-4 border-t bg-muted/10 space-y-3">
              <div className="flex items-center justify-between text-sm px-1">
                 <span className="text-muted-foreground">Total Labels:</span>

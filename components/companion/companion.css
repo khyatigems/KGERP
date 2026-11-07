@@ -1,6 +1,22 @@
 .facet-art { width: 100%; height: 100%; overflow: visible; }
-html[data-companion-on=true] [data-sonner-toast]:not(.erp-marketplace-sync-toast) { display: none !important; }
+.khyra-panel {
+  --background: #fffaf3; --foreground: #432259; --popover: #fffaf3; --popover-foreground: #432259;
+  --primary: #70418e; --primary-foreground: #fff9ed; --muted: #efe4f5; --muted-foreground: #765e82;
+  --border: #d8c1dd; --input: #d8c1dd; --accent: #eadcf3; --accent-foreground: #432259;
+  color: var(--foreground); background: linear-gradient(145deg, #fffefb, #fff9ed 74%, #f5ecfb); border-color: #b99b69;
+}
+html.dark .khyra-panel {
+  --background: #302039; --foreground: #fff3ff; --popover: #382443; --popover-foreground: #fff3ff;
+  --primary: #bb8bd3; --primary-foreground: #25122e; --muted: #493153; --muted-foreground: #dfcce6;
+  --border: #705479; --input: #705479; --accent: #51355f; --accent-foreground: #fff3ff;
+  background: linear-gradient(145deg, #3d294c, #2e1e38 78%, #3b2844); border-color: #a58860;
+}
+.khyra-panel > header { background: var(--popover); border-color: var(--border); }
+/* Visible native fallbacks sit above the default dock, rather than covering Khyra. */
+html[data-companion-on=true] [data-sonner-toaster][data-y-position=bottom] { bottom: max(176px, env(safe-area-inset-bottom)) !important; }
 .facet-feedback { --feedback-accent: var(--primary); overflow-wrap: anywhere; min-width: 0; }
+.facet-feedback .erp-feedback-card { width: 100%; max-width: 100%; min-width: 0; padding: 0; border: 0; box-shadow: none; background: transparent; }
+.facet-feedback .erp-feedback-header { min-width: 0; }
 .facet-feedback > div > * { max-width: 100%; }
 .facet-feedback .erp-feedback-card { width: 100%; padding: 0; border: 0; box-shadow: none; border-radius: 0; background: transparent; }
 .facet-speech-bubble {
@@ -41,15 +57,15 @@ html.dark .facet-speech-bubble { --bubble-paper: #fff4d9; --bubble-ink: #3b3228;
 }
 .facet-speech-bubble[data-side="below"]::after { top: -11px; bottom: auto; transform: rotate(225deg); }
 .facet-speech-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 3px; }
-.facet-speech-speaker { font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; color: var(--bubble-muted); }
+.facet-speech-speaker { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--bubble-muted); }
 .facet-speech-close { display: grid; place-items: center; flex: none; width: 28px; height: 28px; margin: -4px -8px 0 0; border-radius: 50%; color: var(--bubble-muted); cursor: pointer; }
 .facet-speech-close:hover { background: color-mix(in srgb, var(--bubble-ink) 9%, transparent); color: var(--bubble-ink); }
 .facet-speech-title { max-height: 110px; overflow-y: auto; font-size: 15px; line-height: 1.45; font-weight: 700; letter-spacing: -.015em; }
 .facet-speech-message { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: 6px; font-size: 12px; line-height: 1.6; color: var(--bubble-muted); }
 .facet-speech-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
-.facet-speech-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 10px; border: 1px solid var(--bubble-ink); border-radius: 9px; background: var(--bubble-ink); color: var(--bubble-paper); font-size: 11px; font-weight: 650; cursor: pointer; transition: background 150ms ease; }
+.facet-speech-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 10px; border: 1px solid var(--bubble-ink); border-radius: 9px; background: var(--bubble-ink); color: var(--bubble-paper); font-size: 12px; font-weight: 650; cursor: pointer; transition: background 150ms ease; }
 .facet-speech-action:hover { background: color-mix(in srgb, var(--bubble-ink) 85%, var(--bubble-paper)); }
-.facet-speech-count { font-size: 11px; font-weight: 600; color: var(--bubble-muted); }
+.facet-speech-count { font-size: 12px; font-weight: 600; color: var(--bubble-muted); }
 .facet-speech-close:focus-visible, .facet-speech-action:focus-visible { outline: 2px solid var(--bubble-ink); outline-offset: 3px; }
 .companion-motion .facet-speech-bubble { animation: facet-speech-pop 240ms cubic-bezier(.2, .8, .3, 1); }
 @keyframes facet-speech-pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
@@ -78,3 +94,87 @@ html.dark .facet-speech-bubble { --bubble-paper: #fff4d9; --bubble-ink: #3b3228;
 @keyframes facet-rest { 0%, 100% { transform: translateY(3px) rotate(-3deg); } 50% { transform: translateY(4px) rotate(-1deg) scale(.99); } }
 @keyframes facet-dream { 0%, 100% { opacity: .25; transform: translateY(2px); } 50% { opacity: .6; transform: translateY(-2px); } }
 @media (prefers-reduced-motion: reduce) { .facet-art *, .facet-speech-bubble { animation: none !important; } }
+
+/* KhyatiGems conversational palette; preserve the existing dock and tail geometry. */
+.facet-speech-bubble {
+  --bubble-paper: #fffbf2;
+  --bubble-ink: #4d2869;
+  --bubble-muted: #715d7b;
+  border-color: #bd9b63;
+  box-shadow: 0 12px 32px #31164b26, 0 2px 6px #31164b12;
+}
+html.dark .facet-speech-bubble { --bubble-paper: #302139; --bubble-ink: #f7ebff; --bubble-muted: #ddcce7; }
+.facet-speech-bubble::after { border-color: #bd9b63; }
+.facet-speech-speaker { display: inline-flex; align-items: center; gap: 6px; }
+.facet-speaking-dot { width: 6px; height: 6px; border-radius: 50%; background: #b88b3f; }
+.companion-motion .facet-speaking-dot { animation: facet-speaking 1.2s ease-in-out 3; }
+@keyframes facet-speaking { 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .facet-speaking-dot { animation: none !important; } }
+
+.facet-official-art { width: 100%; height: 100%; object-fit: contain; user-select: none; }
+.facet-thinking-clip { flex: none; width: 80px; aspect-ratio: 9 / 16; overflow: hidden; border: 1px solid #bd9b6366; border-radius: 16px; background: #b8a391; }
+.facet-thinking-clip video, .facet-thinking-clip img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.facet-thinking-review { display: flex; align-items: center; gap: 16px; padding: 12px; margin-top: 12px; border-radius: 18px; background: color-mix(in srgb, var(--primary) 5%, var(--background)); }
+.companion-motion .facet-official-art[data-state="greeting"],
+.companion-motion .facet-official-art[data-state="success"] { animation: facet-avatar-response 650ms ease-out; }
+@keyframes facet-avatar-response { 45% { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .facet-official-art { animation: none !important; } }
+
+/* Khyra's character-led conversation surface. Geometry is shared with the dock. */
+.khyra-speech {
+  --bubble-paper: #fffcf6;
+  --bubble-ink: #432259;
+  --bubble-muted: #776582;
+  width: min(336px, calc(100vw - 24px));
+  padding: 17px 18px 16px;
+  border: 1px solid #d8bb85;
+  border-radius: 26px 26px 13px 26px;
+  background: linear-gradient(145deg, #fffefb, #fff9ed 74%, #f5ecfb);
+  box-shadow: 0 18px 52px #32154424, 0 3px 10px #3215440c, inset 0 1px 0 #ffffff;
+}
+html.dark .khyra-speech { --bubble-paper: #32203e; --bubble-ink: #fff3ff; --bubble-muted: #dfcce6; background: linear-gradient(145deg, #3d294c, #2e1e38 78%, #3b2844); border-color: #a58860; box-shadow: 0 18px 52px #12081966, inset 0 1px 0 #ffffff0d; }
+.khyra-speech::after { border-width: 1px; border-color: #d8bb85; bottom: -10px; background: var(--bubble-paper); }
+.khyra-speech[data-side="below"]::after { top: -10px; }
+.khyra-speech .facet-speech-header { gap: 11px; margin: 0 0 11px; align-items: center; }
+.khyra-speaker-portrait { flex: none; width: 51px; height: 51px; border-radius: 16px; background: #eadcf3; border: 1px solid #dfcaeb; overflow: hidden; }
+html.dark .khyra-speaker-portrait { background: #5c3b6e; border-color: #805b91; }
+.khyra-speaker-portrait img { transform: scale(1.06); transform-origin: center bottom; }
+.khyra-speaker-identity { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.khyra-speech .facet-speech-speaker { color: var(--bubble-ink); font-size: 15px; font-weight: 700; letter-spacing: -.02em; gap: 7px; }
+.khyra-speaker-caption { color: var(--bubble-muted); font-size: 10px; line-height: 1.4; }
+.khyra-speech .facet-speech-close { margin: 0 -5px 0 0; width: 32px; height: 32px; align-self: flex-start; }
+.khyra-speech-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--bubble-muted); font-size: 10px; margin-bottom: 8px; }
+.khyra-speech-meta > span { padding: 3px 8px; border-radius: 20px; background: #7250870d; border: 1px solid #8f6ba31a; }
+.khyra-speech-meta time { align-self: center; font-variant-numeric: tabular-nums; }
+.khyra-speech-body { max-height: max(48px, calc(var(--bubble-max-height, 320px) - 194px)); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #c2a2d1 transparent; border-radius: 4px; }
+.khyra-speech-body:focus-visible { outline: 2px solid #9673ab; outline-offset: 4px; }
+.khyra-speech .facet-speech-title { max-height: none; overflow: visible; font-size: 14px; line-height: 1.45; font-weight: 650; color: var(--bubble-ink); letter-spacing: -.015em; }
+.khyra-speech .facet-speech-message { display: block; overflow: visible; margin-top: 7px; font-size: 14px; line-height: 1.65; color: var(--bubble-muted); }
+.khyra-speech[data-intro="true"] .facet-speech-title { font-size: 18px; line-height: 1.4; }
+.khyra-speech .facet-speech-footer { gap: 8px; margin-top: 15px; padding-top: 12px; border-top: 1px solid #bd9b6329; }
+.khyra-speech .facet-speech-action { min-height: 38px; padding: 8px 13px; border: 1px solid #6d4586; border-radius: 12px; background: #583173; color: #fff7eb; box-shadow: 0 3px 8px #4e285c1a, inset 0 1px 0 #ffffff1a; font-size: 11px; }
+.khyra-speech .facet-speech-action:hover { background: #6c418a; }
+.khyra-snooze-action { display: inline-flex; align-items: center; gap: 5px; min-height: 38px; padding: 7px 8px; border-radius: 10px; color: var(--bubble-muted); font-size: 11px; cursor: pointer; }
+.khyra-snooze-action:hover { background: #8f6ba312; color: var(--bubble-ink); }
+.khyra-snooze-action:focus-visible { outline: 2px solid #9673ab; outline-offset: 2px; }
+.khyra-speech .facet-speech-count { margin-left: auto; font-size: 10px; font-weight: 500; }
+.khyra-speech[data-tone="success"] .facet-speaking-dot { background: #458370; }
+.khyra-speech[data-tone="warning"] .facet-speaking-dot, .khyra-speech[data-tone="attention"] .facet-speaking-dot { background: #bd843b; }
+.khyra-speech[data-tone="critical"] .facet-speaking-dot { background: #b54c62; }
+.khyra-pose-preview { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: 18px; padding: 10px; background: color-mix(in srgb, var(--primary) 5%, var(--background)); }
+.khyra-pose-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.khyra-pose-grid button { min-width: 0; border: 1px solid var(--border); border-radius: 12px; padding: 6px 3px; background: var(--background); font-size: 9px; line-height: 1.35; }
+.khyra-pose-grid button[aria-pressed="true"] { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 9%, var(--background)); }
+.khyra-pose-grid button:hover { background: var(--muted); }
+.khyra-pose-grid button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.khyra-pose-grid .khyra-pose-thumbnail { width: 55px; height: 55px; margin: auto; }
+@media (prefers-reduced-motion: reduce) { .khyra-speech, .khyra-speech * { animation: none !important; transition: none !important; } }
+
+.khyra-speech[data-intro="true"] .khyra-speech-body { max-height: max(32px, calc(var(--bubble-max-height, 320px) - 165px)); }
+.khyra-speech[data-density="compact"] { padding: 12px 14px; border-radius: 21px 21px 10px 21px; }
+.khyra-speech[data-density="compact"] .khyra-speaker-portrait { width: 36px; height: 36px; border-radius: 11px; }
+.khyra-speech[data-density="compact"] .facet-speech-header { margin-bottom: 8px; }
+.khyra-speech[data-density="compact"] .khyra-speaker-caption, .khyra-speech[data-density="compact"] .khyra-speech-meta { display: none; }
+.khyra-speech[data-density="compact"] .khyra-speech-body { max-height: max(32px, calc(var(--bubble-max-height, 250px) - 132px)); }
+.khyra-speech[data-density="compact"] .facet-speech-footer { margin-top: 9px; padding-top: 8px; }
+.khyra-speech[data-density="compact"] .facet-speech-action, .khyra-speech[data-density="compact"] .khyra-snooze-action { min-height: 32px; padding-top: 6px; padding-bottom: 6px; }

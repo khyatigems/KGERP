@@ -32,8 +32,8 @@ export function MarketplaceStatWidget() {
               <AlertTriangle className="h-4 w-4 text-orange-500" />
             </div>
             <div>
-              <div className="text-lg font-bold text-orange-500">{pending}</div>
-              <div className="text-[10px] text-muted-foreground leading-tight">Pending</div>
+              <div className="text-lg font-semibold text-orange-500">{pending}</div>
+              <div className="text-xs text-muted-foreground leading-tight">Pending</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -41,8 +41,8 @@ export function MarketplaceStatWidget() {
               <AlertTriangle className="h-4 w-4 text-red-600" />
             </div>
             <div>
-              <div className="text-lg font-bold text-red-600">{critical}</div>
-              <div className="text-[10px] text-muted-foreground leading-tight">Critical</div>
+              <div className="text-lg font-semibold text-red-600">{critical}</div>
+              <div className="text-xs text-muted-foreground leading-tight">Critical</div>
             </div>
           </div>
         </div>

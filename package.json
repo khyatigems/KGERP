@@ -20,6 +20,8 @@
     "test:passkeys": "tsx scripts/tests/passkeys.integration.ts && tsx scripts/tests/passkeys.integration.ts --libsql && node scripts/tests/passkeys.ui.mjs",
     "test:security": "tsx scripts/tests/security-activity.unit.ts && tsx scripts/tests/authenticator.unit.ts && tsx scripts/tests/authenticator-qr.unit.ts && tsx scripts/tests/authenticator-libsql.integration.ts && tsx scripts/tests/security-email.unit.ts && tsx scripts/tests/security-login.integration.ts && node scripts/tests/security-settings.ui.mjs && node scripts/tests/authenticator.ui.mjs && node scripts/tests/security-email-layout.mjs",
     "test:dashboard:mobile": "node scripts/tests/mobile-dashboard.ui.mjs",
+    "test:design": "node scripts/tests/unslop-design.ui.mjs",
+    "test:experience": "node scripts/tests/experience-enhancements.ui.mjs",
     "test:appearance": "tsx scripts/tests/workspace-appearance.unit.ts && node scripts/tests/workspace-appearance.ui.mjs",
     "test:attention:unit": "tsx scripts/tests/attention-visibility.unit.ts",
     "test:attention:integration": "tsx scripts/tests/attention-visibility.integration.ts",
@@ -73,8 +75,11 @@
     "test:weekly-reports:ui": "tsx scripts/tests/weekly-report.ui.ts",
     "test:notifications": "tsx scripts/tests/notifications.integration.ts",
     "test:feedback": "tsx scripts/tests/erp-feedback.unit.tsx && node scripts/tests/erp-feedback.ui.mjs",
-    "test:companion": "tsx scripts/tests/companion.unit.ts && tsx scripts/tests/companion-visibility.unit.ts && node scripts/tests/companion.persistence.mjs && node scripts/tests/companion.ui.mjs",
-    "test:notes": "tsx scripts/tests/notes.integration.ts && node scripts/tests/notes.ui.mjs"
+    "test:companion:assets": "tsx scripts/tests/companion-assets.unit.ts && node scripts/tests/companion-assets.ui.mjs",
+    "test:companion": "tsx scripts/tests/companion.unit.ts && tsx scripts/tests/companion-policy.unit.ts && tsx scripts/tests/companion-visibility.unit.ts && node scripts/tests/companion.persistence.mjs && node scripts/tests/companion.ui.mjs && npm run test:companion:assets",
+    "test:notes": "tsx scripts/tests/notes.integration.ts && node scripts/tests/notes.ui.mjs",
+    "build:khyra-library": "tsx scripts/build-khyra-library.ts",
+    "test:khyra": "tsx scripts/tests/khyra-library.unit.ts && npm run test:companion && npm run test:notifications"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -101,6 +106,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@sparticuz/chromium": "149.0.0",
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.26",
     "@vercel/speed-insights": "^2.0.0",
     "canvas": "^3.2.1",
     "class-variance-authority": "^0.7.1",

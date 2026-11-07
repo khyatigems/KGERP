@@ -1,20 +1,21 @@
 "use client";
 
+import { feedbackEventKey } from "@/lib/business-event-identity";
 import { useEffect, useRef, useState } from "react";
 import { toast, useSonner, type ToastT } from "sonner";
-import { COMPANION_TOASTER_ID, setCompanionActive } from "@/lib/companion-runtime";
+import { companionOperationMetadata, COMPANION_TOASTER_ID, setCompanionActive } from "@/lib/companion-runtime";
 
-export type CompanionFeedback = ToastT & { receivedAt: string; read: boolean; revision: number };
+export type CompanionFeedback = ToastT & { eventKey?: string; receivedAt: string; read: boolean; revision: number };
 let retained: { userId: string; items: CompanionFeedback[] } | null = null;
-export function useCompanionFeedback(userId: string) {
+export function useCompanionFeedback(userId: string, presentationEnabled = true) {
   const { toasts } = useSonner();
   const [history, setHistory] = useState<CompanionFeedback[]>(() => retained?.userId === userId ? retained.items : []);
   useEffect(() => { retained = { userId, items: history }; }, [userId, history]);
   const revision = useRef(0);
   useEffect(() => {
     const existing = toast.getToasts().filter((item): item is ToastT => !("dismiss" in item));
-    setHistory(current => [...existing.slice(-100).reverse().map(item => ({ ...item, receivedAt: new Date().toISOString(), read: false, revision: ++revision.current })), ...current.filter(item => !existing.some(active => active.id === item.id))].slice(0, 100));
-    setCompanionActive(true);
+    setHistory(current => [...existing.slice(-100).reverse().map(item => ({ ...item, ...companionOperationMetadata(item.id), eventKey: feedbackEventKey(item.id), receivedAt: new Date().toISOString(), read: false, revision: ++revision.current })), ...current.filter(item => !existing.some(active => active.id === item.id))].slice(0, 100));
+
     document.documentElement.dataset.companionOn = "true";
     return () => {
       setCompanionActive(false);
@@ -24,6 +25,10 @@ export function useCompanionFeedback(userId: string) {
       });
     };
   }, []);
+  useEffect(() => {
+    setCompanionActive(presentationEnabled);
+    return () => setCompanionActive(false);
+  }, [presentationEnabled]);
   const seen = useRef(new Map<string | number, ToastT>());
   useEffect(() => {
     const activeIds = new Set(toasts.map(item => item.id));
@@ -34,7 +39,7 @@ export function useCompanionFeedback(userId: string) {
     updates.forEach(item => seen.current.set(item.id, item));
     setHistory(current => {
       const ids = new Set(updates.map(item => item.id));
-      return [...updates.map(item => ({ ...item, receivedAt: new Date().toISOString(), read: false, revision: ++revision.current })), ...current.filter(item => !ids.has(item.id)).map(item => removed.has(item.id) ? { ...item, read: true } : item)].slice(0, 100);
+      return [...updates.map(item => ({ ...item, ...companionOperationMetadata(item.id), eventKey: feedbackEventKey(item.id), receivedAt: new Date().toISOString(), read: false, revision: ++revision.current })), ...current.filter(item => !ids.has(item.id))].slice(0, 100);
     });
     // Sonner's unmounted companion toaster has no automatic expiry timer.
     // Explicitly retire overflow records while preserving promise/loading updates.

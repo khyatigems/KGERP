@@ -77,7 +77,7 @@ export function ActivityFeed() {
   if (error) return null;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 h-full flex flex-col sass-enter gem-fade-in">
+    <div className="rounded-xl border border-border bg-card p-5 h-full flex flex-col sass-enter ">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -90,7 +90,7 @@ export function ActivityFeed() {
         </div>
         <Link
           href="/activity-log"
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
         >
           View All <ArrowRight className="h-3 w-3" />
         </Link>
@@ -112,17 +112,17 @@ export function ActivityFeed() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className={`inline-flex items-center rounded px-1 py-0.5 text-[9px] font-medium uppercase ${actionColor}`}>
+                    <span className={`inline-flex items-center rounded px-1 py-0.5 text-xs font-medium normal-case ${actionColor}`}>
                       {activity.actionType?.replaceAll("_", " ") || "ACTIVITY"}
                     </span>
                     <span className="text-xs font-medium text-foreground truncate">
                       {activity.entityType}
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
                     {activity.entityIdentifier}
                   </p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                  <p className="text-xs text-muted-foreground/60 mt-0.5">
                     {(activity.userName && activity.userName !== "Unknown" ? activity.userName : "System")} &middot; {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
                   </p>
                 </div>
@@ -137,7 +137,7 @@ export function ActivityFeed() {
       {sortedActions.length > 0 && (
         <div className="mt-3 pt-3 border-t border-border">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Activity Breakdown</span>
+            <span className="text-xs font-medium text-muted-foreground normal-case tracking-normal">Activity Breakdown</span>
             <span className="text-xs text-muted-foreground">{totalStats} events &middot; 30d</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -149,7 +149,7 @@ export function ActivityFeed() {
                   <div className={cn("h-2 w-2 rounded-full shrink-0", barColor)} />
                   <span className="text-xs text-muted-foreground">{action}</span>
                   <span className="text-xs font-semibold text-foreground ml-auto">{count}</span>
-                  <span className="text-[10px] text-muted-foreground/60 w-8 text-right">{widthPct}%</span>
+                  <span className="text-xs text-muted-foreground/60 w-8 text-right">{widthPct}%</span>
                 </div>
               );
             })}

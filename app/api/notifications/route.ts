@@ -1,3 +1,5 @@
+import { khyraSavedDialogue } from "@/lib/khyra/live";
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -32,14 +34,27 @@ export async function handleNotificationsGet(request: NextRequest, identify: Ide
   try {
     await ensureNotificationSchema();
     await backfillRecentActivityNotifications(userId);
+    const q = (request.nextUrl.searchParams.get("q") || "").trim().slice(0, 200);
+    const state = request.nextUrl.searchParams.get("state");
+    const severity = request.nextUrl.searchParams.get("severity");
+    const category = request.nextUrl.searchParams.get("category");
+    const conditions: Prisma.NotificationWhereInput[] = [{ userId }];
+    if (q) conditions.push({ OR: [{ title: { contains: q } }, { message: { contains: q } }, { eventKey: { contains: q } }] });
+    if (state === "unread") conditions.push({ readAt: null });
+    if (state === "acknowledged") conditions.push({ acknowledgedAt: { not: null } });
+    if (state === "resolved") conditions.push({ resolvedAt: { not: null } });
+    if (state === "attention") conditions.push({ type: { in: ["warning", "error"] }, resolvedAt: null });
+    if (severity && ["info", "success", "warning", "error"].includes(severity)) conditions.push({ type: severity });
+    if (category && ["marketplace-sync", "report-export", "inventory", "sale", "purchase", "quotation"].includes(category)) conditions.push(category === "sale" ? { OR: [{ eventKey: { startsWith: "sale" } }, { eventKey: { startsWith: "invoice" } }] } : { eventKey: { startsWith: category } });
+    if (cursor) conditions.push({ OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] });
     const [rows, unreadCount] = await Promise.all([
-      prisma.notification.findMany({ where: { userId, ...(cursor ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] } : {}) }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: cursor ? 0 : offset, take: limit + 1 }),
+      prisma.notification.findMany({ where: { AND: conditions }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: cursor ? 0 : offset, take: limit + 1 }),
       prisma.notification.count({ where: { userId, readAt: null } }),
     ]);
     const canRetryMarketplaceSync = await checkUserPermission(userId, PERMISSIONS.SETTINGS_MANAGE).catch(() => false);
     const items = rows.slice(0, limit);
     const last = items.at(-1);
-    return NextResponse.json({ items, hasMore: rows.length > limit, nextCursor: last ? JSON.stringify({ id: last.id, createdAt: last.createdAt.toISOString() }) : null, unreadCount, canRetryMarketplaceSync });
+    return NextResponse.json({ items: items.map(item => ({ ...item, dialogue: khyraSavedDialogue(item) })), hasMore: rows.length > limit, nextCursor: last ? JSON.stringify({ id: last.id, createdAt: last.createdAt.toISOString() }) : null, unreadCount, canRetryMarketplaceSync });
   } catch {
     return NextResponse.json({ error: "Notifications are temporarily unavailable" }, { status: 503 });
   }
@@ -48,15 +63,28 @@ export async function handleNotificationsGet(request: NextRequest, identify: Ide
 export async function handleNotificationsPatch(request: NextRequest, identify: IdentifyUser = auth) {
   const userId = await currentUserId(identify);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await request.json().catch(() => null) as { id?: string; all?: boolean } | null;
+  const body = await request.json().catch(() => null) as { id?: string; ids?: string[]; all?: boolean; action?: string; minutes?: number } | null;
   try {
     await ensureNotificationSchema();
-    if (body?.all === true) {
-      await prisma.notification.updateMany({ where: { userId, readAt: null }, data: { readAt: new Date() } });
-    } else if (typeof body?.id === "string" && body.id.length < 100) {
-      await prisma.notification.updateMany({ where: { id: body.id, userId, readAt: null }, data: { readAt: new Date() } });
+    if (!body || typeof body !== "object" || Array.isArray(body) || (body.all !== undefined && typeof body.all !== "boolean")) return NextResponse.json({ error: "Invalid review request" }, { status: 400 });
+    const action = body.action ?? "read";
+    if (!["read", "acknowledge", "snooze"].includes(action)) return NextResponse.json({ error: "Unsupported review action" }, { status: 400 });
+    const ids = body?.ids;
+    if (ids !== undefined && (!Array.isArray(ids) || !ids.length || ids.length > 100 || ids.some(id => typeof id !== "string" || !id || id.length > 100))) return NextResponse.json({ error: "Invalid notification selection" }, { status: 400 });
+    if (!body?.all && !ids && (typeof body?.id !== "string" || !body.id || body.id.length > 100)) return NextResponse.json({ error: "A notification id or all=true is required" }, { status: 400 });
+    if (body?.all && action !== "read") return NextResponse.json({ error: "Select notifications for this action" }, { status: 400 });
+    const now = new Date();
+    const where: Prisma.NotificationWhereInput = { userId, ...(body?.all ? {} : { id: ids ? { in: ids } : body!.id }) };
+    if (action === "read") {
+      await prisma.notification.updateMany({ where: { ...where, readAt: null }, data: { readAt: now } });
+    } else if (action === "acknowledge") {
+      await prisma.$transaction([
+        prisma.notification.updateMany({ where: { ...where, readAt: null }, data: { readAt: now } }),
+        prisma.notification.updateMany({ where: { ...where, acknowledgedAt: null }, data: { acknowledgedAt: now } }),
+      ]);
     } else {
-      return NextResponse.json({ error: "A notification id or all=true is required" }, { status: 400 });
+      if (!Number.isInteger(body?.minutes) || body!.minutes! < 1 || body!.minutes! > 10080) return NextResponse.json({ error: "Snooze must be between 1 minute and 7 days" }, { status: 400 });
+      await prisma.notification.updateMany({ where, data: { snoozedUntil: new Date(now.getTime() + body!.minutes! * 60000) } });
     }
     return NextResponse.json({ success: true });
   } catch {

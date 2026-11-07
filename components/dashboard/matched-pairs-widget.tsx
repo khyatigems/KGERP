@@ -64,7 +64,7 @@ function ScoreRing({ score, size = 36 }: { score: number; size?: number }) {
           strokeDasharray={circumference} strokeDashoffset={offset}
           className={config.bg} strokeLinecap="round" />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-foreground">
+      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-foreground">
         {score}
       </span>
     </div>
@@ -192,9 +192,9 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
           </div>
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MatchedPairTab)}>
             <TabsList className="bg-muted p-0.5 rounded-md h-auto">
-              <TabsTrigger value="ALL" className="text-[10px] px-2 py-0.5 h-auto">All</TabsTrigger>
-              <TabsTrigger value="PAIR" className="text-[10px] px-2 py-0.5 h-auto">Pairs</TabsTrigger>
-              <TabsTrigger value="SET_3" className="text-[10px] px-2 py-0.5 h-auto">3+</TabsTrigger>
+              <TabsTrigger value="ALL" className="text-xs px-2 py-0.5 h-auto">All</TabsTrigger>
+              <TabsTrigger value="PAIR" className="text-xs px-2 py-0.5 h-auto">Pairs</TabsTrigger>
+              <TabsTrigger value="SET_3" className="text-xs px-2 py-0.5 h-auto">3+</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -209,8 +209,8 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
                 <Layers className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-lg font-bold leading-tight">{summary.totalPairs + summary.totalSets}</p>
-                <p className="text-[10px] text-muted-foreground">Total Matches</p>
+                <p className="text-lg font-semibold leading-tight">{summary.totalPairs + summary.totalSets}</p>
+                <p className="text-xs text-muted-foreground">Total Matches</p>
               </div>
             </div>
             <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-br from-emerald-500/8 to-emerald-500/2 border border-emerald-500/10">
@@ -218,8 +218,8 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
                 <Gem className="h-4 w-4 text-emerald-500" />
               </div>
               <div>
-                <p className="text-lg font-bold leading-tight">{summary.totalPairs}</p>
-                <p className="text-[10px] text-muted-foreground">Pairs</p>
+                <p className="text-lg font-semibold leading-tight">{summary.totalPairs}</p>
+                <p className="text-xs text-muted-foreground">Pairs</p>
               </div>
             </div>
             <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-br from-blue-500/8 to-blue-500/2 border border-blue-500/10">
@@ -227,8 +227,8 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
                 <Package className="h-4 w-4 text-blue-500" />
               </div>
               <div>
-                <p className="text-lg font-bold leading-tight">{summary.totalSets}</p>
-                <p className="text-[10px] text-muted-foreground">Sets</p>
+                <p className="text-lg font-semibold leading-tight">{summary.totalSets}</p>
+                <p className="text-xs text-muted-foreground">Sets</p>
               </div>
             </div>
             <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gradient-to-br from-amber-500/8 to-amber-500/2 border border-amber-500/10">
@@ -236,8 +236,8 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
                 <TrendingUp className="h-4 w-4 text-amber-500" />
               </div>
               <div>
-                <p className="text-lg font-bold leading-tight">{formatCurrency(totalValue)}</p>
-                <p className="text-[10px] text-muted-foreground">Potential Value</p>
+                <p className="text-lg font-semibold leading-tight">{formatCurrency(totalValue)}</p>
+                <p className="text-xs text-muted-foreground">Potential Value</p>
               </div>
             </div>
           </div>
@@ -249,24 +249,24 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
             <div className="flex h-2 rounded-full overflow-hidden bg-muted/50">
               {summary.excellentPairs > 0 && (
                 <div
-                  className="bg-emerald-500 transition-all duration-500"
+                  className="bg-emerald-500 transition-[color,background-color,border-color,opacity,transform] duration-500"
                   style={{ width: `${(summary.excellentPairs / (summary.excellentPairs + summary.goodPairs + summary.possibleMatches)) * 100}%` }}
                 />
               )}
               {summary.goodPairs > 0 && (
                 <div
-                  className="bg-blue-500 transition-all duration-500"
+                  className="bg-blue-500 transition-[color,background-color,border-color,opacity,transform] duration-500"
                   style={{ width: `${(summary.goodPairs / (summary.excellentPairs + summary.goodPairs + summary.possibleMatches)) * 100}%` }}
                 />
               )}
               {summary.possibleMatches > 0 && (
                 <div
-                  className="bg-amber-500 transition-all duration-500"
+                  className="bg-amber-500 transition-[color,background-color,border-color,opacity,transform] duration-500"
                   style={{ width: `${(summary.possibleMatches / (summary.excellentPairs + summary.goodPairs + summary.possibleMatches)) * 100}%` }}
                 />
               )}
             </div>
-            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 {summary.excellentPairs} Excellent
@@ -305,7 +305,7 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
               return (
                 <div
                   key={item.id}
-                  className="group relative flex items-center gap-3 p-3 rounded-xl border border-border/50 hover:border-primary/20 hover:bg-muted/30 cursor-pointer transition-all duration-200"
+                  className="group relative flex items-center gap-3 p-3 rounded-xl border border-border/50 hover:border-primary/20 hover:bg-muted/30 cursor-pointer transition-[color,background-color,border-color,opacity,transform] duration-200"
                   onClick={() => setSelectedItem(item)}
                 >
                   {/* Gem Thumbnails */}
@@ -320,7 +320,7 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
                       />
                     ))}
                     {item.items.length > 2 && (
-                      <span className="ml-1 text-[10px] text-muted-foreground font-medium">
+                      <span className="ml-1 text-xs text-muted-foreground font-medium">
                         +{item.items.length - 2}
                       </span>
                     )}
@@ -329,12 +329,12 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 font-medium", config.border, config.color)}>
+                      <Badge variant="outline" className={cn("text-xs px-1.5 py-0 font-medium", config.border, config.color)}>
                         {typeLabel}
                       </Badge>
-                      <span className="text-[10px] text-muted-foreground truncate">{skus}</span>
+                      <span className="text-xs text-muted-foreground truncate">{skus}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground truncate">{specs}</p>
+                    <p className="text-xs text-muted-foreground truncate">{specs}</p>
                   </div>
 
                   {/* Score + Value */}
@@ -375,7 +375,7 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
               return (
                 <div
                   key={item.id}
-                  className="group relative p-3 rounded-xl border border-border/50 hover:border-primary/20 hover:bg-muted/30 cursor-pointer transition-all duration-200"
+                  className="group relative p-3 rounded-xl border border-border/50 hover:border-primary/20 hover:bg-muted/30 cursor-pointer transition-[color,background-color,border-color,opacity,transform] duration-200"
                   onClick={() => setSelectedItem(item)}
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
@@ -391,7 +391,7 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
                         />
                       ))}
                       {item.items.length > 3 && (
-                        <span className="ml-1 text-[10px] text-muted-foreground font-medium">
+                        <span className="ml-1 text-xs text-muted-foreground font-medium">
                           +{item.items.length - 3}
                         </span>
                       )}
@@ -401,14 +401,14 @@ export function MatchedPairsWidget({ size = "default" }: { size?: string }) {
 
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 font-medium", config.border, config.color)}>
+                      <Badge variant="outline" className={cn("text-xs px-1.5 py-0 font-medium", config.border, config.color)}>
                         {typeLabel}
                       </Badge>
                     </div>
-                    <p className="text-[11px] font-medium text-foreground leading-tight line-clamp-1">
+                    <p className="text-xs font-medium text-foreground leading-tight line-clamp-1">
                       {item.items.map(i => i.sku).join(" + ")}
                     </p>
-                    <p className="text-[10px] text-muted-foreground line-clamp-1">
+                    <p className="text-xs text-muted-foreground line-clamp-1">
                       {item.items.map(i =>
                         [i.gemType, i.color, i.carats ? `${i.carats}ct` : null].filter(Boolean).join(" ")
                       ).join(" · ")}

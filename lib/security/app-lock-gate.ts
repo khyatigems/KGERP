@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { appLockExempt } from "./app-lock-paths";
 import { readCookie } from "./core";
-import { APP_LOCK_COOKIE, appLockState, consumeAppEntry, lockApp } from "./app-lock-store";
+import { APP_LOCK_COOKIE, appLockState, lockApp } from "./app-lock-store";
 
 export async function enforceAppLock(request: Request, user: { id: string; appSessionId?: string }) {
   const url = new URL(request.url);
@@ -14,7 +14,9 @@ export async function enforceAppLock(request: Request, user: { id: string; appSe
     const state = await appLockState(user.appSessionId, user.id, token);
     if (!state.enabled) return null;
     const documentNavigation = request.method === "GET" && (request.headers.get("sec-fetch-dest") === "document" || (!request.headers.has("rsc") && request.headers.get("accept")?.includes("text/html")));
-    if (state.unlocked && (!documentNavigation || await consumeAppEntry(user.appSessionId!, user.id, token))) return null;
+    // Table filters, refreshes, and a quick reopen are ordinary navigation while
+    // the unlock grant remains valid. Only expiration or explicit lock denies it.
+    if (state.unlocked) return null;
     if (documentNavigation) await lockApp(user.appSessionId!, user.id);
     if (url.pathname.startsWith("/api/") || request.method !== "GET" || request.headers.has("rsc")) {
       return NextResponse.json({ error: "ERP is locked. Unlock the app to continue.", code: "APP_LOCKED" }, { status: 423, headers: { "Cache-Control": "no-store" } });

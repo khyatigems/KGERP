@@ -46,11 +46,11 @@ function SyncStatus({ status, syncedAt }: { status: string | null; syncedAt: str
 
   return (
     <span className="flex flex-col items-end gap-0.5">
-      <span className={cn("inline-flex items-center gap-1 text-[10px] capitalize", failed ? "text-destructive" : running ? "text-amber-500" : status ? "text-emerald-500" : "text-muted-foreground")}>
+      <span className={cn("inline-flex items-center gap-1 text-xs capitalize", failed ? "text-destructive" : running ? "text-amber-500" : status ? "text-emerald-500" : "text-muted-foreground")}>
         <Icon className={cn("h-3 w-3", running && "animate-spin motion-reduce:animate-none")} />
         {label}
       </span>
-      <span className="text-[10px] text-muted-foreground">
+      <span className="text-xs text-muted-foreground">
         {syncedAt ? `Last sync ${formatSyncTime(syncedAt)}` : "Never synced"}
       </span>
     </span>
@@ -73,7 +73,7 @@ export function ConnectionsStatusWidget() {
         <p className="text-xs text-muted-foreground">
           {isLoading && !data ? "Checking connections..." : `${connectedShopCount} marketplace shop${connectedShopCount === 1 ? "" : "s"} connected`}
         </p>
-        <Link href="/settings/marketplace-connections" className="text-[11px] font-medium text-primary hover:underline">
+        <Link href="/settings/marketplace-connections" className="text-xs font-medium text-primary hover:underline">
           Manage
         </Link>
       </div>
@@ -92,10 +92,10 @@ export function ConnectionsStatusWidget() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium">{shop.name}</p>
-                  <p className="truncate text-[10px] text-muted-foreground">{shop.marketplace}</p>
+                  <p className="truncate text-xs text-muted-foreground">{shop.marketplace}</p>
                 </div>
                 <div className="min-w-0 text-right">
-                  <p className={cn("text-[10px] font-medium", shop.connected ? "text-emerald-500" : "text-muted-foreground")}>
+                  <p className={cn("text-xs font-medium", shop.connected ? "text-emerald-500" : "text-muted-foreground")}>
                     {shop.connected ? "Connected" : "Disconnected"}
                   </p>
                   <SyncStatus status={shop.lastSyncStatus} syncedAt={shop.lastSyncAt} />
@@ -112,7 +112,7 @@ export function ConnectionsStatusWidget() {
               </Link>
             )}
             {(data?.shops.length ?? 0) > 4 && (
-              <p className="text-right text-[10px] text-muted-foreground">+{(data?.shops.length ?? 0) - 4} more shops</p>
+              <p className="text-right text-xs text-muted-foreground">+{(data?.shops.length ?? 0) - 4} more shops</p>
             )}
           </div>
 
@@ -124,9 +124,9 @@ export function ConnectionsStatusWidget() {
               <p className="text-xs font-medium">Zoho Mail</p>
               {data?.zoho.connected
                 ? <SyncStatus status={data.zoho.lastSyncStatus} syncedAt={data.zoho.lastSyncAt} />
-                : <p className="text-[10px] text-muted-foreground">{data?.zoho.configured ? "Account not connected" : "Not configured"}</p>}
+                : <p className="text-xs text-muted-foreground">{data?.zoho.configured ? "Account not connected" : "Not configured"}</p>}
             </div>
-            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", data?.zoho.connected ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground")}>
+            <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", data?.zoho.connected ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted text-muted-foreground")}>
               {data?.zoho.connected ? "Connected" : data?.zoho.configured ? "Not connected" : "Not configured"}
             </span>
           </div>

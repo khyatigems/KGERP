@@ -57,8 +57,8 @@ export function MatchedPairCard({
   return (
     <Card
       className={cn(
-        "sass-enter overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-primary/20",
-        "gem-stagger-in",
+        "sass-enter overflow-hidden transition-[color,background-color,border-color,opacity,transform] duration-200 hover:shadow-lg hover:border-primary/20",
+        "",
         { "border-emerald-200 dark:border-emerald-800": quality === "excellent" }
       )}
       style={{ animationDelay: `${index * 60}ms` }}
@@ -100,7 +100,7 @@ export function MatchedPairCard({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className={cn(
-              "text-xs font-bold px-2 py-0.5 rounded-full",
+              "text-xs font-semibold px-2 py-0.5 rounded-full",
               getQualityColor(getMatchQuality(item.score))
             )}>
               {getQualityLabel(getMatchQuality(item.score))}
@@ -165,8 +165,8 @@ export function MatchedPairCard({
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <p className="text-xs font-medium truncate">{itemData.sku}</p>
-                <p className="text-[10px] text-muted-foreground truncate">{itemData.itemName}</p>
-                <div className="flex flex-wrap gap-1 mt-1 text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground truncate">{itemData.itemName}</p>
+                <div className="flex flex-wrap gap-1 mt-1 text-xs text-muted-foreground">
                   {itemData.gemType && <span>{itemData.gemType}</span>}
                   {itemData.color && <span>{itemData.color}</span>}
                   {itemData.shape && <span>{itemData.shape}</span>}
@@ -180,9 +180,9 @@ export function MatchedPairCard({
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t">
           <div className="flex items-center gap-4 text-sm">
             <span className="text-muted-foreground">Total Value:</span>
-            <span className="font-bold text-lg">{formatCurrency(item.totalValue)}</span>
+            <span className="font-semibold text-lg">{formatCurrency(item.totalValue)}</span>
             <span className="text-muted-foreground">Suggested:</span>
-            <span className="font-bold text-primary text-lg">{formatCurrency(item.suggestedPrice)}</span>
+            <span className="font-semibold text-primary text-lg">{formatCurrency(item.suggestedPrice)}</span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => onCreateQuotation(item)} className="gap-1">
@@ -200,7 +200,7 @@ export function MatchedPairCard({
           </div>
         </div>
 
-        <div className="mt-3 pt-3 border-t text-[10px] text-muted-foreground">
+        <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
           <div className="flex flex-wrap gap-2">
             <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-muted">
               {item.matchDetails.gemType ? "✓" : "✗"} Gem Type

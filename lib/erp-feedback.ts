@@ -1,7 +1,9 @@
 "use client";
 
+import { liveKhyraMessage, khyraFeedbackDialogue } from "@/lib/khyra/live";
 import { COMPANION_FEEDBACK_EVENT } from "@/lib/companion-events";
-import { companionToastOptions } from "@/lib/companion-runtime";
+import { associateFeedbackEvent } from "@/lib/business-event-identity";
+import { setCompanionOperationMetadata, companionToastOptions } from "@/lib/companion-runtime";
 import { createElement, type ReactNode } from "react";
 import { RichFeedbackTitle, RichFeedbackDetails, type FeedbackState } from "@/components/ui/rich-feedback";
 import { FeedbackIcon } from "@/components/ui/feedback-icon";
@@ -24,9 +26,12 @@ export function sanitizeErrorText(message: string): string {
 }
 
 function richMessage(state: FeedbackState, message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) {
-  const title = typeof message === "function" ? message() : message;
+  const originalTitle = typeof message === "function" ? message() : message;
+  const dialogue = typeof originalTitle === "string" ? khyraFeedbackDialogue(state, originalTitle, undefined, typeof options?.id === "string" ? options.id : undefined) : null;
+  const title = dialogue?.short || originalTitle;
   const description = typeof options?.description === "function" ? options.description() : options?.description;
   return {
+    dialogue,
     title: createElement(RichFeedbackTitle, { state }, state === "error" ? safeErrorMessage(title) : title),
     options: {
       // Loading stays visible until the caller updates or dismisses the operation.
@@ -39,12 +44,13 @@ function richMessage(state: FeedbackState, message: Parameters<typeof sonnerToas
 }
 
 function showRichToast(state: FeedbackState, message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) {
+  const rich = richMessage(state, message, options);
   if (typeof window !== "undefined" && ["loading", "success", "warning", "error"].includes(state)) {
     window.dispatchEvent(new CustomEvent(COMPANION_FEEDBACK_EVENT, { detail: {
-      state: state === "loading" ? "working" : state === "error" ? "warning" : state,
+      state: rich.dialogue?.expression || (state === "loading" ? "working" : state === "error" ? "warning" : state),
+      eventId: rich.dialogue?.eventId, module: rich.dialogue?.module,
     } }));
   }
-  const rich = richMessage(state, message, options);
   const show = state === "normal" ? sonnerToast.message : sonnerToast[state];
   return show(rich.title, companionToastOptions(rich.options));
 }
@@ -55,7 +61,7 @@ export const toast = Object.assign(
   sonnerToast,
   {
     // Custom operation cards provide their own accessible dismissal control.
-    custom: (render: Parameters<typeof sonnerToast.custom>[0], options?: ExternalToast) => sonnerToast.custom(render, companionToastOptions({ closeButton: false, ...options })),
+    custom: (render: Parameters<typeof sonnerToast.custom>[0], options?: ExternalToast) => sonnerToast.custom(render, { closeButton: false, ...options }),
     promise: ((promise, options) => sonnerToast.promise(promise, options ? companionToastOptions(options) : options)) as typeof sonnerToast.promise,
     success: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("success", message, options),
     error: (message: Parameters<typeof sonnerToast>[0], options?: ExternalToast) => showRichToast("error", message, options),
@@ -87,4 +93,15 @@ export function notifyAction(
 /** Keep UI errors useful without ever showing raw server exception text. */
 export function notifyFailure(message: string, options?: ExternalToast) {
   return notify("recoverable_error", message, { duration: 5_000, ...options });
+}
+
+/** Custom operation cards must provide verified lifecycle metadata explicitly. */
+export function operationFeedback(eventId: string, evidence: "started" | "success" | "failure", render: Parameters<typeof sonnerToast.custom>[0], options: ExternalToast & { id: string }) {
+  const dialogue = liveKhyraMessage(eventId, {}, { evidence });
+  if (!dialogue) return sonnerToast.custom(render, { closeButton: false, ...options });
+  if (evidence === "started") associateFeedbackEvent(options.id, `${eventId}:${crypto.randomUUID()}`);
+  const type = evidence === "started" ? "loading" : evidence === "success" ? "success" : "error";
+  setCompanionOperationMetadata(options.id, { type, title: dialogue.short, description: dialogue.friendly });
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(COMPANION_FEEDBACK_EVENT, { detail: { state: dialogue.expression, eventId, module: dialogue.module } }));
+  return sonnerToast.custom(render, companionToastOptions({ closeButton: false, ...options }));
 }

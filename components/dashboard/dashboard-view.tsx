@@ -56,12 +56,12 @@ export function DashboardView({ name }: { name?: string | null }) {
     if (!data || data.error || !data.kpis) return [] as DraggableWidgetConfig[];
     return [
       { id: "header", title: "Dashboard Header", disabled: false, defaultOrder: 0 },
-      { id: "health", title: "Business Health", defaultOrder: 1 },
+      { id: "health", title: "Business health", defaultOrder: 1 },
       { id: "marketplace-activity", title: "Marketplace & Activity", defaultOrder: 2 },
       { id: "connections-status", title: "Connections & Sync", defaultOrder: 3 },
       { id: "revenue-inventory", title: "Revenue & Inventory", defaultOrder: 4 },
       { id: "categories-workqueue", title: "Categories & Work Queue", defaultOrder: 5 },
-      { id: "notes", title: "Quick Notes", defaultOrder: 6 },
+      { id: "notes", title: "Quick notes", defaultOrder: 6 },
       { id: "matched-pairs", title: "Matched Pairs & Sets", defaultOrder: 7 },
     ];
   }, [data]);
